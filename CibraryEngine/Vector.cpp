@@ -2,6 +2,8 @@
 #include "DebugLog.h"
 #include "Serialize.h"
 
+#include "Scripting.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -197,6 +199,84 @@ namespace CibraryEngine
 		return 0;
 	}
 
+	int ba_vector_eq(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+		Vec3 b = *(Vec3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		lua_pushboolean(L, (a == b));
+		return 1;
+	}
+
+	int ba_vector_add(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+		Vec3 b = *(Vec3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaVector(L, a + b);
+		return 1;
+	}
+
+	int ba_vector_unm(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+
+		lua_settop(L, 0);
+
+		PushLuaVector(L, -a);
+		return 1;
+	}
+
+	int ba_vector_sub(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+		Vec3 b = *(Vec3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaVector(L, a - b);
+		return 1;
+	}
+
+	int ba_vector_mul(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+		float b = lua_tonumber(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaVector(L, a * b);
+		return 1;
+	}
+
+	int ba_vector_div(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+		float b = lua_tonumber(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaVector(L, a / b);
+		return 1;
+	}
+
+	int ba_vector_tostring(lua_State* L)
+	{
+		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
+
+		lua_pop(L, 1);			// pop; stack = 0 (normally)
+
+		stringstream ss;
+		ss << "[" << a.x << " " << a.y << " " << a.z << "]";
+		lua_pushstring(L, ss.str().c_str());
+
+		return 1;
+	}
+
 	int ba_createVector(lua_State* L)
 	{
 		int n = lua_gettop(L);
@@ -225,6 +305,7 @@ namespace CibraryEngine
 	void PushLuaVector(lua_State* L, Vec3 vec)
 	{
 		lua_settop(L, 0);
+
 		Vec3* ptr = (Vec3*)lua_newuserdata(L, sizeof(Vec3));			// push; top = 1
 		*ptr = vec;
 
@@ -240,6 +321,30 @@ namespace CibraryEngine
 
 			lua_pushcclosure(L, ba_vector_newindex, 0);						// push; top = 3
 			lua_setfield(L, 2, "__newindex");								// pop; top = 2
+
+			lua_pushcclosure(L, ba_vector_eq, 0);
+			lua_setfield(L, 2, "__eq");
+
+			lua_pushcclosure(L, ba_vector_add, 0);
+			lua_setfield(L, 2, "__add");
+
+			lua_pushcclosure(L, ba_vector_unm, 0);
+			lua_setfield(L, 2, "__unm");
+
+			lua_pushcclosure(L, ba_vector_sub, 0);
+			lua_setfield(L, 2, "__sub");
+
+			lua_pushcclosure(L, ba_vector_mul, 0);
+			lua_setfield(L, 2, "__mul");
+
+			lua_pushcclosure(L, ba_vector_div, 0);
+			lua_setfield(L, 2, "__div");
+
+			lua_pushcclosure(L, ba_vector_tostring, 0);
+			lua_setfield(L, 2, "__tostring");
+
+			lua_pushcclosure(L, ba_generic_concat, 0);
+			lua_setfield(L, 2, "__concat");
 
 			lua_setglobal(L, "VectorMeta");
 			lua_getglobal(L, "VectorMeta");

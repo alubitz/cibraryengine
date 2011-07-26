@@ -48,4 +48,6 @@ namespace CibraryEngine
 		static void DoMouseButtonStateCallback(int button, bool state);
 		static void DoMouseMovementCallback(int x, int y, int dx, int dy);
 	};
+
+	int ba_generic_concat(lua_State* L);
 }

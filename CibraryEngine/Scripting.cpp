@@ -26,6 +26,7 @@ namespace CibraryEngine
 			luaopen_string(state);
 			luaopen_table(state);
 			luaopen_math(state);
+			luaopen_os(state);
 //			luaopen_io(state);
 		}
 
@@ -169,7 +170,7 @@ namespace CibraryEngine
 
 	void ScriptSystem::DoMouseMovementCallback(int x, int y, int dx, int dy)
 	{
-			lua_State* L = global_state.GetLuaState();
+		lua_State* L = global_state.GetLuaState();
 		lua_settop(L, 0);
 		lua_getglobal(L, "ba");								// push; top = 1
 		lua_getfield(L, 1, "mouseMovementCallback");		// push; top = 2
@@ -223,15 +224,38 @@ namespace CibraryEngine
 	{
 		int n = lua_gettop(L);
 
-		if(n == 1 && lua_isstring(L, 1))
+		if(n == 1)
 		{
-			string str = lua_tostring(L, 1);
+			lua_getglobal(L, "tostring");
+			lua_pushvalue(L, 1);
+			lua_call(L, 1, 1);
+
+			string str = lua_tostring(L, 2);
 			Debug("[Lua] " + str + "\n");
 		}
-		else
-			Debug("Bad params for ba.println function (called from Lua)\n");
+
+		lua_settop(L, 0);
 
 		return 0;
+	}
+
+	int ba_generic_concat(lua_State* L)
+	{
+		// top = 2
+		lua_getglobal(L, "tostring");
+		lua_pushvalue(L, 1);
+		lua_call(L, 1, 1);					// top = 3
+
+		lua_getglobal(L, "tostring");
+		lua_pushvalue(L, 2);
+		lua_call(L, 1, 1);					// top = 4
+
+		lua_concat(L, 2);
+
+		lua_replace(L, 1);
+		lua_settop(L, 1);
+
+		return 1;
 	}
 
 	int ba_loadModel(lua_State* L)
