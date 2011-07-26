@@ -1,0 +1,135 @@
+#include "StaticLevelGeometry.h"
+
+#include "DSNMaterial.h"
+#include "TestGame.h"
+#include "Particle.h"
+
+namespace Test
+{
+	/*
+	 * StaticLevelGeometry methods
+	 */
+	StaticLevelGeometry::StaticLevelGeometry(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori) :
+		Entity(gs),
+		model(model),
+		materials(),
+		pos(pos),
+		ori(ori),
+		rigid_body(NULL),
+		physics(NULL)
+	{
+
+		bs = model->GetBoundingSphere();
+		bs.center += pos;
+
+		for(unsigned int i = 0; i < model->materials.size(); i++)
+		{
+			string material_name = model->materials[i];
+			DSNMaterial* mat = (DSNMaterial*)gs->content->Load<Material>(material_name);
+			materials.push_back(mat);
+		}
+	}
+
+	void StaticLevelGeometry::InnerDispose()
+	{
+		VisCleanup();
+
+		Entity::InnerDispose();
+
+		if(rigid_body != NULL)
+		{
+			rigid_body->DisposePreservingCollisionShape();
+			delete rigid_body;
+		}
+	}
+
+	void StaticLevelGeometry::Vis(SceneRenderer* renderer)
+	{
+		VisCleanup();				// just in case
+
+		if(renderer->camera->CheckSphereVisibility(bs))
+			((TestGame*)game_state)->VisUberModel(renderer, model, 0, Mat4::FromPositionAndOrientation(pos, ori), NULL, &materials);
+	}
+	void StaticLevelGeometry::VisCleanup() { }
+
+	void StaticLevelGeometry::Spawned() 
+	{
+		physics = game_state->physics_world;
+		if(model->bone_physics.size() > 0)
+		{
+			btCollisionShape* shape = model->bone_physics[0].shape;
+
+			RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo(), pos, ori);
+			rigid_body->body->setUserPointer(this);
+
+			rigid_body->body->setFriction(1.0f);
+
+			physics->AddRigidBody(rigid_body);
+			this->rigid_body = rigid_body;
+		}
+	}
+
+	void StaticLevelGeometry::DeSpawned()
+	{
+		if(model->bone_physics.size() > 0)
+			physics->RemoveRigidBody(rigid_body);
+	}
+
+	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+	{
+		ParticleMaterial* dirt_particle = ((TestGame*)game_state)->dirt_particle;
+		for (int i = 0; i < 6; i++)
+		{
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, 0.05, 1);
+			p->gravity = 9.8;
+			p->damp = 2.0;
+			p->angle = -M_PI * 0.5;
+
+			game_state->Spawn(p);
+		}
+
+		return true;
+	}
+
+
+
+
+	/*
+	 * StaticLevelGeometry table setter stuff
+	 */
+	struct StaticGeometryParams : public NamedItemDictionaryTableParser
+	{
+		string model_name;
+		Vec3 pos;
+		Quaternion ori;
+
+		Vec3Setter pos_setter;
+		QuaternionSetter ori_setter;
+
+		GameState* game;
+
+		StaticGeometryParams(string model_name, istream* stream, GameState* game) :
+			NamedItemDictionaryTableParser(stream),
+			model_name(model_name),
+			pos(),
+			ori(Quaternion::Identity()),
+			pos_setter(&pos, stream),
+			ori_setter(&ori, stream),
+			game(game)
+		{
+			field_setters["pos"] = &pos_setter;
+			field_setters["ori"] = &ori_setter;
+		}
+
+		void End()
+		{
+			ContentMan* content = game->content;
+
+			StaticLevelGeometry* geom = new StaticLevelGeometry(game, content->Load<UberModel>(model_name), pos, ori);
+			game->Spawn(geom);
+		}
+	};
+
+	StaticGeometrySetter::StaticGeometrySetter(istream* stream, GameState* game) : stream(stream), game(game) { }
+	TableParseable* StaticGeometrySetter::Set(string val) { return new StaticGeometryParams(val.substr(1, val.length() - 2), stream, game); }
+}
