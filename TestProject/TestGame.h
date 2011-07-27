@@ -78,6 +78,9 @@ namespace Test
 			TextureCube* sky_texture;
 			ShaderProgram* sky_shader;
 
+			VTNModel* sun_billboard;
+			Texture2D* sun_texture;
+
 			SoundBuffer* fire_sound;
 			SoundBuffer* chamber_click_sound;
 			SoundBuffer* reload_sound;

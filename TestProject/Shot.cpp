@@ -98,26 +98,6 @@ namespace Test
 	Damage Shot::GetDamage() { return Damage(firer, 0.09); }			// was .03 in C# version, but it took too many shots to do 1 damage
 	Vec3 Shot::GetMomentum() { return vel * mass; }
 
-	Mat3 Shot::FindOrientationZEdge(Vec3 dir)
-	{
-		Vec3 dir_n = Vec3::Normalize(dir);
-		while (true)
-		{
-			Vec3 up = Random3D::RandomNormalizedVector(1);
-			Vec3 right = Vec3::Cross(up, dir_n);
-			float magsq = right.ComputeMagnitudeSquared();
-
-			if (magsq == 0)
-				continue;
-
-			right /= sqrt(magsq);
-			up = Vec3::Cross(dir_n, right);
-
-			float values[] = { right.x, right.y, right.z, up.x, up.y, up.z, dir_n.x, dir_n.y, dir_n.z };
-			return Mat3(values);
-		}
-	}
-
 
 
 

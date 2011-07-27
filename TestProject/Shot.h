@@ -67,7 +67,5 @@ namespace Test
 				MyRayResultCallback (Shot* shot);
 				btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace);
 			};
-
-			static Mat3 FindOrientationZEdge(Vec3 dir);
 	};
 }

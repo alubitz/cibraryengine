@@ -158,6 +158,9 @@ namespace Test
 		sky_texture = content->Load<TextureCube>("sky_cubemap");
 		sky_sphere = content->Load<VTNModel>("sky_sphere");
 
+		sun_billboard = content->Load<VTNModel>("sun_billboard");
+		sun_texture = content->Load<Texture2D>("sun");
+
 		if(load_status.abort)
 		{
 			load_status.stopped = true;
@@ -274,7 +277,7 @@ namespace Test
 
 		screen->input_state->MouseMoved += &mouse_motion_handler;
 
-		sun = new Sun(Vec3(0, 2, -1), Vec3(1, 1, 1));
+		sun = new Sun(Vec3(0, 4, -2), Vec3(1, 1, 1), sun_billboard, sun_texture);
 
 		hud = new HUD(this, screen->content);
 
@@ -391,7 +394,7 @@ namespace Test
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadMatrixf(&view_t.values[0]);
-		
+
 		if(debug_draw)
 		{
 			SceneRenderer renderer(&camera);
@@ -399,6 +402,7 @@ namespace Test
 		}
 		else
 		{
+			sun->view_matrix = camera.GetViewMatrix();
 			DrawBackground(camera.GetViewMatrix().Transpose());
 
 			GLErrorDebug(__LINE__, __FILE__);
@@ -407,8 +411,6 @@ namespace Test
 
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
 				(*iter)->Vis(&renderer);
-
-			sun->view_matrix = camera.GetViewMatrix();
 
 			renderer.lights.push_back(sun);
 
@@ -459,6 +461,8 @@ namespace Test
 		glPopMatrix();
 
 		ShaderProgram::SetActiveProgram(NULL);
+
+		sun->Draw();
 
 		glDepthMask(true);			// otherwise depth testing breaks
 	}

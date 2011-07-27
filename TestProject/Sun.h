@@ -15,9 +15,17 @@ namespace Test
 			Vec3 color;
 			Mat4 view_matrix;
 
-			Sun(Vec3 position, Vec3 color);
+			float distance;
+			Mat3 rm;
+
+			VTNModel* model;
+			Texture2D* texture;
+
+			Sun(Vec3 position, Vec3 color, VTNModel* model, Texture2D* texture);
 
 			void SetLight(int which);
 			void UnsetLight(int which);
+
+			void Draw();
 	};
 }

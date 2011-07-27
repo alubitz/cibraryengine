@@ -21,7 +21,7 @@ namespace Test
 	Shot* AlienGun::CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction)
 	{
 		Vec3 vel = /*weapon_vel + */Vec3::Normalize(direction, 200);
-		Quaternion ori = Quaternion::FromRotationMatrix(Shot::FindOrientationZEdge(direction));
+		Quaternion ori = Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction));
 		return new AlienShot(game_state, shot_model, shot_material, origin, vel, ori, owner);
 	}
 };
