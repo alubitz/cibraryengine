@@ -28,20 +28,21 @@ namespace Test
 	struct GlowyModelMaterial::Imp
 	{
 		Texture* tex;
+		ShaderProgram* shader;
 		bool is_3d;
 
-		Imp(Texture2D* tex) : tex(tex), is_3d(false) { }
-		Imp(Texture3D* tex) : tex(tex), is_3d(true) { }
+		Imp(Texture2D* tex, ShaderProgram* shader) : tex(tex), shader(shader), is_3d(false) { }
+		Imp(Texture3D* tex, ShaderProgram* shader) : tex(tex), shader(shader), is_3d(true) { }
 	};
 
-	GlowyModelMaterial::GlowyModelMaterial(Texture2D* texture) : Material(3, Alpha, false), imp(new Imp(texture)) { }
-	GlowyModelMaterial::GlowyModelMaterial(Texture3D* texture) : Material(3, Alpha, false), imp(new Imp(texture)) { }
+	GlowyModelMaterial::GlowyModelMaterial(Texture2D* texture, ShaderProgram* shader) : Material(3, Alpha, false), imp(new Imp(texture, shader)) { }
+	GlowyModelMaterial::GlowyModelMaterial(Texture3D* texture, ShaderProgram* shader) : Material(3, Alpha, false), imp(new Imp(texture, shader)) { }
 
 	void GlowyModelMaterial::InnerDispose() { delete imp; imp = NULL; }
 
 	void GlowyModelMaterial::BeginDraw(SceneRenderer* renderer)
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		glDisable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
@@ -49,37 +50,27 @@ namespace Test
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_COLOR);
 
-		glDisable(GL_LIGHTING);
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 
 		if(imp->is_3d)
-		{
-			glDisable(GL_TEXTURE_2D);
-
-			glEnable(GL_TEXTURE_3D);
-			unsigned int gl_name = imp->tex->GetGLName();
-			glBindTexture(GL_TEXTURE_3D, gl_name);
-		}
+			imp->shader->SetUniform<Texture3D>("texture", (Texture3D*)imp->tex);
 		else
-		{
-			glEnable(GL_TEXTURE_2D);
-			unsigned int gl_name = imp->tex->GetGLName();
-			glBindTexture(GL_TEXTURE_2D, gl_name);
-		}
+			imp->shader->SetUniform<Texture2D>("texture", (Texture2D*)imp->tex);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		ShaderProgram::SetActiveProgram(imp->shader);
+
+		GLDEBUG();
 	}
 
 	void GlowyModelMaterial::EndDraw()
 	{
-		if (imp->is_3d)
-			glDisable(GL_TEXTURE_3D);
+		ShaderProgram::SetActiveProgram(NULL);
 
 		glDisable(GL_BLEND);
 		glDisable(GL_RESCALE_NORMAL);
 		glDepthMask(true);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 
 	void GlowyModelMaterial::Draw(RenderNode node) { ((GlowyModelMaterialNodeData*)node.data)->Draw(); }

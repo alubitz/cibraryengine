@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "Texture1D.h"
 #include "Texture2D.h"
+#include "Texture3D.h"
 #include "TextureCube.h"
 #include "Matrix.h"
 
@@ -50,6 +51,22 @@ namespace CibraryEngine
 
 			Texture2D* GetValue();
 			void SetValue(Texture2D* t);
+
+			void Disable();
+	};
+
+	class UniformTexture3D : public TypedUniformVariable<Texture3D>
+	{
+		public:
+			virtual void ApplyValue(int location);
+
+			int which;
+			Texture3D* texture;
+
+			UniformTexture3D(string name, int which);
+
+			Texture3D* GetValue();
+			void SetValue(Texture3D* t);
 
 			void Disable();
 	};

@@ -122,7 +122,7 @@ namespace CibraryEngine
 
 		glDepthMask(true);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 	void ParticleMaterial::Draw(RenderNode node) { ((ParticleMaterialNodeData*)node.data)->Execute(); }
 

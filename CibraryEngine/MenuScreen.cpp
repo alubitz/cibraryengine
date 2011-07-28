@@ -37,7 +37,7 @@ namespace CibraryEngine
 
 		void Draw(int w, int h)
 		{
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			// By overriding MenuScreen::Draw you can prevent this content from being loaded
 			if(font == NULL)
@@ -49,7 +49,7 @@ namespace CibraryEngine
 
 			glDepthMask(true);
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			ScreenSpaceOrtho(w, h);
@@ -72,7 +72,7 @@ namespace CibraryEngine
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			cursor->Draw(input_state->mx, input_state->my);
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 
 		void ScreenSpaceOrtho(int w, int h)

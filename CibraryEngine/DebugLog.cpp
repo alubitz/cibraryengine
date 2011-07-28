@@ -30,16 +30,25 @@ namespace CibraryEngine
 		int err = glGetError();
 		if(err != 0)
 		{
-			string error_string = (char*)gluErrorString(err);
-			char msg[100];
-			sprintf(msg, "%s at line %u of %s\n", error_string.c_str(), line, file.c_str());
-			Debug(msg);
+			string error_string;
+			switch(err)
+			{
+				case GL_INVALID_FRAMEBUFFER_OPERATION:
+					error_string = "GL_INVALID_FRAMEBUFFER_OPERATION";
+					break;
+				default:
+					error_string = (char*)gluErrorString(err);
+					break;
+			}
+			stringstream ss;
+			ss << error_string << " at line " << line << " of " << file << endl;
+			Debug(ss.str());
 		}
 		else if(no_error_message.length() != 0)
 		{
-			char msg[100];
-			sprintf(msg, "%s at line %u of %s\n", no_error_message.c_str(), line, file.c_str());
-			Debug(msg);
+			stringstream ss;
+			ss << no_error_message << " at line " << line << " of " << file << endl;
+			Debug(ss.str());
 		}
 	}
 }

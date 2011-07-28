@@ -26,15 +26,15 @@ namespace CibraryEngine
 	{
 		if(texture != NULL)
 		{
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glActiveTexture(GL_TEXTURE0 + which);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glEnable(GL_TEXTURE_1D);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glBindTexture(GL_TEXTURE_1D, texture->GetGLName());
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glUniform1i(location, which);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 	}
 
@@ -78,6 +78,37 @@ namespace CibraryEngine
 	}
 
 
+
+
+	/*
+	 * UniformTexture3D methods
+	 */
+	UniformTexture3D::UniformTexture3D(string name, int which) : TypedUniformVariable<Texture3D>(name), which(which), texture(NULL) { }
+
+	void UniformTexture3D::ApplyValue(int location)
+	{
+		if(texture != NULL)
+		{
+			glActiveTexture(GL_TEXTURE0 + which);
+			glEnable(GL_TEXTURE_3D);
+			glBindTexture(GL_TEXTURE_3D, texture == NULL ? 0 : texture->GetGLName());
+			glUniform1i(location, which);
+		}
+	}
+
+	Texture3D* UniformTexture3D::GetValue() { return texture; }
+	void UniformTexture3D::SetValue(Texture3D* t) { texture = t; }
+
+	void UniformTexture3D::Disable()
+	{
+		glActiveTexture(GL_TEXTURE0 + which);
+		glDisable(GL_TEXTURE_3D);
+		glActiveTexture(GL_TEXTURE0);
+	}
+
+
+
+
 	/*
 	 * UniformTextureCube methods
 	 */
@@ -87,13 +118,13 @@ namespace CibraryEngine
 	{
 		if(cubemap != NULL)
 		{
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glActiveTexture(GL_TEXTURE0 + which);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap == NULL ? 0 : cubemap->GetGLName());
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 			glUniform1i(location, which);
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 	}
 

@@ -32,8 +32,8 @@ namespace Test
 
 		public:
 
-			GlowyModelMaterial(Texture2D* texture);
-			GlowyModelMaterial(Texture3D* texture);
+			GlowyModelMaterial(Texture2D* texture, ShaderProgram* shader);
+			GlowyModelMaterial(Texture3D* texture, ShaderProgram* shader);
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();

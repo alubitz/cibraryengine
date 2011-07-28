@@ -21,14 +21,22 @@ namespace Test
 		shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		shader->AddUniform<Texture2D>(new UniformTexture2D("specular", 1));
 		shader->AddUniform<Texture2D>(new UniformTexture2D("normal_map", 2));
-		shader->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 3));
-		shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
 		shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 4));
 		shader->AddUniform<int>(new UniformInt("bone_count"));
 
-		TextureCube* ambient_cubemap = man->Load<TextureCube>("ambient_cubemap");
+		dsn_loader = new DSNLoader(man, shader, man->Load<Texture2D>("default-n"), man->Load<Texture2D>("default-s"));
 
-		dsn_loader = new DSNLoader(man, shader, man->Load<Texture2D>("default-n"), man->Load<Texture2D>("default-s"), ambient_cubemap);
+
+
+		Shader* glowy_v = man->Load<Shader>("pass-v");
+		Shader* glowy2d_f = man->Load<Shader>("glowy2d-f");
+		Shader* glowy3d_f = man->Load<Shader>("glowy3d-f");
+
+		glowy2d_shader = new ShaderProgram(glowy_v, glowy2d_f);
+		glowy2d_shader->AddUniform<Texture2D>(new UniformTexture2D("texture", 0));
+
+		glowy3d_shader = new ShaderProgram(glowy_v, glowy3d_f);
+		glowy3d_shader->AddUniform<Texture3D>(new UniformTexture3D("texture", 0));
 	}
 
 	Material* MaterialLoader::Load(ContentMetadata& what)
@@ -80,6 +88,9 @@ namespace Test
 		Material** result_out;
 		string name;
 
+		ShaderProgram* shader_2d;
+		ShaderProgram* shader_3d;
+
 		struct SpriteSheetInfo { int col_size; int row_size; int cols; int rows; int frames; SpriteSheetInfo() : frames(-1) { } } spritesheet;
 
 		IntSetter col_size;
@@ -88,11 +99,13 @@ namespace Test
 		IntSetter rows;
 		IntSetter frames;
 
-		GlowyMaterialField(istream* stream, string name, ContentMan* content, Material** result_out) :
+		GlowyMaterialField(istream* stream, string name, ContentMan* content, ShaderProgram* shader_2d, ShaderProgram* shader_3d, Material** result_out) :
 			NamedItemDictionaryTableParser(stream),
 			content(content),
 			result_out(result_out),
 			name(name),
+			shader_2d(shader_2d),
+			shader_3d(shader_3d),
 			spritesheet(),
 			col_size(&spritesheet.col_size),
 			row_size(&spritesheet.row_size),
@@ -110,9 +123,9 @@ namespace Test
 		void End()
 		{
 			if(spritesheet.frames > 0)
-				*result_out = new GlowyModelMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>(name), spritesheet.col_size, spritesheet.row_size, spritesheet.cols, spritesheet.rows, spritesheet.frames));
+				*result_out = new GlowyModelMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>(name), spritesheet.col_size, spritesheet.row_size, spritesheet.cols, spritesheet.rows, spritesheet.frames), shader_2d);
 			else
-				*result_out = new GlowyModelMaterial(content->Load<Texture2D>(name));
+				*result_out = new GlowyModelMaterial(content->Load<Texture2D>(name), shader_2d);
 		}
 	};
 
@@ -120,11 +133,15 @@ namespace Test
 	{
 		istream* stream;
 		ContentMan* content;
+
+		ShaderProgram* shader_2d;
+		ShaderProgram* shader_3d;
+
 		Material** result_out;
 
-		GlowyMaterialSetter(istream* stream, ContentMan* content, Material** result_out) : stream(stream), content(content), result_out(result_out) { }
+		GlowyMaterialSetter(istream* stream, ContentMan* content, ShaderProgram* shader_2d, ShaderProgram* shader_3d, Material** result_out) : stream(stream), content(content), shader_2d(shader_2d), shader_3d(shader_3d), result_out(result_out) { }
 
-		TableParseable* Set(string val) { return new GlowyMaterialField(stream, val.substr(1, val.length() - 2), content, result_out); }
+		TableParseable* Set(string val) { return new GlowyMaterialField(stream, val.substr(1, val.length() - 2), content, shader_2d, shader_3d, result_out); }
 	};
 
 
@@ -139,7 +156,7 @@ namespace Test
 		NamedItemDictionaryTableParser parser(&file);
 
 		DSNMaterialSetter dsn_setter(&file, dsn_loader, result_out);
-		GlowyMaterialSetter glowy_setter(&file, man, result_out);
+		GlowyMaterialSetter glowy_setter(&file, man, glowy2d_shader, glowy3d_shader, result_out);
 
 		parser.field_setters["dsn"] = &dsn_setter;
 		parser.field_setters["glowy"] = &glowy_setter;

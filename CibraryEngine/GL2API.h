@@ -75,6 +75,7 @@ GL2DECL GLvoid* (GL2ENTRY *glMapBuffer) (GLenum target, GLenum access);
 GL2DECL GLboolean (GL2ENTRY *glUnmapBuffer) (GLenum target);
 GL2DECL void (GL2ENTRY *glGetBufferParameteriv) (GLenum target, GLenum pname, GLint *params);
 GL2DECL void (GL2ENTRY *glGetBufferPointerv) (GLenum target, GLenum pname, GLvoid* *params);
+GL2DECL void (GL2ENTRY *glDrawBuffers) (GLsizei n, const GLenum *bufs);
 //---------------------------------------------------------------------------
 GL2DECL void (GL2ENTRY *glBlendColor) (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 GL2DECL void (GL2ENTRY *glBlendEquation) (GLenum mode);
@@ -105,6 +106,7 @@ inline bool GL2StartupBufferAPI()
 		GET_GL_PROC(glUnmapBuffer) &&
 		GET_GL_PROC(glGetBufferParameteriv) &&
 		GET_GL_PROC(glGetBufferPointerv) &&
+		GET_GL_PROC(glDrawBuffers) &&
 		//---------------------------------------------------------------------------
 		GET_GL_PROC(glBlendColor) &&
 		GET_GL_PROC(glBlendEquation) &&

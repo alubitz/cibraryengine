@@ -82,6 +82,10 @@ namespace Test
 		god_mode(false),
 		debug_draw(false),
 		alive(true),
+		render_target(NULL),
+		rtt_diffuse(NULL),
+		rtt_normal(NULL),
+		rtt_emission(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
 		debug_text(""),
@@ -170,6 +174,24 @@ namespace Test
 			load_status.stopped = true;
 			return;
 		}
+		load_status.task = "deferred lighting shader";
+
+		ambient_cubemap = content->Load<TextureCube>("ambient_cubemap");
+
+		Shader* ds_vertex = content->Load<Shader>("ds-v");
+		Shader* ds_fragment = content->Load<Shader>("ds-f");
+		deferred_shader = new ShaderProgram(ds_vertex, ds_fragment);
+		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
+		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
+		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("emission", 2));
+		deferred_shader->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 3));
+		deferred_shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
+
+		if(load_status.abort)
+		{
+			load_status.stopped = true;
+			return;
+		}
 		load_status.task = "soldier";
 
 		// Dood's model
@@ -218,10 +240,8 @@ namespace Test
 			model = content->Load<UberModel>("soldier");
 		}
 
-		Texture2D* mflash = content->Load<Texture2D>("mflash-d");
-		Texture2D* shot = content->Load<Texture2D>("tracer-d");
-		mflash_material = new GlowyModelMaterial(mflash);
-		shot_material = new GlowyModelMaterial(shot);
+		mflash_material = (GlowyModelMaterial*)content->Load<Material>("mflash");
+		shot_material = (GlowyModelMaterial*)content->Load<Material>("shot");
 		gun_model = content->Load<UberModel>("gun");
 		mflash_model = content->Load<VTNModel>("mflash");
 		shot_model = content->Load<VTNModel>("shot");
@@ -253,8 +273,8 @@ namespace Test
 		// loading weapon sounds
 		//fire_sound = content->Load<SoundBuffer>("SFX_mk2_fire");
 		fire_sound = content->Load<SoundBuffer>("shot");
-		chamber_click_sound = content->Load<SoundBuffer>("SFX_gun_empty");
-		reload_sound = content->Load<SoundBuffer>("SFX_mk2_reload");
+		chamber_click_sound = NULL; //content->Load<SoundBuffer>("SFX_gun_empty");
+		reload_sound = NULL; //content->Load<SoundBuffer>("SFX_mk2_reload");
 
 		// loading particle materials...
 		blood_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>("blood_splatter"), 32, 32, 4, 2, 7), Alpha);
@@ -372,13 +392,10 @@ namespace Test
 
 	void TestGame::Draw(int width_, int height_)
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		width = width_;
 		height = height_;
-
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glViewport(0, 0, width, height);
 
@@ -393,13 +410,13 @@ namespace Test
 		sound_system->SetListenerUp(camera.GetViewMatrix().TransformVec3(0, 1, 0, 0));
 		sound_system->SetListenerForward(camera.GetViewMatrix().TransformVec3(0, 0, 1, 0));
 
-		GLErrorDebug(__LINE__, __FILE__);
-
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrixf(&proj_t.values[0]);
 
 		glMatrixMode(GL_MODELVIEW);
 		glLoadMatrixf(&view_t.values[0]);
+
+		GLDEBUG();
 
 		if(debug_draw)
 		{
@@ -408,10 +425,24 @@ namespace Test
 		}
 		else
 		{
+			if(render_target == NULL || render_target->GetWidth() != width || render_target->GetHeight() != height)
+			{
+				if(render_target != NULL)
+				{
+					render_target->Dispose();
+					delete render_target;
+				}
+				render_target = new RenderTarget(width, height, 0, 3);
+			}
+			RenderTarget::Bind(render_target);
+
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			glViewport(0, 0, width, height);
+
 			sun->view_matrix = camera.GetViewMatrix();
 			DrawBackground(camera.GetViewMatrix().Transpose());
-
-			GLErrorDebug(__LINE__, __FILE__);
 
 			SceneRenderer renderer(&camera);
 
@@ -420,20 +451,93 @@ namespace Test
 
 			renderer.lights.push_back(sun);
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			renderer.Render();
 			renderer.Cleanup();
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
 				(*iter)->VisCleanup();
+
+			RenderTarget::Bind(NULL);
+
+			if(rtt_diffuse == NULL || rtt_diffuse->width < width || rtt_diffuse->height < height)
+			{
+				if(rtt_diffuse != NULL)
+				{
+					rtt_diffuse->Dispose();
+					delete rtt_diffuse;
+				}
+				if(rtt_normal != NULL)
+				{
+					rtt_normal->Dispose();
+					delete rtt_normal;
+				}
+				if(rtt_emission != NULL)
+				{
+					rtt_emission->Dispose();
+					delete rtt_emission;
+				}
+
+				int needed_w = 4;
+				int needed_h = 4;
+
+				while(needed_w < width)
+					needed_w <<= 1;
+				while(needed_h < height)
+					needed_h <<= 1;
+
+				rtt_diffuse = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+				rtt_normal = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+				rtt_emission = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+			}
+
+			render_target->GetColorBufferTex(0, rtt_diffuse->GetGLName());
+			render_target->GetColorBufferTex(1, rtt_normal->GetGLName());
+			render_target->GetColorBufferTex(2, rtt_emission->GetGLName());
+
+			glEnable(GL_TEXTURE_2D);
+			glDisable(GL_LIGHTING);
+			glDisable(GL_DEPTH_TEST);
+			glDisable(GL_CULL_FACE);
+			glDisable(GL_BLEND);
+
+			Mat4 view_matrix = renderer.camera->GetViewMatrix();
+
+			deferred_shader->SetUniform<Texture2D>("diffuse", rtt_diffuse);
+			deferred_shader->SetUniform<Texture2D>("normal", rtt_normal);
+			deferred_shader->SetUniform<Texture2D>("emission", rtt_emission);
+			deferred_shader->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
+			deferred_shader->SetUniform<Mat4>("inv_view", &view_matrix);
+			ShaderProgram::SetActiveProgram(deferred_shader);
+
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, width, 0, height, -1, 1);
+
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			glColor4f(1, 1, 1, 1);
+			glBegin(GL_QUADS);
+			glTexCoord2f(0, 0);
+			glVertex2f(0, 0);
+			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), 0);
+			glVertex2f(width, 0);
+			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), (float)(height - 1) / (rtt_diffuse->height - 1));
+			glVertex2f(width, height);
+			glTexCoord2f(0, (float)(height - 1) / (rtt_diffuse->height - 1));
+			glVertex2f(0, height);
+			glEnd();
+
+			ShaderProgram::SetActiveProgram(NULL);
 		}
 
 		hud->Draw(width, height);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
@@ -448,15 +552,13 @@ namespace Test
 		glDisable(GL_CULL_FACE);
 		glDepthMask(false);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		sky_shader->SetUniform<TextureCube>("sky_texture", sky_texture);
-		GLErrorDebug(__LINE__, __FILE__);
 		sky_shader->SetUniform<Mat4>("inv_view", &view_matrix);
-		GLErrorDebug(__LINE__, __FILE__);
 		ShaderProgram::SetActiveProgram(sky_shader);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
@@ -520,6 +622,27 @@ namespace Test
 			nav_graph->Dispose();
 			delete nav_graph;
 			nav_graph = NULL;
+		}
+
+		if(rtt_diffuse != NULL)
+		{
+			rtt_diffuse->Dispose();
+			delete rtt_diffuse;
+			rtt_diffuse = NULL;
+		}
+
+		if(rtt_normal != NULL)
+		{
+			rtt_normal->Dispose();
+			delete rtt_normal;
+			rtt_normal = NULL;
+		}
+
+		if(rtt_emission != NULL)
+		{
+			rtt_emission->Dispose();
+			delete rtt_emission;
+			rtt_emission = NULL;
 		}
 
 		GameState::InnerDispose();

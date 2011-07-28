@@ -11,7 +11,7 @@ namespace CibraryEngine
 
 	void SceneRenderer::Render()
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		// group the models by material
 		map<Material*, vector<RenderNode> > material_model_lists = map<Material*, vector<RenderNode> >();
@@ -75,7 +75,7 @@ namespace CibraryEngine
 		if(current_mat != NULL)
 			current_mat->EndDraw();
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 
 	void SceneRenderer::Cleanup()

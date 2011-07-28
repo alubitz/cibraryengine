@@ -80,9 +80,10 @@ namespace CibraryEngine
 
 		if(vertex_shader != NULL && fragment_shader != NULL)
 		{
+			GLDEBUG();
 			program_id = glCreateProgram();
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			LinkProgram();
 
@@ -99,7 +100,7 @@ namespace CibraryEngine
 			glGetShaderiv(fragment_shader->shader_id, GL_COMPILE_STATUS, &fragment_status);
 			glGetProgramiv(program_id, GL_LINK_STATUS, &program_status);
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			if (vertex_status == 0)
 			{
@@ -117,7 +118,7 @@ namespace CibraryEngine
 				program_id = 0;
 			}
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 	}
 
@@ -157,27 +158,27 @@ namespace CibraryEngine
 	ShaderProgram* active_program = NULL;
 	void ShaderProgram::SetActiveProgram(ShaderProgram* program)
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		if(active_program != NULL && program != active_program)
 		{
 			active_program->DisableUniforms();
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 
 		if(program != NULL && program->program_id != 0)
 		{
 			program->Build();
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			glUseProgram(program->program_id);
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			program->UpdateUniforms();
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			active_program = program;
 		}
@@ -198,7 +199,7 @@ namespace CibraryEngine
 
 			active_program = NULL;
 
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 		}
 	}
 

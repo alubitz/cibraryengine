@@ -17,14 +17,12 @@ namespace Test
 			ShaderProgram* shader;
 			Texture2D* default_normal;
 			Texture2D* default_specular;
-			TextureCube* ambient_cubemap;
 
-			DSNLoader(ContentMan* content, ShaderProgram* shader, Texture2D* default_normal, Texture2D* default_specular, TextureCube* ambient_cubemap) :
+			DSNLoader(ContentMan* content, ShaderProgram* shader, Texture2D* default_normal, Texture2D* default_specular) :
 				content(content),
 				shader(shader),
 				default_normal(default_normal),
-				default_specular(default_specular),
-				ambient_cubemap(ambient_cubemap)
+				default_specular(default_specular)
 			{ }
 
 			DSNMaterial* Load(string asset_name);

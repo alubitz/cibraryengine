@@ -20,13 +20,12 @@ namespace Test
 	/*
 	 * DSNMaterial methods
 	 */
-	DSNMaterial::DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, TextureCube* ambient) :
+	DSNMaterial::DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal) :
 		Material(2, Opaque, true),
 		shader(shader),
 		diffuse(diffuse),
 		specular(specular),
-		normal(normal),
-		ambient(ambient)
+		normal(normal)
 	{
 		// now would be a good time to init the default bone matrices (we have an OpenGL context, nay?)
 		if(default_bone_matrices == NULL)
@@ -43,14 +42,14 @@ namespace Test
 		scene = renderer;
 		node_data = vector<DSNMaterialNodeData*>();
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 
 	void DSNMaterial::Draw(RenderNode node) { node_data.push_back((DSNMaterialNodeData*)node.data); }
 
 	void DSNMaterial::EndDraw()
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 		glMatrixMode(GL_MODELVIEW);
 
 		glEnable(GL_CULL_FACE);
@@ -61,7 +60,7 @@ namespace Test
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 
 		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();
 		for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
@@ -75,12 +74,8 @@ namespace Test
 		shader->SetUniform<Texture2D>("diffuse", diffuse);
 		shader->SetUniform<Texture2D>("specular", specular);
 		shader->SetUniform<Texture2D>("normal_map", normal);
-		shader->SetUniform<TextureCube>("ambient_cubemap", ambient);
 
-		GLErrorDebug(__LINE__, __FILE__);
-
-		Mat4 view_matrix = scene->camera->GetViewMatrix();
-		shader->SetUniform<Mat4>("inv_view", &view_matrix);
+		GLDEBUG();
 
 		shader->SetUniform<Texture1D>("bone_matrices", default_bone_matrices);
 		int bone_count = 1;
@@ -96,7 +91,7 @@ namespace Test
 			(*iter)->SetLight(0);
 
 			glPopMatrix();
-			GLErrorDebug(__LINE__, __FILE__);
+			GLDEBUG();
 
 			for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); jter++)
 			{
@@ -108,9 +103,9 @@ namespace Test
 
 				shader->UpdateUniforms();
 
-				GLErrorDebug(__LINE__, __FILE__);
+				GLDEBUG();
 				node_data->Draw();
-				GLErrorDebug(__LINE__, __FILE__);
+				GLDEBUG();
 			}
 
 			(*iter)->UnsetLight(0);
@@ -121,7 +116,7 @@ namespace Test
 		glDepthFunc(GL_LEQUAL);
 		glDisable(GL_RESCALE_NORMAL);
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 	}
 
 	void DSNMaterial::Cleanup(RenderNode node) { delete (DSNMaterialNodeData*)node.data; }
@@ -157,7 +152,7 @@ namespace Test
 
 	void DSNMaterialNodeData::Draw()
 	{
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 		glMatrixMode(GL_MODELVIEW);
 
 		glPushMatrix();
@@ -165,7 +160,7 @@ namespace Test
 
 		model->Draw();
 
-		GLErrorDebug(__LINE__, __FILE__);
+		GLDEBUG();
 		glPopMatrix();
 	}
 }

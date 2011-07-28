@@ -79,6 +79,13 @@ namespace Test
 			TextureCube* sky_texture;
 			ShaderProgram* sky_shader;
 
+			TextureCube* ambient_cubemap;
+			RenderTarget* render_target;
+			Texture2D* rtt_diffuse;
+			Texture2D* rtt_normal;
+			Texture2D* rtt_emission;
+			ShaderProgram* deferred_shader;
+
 			VTNModel* sun_billboard;
 			Texture2D* sun_texture;
 

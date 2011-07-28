@@ -15,6 +15,10 @@ namespace CibraryEngine
 #define DEBUG() \
 	Debug(__LINE__, __FILE__)
 
+	/** Like GLErrorDebug, but with __LINE__ and __FILE__ automatically provided */
+#define GLDEBUG() \
+	GLErrorDebug(__LINE__, __FILE__)
+
 	/** If an OpenGL error has occurred, writes information to the debug log */
 	void GLErrorDebug(int line, string file);
 	/** If an OpenGL error has occurred, writes information to the debug log; otherwise, if it is not an empty string, outputs no_error_message to the debug log */

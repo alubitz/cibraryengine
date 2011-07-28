@@ -18,6 +18,6 @@ namespace Test
 		if(normal == NULL)
 			normal = default_normal;
 
-		return new DSNMaterial(shader, diffuse, specular, normal, ambient_cubemap);
+		return new DSNMaterial(shader, diffuse, specular, normal);
 	}
 }
