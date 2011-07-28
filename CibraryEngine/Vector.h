@@ -184,5 +184,6 @@ namespace CibraryEngine
 
 
 
+	void PushLuaVector(lua_State* L, Vec3 vec);
 	int ba_createVector(lua_State* L);
 }

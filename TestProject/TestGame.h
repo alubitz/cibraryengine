@@ -12,6 +12,7 @@ namespace Test
 	class DSNMaterial;
 	class GlowyModelMaterial;
 	class Sun;
+	class NavGraph;
 
 	class TestGame : public GameState
 	{
@@ -94,6 +95,8 @@ namespace Test
 			Dood* player_pawn;
 
 			string debug_text;
+
+			NavGraph* nav_graph;
 
 			struct Loader
 			{
