@@ -29,8 +29,8 @@ namespace CibraryEngine
 	unsigned int ImageIO::SaveTGA(string filename, std::vector<unsigned char>& image, int w, int h)
 	{
 		if(SOIL_save_image(filename.c_str(), SOIL_SAVE_TYPE_TGA, w, h, 4, &image[0]))
-			return 1;
-		else
 			return 0;
+		else
+			return 1;
 	}
 }
