@@ -38,30 +38,33 @@ namespace Test
 
 	void Sun::Draw()
 	{
-		glMatrixMode(GL_MODELVIEW);
+		if(texture != NULL && model != NULL)
+		{
+			glMatrixMode(GL_MODELVIEW);
 
-		glPushMatrix();
-		glLoadIdentity();
+			glPushMatrix();
+			glLoadIdentity();
 
-		Mat4 m = Mat4::FromMat3(rm) * view_matrix.Transpose();
-		Vec3 camera_pos = view_matrix.TransformVec3(0, 0, 0, 1);
-		glTranslatef(-camera_pos.x, -camera_pos.y, -camera_pos.z);
-		glMultMatrixf(&m.values[0]);
-		glTranslatef(0, 0, distance);
+			Mat4 m = Mat4::FromMat3(rm) * view_matrix.Transpose();
+			Vec3 camera_pos = view_matrix.TransformVec3(0, 0, 0, 1);
+			glTranslatef(-camera_pos.x, -camera_pos.y, -camera_pos.z);
+			glMultMatrixf(&m.values[0]);
+			glTranslatef(0, 0, distance);
 
-		glDisable(GL_DEPTH_TEST);
+			glDisable(GL_DEPTH_TEST);
 
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, texture->GetGLName());
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, texture->GetGLName());
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ONE);
 
-		glDisable(GL_LIGHTING);
-		glColor4f(1, 1, 1, 1);
+			glDisable(GL_LIGHTING);
+			glColor4f(1, 1, 1, 1);
 
-		model->GetVBO()->Draw();
+			model->GetVBO()->Draw();
 
-		glPopMatrix();
+			glPopMatrix();
+		}
 	}
 }

@@ -167,9 +167,6 @@ namespace Test
 		sky_texture = content->Load<TextureCube>("sky_cubemap");
 		sky_sphere = content->Load<VTNModel>("sky_sphere");
 
-		sun_billboard = content->Load<VTNModel>("sun_billboard");
-		sun_texture = content->Load<Texture2D>("sun");
-
 		if(load_status.abort)
 		{
 			load_status.stopped = true;
@@ -307,7 +304,7 @@ namespace Test
 
 		screen->input_state->MouseMoved += &mouse_motion_handler;
 
-		sun = new Sun(Vec3(2.4, 4, 0), Vec3(1, 1, 1), sun_billboard, sun_texture);
+		sun = new Sun(Vec3(2.4, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
 
@@ -402,7 +399,7 @@ namespace Test
 		height = height_;
 
 		glViewport(0, 0, width, height);
-		
+
 		float zoom = 2.0f;
 		float aspect_ratio = (float)width / height;
 
@@ -443,6 +440,7 @@ namespace Test
 			}
 			RenderTarget::Bind(render_target);
 
+			glDepthMask(true);
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -458,12 +456,13 @@ namespace Test
 
 			renderer.lights.push_back(sun);
 
-			GLDEBUG();
-
-			renderer.Render();
-			renderer.Cleanup();
+			renderer.BeginRender();
 
 			GLDEBUG();
+			renderer.RenderOpaque();
+			GLDEBUG();
+
+			glDepthMask(false);
 
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
 				(*iter)->VisCleanup();
@@ -532,10 +531,12 @@ namespace Test
 			ShaderProgram::SetActiveProgram(deferred_shader);
 
 			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
 			glLoadIdentity();
 			glOrtho(0, width, 0, height, -1, 1);
 
 			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
 			glLoadIdentity();
 
 			glColor4f(1, 1, 1, 1);
@@ -551,6 +552,24 @@ namespace Test
 			glEnd();
 
 			ShaderProgram::SetActiveProgram(NULL);
+
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+
+			glDepthMask(true);
+			glColorMask(false, false, false, false);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			renderer.RenderOpaque();
+
+			glColorMask(true, true, true, true);
+			GLDEBUG();
+			renderer.RenderTranslucent();
+			GLDEBUG();
+
+			renderer.Cleanup();
 		}
 
 		hud->Draw(width, height);
