@@ -78,9 +78,12 @@ namespace Test
 			font->Print("Loading...", 100, 100);
 			font->Print(test_game->load_status.task, 100, 100 + font->font_height * 2);
 
-						// draw cursor
-			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-			cursor->Draw(input_state->mx, input_state->my);
+			// draw cursor
+			if(window->IsActive())
+			{
+				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+				cursor->Draw(input_state->mx, input_state->my);
+			}
 		}
 
 		void ScreenSpaceOrtho(int w, int h)

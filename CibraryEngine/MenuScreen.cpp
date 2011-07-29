@@ -68,9 +68,12 @@ namespace CibraryEngine
 				item->Draw(w, h);
 			}
 
-			// draw cursor
-			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-			cursor->Draw(input_state->mx, input_state->my);
+			// draw cursor only when window has "mouse focus"
+			if(window->IsActive())
+			{
+				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+				cursor->Draw(input_state->mx, input_state->my);
+			}
 
 			GLDEBUG();
 		}

@@ -54,19 +54,30 @@ namespace CibraryEngine
 		int ox = mouse_rect_w / 2, oy = mouse_rect_h / 2;
 		if(x != ox || y != oy)
 		{
+			int dx, dy;
 			if(mouse_rect_valid)
 			{
-				int dx = x - ox, dy = y - oy;
-				mx = max(0, min(mouse_rect_w - 1, mx + dx));
-				my = max(0, min(mouse_rect_h - 1, my + dy));
-
-				MouseMotionEvent evt = MouseMotionEvent(mx, my, dx, dy);
-				MouseMoved(&evt);
-
-				ScriptSystem::DoMouseMovementCallback(mx, my, dx, dy);
-
-				reset_mouse = true;
+				dx = x - ox;
+				dy = y - oy;
+				mx += dx;
+				my += dy;
 			}
+			else
+			{
+				dx = dy = 0;
+				mx = x;
+				my = y;
+			}
+
+			mx = max(0, min(mouse_rect_w - 1, mx));
+			my = max(0, min(mouse_rect_h - 1, my));
+
+			MouseMotionEvent evt = MouseMotionEvent(mx, my, dx, dy);
+			MouseMoved(&evt);
+
+			ScriptSystem::DoMouseMovementCallback(mx, my, dx, dy);
+
+			reset_mouse = true;
 		}
 		else
 			reset_mouse = false;

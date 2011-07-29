@@ -53,7 +53,21 @@ namespace CibraryEngine
 			SetActive(true);
 		}
 
-		void SetActive(bool active) { this->active = active; }
+		void SetActive(bool a)
+		{
+			if(active != a)
+			{
+				ShowCursor(!a);
+				active = a;
+
+				int x, y;
+				if(GetCursorClientPos(x, y))
+				{
+					input_state->mouse_rect_valid = false;
+					input_state->SetMousePosition(x, y);
+				}
+			}
+		}
 
 		bool GetCursorClientPos(int& x, int& y)
 		{
@@ -138,7 +152,8 @@ namespace CibraryEngine
 				}
 				case WM_ACTIVATE:
 				{
-					SetActive(LOWORD(lParam) != WA_INACTIVE);
+					if(LOWORD(lParam) == WA_INACTIVE)
+						SetActive(false);
 					return 0;
 				}
 				case WM_SYSCOMMAND:
@@ -327,7 +342,7 @@ namespace CibraryEngine
 	void ProgramWindow::SetFinished() { imp->finished = true; }
 
 	bool ProgramWindow::IsActive() { return imp->active; }
-	void ProgramWindow::SetActive(bool active) { imp->SetActive(active); }
+	void ProgramWindow::SetActive(bool active) { imp->SetActive(active); ShowCursor(!active); }
 
 	bool ProgramWindow::IsFullscreen() { return imp->fullscreen; }
 
@@ -513,7 +528,7 @@ namespace CibraryEngine
 		SetForegroundWindow(window);
 		SetFocus(window);
 
-		ShowCursor(false);
+		//ShowCursor(false);
 
 		ProgramWindow* result = new ProgramWindow(new Imp(fullscreen, gl_context, device_context, window, program_instance));
 		active_windows[window] = result;
