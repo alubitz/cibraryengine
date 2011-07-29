@@ -11,10 +11,20 @@ namespace CibraryEngine
 
 	void SceneRenderer::Render()
 	{
+		BeginRender();
+
 		GLDEBUG();
 
+		RenderOpaque();
+		RenderTranslucent();
+
+		GLDEBUG();
+	}
+
+	void SceneRenderer::BeginRender()
+	{
 		// group the models by material
-		map<Material*, vector<RenderNode> > material_model_lists = map<Material*, vector<RenderNode> >();
+		material_model_lists = map<Material*, vector<RenderNode> >();
 		for(vector<RenderNode>::iterator iter = objects.begin(); iter != objects.end(); iter++)
 		{
 			RenderNode model = *iter;
@@ -22,31 +32,49 @@ namespace CibraryEngine
 				material_model_lists[model.material] = vector<RenderNode>();
 			material_model_lists[model.material].push_back(model);
 		}
-		// draw opaque stuff first
-		map<Material*, vector<RenderNode> > translucent_items = map<Material*, vector<RenderNode> >();
+
+		translucent_items = map<Material*, vector<RenderNode> >();
+		opaque_items = map<Material*, vector<RenderNode> >();
 		for(map<Material*, vector<RenderNode> >::iterator iter = material_model_lists.begin(); iter != material_model_lists.end(); iter++)
 		{
 			Material* mat = iter->first;
-			vector<RenderNode>& node_list = iter->second;
+
 			if (mat->blend_style == Opaque)
-			{
-				mat->BeginDraw(this);
-
-				for(vector<RenderNode>::iterator jter = node_list.begin(); jter != node_list.end(); jter++)
-					mat->Draw(*jter);
-
-				mat->EndDraw();
-			}
+				opaque_items[mat] = material_model_lists[mat];
 			else
 				translucent_items[mat] = material_model_lists[mat];
 		}
 
-		// now deal with translucent stuff...
-		list<RenderNode> sorted_translucent_items = list<RenderNode>();
+		sorted_translucent_items = list<RenderNode>();
 		for(map<Material*, vector<RenderNode> >::iterator iter = translucent_items.begin(); iter != translucent_items.end(); iter++)
 			sorted_translucent_items.insert(sorted_translucent_items.end(), iter->second.begin(), iter->second.end());
 
 		sorted_translucent_items.sort<RNDistanceComp>(RNDistanceComp());
+	}
+
+	void SceneRenderer::RenderOpaque()
+	{
+		GLDEBUG();
+
+		for(map<Material*, vector<RenderNode> >::iterator iter = opaque_items.begin(); iter != opaque_items.end(); iter++)
+		{
+			Material* mat = iter->first;
+			vector<RenderNode>& node_list = iter->second;
+
+			mat->BeginDraw(this);
+
+			for(vector<RenderNode>::iterator jter = node_list.begin(); jter != node_list.end(); jter++)
+				mat->Draw(*jter);
+
+			mat->EndDraw();
+		}
+
+		GLDEBUG();
+	}
+
+	void SceneRenderer::RenderTranslucent()
+	{
+		GLDEBUG();
 
 		// translucent stuff is sorted, now get to drawing it!
 		Material* current_mat = NULL;
@@ -82,5 +110,10 @@ namespace CibraryEngine
 	{
 		for(vector<RenderNode>::iterator iter = objects.begin(); iter != objects.end(); iter++)
 			iter->material->Cleanup(*iter);
+
+		material_model_lists.clear();
+		opaque_items.clear();
+		translucent_items.clear();
+		sorted_translucent_items.clear();
 	}
 }

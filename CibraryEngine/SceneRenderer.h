@@ -34,6 +34,13 @@ namespace CibraryEngine
 	/** Class which handles drawing all your render nodes */
 	class SceneRenderer
 	{
+		protected:
+
+			map<Material*, vector<RenderNode> > material_model_lists;
+			map<Material*, vector<RenderNode> > opaque_items;
+			map<Material*, vector<RenderNode> > translucent_items;
+			list<RenderNode> sorted_translucent_items;
+
 		public:
 
 			/** The camera from which this scene is being viewed */
@@ -45,11 +52,16 @@ namespace CibraryEngine
 			vector<LightSource*> lights;
 
 			/** Initializes a SceneRenderer */
-			SceneRenderer(CameraView* camera) : camera(camera), objects(), lights() { }
+			SceneRenderer(CameraView* camera) : material_model_lists(), opaque_items(), translucent_items(), sorted_translucent_items(), camera(camera), objects(), lights() { }
 			virtual ~SceneRenderer() { }
 
-			/** Renders the scene */
+			/** Renders everything in the scene */
 			virtual void Render();
+
+			virtual void BeginRender();
+			virtual void RenderOpaque();
+			virtual void RenderTranslucent();
+
 			/** Calls the cleanup functions of the various materials */
 			void Cleanup();
 	};
