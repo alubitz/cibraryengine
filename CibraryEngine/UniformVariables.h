@@ -23,6 +23,19 @@ namespace CibraryEngine
 			void SetValue(int* v);
 	};
 
+	class UniformFloat : public TypedUniformVariable<float>
+	{
+		public:
+			void ApplyValue(int location);
+
+			float value;
+
+			UniformFloat(string name);
+
+			float* GetValue();
+			void SetValue(float* v);
+	};
+
 	class UniformTexture1D : public TypedUniformVariable<Texture1D>
 	{
 		public:

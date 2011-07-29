@@ -13,7 +13,7 @@ namespace Test
 		ContentTypeHandler<Material>(man)
 	{
 		// creating shader
-		Shader* vertex_shader = man->Load<Shader>("vert-v");
+		Shader* vertex_shader = man->Load<Shader>("skel-v");
 		Shader* fragment_shader = man->Load<Shader>("normal-f");
 
 		ShaderProgram* shader = new ShaderProgram(vertex_shader, fragment_shader);

@@ -86,6 +86,7 @@ namespace Test
 		rtt_diffuse(NULL),
 		rtt_normal(NULL),
 		rtt_emission(NULL),
+		rtt_depth(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
 		debug_text(""),
@@ -184,8 +185,11 @@ namespace Test
 		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("emission", 2));
-		deferred_shader->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 3));
+		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
+		deferred_shader->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
 		deferred_shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
+		deferred_shader->AddUniform<float>(new UniformFloat("aspect_ratio"));
+		deferred_shader->AddUniform<float>(new UniformFloat("zoom"));
 
 		if(load_status.abort)
 		{
@@ -398,10 +402,13 @@ namespace Test
 		height = height_;
 
 		glViewport(0, 0, width, height);
+		
+		float zoom = 2.0f;
+		float aspect_ratio = (float)width / height;
 
 		static CameraView camera(Mat4::Identity(), 1.0f, 1.0f);
 		if(alive)
-			camera = CameraView(((Dood*)player_controller->GetControlledPawn())->GetViewMatrix(), 2.0f, (float)width / height);
+			camera = CameraView(((Dood*)player_controller->GetControlledPawn())->GetViewMatrix(), zoom, aspect_ratio);
 		Mat4 proj_t = camera.GetProjectionMatrix().Transpose();
 		Mat4 view_t = camera.GetViewMatrix().Transpose();
 
@@ -432,7 +439,7 @@ namespace Test
 					render_target->Dispose();
 					delete render_target;
 				}
-				render_target = new RenderTarget(width, height, 0, 3);
+				render_target = new RenderTarget(width, height, 0, 4);
 			}
 			RenderTarget::Bind(render_target);
 
@@ -480,6 +487,11 @@ namespace Test
 					rtt_emission->Dispose();
 					delete rtt_emission;
 				}
+				if(rtt_depth != NULL)
+				{
+					rtt_depth->Dispose();
+					delete rtt_depth;
+				}
 
 				int needed_w = 4;
 				int needed_h = 4;
@@ -492,11 +504,13 @@ namespace Test
 				rtt_diffuse = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_normal = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_emission = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+				rtt_depth = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 			}
 
 			render_target->GetColorBufferTex(0, rtt_diffuse->GetGLName());
 			render_target->GetColorBufferTex(1, rtt_normal->GetGLName());
 			render_target->GetColorBufferTex(2, rtt_emission->GetGLName());
+			render_target->GetColorBufferTex(3, rtt_depth->GetGLName());
 
 			glEnable(GL_TEXTURE_2D);
 			glDisable(GL_LIGHTING);
@@ -509,8 +523,12 @@ namespace Test
 			deferred_shader->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_shader->SetUniform<Texture2D>("normal", rtt_normal);
 			deferred_shader->SetUniform<Texture2D>("emission", rtt_emission);
+			deferred_shader->SetUniform<Texture2D>("depth", rtt_depth);
 			deferred_shader->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
 			deferred_shader->SetUniform<Mat4>("inv_view", &view_matrix);
+			deferred_shader->SetUniform<float>("aspect_ratio", &aspect_ratio);
+			deferred_shader->SetUniform<float>("zoom", &zoom);
+
 			ShaderProgram::SetActiveProgram(deferred_shader);
 
 			glMatrixMode(GL_PROJECTION);

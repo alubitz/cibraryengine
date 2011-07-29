@@ -94,7 +94,7 @@ namespace Test
 		MassInfo mass_info = MassInfo();
 		for(int i = -3; i <= 3; i++)
 			for(int j = 0; j <= 20; j++)
-				for(int k = -3; k <= 3; k++)
+				for(int k = -3; k <=	 3; k++)
 					mass_info += MassInfo(Vec3(i * 0.1, j * 0.1, k * 0.1), 0.02915451895043731778425655976676);
 		mass = mass_info.mass;
 		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
@@ -302,7 +302,7 @@ namespace Test
 			SetFloatControl(this, "pitch", desired_pitch - timestep * pitch_rate);
 		}
 
-		pitch = min((float)M_PI * 0.45f, max(-(float)M_PI * 0.45f, pitch));
+		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
 	Vec3 Dood::GetPosition()

@@ -84,6 +84,7 @@ namespace Test
 			Texture2D* rtt_diffuse;
 			Texture2D* rtt_normal;
 			Texture2D* rtt_emission;
+			Texture2D* rtt_depth;
 			ShaderProgram* deferred_shader;
 
 			VTNModel* sun_billboard;

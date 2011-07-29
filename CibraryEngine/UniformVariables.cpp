@@ -18,6 +18,19 @@ namespace CibraryEngine
 
 
 	/*
+	 * UniformFloat methods
+	 */
+	UniformFloat::UniformFloat(string name) : TypedUniformVariable<float>(name), value(0.0f) { }
+
+	void UniformFloat::ApplyValue(int location) { glUniform1f(location, value); }
+
+	float* UniformFloat::GetValue() { return &value; }
+	void UniformFloat::SetValue(float* v) { value = *v; }
+
+
+
+
+	/*
 	 * UniformTexture1D methods
 	 */
 	UniformTexture1D::UniformTexture1D(string name, int which) : TypedUniformVariable<Texture1D>(name), which(which), texture(NULL) { }
