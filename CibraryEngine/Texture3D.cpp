@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Texture3D.h"
 #include "Texture2D.h"
 
@@ -35,7 +36,7 @@ namespace CibraryEngine
 		{
 			glDisable(GL_TEXTURE_2D);
 
-			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_3D);
+			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_3D) == GL_TRUE;
 			glEnable(GL_TEXTURE_3D);
 
 			glGenTextures(1, &gl_name);

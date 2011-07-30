@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "DSNLoader.h"
 
 #include "DSNMaterial.h"

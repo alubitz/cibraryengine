@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Damage.h"
 
 namespace Test

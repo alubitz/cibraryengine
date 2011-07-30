@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "DefaultWeapon.h"
 
 #include "Shot.h"

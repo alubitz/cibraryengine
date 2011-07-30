@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Serialize.h"
 
 namespace CibraryEngine

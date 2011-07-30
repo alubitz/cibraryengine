@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Texture2D.h"
 #include "ImageIO.h"
 
@@ -34,7 +35,7 @@ namespace CibraryEngine
 	{
 		if(gl_name == 0)
 		{
-			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D);
+			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
 			glEnable(GL_TEXTURE_2D);
 
 			glGenTextures(1, &gl_name);

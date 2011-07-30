@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "ImageIO.h"
 #include "Serialize.h"
 

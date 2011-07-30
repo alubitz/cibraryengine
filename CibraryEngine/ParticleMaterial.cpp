@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "ParticleMaterial.h"
 
 #include "Texture2D.h"

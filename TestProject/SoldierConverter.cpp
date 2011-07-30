@@ -1,6 +1,6 @@
+#include "StdAfx.h"
 #include "SoldierConverter.h"
 
-#include "../CibraryEngine/CibraryEngine.h"
 #include "ConverterWhiz.h"
 
 namespace Test
@@ -11,25 +11,25 @@ namespace Test
 	void ConvertSoldier(ContentMan* content)
 	{
 		vector<BoneEntry> bones = vector<BoneEntry>();
-		bones.push_back(BoneEntry("pelvis",		"",				Vec3(0,		1,		0)));
-		bones.push_back(BoneEntry("torso 1",	"pelvis",		Vec3(0,		1.25,	0.05)));
-		bones.push_back(BoneEntry("torso 2",	"torso 1",		Vec3(0,		1.32,	0.05)));
-		bones.push_back(BoneEntry("torso 3",	"torso 2",		Vec3(0,		1.65,	0)));
-		bones.push_back(BoneEntry("head",		"torso 3",		Vec3(0,		1.7,	0.05)));
-		bones.push_back(BoneEntry("l shoulder",	"torso 3",		Vec3(0.27,	1.6,	0)));
-		bones.push_back(BoneEntry("l arm 1",	"l shoulder",	Vec3(0.33,	1.43,	0)));
-		bones.push_back(BoneEntry("l arm 2",	"l arm 1",		Vec3(0.47,	1.22,	0)));
-		bones.push_back(BoneEntry("l hand",		"l arm 2",		Vec3(0.6,	1.03,	0)));
-		bones.push_back(BoneEntry("l leg 1",	"pelvis",		Vec3(0.14,	0.88,	0)));
-		bones.push_back(BoneEntry("l leg 2",	"l leg 1",		Vec3(0.22,	0.45,	0)));
-		bones.push_back(BoneEntry("l foot",		"l leg 2",		Vec3(0.28,	0.08,	0.06)));
-		bones.push_back(BoneEntry("r shoulder",	"torso 3",		Vec3(-0.27,	1.6,	0)));
-		bones.push_back(BoneEntry("r arm 1",	"r shoulder",	Vec3(-0.33,	1.43,	0)));
-		bones.push_back(BoneEntry("r arm 2",	"r arm 1",		Vec3(-0.47,	1.22,	0)));
-		bones.push_back(BoneEntry("r hand",		"r arm 2",		Vec3(-0.6,	1.03,	0)));
-		bones.push_back(BoneEntry("r leg 1",	"pelvis",		Vec3(-0.14,	0.88,	0)));
-		bones.push_back(BoneEntry("r leg 2",	"r leg 1",		Vec3(-0.22,	0.45,	0)));
-		bones.push_back(BoneEntry("r foot",		"r leg 2",		Vec3(-0.28,	0.08,	0.06)));
+		bones.push_back(BoneEntry("pelvis",		"",				Vec3(	0,		1,		0		)));
+		bones.push_back(BoneEntry("torso 1",	"pelvis",		Vec3(	0,		1.25f,	0.05f	)));
+		bones.push_back(BoneEntry("torso 2",	"torso 1",		Vec3(	0,		1.32f,	0.05f	)));
+		bones.push_back(BoneEntry("torso 3",	"torso 2",		Vec3(	0,		1.65f,	0		)));
+		bones.push_back(BoneEntry("head",		"torso 3",		Vec3(	0,		1.7f,	0.05f	)));
+		bones.push_back(BoneEntry("l shoulder",	"torso 3",		Vec3(	0.27f,	1.6f,	0		)));
+		bones.push_back(BoneEntry("l arm 1",	"l shoulder",	Vec3(	0.33f,	1.43f,	0		)));
+		bones.push_back(BoneEntry("l arm 2",	"l arm 1",		Vec3(	0.47f,	1.22f,	0		)));
+		bones.push_back(BoneEntry("l hand",		"l arm 2",		Vec3(	0.6f,	1.03f,	0		)));
+		bones.push_back(BoneEntry("l leg 1",	"pelvis",		Vec3(	0.14f,	0.88f,	0		)));
+		bones.push_back(BoneEntry("l leg 2",	"l leg 1",		Vec3(	0.22f,	0.45f,	0		)));
+		bones.push_back(BoneEntry("l foot",		"l leg 2",		Vec3(	0.28f,	0.08f,	0.06f	)));
+		bones.push_back(BoneEntry("r shoulder",	"torso 3",		Vec3(	-0.27f,	1.6f,	0		)));
+		bones.push_back(BoneEntry("r arm 1",	"r shoulder",	Vec3(	-0.33f,	1.43f,	0		)));
+		bones.push_back(BoneEntry("r arm 2",	"r arm 1",		Vec3(	-0.47f,	1.22f,	0		)));
+		bones.push_back(BoneEntry("r hand",		"r arm 2",		Vec3(	-0.6f,	1.03f,	0		)));
+		bones.push_back(BoneEntry("r leg 1",	"pelvis",		Vec3(	-0.14f,	0.88f,	0		)));
+		bones.push_back(BoneEntry("r leg 2",	"r leg 1",		Vec3(	-0.22f,	0.45f,	0		)));
+		bones.push_back(BoneEntry("r foot",		"r leg 2",		Vec3(	-0.28f,	0.08f,	0.06f	)));
 
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
@@ -85,7 +85,7 @@ namespace Test
 					{
 						float dist_sq = (lter->x - pos).ComputeMagnitudeSquared();
 						if(dist_sq < 0.01)
-							vbwi.AddValue(bone_index, 1.0 / (dist_sq + 0.000001));
+							vbwi.AddValue(bone_index, 1.0f / (dist_sq + 0.000001f));
 					}
 				}
 
@@ -109,27 +109,27 @@ namespace Test
 	{
 		map<string, Vec3> joint_positions = map<string, Vec3>();
 
-		joint_positions["pelvis"]		= Vec3(	0.00,	1.12,	0.03);
-		joint_positions["torso 1"]		= Vec3(	0.00,	1.21,	0.02);
-		joint_positions["torso 2"]		= Vec3(	0.00,	1.28,	0.05);
-		joint_positions["torso 3"]		= Vec3(	0.00,	1.40,	0.05);
-		joint_positions["head"]			= Vec3(	0.00,	1.75,	0.03);
+		joint_positions["pelvis"]		= Vec3(	0.0f,	1.12f,	0.03f	);
+		joint_positions["torso 1"]		= Vec3(	0.0f,	1.21f,	0.02f	);
+		joint_positions["torso 2"]		= Vec3(	0.0f,	1.28f,	0.05f	);
+		joint_positions["torso 3"]		= Vec3(	0.0f,	1.40f,	0.05f	);
+		joint_positions["head"]			= Vec3(	0.0f,	1.75f,	0.03f	);
 
-		joint_positions["l shoulder"]	= Vec3(	0.19,	1.54,	0.01);
-		joint_positions["l arm 1"]		= Vec3(	0.26,	1.51,	0.01);
-		joint_positions["l arm 2"]		= Vec3(	0.39,	1.35,	0.01);
-		joint_positions["l hand"]		= Vec3(	0.52,	1.12,	0.02);
-		joint_positions["l leg 1"]		= Vec3(	0.10,	1.09,	0.02);
-		joint_positions["l leg 2"]		= Vec3(	0.19,	0.63,	-0.01);
-		joint_positions["l foot"]		= Vec3(	0.25,	0.23,	-0.03);
+		joint_positions["l shoulder"]	= Vec3(	0.19f,	1.54f,	0.01f	);
+		joint_positions["l arm 1"]		= Vec3(	0.26f,	1.51f,	0.01f	);
+		joint_positions["l arm 2"]		= Vec3(	0.39f,	1.35f,	0.01f	);
+		joint_positions["l hand"]		= Vec3(	0.52f,	1.12f,	0.02f	);
+		joint_positions["l leg 1"]		= Vec3(	0.10f,	1.09f,	0.02f	);
+		joint_positions["l leg 2"]		= Vec3(	0.19f,	0.63f,	-0.01f	);
+		joint_positions["l foot"]		= Vec3(	0.25f,	0.23f,	-0.03f	);
 
-		joint_positions["r shoulder"]	= Vec3(	-0.19,	1.54,	0.01);
-		joint_positions["r arm 1"]		= Vec3(	-0.26,	1.51,	0.01);
-		joint_positions["r arm 2"]		= Vec3(	-0.39,	1.35,	0.01);
-		joint_positions["r hand"]		= Vec3(	-0.52,	1.12,	0.02);
-		joint_positions["r leg 1"]		= Vec3(	-0.10,	1.09,	0.02);
-		joint_positions["r leg 2"]		= Vec3(	-0.19,	0.63,	-0.01);
-		joint_positions["r foot"]		= Vec3(	-0.25,	0.23,	-0.03);
+		joint_positions["r shoulder"]	= Vec3(	-0.19f,	1.54f,	0.01f	);
+		joint_positions["r arm 1"]		= Vec3(	-0.26f,	1.51f,	0.01f	);
+		joint_positions["r arm 2"]		= Vec3(	-0.39f,	1.35f,	0.01f	);
+		joint_positions["r hand"]		= Vec3(	-0.52f,	1.12f,	0.02f	);
+		joint_positions["r leg 1"]		= Vec3(	-0.10f,	1.09f,	0.02f	);
+		joint_positions["r leg 2"]		= Vec3(	-0.19f,	0.63f,	-0.01f	);
+		joint_positions["r foot"]		= Vec3(	-0.25f,	0.23f,	-0.03f	);
 
 		for(vector<Bone*>::iterator iter = skel->bones.begin(); iter != skel->bones.end(); iter++)
 		{

@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "BinaryChunk.h"
 
 #include "Serialize.h"
@@ -46,7 +47,7 @@ namespace CibraryEngine
 	void ChunkTypeIndexer::HandleChunk(BinaryChunk& chunk)
 	{
 		istringstream ss(chunk.data);
-		while(ss.tellg() < chunk.data.length())
+		while(ss.tellg() < (signed int)chunk.data.length())
 		{
 			BinaryChunk part;
 			part.Read(ss);

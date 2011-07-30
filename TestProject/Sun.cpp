@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Sun.h"
 
 #include "Shot.h"

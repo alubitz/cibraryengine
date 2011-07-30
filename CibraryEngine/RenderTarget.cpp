@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "RenderTarget.h"
 
 #include "DebugLog.h"
@@ -127,10 +128,11 @@ namespace CibraryEngine
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->my_fbo);
 
 			unsigned int n = target->my_color_buffers.size();
-			GLenum draw_buffers[n];
+			GLenum* draw_buffers = new GLenum[n];
 			for(unsigned int i = 0; i < n; i++)
 				draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 			glDrawBuffers(n, draw_buffers);
+			delete[] draw_buffers;
 		}
 		else
 		{

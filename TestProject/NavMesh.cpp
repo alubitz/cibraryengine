@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "NavMesh.h"
 
 #include "StaticLevelGeometry.h"

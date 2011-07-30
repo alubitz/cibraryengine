@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Dood.h"
 #include "TestGame.h"
 
@@ -18,24 +19,24 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	float ground_traction = 5.0, air_traction = 0.1;
-	float top_speed_forward = 7.0;							// running speed of a person can be around 5.8333[...] m/s
-	float top_speed_sideways = 5.0;
-	float jump_speed = 4.0;
-	float jump_pack_accel = 15.0;
+	float ground_traction = 5.0f, air_traction = 0.1f;
+	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	float top_speed_sideways = 5.0f;
+	float jump_speed = 4.0f;
+	float jump_pack_accel = 15.0f;
 
-	float jump_to_fly_delay = 0.3;
+	float jump_to_fly_delay = 0.3f;
 
-	float gravity = 9.8;
-	float movement_damp = 0.1;
+	float gravity = 9.8f;
+	float movement_damp = 0.1f;
 
-	float k_fric_coeff = 0.8;
+	float k_fric_coeff = 0.8f;
 	float air_spin_fix = 100;
 
-	float yaw_rate = 10, pitch_rate = 10;
+	float yaw_rate = 10.0f, pitch_rate = 10.0f;
 
-	float jump_fuel_spend_rate = 0.5, jump_fuel_refill_rate = 0.4;
-	float flying_accel = 8.0;
+	float jump_fuel_spend_rate = 0.5f, jump_fuel_refill_rate = 0.4f;
+	float flying_accel = 8.0f;
 
 
 	bool GetBoolControl(Dood* dood, string control_name);
@@ -95,7 +96,7 @@ namespace Test
 		for(int i = -3; i <= 3; i++)
 			for(int j = 0; j <= 20; j++)
 				for(int k = -3; k <=	 3; k++)
-					mass_info += MassInfo(Vec3(i * 0.1, j * 0.1, k * 0.1), 0.02915451895043731778425655976676);
+					mass_info += MassInfo(Vec3(i * 0.1f, j * 0.1f, k * 0.1f), 0.02915451895043731778425655976676f);
 		mass = mass_info.mass;
 		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
 
@@ -151,7 +152,7 @@ namespace Test
 		// collision damage!
 		float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
 		if (falling_damage_base > 0)
-			TakeDamage(Damage(this, falling_damage_base * 0.068), Vec3());						// zero-vector indicates damage came from self
+			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
 		this->vel = vel;
 
@@ -449,9 +450,9 @@ namespace Test
 
 		for (int i = 0; i < 16; i++)
 		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), blood_particle, Random3D::Rand(0.02, 0.1), 1);
-			p->gravity = 9.8;
-			p->damp = 0.2;
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), blood_particle, Random3D::Rand(0.02f, 0.1f), 1);
+			p->gravity = 9.8f;
+			p->damp = 0.2f;
 
 			game_state->Spawn(p);
 		}
@@ -846,7 +847,7 @@ namespace Test
 
 		if(PushControl(L, dood, control_name))
 			if(lua_isboolean(L, 1))
-				return lua_toboolean(L, 1);
+				return lua_toboolean(L, 1) != 0;
 
 		return false;
 	}

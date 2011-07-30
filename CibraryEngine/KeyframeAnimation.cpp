@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "KeyframeAnimation.h"
 
 #include "Serialize.h"
@@ -70,7 +71,7 @@ namespace CibraryEngine
 			{
 				Keyframe nxt = frames[cur.next];                                      // the next frame in the animation
 
-				double b_frac = current_time / cur.duration, a_frac = 1 - b_frac;                   // lerp coefficients
+				float b_frac = current_time / cur.duration, a_frac = 1 - b_frac;                   // lerp coefficients
 
 				list<string> cur_names = list<string>();
 				list<string> next_names = list<string>();

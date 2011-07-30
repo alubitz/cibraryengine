@@ -8,7 +8,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class ContentMan;
-	class ContentMetadata;
+	struct ContentMetadata;
 
 	struct ContentHandleBase
 	{

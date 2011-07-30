@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Credits.h"
 
 namespace Test

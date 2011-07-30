@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Util.h"
 
 #include "Vector.h"

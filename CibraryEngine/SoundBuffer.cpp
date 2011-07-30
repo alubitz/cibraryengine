@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "SoundBuffer.h"
 #include "SoundSystem.h"
 
@@ -46,18 +47,18 @@ namespace CibraryEngine
 			}
 			else
 			{
-				char str[100];
-				sprintf(str, "format unsupported: channels=%i, bits per sample=%i, in file \"%s\"\n", channels, bits_per_sample, filename.c_str());
-				Debug(str);
+				stringstream message;
+				message << "format unsupported: channels=" << channels << ", bits per sample=" << bits_per_sample << ", in file \"" << filename << "\"" << endl;
+				Debug(message.str());
 
 				return NULL;
 			}
 		}
 		else
 		{
-			char str[100];
-			sprintf(str, "error %u loading sound from file: \"%s\"\n", error, filename.c_str());
-			Debug(str);
+			stringstream message;
+			message << "error " << error << " loading sound from file: \"" << filename << "\"" << endl;
+			Debug(message.str());
 
 			return NULL;
 		}
@@ -70,9 +71,9 @@ namespace CibraryEngine
 
 		if(al_name == 0)
 		{
-			char str[100];
-			sprintf(str, "failure to load file: \"%s\"\n", filename.c_str());
-			Debug(str);
+			stringstream message;
+			message << "failure to load file: \"" << filename << "\"" << endl;
+			Debug(message.str());
 
 			return NULL;
 		}

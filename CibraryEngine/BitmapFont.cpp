@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "BitmapFont.h"
 #include "Texture2D.h"
 
@@ -36,12 +38,13 @@ namespace CibraryEngine
 		glListBase(first_display_list - 32 + (128 * set));
 
 		int length = text.length();
-		unsigned char vals[length];
+		unsigned char* vals = new unsigned char[length];
 
 		for (int i = 0; i < length; i++)
 			vals[i] = (unsigned char)text[i];
 
 		glCallLists(length, GL_UNSIGNED_BYTE, &vals[0]);
+		delete[] vals;
 
 		glPopMatrix();
 	}

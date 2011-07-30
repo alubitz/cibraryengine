@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 namespace Test
 {
 	using namespace CibraryEngine;
 
 	struct NavEdge;
-	struct NavGraph;
+	class NavGraph;
 
 	struct NavNode
 	{

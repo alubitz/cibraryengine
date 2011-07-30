@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Weapon.h"
 
 #include "DSNMaterial.h"

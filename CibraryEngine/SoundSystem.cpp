@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "SoundSystem.h"
 #include "SoundSource.h"
 #include "SoundBuffer.h"
@@ -59,9 +60,9 @@ namespace CibraryEngine
 			ALCenum alc_error = alcGetError(al_device);
 			if(alc_error != ALC_NO_ERROR)
 			{
-				char str[100];
-				sprintf(str, "ALC error: %i\n", alc_error);
-				Debug(str);
+				stringstream message;
+				message << "ALC error: " << alc_error << endl;
+				Debug(message.str());
 				return false;
 			}
 
@@ -172,9 +173,9 @@ namespace CibraryEngine
 		ALenum err = alGetError();
 		if (err != AL_NO_ERROR)
 		{
-			char str[100];
-			sprintf(str, "AL Error #%i at line %i of %s\n", err, line, file.c_str());
-			Debug(str);
+			stringstream message;
+			message << "AL Error #" << err << " at line " << line << " of " << file << endl;
+			Debug(message.str());
 			return true;
 		}
 		return false;

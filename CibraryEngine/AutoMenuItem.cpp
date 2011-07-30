@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "AutoMenuItem.h"
 
 namespace CibraryEngine

@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Heightfield.h"
 
 namespace Test
@@ -74,7 +75,7 @@ namespace Test
 	{
 		int verts = dim_x * dim_y;
 
-		SkinVInfo vertices[verts];
+		SkinVInfo* vertices = new SkinVInfo[verts];
 
 		int index = 0;
 
@@ -103,5 +104,7 @@ namespace Test
 				vertex_infos.push_back(vertices[i * dim_y + (j + 1)]);
 				vertex_infos.push_back(vertices[(i + 1) * dim_y + (j + 1)]);
 			}
+
+		delete[] vertices;
 	}
 }

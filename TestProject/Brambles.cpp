@@ -1,5 +1,5 @@
+#include "StdAfx.h"
 #include "Brambles.h"
-
 #include "TestGame.h"
 #include "ConverterWhiz.h"
 
@@ -84,9 +84,9 @@ namespace Test
 		node_models(node_models),
 		collision_model(collision_model)
 	{
-		float length = Random3D::Rand(0.9, 1.1);
+		float length = Random3D::Rand(0.9f, 1.1f);
 
-		v_coord = parent_vcoord + length * 0.5;
+		v_coord = parent_vcoord + length * 0.5f;
 		pos = parent_pos + up * length;
 
 		draw_xform = Mat4::FromPositionAndOrientation(pos, ori) * Mat4::Scale(scale, length, scale);
@@ -106,25 +106,25 @@ namespace Test
 	{
 		if (children.size() == 0)
 		{
-			const double arching_factor = 0.3;
-			const double narrowing_factor = 0.95;
-			const double random_factor = 0.2;
-			const double branch_angle = 0.5;
+			const float arching_factor = 0.3f;
+			const float narrowing_factor = 0.95f;
+			const float random_factor = 0.2f;
+			const float branch_angle = 0.5f;
 
-			//if (scale > 0.3)
-			if (scale > 0.35)
+			//if (scale > 0.3f)
+			if (scale > 0.35f)
 			{
 				split_ready += Random3D::Rand();
 
 				// maybe split
-				if (split_ready > 2.0)
+				if (split_ready > 2.0f)
 				{
 					int num_splits = 4;
 					for (int i = 0; i < num_splits; i++)
 					{
-						float theta = i * M_PI * 2.0 / num_splits;
+						float theta = i * M_PI * 2.0f / num_splits;
 
-						Quaternion nu_ori = Quaternion::FromPYR(cos(theta) * branch_angle, 0, sin(theta) * branch_angle) * ori;
+						Quaternion nu_ori = Quaternion::FromPYR(cosf(theta) * branch_angle, 0, sinf(theta) * branch_angle) * ori;
 
 						Vec3 up = nu_ori.ToMat3().Transpose() * Vec3(0, 1, 0);
 
@@ -224,7 +224,7 @@ namespace Test
 	VUVNTTC BrambleNode::TransformVertexInfo(Vec3 x, Vec3 n, Vec3 uvw)
 	{
 		float y = min(1.0f, max(0.0f, x.y));				// clamp lerp factor (idk, do we need this?)
-		float un_y = 1.0 - y;								// opposite fraction of lerp
+		float un_y = 1.0f - y;								// opposite fraction of lerp
 
 		// making them actually 'bend' would be quite difficult :(
 		Mat4 lerped = parent->draw_xform * un_y + draw_xform * y;

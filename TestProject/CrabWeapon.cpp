@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "CrabWeapon.h"
 
 #include "Dood.h"
@@ -30,7 +31,7 @@ namespace Test
 
 	void CrabWeapon::OwnerUpdate(TimingInfo time)
 	{
-		double timestep = time.elapsed;
+		float timestep = time.elapsed;
 
 		attack_wait -= timestep;
 
@@ -44,7 +45,7 @@ namespace Test
 
 		Mat4 mat = Mat4::FromPositionAndOrientation(owner->pos, Quaternion::FromPYR(0, owner->yaw, 0));
 
-		Vec3 damage_location = mat.TransformVec3(0, 0, 0.8, 1.0);
+		Vec3 damage_location = mat.TransformVec3(0, 0, 0.8f, 1.0f);
 
 		struct : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } qualifier;
 
@@ -64,8 +65,8 @@ namespace Test
 			if(dist > outer_r)
 				continue;
 
-			const float inner_r = 0.5;
-			const float full_damage = 0.15;
+			const float inner_r = 0.5f;
+			const float full_damage = 0.15f;
 			const float coeff = full_damage / (outer_r - inner_r);
 
 			float damage_amount = dist < inner_r ? full_damage : (outer_r - dist) * coeff;

@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "ContentMan.h"
 #include "ContentHandle.h"
 #include "ContentMetadata.h"

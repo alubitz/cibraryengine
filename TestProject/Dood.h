@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/EngineTypes.h"
+#include "StdAfx.h"
 
 #include "DSNMaterial.h"
 #include "Shootable.h"
@@ -14,7 +14,7 @@ namespace Test
 	class PoseAimingGun;
 	class WeaponEquip;
 	class WeaponIntrinsic;
-	class Damage;
+	struct Damage;
 
 	class Dood : public Pawn, public Shootable
 	{

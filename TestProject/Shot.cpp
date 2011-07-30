@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Shot.h"
 
 #include "GlowyModelMaterial.h"
@@ -23,7 +24,7 @@ namespace Test
 		draw_xform(Mat4::FromPositionAndOrientation(origin, ori)),
 		causer(firer),
 		firer(firer),
-		mass(0.2)
+		mass(0.2f)
 	{
 	}
 
@@ -38,7 +39,7 @@ namespace Test
 	{
 		if (renderer->camera->CheckSphereVisibility(bs))
 		{
-			GlowyModelMaterialNodeData* datum = new GlowyModelMaterialNodeData(model->GetVBO(), draw_xform * Mat4::Scale(0.02, 0.02, 5.0));
+			GlowyModelMaterialNodeData* datum = new GlowyModelMaterialNodeData(model->GetVBO(), draw_xform * Mat4::Scale(0.02f, 0.02f, 5.0f));
 			renderer->objects.push_back(RenderNode(material, datum, Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 		}
 	}
@@ -78,7 +79,7 @@ namespace Test
 				float fraction = callback.hits[i].time;
 				Vec3 poi = pos + (end_pos - pos) * fraction;
 				Shootable* hit = callback.hits[i].obj;
-				if(hit->GetShot(this, poi, GetMomentum()));
+				if(hit->GetShot(this, poi, GetMomentum()))
 				{
 					is_valid = false;
 					return;
@@ -95,7 +96,7 @@ namespace Test
 		bs = Sphere(pos, 10.0);
 	}
 
-	Damage Shot::GetDamage() { return Damage(firer, 0.09); }			// was .03 in C# version, but it took too many shots to do 1 damage
+	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }			// was .03 in C# version, but it took too many shots to do 1 damage
 	Vec3 Shot::GetMomentum() { return vel * mass; }
 
 

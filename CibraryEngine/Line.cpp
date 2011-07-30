@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Line.h"
 
 #include "Plane.h"

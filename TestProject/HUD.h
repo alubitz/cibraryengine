@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/EngineTypes.h"
-#include "../CibraryEngine/GraphicsTypes.h"
+#include "StdAfx.h"
 
 namespace Test
 {

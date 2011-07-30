@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "DSNMaterial.h"
 
 namespace Test

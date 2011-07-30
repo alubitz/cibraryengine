@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "UniformVariables.h"
 
 #include "DebugLog.h"

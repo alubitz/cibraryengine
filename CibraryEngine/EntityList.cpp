@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "EntityList.h"
 
 #include "Entity.h"

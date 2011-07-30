@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "GlowyModelMaterial.h"
 
 namespace Test

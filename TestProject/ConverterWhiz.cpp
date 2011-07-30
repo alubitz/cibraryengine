@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "ConverterWhiz.h"
 
 namespace Test

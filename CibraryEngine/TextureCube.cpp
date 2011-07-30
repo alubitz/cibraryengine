@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "TextureCube.h"
 
 #include "Texture2D.h"

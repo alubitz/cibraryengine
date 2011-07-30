@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 #include "Heightfield.h"
 
 #include "Shootable.h"
@@ -8,7 +8,7 @@
 namespace Test
 {
 	class DSNMaterial;
-	class DSNMaterialNodeData;
+	struct DSNMaterialNodeData;
 
 	class TerrainChunk : public Entity, public Shootable
 	{

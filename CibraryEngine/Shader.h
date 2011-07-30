@@ -82,7 +82,7 @@ namespace CibraryEngine
 			virtual void SetValue(T* t) = 0;
 	};
 
-	struct UTypeInfoComp { bool operator ()(const type_info* L , const type_info* R) { return L->before(*R); } };
+	struct UTypeInfoComp { bool operator ()(const type_info* L , const type_info* R) { return L->before(*R) != 0; } };
 
 	/** Class representing a linked shader program, which exposes the uniform variables of that shader program */
 	class ShaderProgram

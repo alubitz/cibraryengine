@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 namespace Test
 {
@@ -17,21 +17,21 @@ namespace Test
 
 		void UpdatePose(TimingInfo time)
 		{
-			SetBonePose("torso 2", Vec3(pitch * 0.4, 0, 0), Vec3(), 1.0);
-			SetBonePose("torso 3", Vec3(pitch * 0.4, 0, 0), Vec3(), 1.0);
+			SetBonePose("torso 2",		Vec3(pitch * 0.4f, 0, 0), Vec3(), 1.0f);
+			SetBonePose("torso 3",		Vec3(pitch * 0.4f, 0, 0), Vec3(), 1.0f);
 
-			SetBonePose("head", Vec3(pitch * 0.2, 0, 0), Vec3(), 1.0);
+			SetBonePose("head",			Vec3(pitch * 0.2f, 0, 0), Vec3(), 1.0f);
 
-			SetBonePose("r shoulder", Vec3(-0.75, 0.7, 0.0), Vec3(), 1.0);
-			SetBonePose("r arm 1", Vec3(-0.25, 0.0, 0.0), Vec3(), 1.0);
-			SetBonePose("r arm 2", Vec3(-0.25, 0.25, 0.0), Vec3(), 1.0);
-			SetBonePose("r hand", Vec3(-0.35, -0.56, 0.0), Vec3(), 1.0);
+			SetBonePose("r shoulder",	Vec3(	-0.75f,	0.7f,	0.0f),	Vec3(), 1.0f);
+			SetBonePose("r arm 1",		Vec3(	-0.25f,	0.0f,	0.0f),	Vec3(), 1.0f);
+			SetBonePose("r arm 2",		Vec3(	-0.25f,	0.25f,	0.0f),	Vec3(), 1.0f);
+			SetBonePose("r hand",		Vec3(	-0.35f,	-0.56f,	0.0f),	Vec3(), 1.0f);
 
 			/*
-			SetBonePose("l shoulder", Vec3(-0.75, -0.7, 0.0), Vec3(), 1.0);
-			SetBonePose("l arm 1", Vec3(-0.25, 0.0, -0.0), Vec3(), 1.0);
-			SetBonePose("l arm 2", Vec3(-0.25, -0.25, 0.0), Vec3(), 1.0);
-			SetBonePose("l hand", Vec3(-0.35, 0.56, 0.0), Vec3(), 1.0);
+			SetBonePose("l shoulder",	Vec3(	-0.75f,	-0.7f,	0.0f),	Vec3(), 1.0f);
+			SetBonePose("l arm 1",		Vec3(	-0.25f,	0.0f,	-0.0f),	Vec3(), 1.0f);
+			SetBonePose("l arm 2",		Vec3(	-0.25f,	-0.25f,	0.0f),	Vec3(), 1.0f);
+			SetBonePose("l hand",		Vec3(	-0.35f,	0.56f,	0.0f),	Vec3(), 1.0f);
 			*/
 		}
 	};

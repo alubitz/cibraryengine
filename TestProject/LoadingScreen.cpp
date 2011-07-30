@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "LoadingScreen.h"
 
 #include "TestGame.h"
@@ -82,7 +83,7 @@ namespace Test
 			if(window->IsActive())
 			{
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-				cursor->Draw(input_state->mx, input_state->my);
+				cursor->Draw((float)input_state->mx, (float)input_state->my);
 			}
 		}
 

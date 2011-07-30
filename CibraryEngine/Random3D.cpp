@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Random3D.h"
 
 #include "Vector.h"
@@ -69,8 +70,8 @@ namespace CibraryEngine
 		Quaternion temp = Quaternion::Identity();
 		for (int i = 0; i < 3; i++)
 		{
-			Vec3 axis = RandomNormalizedVector(1.0);
-			temp *= Quaternion::FromAxisAngle(axis.x, axis.y, axis.z, Rand(16.0 * M_PI));
+			Vec3 axis = RandomNormalizedVector(1.0f);
+			temp *= Quaternion::FromAxisAngle(axis.x, axis.y, axis.z, Rand((float)(16.0 * M_PI)));
 		}
 		return temp;
 	}

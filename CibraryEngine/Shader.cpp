@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Shader.h"
 
 #include "Serialize.h"

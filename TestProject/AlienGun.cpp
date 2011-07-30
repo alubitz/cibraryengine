@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "AlienGun.h"
 
 #include "AlienShot.h"
@@ -15,7 +16,7 @@ namespace Test
 		shot_material(shot_material)
 	{
 		clip = clip_size = 1000;
-		refire_interval = 0.8;
+		refire_interval = 0.8f;
 	}
 
 	Shot* AlienGun::CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction)

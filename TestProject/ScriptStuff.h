@@ -1,6 +1,5 @@
 #pragma once
-#include "../CibraryEngine/CibraryEngine.h"
-#include "../CibraryEngine/Scripting.h"
+#include "StdAfx.h"
 
 namespace Test
 {

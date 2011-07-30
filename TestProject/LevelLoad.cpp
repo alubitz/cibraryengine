@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "LevelLoad.h"
 
 #include "TestGame.h"

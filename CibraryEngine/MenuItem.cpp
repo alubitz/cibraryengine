@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "MenuItem.h"
 
 #include "TimingInfo.h"
@@ -58,14 +59,14 @@ namespace CibraryEngine
 			imp->font = imp->content->Load<BitmapFont>("../Font");
 
 		float br = imp->selectable ? imp->hover_phase : 1.0f;
-		glColor3f(0.5 + 0.5 * br, 0.5 + 0.5 * br, 1);
+		glColor3f(0.5f + 0.5f * br, 0.5f + 0.5f * br, 1.0f);
 
-		imp->font->Print(imp->text, imp->x1, imp->y1);
+		imp->font->Print(imp->text, (float)imp->x1, (float)imp->y1);
 	}
 
 	void MenuItem::Update(TimingInfo time)
 	{
-		float change_rate = time.elapsed * 3;
+		float change_rate = time.elapsed * 3.0f;
 		if (imp->selectable && imp->hover)
 			imp->hover_phase = min(1.0f, imp->hover_phase + change_rate);
 		else

@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Vector.h"
 #include "DebugLog.h"
 #include "Serialize.h"
@@ -53,7 +54,7 @@ namespace CibraryEngine
 
 	Vec3 Vec3::Cross(Vec3 a, Vec3 b) { return Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
 
-	Vec3 Vec3::Normalize(Vec3 a) { return a * (1.0 / a.ComputeMagnitude()); }
+	Vec3 Vec3::Normalize(Vec3 a) { return a * (1.0f / a.ComputeMagnitude()); }
 	Vec3 Vec3::Normalize(Vec3 a, float len) { return a * (len / a.ComputeMagnitude()); }
 
 	float Vec3::Magnitude(float x, float y, float z) { return sqrt(x * x + y * y + z * z); }
@@ -191,9 +192,9 @@ namespace CibraryEngine
 
 			lua_settop(L, 0);
 
-			if		(key == "x") { vec->x = lua_tonumber(L, 3); }
-			else if	(key == "y") { vec->y = lua_tonumber(L, 3); }
-			else if	(key == "z") { vec->z = lua_tonumber(L, 3); }
+			if		(key == "x") { vec->x = (float)lua_tonumber(L, 3); }
+			else if	(key == "y") { vec->y = (float)lua_tonumber(L, 3); }
+			else if	(key == "z") { vec->z = (float)lua_tonumber(L, 3); }
 		}
 
 		return 0;
@@ -245,7 +246,7 @@ namespace CibraryEngine
 	int ba_vector_mul(lua_State* L)
 	{
 		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
-		float b = lua_tonumber(L, 2);
+		float b = (float)lua_tonumber(L, 2);
 
 		lua_settop(L, 0);
 
@@ -256,7 +257,7 @@ namespace CibraryEngine
 	int ba_vector_div(lua_State* L)
 	{
 		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
-		float b = lua_tonumber(L, 2);
+		float b = (float)lua_tonumber(L, 2);
 
 		lua_settop(L, 0);
 
@@ -286,7 +287,7 @@ namespace CibraryEngine
 		if(n == 0 || n == 3)
 		{
 			if(n == 3 && lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3))
-				vec = Vec3(lua_tonumber(L, 1), lua_tonumber(L, 2), lua_tonumber(L, 3));
+				vec = Vec3((float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3));
 			else
 				vec = Vec3();
 

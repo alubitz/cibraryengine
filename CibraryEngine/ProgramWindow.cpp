@@ -1,6 +1,6 @@
+#include "StdAfx.h"
 #include "ProgramWindow.h"
 #include "ProgramScreen.h"
-#include "GL2API.h"
 
 #include "DebugLog.h"
 
@@ -213,13 +213,8 @@ namespace CibraryEngine
 		{
 			SetActive(true);
 
-			srand(time(NULL));
+			srand((unsigned int)time(NULL));
 			total_game_time = -1.0f;
-
-			GL2StartupTextureAPI();
-			GL2StartupBufferAPI();
-			GL2StartupShaderAPI();
-			GL2StartupFramebufferAPI();
 
 			UpdateDimensions();
 

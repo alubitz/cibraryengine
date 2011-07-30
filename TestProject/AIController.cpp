@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "AIController.h"
 
 #include "Dood.h"

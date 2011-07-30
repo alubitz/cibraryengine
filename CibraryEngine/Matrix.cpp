@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Matrix.h"
 #include "Vector.h"
 #include "Quaternion.h"
@@ -37,9 +38,9 @@ namespace CibraryEngine
 
 	Mat3 Mat3::FromAxisAngle(float x, float y, float z, float angle)
 	{
-		float costheta = cos(angle);
-		float sintheta = sin(angle);
-		float oneminuscostheta = 1.0 - costheta;
+		float costheta = cosf(angle);
+		float sintheta = sinf(angle);
+		float oneminuscostheta = 1.0f - costheta;
 		float xy = x * y;
 		float xz = x * z;
 		float yz = y * z;
@@ -66,7 +67,7 @@ namespace CibraryEngine
 		if (mag == 0)
 			return Identity();
 
-		float inv = 1.0 / mag;
+		float inv = 1.0f / mag;
 		return FromAxisAngle(x * inv, y * inv, z * inv, mag);
 	}
 
@@ -90,7 +91,7 @@ namespace CibraryEngine
 
 	Mat3 Mat3::Invert(Mat3 a)
 	{
-		float inv = 1.0 / a.Determinant();
+		float inv = 1.0f / a.Determinant();
 		Vec3 x0(a[0], a[3], a[6]);
 		Vec3 x1(a[1], a[4], a[7]);
 		Vec3 x2(a[2], a[5], a[8]);

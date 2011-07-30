@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Model.h"
 #include "MathTypes.h"
 
 namespace CibraryEngine
@@ -23,9 +24,9 @@ namespace CibraryEngine
 			Vec4 rgba;
 
 			/** Initialize a default VUVNTTC */
-			VUVNTTC() : x(0.0f, 0.0f, 0.0f), rgba(1.0f, 1.0f, 1.0f, 1.0f) { }
+			VUVNTTC();
 			/** Initialize a VUVNTTC soecifying everything except tangent vectors and color */
-			VUVNTTC(Vec3 x, Vec3 uvw, Vec3 n) : x(x), uvw(uvw), n(n), rgba(1.0, 1.0, 1.0, 1.0) { }
+			VUVNTTC(Vec3 x, Vec3 uvw, Vec3 n);
 	};
 
 	/** VertexInfo class with everything VUVNTTC has, plus 4 bone indices and weights */
@@ -39,20 +40,13 @@ namespace CibraryEngine
 			unsigned char weights[4];
 
 			/** Initialize a default SkinVInfo */
-			SkinVInfo() : VUVNTTC(), indices(), weights() { weights[0] = 255; }
+			SkinVInfo();
 			/** Initialize a SkinVInfo specifying only position, texture coordinates, and normal vector */
-			SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n) : VUVNTTC(x, uvw, n), indices(), weights() { weights[0] = 255; }
+			SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n);
 			/** Initialize a SkinVInfo copying data from a VUVNTTC */
-			SkinVInfo(VUVNTTC original) : VUVNTTC(original), indices(), weights() { weights[0] = 255; }
+			SkinVInfo(VUVNTTC original);
 			/** Initialize a SkinVInfo, specifying everything except color and tangent vectors */
-			SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices_, unsigned char* weights_) : VUVNTTC(x, uvw, n)
-			{
-				for(int i = 0; i < 4; i++)
-				{
-					indices[i] = indices_[i];
-					weights[i] = weights_[i];
-				}
-			}
+			SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices_, unsigned char* weights_);
 	};
 
 	/** Vertex buffer class comprised of VUVNTTC vertex infos */

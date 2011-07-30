@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "WeaponEquip.h"
 #include "TestGame.h"
 #include "Dood.h"

@@ -1,6 +1,5 @@
+#include "StdAfx.h"
 #include "Gun.h"
-
-#include "../CibraryEngine/CibraryEngine.h"
 
 #include "Dood.h"
 #include "Shot.h"
@@ -14,9 +13,9 @@ namespace Test
 	 */
 	Gun::Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VTNModel* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound) :
 		WeaponEquip(game_state, owner),
-		reload_time(1.7),
-		refire_interval(0.089),
-		chamber_click_delay(0.5),
+		reload_time(1.7f),
+		refire_interval(0.089f),
+		chamber_click_delay(0.5f),
 		clip_size(80),
 		clip(),
 		reloading(false),
@@ -44,11 +43,11 @@ namespace Test
 
 	void Gun::OwnerUpdate(TimingInfo time)
 	{
-		double timestep = time.elapsed;
+		float timestep = time.elapsed;
 
 		fire_wait -= timestep;
 
-		double total_inaccuracy = 0;
+		float total_inaccuracy = 0;
 		for(list<Inaccuracy>::iterator iter = inaccuracy.begin(); iter != inaccuracy.end(); )
 		{
 			if(iter->time >= time.total)
@@ -60,8 +59,8 @@ namespace Test
 				iter = inaccuracy.erase(iter);
 		}
 
-		mflash_size *= exp(-16.0 * timestep);
-		mflash_size -= 0.05 * timestep;
+		mflash_size *= exp(-16.0f * timestep);
+		mflash_size -= 0.05f * timestep;
 
 		if (reloading)
 		{
@@ -77,7 +76,7 @@ namespace Test
 					Fire(total_inaccuracy, time.total);
 				else
 				{
-					PlayWeaponSound(chamber_click_sound, 1.0, false);
+					PlayWeaponSound(chamber_click_sound, 1.0f, false);
 
 					fire_wait = chamber_click_delay;
 					Dood::AmmoFailureEvent evt(owner, this);
@@ -90,20 +89,20 @@ namespace Test
 	{
 		owner->PoseCharacter();						// to make sure we have a gun_xform... it will conveniently change our gun_xform for us
 
-		Mat4 shot_mat = gun_xform * Mat4::Translation(0, 0.03, 0.79);
+		Mat4 shot_mat = gun_xform * Mat4::Translation(0, 0.03f, 0.79f);
 
 		Vec3 origin = shot_mat.TransformVec3(0, 0, 0, 1);
 		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
 
-		Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001)));
+		Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f)));
 		if(shot != NULL)
 			game_state->Spawn(shot);
 
-		inaccuracy.push_back(Inaccuracy(0.015, now + 0.1));
+		inaccuracy.push_back(Inaccuracy(0.015f, now + 0.1f));
 
-		PlayWeaponSound(fire_sound, 1.0, false);
+		PlayWeaponSound(fire_sound, 1.0f, false);
 
-		mflash_size = 1.0;
+		mflash_size = 1.0f;
 
 		fire_wait = refire_interval;
 		clip--;
@@ -152,7 +151,7 @@ namespace Test
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{
-				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03, 0.79) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5)) * Mat4::UniformScale(mflash_size);
+				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.79f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5f)) * Mat4::UniformScale(mflash_size);
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model->GetVBO(), mflash_xform), Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 			}
 		}

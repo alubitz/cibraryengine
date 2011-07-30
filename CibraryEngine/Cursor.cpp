@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Cursor.h"
 
 #include "DebugLog.h"
@@ -72,20 +73,20 @@ namespace CibraryEngine
 
 		int w = imp->texture->width;
 		int h = imp->texture->height;
-		int max_x = w - 1;
-		int max_y = h - 1;
+		float max_x = (float)(w - 1);
+		float max_y = (float)(h - 1);
 		float max_u = (float)max_x / w;
 		float max_v = (float)max_y / h;
 
 		glBegin(GL_QUADS);
-		glTexCoord2f	(0,		0);
-		glVertex2f		(0,		0);
-		glTexCoord2f	(max_u,	0);
-		glVertex2f		(max_x,	0);
+		glTexCoord2f	(0.0f,	0.0f);
+		glVertex2f		(0.0f,	0.0f);
+		glTexCoord2f	(max_u,	0.0f);
+		glVertex2f		(max_x,	0.0f);
 		glTexCoord2f	(max_u,	max_v);
 		glVertex2f		(max_x,	max_y);
-		glTexCoord2f	(0,		max_v);
-		glVertex2f		(0,		max_y);
+		glTexCoord2f	(0.0f,	max_v);
+		glVertex2f		(0.0f,	max_y);
 		glEnd();
 
 		glPopMatrix();

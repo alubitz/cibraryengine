@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "WeaponIntrinsic.h"
 #include "TestGame.h"
 

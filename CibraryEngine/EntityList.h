@@ -10,9 +10,10 @@ namespace CibraryEngine
 	class EntityListIterator;
 
 	/** Class representing some yes-or-no condition applicable to entities */
-	struct EntityQualifier
+	class EntityQualifier
 	{
-		virtual bool Accept(Entity* entity) = 0;
+		public:
+			virtual bool Accept(Entity* entity) = 0;
 	};
 
 	/** Immutable class storing some collection of entities */

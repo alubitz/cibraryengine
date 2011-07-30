@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 #include "../CibraryEngine/UnclampedVertexBoneWeightInfo.h"
 
 namespace Test

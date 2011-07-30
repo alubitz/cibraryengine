@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "SoundSource.h"
 
 #include "SoundSystem.h"

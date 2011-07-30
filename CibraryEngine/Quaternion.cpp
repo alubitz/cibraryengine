@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Quaternion.h"
 #include "Matrix.h"
 #include "Vector.h"
@@ -17,7 +18,7 @@ namespace CibraryEngine
 		float sine = axis.ComputeMagnitude();			// doesn't cover the possibility of a negative sine
 		//float cosine = w;
 		float half = asin(sine);
-		float angle = half * 2.0;
+		float angle = half * 2.0f;
 		return Vec3::Normalize(axis, angle);
 	}
 
@@ -61,7 +62,7 @@ namespace CibraryEngine
 	void Quaternion::operator *=(float right) { w *= right; x *= right; y *= right; z *= right; }
 
 	Quaternion Quaternion::operator /(float right) { Quaternion temp(*this); temp /= right; return temp; }
-	void Quaternion::operator /=(float right) { *this *= (1.0 / right); }
+	void Quaternion::operator /=(float right) { *this *= (1.0f / right); }
 
 	Quaternion Quaternion::operator +(Quaternion right) { Quaternion temp(*this); temp += right; return temp; }
 	void Quaternion::operator +=(Quaternion right) { w += right.w; x += right.x; y += right.y; z += right.z; }
@@ -69,16 +70,16 @@ namespace CibraryEngine
 	Quaternion Quaternion::operator -(Quaternion right) { Quaternion temp(*this); temp -= right; return temp; }
 	void Quaternion::operator -=(Quaternion right) { w -= right.w; x -= right.x; y -= right.y; z -= right.z; }
 
-	Quaternion Quaternion::Identity() { return Quaternion(1.0, 0.0, 0.0, 0.0); }
+	Quaternion Quaternion::Identity() { return Quaternion(1.0f, 0.0, 0.0, 0.0); }
 
 	Quaternion Quaternion::FromRotationMatrix(Mat3 mat)
 	{
-		float t = mat[0] + mat[4] + mat[8] + 1.0;
+		float t = mat[0] + mat[4] + mat[8] + 1.0f;
 		if (t > 0)
 		{
-			float s = 0.5 / sqrt(t);
+			float s = 0.5f / sqrt(t);
 			return Quaternion::Normalize(Quaternion(
-				0.25 / s,
+				0.25f / s,
 				(mat[7] - mat[5]) * s,
 				(mat[2] - mat[6]) * s,
 				(mat[3] - mat[1]) * s
@@ -88,32 +89,32 @@ namespace CibraryEngine
 		{
 			if (mat[0] > mat[4] && mat[0] > mat[8])
 			{
-				float s = 2.0 * sqrt(1.0 + mat[0] - mat[4] - mat[8]);
+				float s = 2.0f * sqrt(1.0f + mat[0] - mat[4] - mat[8]);
 				return Quaternion::Normalize(Quaternion(
 					(mat[5] + mat[7]) / s,
-					0.25 * s,
+					0.25f * s,
 					(mat[1] + mat[3]) / s,
 					(mat[2] + mat[6]) / s
 				));
 			}
 			else if (mat[4] > mat[0] && mat[4] > mat[8])
 			{
-				float s = 2.0 * sqrt(1.0 + mat[4] - mat[0] - mat[8]);
+				float s = 2.0f * sqrt(1.0f + mat[4] - mat[0] - mat[8]);
 				return Quaternion::Normalize(Quaternion(
 					(mat[2] + mat[6]) / s,
 					(mat[1] + mat[3]) / s,
-					0.25 * s,
+					0.25f * s,
 					(mat[5] + mat[7]) / s
 				));
 			}
 			else
 			{
-				float s = 2.0 * sqrt(1.0 + mat[8] - mat[0] - mat[4]);
+				float s = 2.0f * sqrt(1.0f + mat[8] - mat[0] - mat[4]);
 				return Quaternion::Normalize(Quaternion(
 					(mat[1] + mat[3]) / s,
 					(mat[2] + mat[6]) / s,
 					(mat[5] + mat[7]) / s,
-					0.25 * s
+					0.25f * s
 				));
 			}
 		}
@@ -121,7 +122,7 @@ namespace CibraryEngine
 
 	Quaternion Quaternion::FromAxisAngle(float x, float y, float z, float angle)
 	{
-		float half = angle * 0.5, sine = sin(half);
+		float half = angle * 0.5f, sine = sin(half);
 		return Quaternion(
 			cos(half),
 			x * sine,
@@ -133,7 +134,7 @@ namespace CibraryEngine
 	Quaternion Quaternion::FromPYR(Vec3 pyrVector) { return Quaternion::FromPYR(pyrVector.x, pyrVector.y, pyrVector.z); }
 	Quaternion Quaternion::FromPYR(float p, float y, float r)
 	{
-		float mag = Vec3::Magnitude(p, y, r), inv = (mag == 0 ? 1.0 : 1.0 / mag);
+		float mag = Vec3::Magnitude(p, y, r), inv = (mag == 0 ? 1.0f : 1.0f / mag);
 		return Quaternion::FromAxisAngle(p * inv, y * inv, r * inv, mag);
 	}
 

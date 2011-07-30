@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "DebugRenderer.h"
 
 #include "SceneRenderer.h"

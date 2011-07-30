@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "CameraView.h"
 
 #include "MathTypes.h"
@@ -125,7 +126,7 @@ namespace CibraryEngine
 
 	void CameraView::GetRayFromDimCoeffs(float xfrac, float yfrac, Vec3& origin, Vec3& direction)
 	{
-		direction = GetRight() * (right * xfrac + left * (1.0 - xfrac)) + GetUp() * (top * yfrac + bottom * (1.0 - yfrac)) + forward * _near;
+		direction = GetRight() * (right * xfrac + left * (1.0f - xfrac)) + GetUp() * (top * yfrac + bottom * (1.0f - yfrac)) + forward * _near;
 		origin = position + direction;
 		direction = Vec3::Normalize(direction);
 	}

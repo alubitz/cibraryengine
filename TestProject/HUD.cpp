@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "HUD.h"
 
 #include "Dood.h"
@@ -89,39 +90,39 @@ namespace Test
 		glBindTexture(GL_TEXTURE_2D, healthbar_tex->GetGLName());
 
 		float health = player->hp;																// already is a fraction out of 1.0
-		float unhealth = 1.0 - health;
+		float unhealth = 1.0f - health;
 
-		float red = min(2.0 - 2.0 * health, 1.0);
-		float green = min(2.0 * health, 1.0);
+		float red = min(2.0f - 2.0f * health, 1.0f);
+		float green = min(2.0f * health, 1.0f);
 
 		int dx = (int)(unhealth * (191));
 
 		int min_x = 4;
 		int max_x = 200 - dx;
 
-		float min_u = (dx + 2) / 256.0;
-		float max_u = 198.0 / 256.0;
+		float min_u = (dx + 2) / 256.0f;
+		float max_u = 198.0f / 256.0f;
 
 		glBegin(GL_QUADS);
 
 		// the bar itself
-		glColor4f(red * 0.5 + 0.5, green * 0.5 + 0.5, 0.0, low_hp_dim ? 0.5 : 1.0);
-		glTexCoord2f(min_u, 0.5);
-		glVertex2f(min_x, 0);
+		glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_hp_dim ? 0.5f : 1.0f);
+		glTexCoord2f(min_u, 0.5f);
+		glVertex2f((float)min_x, 0);
 		glTexCoord2f(min_u, 1);
-		glVertex2f(min_x, 32);
+		glVertex2f((float)min_x, 32);
 		glTexCoord2f(max_u, 1);
-		glVertex2f(max_x, 32);
-		glTexCoord2f(max_u, 0.5);
-		glVertex2f(max_x, 0);
+		glVertex2f((float)max_x, 32);
+		glTexCoord2f(max_u, 0.5f);
+		glVertex2f((float)max_x, 0);
 
 		// the frame and label
-		glColor4f(0.5, 0.5, 1.0, 1.0);
+		glColor4f(0.5f, 0.5f, 1.0f, 1.0f);
 		glTexCoord2f(0, 0);
 		glVertex2f(2, 0);
-		glTexCoord2f(0, 0.5);
+		glTexCoord2f(0, 0.5f);
 		glVertex2f(2, 32);
-		glTexCoord2f(1, 0.5);
+		glTexCoord2f(1, 0.5f);
 		glVertex2f(258, 32);
 		glTexCoord2f(1, 0);
 		glVertex2f(258, 0);
@@ -148,18 +149,18 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, ammogauge_tex->GetGLName());
 
-		float unammo = 1.0 - ammo_frac;
+		float unammo = 1.0f - ammo_frac;
 
-		float red = min(2.0 - 2.0 * ammo_frac, 1.0);
-		float green = min(2.0 * ammo_frac, 1.0);
+		float red = min(2.0f - 2.0f * ammo_frac, 1.0f);
+		float green = min(2.0f * ammo_frac, 1.0f);
 
 		int dx = (int)(unammo * (167));
 
 		int min_x = 28;
 		int max_x = 200 - dx;
 
-		float min_u = (dx + 26) / 256.0;
-		float max_u = 198.0 / 256.0;
+		float min_u = (dx + 26) / 256.0f;
+		float max_u = 198.0f / 256.0f;
 
 		glBegin(GL_QUADS);
 
@@ -169,22 +170,22 @@ namespace Test
 			no_ammo_flash_timer = 0.0;
 
 			// the bar itself
-			glColor4f(red * 0.5 + 0.5, green * 0.5 + 0.5, 0.0, low_ammo_dim ? 0.5 : 1.0);
-			glTexCoord2f(min_u, 0.5);
-			glVertex2f(min_x, 0);
+			glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_ammo_dim ? 0.5f : 1.0f);
+			glTexCoord2f(min_u, 0.5f);
+			glVertex2f((float)min_x, 0);
 			glTexCoord2f(min_u, 1);
-			glVertex2f(min_x, 32);
+			glVertex2f((float)min_x, 32);
 			glTexCoord2f(max_u, 1);
-			glVertex2f(max_x, 32);
-			glTexCoord2f(max_u, 0.5);
-			glVertex2f(max_x, 0);
+			glVertex2f((float)max_x, 32);
+			glTexCoord2f(max_u, 0.5f);
+			glVertex2f((float)max_x, 0);
 		}
 
 		// the frame and label
-		glColor4f(0.5, 0.5, 1.0, no_ammo_dim ? 0.5 : 1.0);
+		glColor4f(0.5f, 0.5f, 1.0f, no_ammo_dim ? 0.5f : 1.0f);
 		glTexCoord2f(0, 0);
 		glVertex2f(2, 0);
-		glTexCoord2f(0, 0.5);
+		glTexCoord2f(0, 0.5f);
 		glVertex2f(2, 32);
 		glTexCoord2f(1, 0.5);
 		glVertex2f(258, 32);
@@ -209,18 +210,18 @@ namespace Test
 		glBindTexture(GL_TEXTURE_2D, jumpbar_tex->GetGLName());
 
 		float jump_frac = player->jump_fuel;
-		float unjump = 1.0 - jump_frac;
+		float unjump = 1.0f - jump_frac;
 
-		float red = min(2.0 - 2.0 * jump_frac, 1.0);
-		float green = min(2.0 * jump_frac, 1.0);
+		float red = min(2.0f - 2.0f * jump_frac, 1.0f);
+		float green = min(2.0f * jump_frac, 1.0f);
 
 		int dx = (int)(unjump * (191));
 
 		int min_x = 4;
 		int max_x = 200 - dx;
 
-		float min_u = (dx + 2) / 256.0;
-		float max_u = 198.0 / 256.0;
+		float min_u = (dx + 2) / 256.0f;
+		float max_u = 198.0f / 256.0f;
 
 
 		glBegin(GL_QUADS);
@@ -228,27 +229,27 @@ namespace Test
 		if (player->jump_fuel > 0)
 		{
 			no_jump_dim = false;
-			no_jump_flash_timer = 0.0;
+			no_jump_flash_timer = 0.0f;
 
 			// the bar itself
-			glColor4f(red * 0.5 + 0.5, green * 0.5 + 0.5, 0.0, low_jump_dim ? 0.5 : 1.0);
-			glTexCoord2f(min_u, 0.5);
-			glVertex2f(min_x, 0);
+			glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_jump_dim ? 0.5f : 1.0f);
+			glTexCoord2f(min_u, 0.5f);
+			glVertex2f((float)min_x, 0);
 			glTexCoord2f(min_u, 1);
-			glVertex2f(min_x, 32);
+			glVertex2f((float)min_x, 32);
 			glTexCoord2f(max_u, 1);
-			glVertex2f(max_x, 32);
-			glTexCoord2f(max_u, 0.5);
-			glVertex2f(max_x, 0);
+			glVertex2f((float)max_x, 32);
+			glTexCoord2f(max_u, 0.5f);
+			glVertex2f((float)max_x, 0);
 		}
 
 		// the frame and label
-		glColor4f(0.5, 0.5, 1.0, no_jump_dim ? 0.5 : 1.0);
+		glColor4f(0.5f, 0.5f, 1.0, no_jump_dim ? 0.5f : 1.0f);
 		glTexCoord2f(0, 0);
 		glVertex2f(2, 0);
-		glTexCoord2f(0, 0.5);
+		glTexCoord2f(0, 0.5f);
 		glVertex2f(2, 32);
-		glTexCoord2f(1, 0.5);
+		glTexCoord2f(1, 0.5f);
 		glVertex2f(258, 32);
 		glTexCoord2f(1, 0);
 		glVertex2f(258, 0);
@@ -269,14 +270,14 @@ namespace Test
 
 		// Draw radar backdrop
 
-		glColor4f(0.5, 0.5, 1.0, 0.1);
+		glColor4f(0.5f, 0.5f, 1.0f, 0.1f);
 
 		glBegin(GL_TRIANGLE_FAN);
 
 		glVertex2f(0, 0);
 
 		int ring_steps = 128;
-		float ring_coeff = M_PI * 2.0 / ring_steps;
+		float ring_coeff = M_PI * 2.0f / ring_steps;
 		for (int i = 0; i <= ring_steps; i++)
 		{
 			float theta = i * ring_coeff;
@@ -286,24 +287,24 @@ namespace Test
 
 		// Shade the view cone
 
-		glColor4f(1.0, 1.0, 1.0, 0.1);
+		glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
 		glBegin(GL_TRIANGLE_FAN);
 
 		glVertex2f(0, 0);
 
 		int fan_steps = 32;
-		float fan_coeff = M_PI * 0.25 / fan_steps;
+		float fan_coeff = M_PI * 0.25f / fan_steps;
 		for (int i = -fan_steps; i <= fan_steps; i++)
 		{
-			float theta = i * fan_coeff + player->yaw + M_PI * 0.5;
-			glVertex2f(cos(theta), sin(theta));
+			float theta = i * fan_coeff + player->yaw + M_PI * 0.5f;
+			glVertex2f(cosf(theta), sinf(theta));
 		}
 
 		glEnd();
 
 		// Draw target blips
 
-		float radar_size = 50, inv_radar_scale = 1.0 / radar_size;
+		float radar_size = 50, inv_radar_scale = 1.0f / radar_size;
 
 		glEnable(GL_POINT_SMOOTH);
 		glPointSize(5);
@@ -323,11 +324,11 @@ namespace Test
 			float dx = dood->pos.x - player->pos.x, dy = dood->pos.z - player->pos.z;
 			dx *= inv_radar_scale;
 			dy *= inv_radar_scale;
-			float dist = sqrt(dx * dx + dy * dy);
+			float dist = sqrtf(dx * dx + dy * dy);
 
-			if (dist > 1.0)
+			if (dist > 1.0f)
 			{
-				float inv_dist = 1.0 / dist;
+				float inv_dist = 1.0f / dist;
 				dx *= inv_dist;
 				dy *= inv_dist;
 			}
@@ -541,12 +542,12 @@ namespace Test
 			else
 				low_ammo_dim = false;
 
-			if (player->jump_fuel < 0.25)
+			if (player->jump_fuel < 0.25f)
 				low_jump_dim = !low_jump_dim;
 			else
 				low_jump_dim = false;
 
-			hud_flash_timer = 0.08;
+			hud_flash_timer = 0.08f;
 		}
 
 		for (unsigned int i = 0; i < directional_damage.size(); i++)
@@ -559,7 +560,7 @@ namespace Test
 	/*
 	 * HUD::AmmoFailureCallback methods
 	 */
-	void HUD::AmmoFailureCallback::HandleEvent(Event* evt) { hud->no_ammo_flash_timer = 0.2; }
+	void HUD::AmmoFailureCallback::HandleEvent(Event* evt) { hud->no_ammo_flash_timer = 0.2f; }
 
 
 
@@ -586,8 +587,8 @@ namespace Test
 
 			for (int i = 0; i < 8; i++)
 			{
-				float theta = (i + 5) * M_PI * 2.0 / 8.0;           // 8 is the number of steps in our "circle"
-				Vec3 vec = rightward * cos(theta) - forward * sin(theta);
+				float theta = (i + 5) * M_PI * 2.0f / 8.0f;           // 8 is the number of steps in our "circle"
+				Vec3 vec = rightward * cosf(theta) - forward * sinf(theta);
 				float dot = Vec3::Dot(vec, from_direction);
 				hud->directional_damage[i] = max(hud->directional_damage[i], dot);
 			}
@@ -600,5 +601,5 @@ namespace Test
 	/*
 	 * HUD::JumpFailureCallback methods
 	 */
-	void HUD::JumpFailureCallback ::HandleEvent(Event* evt) { hud->no_jump_flash_timer = 0.2; }
+	void HUD::JumpFailureCallback ::HandleEvent(Event* evt) { hud->no_jump_flash_timer = 0.2f; }
 }

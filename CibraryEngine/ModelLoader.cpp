@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "ModelLoader.h"
 
 #include "SkeletalAnimation.h"
@@ -75,9 +76,9 @@ namespace CibraryEngine
 		int aak_result = LoadAAK("Files/Models/" + model_name + ".aak", material_model_pairs, material_names, skeleton);
 		if(aak_result != 0)
 		{
-			char aak_msg[50];
-			sprintf(aak_msg, "LoadAAK returned with status %i\n", aak_result);
-			Debug(aak_msg);
+			stringstream aak_msg;
+			aak_msg << "LoadAAK returned with status " << aak_result << endl;
+			Debug(aak_msg.str());
 
 			skeleton->Dispose();
 			delete skeleton;
@@ -187,41 +188,41 @@ namespace CibraryEngine
 		{
 			string line = vertices[i];
 			int start = 0, end = line.find(' ', start);
-			x = atof(line.substr(start, end - start).c_str());
+			x = (float)atof(line.substr(start, end - start).c_str());
 			start = end + 1;
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
-			y = atof(line.substr(start, end - start).c_str());
+			y = (float)atof(line.substr(start, end - start).c_str());
 			start = end + 1;
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
-			z = atof(line.substr(start, end - start).c_str());
+			z = (float)atof(line.substr(start, end - start).c_str());
 			xyz.push_back(Vec3(x, y, z));
 		}
 		for (i = 0; i < texcoords.size(); i++)
 		{
 			string line = texcoords[i];
 			int start = 0, end = line.find(' ', start);
-			u = atof(line.substr(start, end - start).c_str());
+			u = (float)atof(line.substr(start, end - start).c_str());
 			start = end + 1;
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
-			v = atof(line.substr(start, end - start).c_str());
+			v = (float)atof(line.substr(start, end - start).c_str());
 			uv.push_back(Vec3(u, v, 0.0f));
 		}
 		for (i = 0; i < normals.size(); i++)
 		{
 			string line = normals[i];
 			int start = 0, end = line.find(' ', start);
-			nx = atof(line.substr(start, end - start).c_str());
+			nx = (float)atof(line.substr(start, end - start).c_str());
 			start = end + 1;
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
-			ny = atof(line.substr(start, end - start).c_str());
+			ny = (float)atof(line.substr(start, end - start).c_str());
 			start = end + 1;
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
-			nz = atof(line.substr(start, end - start).c_str());
+			nz = (float)atof(line.substr(start, end - start).c_str());
 			nxyz.push_back(Vec3(nx, ny, nz));
 		}
 		int xyz_index, uv_index, n_index;

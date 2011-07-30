@@ -22,7 +22,7 @@ namespace CibraryEngine
 	// like an interface
 	// the fields should be left mostly-constant once they are initialized
 	/** Class representing a material for rendering */
-	struct Material : public Disposable
+	class Material : public Disposable
 	{
 		protected:
 

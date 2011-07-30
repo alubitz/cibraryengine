@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Texture1D.h"
 
 #include "DebugLog.h"

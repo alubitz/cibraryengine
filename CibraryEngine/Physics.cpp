@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Physics.h"
 
 #include "Matrix.h"

@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "SkeletalAnimation.h"
 
 #include "DebugLog.h"
@@ -95,7 +96,7 @@ namespace CibraryEngine
 
 		unsigned int bone_count = ReadUInt32(file);
 
-		unsigned int parent_indices[bone_count];
+		unsigned int* parent_indices = new unsigned int[bone_count];
 
 		for(unsigned int i = 0; i < bone_count; i++)
 		{
@@ -124,6 +125,8 @@ namespace CibraryEngine
 			unsigned int parent_index = parent_indices[i];
 			temp->bones[i]->parent = parent_index == 0 ? NULL : temp->bones[parent_index - 1];
 		}
+
+		delete[] parent_indices;
 
 		*skeleton = temp;
 		return 0;
@@ -289,7 +292,7 @@ namespace CibraryEngine
 			for(unsigned int j = 0; j < 12; j++)
 			{
 				float val = mat[j];								// get value from the matrix
-				float expanded = val * 4096.0 + 32768.0;		// scale to reasonable range
+				float expanded = val * 4096.0f + 32768.0f;		// scale to reasonable range
 
 				unsigned int int_val = (unsigned int)(max(0.0, min(65535.0, expanded + 0.5)));			// offset by 0.5 so it rounds nicely
 				for(int k = 0; k < 2; k++)

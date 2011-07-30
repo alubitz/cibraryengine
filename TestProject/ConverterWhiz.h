@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 namespace Test
 {
@@ -25,9 +25,9 @@ namespace Test
 			pos(pos),
 			model(NULL),
 			spheres(),
-			mass(0.2)
+			mass(0.2f)
 		{
-			spheres.push_back(Sphere(Vec3(pos), 0.15));
+			spheres.push_back(Sphere(Vec3(pos), 0.15f));
 		}
 
 		BoneEntry(string name, string parent, Vec3 top, float top_radius, Vec3 bottom, float bottom_radius, float mass) :

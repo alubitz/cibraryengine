@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 #include "Damage.h"
 
@@ -11,7 +11,7 @@ namespace Test
 	class Shootable;
 	class Dood;
 	class GlowyModelMaterial;
-	class GlowyModelMaterialNodeData;
+	struct GlowyModelMaterialNodeData;
 
 	class Shot : public Entity
 	{

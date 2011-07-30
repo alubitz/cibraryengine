@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #pragma pack(push, 4)
 
 #include "UnrealImport.h"

@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "InputState.h"
 #include "Scripting.h"
 

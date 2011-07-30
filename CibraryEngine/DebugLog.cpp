@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "DebugLog.h"
 
 namespace CibraryEngine
@@ -19,9 +21,9 @@ namespace CibraryEngine
 
 	void Debug(int line, string file)
 	{
-		char msg[100];
-		sprintf(msg, "Executing line %u of %s\n", line, file.c_str());
-		Debug(msg);
+		stringstream ss;
+		ss << "Executing line " << line << " of " << file.c_str() << endl;
+		Debug(ss.str());
 	}
 
 	void GLErrorDebug(int line, string file) { GLErrorDebug(line, file, string()); }

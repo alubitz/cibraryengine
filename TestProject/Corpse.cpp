@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "Corpse.h"
 #include "Shot.h"
 #include "TestGame.h"
@@ -36,7 +37,7 @@ namespace Test
 			corpse(corpse),
 			character(dood->character),
 			model(dood->model),
-			whole_xform(Mat4::FromPositionAndOrientation(dood->pos + Vec3(0, 0.2, 0), Quaternion::FromPYR(0, dood->yaw, 0))),
+			whole_xform(Mat4::FromPositionAndOrientation(dood->pos + Vec3(0, 0.2f, 0), Quaternion::FromPYR(0, dood->yaw, 0))),
 			origin(dood->pos),
 			initial_vel(dood->vel),
 			character_pose_time(-1),
@@ -73,9 +74,9 @@ namespace Test
 
 			for (int i = 0; i < 16; i++)
 			{
-				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, Random3D::Rand(0.02, 0.1), 1);
-				p->gravity = 9.8;
-				p->damp = 0.2;
+				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, Random3D::Rand(0.02f, 0.1f), 1);
+				p->gravity = 9.8f;
+				p->damp = 0.2f;
 
 				corpse->game_state->Spawn(p);
 			}
@@ -138,7 +139,7 @@ namespace Test
 				mats.push_back(whole_xform * bone->GetTransformationMatrix());
 			}
 
-			UberModel::BonePhysics* bone_physes[count];
+			UberModel::BonePhysics** bone_physes = new UberModel::BonePhysics* [count];
 
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; i++)
@@ -177,12 +178,12 @@ namespace Test
 						rigid_body->body->setUserPointer(corpse);
 
 						// these constants taken from the ragdoll demo
-						rigid_body->body->setDamping(0.05, 0.85);
-						rigid_body->body->setDeactivationTime(0.8);
-						rigid_body->body->setSleepingThresholds(1.6, 2.5);
+						rigid_body->body->setDamping(0.05f, 0.85f);
+						rigid_body->body->setDeactivationTime(0.8f);
+						rigid_body->body->setSleepingThresholds(1.6f, 2.5f);
 
-						rigid_body->body->setFriction(1.0);
-						rigid_body->body->setRestitution(0.01);
+						rigid_body->body->setFriction(1.0f);
+						rigid_body->body->setRestitution(0.01f);
 
 						physics->AddRigidBody(rigid_body);
 						rigid_bodies.push_back(rigid_body);
@@ -214,7 +215,7 @@ namespace Test
 
 								btConeTwistConstraint* c = new btConeTwistConstraint(*my_body->body, *parent_body->body, a_frame, b_frame);
 								c->setLimit(phys->span.x, phys->span.y, phys->span.z);
-								c->setDamping(0.1);			// default is 0.01
+								c->setDamping(0.1f);			// default is 0.01
 								constraints.push_back(c);
 
 								physics->dynamics_world->addConstraint(c, true);			// true = prevent them from colliding normally
@@ -235,6 +236,8 @@ namespace Test
 
 			if(rigid_bodies.size() == 0)
 				corpse->is_valid = false;
+
+			delete[] bone_physes;
 		}
 
 		void DeSpawned()

@@ -1,4 +1,4 @@
-#include "../CibraryEngine/FrameworkTypes.h"
+#include "StdAfx.h"
 
 #include "MainMenu.h"
 #include "LoadingScreen.h"

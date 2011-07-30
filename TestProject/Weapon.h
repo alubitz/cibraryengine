@@ -1,15 +1,15 @@
 #pragma once
 
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 namespace Test
 {
 	using namespace CibraryEngine;
 
 	class DSNMaterial;
-	class DSNMaterialNodeData;
+	struct DSNMaterialNodeData;
 	class GlowyModelMaterial;
-	class GlowyModelMaterialNodeData;
+	struct GlowyModelMaterialNodeData;
 	class Dood;
 	class TestGame;
 	class Shot;

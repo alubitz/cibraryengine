@@ -9,7 +9,7 @@ namespace CibraryEngine
 
 	template <class T> class ContentTypeHandler;
 	struct ContentMetadata;
-	class CacheBase;
+	struct CacheBase;
 	template <class T> struct ContentHandle;
 
 	class ContentMan

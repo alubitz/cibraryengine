@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "TableParse.h"
 
 #include "DebugLog.h"
@@ -333,7 +334,7 @@ namespace CibraryEngine
 	 * FloatSetter methods
 	 */
 	FloatSetter::FloatSetter(float* f) : f(f) { }
-	TableParseable* FloatSetter::Set(string val) { *f = atof(val.c_str()); return NULL; }
+	TableParseable* FloatSetter::Set(string val) { *f = (float)atof(val.c_str()); return NULL; }
 
 
 

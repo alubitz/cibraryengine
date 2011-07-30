@@ -16,7 +16,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class BinaryChunk;
-	class MaterialModelPair;
+	struct MaterialModelPair;
 
 	class VTNModel;
 	class SkinnedModel;

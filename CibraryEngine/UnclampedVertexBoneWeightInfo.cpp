@@ -1,3 +1,4 @@
+#include "StdAfx.h"
 #include "UnclampedVertexBoneWeightInfo.h"
 
 namespace CibraryEngine

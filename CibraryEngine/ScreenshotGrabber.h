@@ -8,12 +8,13 @@ namespace CibraryEngine
 {
 	class ProgramWindow;
 
-	struct ScreenshotGrabber : public EventHandler
+	class ScreenshotGrabber : public EventHandler
 	{
-		ProgramWindow* win;
+		public:
+			ProgramWindow* win;
 
-		ScreenshotGrabber(ProgramWindow* win);
+			ScreenshotGrabber(ProgramWindow* win);
 
-		void HandleEvent(Event* evt);
+			void HandleEvent(Event* evt);
 	};
 };

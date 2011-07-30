@@ -1,4 +1,4 @@
-#include "../CibraryEngine/CibraryEngine.h"
+#include "StdAfx.h"
 
 #include "TestGame.h"
 #include "TestScreen.h"
@@ -10,8 +10,6 @@
 #include "TerrainChunk.h"
 #include "Weapon.h"
 #include "AIController.h"
-
-#include "../CibraryEngine/UnrealImport.h"
 
 #include "ConverterWhiz.h"
 #include "SoldierConverter.h"
@@ -87,6 +85,7 @@ namespace Test
 		rtt_normal(NULL),
 		rtt_emission(NULL),
 		rtt_depth(NULL),
+		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
 		debug_text(""),
@@ -207,28 +206,28 @@ namespace Test
 			UberModel::Bone eye_bone;
 			eye_bone.name = "eye";
 			eye_bone.parent = 5;
-			eye_bone.pos = Vec3(0, 1.88, -0.1);
+			eye_bone.pos = Vec3(0, 1.88f, -0.1f);
 			uber_model->bones.push_back(eye_bone);
 
 			UberModel::Bone lgrip_bone;
 			lgrip_bone.name = "l grip";
 			lgrip_bone.parent = 9;
-			lgrip_bone.pos = Vec3(0.546, 1.059, 0.016);
-			lgrip_bone.ori = Quaternion::FromPYR(0, 0, 0.5) * Quaternion::FromPYR(M_PI * 0.5, 0, 0) * Quaternion::FromPYR(0, 0.1, 0);
+			lgrip_bone.pos = Vec3(0.546f, 1.059f, 0.016f);
+			lgrip_bone.ori = Quaternion::FromPYR(0, 0, 0.5f) * Quaternion::FromPYR(M_PI * 0.5f, 0, 0) * Quaternion::FromPYR(0, 0.1f, 0);
 			uber_model->bones.push_back(lgrip_bone);
 
 			UberModel::Bone rgrip_bone;
 			rgrip_bone.name = "r grip";
 			rgrip_bone.parent = 16;
-			rgrip_bone.pos = Vec3(-0.546, 1.059, 0.016);
-			rgrip_bone.ori = Quaternion::FromPYR(0, 0, -0.5) * Quaternion::FromPYR(M_PI * 0.5, 0, 0) * Quaternion::FromPYR(0, -0.1, 0);
+			rgrip_bone.pos = Vec3(-0.546f, 1.059f, 0.016f);
+			rgrip_bone.ori = Quaternion::FromPYR(0, 0, -0.5f) * Quaternion::FromPYR(M_PI * 0.5f, 0, 0) * Quaternion::FromPYR(0, -0.1f, 0);
 			uber_model->bones.push_back(rgrip_bone);
 
 			for(unsigned int i = 0; i < uber_model->bones.size(); i++)
 			{
 				UberModel::BonePhysics phys;
 				phys.pos = uber_model->bones[i].pos;
-				phys.mass = 1.0;
+				phys.mass = 1.0f;
 				float radii[] = {0.2f};
 				btVector3 centers[] = {btVector3(phys.pos.x, phys.pos.y, phys.pos.z)};
 				phys.shape = new btMultiSphereShape(centers, radii, 1);
@@ -304,7 +303,7 @@ namespace Test
 
 		screen->input_state->MouseMoved += &mouse_motion_handler;
 
-		sun = new Sun(Vec3(2.4, 4, 0), Vec3(1, 1, 1), NULL, NULL);
+		sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
 
@@ -348,7 +347,7 @@ namespace Test
 	{
 		Dood* dood = SpawnDood(pos, enemy);
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
-		dood->hp *= 0.3;
+		dood->hp *= 0.3f;
 
 		dood->OnDeath += &bot_death_handler;
 
@@ -544,11 +543,11 @@ namespace Test
 			glTexCoord2f(0, 0);
 			glVertex2f(0, 0);
 			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), 0);
-			glVertex2f(width, 0);
+			glVertex2f((float)width, 0);
 			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), (float)(height - 1) / (rtt_diffuse->height - 1));
-			glVertex2f(width, height);
+			glVertex2f((float)width, (float)height);
 			glTexCoord2f(0, (float)(height - 1) / (rtt_diffuse->height - 1));
-			glVertex2f(0, height);
+			glVertex2f(0, (float)height);
 			glEnd();
 
 			ShaderProgram::SetActiveProgram(NULL);
@@ -572,7 +571,7 @@ namespace Test
 			renderer.Cleanup();
 		}
 
-		hud->Draw(width, height);
+		hud->Draw((float)width, (float)height);
 
 		GLDEBUG();
 	}
@@ -650,7 +649,11 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
-		delete hud; 
+		if(hud != NULL)
+		{
+			delete hud;
+			hud = NULL;
+		}
 
 		screen->input_state->MouseMoved -= &mouse_motion_handler;
 
@@ -877,8 +880,8 @@ namespace Test
 		int n = lua_gettop(L);
 		if(n == 2 && lua_isnumber(L, 1) && lua_isnumber(L, 2))
 		{
-			float x = lua_tonumber(L, 1);
-			float z = lua_tonumber(L, 2);
+			float x = (float)lua_tonumber(L, 1);
+			float z = (float)lua_tonumber(L, 2);
 
 			lua_settop(L, 0);
 			lua_pushvalue(L, lua_upvalueindex(1));
@@ -993,23 +996,23 @@ namespace Test
 		for(int x = -96; x <= 96; x += 8)
 			for(int z = -96; z <= 96; z += 8)
 			{
-				float y = test_game->GetTerrainHeight(x, z);
-				graph->CreateNode(Vec3(x, y, z));
+				float y = test_game->GetTerrainHeight((float)x, (float)z);
+				graph->CreateNode(Vec3((float)x, y, (float)z));
 			}
 
 		for(int x = -96; x <= 96; x += 8)
 			for(int z = -96; z <= 96; z += 8)
 			{
-				Vec3 my_pos = Vec3(x, test_game->GetTerrainHeight(x, z), z);
+				Vec3 my_pos = Vec3((float)x, test_game->GetTerrainHeight((float)x, (float)z), (float)z);
 				NavNode* node = graph->GetNearestNode(my_pos);
 				if(x > -96)
-					MaybeCreateEdge(test_game, node, x - 4, z);
+					MaybeCreateEdge(test_game, node, (float)x - 4, (float)z);
 				if(x < 96)
-					MaybeCreateEdge(test_game, node, x + 4, z);
+					MaybeCreateEdge(test_game, node, (float)x + 4, (float)z);
 				if(z > -96)
-					MaybeCreateEdge(test_game, node, x, z - 4);
+					MaybeCreateEdge(test_game, node, (float)x, (float)z - 4);
 				if(z < 96)
-					MaybeCreateEdge(test_game, node, x, z + 4);
+					MaybeCreateEdge(test_game, node, (float)x, (float)z + 4);
 			}
 
 		return graph;

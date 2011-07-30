@@ -1,3 +1,5 @@
+#include "StdAfx.h"
+
 #include "CmdArgs.h"
 
 using namespace CibraryEngine;
