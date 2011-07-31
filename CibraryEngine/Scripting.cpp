@@ -33,19 +33,20 @@ namespace CibraryEngine
 
 		void Dispose() { lua_close(state); state = NULL; }
 
-		int DoString(string str)
+		int DoFunction(int args, int results)
 		{
-			int error = luaL_dostring(state, &str[0]);
-
-			if(error != 0)
+			if(int error = lua_pcall(state, args, results, 0))
 			{
-				stringstream ss;
-				ss << "Script error: " << lua_tostring(state, -1) << endl;
-				Debug(ss.str());
-			}
+				stringstream msg;
+				msg << "Script error: " << lua_tostring(state, -1) << endl;
+				Debug(msg.str());
 
-			return error;
+				return error;
+			}
+			return 0;
 		}
+
+		int DoString(string str) { return luaL_loadstring(state, str.c_str()) || DoFunction(0, LUA_MULTRET); }
 
 		int DoFile(string filename)
 		{
@@ -86,6 +87,7 @@ namespace CibraryEngine
 
 	lua_State* ScriptingState::GetLuaState() { return imp->state; }
 
+	int ScriptingState::DoFunction(int args, int results) { return imp->DoFunction(args, results); }
 	int ScriptingState::DoString(string str) { return imp->DoString(str); }
 	int ScriptingState::DoFile(string filename) { return imp->DoFile(filename); }
 

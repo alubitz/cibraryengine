@@ -807,7 +807,7 @@ namespace Test
 				if(lua_isfunction(L, 4))
 				{
 					lua_pushvalue(L, 1);			// push dood; top = 5
-					lua_call(L, 1, 0);				// pop args(5)+function(4); top = 3
+					ScriptSystem::GetGlobalState().DoFunction(1, 0);
 
 					lua_settop(L, 0);
 					return true;
@@ -910,8 +910,8 @@ namespace Test
 
 				if(lua_isfunction(L, 4))
 				{
-					lua_pushvalue(L, 1);			// push dood; top = 5
-					lua_call(L, 1, 0);				// pop args(5)+function(4); top = 3
+					lua_pushvalue(L, 1);		// push dood; top = 5
+					ScriptSystem::GetGlobalState().DoFunction(1, 0);		// pop
 
 					lua_settop(L, 0);
 					return true;

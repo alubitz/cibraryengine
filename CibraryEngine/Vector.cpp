@@ -177,6 +177,7 @@ namespace CibraryEngine
 			if		(key == "x") { lua_pushnumber(L, vec->x); return 1; }
 			else if	(key == "y") { lua_pushnumber(L, vec->y); return 1; }
 			else if	(key == "z") { lua_pushnumber(L, vec->z); return 1; }
+			else if	(key == "length") { lua_settop(L, 0); lua_pushnumber(L, vec->ComputeMagnitude()); return 1; }
 		}
 
 		return 0;

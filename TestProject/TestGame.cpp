@@ -22,7 +22,7 @@
 
 #include "LevelLoad.h"
 
-#include "NavMesh.h"
+#include "NavGraph.h"
 
 #include "MaterialLoader.h"
 
@@ -65,7 +65,7 @@ namespace Test
 
 
 
-	NavGraph* BuildNavGraph(TestGame* test_game);
+	unsigned int BuildNavGraph(TestGame* test_game);
 	DebugRenderer debug_renderer = DebugRenderer();
 	/*
 	 * TestGame methods
@@ -89,7 +89,7 @@ namespace Test
 		player_controller(NULL),
 		player_pawn(NULL),
 		debug_text(""),
-		nav_graph(NULL),
+		nav_graph(0),
 		load_status(this)
 	{
 		this->sound_system = sound_system;
@@ -368,8 +368,22 @@ namespace Test
 
 	TestGame::~TestGame() { Dispose(); ScriptSystem::SetGS(NULL); }
 
+	void DebugNavGraphError(unsigned int line, string file)
+	{
+		if(NavGraph::ErrorCode error = NavGraph::GetError())
+		{
+			stringstream msg;
+			msg << "NavGraph error " << error << " (" << NavGraph::GetErrorString(error) << ") before line " << line << " of " << file << endl;
+			Debug(msg.str());
+		}
+	}
+
+#define NGDEBUG() DebugNavGraphError(__LINE__, __FILE__)
+
 	void TestGame::Update(TimingInfo time)
 	{
+		NGDEBUG();
+
 		float elapsed = min((float)time.elapsed, 0.1f);
 		total_game_time += elapsed;
 		elapsed_game_time = elapsed;
@@ -388,6 +402,8 @@ namespace Test
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/update.lua");
 
 		GameState::Update(clamped_time);
+
+		NGDEBUG();
 	}
 
 	void TestGame::Draw(int width_, int height_)
@@ -657,11 +673,10 @@ namespace Test
 
 		screen->input_state->MouseMoved -= &mouse_motion_handler;
 
-		if(nav_graph != NULL)
+		if(nav_graph != 0)
 		{
-			nav_graph->Dispose();
-			delete nav_graph;
-			nav_graph = NULL;
+			NavGraph::DeleteNavGraph(nav_graph);
+			nav_graph = 0;
 		}
 
 		if(rtt_diffuse != NULL)
@@ -954,10 +969,10 @@ namespace Test
 			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
 
 			Vec3 pos = *((Vec3*)lua_touserdata(L, 1));
-			NavNode* node = gs->nav_graph->GetNearestNode(pos);
+			unsigned int node = NavGraph::GetNearestNode(gs->nav_graph, pos);
 
 			lua_settop(L, 0);
-			return PushNavNodeHandle(L, node);
+			return PushNavNodeHandle(L, gs->nav_graph, node);
 		}
 
 		Debug("gs.getNearestNav takes exactly one parameter, a position vector; returning nil\n");
@@ -967,53 +982,68 @@ namespace Test
 
 
 
-	void MaybeCreateEdge(TestGame* game, NavNode* my_node, float x, float z)
+	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, unsigned int other_node)
 	{
-		Vec3 other_pos = Vec3(x, game->GetTerrainHeight(x, z), z);
-		Vec3 my_pos = my_node->pos;
+		Vec3 other_pos = NavGraph::GetNodePosition(graph, other_node);
 
-		// don't create a path from one point to itself
-		if(!(my_pos == other_pos))
-		{
-			float cost = (other_pos - my_pos).ComputeMagnitude();
-			// strongly discourage paths that are impossible to ascend, or deadly to descend
-			if(my_pos.y < other_pos.y - 5 || my_pos.y > other_pos.y + 15)
-				cost += 100;
-
-			NavNode* other_node = my_node->graph->GetNearestNode(other_pos);
-			NavEdge edge;
-			edge.node = other_node;
-			edge.cost = cost;
-
-			my_node->neighbors.push_back(edge);
-		}
+		float cost = (other_pos - my_pos).ComputeMagnitude();
+		// strongly discourage paths that are impossible to ascend, or deadly to descend
+		if(my_pos.y < other_pos.y - 5 || my_pos.y > other_pos.y + 15)
+			cost += 100;
+		
+		NavGraph::NewEdge(graph, my_node, other_node, cost);
 	}
 
-	NavGraph* BuildNavGraph(TestGame* test_game)
+	unsigned int BuildNavGraph(TestGame* test_game)
 	{
-		NavGraph* graph = new NavGraph(test_game);
+		unsigned int graph = NavGraph::NewNavGraph(test_game);
 
-		for(int x = -96; x <= 96; x += 8)
-			for(int z = -96; z <= 96; z += 8)
-			{
-				float y = test_game->GetTerrainHeight((float)x, (float)z);
-				graph->CreateNode(Vec3((float)x, y, (float)z));
-			}
+		const unsigned int grid_res = 50;
+		const unsigned int grm1 = grid_res - 1;
 
-		for(int x = -96; x <= 96; x += 8)
-			for(int z = -96; z <= 96; z += 8)
+		unsigned int* nodes = new unsigned int[grid_res * grid_res];
+
+		const float grid_min = -98.0f, grid_max = 98.0f, grid_size = grid_max - grid_min;
+		const float grid_coeff = grid_size / grid_res;
+
+		for(unsigned int i = 0; i < grid_res; i++)
+		{
+			float x = grid_min + (float)i * grid_coeff;
+			for(unsigned int j = 0; j < grid_res; j++)
 			{
-				Vec3 my_pos = Vec3((float)x, test_game->GetTerrainHeight((float)x, (float)z), (float)z);
-				NavNode* node = graph->GetNearestNode(my_pos);
-				if(x > -96)
-					MaybeCreateEdge(test_game, node, (float)x - 4, (float)z);
-				if(x < 96)
-					MaybeCreateEdge(test_game, node, (float)x + 4, (float)z);
-				if(z > -96)
-					MaybeCreateEdge(test_game, node, (float)x, (float)z - 4);
-				if(z < 96)
-					MaybeCreateEdge(test_game, node, (float)x, (float)z + 4);
+				float z = grid_min + (float)j * grid_coeff;
+				float y = test_game->GetTerrainHeight(x, z);
+				nodes[i * grid_res + j] = NavGraph::NewNode(graph, Vec3(x, y, z));
 			}
+		}
+
+		for(unsigned int i = 0; i < grid_res; i++)
+		{
+			for(unsigned int j = 0; j < grid_res; j++)
+			{
+				unsigned int my_node = nodes[i * grid_res + j];
+				Vec3 my_pos = NavGraph::GetNodePosition(graph, my_node);
+				
+				if(i > 0)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j]);
+				if(i < grm1)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j]);
+				if(j > 0)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j - 1]);
+				if(j < grm1)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j + 1]);
+				if(i > 0 && j > 0)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j - 1]);
+				if(i > 0 && j < grm1)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j + 1]);
+				if(i < grm1 && j > 0)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j - 1]);
+				if(i < grm1 && j < grm1)
+					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j + 1]);
+			}
+		}
+
+		delete[] nodes;
 
 		return graph;
 	}

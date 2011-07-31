@@ -12,7 +12,6 @@ namespace Test
 	class DSNMaterial;
 	class GlowyModelMaterial;
 	class Sun;
-	class NavGraph;
 
 	class TestGame : public GameState
 	{
@@ -101,7 +100,7 @@ namespace Test
 
 			string debug_text;
 
-			NavGraph* nav_graph;
+			unsigned int nav_graph;
 
 			struct Loader
 			{
