@@ -14,7 +14,6 @@ int main(int argc, char** argv)
 
 	InitEndianness();
 
-	//ProgramWindow* win = ProgramWindow::CreateProgramWindow("C++ Game Engine", 0, 0, 0, true);
 	ProgramWindow* win = ProgramWindow::CreateProgramWindow("C++ Game Engine", 0, 0, 0, false);
 	if(win == NULL)
 		return 1;
@@ -22,7 +21,6 @@ int main(int argc, char** argv)
 	ScreenshotGrabber grabber(win);
 	win->input_state->KeyStateChanged += &grabber;
 
-	//ProgramScreen* first_screen = new LoadingScreen(win, NULL);
 	ProgramScreen* first_screen = new MainMenu(win, NULL);
 
 	int result = win->Run(first_screen);

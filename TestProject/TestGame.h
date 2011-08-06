@@ -21,16 +21,6 @@ namespace Test
 
 			Dood* SpawnDood(Vec3 pos, UberModel* model);
 
-			class MouseMotionHandler : public EventHandler
-			{
-				public:
-					TestGame* game;
-
-					MouseMotionHandler(TestGame* game);
-
-					void HandleEvent(Event* evt);
-			} mouse_motion_handler;
-
 			class DoodDeathHandler : public EventHandler
 			{
 				public:

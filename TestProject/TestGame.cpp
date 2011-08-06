@@ -72,7 +72,6 @@ namespace Test
 	 */
 	TestGame::TestGame(TestScreen* screen, SoundSystem* sound_system) :
 		screen(screen),
-		mouse_motion_handler(this),
 		bot_death_handler(this),
 		player_death_handler(this),
 		player_damage_handler(this),
@@ -301,7 +300,6 @@ namespace Test
 		// creating player
 		SpawnPlayer(Vec3(0, GetTerrainHeight(0, 0) + 1, 0));
 
-		screen->input_state->MouseMoved += &mouse_motion_handler;
 
 		sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
@@ -671,8 +669,6 @@ namespace Test
 			hud = NULL;
 		}
 
-		screen->input_state->MouseMoved -= &mouse_motion_handler;
-
 		if(nav_graph != 0)
 		{
 			NavGraph::DeleteNavGraph(nav_graph);
@@ -780,30 +776,6 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_getNearestNavNode, 1);
 		lua_setfield(L, 1, "getNearestNav");
-	}
-
-
-
-
-	/*
-	 * TestGame::MouseMotionHandler methods
-	 */
-	TestGame::MouseMotionHandler::MouseMotionHandler(TestGame* game) : game(game) { }
-
-	void TestGame::MouseMotionHandler::HandleEvent(Event* evt)
-	{
-		/*
-		MouseMotionEvent* mm_evt = (MouseMotionEvent*)evt;
-		if(game->player_controller !=  NULL)
-		{
-			ControlState* control_state = game->player_controller->GetControlState();
-			if(control_state != NULL)
-			{
-				(*control_state)[Dood::Yaw] = (*control_state)[Dood::Yaw] + mm_evt->dx * 0.005f;
-				(*control_state)[Dood::Pitch] = (*control_state)[Dood::Pitch] + mm_evt->dy * 0.005f;
-			}
-		}
-		*/
 	}
 
 
