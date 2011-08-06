@@ -57,12 +57,12 @@ namespace CibraryEngine
 	/*
 	 * BitmapFontLoader methods
 	 */
-	BitmapFontLoader::BitmapFontLoader(ContentMan* man) : ContentTypeHandler<BitmapFont>(man) { }
+	BitmapFontLoader::BitmapFontLoader(ContentMan* man) : ContentTypeHandler<BitmapFont>(man), tex_cache(man->GetCache<Texture2D>()) { }
 
 	BitmapFont* BitmapFontLoader::Load(ContentMetadata& what)
 	{
-		ContentHandle<Texture2D> texture_handle = man->GetHandle<Texture2D>(what.name);
-		man->ForceLoad(texture_handle);
+		ContentHandle<Texture2D> texture_handle = tex_cache->GetHandle(what.name);
+		tex_cache->ForceLoad(texture_handle);
 
 		if(texture_handle.GetObject() == NULL)
 			return NULL;

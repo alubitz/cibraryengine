@@ -23,10 +23,11 @@ namespace Test
 		bs = model->GetBoundingSphere();
 		bs.center += pos;
 
+		Cache<Material>* mat_cache = gs->content->GetCache<Material>();
 		for(unsigned int i = 0; i < model->materials.size(); i++)
 		{
 			string material_name = model->materials[i];
-			DSNMaterial* mat = (DSNMaterial*)gs->content->Load<Material>(material_name);
+			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
 	}
@@ -126,7 +127,7 @@ namespace Test
 		{
 			ContentMan* content = game->content;
 
-			StaticLevelGeometry* geom = new StaticLevelGeometry(game, content->Load<UberModel>(model_name), pos, ori);
+			StaticLevelGeometry* geom = new StaticLevelGeometry(game, content->GetCache<UberModel>()->Load(model_name), pos, ori);
 			game->Spawn(geom);
 		}
 	};

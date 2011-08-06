@@ -12,7 +12,7 @@ namespace CibraryEngine
 	class SoundSystem;
 
 	class Entity;
-	class ContentMan;
+	struct ContentMan;
 
 	class EntityList;
 	class EntityQualifier;

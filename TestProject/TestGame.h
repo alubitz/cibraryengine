@@ -92,6 +92,11 @@ namespace Test
 
 			unsigned int nav_graph;
 
+			Cache<Texture2D>* tex2d_cache;
+			Cache<VTNModel>* vtn_cache;
+			Cache<UberModel>* ubermodel_cache;
+			Cache<Material>* mat_cache;
+
 			struct Loader
 			{
 				TestGame* game;

@@ -15,14 +15,17 @@ namespace Test
 		uber_models()
 	{
 		vector<VTNModel*> node_models;
-		node_models.push_back(gs->content->Load<VTNModel>("bramble_node_0"));
-		VTNModel* collision_model = gs->content->Load<VTNModel>("cylinder");
+
+		Cache<VTNModel>* vtn_cache = ((TestGame*)gs)->vtn_cache;
+
+		node_models.push_back(vtn_cache->Load("bramble_node_0"));
+		VTNModel* collision_model = vtn_cache->Load("cylinder");
 
 		root = new BrambleNode(pos, Vec3(), Quaternion::Identity(), 1, 0, node_models, collision_model);
 
 		while (root->Grow()) { }					// deliberately empty while loop
 
-		materials.push_back(gs->content->Load<Material>("wood"));
+		materials.push_back(((TestGame*)gs)->mat_cache->Load("wood"));
 
 		root->GetUberModels(uber_models);
 

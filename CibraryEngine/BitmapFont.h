@@ -41,6 +41,8 @@ namespace CibraryEngine
 
 	struct BitmapFontLoader : public ContentTypeHandler<BitmapFont>
 	{
+		Cache<Texture2D>* tex_cache;
+
 		BitmapFontLoader(ContentMan* man);
 
 		BitmapFont* Load(ContentMetadata& what);

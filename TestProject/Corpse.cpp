@@ -54,7 +54,7 @@ namespace Test
 			for(unsigned int i = 0; i < model->materials.size(); i++)
 			{
 				string material_name = model->materials[i];
-				DSNMaterial* mat = (DSNMaterial*)gs->content->Load<Material>(material_name);
+				DSNMaterial* mat = (DSNMaterial*)((TestGame*)gs)->mat_cache->Load(material_name);
 				materials.push_back(mat);
 			}
 		}

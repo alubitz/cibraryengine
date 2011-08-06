@@ -57,9 +57,9 @@ namespace Test
 		void Draw(int w, int h)
 		{
 			if(font == NULL)
-				font = window->content->Load<BitmapFont>("../Font");
+				font = window->content->GetCache<BitmapFont>()->Load("../Font");
 			if(cursor == NULL)
-				cursor = window->content->Load<Cursor>("Cursor");
+				cursor = window->content->GetCache<Cursor>()->Load("Cursor");
 
 			glViewport(0, 0, w, h);
 

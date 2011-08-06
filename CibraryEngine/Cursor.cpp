@@ -102,8 +102,9 @@ namespace CibraryEngine
 
 	Cursor* CursorLoader::Load(ContentMetadata& what)
 	{
-		ContentHandle<Texture2D> texture = man->GetHandle<Texture2D>(what.name);
-		man->ForceLoad<Texture2D>(texture);
+		Cache<Texture2D>* cache = man->GetCache<Texture2D>();
+		ContentHandle<Texture2D> texture(cache->GetHandle(what.name));
+		cache->ForceLoad(texture);
 		if(texture.GetObject() == NULL)
 			return NULL;
 		else

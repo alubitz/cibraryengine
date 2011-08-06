@@ -11,11 +11,13 @@ namespace Test
 	 * MaterialLoader methods
 	 */
 	MaterialLoader::MaterialLoader(ContentMan* man) :
-		ContentTypeHandler<Material>(man)
+		ContentTypeHandler<Material>(man),
+		shader_cache(man->GetCache<Shader>()),
+		tex_cache(man->GetCache<Texture2D>())
 	{
 		// creating shader
-		Shader* vertex_shader = man->Load<Shader>("skel-v");
-		Shader* fragment_shader = man->Load<Shader>("normal-f");
+		Shader* vertex_shader = shader_cache->Load("skel-v");
+		Shader* fragment_shader = shader_cache->Load("normal-f");
 
 		ShaderProgram* shader = new ShaderProgram(vertex_shader, fragment_shader);
 
@@ -25,13 +27,13 @@ namespace Test
 		shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 4));
 		shader->AddUniform<int>(new UniformInt("bone_count"));
 
-		dsn_loader = new DSNLoader(man, shader, man->Load<Texture2D>("default-n"), man->Load<Texture2D>("default-s"));
+		dsn_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"));
 
 
 
-		Shader* glowy_v = man->Load<Shader>("pass-v");
-		Shader* glowy2d_f = man->Load<Shader>("glowy2d-f");
-		Shader* glowy3d_f = man->Load<Shader>("glowy3d-f");
+		Shader* glowy_v = shader_cache->Load("pass-v");
+		Shader* glowy2d_f = shader_cache->Load("glowy2d-f");
+		Shader* glowy3d_f = shader_cache->Load("glowy3d-f");
 
 		glowy2d_shader = new ShaderProgram(glowy_v, glowy2d_f);
 		glowy2d_shader->AddUniform<Texture2D>(new UniformTexture2D("texture", 0));
@@ -124,9 +126,9 @@ namespace Test
 		void End()
 		{
 			if(spritesheet.frames > 0)
-				*result_out = new GlowyModelMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>(name), spritesheet.col_size, spritesheet.row_size, spritesheet.cols, spritesheet.rows, spritesheet.frames), shader_2d);
+				*result_out = new GlowyModelMaterial(Texture3D::FromSpriteSheetAnimation(content->GetCache<Texture2D>()->Load(name), spritesheet.col_size, spritesheet.row_size, spritesheet.cols, spritesheet.rows, spritesheet.frames), shader_2d);
 			else
-				*result_out = new GlowyModelMaterial(content->Load<Texture2D>(name), shader_2d);
+				*result_out = new GlowyModelMaterial(content->GetCache<Texture2D>()->Load(name), shader_2d);
 		}
 	};
 

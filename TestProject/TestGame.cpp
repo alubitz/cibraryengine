@@ -89,6 +89,10 @@ namespace Test
 		player_pawn(NULL),
 		debug_text(""),
 		nav_graph(0),
+		tex2d_cache(screen->window->content->GetCache<Texture2D>()),
+		vtn_cache(screen->window->content->GetCache<VTNModel>()),
+		ubermodel_cache(screen->window->content->GetCache<UberModel>()),
+		mat_cache(NULL),
 		load_status(this)
 	{
 		this->sound_system = sound_system;
@@ -102,7 +106,7 @@ namespace Test
 	{
 		sound_system->TryToEnable();
 
-		font = content->Load<BitmapFont>("../Font");
+		font = content->GetCache<BitmapFont>()->Load("../Font");
 
 		if(load_status.abort)
 		{
@@ -119,7 +123,8 @@ namespace Test
 
 		// setting the content loader for materials...
 		// TODO: delete this somewhere?
-		content->SetHandler<Material>(new MaterialLoader(content));
+		content->CreateCache<Material>(new MaterialLoader(content));
+		mat_cache = content->GetCache<Material>();
 
 		ScriptSystem::SetGS(this);
 
@@ -130,7 +135,7 @@ namespace Test
 		ScriptSystem::SetContentReqList(NULL);
 		content_req_list.LoadContent(&load_status.task);
 
-		if(content->Load<UberModel>("nbridge") == NULL)
+		if(ubermodel_cache->Load("nbridge") == NULL)
 		{
 			load_status.task = "terrain mesh";
 
@@ -140,7 +145,7 @@ namespace Test
 			MaterialModelPair pair;
 
 			pair.material_index = 0;
-			pair.vbo = new SkinVInfoVertexBuffer(*content->Load<VTNModel>("nbridge")->GetVBO());
+			pair.vbo = new SkinVInfoVertexBuffer(*vtn_cache->Load("nbridge")->GetVBO());
 			pairs.push_back(pair);
 			material_names.push_back("stone");
 
@@ -151,19 +156,20 @@ namespace Test
 
 			UberModelLoader::SaveZZZ(heightfield_model, "Files/Models/nbridge.zzz");
 
-			content->GetMetadata<UberModel>(content->GetHandle<UberModel>("nbridge")).fail = false;
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("nbridge").id).fail = false;
 		}
 
 		load_status.task = "sky";
 
 		// creating sky
-		Shader* sky_vertex_shader = content->Load<Shader>("sky-v");
-		Shader* sky_fragment_shader = content->Load<Shader>("sky-f");
+		Cache<Shader>* shader_cache = content->GetCache<Shader>();
+		Shader* sky_vertex_shader = shader_cache->Load("sky-v");
+		Shader* sky_fragment_shader = shader_cache->Load("sky-f");
 		sky_shader = new ShaderProgram(sky_vertex_shader, sky_fragment_shader);
 		sky_shader->AddUniform<TextureCube>(new UniformTextureCube("sky_texture", 0));
 		sky_shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", true));
-		sky_texture = content->Load<TextureCube>("sky_cubemap");
-		sky_sphere = content->Load<VTNModel>("sky_sphere");
+		sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
+		sky_sphere = vtn_cache->Load("sky_sphere");
 
 		if(load_status.abort)
 		{
@@ -172,10 +178,10 @@ namespace Test
 		}
 		load_status.task = "deferred lighting shader";
 
-		ambient_cubemap = content->Load<TextureCube>("ambient_cubemap");
+		ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
 
-		Shader* ds_vertex = content->Load<Shader>("ds-v");
-		Shader* ds_fragment = content->Load<Shader>("ds-f");
+		Shader* ds_vertex = shader_cache->Load("ds-v");
+		Shader* ds_fragment = shader_cache->Load("ds-f");
 		deferred_shader = new ShaderProgram(ds_vertex, ds_fragment);
 		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
@@ -194,13 +200,13 @@ namespace Test
 		load_status.task = "soldier";
 
 		// Dood's model
-		model = content->Load<UberModel>("soldier");
+		model = ubermodel_cache->Load("soldier");
 
 		if(model == NULL)
 		{
 			ConvertSoldier(content);
 
-			UberModel* uber_model = UberModelLoader::CopySkinnedModel(content->Load<SkinnedModel>("soldier"));
+			UberModel* uber_model = UberModelLoader::CopySkinnedModel(content->GetCache<SkinnedModel>()->Load("soldier"));
 
 			UberModel::Bone eye_bone;
 			eye_bone.name = "eye";
@@ -235,15 +241,15 @@ namespace Test
 
 			UberModelLoader::SaveZZZ(uber_model, "Files/Models/soldier.zzz");
 
-			content->GetMetadata<UberModel>(content->GetHandle<UberModel>("soldier")).fail = false;
-			model = content->Load<UberModel>("soldier");
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("soldier").id).fail = false;
+			model = ubermodel_cache->Load("soldier");
 		}
 
-		mflash_material = (GlowyModelMaterial*)content->Load<Material>("mflash");
-		shot_material = (GlowyModelMaterial*)content->Load<Material>("shot");
-		gun_model = content->Load<UberModel>("gun");
-		mflash_model = content->Load<VTNModel>("mflash");
-		shot_model = content->Load<VTNModel>("shot");
+		mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
+		shot_material = (GlowyModelMaterial*)mat_cache->Load("shot");
+		gun_model = ubermodel_cache->Load("gun");
+		mflash_model = vtn_cache->Load("mflash");
+		shot_model = vtn_cache->Load("shot");
 
 		if(load_status.abort)
 		{
@@ -252,14 +258,14 @@ namespace Test
 		}
 		load_status.task = "crab bug";
 
-		enemy = content->Load<UberModel>("crab_bug");
+		enemy = ubermodel_cache->Load("crab_bug");
 		if(enemy == NULL)
 		{
 			// if you want to re-convert the crab bug, simply delete the .zzz file to force conversion
 			ConvertCrabBug(content);
 
-			content->GetMetadata<UberModel>(content->GetHandle<UberModel>("crab_bug")).fail = false;
-			enemy = content->Load<UberModel>("crab_bug");
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("crab_bug").id).fail = false;
+			enemy = ubermodel_cache->Load("crab_bug");
 		}
 
 		if(load_status.abort)
@@ -270,14 +276,13 @@ namespace Test
 		load_status.task = "misc";
 
 		// loading weapon sounds
-		//fire_sound = content->Load<SoundBuffer>("SFX_mk2_fire");
-		fire_sound = content->Load<SoundBuffer>("shot");
-		chamber_click_sound = NULL; //content->Load<SoundBuffer>("SFX_gun_empty");
-		reload_sound = NULL; //content->Load<SoundBuffer>("SFX_mk2_reload");
+		fire_sound = content->GetCache<SoundBuffer>()->Load("shot");
+		chamber_click_sound = NULL;
+		reload_sound = NULL;
 
 		// loading particle materials...
-		blood_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>("blood_splatter"), 32, 32, 4, 2, 7), Alpha);
-		dirt_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(content->Load<Texture2D>("dirt_impact"), 32, 32, 2, 2, 4), Alpha);
+		blood_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("blood_splatter"), 32, 32, 4, 2, 7), Alpha);
+		dirt_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("dirt_impact"), 32, 32, 2, 2, 4), Alpha);
 
 		if(load_status.abort)
 		{
@@ -710,7 +715,7 @@ namespace Test
 		else
 		{
 			for(unsigned int i = 0; i < model->materials.size(); i++)
-				use_materials.push_back(content->Load<Material>(model->materials[i]));
+				use_materials.push_back(mat_cache->Load(model->materials[i]));
 		}
 
 		UberModel::LOD* use_lod = model->lods[lod];

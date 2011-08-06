@@ -23,14 +23,14 @@ namespace CibraryEngine
 	 */
 	ContentMan::ContentMan()
 	{
-		SetHandler<Texture2D>(new Texture2DLoader(this));
-		SetHandler<BitmapFont>(new BitmapFontLoader(this));
-		SetHandler<Cursor>(new CursorLoader(this));
-		SetHandler<VTNModel>(new ModelLoader(this));
-		SetHandler<SkinnedModel>(new SkinnedModelLoader(this));
-		SetHandler<Shader>(new ShaderLoader(this));
-		SetHandler<TextureCube>(new TextureCubeLoader(this));
-		SetHandler<SoundBuffer>(new SoundBufferLoader(this));
-		SetHandler<UberModel>(new UberModelLoader(this));
+		CreateCache<Texture2D>(new Texture2DLoader(this));
+		CreateCache<BitmapFont>(new BitmapFontLoader(this));
+		CreateCache<Cursor>(new CursorLoader(this));
+		CreateCache<VTNModel>(new ModelLoader(this));
+		CreateCache<SkinnedModel>(new SkinnedModelLoader(this));
+		CreateCache<Shader>(new ShaderLoader(this));
+		CreateCache<TextureCube>(new TextureCubeLoader(this));
+		CreateCache<SoundBuffer>(new SoundBufferLoader(this));
+		CreateCache<UberModel>(new UberModelLoader(this));
 	}
 }

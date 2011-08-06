@@ -7,7 +7,7 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class ContentMan;
+	struct ContentMan;
 	template<class T> struct ContentHandle;
 
 	class UberModel;

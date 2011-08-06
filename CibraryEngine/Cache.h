@@ -10,7 +10,7 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class ContentMan;
+	struct ContentMan;
 	class ContentTypeHandlerBase;
 	template <class T> class ContentTypeHandler;
 
@@ -39,16 +39,21 @@ namespace CibraryEngine
 	template <class T> struct Cache : public CacheBase
 	{
 		Cache(ContentMan* man);
+		Cache(ContentMan* man, ContentTypeHandler<T>* handler);
 
 		T*& GetContent(unsigned int id);
 		ContentMetadata& GetMetadata(unsigned int id);
 
 		ContentHandle<T> CreateHandle(ContentMetadata meta);
+		ContentHandle<T> GetHandle(string name);
 
 		void ForceLoad(ContentHandle<T> handle);
 		void Unload(ContentHandle<T> handle);
 		bool IsLoaded(ContentHandle<T> handle);
 
+		T* Load(string asset_name);
+
+		ContentTypeHandler<T>* GetHandler();
 		void SetHandler(ContentTypeHandler<T>* handler);
 	};
 }
@@ -58,12 +63,12 @@ namespace CibraryEngine
 namespace CibraryEngine
 {
 	/*
-	 * Cache<T> methods
+	 * Cache<T> method implementations
 	 */
-	template <class T> ContentMetadata& Cache<T>::GetMetadata(unsigned int id)
-	{
-		return content[id].meta;
-	}
+	template <class T> Cache<T>::Cache(ContentMan* man) : CacheBase(man) { }
+	template <class T> Cache<T>::Cache(ContentMan* man, ContentTypeHandler<T>* handler_) : CacheBase(man) { handler = handler_; }
+
+	template <class T> ContentMetadata& Cache<T>::GetMetadata(unsigned int id) { return content[id].meta; }
 
 	template <class T> T*& Cache<T>::GetContent(unsigned int id)
 	{
@@ -73,9 +78,18 @@ namespace CibraryEngine
 
 	template <class T> ContentHandle<T> Cache<T>::CreateHandle(ContentMetadata meta)
 	{
-		ContentHandle<T> handle(man, next_int++);
+		ContentHandle<T> handle(this, next_int++);
 		content[handle.id] = MetaDataPair(meta, NULL);
 		return handle;
+	}
+
+	template <class T> ContentHandle<T> Cache<T>::GetHandle(string name)
+	{
+		for(map<unsigned int, MetaDataPair>::iterator iter = content.begin(); iter != content.end(); iter++)
+			if(iter->second.meta.name == name)
+				return ContentHandle<T>(this, iter->first);
+
+		return CreateHandle(ContentMetadata(name));
 	}
 
 	template <class T> void Cache<T>::ForceLoad(ContentHandle<T> handle)
@@ -117,8 +131,13 @@ namespace CibraryEngine
 		return content[id].data != NULL;
 	}
 
-	template <class T> void Cache<T>::SetHandler(ContentTypeHandler<T>* handler_)
+	template <class T> T* Cache<T>::Load(string asset_name)
 	{
-		handler = handler_;
+		ContentHandle<T> handle = GetHandle(asset_name);
+		ForceLoad(handle);
+		return GetContent(handle.id);
 	}
+
+	template <class T> ContentTypeHandler<T>* Cache<T>::GetHandler() { return handler; }
+	template <class T> void Cache<T>::SetHandler(ContentTypeHandler<T>* handler_) { handler = handler_; }
 }

@@ -41,7 +41,7 @@ namespace CibraryEngine
 
 		TextureCube* Load(ContentMetadata& what)
 		{
-			Texture2D* anim = man->Load<Texture2D>("../Cubemaps/" + what.name);
+			Texture2D* anim = man->GetCache<Texture2D>()->Load("../Cubemaps/" + what.name);
 			if(anim == NULL)
 				return NULL;
 

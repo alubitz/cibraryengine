@@ -2,7 +2,7 @@
 
 namespace CibraryEngine
 {
-	class ContentMan;
+	struct ContentMan;
 	struct ContentMetadata;
 
 	class ContentTypeHandlerBase

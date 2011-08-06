@@ -20,5 +20,13 @@ namespace CibraryEngine
 			needed_soon(false)
 		{
 		}
+
+		ContentMetadata(string name) :
+			name(name),
+			fail(false),
+			needed_recent(false),
+			needed_soon(false)
+		{
+		}
 	};
 }

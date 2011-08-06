@@ -779,7 +779,7 @@ namespace CibraryEngine
 			Debug(zzz_msg.str());
 
 			// see if there is a skinned model we could convert?
-			SkinnedModel* skinny = man->Load<SkinnedModel>(what.name);
+			SkinnedModel* skinny = man->GetCache<SkinnedModel>()->Load(what.name);
 			if(skinny == NULL)
 				Debug("Unable to find a suitable AAK either!\n");
 			else
@@ -794,7 +794,7 @@ namespace CibraryEngine
 
 		if(model != NULL)
 			for(unsigned int i = 0; i < model->materials.size(); i++)
-				man->Load<Material>(model->materials[i]);
+				man->GetCache<Material>()->Load(model->materials[i]);
 
 		return model;
 	}

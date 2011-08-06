@@ -7,7 +7,7 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class ContentMan;
+	struct ContentMan;
 	class MenuSelectionEvent;
 
 	/** Type of MenuItem which automatically initializes position, text, and selectability during initialization, and which has a member function that is called when it is activated */

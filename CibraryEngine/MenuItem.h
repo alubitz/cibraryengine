@@ -10,7 +10,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class TimingInfo;
-	class ContentMan;
+	struct ContentMan;
 
 	class MenuItem;
 	class MenuScreen;

@@ -14,9 +14,10 @@ namespace CibraryEngine
 	{
 		ContentMan* content;
 
+		Cache<UberModel>* ubermodel_cache;
 		list<ContentHandle<UberModel> > models;
 
-		Imp(ContentMan* content) : content(content), models() { }
+		Imp(ContentMan* content) : content(content), ubermodel_cache(content->GetCache<UberModel>()), models() { }
 	};
 
 
@@ -31,7 +32,7 @@ namespace CibraryEngine
 
 	ContentHandle<UberModel> ContentReqList::LoadModel(string model_name) 
 	{
-		ContentHandle<UberModel> handle = imp->content->GetHandle<UberModel>(model_name);
+		ContentHandle<UberModel> handle(imp->ubermodel_cache->GetHandle(model_name));
 		imp->models.push_back(handle);
 		return handle;
 	}
@@ -43,7 +44,7 @@ namespace CibraryEngine
 			ContentHandle<UberModel> handle = *iter;
 			*status = "Models... " + handle.GetMetadata().name + ".zzz";
 
-			imp->content->ForceLoad<UberModel>(handle);
+			imp->ubermodel_cache->ForceLoad(handle);
 		}
 	}
 }

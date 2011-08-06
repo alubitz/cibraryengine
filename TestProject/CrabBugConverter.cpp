@@ -44,13 +44,15 @@ namespace Test
 		bones.push_back(BoneEntry("r leg c 2",	"r leg c 1",	Vec3(	-0.55f,	0.68f,	-0.69f),	0.10f,	Vec3(	-0.69f,	0.77f,	-1.07f	),	0.07f,	4));
 		bones.push_back(BoneEntry("r leg c 3",	"r leg c 2",	Vec3(	-0.69f,	0.77f,	-1.07f),	0.10f,	Vec3(	-0.79f,	0.05f,	-1.32f	),	0.05f,	4));
 
+		Cache<VTNModel>* vtn_cache = content->GetCache<VTNModel>();
+
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			BoneEntry& bone = bones[i];
-			bone.model = content->Load<VTNModel>(bone.name);
+			bone.model = vtn_cache->Load(bone.name);
 		}
 
-		SkinnedModel* model = SkinnedModel::CopyVTNModel(content->Load<VTNModel>("crab_bug"), "crab_bug");
+		SkinnedModel* model = SkinnedModel::CopyVTNModel(vtn_cache->Load("crab_bug"), "crab_bug");
 
 		Skeleton* skeleton = model->skeleton = new Skeleton();
 
@@ -64,7 +66,7 @@ namespace Test
 		{
 			BoneEntry& bone = bones[i];
 
-			bone.model = content->Load<VTNModel>(bone.name);
+			bone.model = vtn_cache->Load(bone.name);
 
 			string& parent_name = bone.parent;
 			if(parent_name != "")

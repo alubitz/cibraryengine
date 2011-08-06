@@ -10,9 +10,9 @@ namespace Test
 	 */
 	DSNMaterial* DSNLoader::Load(string asset_name)
 	{
-		Texture2D* diffuse = content->Load<Texture2D>(asset_name + "-d");
-		Texture2D* specular = content->Load<Texture2D>(asset_name + "-s");
-		Texture2D* normal = content->Load<Texture2D>(asset_name + "-n");
+		Texture2D* diffuse = tex_cache->Load(asset_name + "-d");
+		Texture2D* specular = tex_cache->Load(asset_name + "-s");
+		Texture2D* normal = tex_cache->Load(asset_name + "-n");
 
 		if(specular == NULL)
 			specular = default_specular;

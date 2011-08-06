@@ -16,6 +16,9 @@ namespace Test
 			ShaderProgram* glowy2d_shader;
 			ShaderProgram* glowy3d_shader;
 
+			Cache<Shader>* shader_cache;
+			Cache<Texture2D>* tex_cache;
+
 		public:
 
 			MaterialLoader(ContentMan* man);

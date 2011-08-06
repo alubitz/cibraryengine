@@ -6,7 +6,7 @@ namespace CibraryEngine
 {
 	class ProgramWindow;
 	class InputState;
-	class ContentMan;
+	struct ContentMan;
 	class SoundSystem;
 
 	/** Class representing a screen within the program, e.g. the title screen, credits, ingame, etc. */

@@ -29,11 +29,11 @@ namespace Test
 		OnDamageTaken(this),
 		OnJumpFailure(this)
 	{
-		reticle_tex = content->Load<Texture2D>("reticle");
-		hud_splat_tex = content->Load<Texture2D>("hud_splat");
-		healthbar_tex = content->Load<Texture2D>("healthbar");
-		ammogauge_tex = content->Load<Texture2D>("ammogauge");
-		jumpbar_tex = content->Load<Texture2D>("jumpbar");
+		reticle_tex = game->tex2d_cache->Load("reticle");
+		hud_splat_tex = game->tex2d_cache->Load("hud_splat");
+		healthbar_tex = game->tex2d_cache->Load("healthbar");
+		ammogauge_tex = game->tex2d_cache->Load("ammogauge");
+		jumpbar_tex = game->tex2d_cache->Load("jumpbar");
 
 		for(int i = 0; i < 8; i++)
 			directional_damage.push_back(0.0);

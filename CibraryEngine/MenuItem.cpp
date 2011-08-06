@@ -56,7 +56,7 @@ namespace CibraryEngine
 	void MenuItem::Draw(int screen_w, int screen_h)
 	{
 		if(imp->font == NULL)											// By overriding this function you can prevent this font from being loaded
-			imp->font = imp->content->Load<BitmapFont>("../Font");
+			imp->font = imp->content->GetCache<BitmapFont>()->Load("../Font");
 
 		float br = imp->selectable ? imp->hover_phase : 1.0f;
 		glColor3f(0.5f + 0.5f * br, 0.5f + 0.5f * br, 1.0f);

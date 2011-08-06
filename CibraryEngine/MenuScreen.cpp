@@ -42,9 +42,9 @@ namespace CibraryEngine
 
 			// By overriding MenuScreen::Draw you can prevent this content from being loaded
 			if(font == NULL)
-				font = content->Load<BitmapFont>("../Font");
+				font = content->GetCache<BitmapFont>()->Load("../Font");
 			if(cursor == NULL)
-				cursor = content->Load<Cursor>("Cursor");
+				cursor = content->GetCache<Cursor>()->Load("Cursor");
 
 			glViewport(0, 0, w, h);
 
