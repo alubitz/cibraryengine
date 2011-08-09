@@ -448,6 +448,10 @@ namespace Test
 
 		if(debug_draw)
 		{
+			glDepthMask(true);
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 			SceneRenderer renderer(&camera);
 			DrawPhysicsDebuggingInfo(&renderer);
 		}
@@ -785,6 +789,9 @@ namespace Test
 	int gs_getDoodsList(lua_State* L);
 	int gs_getNearestNavNode(lua_State* L);
 	int gs_showChapterText(lua_State* L);
+	int gs_setGodMode(lua_State* L);
+	int gs_setNavEditMode(lua_State* L);
+	int gs_setDebugDrawMode(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -819,6 +826,18 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_showChapterText, 1);
 		lua_setfield(L, 1, "showChapterText");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_setGodMode, 1);
+		lua_setfield(L, 1, "setGodMode");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_setNavEditMode, 1);
+		lua_setfield(L, 1, "setNavEditMode");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_setDebugDrawMode, 1);
+		lua_setfield(L, 1, "setDebugDrawMode");
 	}
 
 
@@ -1010,12 +1029,63 @@ namespace Test
 			gs->ShowChapterText(str);
 
 			lua_settop(L, 0);
+			return 0;
 		}
 
 		Debug("gs.showChapterText takes exactly one parameter, the text to be displayed\n");
 		return 0;
 	}
 
+	int gs_setGodMode(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			gs->god_mode = (bool)lua_toboolean(L, 1);
+
+			lua_settop(L, 0);
+			return 0;
+		}
+
+		Debug("gs.setGodMode takes exactly one parameter, a boolean\n");
+		return 0;
+	}
+
+	int gs_setNavEditMode(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			gs->nav_editor = (bool)lua_toboolean(L, 1);
+
+			lua_settop(L, 0);
+			return 0;
+		}
+
+		Debug("gs.setNavEditMode takes exactly one parameter, a boolean\n");
+		return 0;
+	}
+
+	int gs_setDebugDrawMode(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			gs->debug_draw = (bool)lua_toboolean(L, 1);
+
+			lua_settop(L, 0);
+			return 0;
+		}
+
+		Debug("gs.setDebugDrawMode takes exactly one parameter, a boolean\n");
+		return 0;
+	}
 
 
 

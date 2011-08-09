@@ -18,7 +18,7 @@ namespace CibraryEngine
 	void ScreenshotGrabber::HandleEvent(Event* evt)
 	{
 		KeyStateEvent* kse = (KeyStateEvent*)evt;
-		if(kse->key == VK_F2 && kse->state)
+		if(kse->key == VK_F12 && kse->state)
 		{
 			time_t raw_time;
 			time(&raw_time);
