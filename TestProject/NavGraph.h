@@ -38,8 +38,9 @@ namespace Test
 			static void DeleteNode(unsigned int graph, unsigned int node);
 
 			// graph getter functions
+			static vector<unsigned int> GetAllNodes(unsigned int graph);
 			static vector<unsigned int> GetVisibleNodes(unsigned int graph, Vec3 pos);			// this function is expensive, so don't call it too often
-			static unsigned int GetNearestNode(unsigned int graph, Vec3 pos);				// screw visibility, just find the nearest node
+			static unsigned int GetNearestNode(unsigned int graph, Vec3 pos);					// screw visibility, just find the nearest node
 
 			static Vec3 GetNodePosition(unsigned int graph, unsigned int node);
 			static vector<unsigned int> GetNodeEdges(unsigned int graph, unsigned int node, PathDirection dir);
@@ -56,6 +57,9 @@ namespace Test
 
 
 
+
+	void SaveNavGraph(unsigned int graph, string filename);
+	unsigned int LoadNavGraph(GameState* game_state, string filename);
 
 	int PushNavNodeHandle(lua_State* L, unsigned int graph, unsigned int node);
 }

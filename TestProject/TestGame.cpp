@@ -76,6 +76,10 @@ namespace Test
 		player_death_handler(this),
 		player_damage_handler(this),
 		total_game_time(0),
+		chapter_text_start(0),
+		chapter_text_end(0),
+		chapter_text(),
+		nav_editor(false),
 		god_mode(false),
 		debug_draw(false),
 		alive(true),
@@ -293,7 +297,9 @@ namespace Test
 
 		LoadLevel(this, "TestLevel");
 
-		nav_graph = BuildNavGraph(this);
+		nav_graph = LoadNavGraph(this, "Files/Levels/TestNav.nav");
+		if(nav_graph == 0)
+			nav_graph = BuildNavGraph(this);
 
 		if(load_status.abort)
 		{
@@ -472,6 +478,24 @@ namespace Test
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
 				(*iter)->Vis(&renderer);
 
+
+			float camera_dot = Vec3::Dot(camera.GetForward(), camera.GetPosition());
+			if(nav_editor)
+			{
+				vector<unsigned int> nodes = NavGraph::GetAllNodes(nav_graph);
+				for(unsigned int i = 0; i < nodes.size(); i++)
+				{
+					unsigned int node = nodes[i];
+					Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
+					float dot = Vec3::Dot(camera.GetForward(), pos);
+					if(dot > camera_dot)
+					{
+						RenderNode rn(dirt_particle, new ParticleMaterialNodeData(pos, 1, 0, &camera), -dot);
+						renderer.objects.push_back(rn);
+					}
+				}
+			}
+
 			renderer.lights.push_back(sun);
 
 			renderer.BeginRender();
@@ -630,6 +654,13 @@ namespace Test
 		glDepthMask(true);			// otherwise depth testing breaks
 	}
 
+	void TestGame::ShowChapterText(string text)
+	{
+		chapter_text = text;
+		chapter_text_start = total_game_time;
+		chapter_text_end = total_game_time + 2.0f;
+	}
+
 	float TestGame::GetTerrainHeight(float x, float z)
 	{
 		// define a callback for when a ray intersects an object
@@ -676,6 +707,8 @@ namespace Test
 
 		if(nav_graph != 0)
 		{
+			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
+
 			NavGraph::DeleteNavGraph(nav_graph);
 			nav_graph = 0;
 		}
@@ -751,6 +784,7 @@ namespace Test
 	int gs_getNumberOfBots(lua_State* L);
 	int gs_getDoodsList(lua_State* L);
 	int gs_getNearestNavNode(lua_State* L);
+	int gs_showChapterText(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -781,6 +815,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_getNearestNavNode, 1);
 		lua_setfield(L, 1, "getNearestNav");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_showChapterText, 1);
+		lua_setfield(L, 1, "showChapterText");
 	}
 
 
@@ -953,6 +991,28 @@ namespace Test
 		}
 
 		Debug("gs.getNearestNav takes exactly one parameter, a position vector; returning nil\n");
+		return 0;
+	}
+
+	int gs_showChapterText(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			lua_getglobal(L, "tostring");
+			lua_pushvalue(L, 1);
+			lua_call(L, 1, 1);
+			
+			string str = lua_tostring(L, 2);
+
+			gs->ShowChapterText(str);
+
+			lua_settop(L, 0);
+		}
+
+		Debug("gs.showChapterText takes exactly one parameter, the text to be displayed\n");
 		return 0;
 	}
 

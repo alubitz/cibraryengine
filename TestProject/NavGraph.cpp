@@ -137,6 +137,14 @@ namespace Test
 				}
 			}
 
+			vector<unsigned int> GetAllNodes()
+			{
+				vector<unsigned int> results;
+				for(map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+					results.push_back(iter->first);
+				return results;
+			}
+
 			vector<unsigned int> GetVisibleNodes(Vec3 pos)
 			{
 				vector<unsigned int> results;
@@ -369,6 +377,18 @@ namespace Test
 			navgraph_error = NavGraph::ERR_INVALID_GRAPH;		
 	}
 
+	vector<unsigned int> NavGraph::GetAllNodes(unsigned int graph)
+	{
+		NavGraphObject* obj = GetGraphByID(graph);
+		if(obj)
+			return obj->GetAllNodes();
+		else
+		{
+			navgraph_error = NavGraph::ERR_INVALID_GRAPH;
+			return vector<unsigned int>();
+		}
+	}
+
 	vector<unsigned int> NavGraph::GetVisibleNodes(unsigned int graph, Vec3 pos)
 	{
 		NavGraphObject* obj = GetGraphByID(graph);
@@ -516,6 +536,12 @@ namespace Test
 		return 0;
 	}
 
+
+
+
+	/*
+	 * Make some of this NavGraph stuff available to scripting
+	 */
 	int PushNavNodeHandle(lua_State* L, unsigned int graph, unsigned int node)
 	{	
 		LuaNavNode* my_node = (LuaNavNode*)lua_newuserdata(L, sizeof(LuaNavNode));
@@ -538,5 +564,81 @@ namespace Test
 		lua_setmetatable(L, -2);
 
 		return 1;
+	}
+
+
+
+
+	/*
+	 * NavGraph I/O functions
+	 */
+	void SaveNavGraph(unsigned int graph, string filename)
+	{
+		ofstream file(filename.c_str(), ios::out | ios::binary);
+		if(!file)
+			return;			// failed
+
+		vector<unsigned int> nodes = NavGraph::GetAllNodes(graph);
+		WriteUInt32(nodes.size(), file);
+
+		for(unsigned int i = 0; i < nodes.size(); i++)
+		{
+			unsigned int node = nodes[i];
+			Vec3 pos = NavGraph::GetNodePosition(graph, node);
+			
+			WriteUInt32(node, file);
+			WriteVec3(pos, file);
+		}
+		for(unsigned int i = 0; i < nodes.size(); i++)
+		{
+			unsigned int node = nodes[i];
+			WriteUInt32(node, file);
+
+			vector<unsigned int> edges = NavGraph::GetNodeEdges(graph, node, NavGraph::PD_OUT);
+
+			WriteUInt32(edges.size(), file);
+
+			for(unsigned int j = 0; j < edges.size(); j++)
+			{
+				unsigned int edge = edges[j];
+				float cost = NavGraph::GetEdgeCost(graph, node, edge);
+
+				WriteUInt32(edge, file);
+				WriteSingle(cost, file);
+			}
+		}
+	}
+
+	unsigned int LoadNavGraph(GameState* game_state, string filename)
+	{
+		ifstream file(filename.c_str(), ios::in | ios::binary);
+		if(!file)
+			return 0;
+
+		unsigned int graph = NavGraph::NewNavGraph(game_state);
+
+		unsigned int n_nodes = ReadUInt32(file);
+		map<unsigned int, unsigned int> nodes;
+		for(unsigned int i = 0; i < n_nodes; i++)
+		{
+			unsigned int node = ReadUInt32(file);
+			Vec3 pos = ReadVec3(file);
+			nodes[node] = NavGraph::NewNode(graph, pos);
+		}
+		for(unsigned int i = 0; i < n_nodes; i++)
+		{
+			unsigned int node = ReadUInt32(file);
+			unsigned int n_edges = ReadUInt32(file);
+
+			for(unsigned int j = 0; j < n_edges; j++)
+			{
+				unsigned int edge = ReadUInt32(file);
+				float cost = ReadSingle(file);
+
+				NavGraph::NewEdge(graph, nodes[node], nodes[edge], cost);
+			}
+		}
+
+		return graph;
 	}
 }

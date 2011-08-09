@@ -47,6 +47,10 @@ namespace Test
 
 			float total_game_time;
 
+			float chapter_text_start, chapter_text_end;
+			string chapter_text;
+
+			bool nav_editor;
 			bool god_mode;
 			bool debug_draw;
 			bool alive;
@@ -129,6 +133,8 @@ namespace Test
 			void DrawBackground(Mat4 view_matrix);
 			void DrawPhysicsDebuggingInfo(SceneRenderer* renderer);
 			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character = NULL,  vector<Material*>* materials = NULL);
+
+			void ShowChapterText(string text);
 
 			float GetTerrainHeight(float x, float z);
 

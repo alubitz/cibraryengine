@@ -489,6 +489,12 @@ namespace Test
 			SetOrtho(w, h);
 			Print((w - retry_text.length() * game->font->font_spacing) / 2, h / 2, retry_text);
 		}
+		else if(game->total_game_time < game->chapter_text_end)
+		{
+			float frac = (game->chapter_text_end - game->total_game_time) / (game->chapter_text_end - game->chapter_text_start);
+			SetOrtho(w / 4, h / 4);
+			Print((w / 4 - game->chapter_text.length() * game->font->font_spacing) / 2, (h / 4 - game->font->font_height) / 2, game->chapter_text, Vec4(1, 1, 1, frac));
+		}
 
 		RenderTarget::Bind(NULL);
 	}
