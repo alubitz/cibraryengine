@@ -58,7 +58,7 @@ namespace CibraryEngine
 				if(result != 0)
 				{
 					stringstream ss;
-					ss << "DoString returned error " << result << ";" << endl;
+					ss << "Script error: " << lua_tostring(state, -1) << endl;
 					Debug(ss.str());
 
 					return result + 1;

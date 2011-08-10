@@ -308,13 +308,11 @@ namespace Test
 		}
 		load_status.task = "starting game";
 
-		// creating player
-		SpawnPlayer(Vec3(0, GetTerrainHeight(0, 0) + 1, 0));
-
-
 		sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
+
+		// if your game start script doesn't init the player, there will be trouble
 
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
@@ -792,6 +790,7 @@ namespace Test
 	int gs_setGodMode(lua_State* L);
 	int gs_setNavEditMode(lua_State* L);
 	int gs_setDebugDrawMode(lua_State* L);
+	int gs_findPath(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -838,6 +837,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_setDebugDrawMode, 1);
 		lua_setfield(L, 1, "setDebugDrawMode");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_findPath, 1);
+		lua_setfield(L, 1, "findPath");
 	}
 
 
@@ -1089,16 +1092,70 @@ namespace Test
 
 
 
-	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, unsigned int other_node)
+	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, vector<unsigned int> other_column)
 	{
-		Vec3 other_pos = NavGraph::GetNodePosition(graph, other_node);
+		for(vector<unsigned int>::iterator iter = other_column.begin(); iter != other_column.end(); iter++)
+		{
+			unsigned int other_node = *iter;
 
-		float cost = (other_pos - my_pos).ComputeMagnitude();
-		// strongly discourage paths that are impossible to ascend, or deadly to descend
-		if(my_pos.y < other_pos.y - 5 || my_pos.y > other_pos.y + 15)
-			cost += 100;
-		
-		NavGraph::NewEdge(graph, my_node, other_node, cost);
+			Vec3 other_pos = NavGraph::GetNodePosition(graph, other_node);
+
+			float cost = (other_pos - my_pos).ComputeMagnitude();
+			if(my_pos.y < other_pos.y - 5 || my_pos.y > other_pos.y + 15)
+				continue;			// don't make paths up steep hills, or off of cliffs
+			else
+				NavGraph::NewEdge(graph, my_node, other_node, cost);
+		}
+	}
+
+	const float min_ceiling_height = 2.0f;
+	vector<float> GetNavGraphHeights(TestGame* game, float x, float z)
+	{
+		// define a callback for when a ray intersects an object
+		list<float> results;
+		struct : btCollisionWorld::RayResultCallback
+		{
+			list<float>* results;
+
+			btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+			{
+				void* void_pointer = rayResult.m_collisionObject->getUserPointer();
+				if(void_pointer != NULL)
+				{
+					StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>((Entity*)void_pointer);
+					if(slg != NULL)
+						results->push_back(rayResult.m_hitFraction);
+				}
+				return 1;
+			}
+		} ray_callback;
+
+		ray_callback.results = &results;
+
+		// run that function for anything on this ray...
+		float top = 1000;
+		game->physics_world->dynamics_world->rayTest(btVector3(x, 0, z), btVector3(x, top, z), ray_callback);
+
+		results.sort();
+		results.reverse();
+
+		vector<float> valid_floors;
+		bool floor = true;
+		float y = top + min_ceiling_height;
+		for(list<float>::iterator iter = results.begin(); iter != results.end(); iter++)
+		{
+			float new_y = *iter * top;
+			
+			if(floor && new_y + min_ceiling_height <= y)
+				valid_floors.push_back(new_y);
+
+			y = new_y;
+			floor = !floor;
+		}
+		if(valid_floors.size() > 1)
+			return valid_floors;
+		else
+			return valid_floors;
 	}
 
 	unsigned int BuildNavGraph(TestGame* test_game)
@@ -1108,7 +1165,7 @@ namespace Test
 		const unsigned int grid_res = 50;
 		const unsigned int grm1 = grid_res - 1;
 
-		unsigned int* nodes = new unsigned int[grid_res * grid_res];
+		vector<unsigned int>* nodes = new vector<unsigned int>[grid_res * grid_res];
 
 		const float grid_min = -98.0f, grid_max = 98.0f, grid_size = grid_max - grid_min;
 		const float grid_coeff = grid_size / grid_res;
@@ -1119,8 +1176,13 @@ namespace Test
 			for(unsigned int j = 0; j < grid_res; j++)
 			{
 				float z = grid_min + (float)j * grid_coeff;
-				float y = test_game->GetTerrainHeight(x, z);
-				nodes[i * grid_res + j] = NavGraph::NewNode(graph, Vec3(x, y, z));
+				vector<unsigned int> column = vector<unsigned int>();
+
+				vector<float> floors = GetNavGraphHeights(test_game, x, z);
+				for(vector<float>::iterator iter = floors.begin(); iter != floors.end(); iter++)
+					column.push_back(NavGraph::NewNode(graph, Vec3(x, *iter, z)));
+
+				nodes[i * grid_res + j] = column;
 			}
 		}
 
@@ -1128,30 +1190,208 @@ namespace Test
 		{
 			for(unsigned int j = 0; j < grid_res; j++)
 			{
-				unsigned int my_node = nodes[i * grid_res + j];
-				Vec3 my_pos = NavGraph::GetNodePosition(graph, my_node);
-				
-				if(i > 0)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j]);
-				if(i < grm1)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j]);
-				if(j > 0)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j - 1]);
-				if(j < grm1)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j + 1]);
-				if(i > 0 && j > 0)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j - 1]);
-				if(i > 0 && j < grm1)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j + 1]);
-				if(i < grm1 && j > 0)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j - 1]);
-				if(i < grm1 && j < grm1)
-					MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j + 1]);
+				vector<unsigned int> my_column = nodes[i * grid_res + j];
+
+				for(vector<unsigned int>::iterator iter = my_column.begin(); iter != my_column.end(); iter++)
+				{
+					unsigned int my_node = *iter;
+					Vec3 my_pos = NavGraph::GetNodePosition(graph, my_node);
+					
+					if(i > 0)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j]);
+					if(i < grm1)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j]);
+					if(j > 0)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j - 1]);
+					if(j < grm1)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[i * grid_res + j + 1]);
+					if(i > 0 && j > 0)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j - 1]);
+					if(i > 0 && j < grm1)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j + 1]);
+					if(i < grm1 && j > 0)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j - 1]);
+					if(i < grm1 && j < grm1)
+						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i + 1) * grid_res + j + 1]);
+				}
 			}
 		}
 
 		delete[] nodes;
 
 		return graph;
+	}
+
+
+
+	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target);
+	int gs_findPath(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 2)
+		{
+			TestGame* game_state = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+			LuaNavNode* a = (LuaNavNode*)lua_touserdata(L, 1);
+			LuaNavNode* b = (LuaNavNode*)lua_touserdata(L, 2);
+
+			if(a->graph == b->graph)
+			{
+				unsigned int graph = a->graph;
+				list<unsigned int> path = FindPath(graph, a->node, b->node);
+
+				lua_settop(L, 0);
+				lua_newtable(L);
+				
+				unsigned int index = 1;
+				for(list<unsigned int>::iterator iter = path.begin(); iter != path.end(); iter++)
+				{
+					lua_pushnumber(L, index++);
+					PushNavNodeHandle(L, graph, *iter);
+					lua_settable(L, 1);
+				}
+
+				return 1;
+			}
+		}
+		
+		Debug("gs.findPath takes exactly 2 arguments, nav points on the same graph; returning nil\n");
+		return 0;
+	}
+
+	/*
+	 * NavGraph Pathfinding function! Uses A* (in theory)
+	 */
+	struct Edge
+	{
+		unsigned int to;
+		float cost;
+
+		Edge() : to(0), cost(0) { }
+		Edge(unsigned int to, float cost) : to(to), cost(cost) { }
+	};
+	struct PriorityQueue
+	{
+		list<unsigned int> queue;
+		vector<float>* priorities;
+
+		PriorityQueue(vector<float>* priorities) : queue(), priorities(priorities) { }
+
+		unsigned int Pop()
+		{
+			if(queue.empty()) 
+				return 0;
+			else
+			{
+				unsigned int result = queue.front();
+				queue.pop_front();
+				return result;
+			}
+		}
+
+		void Insert(unsigned int node)
+		{
+			float priority = (*priorities)[node];
+			list<unsigned int>::iterator iter;
+			for(iter = queue.begin(); iter != queue.end(); iter++)
+				if((*priorities)[*iter] > priority)
+				{
+					queue.insert(iter, node);
+					break;
+				}
+			if(iter == queue.end())
+				queue.push_back(node);
+		}
+
+		bool Empty() { return queue.empty(); }
+
+		void ChangePriority(unsigned int node)
+		{
+			for(list<unsigned int>::iterator iter = queue.begin(); iter != queue.end(); iter++)
+				if(*iter == node)
+				{
+					queue.erase(iter);
+					break;
+				}
+			Insert(node);
+		}
+	};
+
+	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target)
+	{
+		vector<unsigned int> nodes = NavGraph::GetAllNodes(graph);
+
+		map<unsigned int, unsigned int> node_to_index;
+		for(unsigned int i = 0; i < nodes.size(); i++)
+			node_to_index[nodes[i]] = i;
+
+		vector<Edge*> shortest_path_tree(nodes.size(), NULL);
+		vector<Edge*> search_frontier(nodes.size(), NULL);
+
+		vector<float> g_costs = vector<float>(nodes.size(), 0.0f);
+		vector<float> f_costs = vector<float>(nodes.size(), 0.0f);
+
+		PriorityQueue pq(&f_costs);
+
+		pq.Insert(node_to_index[source]);
+
+		while(!pq.Empty())
+		{
+			unsigned int closest = pq.Pop();
+
+			shortest_path_tree[closest] = search_frontier[closest];
+			if(nodes[closest] == target)
+				break;
+
+			Vec3 pos_a = NavGraph::GetNodePosition(graph, nodes[closest]);
+
+			vector<unsigned int> edges = NavGraph::GetNodeEdges(graph, nodes[closest], NavGraph::PD_OUT);
+			for(vector<unsigned int>::iterator iter = edges.begin(); iter != edges.end(); iter++)
+			{
+				Vec3 pos_b = NavGraph::GetNodePosition(graph, *iter);
+				float edge_cost = NavGraph::GetEdgeCost(graph, nodes[closest], *iter);
+				float h_cost = (pos_a - pos_b).ComputeMagnitude();			// our heuristic
+				float g_cost = g_costs[closest] + edge_cost;
+
+				unsigned int index = node_to_index[*iter];
+
+				if(search_frontier[index] == NULL)
+				{
+					f_costs[index] = g_cost + h_cost;
+					g_costs[index] = g_cost;
+					pq.Insert(index);
+					//search_frontier[index] = new Edge(*iter, edge_cost);
+					search_frontier[index] = new Edge(nodes[closest], edge_cost);
+				}
+				else if(g_cost < g_costs[index] && shortest_path_tree[index] == NULL)
+				{
+					f_costs[index] = g_cost + h_cost;
+					g_costs[index] = g_cost;
+					pq.ChangePriority(index);
+
+					delete search_frontier[index];
+					//search_frontier[index] = new Edge(*iter, edge_cost);
+					search_frontier[index] = new Edge(nodes[closest], edge_cost);
+				}
+			}
+		}
+
+		// collect result path into a list
+		list<unsigned int> results;
+		unsigned int cur = target;
+		while(cur != source)
+		{
+			int index = node_to_index[cur];
+			Edge* edge = shortest_path_tree[index];
+			cur = edge->to;
+			results.push_back(cur);
+		}
+		results.reverse();
+
+		// delete new'd stuffs
+		for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); iter++)
+			delete *iter;
+
+		// return the path we came up with earlier
+		return results;
 	}
 }

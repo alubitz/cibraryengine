@@ -496,12 +496,6 @@ namespace Test
 	/*
 	 * NavGraph scripting stuff
 	 */
-	struct LuaNavNode
-	{
-		unsigned int graph;
-		unsigned int node;
-	};
-
 	int navnode_index(lua_State* L)
 	{
 		LuaNavNode* node = (LuaNavNode*)lua_touserdata(L, 1);
@@ -527,13 +521,25 @@ namespace Test
 					PushNavNodeHandle(L, node->graph, *iter);
 					lua_pushnumber(L, NavGraph::GetEdgeCost(node->graph, node->node, *iter));
 					lua_settable(L, 1);
-				}
+					}
 
 				return 1;
 			}
 		}
 
 		return 0;
+	}
+
+	int navnode_eq(lua_State* L)
+	{
+		LuaNavNode* a = (LuaNavNode*)lua_touserdata(L, 1);
+		LuaNavNode* b = (LuaNavNode*)lua_touserdata(L, 2);
+
+		bool result = a->graph == b->graph && a->node == b->node;
+		lua_settop(L, 0);
+		lua_pushboolean(L, result);
+
+		return 1;
 	}
 
 
@@ -557,6 +563,9 @@ namespace Test
 
 			lua_pushcclosure(L, navnode_index, 0);
 			lua_setfield(L, -2, "__index");
+
+			lua_pushcclosure(L, navnode_eq, 0);
+			lua_setfield(L, -2, "__eq");
 
 			lua_setglobal(L, "NavNodeMeta");
 			lua_getglobal(L, "NavNodeMeta");

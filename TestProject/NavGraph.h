@@ -56,7 +56,11 @@ namespace Test
 	};
 
 
-
+	struct LuaNavNode
+	{
+		unsigned int graph;
+		unsigned int node;
+	};
 
 	void SaveNavGraph(unsigned int graph, string filename);
 	unsigned int LoadNavGraph(GameState* game_state, string filename);
