@@ -19,7 +19,7 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	float ground_traction = 5.0f, air_traction = 0.1f;
+	float ground_traction = 8.0f, air_traction = 0.1f;
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
 	float jump_speed = 4.0f;

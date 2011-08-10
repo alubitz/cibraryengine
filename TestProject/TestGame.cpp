@@ -299,7 +299,10 @@ namespace Test
 
 		nav_graph = LoadNavGraph(this, "Files/Levels/TestNav.nav");
 		if(nav_graph == 0)
+		{
 			nav_graph = BuildNavGraph(this);
+			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
+		}
 
 		if(load_status.abort)
 		{
@@ -709,8 +712,6 @@ namespace Test
 
 		if(nav_graph != 0)
 		{
-			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
-
 			NavGraph::DeleteNavGraph(nav_graph);
 			nav_graph = 0;
 		}
@@ -1090,7 +1091,20 @@ namespace Test
 		return 0;
 	}
 
-
+	bool MaybeCreateEdge(Vec3 delta, unsigned int graph, unsigned int my_node, unsigned int other_node)
+	{
+		float dy = delta.y;
+		float dxz = sqrtf(delta.x * delta.x + delta.z * delta.z);
+		float slope = dy / dxz;
+		float cost = dxz + dy;
+		if(slope < 0.5f && dy > -8.0f)
+		{
+			NavGraph::NewEdge(graph, my_node, other_node, cost);
+			return true;
+		}
+		else
+			return false;
+	}
 
 	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, vector<unsigned int> other_column)
 	{
@@ -1099,12 +1113,7 @@ namespace Test
 			unsigned int other_node = *iter;
 
 			Vec3 other_pos = NavGraph::GetNodePosition(graph, other_node);
-
-			float cost = (other_pos - my_pos).ComputeMagnitude();
-			if(my_pos.y < other_pos.y - 5 || my_pos.y > other_pos.y + 15)
-				continue;			// don't make paths up steep hills, or off of cliffs
-			else
-				NavGraph::NewEdge(graph, my_node, other_node, cost);
+			MaybeCreateEdge(other_pos - my_pos, graph, my_node, other_node);
 		}
 	}
 
@@ -1158,11 +1167,19 @@ namespace Test
 			return valid_floors;
 	}
 
+	template<class T> bool list_contains(list<T>& l, T& item)
+	{
+		for(list<T>::iterator iter = l.begin(); iter != l.end(); iter++)
+			if(*iter == item)
+				return true;
+		return false;
+	}
+
 	unsigned int BuildNavGraph(TestGame* test_game)
 	{
 		unsigned int graph = NavGraph::NewNavGraph(test_game);
 
-		const unsigned int grid_res = 50;
+		const unsigned int grid_res = 25;
 		const unsigned int grm1 = grid_res - 1;
 
 		vector<unsigned int>* nodes = new vector<unsigned int>[grid_res * grid_res];
@@ -1170,6 +1187,7 @@ namespace Test
 		const float grid_min = -98.0f, grid_max = 98.0f, grid_size = grid_max - grid_min;
 		const float grid_coeff = grid_size / grid_res;
 
+		// place all of the nodes
 		for(unsigned int i = 0; i < grid_res; i++)
 		{
 			float x = grid_min + (float)i * grid_coeff;
@@ -1186,6 +1204,7 @@ namespace Test
 			}
 		}
 
+		// find out what nodes are directly connected to one another
 		for(unsigned int i = 0; i < grid_res; i++)
 		{
 			for(unsigned int j = 0; j < grid_res; j++)
@@ -1217,12 +1236,12 @@ namespace Test
 			}
 		}
 
+
+
 		delete[] nodes;
 
 		return graph;
 	}
-
-
 
 	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target);
 	int gs_findPath(lua_State* L)
@@ -1369,7 +1388,6 @@ namespace Test
 					pq.ChangePriority(index);
 
 					delete search_frontier[index];
-					//search_frontier[index] = new Edge(*iter, edge_cost);
 					search_frontier[index] = new Edge(nodes[closest], edge_cost);
 				}
 			}
@@ -1382,8 +1400,16 @@ namespace Test
 		{
 			int index = node_to_index[cur];
 			Edge* edge = shortest_path_tree[index];
-			cur = edge->to;
-			results.push_back(cur);
+			if(edge != NULL)
+			{
+				results.push_back(cur);
+				cur = edge->to;
+			}
+			else
+			{
+				results.clear();
+				break;
+			}
 		}
 		results.reverse();
 
