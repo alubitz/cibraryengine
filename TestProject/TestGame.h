@@ -132,6 +132,7 @@ namespace Test
 
 			void DrawBackground(Mat4 view_matrix);
 			void DrawPhysicsDebuggingInfo(SceneRenderer* renderer);
+			void DrawNavEditorInfo(SceneRenderer* renderer);
 			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character = NULL,  vector<Material*>* materials = NULL);
 
 			void ShowChapterText(string text);
