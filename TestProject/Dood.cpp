@@ -17,6 +17,7 @@ namespace Test
 
 	bool MaybeDoScriptedAI(Dood* dood);
 	bool MaybeDoScriptedUpdate(Dood* dood);
+	bool MaybeDoScriptedDeath(Dood* dood);
 
 	/*
 	 * Dood constants
@@ -466,6 +467,8 @@ namespace Test
 		DeathEvent evt(this, cause);
 		OnDeath(&evt);
 
+		MaybeDoScriptedDeath(this);
+
 		if(enable_ragdolls)
 		{
 			Corpse* corpse = new Corpse(game_state, this);
@@ -580,6 +583,26 @@ namespace Test
 		}
 
 		Debug("Dood:setUpdate takes exactly one parameter, a callback function (which should take a Dood as parameter)\n");
+		return 0;
+	}
+
+	int dood_setDeath(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isfunction(L, 1))
+		{
+			lua_getmetatable(L, lua_upvalueindex(1));			// push; top = 2
+
+			lua_getfield(L, 2, "death_callback");				// push the update_callback table; top = 3
+			lua_pushvalue(L, lua_upvalueindex(1));				// push the dood; top = 4
+			lua_pushvalue(L, 1);								// push the function; top = 5
+			lua_settable(L, 3);									// pop x2; top = 3
+
+			lua_settop(L, 0);
+			return 0;
+		}
+
+		Debug("Dood:setDeath takes exactly one parameter, a callback function (which should take a Dood as parameter)\n");
 		return 0;
 	}
 
@@ -754,6 +777,7 @@ namespace Test
 			else if	(key == "getHealth")		{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getHealth, 1); return 1; }
 			else if	(key == "setAI")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setAI, 1); return 1; }
 			else if	(key == "setUpdate")		{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setUpdate, 1); return 1; }
+			else if	(key == "setDeath")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setDeath, 1); return 1; }
 			else if	(key == "getControlState")	{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getControlState, 1); return 1; }
 			else if	(key == "getYaw")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getYaw, 1); return 1; }
 			else if	(key == "getPitch")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getPitch, 1); return 1; }
@@ -795,6 +819,9 @@ namespace Test
 
 			lua_newtable(L);
 			lua_setfield(L, n + 2, "update_callback");
+			
+			lua_newtable(L);
+			lua_setfield(L, n + 2, "death_callback");
 
 			lua_newtable(L);
 			lua_setfield(L, n + 2, "control_state");
@@ -931,6 +958,43 @@ namespace Test
 		if(!lua_isnil(L, 2))
 		{
 			lua_getfield(L, 2, "ai_callback");	// pop+push; top = 3
+			if(lua_istable(L, 3))
+			{
+				lua_pushvalue(L, 1);			// push dood; top = 4
+				lua_gettable(L, 3);				// pop+push; top = 4
+
+				if(lua_isfunction(L, 4))
+				{
+					lua_pushvalue(L, 1);		// push dood; top = 5
+					ScriptSystem::GetGlobalState().DoFunction(1, 0);		// pop
+
+					lua_settop(L, 0);
+					return true;
+				}
+
+				lua_settop(L, 0);
+				return false;
+			}
+		}
+
+		lua_settop(L, 0);
+		return false;
+	}
+
+	/*
+	 * If this Dood has a death callback associated with it via Lua-scripting, call that callback
+	 */
+	bool MaybeDoScriptedDeath(Dood* dood)
+	{
+		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
+
+		lua_settop(L, 0);
+		PushDoodHandle(L, dood);
+
+		lua_getmetatable(L, 1);					// push; top = 2
+		if(!lua_isnil(L, 2))
+		{
+			lua_getfield(L, 2, "death_callback");	// pop+push; top = 3
 			if(lua_istable(L, 3))
 			{
 				lua_pushvalue(L, 1);			// push dood; top = 4

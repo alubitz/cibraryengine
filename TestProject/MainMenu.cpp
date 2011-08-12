@@ -1,8 +1,9 @@
 #include "StdAfx.h"
 #include "MainMenu.h"
 
-#include "Credits.h"
 #include "LoadingScreen.h"
+#include "InstructionsScreen.h"
+#include "Credits.h"
 //#include "TestScreen.h"
 
 namespace Test
@@ -16,6 +17,12 @@ namespace Test
 		{
 			NewGameButton(ContentMan* content, int row) : AutoMenuItem(content, "New Game...", row, true) { }
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu)); }
+		};
+
+		struct InstructionsButton : public AutoMenuItem
+		{
+			InstructionsButton(ContentMan* content, int row) : AutoMenuItem(content, "How to Play", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new InstructionsScreen(mse->menu->window, mse->menu)); }
 		};
 
 		struct CreditsButton : public AutoMenuItem
@@ -36,12 +43,14 @@ namespace Test
 		{
 			ContentMan* content = win->content;
 
-			auto_menu_items.push_back(new AutoMenuItem(content, "FPS", 0, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", 1, false));
-			auto_menu_items.push_back(new NewGameButton(content, 2));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Options...", 3, true));		// default implementation does nothing when selected
-			auto_menu_items.push_back(new CreditsButton(content, 4));
-			auto_menu_items.push_back(new ExitButton(content, 5));
+			int row = 0;
+			auto_menu_items.push_back(new AutoMenuItem(content, "FPS", row++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
+			auto_menu_items.push_back(new NewGameButton(content, row++));
+			//auto_menu_items.push_back(new AutoMenuItem(content, "Options...", row++, true));		// default implementation does nothing when selected
+			auto_menu_items.push_back(new InstructionsButton(content, row++));
+			auto_menu_items.push_back(new CreditsButton(content, row++));
+			auto_menu_items.push_back(new ExitButton(content, row++));
 
 			for(unsigned int i = 0; i < auto_menu_items.size(); i++)
 				menu->AddItem(auto_menu_items[i]);

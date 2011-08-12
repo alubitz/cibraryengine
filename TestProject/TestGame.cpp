@@ -712,11 +712,12 @@ namespace Test
 		glDepthMask(true);			// otherwise depth testing breaks
 	}
 
-	void TestGame::ShowChapterText(string text)
+	void TestGame::ShowChapterText(string text, string subtitle, float fade_time)
 	{
 		chapter_text = text;
+		chapter_sub_text = subtitle;
 		chapter_text_start = total_game_time;
-		chapter_text_end = total_game_time + 2.0f;
+		chapter_text_end = total_game_time + fade_time;
 	}
 
 	float TestGame::GetTerrainHeight(float x, float z)
@@ -1073,23 +1074,42 @@ namespace Test
 	int gs_showChapterText(lua_State* L)
 	{
 		int n = lua_gettop(L);
-		if(n == 1)
+
+		if(n >= 1 && n <= 3 && lua_isstring(L, 1))
 		{
-			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+			string title = lua_tostring(L, 1);
+			string subtitle = "";
+			float duration = 2.0f;
 
-			lua_getglobal(L, "tostring");
-			lua_pushvalue(L, 1);
-			lua_call(L, 1, 1);
-			
-			string str = lua_tostring(L, 2);
+			bool good = n == 1;
 
-			gs->ShowChapterText(str);
+			if(n == 2 && (lua_isstring(L, 2) || lua_isnumber(L, 2)))
+			{
+				good = true;
 
-			lua_settop(L, 0);
-			return 0;
+				if(lua_isstring(L, 2))
+					subtitle = lua_tostring(L, 2);
+				else
+					duration = (float)lua_tonumber(L, 2);
+			}
+			else if(n == 3 && lua_isstring(L, 2) && lua_isnumber(L, 3))
+			{
+				good = true;
+
+				subtitle = lua_tostring(L, 2);
+				duration = (float)lua_tonumber(L, 3);
+			}
+
+			if(good)
+			{
+				TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+				gs->ShowChapterText(title, subtitle, duration);
+
+				return 0;
+			}
 		}
 
-		Debug("gs.showChapterText takes exactly one parameter, the text to be displayed\n");
+		Debug("Bad parameters for gs.showChapterText\n");
 		return 0;
 	}
 

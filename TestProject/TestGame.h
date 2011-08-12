@@ -48,7 +48,7 @@ namespace Test
 			float total_game_time;
 
 			float chapter_text_start, chapter_text_end;
-			string chapter_text;
+			string chapter_text, chapter_sub_text;
 
 			bool nav_editor;
 			bool god_mode;
@@ -135,7 +135,7 @@ namespace Test
 			void DrawNavEditorInfo(SceneRenderer* renderer);
 			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character = NULL,  vector<Material*>* materials = NULL);
 
-			void ShowChapterText(string text);
+			void ShowChapterText(string title, string subtitle, float duration);
 
 			float GetTerrainHeight(float x, float z);
 

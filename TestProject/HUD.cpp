@@ -478,22 +478,34 @@ namespace Test
 		if (game->debug_text != "")
 			Print(0, 0, game->debug_text);
 
-		if (player->hp <= 0)
+		if(game->total_game_time < game->chapter_text_end || game->chapter_text_end < game->chapter_text_start)
 		{
-			string death_text = "GAME OVER";
-			string retry_text = "Press Esc to return to main menu";
-
+			float frac = game->chapter_text_end < game->chapter_text_start ? 1.0f : (game->chapter_text_end - game->total_game_time) / (game->chapter_text_end - game->chapter_text_start);
 			SetOrtho(w / 4, h / 4);
-			Print((w / 4 - death_text.length() * game->font->font_spacing) / 2, h / 8 - game->font->font_height, death_text);
-
+			Print((w / 4 - game->chapter_text.length() * game->font->font_spacing) / 2, h / 8 - game->font->font_height, game->chapter_text, Vec4(1, 1, 1, frac));
 			SetOrtho(w, h);
-			Print((w - retry_text.length() * game->font->font_spacing) / 2, h / 2, retry_text);
-		}
-		else if(game->total_game_time < game->chapter_text_end)
-		{
-			float frac = (game->chapter_text_end - game->total_game_time) / (game->chapter_text_end - game->chapter_text_start);
-			SetOrtho(w / 4, h / 4);
-			Print((w / 4 - game->chapter_text.length() * game->font->font_spacing) / 2, (h / 4 - game->font->font_height) / 2, game->chapter_text, Vec4(1, 1, 1, frac));
+
+			string lines = game->chapter_sub_text;
+			string line;
+			int row = 0;
+			while(lines.length() > 0)
+			{
+				int index = lines.find('\n');
+				if(index == -1)
+				{
+					line = lines;
+					lines = "";
+				}
+				else
+				{
+					line = lines.substr(0, index);
+					lines = lines.substr(index + 1);
+				}
+				if(line.length() > 0)
+					Print((w - line.length() * game->font->font_spacing) / 2, h / 2 + row * game->font->font_height, line);
+
+				row++;
+			};
 		}
 
 		RenderTarget::Bind(NULL);

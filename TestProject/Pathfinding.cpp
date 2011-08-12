@@ -107,11 +107,13 @@ namespace Test
 
 		void Think(int steps)
 		{
+			// if the search has already finished, there's no need to do any more iterations
 			if(finished)
 				return;
 
 			int iteration = 0;
 
+			// if steps < 0, this will loop until the search is finished
 			while(!pq.Empty() && iteration != steps)
 			{
 				unsigned int closest = pq.Pop();
@@ -119,6 +121,7 @@ namespace Test
 				shortest_path_tree[closest] = search_frontier[closest];
 				if(nodes[closest] == target)
 				{
+					// hooray, found a path; skip to end of loop
 					finished = true;
 					break;
 				}
@@ -130,25 +133,24 @@ namespace Test
 				{
 					Vec3 pos_b = NavGraph::GetNodePosition(graph, *iter);
 					float edge_cost = NavGraph::GetEdgeCost(graph, nodes[closest], *iter);
-					float h_cost = (pos_a - pos_b).ComputeMagnitude();			// our heuristic
 					float g_cost = g_costs[closest] + edge_cost;
 
 					unsigned int index = node_to_index[*iter];
 
-					if(search_frontier[index] == NULL)
+					// if this is the first time we are examining a node, we must store the cost we computed
+					// if we've already examined it, we only store the new value if it's cheaper than what we stored before
+					if(search_frontier[index] == NULL || g_cost < g_costs[index] && shortest_path_tree[index] == NULL)
 					{
+						float h_cost = (pos_a - pos_b).ComputeMagnitude();				// our heuristic
 						f_costs[index] = g_cost + h_cost;
 						g_costs[index] = g_cost;
-						pq.Insert(index);
-						search_frontier[index] = new Edge(nodes[closest], edge_cost);
-					}
-					else if(g_cost < g_costs[index] && shortest_path_tree[index] == NULL)
-					{
-						f_costs[index] = g_cost + h_cost;
-						g_costs[index] = g_cost;
-						pq.ChangePriority(index);
-
-						delete search_frontier[index];
+						if(search_frontier[index] == NULL)
+							pq.Insert(index);
+						else
+						{
+							pq.ChangePriority(index);
+							delete search_frontier[index];
+						}
 						search_frontier[index] = new Edge(nodes[closest], edge_cost);
 					}
 				}
@@ -185,7 +187,7 @@ namespace Test
 				for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); iter++)
 					delete *iter;
 
-				// return the path we came up with earlier
+				// store the path we computed
 				solution = results;
 			}
 		}
