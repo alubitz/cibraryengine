@@ -3,22 +3,94 @@
 
 #include "StaticLevelGeometry.h"
 
+#include <boost/unordered/unordered_map.hpp>
+
 namespace Test
 {
-	struct NavNode
-	{
-		Vec3 pos;
+	using boost::unordered_map;
 
-		NavNode(Vec3 pos) : pos(pos) { }
-	};
-
+	/*
+	 * NavNode and NavEdge structs
+	 */
 	struct NavEdge
 	{
 		float cost;
 
-		NavEdge(float cost) : cost(cost) { }
+		NavEdge(float cost);
 	};
 
+	struct NavNode
+	{
+		Vec3 pos;
+		map<unsigned int, NavEdge*> edges;
+
+		NavNode(Vec3 pos);
+		~NavNode();
+
+		NavEdge* GetEdgeByID(unsigned int id);
+		void DeleteEdge(unsigned int id);
+		void NewEdge(unsigned int id, float cost);
+	};
+
+
+
+
+	/*
+	 * NavNode methods
+	 */
+	NavNode::NavNode(Vec3 pos) :
+			pos(pos),
+			edges()
+		{
+		}
+
+	NavNode::~NavNode()
+	{ 
+		for(map<unsigned int, NavEdge*>::iterator iter = edges.begin(); iter != edges.end(); iter++)
+			delete iter->second;
+		edges.clear();
+	};
+
+	NavEdge* NavNode::GetEdgeByID(unsigned int id)
+	{
+		map<unsigned int, NavEdge*>::iterator found = edges.find(id);
+		if(found != edges.end())
+			return found->second;
+		else
+			return NULL;
+	}
+
+	void NavNode::DeleteEdge(unsigned int id)
+	{
+		map<unsigned int, NavEdge*>::iterator found = edges.find(id);
+		if(found != edges.end())
+			edges.erase(found);
+	}
+
+	void NavNode::NewEdge(unsigned int id, float cost)
+	{
+		if(NavEdge* old_edge = GetEdgeByID(id))
+			delete old_edge;
+		edges[id] = new NavEdge(cost);
+	}
+
+
+
+
+	/*
+	 * NavEdge methods
+	 */
+	NavEdge::NavEdge(float cost) :
+		cost(cost)
+	{
+	}
+
+
+
+
+	/*
+	 * NavGraph methods
+	 */
 	NavGraph::ErrorCode navgraph_error = 0;
 	NavGraph::ErrorCode NavGraph::GetError()
 	{
@@ -52,18 +124,9 @@ namespace Test
 
 			void InnerDispose()
 			{
-				for(map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
 					delete iter->second;
 				nodes.clear();
-				
-				for(unsigned int y = 0; y < edges.size(); y++)
-				{
-					for(unsigned int x = 0; x < edges[y].size(); x++)
-						if(edges[y][x] != NULL)
-							delete edges[y][x];
-					edges[y].clear();
-				}
-				edges.clear();
 
 				Disposable::InnerDispose();
 			}
@@ -72,12 +135,11 @@ namespace Test
 
 			unsigned int next_node_id;
 
-			map<unsigned int, NavNode*> nodes;
-			vector<vector<NavEdge*> > edges;
+			unordered_map<unsigned int, NavNode*> nodes;
 
 			NavNode* GetNodeByID(unsigned int id)
 			{
-				map<unsigned int, NavNode*>::iterator found = nodes.find(id);
+				unordered_map<unsigned int, NavNode*>::iterator found = nodes.find(id);
 				if(found == nodes.end())
 					return NULL;
 				else
@@ -85,19 +147,16 @@ namespace Test
 			}
 			NavEdge* GetEdgeByID(unsigned int a, unsigned int b)
 			{
-				if(a > edges.size())
-					return NULL;
-				else if(b > edges[a].size())
-					return NULL;
+				if(NavNode* node_a = GetNodeByID(a))
+					return node_a->GetEdgeByID(b);
 				else
-					return edges[a][b];
+					return NULL;
 			}
 			
 			GameState* game_state;
 			
 			NavGraphObject(GameState* game_state) :
 				nodes(),
-				edges(),
 				next_node_id(1),
 				game_state(game_state)
 			{
@@ -111,36 +170,23 @@ namespace Test
 
 			void DeleteNode(unsigned int id)
 			{
-				NavNode* node = nodes[id];
-				delete node;
-				nodes[id] = NULL;
-				
-				// delete everything this node connects to
-				if(edges.size() > id)
+				unordered_map<unsigned int, NavNode*>::iterator found = nodes.find(id);
+				if(found != nodes.end())
 				{
-					vector<NavEdge*>& row = edges[id];
-					for(unsigned int x = 0; x < edges[id].size(); x++)
-					{
-						delete row[x];
-						row[x] = NULL;
-					}
-				}
-				// as well as anything that has edges connecting to this node
-				for(unsigned int y = 0; y < edges.size(); y++)
-				{
-					vector<NavEdge*>& row = edges[y];
-					if(row.size() > id)
-					{
-						delete row[id];
-						row[id] = NULL;
-					}
+					// this destructor will delete any edges from this node...
+					delete found->second;
+					nodes.erase(found);
+
+					// ...but we also need to delete edges from other nodes to this node
+					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+						iter->second->DeleteEdge(id);
 				}
 			}
 
 			vector<unsigned int> GetAllNodes()
 			{
 				vector<unsigned int> results;
-				for(map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
 					results.push_back(iter->first);
 				return results;
 			}
@@ -148,7 +194,7 @@ namespace Test
 			vector<unsigned int> GetVisibleNodes(Vec3 pos)
 			{
 				vector<unsigned int> results;
-				for(map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
 				{
 					// define a callback for when a ray intersects an object
 					struct : btCollisionWorld::RayResultCallback
@@ -191,7 +237,7 @@ namespace Test
 				unsigned int result = 0;
 				float closest = 0;
 
-				for(map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
 				{
 					Vec3 node_pos = iter->second->pos;
 					float dist_sq = (pos - node_pos).ComputeMagnitudeSquared();
@@ -205,7 +251,7 @@ namespace Test
 				return result;
 			}
 
-			vector<unsigned int> GetEdges(unsigned int node, NavGraph::PathDirection dir)
+			vector<unsigned int> GetEdges(unsigned int node_id, NavGraph::PathDirection dir)
 			{
 				vector<unsigned int> results;
 
@@ -214,28 +260,22 @@ namespace Test
 					navgraph_error = NavGraph::ERR_INVALID_ENUM;
 					return results;
 				}
-				else if(nodes.size() < node || nodes[node] == NULL)
+
+				NavNode* node = GetNodeByID(node_id);
+				if(!node)
 				{
 					navgraph_error = NavGraph::ERR_INVALID_NODE;
 					return results;
 				}
 
 				if(dir & NavGraph::PD_OUT)
-					if(edges.size() > node)
-					{
-						vector<NavEdge*>& row = edges[node];
-						for(unsigned int x = 0; x < row.size(); x++)
-							if(row[x] != NULL)
-								results.push_back(x);
-					}
+					for(map<unsigned int, NavEdge*>::iterator iter = node->edges.begin(); iter != node->edges.end(); iter++)
+						results.push_back(iter->first);
 
 				if(dir & NavGraph::PD_IN)
-					for(unsigned int y = 0; y < edges.size(); y++)
-					{
-						vector<NavEdge*>& row = edges[y];
-						if(row.size() > node && row[node] != NULL)
-							results.push_back(y);
-					}
+					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+						if(iter->second->GetEdgeByID(node_id))
+							results.push_back(iter->first);
 
 				return results;
 			}
@@ -288,45 +328,40 @@ namespace Test
 
 			void NewEdge(unsigned int from, unsigned int to, float cost)
 			{
-				if(!GetNodeByID(from) || !GetNodeByID(to))
-				{
-					navgraph_error = NavGraph::ERR_INVALID_NODE;
-					return;
-				}
+				if(NavNode* from_node = GetNodeByID(from))
+					if(NavNode* to_node = GetNodeByID(to))
+					{
+						from_node->NewEdge(to, cost);
+						return;
+					}
 
-				while(edges.size() <= from) { edges.push_back(vector<NavEdge*>()); }
-				
-				vector<NavEdge*>& row = edges[from];
-				while(row.size() <= to)
-					row.push_back(NULL);
-
-				row[to] = new NavEdge(cost);
+				// if we get here one of the above conditions wasn't met
+				navgraph_error = NavGraph::ERR_INVALID_NODE;
+				return;
 			}
 
 			void DeleteEdge(unsigned int from, unsigned int to)
 			{
-				if(!GetNodeByID(from) || !GetNodeByID(to))
-				{
-					navgraph_error = NavGraph::ERR_INVALID_NODE;
-					return;
-				}
-
-				if(edges.size() > from)
-					if(edges[from].size() > to)
+				if(NavNode* from_node = GetNodeByID(from))
+					if(NavNode* to_node = GetNodeByID(to))
 					{
-						delete edges[from][to];
-						edges[from][to] = NULL;
+						from_node->DeleteEdge(to);
+						return;
 					}
+				
+				// if we get here one of the above conditions wasn't met
+				navgraph_error = NavGraph::ERR_INVALID_NODE;
+				return;
 			}
 	};
 
 
-	map<unsigned int, NavGraphObject*> all_nav_graphs;
+	unordered_map<unsigned int, NavGraphObject*> all_nav_graphs;
 	unsigned int next_nav_graph = 1;
 
 	NavGraphObject* GetGraphByID(unsigned int id)
 	{
-		map<unsigned int, NavGraphObject*>::iterator obj = all_nav_graphs.find(id);
+		unordered_map<unsigned int, NavGraphObject*>::iterator obj = all_nav_graphs.find(id);
 		if(obj == all_nav_graphs.end())
 			return NULL;
 		else
@@ -627,7 +662,7 @@ namespace Test
 		unsigned int graph = NavGraph::NewNavGraph(game_state);
 
 		unsigned int n_nodes = ReadUInt32(file);
-		map<unsigned int, unsigned int> nodes;
+		unordered_map<unsigned int, unsigned int> nodes;
 		for(unsigned int i = 0; i < n_nodes; i++)
 		{
 			unsigned int node = ReadUInt32(file);

@@ -23,6 +23,7 @@
 #include "LevelLoad.h"
 
 #include "NavGraph.h"
+#include "Pathfinding.h"
 
 #include "MaterialLoader.h"
 
@@ -843,7 +844,7 @@ namespace Test
 	int gs_setGodMode(lua_State* L);
 	int gs_setNavEditMode(lua_State* L);
 	int gs_setDebugDrawMode(lua_State* L);
-	int gs_findPath(lua_State* L);
+	int gs_newPathSearch(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -892,8 +893,8 @@ namespace Test
 		lua_setfield(L, 1, "setDebugDrawMode");
 
 		lua_pushlightuserdata(L, (void*)this);
-		lua_pushcclosure(L, gs_findPath, 1);
-		lua_setfield(L, 1, "findPath");
+		lua_pushcclosure(L, gs_newPathSearch, 1);
+		lua_setfield(L, 1, "newPathSearch");
 	}
 
 
@@ -1296,7 +1297,7 @@ namespace Test
 	}
 
 	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target);
-	int gs_findPath(lua_State* L)
+	int gs_newPathSearch(lua_State* L)
 	{
 		int n = lua_gettop(L);
 		if(n == 2)
@@ -1308,168 +1309,23 @@ namespace Test
 			if(a->graph == b->graph)
 			{
 				unsigned int graph = a->graph;
-				list<unsigned int> path = FindPath(graph, a->node, b->node);
-
-				lua_settop(L, 0);
-				lua_newtable(L);
-				
-				unsigned int index = 1;
-				for(list<unsigned int>::iterator iter = path.begin(); iter != path.end(); iter++)
-				{
-					lua_pushnumber(L, index++);
-					PushNavNodeHandle(L, graph, *iter);
-					lua_settable(L, 1);
-				}
+				PushPathSearchHandle(L, graph, a->node, b->node);
 
 				return 1;
 			}
 		}
 		
-		Debug("gs.findPath takes exactly 2 arguments, nav points on the same graph; returning nil\n");
+		Debug("gs.newPathSearch takes exactly 2 arguments, nav points on the same graph; returning nil\n");
 		return 0;
 	}
 
 	/*
 	 * NavGraph Pathfinding function! Uses A* (in theory)
 	 */
-	struct Edge
-	{
-		unsigned int to;
-		float cost;
-
-		Edge() : to(0), cost(0) { }
-		Edge(unsigned int to, float cost) : to(to), cost(cost) { }
-	};
-	struct PriorityQueue
-	{
-		list<unsigned int> queue;
-		vector<float>* priorities;
-
-		PriorityQueue(vector<float>* priorities) : queue(), priorities(priorities) { }
-
-		unsigned int Pop()
-		{
-			if(queue.empty()) 
-				return 0;
-			else
-			{
-				unsigned int result = queue.front();
-				queue.pop_front();
-				return result;
-			}
-		}
-
-		void Insert(unsigned int node)
-		{
-			float priority = (*priorities)[node];
-			list<unsigned int>::iterator iter;
-			for(iter = queue.begin(); iter != queue.end(); iter++)
-				if((*priorities)[*iter] > priority)
-				{
-					queue.insert(iter, node);
-					break;
-				}
-			if(iter == queue.end())
-				queue.push_back(node);
-		}
-
-		bool Empty() { return queue.empty(); }
-
-		void ChangePriority(unsigned int node)
-		{
-			for(list<unsigned int>::iterator iter = queue.begin(); iter != queue.end(); iter++)
-				if(*iter == node)
-				{
-					queue.erase(iter);
-					break;
-				}
-			Insert(node);
-		}
-	};
-
 	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target)
 	{
-		vector<unsigned int> nodes = NavGraph::GetAllNodes(graph);
-
-		map<unsigned int, unsigned int> node_to_index;
-		for(unsigned int i = 0; i < nodes.size(); i++)
-			node_to_index[nodes[i]] = i;
-
-		vector<Edge*> shortest_path_tree(nodes.size(), NULL);
-		vector<Edge*> search_frontier(nodes.size(), NULL);
-
-		vector<float> g_costs = vector<float>(nodes.size(), 0.0f);
-		vector<float> f_costs = vector<float>(nodes.size(), 0.0f);
-
-		PriorityQueue pq(&f_costs);
-
-		pq.Insert(node_to_index[source]);
-
-		while(!pq.Empty())
-		{
-			unsigned int closest = pq.Pop();
-
-			shortest_path_tree[closest] = search_frontier[closest];
-			if(nodes[closest] == target)
-				break;
-
-			Vec3 pos_a = NavGraph::GetNodePosition(graph, nodes[closest]);
-
-			vector<unsigned int> edges = NavGraph::GetNodeEdges(graph, nodes[closest], NavGraph::PD_OUT);
-			for(vector<unsigned int>::iterator iter = edges.begin(); iter != edges.end(); iter++)
-			{
-				Vec3 pos_b = NavGraph::GetNodePosition(graph, *iter);
-				float edge_cost = NavGraph::GetEdgeCost(graph, nodes[closest], *iter);
-				float h_cost = (pos_a - pos_b).ComputeMagnitude();			// our heuristic
-				float g_cost = g_costs[closest] + edge_cost;
-
-				unsigned int index = node_to_index[*iter];
-
-				if(search_frontier[index] == NULL)
-				{
-					f_costs[index] = g_cost + h_cost;
-					g_costs[index] = g_cost;
-					pq.Insert(index);
-					//search_frontier[index] = new Edge(*iter, edge_cost);
-					search_frontier[index] = new Edge(nodes[closest], edge_cost);
-				}
-				else if(g_cost < g_costs[index] && shortest_path_tree[index] == NULL)
-				{
-					f_costs[index] = g_cost + h_cost;
-					g_costs[index] = g_cost;
-					pq.ChangePriority(index);
-
-					delete search_frontier[index];
-					search_frontier[index] = new Edge(nodes[closest], edge_cost);
-				}
-			}
-		}
-
-		// collect result path into a list
-		list<unsigned int> results;
-		unsigned int cur = target;
-		while(cur != source)
-		{
-			int index = node_to_index[cur];
-			Edge* edge = shortest_path_tree[index];
-			if(edge != NULL)
-			{
-				results.push_back(cur);
-				cur = edge->to;
-			}
-			else
-			{
-				results.clear();
-				break;
-			}
-		}
-		results.reverse();
-
-		// delete new'd stuffs
-		for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); iter++)
-			delete *iter;
-
-		// return the path we came up with earlier
-		return results;
+		PathSearch search(graph, source, target);
+		search.Solve();
+		return search.GetSolution();
 	}
 }

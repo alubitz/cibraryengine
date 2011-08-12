@@ -13,6 +13,8 @@
 
 namespace Test
 {
+	bool enable_ragdolls = false;
+
 	bool MaybeDoScriptedAI(Dood* dood);
 	bool MaybeDoScriptedUpdate(Dood* dood);
 
@@ -464,8 +466,11 @@ namespace Test
 		DeathEvent evt(this, cause);
 		OnDeath(&evt);
 
-		Corpse* corpse = new Corpse(game_state, this);
-		game_state->Spawn(corpse);
+		if(enable_ragdolls)
+		{
+			Corpse* corpse = new Corpse(game_state, this);
+			game_state->Spawn(corpse);
+		}
 
 		is_valid = false;
 	}
@@ -630,52 +635,63 @@ namespace Test
 
 	void GetDoodControlState(lua_State* L, Dood* dood)
 	{
-		lua_pushlightuserdata(L, dood);
+		PushDoodHandle(L, dood);
+
 		lua_getmetatable(L, -1);							// push; top = 2
 
+		// control_state is a field of the dood metatable; control_state[dood] = the control state for a particular dood
 		lua_getfield(L, -1, "control_state");				// push; top = 3
-		lua_pushlightuserdata(L, dood);						// push; top = 4
-		lua_gettable(L, -2);								// pop, push; top = 4
 
-		// is there a control state yet? if not, create one
-		if(lua_isnil(L, -1))
+		if(lua_istable(L, -1))
 		{
-			lua_pop(L, 1);									// pop; top = 3
+			lua_pushlightuserdata(L, dood);						// push; top = 4
+			lua_gettable(L, -2);								// pop, push; top = 4
 
-			lua_pushlightuserdata(L, dood);					// push dood; top = 4
-			lua_newtable(L);								// push; top = 5
+			// is there a control state yet? if not, create one
+			if(lua_isnil(L, -1))
+			{
+				lua_pop(L, 1);									// pop; top = 3
 
-				// begin contents of control state table
-				lua_pushnumber(L, 0);
-				lua_setfield(L, -2, "forward");
+				lua_pushlightuserdata(L, dood);					// push dood; top = 4
+				lua_newtable(L);								// push; top = 5
 
-				lua_pushnumber(L, 0);
-				lua_setfield(L, -2, "sidestep");
+					// begin contents of control state table
+					lua_pushnumber(L, 0);
+					lua_setfield(L, -2, "forward");
 
-				lua_pushnumber(L, 0);
-				lua_setfield(L, -2, "yaw");
+					lua_pushnumber(L, 0);
+					lua_setfield(L, -2, "sidestep");
 
-				lua_pushnumber(L, 0);
-				lua_setfield(L, -2, "pitch");
+					lua_pushnumber(L, 0);
+					lua_setfield(L, -2, "yaw");
 
-				lua_pushboolean(L, false);
-				lua_setfield(L, -2, "jump");
+					lua_pushnumber(L, 0);
+					lua_setfield(L, -2, "pitch");
 
-				lua_pushboolean(L, false);
-				lua_setfield(L, -2, "primary_fire");
+					lua_pushboolean(L, false);
+					lua_setfield(L, -2, "jump");
 
-				lua_pushboolean(L, false);
-				lua_setfield(L, -2, "reload");
-				// end contents of control state table
+					lua_pushboolean(L, false);
+					lua_setfield(L, -2, "primary_fire");
 
-			lua_settable(L, -3);			// pop x2; top = 3
+					lua_pushboolean(L, false);
+					lua_setfield(L, -2, "reload");
+					// end contents of control state table
 
-			lua_pushlightuserdata(L, dood);
-			lua_gettable(L, -2);
+				lua_settable(L, -3);			// pop x2; top = 3
+
+				lua_pushlightuserdata(L, dood);
+				lua_gettable(L, -2);
+			}
+
+			lua_replace(L, -4);
+			lua_settop(L, -3);
 		}
-
-		lua_replace(L, -4);
-		lua_settop(L, -3);
+		else
+		{
+			lua_settop(L, -3);
+			lua_pushnil(L);
+		}
 	}
 
 	int dood_getControlState(lua_State* L)
@@ -794,7 +810,7 @@ namespace Test
 		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
 
 		lua_settop(L, 0);
-		lua_pushlightuserdata(L, dood);			// push; top = 1
+		PushDoodHandle(L, dood);
 
 		lua_getmetatable(L, 1);					// push; top = 2
 		if(!lua_isnil(L, 2))
@@ -828,17 +844,22 @@ namespace Test
 	{
 		GetDoodControlState(L, dood);					// top = 1
 
-		lua_getfield(L, -1, control_name.c_str());		// top = 2
-		if(lua_isnil(L, -1))
+		if(lua_istable(L, -1))
 		{
-			lua_settop(L, -2);							// top = 0
-			return false;
+			lua_getfield(L, -1, control_name.c_str());		// top = 2
+			if(lua_isnil(L, -1))
+			{
+				lua_settop(L, -2);							// top = 0
+				return false;
+			}
+			else
+			{
+				lua_replace(L, -2);							// top = 1
+				return true;
+			}
 		}
 		else
-		{
-			lua_replace(L, -2);							// top = 1
-			return true;
-		}
+			return false;
 	}
 
 	bool GetBoolControl(Dood* dood, string control_name)
@@ -872,8 +893,11 @@ namespace Test
 
 		GetDoodControlState(L, dood);
 
-		lua_pushboolean(L, value);
-		lua_setfield(L, -2, control_name.c_str());
+		if(lua_istable(L, -1))
+		{
+			lua_pushboolean(L, value);
+			lua_setfield(L, -2, control_name.c_str());
+		}
 	}
 
 	void SetFloatControl(Dood* dood, string control_name, float value)
@@ -883,8 +907,11 @@ namespace Test
 
 		GetDoodControlState(L, dood);
 
-		lua_pushnumber(L, value);
-		lua_setfield(L, -2, control_name.c_str());
+		if(lua_istable(L, -1))
+		{
+			lua_pushnumber(L, value);
+			lua_setfield(L, -2, control_name.c_str());
+		}
 	}
 
 
@@ -898,7 +925,7 @@ namespace Test
 		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
 
 		lua_settop(L, 0);
-		lua_pushlightuserdata(L, dood);			// push; top = 1
+		PushDoodHandle(L, dood);
 
 		lua_getmetatable(L, 1);					// push; top = 2
 		if(!lua_isnil(L, 2))
