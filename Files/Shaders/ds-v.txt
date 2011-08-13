@@ -1,0 +1,12 @@
+varying	vec3			position;
+
+uniform float aspect_ratio;
+uniform float zoom;
+
+void main()
+{
+	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;
+	position = vec3(gl_Position.x * aspect_ratio / zoom, gl_Position.y / zoom, 0.0);
+
+	gl_TexCoord[0] = gl_MultiTexCoord0;
+}

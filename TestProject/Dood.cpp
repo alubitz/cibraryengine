@@ -13,7 +13,7 @@
 
 namespace Test
 {
-	bool enable_ragdolls = false;
+	bool enable_ragdolls = true;
 
 	bool MaybeDoScriptedAI(Dood* dood);
 	bool MaybeDoScriptedUpdate(Dood* dood);

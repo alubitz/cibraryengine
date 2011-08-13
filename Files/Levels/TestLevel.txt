@@ -1,0 +1,40 @@
+~ creating the terrain
+
+: static_geometry "nbridge"
+:: pos
+::: x 0
+::: y 0
+::: z 0
+
+
+
+
+~ creating invisible walls around the world
+
+: world_boundary				~ west edge
+:: pos
+::: x -100
+:: normal
+::: x 1
+
+: world_boundary				~ east edge
+:: pos
+::: x 100
+:: normal
+::: x -1
+
+: world_boundary				~ north edge
+:: pos
+::: z -100
+:: normal
+::: z 1
+
+: world_boundary				~ south edge
+:: pos
+::: z 100
+:: normal
+::: z -1
+
+: world_boundary				~ floor
+:: normal
+::: y 1

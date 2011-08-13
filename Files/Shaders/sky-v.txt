@@ -1,0 +1,9 @@
+uniform mat4		inv_view;
+
+varying vec3		normal;
+
+void main()
+{
+	normal = (inv_view * gl_ModelViewMatrix * gl_Vertex).xyz;
+	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;
+}

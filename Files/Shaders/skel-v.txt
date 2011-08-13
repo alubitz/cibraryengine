@@ -1,0 +1,75 @@
+#version 120
+
+uniform	sampler1D		bone_matrices;
+uniform	int				bone_count;
+
+varying	vec3			position, normal;
+
+
+#define BONES 1
+
+vec2 ReadElements(int texel_index)
+{
+	vec4 raw_rgba = texture1D(bone_matrices, float(texel_index) / float(textureSize1D(bone_matrices, 0)));
+	float a = (raw_rgba.y * 256.0) + raw_rgba.x;
+	float b = (raw_rgba.w * 256.0) + raw_rgba.z;
+	return (vec2(a, b) - 32768.0 / 255.0) / (4096.0 / 255.0);
+}
+
+vec4 ReadBasisVector(int texel_index)
+{
+	return vec4(
+		ReadElements(texel_index + 0),
+		ReadElements(texel_index + 1));
+}
+
+void main()
+{
+	gl_TexCoord[3] = gl_MultiTexCoord3;
+	gl_TexCoord[4] = gl_MultiTexCoord4;
+
+	mat4x4 model_mat = gl_ModelViewMatrix;
+
+#if BONES != 0
+	vec4 x_mat = vec4(0.0);
+	vec4 y_mat = vec4(0.0);
+	vec4 z_mat = vec4(0.0);
+
+	float total_weight = 0.0;
+	for(int i = 0; i < 4; i++)
+	{
+		float bone_weight = gl_MultiTexCoord4[i] / 255.0;
+
+		if(bone_weight > 0.0)
+		{
+			int bone_index = int(gl_MultiTexCoord3[i]);
+			if(bone_index >= bone_count)
+				bone_index = 0;
+
+			x_mat += ReadBasisVector(bone_index * 6 + 0) * bone_weight;
+			y_mat += ReadBasisVector(bone_index * 6 + 2) * bone_weight;
+			z_mat += ReadBasisVector(bone_index * 6 + 4) * bone_weight;
+			total_weight += bone_weight;
+		}
+	}
+
+	mat4 total_mat = mat4(
+		x_mat.x,	y_mat.x,	z_mat.x,	0.0,
+		x_mat.y,	y_mat.y,	z_mat.y,	0.0,
+		x_mat.z,	y_mat.z,	z_mat.z,	0.0,
+		x_mat.w,	y_mat.w,	z_mat.w,	total_weight) / total_weight;
+
+	model_mat *= total_mat;
+
+#endif
+
+	gl_Position = gl_ProjectionMatrix * model_mat * gl_Vertex;
+
+	position = (model_mat * gl_Vertex).xyz;
+
+	normal = (model_mat * vec4(gl_Normal, 0.0)).xyz;
+
+	gl_TexCoord[0] = vec4(gl_MultiTexCoord0.x, 1.0 - gl_MultiTexCoord0.y, gl_MultiTexCoord0.zw);
+	gl_TexCoord[1] = model_mat * vec4(gl_MultiTexCoord1.xyz, 0.0);
+	gl_TexCoord[2] = model_mat * vec4(gl_MultiTexCoord2.xyz, 0.0);
+}

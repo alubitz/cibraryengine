@@ -87,7 +87,7 @@ namespace Test
 		render_target(NULL),
 		rtt_diffuse(NULL),
 		rtt_normal(NULL),
-		rtt_emission(NULL),
+		rtt_specular(NULL),
 		rtt_depth(NULL),
 		hud(NULL),
 		player_controller(NULL),
@@ -112,12 +112,6 @@ namespace Test
 		sound_system->TryToEnable();
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
-
-		if(load_status.abort)
-		{
-			load_status.stopped = true;
-			return;
-		}
 
 		if(load_status.abort)
 		{
@@ -186,16 +180,28 @@ namespace Test
 		ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
 
 		Shader* ds_vertex = shader_cache->Load("ds-v");
-		Shader* ds_fragment = shader_cache->Load("ds-f");
-		deferred_shader = new ShaderProgram(ds_vertex, ds_fragment);
-		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
-		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
-		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("emission", 2));
-		deferred_shader->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
-		deferred_shader->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
-		deferred_shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
-		deferred_shader->AddUniform<float>(new UniformFloat("aspect_ratio"));
-		deferred_shader->AddUniform<float>(new UniformFloat("zoom"));
+		Shader* ds_lighting = shader_cache->Load("ds_light-f");
+		Shader* ds_ambient = shader_cache->Load("ds_ambient-f");
+
+		deferred_lighting = new ShaderProgram(ds_vertex, ds_lighting);
+		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
+		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
+		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
+		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
+		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
+		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
+		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
+
+		deferred_ambient = new ShaderProgram(ds_vertex, ds_ambient);
+		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
+		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
+		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
+		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
+		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
+		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("env_cubemap", 5));
+		deferred_ambient->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
+		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
+		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
 
 		if(load_status.abort)
 		{
@@ -417,6 +423,9 @@ namespace Test
 		NGDEBUG();
 	}
 
+	// forward declare this...
+	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
+
 	void TestGame::Draw(int width_, int height_)
 	{
 		GLDEBUG();
@@ -523,10 +532,10 @@ namespace Test
 					rtt_normal->Dispose();
 					delete rtt_normal;
 				}
-				if(rtt_emission != NULL)
+				if(rtt_specular != NULL)
 				{
-					rtt_emission->Dispose();
-					delete rtt_emission;
+					rtt_specular->Dispose();
+					delete rtt_specular;
 				}
 				if(rtt_depth != NULL)
 				{
@@ -544,14 +553,23 @@ namespace Test
 
 				rtt_diffuse = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_normal = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
-				rtt_emission = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+				rtt_specular = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_depth = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 			}
 
 			render_target->GetColorBufferTex(0, rtt_diffuse->GetGLName());
 			render_target->GetColorBufferTex(1, rtt_normal->GetGLName());
-			render_target->GetColorBufferTex(2, rtt_emission->GetGLName());
+			render_target->GetColorBufferTex(2, rtt_specular->GetGLName());
 			render_target->GetColorBufferTex(3, rtt_depth->GetGLName());
+
+			// redraw depth buffer
+			glDepthMask(true);
+			glColorMask(false, false, false, false);
+			glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			renderer.RenderOpaque();
+
+			glDepthMask(false);
+			glColorMask(true, true, true, false);
 
 			glEnable(GL_TEXTURE_2D);
 			glDisable(GL_LIGHTING);
@@ -561,52 +579,49 @@ namespace Test
 
 			Mat4 view_matrix = renderer.camera->GetViewMatrix();
 
-			deferred_shader->SetUniform<Texture2D>("diffuse", rtt_diffuse);
-			deferred_shader->SetUniform<Texture2D>("normal", rtt_normal);
-			deferred_shader->SetUniform<Texture2D>("emission", rtt_emission);
-			deferred_shader->SetUniform<Texture2D>("depth", rtt_depth);
-			deferred_shader->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
-			deferred_shader->SetUniform<Mat4>("inv_view", &view_matrix);
-			deferred_shader->SetUniform<float>("aspect_ratio", &aspect_ratio);
-			deferred_shader->SetUniform<float>("zoom", &zoom);
+			deferred_ambient->SetUniform<Texture2D>("diffuse", rtt_diffuse);
+			deferred_ambient->SetUniform<Texture2D>("normal", rtt_normal);
+			deferred_ambient->SetUniform<Texture2D>("specular", rtt_specular);
+			deferred_ambient->SetUniform<Texture2D>("depth", rtt_depth);
+			deferred_ambient->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
+			deferred_ambient->SetUniform<TextureCube>("env_cubemap", sky_texture);
+			deferred_ambient->SetUniform<Mat4>("inv_view", &view_matrix);
+			deferred_ambient->SetUniform<float>("aspect_ratio", &aspect_ratio);
+			deferred_ambient->SetUniform<float>("zoom", &zoom);
 
-			ShaderProgram::SetActiveProgram(deferred_shader);
+			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadIdentity();
-			glOrtho(0, width, 0, height, -1, 1);
-
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadIdentity();
-
-			glColor4f(1, 1, 1, 1);
-			glBegin(GL_QUADS);
-			glTexCoord2f(0, 0);
-			glVertex2f(0, 0);
-			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), 0);
-			glVertex2f((float)width, 0);
-			glTexCoord2f((float)(width - 1) / (rtt_diffuse->width - 1), (float)(height - 1) / (rtt_diffuse->height - 1));
-			glVertex2f((float)width, (float)height);
-			glTexCoord2f(0, (float)(height - 1) / (rtt_diffuse->height - 1));
-			glVertex2f(0, (float)height);
-			glEnd();
-
-			ShaderProgram::SetActiveProgram(NULL);
-
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
-
-			glDepthMask(true);
+			// stencil shadows, ahoy!
+			// only writing to stencil buffer (but taking into account depth buffer)
+			glEnable(GL_DEPTH_TEST);
 			glColorMask(false, false, false, false);
-			glClear(GL_DEPTH_BUFFER_BIT);
-			renderer.RenderOpaque();
+			glStencilMask(0xFF);
+			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+			glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+			renderer.RenderShadowVolumes(Vec4(sun->position, 0.0f));
 
-			glColorMask(true, true, true, true);
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_STENCIL_TEST);
+			glStencilFunc(GL_EQUAL, 0x00, 0x01);
+			
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ONE);
+
+			glColorMask(true, true, true, false);
+			glStencilMask(0x00);
+
+			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
+			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
+			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
+			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
+			deferred_lighting->SetUniform<Mat4>("inv_view", &view_matrix);
+			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
+			deferred_lighting->SetUniform<float>("zoom", &zoom);
+
+			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
+
+			glDisable(GL_STENCIL_TEST);
+
 			GLDEBUG();
 			renderer.RenderTranslucent();
 			GLDEBUG();
@@ -617,6 +632,40 @@ namespace Test
 		hud->Draw((float)width, (float)height);
 
 		GLDEBUG();
+	}
+
+	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th)
+	{
+		ShaderProgram::SetActiveProgram(shader);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+		glOrtho(0, sw, 0, sh, -1, 1);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		glColor4f(1, 1, 1, 1);
+		glBegin(GL_QUADS);
+		glTexCoord2f(0, 0);
+		glVertex2f(0, 0);
+		glTexCoord2f(sw / (tw - 1), 0);
+		glVertex2f(sw, 0);
+		glTexCoord2f(sw / (tw - 1), sh / (th - 1));
+		glVertex2f(sw, sh);
+		glTexCoord2f(0, sh / (th - 1));
+		glVertex2f(0, sh);
+		glEnd();
+
+		ShaderProgram::SetActiveProgram(NULL);
+
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
 	}
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
@@ -784,11 +833,11 @@ namespace Test
 			rtt_normal = NULL;
 		}
 
-		if(rtt_emission != NULL)
+		if(rtt_specular != NULL)
 		{
-			rtt_emission->Dispose();
-			delete rtt_emission;
-			rtt_emission = NULL;
+			rtt_specular->Dispose();
+			delete rtt_specular;
+			rtt_specular = NULL;
 		}
 
 		GameState::InnerDispose();

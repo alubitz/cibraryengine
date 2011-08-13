@@ -107,6 +107,11 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
+	void SceneRenderer::RenderShadowVolumes(Vec4 origin)
+	{
+		// TODO: implement this
+	}
+
 	void SceneRenderer::Cleanup()
 	{
 		for(vector<RenderNode>::iterator iter = objects.begin(); iter != objects.end(); iter++)

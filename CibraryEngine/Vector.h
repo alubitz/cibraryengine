@@ -137,6 +137,8 @@ namespace CibraryEngine
 			/** Initializes a zero vector */
 			Vec4();
 			/** Initializes a vector with the specified x, y, z, and w components */
+			Vec4(Vec3 xyz, float w);
+			/** Initializes a vector with the specified x, y, z, and w components */
 			Vec4(float x, float y, float z, float w);
 
 			/** Returns the square of the magnitude of the vector (one less step than taking a square root) */

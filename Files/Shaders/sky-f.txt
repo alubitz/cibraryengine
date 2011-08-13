@@ -1,0 +1,11 @@
+varying	vec3		normal;
+
+uniform samplerCube	sky_texture;
+
+void main()
+{
+	vec3 uNorm = normalize(normal);
+
+	//gl_FragColor = textureCube(sky_texture, uNorm);
+	gl_FragColor = vec4(0.0);
+}

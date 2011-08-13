@@ -61,6 +61,7 @@ namespace CibraryEngine
 			virtual void BeginRender();
 			virtual void RenderOpaque();
 			virtual void RenderTranslucent();
+			virtual void RenderShadowVolumes(Vec4 origin);
 
 			/** Calls the cleanup functions of the various materials */
 			void Cleanup();

@@ -44,8 +44,8 @@ namespace CibraryEngine
 	/*
 	 * Vec3 methods
 	 */
-	Vec3::Vec3() { x = y = z = 0.0; }
-	Vec3::Vec3(float _x, float _y, float _z) { x = _x; y = _y; z = _z; }
+	Vec3::Vec3() : x(0), y(0), z(0) { }
+	Vec3::Vec3(float x, float y, float z) : x(x), y(y), z(z) { }
 
 	float Vec3::ComputeMagnitudeSquared() { return x * x + y * y + z * z; }
 	float Vec3::ComputeMagnitude() { return sqrt(x * x + y * y + z * z); }
@@ -84,8 +84,9 @@ namespace CibraryEngine
 	/*
 	 * Vec4 methods
 	 */
-	Vec4::Vec4() { x = y = z = w = 0.0; }
-	Vec4::Vec4(float _x, float _y, float _z, float _w) { x = _x; y = _y; z = _z; w = _w; }
+	Vec4::Vec4() : x(0), y(0), z(0), w(0) { }
+	Vec4::Vec4(Vec3 xyz, float w) : x(xyz.x), y(xyz.y), z(xyz.z), w(w) { }
+	Vec4::Vec4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) { }
 
 	float Vec4::ComputeMagnitudeSquared() { return x * x + y * y + z * z + w * w; }
 	float Vec4::ComputeMagnitude() { return sqrt(x * x + y * y + z * z + w * w); }

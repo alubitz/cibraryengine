@@ -76,9 +76,10 @@ namespace Test
 			RenderTarget* render_target;
 			Texture2D* rtt_diffuse;
 			Texture2D* rtt_normal;
-			Texture2D* rtt_emission;
+			Texture2D* rtt_specular;
 			Texture2D* rtt_depth;
-			ShaderProgram* deferred_shader;
+			ShaderProgram* deferred_ambient;
+			ShaderProgram* deferred_lighting;
 
 			SoundBuffer* fire_sound;
 			SoundBuffer* chamber_click_sound;
