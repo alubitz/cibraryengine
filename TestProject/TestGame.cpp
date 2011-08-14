@@ -146,14 +146,14 @@ namespace Test
 			pair.material_index = 0;
 			pair.vbo = new SkinVInfoVertexBuffer(*vtn_cache->Load("nbridge")->GetVBO());
 			pairs.push_back(pair);
-			material_names.push_back("stone");
+			material_names.push_back("nbridge");
 
-			SkinnedModel* heightfield_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
-			UberModel* heightfield_model = UberModelLoader::CopySkinnedModel(heightfield_skinny);
-			heightfield_model->bone_physics.push_back(UberModel::BonePhysics());
-			heightfield_model->bone_physics[0].shape = ShapeFromSkinnedModel(heightfield_skinny);
+			SkinnedModel* terrain_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
+			UberModel* terrain_model = UberModelLoader::CopySkinnedModel(terrain_skinny);
+			terrain_model->bone_physics.push_back(UberModel::BonePhysics());
+			terrain_model->bone_physics[0].shape = ShapeFromSkinnedModel(terrain_skinny);
 
-			UberModelLoader::SaveZZZ(heightfield_model, "Files/Models/nbridge.zzz");
+			UberModelLoader::SaveZZZ(terrain_model, "Files/Models/nbridge.zzz");
 
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("nbridge").id).fail = false;
 		}
