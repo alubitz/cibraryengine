@@ -554,6 +554,22 @@ namespace Test
 				rtt_normal = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_specular = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
 				rtt_depth = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
+
+				glBindTexture(GL_TEXTURE_2D, rtt_diffuse->GetGLName());
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				glBindTexture(GL_TEXTURE_2D, rtt_normal->GetGLName());
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				glBindTexture(GL_TEXTURE_2D, rtt_specular->GetGLName());
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				glBindTexture(GL_TEXTURE_2D, rtt_depth->GetGLName());
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			}
 
 			render_target->GetColorBufferTex(0, rtt_diffuse->GetGLName());
@@ -635,6 +651,9 @@ namespace Test
 
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th)
 	{
+		sw--;
+		sh--;
+
 		ShaderProgram::SetActiveProgram(shader);
 
 		glMatrixMode(GL_PROJECTION);
