@@ -29,7 +29,7 @@ namespace Test
 
 		root->GetUberModels(uber_models);
 
-		VUVNTTCVertexBuffer* collision_data = new VUVNTTCVertexBuffer();
+		VertexBuffer* collision_data = new VertexBuffer(Triangles);
 		root->AppendCollisionData(collision_data, collision_model);
 		VTNModel* vtn = new VTNModel(collision_data);
 		uber_models[0]->bone_physics.push_back(UberModel::BonePhysics());
@@ -169,12 +169,12 @@ namespace Test
 	{
 		if (parent != NULL)
 		{
-			VUVNTTCVertexBuffer* my_vbo = model->GetVBO();
+			VertexBuffer* my_vbo = model->GetVBO();
 			for (unsigned int i = 0; i < my_vbo->vertex_infos.size(); i += 3)
 			{
-				VUVNTTC a = TransformVertexInfo(my_vbo->vertex_infos[i + 0].x, my_vbo->vertex_infos[i + 0].n, my_vbo->vertex_infos[i + 0].uvw);
-				VUVNTTC b = TransformVertexInfo(my_vbo->vertex_infos[i + 1].x, my_vbo->vertex_infos[i + 1].n, my_vbo->vertex_infos[i + 1].uvw);
-				VUVNTTC c = TransformVertexInfo(my_vbo->vertex_infos[i + 2].x, my_vbo->vertex_infos[i + 2].n, my_vbo->vertex_infos[i + 2].uvw);
+				VTNTTC a = TransformVertexInfo(my_vbo->vertex_infos[i + 0].x, my_vbo->vertex_infos[i + 0].n, my_vbo->vertex_infos[i + 0].uvw);
+				VTNTTC b = TransformVertexInfo(my_vbo->vertex_infos[i + 1].x, my_vbo->vertex_infos[i + 1].n, my_vbo->vertex_infos[i + 1].uvw);
+				VTNTTC c = TransformVertexInfo(my_vbo->vertex_infos[i + 2].x, my_vbo->vertex_infos[i + 2].n, my_vbo->vertex_infos[i + 2].uvw);
 
 				UberModel::Triangle tri;
 				tri.material = 0;
@@ -205,16 +205,16 @@ namespace Test
 		}
 	}
 
-	void BrambleNode::AppendCollisionData(VUVNTTCVertexBuffer* collision_verts, VTNModel* collision_shape)
+	void BrambleNode::AppendCollisionData(VertexBuffer* collision_verts, VTNModel* collision_shape)
 	{
 		if (parent != NULL)
 		{
-			VUVNTTCVertexBuffer* my_vbo = collision_shape->GetVBO();
+			VertexBuffer* my_vbo = collision_shape->GetVBO();
 			for (unsigned int i = 0; i < my_vbo->vertex_infos.size(); i += 3)
 			{
-				VUVNTTC a = TransformVertexInfo(my_vbo->vertex_infos[i + 0].x, my_vbo->vertex_infos[i + 0].n, my_vbo->vertex_infos[i + 0].uvw);
-				VUVNTTC b = TransformVertexInfo(my_vbo->vertex_infos[i + 1].x, my_vbo->vertex_infos[i + 1].n, my_vbo->vertex_infos[i + 1].uvw);
-				VUVNTTC c = TransformVertexInfo(my_vbo->vertex_infos[i + 2].x, my_vbo->vertex_infos[i + 2].n, my_vbo->vertex_infos[i + 2].uvw);
+				VTNTTC a = TransformVertexInfo(my_vbo->vertex_infos[i + 0].x, my_vbo->vertex_infos[i + 0].n, my_vbo->vertex_infos[i + 0].uvw);
+				VTNTTC b = TransformVertexInfo(my_vbo->vertex_infos[i + 1].x, my_vbo->vertex_infos[i + 1].n, my_vbo->vertex_infos[i + 1].uvw);
+				VTNTTC c = TransformVertexInfo(my_vbo->vertex_infos[i + 2].x, my_vbo->vertex_infos[i + 2].n, my_vbo->vertex_infos[i + 2].uvw);
 
 				collision_verts->AddTriangleVertexInfo(a, b, c);
 			}
@@ -224,7 +224,7 @@ namespace Test
 			children[i]->AppendCollisionData(collision_verts, collision_shape);
 	}
 
-	VUVNTTC BrambleNode::TransformVertexInfo(Vec3 x, Vec3 n, Vec3 uvw)
+	VTNTTC BrambleNode::TransformVertexInfo(Vec3 x, Vec3 n, Vec3 uvw)
 	{
 		float y = min(1.0f, max(0.0f, x.y));				// clamp lerp factor (idk, do we need this?)
 		float un_y = 1.0f - y;								// opposite fraction of lerp
@@ -235,7 +235,7 @@ namespace Test
 		x = lerped.TransformVec3(x.x, 0, x.z, 1);
 		n = Vec3::Normalize(lerped.TransformVec3(n, 0));
 
-		return VUVNTTC(x, uvw, n);
+		return VTNTTC(x, uvw, n);
 	}
 
 	void BrambleNode::GetUberModels(vector<UberModel*>& uber_models)

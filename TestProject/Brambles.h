@@ -46,7 +46,7 @@ namespace Test
 	{
 		private:
 
-			VUVNTTC TransformVertexInfo(Vec3 x, Vec3 n, Vec3 uvw);
+			VTNTTC TransformVertexInfo(Vec3 x, Vec3 n, Vec3 uvw);
 
 		public:
 
@@ -72,7 +72,7 @@ namespace Test
 			bool Grow();
 
 			void AppendVertexData(UberModel::LOD* lod);
-			void AppendCollisionData(VUVNTTCVertexBuffer* collision_verts, VTNModel* collision_shape);
+			void AppendCollisionData(VertexBuffer* collision_verts, VTNModel* collision_shape);
 
 			void GetUberModels(vector<UberModel*>& uber_models);
 	};

@@ -19,7 +19,7 @@ namespace Test
 			float mflash_size;
 
 			UberModel* gun_model;
-			VTNModel* mflash_model;
+			VertexBuffer* mflash_model;
 			vector<Material*> gun_materials;
 			GlowyModelMaterial* mflash_material;
 
@@ -27,7 +27,7 @@ namespace Test
 			SoundBuffer* chamber_click_sound;
 			SoundBuffer* reload_sound;
 
-			Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VTNModel* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
+			Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
 
 			virtual void OwnerUpdate(TimingInfo time);
 

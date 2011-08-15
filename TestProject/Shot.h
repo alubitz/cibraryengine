@@ -22,7 +22,7 @@ namespace Test
 		public:
 
 			Sphere bs;
-			VTNModel* model;
+			VertexBuffer* model;
 			GlowyModelMaterial* material;
 
 			PhysicsWorld* physics;
@@ -40,7 +40,7 @@ namespace Test
 
 			float mass;
 
-			Shot(GameState* gs, VTNModel* model, GlowyModelMaterial* material, Vec3 origin, Vec3 vel, Quaternion ori, Dood* firer);
+			Shot(GameState* gs, VertexBuffer* model, GlowyModelMaterial* material, Vec3 origin, Vec3 vel, Quaternion ori, Dood* firer);
 
 			void Vis(SceneRenderer* renderer);
 			void VisCleanup();

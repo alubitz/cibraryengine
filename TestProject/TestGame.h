@@ -60,15 +60,15 @@ namespace Test
 			UberModel* enemy;
 
 			UberModel* gun_model;
-			VTNModel* mflash_model;
-			VTNModel* shot_model;
+			VertexBuffer* mflash_model;
+			VertexBuffer* shot_model;
 			GlowyModelMaterial* mflash_material;
 			GlowyModelMaterial* shot_material;
 
 			ParticleMaterial* blood_particle;
 			ParticleMaterial* dirt_particle;
 
-			VTNModel* sky_sphere;
+			VertexBuffer* sky_sphere;
 			TextureCube* sky_texture;
 			ShaderProgram* sky_shader;
 
@@ -98,7 +98,7 @@ namespace Test
 			unsigned int nav_graph;
 
 			Cache<Texture2D>* tex2d_cache;
-			Cache<VTNModel>* vtn_cache;
+			Cache<VertexBuffer>* vtn_cache;
 			Cache<UberModel>* ubermodel_cache;
 			Cache<Material>* mat_cache;
 

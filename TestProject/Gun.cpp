@@ -11,7 +11,7 @@ namespace Test
 	/*
 	 * Gun methods
 	 */
-	Gun::Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VTNModel* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound) :
+	Gun::Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound) :
 		WeaponEquip(game_state, owner),
 		reload_time(1.7f),
 		refire_interval(0.089f),
@@ -155,7 +155,7 @@ namespace Test
 			if(mflash_model != NULL && mflash_size > 0)
 			{
 				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.79f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5f)) * Mat4::UniformScale(mflash_size);
-				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model->GetVBO(), mflash_xform), Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
+				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 			}
 		}
 	}

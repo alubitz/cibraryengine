@@ -26,7 +26,7 @@ namespace CibraryEngine
 		CreateCache<Texture2D>(new Texture2DLoader(this));
 		CreateCache<BitmapFont>(new BitmapFontLoader(this));
 		CreateCache<Cursor>(new CursorLoader(this));
-		CreateCache<VTNModel>(new ModelLoader(this));
+		CreateCache<VertexBuffer>(new ModelLoader(this));
 		CreateCache<SkinnedModel>(new SkinnedModelLoader(this));
 		CreateCache<Shader>(new ShaderLoader(this));
 		CreateCache<TextureCube>(new TextureCubeLoader(this));

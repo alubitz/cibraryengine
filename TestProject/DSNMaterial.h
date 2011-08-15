@@ -8,7 +8,7 @@ namespace Test
 
 	struct DSNMaterialNodeData
 	{
-		SkinVInfoVertexBuffer* model;
+		VertexBuffer* model;
 		Mat4 xform;
 
 		Sphere bs;
@@ -16,8 +16,8 @@ namespace Test
 		Texture1D* bone_matrices;
 		int bone_count;
 
-		DSNMaterialNodeData(SkinVInfoVertexBuffer* model, Mat4 xform, Sphere bs);
-		DSNMaterialNodeData(SkinVInfoVertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count);
+		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs);
+		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count);
 
 		void Draw();
 	};

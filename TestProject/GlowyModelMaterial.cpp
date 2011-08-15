@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * GlowyModelMaterialNodeData methods
 	 */
-	GlowyModelMaterialNodeData::GlowyModelMaterialNodeData(VertexBufferI* model, Mat4 xform) : model(model), xform(xform) { }
+	GlowyModelMaterialNodeData::GlowyModelMaterialNodeData(VertexBuffer* model, Mat4 xform) : model(model), xform(xform) { }
 
 	void GlowyModelMaterialNodeData::Draw()
 	{

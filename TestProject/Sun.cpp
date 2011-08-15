@@ -5,7 +5,7 @@
 
 namespace Test
 {
-	Sun::Sun(Vec3 position, Vec3 color, VTNModel* model, Texture2D* texture) : position(position), color(color), view_matrix(Mat4::Identity()), model(model), texture(texture)
+	Sun::Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture) : position(position), color(color), view_matrix(Mat4::Identity()), model(model), texture(texture)
 	{
 		distance = position.ComputeMagnitude();
 		rm = Util::FindOrientationZEdge(position);
@@ -63,7 +63,7 @@ namespace Test
 			glDisable(GL_LIGHTING);
 			glColor4f(1, 1, 1, 1);
 
-			model->GetVBO()->Draw();
+			model->Draw();
 
 			glPopMatrix();
 		}

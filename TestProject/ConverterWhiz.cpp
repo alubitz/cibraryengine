@@ -3,16 +3,15 @@
 
 namespace Test
 {
-	btCollisionShape* ShapeFromVTNModel(VTNModel* model)
+	btCollisionShape* ShapeFromVertexBuffer(VertexBuffer* vbo)
 	{
 		btTriangleMesh* mesh = new btTriangleMesh();
 		mesh->m_weldingThreshold = 0.05f;
-		VUVNTTCVertexBuffer* vbo = model->GetVBO();
-		for(unsigned int i = 0; i < vbo->vertex_infos.size();)
+		for(unsigned int i = 0; i < vbo->GetNumVerts();)
 		{
-			VUVNTTC vinfo_a = vbo->vertex_infos[i++];
-			VUVNTTC vinfo_b = vbo->vertex_infos[i++];
-			VUVNTTC vinfo_c = vbo->vertex_infos[i++];
+			VTNTT vinfo_a = GetVTNTT(vbo, i++);
+			VTNTT vinfo_b = GetVTNTT(vbo, i++);
+			VTNTT vinfo_c = GetVTNTT(vbo, i++);
 
 			btVector3 a = btVector3(vinfo_a.x.x, vinfo_a.x.y, vinfo_a.x.z);
 			btVector3 b = btVector3(vinfo_b.x.x, vinfo_b.x.y, vinfo_b.x.z);
@@ -29,13 +28,13 @@ namespace Test
 		mesh->m_weldingThreshold = 0.05f;
 		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
 		{
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)iter->vbo;
+			VertexBuffer* vbo = iter->vbo;
 
-			for(unsigned int i = 0; i < vbo->vertex_infos.size();)
+			for(unsigned int i = 0; i < vbo->GetNumVerts();)
 			{
-				SkinVInfo vinfo_a = vbo->vertex_infos[i++];
-				SkinVInfo vinfo_b = vbo->vertex_infos[i++];
-				SkinVInfo vinfo_c = vbo->vertex_infos[i++];
+				SkinVInfo vinfo_a = GetSkinVInfo(vbo, i++);
+				SkinVInfo vinfo_b = GetSkinVInfo(vbo, i++);
+				SkinVInfo vinfo_c = GetSkinVInfo(vbo, i++);
 
 				btVector3 a = btVector3(vinfo_a.x.x, vinfo_a.x.y, vinfo_a.x.z);
 				btVector3 b = btVector3(vinfo_b.x.x, vinfo_b.x.y, vinfo_b.x.z);
@@ -47,17 +46,16 @@ namespace Test
 		return new btBvhTriangleMeshShape(mesh, false);
 	}
 
-	btCollisionShape* HullFromVTNModel(VTNModel* model)
+	btCollisionShape* HullFromVertexBuffer(VertexBuffer* vbo)
 	{
 		
 		btConvexHullShape* shape = new btConvexHullShape();
 
-		VUVNTTCVertexBuffer* vbo = model->GetVBO();
-		for(unsigned int i = 0; i < vbo->vertex_infos.size();)
+		for(unsigned int i = 0; i < vbo->GetNumVerts();)
 		{
-			VUVNTTC vinfo_a = vbo->vertex_infos[i++];
-			VUVNTTC vinfo_b = vbo->vertex_infos[i++];
-			VUVNTTC vinfo_c = vbo->vertex_infos[i++];
+			VTNTT vinfo_a = GetVTNTT(vbo, i++);
+			VTNTT vinfo_b = GetVTNTT(vbo, i++);
+			VTNTT vinfo_c = GetVTNTT(vbo, i++);
 
 			shape->addPoint(btVector3(vinfo_a.x.x, vinfo_a.x.y, vinfo_a.x.z));
 			shape->addPoint(btVector3(vinfo_b.x.x, vinfo_b.x.y, vinfo_b.x.z));

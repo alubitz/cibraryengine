@@ -31,14 +31,14 @@ namespace Test
 		bones.push_back(BoneEntry("r leg 2",	"r leg 1",		Vec3(	-0.22f,	0.45f,	0		)));
 		bones.push_back(BoneEntry("r foot",		"r leg 2",		Vec3(	-0.28f,	0.08f,	0.06f	)));
 
-		Cache<VTNModel>* vtn_cache = content->GetCache<VTNModel>();
+		Cache<VertexBuffer>* vtn_cache = content->GetCache<VertexBuffer>();
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			BoneEntry& bone = bones[i];
 			bone.model = vtn_cache->Load(bone.name);
 		}
 
-		SkinnedModel* model = SkinnedModel::CopyVTNModel(vtn_cache->Load("soldier"), "soldier");
+		SkinnedModel* model = SkinnedModel::WrapVertexBuffer(vtn_cache->Load("soldier"), "soldier");
 
 		Skeleton* skeleton = model->skeleton = new Skeleton();
 
@@ -69,10 +69,10 @@ namespace Test
 
 		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
 		{
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)iter->vbo;
-			for(vector<SkinVInfo>::iterator jter = vbo->vertex_infos.begin(); jter != vbo->vertex_infos.end(); jter++)
+			VertexBuffer* vbo = (VertexBuffer*)iter->vbo;
+			for(unsigned int jter = 0; jter < vbo->GetNumVerts(); jter++)
 			{
-				SkinVInfo& vertex_info = *jter;
+				SkinVInfo vertex_info = GetSkinVInfo(vbo, jter);
 				Vec3 pos = vertex_info.x;
 
 				VertexBoneWeightInfo vbwi = VertexBoneWeightInfo();
@@ -80,11 +80,11 @@ namespace Test
 				for(unsigned int bone_index = 0; bone_index < bones.size(); bone_index++)
 				{
 					BoneEntry& bone_entry = bones[bone_index];
-					VUVNTTCVertexBuffer* model_vbo = bone_entry.model->GetVBO();
+					VertexBuffer* model_vbo = bone_entry.model;
 
-					for(vector<VUVNTTC>::iterator lter = model_vbo->vertex_infos.begin(); lter != model_vbo->vertex_infos.end(); lter++)
+					for(unsigned int lter = 0; lter < model_vbo->GetNumVerts(); lter++)
 					{
-						float dist_sq = (lter->x - pos).ComputeMagnitudeSquared();
+						float dist_sq = (GetVTNTT(model_vbo, lter).x - pos).ComputeMagnitudeSquared();
 						if(dist_sq < 0.01)
 							vbwi.AddValue(bone_index, 1.0f / (dist_sq + 0.000001f));
 					}

@@ -7,7 +7,6 @@
 #include "DSNMaterial.h"
 #include "GlowyModelMaterial.h"
 #include "Sun.h"
-#include "TerrainChunk.h"
 #include "Weapon.h"
 #include "AIController.h"
 
@@ -27,7 +26,6 @@
 
 #include "MaterialLoader.h"
 
-#include "Brambles.h"
 #include "Corpse.h"
 #include "StaticLevelGeometry.h"
 
@@ -95,7 +93,7 @@ namespace Test
 		debug_text(""),
 		nav_graph(0),
 		tex2d_cache(screen->window->content->GetCache<Texture2D>()),
-		vtn_cache(screen->window->content->GetCache<VTNModel>()),
+		vtn_cache(screen->window->content->GetCache<VertexBuffer>()),
 		ubermodel_cache(screen->window->content->GetCache<UberModel>()),
 		mat_cache(NULL),
 		load_status(this)
@@ -144,7 +142,7 @@ namespace Test
 			MaterialModelPair pair;
 
 			pair.material_index = 0;
-			pair.vbo = new SkinVInfoVertexBuffer(*vtn_cache->Load("nbridge")->GetVBO());
+			pair.vbo = vtn_cache->Load("nbridge");
 			pairs.push_back(pair);
 			material_names.push_back("nbridge");
 
@@ -750,7 +748,7 @@ namespace Test
 		glPushMatrix();
 		glLoadIdentity();
 
-		sky_sphere->GetVBO()->Draw();
+		sky_sphere->Draw();
 
 		glPopMatrix();
 
@@ -869,7 +867,7 @@ namespace Test
 			MaterialModelPair& mmp = *iter;
 
 			DSNMaterial* material = (DSNMaterial*)use_materials[mmp.material_index];
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)mmp.vbo;
+			VertexBuffer* vbo = mmp.vbo;
 
 			if(character != NULL)
 			{

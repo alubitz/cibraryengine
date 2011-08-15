@@ -12,13 +12,18 @@ namespace CibraryEngine
 	/*
 	 * ModelLoader methods
 	 */
-	ModelLoader::ModelLoader(ContentMan* man) : ContentTypeHandler<VTNModel>(man) { }
+	ModelLoader::ModelLoader(ContentMan* man) : ContentTypeHandler<VertexBuffer>(man) { }
 
-	VTNModel* ModelLoader::Load(ContentMetadata& what)
+	VertexBuffer* ModelLoader::Load(ContentMetadata& what)
 	{
 		string model_name = what.name;
 
-		VUVNTTCVertexBuffer* vbo = new VUVNTTCVertexBuffer();
+		VertexBuffer* vbo = new VertexBuffer(Triangles);
+		vbo->AddAttribute("gl_Vertex", Float, 3);
+		vbo->AddAttribute("gl_Normal", Float, 3);
+		vbo->AddAttribute("gl_MultiTexCoord0", Float, 3);
+		vbo->AddAttribute("gl_MultiTexCoord1", Float, 3);
+		vbo->AddAttribute("gl_MultiTexCoord2", Float, 3);
 
 		int aam_result = LoadAAM("Files/Models/" + model_name + ".aam", vbo);
 		if(aam_result != 0)
@@ -48,10 +53,10 @@ namespace CibraryEngine
 		}
 
 		// if we got here it means we didn't fail too many times...
-		return new VTNModel(vbo);
+		return vbo;
 	}
 
-	void ModelLoader::Unload(VTNModel* content, ContentMetadata& meta)
+	void ModelLoader::Unload(VertexBuffer* content, ContentMetadata& meta)
 	{
 		content->Dispose();
 		delete content;
@@ -102,7 +107,7 @@ namespace CibraryEngine
 	/*
 	 * Loader for OBJ models
 	 */
-	int LoadOBJ(string filename, VUVNTTCVertexBuffer* vbo)
+	int LoadOBJ(string filename, VertexBuffer* vbo)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);			// not binary --> size gets reported incorrectly
 		if(!file)
@@ -240,7 +245,7 @@ namespace CibraryEngine
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
 			n_index = atoi(line.substr(start, end - start).c_str()) - 1;
-			VUVNTTC v_a = VUVNTTC(xyz[xyz_index], uv[uv_index], nxyz[n_index]); 
+			VTNTT v_a = VTNTT(xyz[xyz_index], uv[uv_index], nxyz[n_index]); 
 
 			start = end + 1;
 			end = line.find('/', start);
@@ -254,7 +259,7 @@ namespace CibraryEngine
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
 			n_index = atoi(line.substr(start, end - start).c_str()) - 1;
-			VUVNTTC v_b = VUVNTTC(xyz[xyz_index], uv[uv_index], nxyz[n_index]);
+			VTNTT v_b = VTNTT(xyz[xyz_index], uv[uv_index], nxyz[n_index]);
 
 			start = end + 1;
 			end = line.find('/', start);
@@ -268,9 +273,9 @@ namespace CibraryEngine
 			end = line.find(' ', start);
 			end = end != -1 ? end : line.length();
 			n_index = atoi(line.substr(start, end - start).c_str()) - 1;
-			VUVNTTC v_c = VUVNTTC(xyz[xyz_index], uv[uv_index], nxyz[n_index]);
+			VTNTT v_c = VTNTT(xyz[xyz_index], uv[uv_index], nxyz[n_index]);
 
-			vbo->AddTriangleVertexInfo(v_a, v_b, v_c);
+			AddTriangleVertexInfo(vbo, v_a, v_b, v_c);
 		}
 
 		return 0;
@@ -282,7 +287,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for OBJ models
 	 */
-	int SaveOBJ(string filename, VUVNTTCVertexBuffer* vbo)
+	int SaveOBJ(string filename, VertexBuffer* vbo)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -296,9 +301,9 @@ namespace CibraryEngine
 		vector<unsigned int> texcoord_indices = vector<unsigned int>();
 		vector<unsigned int> normal_indices = vector<unsigned int>();
 
-		for(vector<VUVNTTC>::iterator iter = vbo->vertex_infos.begin(); iter != vbo->vertex_infos.end(); iter++)
+		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); iter++)
 		{
-			VUVNTTC v = *iter;
+			VTNTT v = GetVTNTT(vbo, iter);
 			unsigned int i;
 
 			for(i = 0; i < vertices.size(); i++)
@@ -346,25 +351,12 @@ namespace CibraryEngine
 		return 0;
 	}
 
-	int SaveOBJ(string filename, SkinVInfoVertexBuffer* vbo)
-	{
-		VUVNTTCVertexBuffer* vtn = new VUVNTTCVertexBuffer();
-		for(unsigned int i = 0; i < vbo->vertex_infos.size(); i++)
-		{
-			SkinVInfo& sk = vbo->vertex_infos[i];
-			vtn->vertex_infos.push_back(VUVNTTC(sk.x, sk.uvw, sk.n));
-		}
-		int result = SaveOBJ(filename, vtn);
-		delete vtn;
-		return result;
-	}
-
 
 
 	/*
 	 * Loader for AAM models
 	 */
-	int LoadAAM(string filename, VUVNTTCVertexBuffer* vbo)
+	int LoadAAM(string filename, VertexBuffer* vbo)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -403,7 +395,7 @@ namespace CibraryEngine
 
 		// load and apply the decompression indices
 		unsigned int vinfo_count = ReadUInt32(file);
-		VUVNTTC verts[3];
+		VTNTT verts[3];
 		int target_vert = 0;
 		for(unsigned int i = 0; i < vinfo_count; i++)
 		{
@@ -411,11 +403,11 @@ namespace CibraryEngine
 			unsigned int uv_index = ReadUInt32(file);
 			unsigned int n_index = ReadUInt32(file);
 
-			verts[target_vert++] = VUVNTTC(vertices[x_index], texcoords[uv_index], normals[n_index]);
+			verts[target_vert++] = VTNTT(vertices[x_index], texcoords[uv_index], normals[n_index]);
 
 			if(target_vert == 3)
 			{
-				vbo->AddTriangleVertexInfo(verts[0], verts[1], verts[2]);
+				AddTriangleVertexInfo(vbo, verts[0], verts[1], verts[2]);
 				target_vert = 0;
 			}
 		}
@@ -432,7 +424,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for AAM models
 	 */
-	int SaveAAM(string filename, VUVNTTCVertexBuffer* vbo, bool overwrite)
+	int SaveAAM(string filename, VertexBuffer* vbo, bool overwrite)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -446,9 +438,9 @@ namespace CibraryEngine
 		vector<unsigned int> texcoord_indices = vector<unsigned int>();
 		vector<unsigned int> normal_indices = vector<unsigned int>();
 
-		for(vector<VUVNTTC>::iterator iter = vbo->vertex_infos.begin(); iter != vbo->vertex_infos.end(); iter++)
+		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); iter++)
 		{
-			VUVNTTC v = *iter;
+			VTNTT v = GetVTNTT(vbo, iter);
 			unsigned int i;
 
 			for(i = 0; i < vertices.size(); i++)
@@ -504,7 +496,7 @@ namespace CibraryEngine
 			WriteSingle(norm.z, file);
 		}
 
-		unsigned int vinfo_count = vbo->vertex_infos.size();
+		unsigned int vinfo_count = vbo->GetNumVerts();
 		WriteUInt32(vinfo_count, file);
 		for(unsigned int i = 0; i < vinfo_count; i++)
 		{
@@ -540,7 +532,7 @@ namespace CibraryEngine
 
 			material_names.push_back(mat_name);
 
-			SkinVInfoVertexBuffer* vbo = new SkinVInfoVertexBuffer();
+			VertexBuffer* vbo = new VertexBuffer(Triangles);
 
 			MaterialModelPair mmp = MaterialModelPair();
 			mmp.material_index = i;
@@ -569,7 +561,7 @@ namespace CibraryEngine
 				tri[target++] = SkinVInfo(Vec3(x, y, z), Vec3(u, v, 0.0f), Vec3(nx, ny, nz), indices, weights);
 				if(target == 3)
 				{
-					vbo->AddTriangleVertexInfo(tri[0], tri[1], tri[2]);
+					AddTriangleVertexInfo(vbo, tri[0], tri[1], tri[2]);
 					target = 0;
 				}
 			}
@@ -605,7 +597,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < materials_count; i++)
 		{
 			MaterialModelPair& mmp = model->material_model_pairs[i];
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)mmp.vbo;
+			VertexBuffer* vbo = mmp.vbo;
 
 			// name of material
 			unsigned int mat_name_len = model->material_names[i].length();
@@ -614,11 +606,11 @@ namespace CibraryEngine
 				WriteByte((unsigned char)model->material_names[i][j], file);
 
 			// vbo data
-			unsigned int vinfo_count = vbo->vertex_infos.size();
+			unsigned int vinfo_count = vbo->GetNumVerts();
 			WriteUInt32(vinfo_count, file);
 			for(unsigned int j = 0; j < vinfo_count; j++)
 			{
-				SkinVInfo& vinfo = vbo->vertex_infos[j];
+				SkinVInfo& vinfo = GetSkinVInfo(vbo, j);
 
 				WriteSingle(vinfo.x.x, file);
 				WriteSingle(vinfo.x.y, file);

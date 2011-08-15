@@ -8,10 +8,10 @@ namespace Test
 
 	struct GlowyModelMaterialNodeData
 	{
-		VertexBufferI* model;
+		VertexBuffer* model;
 		Mat4 xform;
 
-		GlowyModelMaterialNodeData(VertexBufferI* model, Mat4 xform);
+		GlowyModelMaterialNodeData(VertexBuffer* model, Mat4 xform);
 
 		void Draw();
 	};

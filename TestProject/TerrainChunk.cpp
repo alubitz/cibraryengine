@@ -10,7 +10,7 @@ namespace Test
 	/*
 	 * TerrainChunk methods
 	 */
-	TerrainChunk::TerrainChunk(GameState* gs, Heightfield* heightfield, SkinVInfoVertexBuffer* model, DSNMaterial* material) :
+	TerrainChunk::TerrainChunk(GameState* gs, Heightfield* heightfield, VertexBuffer* model, DSNMaterial* material) :
 		Entity(gs),
 		material(material),
 		node_data(NULL),

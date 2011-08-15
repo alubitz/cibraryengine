@@ -17,10 +17,10 @@ namespace Test
 			float distance;
 			Mat3 rm;
 
-			VTNModel* model;
+			VertexBuffer* model;
 			Texture2D* texture;
 
-			Sun(Vec3 position, Vec3 color, VTNModel* model, Texture2D* texture);
+			Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture);
 
 			void SetLight(int which);
 			void UnsetLight(int which);

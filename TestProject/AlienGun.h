@@ -14,10 +14,10 @@ namespace Test
 	{
 		public:
 
-			VTNModel* shot_model;
+			VertexBuffer* shot_model;
 			GlowyModelMaterial* shot_material;
 
-			AlienGun(TestGame* game_state, Dood* owner, UberModel* gun_model, VTNModel* mflash_model, VTNModel* shot_model, GlowyModelMaterial* mflash_material, GlowyModelMaterial* shot_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
+			AlienGun(TestGame* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, VertexBuffer* shot_model, GlowyModelMaterial* mflash_material, GlowyModelMaterial* shot_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
 			Shot* CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction);
 	};
 }

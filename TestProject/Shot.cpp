@@ -11,7 +11,7 @@ namespace Test
 	/*
 	 * Shot methods
 	 */
-	Shot::Shot(GameState* gs, VTNModel* model, GlowyModelMaterial* material, Vec3 origin, Vec3 initial_vel, Quaternion ori, Dood* firer) :
+	Shot::Shot(GameState* gs, VertexBuffer* model, GlowyModelMaterial* material, Vec3 origin, Vec3 initial_vel, Quaternion ori, Dood* firer) :
 		Entity(gs),
 		bs(origin, -1),
 		model(model),
@@ -39,7 +39,7 @@ namespace Test
 	{
 		if (renderer->camera->CheckSphereVisibility(bs))
 		{
-			GlowyModelMaterialNodeData* datum = new GlowyModelMaterialNodeData(model->GetVBO(), draw_xform * Mat4::Scale(0.02f, 0.02f, 5.0f));
+			GlowyModelMaterialNodeData* datum = new GlowyModelMaterialNodeData(model, draw_xform * Mat4::Scale(0.02f, 0.02f, 5.0f));
 			renderer->objects.push_back(RenderNode(material, datum, Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 		}
 	}

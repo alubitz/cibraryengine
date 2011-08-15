@@ -18,7 +18,6 @@ namespace CibraryEngine
 	class BinaryChunk;
 	struct MaterialModelPair;
 
-	class VTNModel;
 	class SkinnedModel;
 	class Skeleton;
 
@@ -163,7 +162,6 @@ namespace CibraryEngine
 		static unsigned int LoadZZZ(UberModel*& model, string filename);
 		static unsigned int SaveZZZ(UberModel* model, string filename);
 
-		static UberModel* CopyVTNModel(VTNModel* vtn, string material);
 		static UberModel* CopySkinnedModel(SkinnedModel* skinny);
 
 		static void AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, string lod_name);

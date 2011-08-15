@@ -3,18 +3,18 @@
 #include "StdAfx.h"
 
 #include "Model.h"
-#include "VertexInfo.h"
+#include "VertexBuffer.h"
 #include "UberModel.h"
 
 namespace CibraryEngine
 {
-	/** ContentLoader for VTNModel assets */
-	struct ModelLoader : public ContentTypeHandler<VTNModel>
+	/** ContentLoader for VertexBuffer assets */
+	struct ModelLoader : public ContentTypeHandler<VertexBuffer>
 	{
 		ModelLoader(ContentMan* man);
 
-		VTNModel* Load(ContentMetadata& what);
-		void Unload(VTNModel* content, ContentMetadata& meta);
+		VertexBuffer* Load(ContentMetadata& what);
+		void Unload(VertexBuffer* content, ContentMetadata& meta);
 	};
 
 	/** ContentLoader for SkinnedModel assets */
@@ -27,15 +27,14 @@ namespace CibraryEngine
 	};
 
 	/** Loads a .OBJ model file, returning 0 if ok or an int error code otherwise */
-	int LoadOBJ(string filename, VUVNTTCVertexBuffer* vbo);
+	int LoadOBJ(string filename, VertexBuffer* vbo);
 
-	int SaveOBJ(string filename, VUVNTTCVertexBuffer* vbo);
-	int SaveOBJ(string filename, SkinVInfoVertexBuffer* vbo);
+	int SaveOBJ(string filename, VertexBuffer* vbo);
 
 	/** Loads a .AAM model file, returning 0 if ok or an int error code otherwise */
-	int LoadAAM(string filename, VUVNTTCVertexBuffer* vbo);
+	int LoadAAM(string filename, VertexBuffer* vbo);
 	/** Saves a .AAM model file, returning 0 if ok or an int error code otherwise */
-	int SaveAAM(string filename, VUVNTTCVertexBuffer* vbo, bool overwrite = true);		// is overwrite even used?
+	int SaveAAM(string filename, VertexBuffer* vbo, bool overwrite = true);		// is overwrite even used?
 
 	/** Loads a .AAK skin file, returning 0 if ok or an int error code otherwise */
 	int LoadAAK(string filename, vector<MaterialModelPair>& material_model_pairs, vector<string>& material_names, Skeleton*& skeleton);

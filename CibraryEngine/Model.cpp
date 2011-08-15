@@ -4,12 +4,33 @@
 #include "ModelLoader.h"
 #include "SkeletalAnimation.h"
 
-#include "VertexInfo.h"
+#include "VertexBuffer.h"
 
 #include "DebugLog.h"
 
 namespace CibraryEngine
 {
+	/*
+	 * SkinVInfo methods
+	 */	
+	SkinVInfo::SkinVInfo() : VTNTT(), indices(), weights() { weights[0] = 255; }
+	SkinVInfo::SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n) : VTNTT(x, uvw, n), indices(), weights() { weights[0] = 255; }
+	SkinVInfo::SkinVInfo(VTNTT original) : VTNTT(original), indices(), weights() { weights[0] = 255; }
+	SkinVInfo::SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices_, unsigned char* weights_) : 
+		VTNTT(x, uvw, n), 
+		indices(),
+		weights()
+	{
+		for(int i = 0; i < 4; i++)
+		{
+			indices[i] = indices_[i];
+			weights[i] = weights_[i];
+		}
+	}
+
+
+
+
 	/*
 	 * SkinnedModel methods
 	 */
@@ -20,16 +41,15 @@ namespace CibraryEngine
 	{
 	}
 
-	SkinnedModel* SkinnedModel::CopyVTNModel(VTNModel* model, string material_name)
+	SkinnedModel* SkinnedModel::WrapVertexBuffer(VertexBuffer* model, string material_name)
 	{
-
 		vector<string> material_names;
 		material_names.push_back(material_name);
 
 		vector<MaterialModelPair> material_model_pairs;
 		MaterialModelPair mmp = MaterialModelPair();
 		mmp.material_index = 0;
-		mmp.vbo = new SkinVInfoVertexBuffer(*model->GetVBO());
+		mmp.vbo = model;
 
 		material_model_pairs.push_back(mmp);
 
@@ -39,96 +59,64 @@ namespace CibraryEngine
 		return new SkinnedModel(material_model_pairs, material_names, skeleton);
 	}
 
-
-
-
-	/*
-	 * VertexBufferI methods
-	 */
-	void VertexBufferI::BuildAsNeeded()
+	void SetVertexInfo(VertexBuffer* vbo, int index, VTNTT info)
 	{
-		if (!built)
-			Build();
+		float* xyz = vbo->GetFloatPointer("gl_Vertex");
+		xyz[index * 3 + 0] = info.x.x;
+		xyz[index * 3 + 1] = info.x.y;
+		xyz[index * 3 + 2] = info.x.z;
+
+		float* n = vbo->GetFloatPointer("gl_Normal");
+		n[index * 3 + 0] = info.n.x;
+		n[index * 3 + 1] = info.n.y;
+		n[index * 3 + 2] = info.n.z;
+
+		float* uvw = vbo->GetFloatPointer("gl_MultiTexCoord0");
+		uvw[index * 3 + 0] = info.uvw.x;
+		uvw[index * 3 + 1] = info.uvw.y;
+		uvw[index * 3 + 2] = info.uvw.z;
+
+		float* t1 = vbo->GetFloatPointer("gl_MultiTexCoord1");
+		t1[index * 3 + 0] = info.tan_1.x;
+		t1[index * 3 + 1] = info.tan_1.y;
+		t1[index * 3 + 2] = info.tan_1.z;
+
+		float* t2 = vbo->GetFloatPointer("gl_MultiTexCoord2");
+		t2[index * 3 + 0] = info.tan_2.x;
+		t2[index * 3 + 1] = info.tan_2.y;
+		t2[index * 3 + 2] = info.tan_2.z;
 	}
 
-	void VertexBufferI::InnerDispose() { GLCleanup(); }
-
-	bool VertexBufferI::IsValid() { return built; }
-	void VertexBufferI::Validate() { built = true; }
-	void VertexBufferI::Invalidate() { built = false; }
-
-
-
-
-	/*
-	 * VUVNTTCVertexBuffer methods
-	 */
-	VUVNTTCVertexBuffer::VUVNTTCVertexBuffer() : VertexBuffer<VUVNTTC>() { vbo_id[0] = vbo_id[1] = 0; }
-
-	void VUVNTTCVertexBuffer::Draw()
+	void AddVertexInfo(VertexBuffer* vbo, VTNTT info)
 	{
-		BuildAsNeeded();
+		int index = vbo->GetNumVerts();
 
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-
-		glEnable(GL_VERTEX_ARRAY);
-		glEnable(GL_NORMAL_ARRAY);
-
-		int count = vertex_infos.size();
-
-		glVertexPointer(	3,	GL_FLOAT, 	0,	0);
-		glNormalPointer(		GL_FLOAT, 	0,	(void*)(count * sizeof(float) * 3));
-
-		glClientActiveTexture(GL_TEXTURE0);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 6));
-
-		glClientActiveTexture(GL_TEXTURE1);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 9));
-
-		glClientActiveTexture(GL_TEXTURE2);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 12));
-
-		glDrawArrays(GL_TRIANGLES, 0, count);
-
-		glDisable(GL_VERTEX_ARRAY);
-		glClientActiveTexture(GL_TEXTURE0);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE1);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE2);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glDisable(GL_NORMAL_ARRAY);
-
-		glClientActiveTexture(GL_TEXTURE0);			// get texcoords back to working "the normal way"
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
+		vbo->SetNumVerts(index + 1);
+		SetVertexInfo(vbo, index, info);
 	}
 
-	Sphere VUVNTTCVertexBuffer::GetBoundingSphere()
+	void AddVertexInfo(VertexBuffer* vbo, SkinVInfo info)
 	{
-		bool valid = false;
-		Sphere temp;
-		for(vector<VUVNTTC>::iterator iter = vertex_infos.begin(); iter != vertex_infos.end(); iter++)
-			if(valid)
-				temp = Sphere::Expand(temp, iter->x);
-			else
-			{
-				temp = Sphere(iter->x, 0);
-				valid = true;
-			}
-		return temp;
+		int index = vbo->GetNumVerts();
+
+		AddVertexInfo(vbo, (VTNTT)info);
+
+		float* indices = vbo->GetFloatPointer("gl_MultiTexCoord3");
+		float* weights = vbo->GetFloatPointer("gl_MultiTexCoord4");
+		for(int i = 0; i < 4; i++)
+		{
+			indices[index * 4 + i] = info.indices[i];
+			weights[index * 4 + i] = info.weights[i];
+		}
 	}
 
-	void VUVNTTCVertexBuffer::AddTriangleVertexInfo(VUVNTTC a, VUVNTTC b, VUVNTTC c)
+	void AddTriangleVertexInfo(VertexBuffer* vbo, VTNTT a, VTNTT b, VTNTT c)
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
 		for (int i = 0; i < 3; i++)
 		{
-			VUVNTTC* info;
+			VTNTT* info;
 			switch (i)
 			{
 				case 0:
@@ -153,170 +141,12 @@ namespace CibraryEngine
 			info->tan_2 = non_edge_ab * (b.uvw.y - a.uvw.y) + non_edge_ac * (c.uvw.y - a.uvw.y);
 		}
 
-		AddVertexInfo(a);
-		AddVertexInfo(b);
-		AddVertexInfo(c);
+		AddVertexInfo(vbo, a);
+		AddVertexInfo(vbo, b);
+		AddVertexInfo(vbo, c);
 	}
 
-	void VUVNTTCVertexBuffer::AddVertexInfo(VUVNTTC info)
-	{
-		vertex_infos.push_back(info);
-		GLCleanup();									// this will call Invalidate()
-	}
-
-	void VUVNTTCVertexBuffer::Build()
-	{
-		int count = vertex_infos.size();
-
-		float* vertices = new float[count * 3];
-		float* normals = new float[count * 3];
-		float* uvws = new float[count * 3];
-		float* tangents_1 = new float[count * 3];
-		float* tangents_2 = new float[count * 3];
-		for (int i = 0; i < count; i++)
-		{
-			VUVNTTC v = vertex_infos[i];
-
-			vertices[i * 3 + 0] = v.x.x;
-			vertices[i * 3 + 1] = v.x.y;
-			vertices[i * 3 + 2] = v.x.z;
-			normals[i * 3 + 0] = v.n.x;
-			normals[i * 3 + 1] = v.n.y;
-			normals[i * 3 + 2] = v.n.z;
-			uvws[i * 3 + 0] = v.uvw.x;
-			uvws[i * 3 + 1] = v.uvw.y;
-			uvws[i * 3 + 2] = v.uvw.z;
-			tangents_1[i * 3 + 0] = v.tan_1.x;
-			tangents_1[i * 3 + 1] = v.tan_1.y;
-			tangents_1[i * 3 + 2] = v.tan_1.z;
-			tangents_2[i * 3 + 0] = v.tan_2.x;
-			tangents_2[i * 3 + 1] = v.tan_2.y;
-			tangents_2[i * 3 + 2] = v.tan_2.z;
-		}
-
-		// warning! this will delete the referenced vbo_id's! if you copied them and don't want them deleted, clear the vbo_id array
-		GLCleanup();
-
-		glGenBuffers(2, vbo_id);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-		glBufferData(GL_ARRAY_BUFFER,									15 * count * sizeof(float),	NULL, GL_STATIC_DRAW);
-		glBufferSubData(GL_ARRAY_BUFFER,	0,							3 * count * sizeof(float),	&vertices[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	3 * count * sizeof(float),	3 * count * sizeof(float),	&normals[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	6 * count * sizeof(float),	3 * count * sizeof(float),	&uvws[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	9 * count * sizeof(float),	3 * count * sizeof(float),	&tangents_1[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	12 * count * sizeof(float),	3 * count * sizeof(float),	&tangents_2[0]);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
-
-		delete[] vertices;
-		delete[] normals;
-		delete[] uvws;
-		delete[] tangents_1;
-		delete[] tangents_2;
-
-		Validate();
-	}
-
-	void VUVNTTCVertexBuffer::GLCleanup()
-	{
-		if (IsValid())
-		{
-			glDeleteBuffers(2, &vbo_id[0]);
-			Invalidate();
-		}
-	}
-
-
-
-
-	/*
-	 * SkinVInfoVertexBuffer methods
-	 */
-	SkinVInfoVertexBuffer::SkinVInfoVertexBuffer() : VertexBuffer<SkinVInfo>() { vbo_id[0] = vbo_id[1] = 0; }
-
-	SkinVInfoVertexBuffer::SkinVInfoVertexBuffer(VUVNTTCVertexBuffer& other) : VertexBuffer<SkinVInfo>()
-	{
-		vbo_id[0] = vbo_id[1] = 0;
-
-		vector<VUVNTTC>& other_vec = other.vertex_infos;
-		for(vector<VUVNTTC>::iterator iter = other_vec.begin(); iter != other_vec.end(); iter++)
-			vertex_infos.push_back(SkinVInfo(*iter));
-	}
-
-	void SkinVInfoVertexBuffer::Draw()
-	{
-		BuildAsNeeded();
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-
-		glEnable(GL_VERTEX_ARRAY);
-		glEnable(GL_NORMAL_ARRAY);
-
-		int count = vertex_infos.size();
-
-		glVertexPointer(	3,	GL_FLOAT, 	0,	0);
-		glNormalPointer(		GL_FLOAT, 	0,	(void*)(count * sizeof(float) * 3));
-
-		glClientActiveTexture(GL_TEXTURE0);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 6));
-
-		glClientActiveTexture(GL_TEXTURE1);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 9));
-
-		glClientActiveTexture(GL_TEXTURE2);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	3,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 12));
-
-		glClientActiveTexture(GL_TEXTURE3);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	4,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 15));
-
-		glClientActiveTexture(GL_TEXTURE4);
-		glEnable(GL_TEXTURE_COORD_ARRAY);
-		glTexCoordPointer(	4,	GL_FLOAT,	0,	(void*)(count * sizeof(float) * 19));
-
-		glDrawArrays(GL_TRIANGLES, 0, count);
-
-		glDisable(GL_VERTEX_ARRAY);
-		glClientActiveTexture(GL_TEXTURE0);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE1);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE2);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE3);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glClientActiveTexture(GL_TEXTURE4);
-		glDisable(GL_TEXTURE_COORD_ARRAY);
-		glDisable(GL_NORMAL_ARRAY);
-
-		glClientActiveTexture(GL_TEXTURE0);			// get texcoords back to working "the normal way"
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
-	}
-
-	Sphere SkinVInfoVertexBuffer::GetBoundingSphere()
-	{
-		bool valid = false;
-		Sphere temp;
-		for(vector<SkinVInfo>::iterator iter = vertex_infos.begin(); iter != vertex_infos.end(); iter++)
-			if(valid)
-				temp = Sphere::Expand(temp, iter->x);
-			else
-			{
-				temp = Sphere(iter->x, 0);
-				valid = true;
-			}
-		return temp;
-	}
-
-
-	void SkinVInfoVertexBuffer::AddTriangleVertexInfo(SkinVInfo a, SkinVInfo b, SkinVInfo c)
+	void AddTriangleVertexInfo(VertexBuffer* vbo, SkinVInfo a, SkinVInfo b, SkinVInfo c)
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
@@ -347,92 +177,38 @@ namespace CibraryEngine
 			info->tan_2 = non_edge_ab * (b.uvw.y - a.uvw.y) + non_edge_ac * (c.uvw.y - a.uvw.y);
 		}
 
-		AddVertexInfo(a);
-		AddVertexInfo(b);
-		AddVertexInfo(c);
+		AddVertexInfo(vbo, a);
+		AddVertexInfo(vbo, b);
+		AddVertexInfo(vbo, c);
 	}
 
-	void SkinVInfoVertexBuffer::AddVertexInfo(SkinVInfo info)
+	VTNTT GetVTNTT(VertexBuffer* vbo, int index)
 	{
-		vertex_infos.push_back(info);
-		GLCleanup();									// this will call Invalidate()
+		float* x = vbo->GetFloatPointer("gl_Vertex");
+		float* n = vbo->GetFloatPointer("gl_Normal");
+		float* uv = vbo->GetFloatPointer("gl_MultiTexCoord0");
+		float* t1 = vbo->GetFloatPointer("gl_MultiTexCoord1");
+		float* t2 = vbo->GetFloatPointer("gl_MultiTexCoord2");
+		VTNTT result(
+			Vec3(x[index * 3 + 0], x[index * 3 + 1], x[index * 3 + 2]),
+			Vec3(uv[index * 3 + 0], uv[index * 3 + 1], uv[index * 3 + 2]),
+			Vec3(n[index * 3 + 0], n[index * 3 + 1], n[index * 3 + 2]));
+		result.tan_1 = Vec3(t1[index * 3 + 0], t1[index * 3 + 1], t1[index * 3 + 2]);
+		result.tan_2 = Vec3(t2[index * 3 + 0], t2[index * 3 + 1], t2[index * 3 + 2]);
+		return result;
 	}
 
-	void SkinVInfoVertexBuffer::Build()
+	SkinVInfo GetSkinVInfo(VertexBuffer* vbo, int index)
 	{
-		int count = vertex_infos.size();
-
-		float* vertices = new float[count * 3];
-		float* normals = new float[count * 3];
-		float* uvws = new float[count * 3];
-		float* tangents_1 = new float[count * 3];
-		float* tangents_2 = new float[count * 3];
-		float* bone_indices = new float[count * 4];
-		float* bone_weights = new float[count * 4];
-		for (int i = 0; i < count; i++)
+		VTNTT vtn = GetVTNTT(vbo, index);
+		float* indices = vbo->GetFloatPointer("gl_MultiTexCoord3");
+		float* weights = vbo->GetFloatPointer("gl_MultiTexCoord4");
+		SkinVInfo result(vtn);
+		for(int i = 0; i < 4; i++)
 		{
-			SkinVInfo v = vertex_infos[i];
-
-			vertices[i * 3 + 0] = v.x.x;
-			vertices[i * 3 + 1] = v.x.y;
-			vertices[i * 3 + 2] = v.x.z;
-			normals[i * 3 + 0] = v.n.x;
-			normals[i * 3 + 1] = v.n.y;
-			normals[i * 3 + 2] = v.n.z;
-			uvws[i * 3 + 0] = v.uvw.x;
-			uvws[i * 3 + 1] = v.uvw.y;
-			uvws[i * 3 + 2] = v.uvw.z;
-			tangents_1[i * 3 + 0] = v.tan_1.x;
-			tangents_1[i * 3 + 1] = v.tan_1.y;
-			tangents_1[i * 3 + 2] = v.tan_1.z;
-			tangents_2[i * 3 + 0] = v.tan_2.x;
-			tangents_2[i * 3 + 1] = v.tan_2.y;
-			tangents_2[i * 3 + 2] = v.tan_2.z;
-			for(int j = 0; j < 4; j++)
-			{
-				bone_indices[i * 4 + j] = v.indices[j];
-				bone_weights[i * 4 + j] = v.weights[j];
-			}
+			result.indices[i] = indices[index * 4 + i];
+			result.weights[i] = weights[index * 4 + i];
 		}
-
-		// warning! this will delete the referenced vbo_id's! if you copied them and don't want them deleted, clear the vbo_id array
-		GLCleanup();
-
-		glGenBuffers(2, vbo_id);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_id[0]);
-		glBufferData(GL_ARRAY_BUFFER,									23 * count * sizeof(float),	NULL, GL_STATIC_DRAW);
-
-		glBufferSubData(GL_ARRAY_BUFFER,	0,							3 * count * sizeof(float),	&vertices[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	3 * count * sizeof(float),	3 * count * sizeof(float),	&normals[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	6 * count * sizeof(float),	3 * count * sizeof(float),	&uvws[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	9 * count * sizeof(float),	3 * count * sizeof(float),	&tangents_1[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	12 * count * sizeof(float),	3 * count * sizeof(float),	&tangents_2[0]);
-
-		glBufferSubData(GL_ARRAY_BUFFER,	15 * count * sizeof(float),	4 * count * sizeof(float),	&bone_indices[0]);
-		glBufferSubData(GL_ARRAY_BUFFER,	19 * count * sizeof(float),	4 * count * sizeof(float),	&bone_weights[0]);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
-
-		Validate();
-
-		delete vertices;
-		delete normals;
-		delete uvws;
-		delete tangents_1;
-		delete tangents_2;
-		delete bone_indices;
-		delete bone_weights;
-	}
-
-	void SkinVInfoVertexBuffer::GLCleanup()
-	{
-		if (IsValid())
-		{
-			glDeleteBuffers(2, &vbo_id[0]);
-			Invalidate();
-		}
+		return result;
 	}
 }

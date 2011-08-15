@@ -22,13 +22,13 @@ namespace Test
 		public:
 
 			Heightfield* heightfield;
-			SkinVInfoVertexBuffer* model;
+			VertexBuffer* model;
 
 			btTriangleMesh* mesh;
 			RigidBodyInfo* rigid_body;
 			PhysicsWorld* physics;
 
-			TerrainChunk(GameState* gs, Heightfield* heightfield, SkinVInfoVertexBuffer* model, DSNMaterial* material);
+			TerrainChunk(GameState* gs, Heightfield* heightfield, VertexBuffer* model, DSNMaterial* material);
 
 			void Vis(SceneRenderer* renderer);
 			void VisCleanup();

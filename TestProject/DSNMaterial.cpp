@@ -132,7 +132,7 @@ namespace Test
 	/*
 	 * DSNMaterialNodeData methods
 	 */
-	DSNMaterialNodeData::DSNMaterialNodeData(SkinVInfoVertexBuffer* model, Mat4 xform, Sphere bs) :
+	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs) :
 		model(model),
 		xform(xform),
 		bs(bs),
@@ -141,7 +141,7 @@ namespace Test
 	{
 	}
 
-	DSNMaterialNodeData::DSNMaterialNodeData(SkinVInfoVertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count) :
+	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count) :
 		model(model),
 		xform(xform),
 		bs(bs),

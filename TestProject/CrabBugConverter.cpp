@@ -44,7 +44,7 @@ namespace Test
 		bones.push_back(BoneEntry("r leg c 2",	"r leg c 1",	Vec3(	-0.55f,	0.68f,	-0.69f),	0.10f,	Vec3(	-0.69f,	0.77f,	-1.07f	),	0.07f,	4));
 		bones.push_back(BoneEntry("r leg c 3",	"r leg c 2",	Vec3(	-0.69f,	0.77f,	-1.07f),	0.10f,	Vec3(	-0.79f,	0.05f,	-1.32f	),	0.05f,	4));
 
-		Cache<VTNModel>* vtn_cache = content->GetCache<VTNModel>();
+		Cache<VertexBuffer>* vtn_cache = content->GetCache<VertexBuffer>();
 
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
@@ -52,7 +52,7 @@ namespace Test
 			bone.model = vtn_cache->Load(bone.name);
 		}
 
-		SkinnedModel* model = SkinnedModel::CopyVTNModel(vtn_cache->Load("crab_bug"), "crab_bug");
+		SkinnedModel* model = SkinnedModel::WrapVertexBuffer(vtn_cache->Load("crab_bug"), "crab_bug");
 
 		Skeleton* skeleton = model->skeleton = new Skeleton();
 
@@ -83,10 +83,10 @@ namespace Test
 
 		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
 		{
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)iter->vbo;
-			for(vector<SkinVInfo>::iterator jter = vbo->vertex_infos.begin(); jter != vbo->vertex_infos.end(); jter++)
+			VertexBuffer* vbo = iter->vbo;
+			for(unsigned int jter = 0; jter != vbo->GetNumVerts(); jter++)
 			{
-				SkinVInfo& vertex_info = *jter;
+				SkinVInfo vertex_info = GetSkinVInfo(vbo, jter);
 				Vec3 pos = vertex_info.x;
 
 				VertexBoneWeightInfo vbwi = VertexBoneWeightInfo();
@@ -94,11 +94,11 @@ namespace Test
 				for(unsigned int bone_index = 0; bone_index < bones.size(); bone_index++)
 				{
 					BoneEntry& bone_entry = bones[bone_index];
-					VUVNTTCVertexBuffer* model_vbo = bone_entry.model->GetVBO();
+					VertexBuffer* model_vbo = bone_entry.model;
 
-					for(vector<VUVNTTC>::iterator lter = model_vbo->vertex_infos.begin(); lter != model_vbo->vertex_infos.end(); lter++)
+					for(unsigned int lter = 0; lter < model_vbo->GetNumVerts(); lter++)
 					{
-						float dist_sq = (lter->x - pos).ComputeMagnitudeSquared();
+						float dist_sq = (GetVTNTT(model_vbo, lter).x - pos).ComputeMagnitudeSquared();
 						if(dist_sq < 0.01)
 							vbwi.AddValue(bone_index, 1.0f / (dist_sq + 0.000001f));
 					}

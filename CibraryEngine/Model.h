@@ -1,103 +1,25 @@
 #pragma once
 
 #include "StdAfx.h"
-
-#include "Content.h"
-
+#include "Disposable.h"
 #include "MathTypes.h"
+#include "VertexBuffer.h"
 
 namespace CibraryEngine
 {
 	using namespace std;
 
-	/** Top-level vertex buffer interface */
-	class VertexBufferI : public Disposable
-	{
-		private:
-
-			bool built;
-
-		protected:
-
-			/** Abstract function to build the vertex buffer */
-			virtual void Build() = 0;
-
-			virtual void InnerDispose();
-
-			/** Marks the vertex buffer as built */
-			void Validate();
-			/** Marks the vertex buffer as needing to be built */
-			void Invalidate();
-
-			/** Abstract function to clean up any resources left over by the vertex buffer */
-			virtual void GLCleanup() = 0;
-
-		public:
-
-			VertexBufferI() : built(false) { }
-
-			/** Abstract function to draw this vertex buffer */
-			virtual void Draw() = 0;
-
-			/** Builds the vertex buffer if it needs to be built */
-			void BuildAsNeeded();
-
-			/** Returns whether the vertex buffer has been built */
-			bool IsValid();
-	};
-
-	// vertex buffer template
-	/** Template class for vertex buffers containing vertex infos of a specific type */
-	template <typename T> class VertexBuffer : public VertexBufferI
-	{
-		public:
-
-			vector<T> vertex_infos;
-
-			VertexBuffer() : VertexBufferI(), vertex_infos() { }
-	};
-
 	/** Class containing a vertex buffer and associatinbg with it a material index... */
 	struct MaterialModelPair
 	{
 		/** The vertex buffer */
-		VertexBufferI* vbo;
+		VertexBuffer* vbo;
 		/** The material index... I don't think this does anything yet? */
 		unsigned int material_index;			// index into an array of materials in the model class
 
 		MaterialModelPair() : vbo(NULL), material_index(0) { }
 	};
 
-	/** Template content class for 3d models using a specific type of vertex buffer */
-	template <typename T> class Model : public Disposable
-	{
-		protected:
-
-			/** The vertex buffer */
-			T* vbo;
-
-			void InnerDispose() { }
-
-		public:
-
-			/** Initializes a model */
-			Model(T* vbo) : vbo(vbo) { }
-
-			/** Returns the vertex buffer, loading the model and generating the vertex buffer if necessary */
-			T* GetVBO() { return vbo; }
-	};
-
-	class VUVNTTCVertexBuffer;
-
-	/** A model which has VUVNTTC vertex infos */
-	class VTNModel : public Model<VUVNTTCVertexBuffer>
-	{
-		public:
-
-			VTNModel(VUVNTTCVertexBuffer* vbo) : Model<VUVNTTCVertexBuffer>(vbo) { }
-	};
-
-	class SkinVInfoVertexBuffer;
 	class Skeleton;
 
 	/** A model for skeletal animation purposes, which uses SkinVInfo vertex infos */
@@ -119,6 +41,35 @@ namespace CibraryEngine
 
 			SkinnedModel(vector<MaterialModelPair> material_model_pairs, vector<string> material_names, Skeleton* skeleton);
 
-			static SkinnedModel* CopyVTNModel(VTNModel* model, string material_name);
+			static SkinnedModel* WrapVertexBuffer(VertexBuffer* model, string material_name);
 	};
+
+	struct VTNTT
+	{
+		Vec3 x;
+        Vec3 uvw;
+        Vec3 n;
+        Vec3 tan_1; 
+        Vec3 tan_2;
+
+		VTNTT() { }
+		VTNTT(Vec3 x, Vec3 uvw, Vec3 n) : x(x), uvw(uvw), n(n) { }
+
+	};
+
+	struct SkinVInfo : public VTNTT
+	{
+		unsigned char indices[4];
+        unsigned char weights[4];
+
+		SkinVInfo();
+		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n);
+		SkinVInfo(VTNTT original);
+		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices, unsigned char* weights);
+	};
+
+	void AddTriangleVertexInfo(VertexBuffer* vbo, VTNTT a, VTNTT b, VTNTT c);
+	void AddTriangleVertexInfo(VertexBuffer* vbo, SkinVInfo a, SkinVInfo b, SkinVInfo c);
+	VTNTT GetVTNTT(VertexBuffer* vbo, int index);
+	SkinVInfo GetSkinVInfo(VertexBuffer* vbo, int index);
 }

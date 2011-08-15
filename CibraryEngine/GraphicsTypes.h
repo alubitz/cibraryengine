@@ -23,8 +23,6 @@
 #include "Shader.h"
 #include "UniformVariables.h"
 
-#include "VertexInfo.h"
-
 #include "CameraView.h"
 #include "Material.h"
 #include "RenderNode.h"

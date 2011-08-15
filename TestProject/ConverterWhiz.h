@@ -13,7 +13,7 @@ namespace Test
 		string parent;
 		Vec3 pos;
 
-		VTNModel* model;
+		VertexBuffer* model;
 
 		vector<Sphere> spheres;
 
@@ -53,8 +53,8 @@ namespace Test
 		}
 	};
 
-	btCollisionShape* ShapeFromVTNModel(VTNModel* model);
+	btCollisionShape* ShapeFromVertexBuffer(VertexBuffer* model);
 	btCollisionShape* ShapeFromSkinnedModel(SkinnedModel* model);
 
-	btCollisionShape* HullFromVTNModel(VTNModel* model);
+	btCollisionShape* HullFromVertexBuffer(VertexBuffer* model);
 }

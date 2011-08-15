@@ -6,7 +6,7 @@
 #include "Serialize.h"
 #include "Sphere.h"
 #include "Model.h"
-#include "VertexInfo.h"
+#include "VertexBuffer.h"
 #include "SkeletalAnimation.h"
 #include "Material.h"
 
@@ -38,7 +38,7 @@ namespace CibraryEngine
 		{
 			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); iter++)
 			{
-				VertexBufferI* vbo = iter->vbo;
+				VertexBuffer* vbo = iter->vbo;
 
 				vbo->Dispose();
 				delete vbo;
@@ -65,14 +65,14 @@ namespace CibraryEngine
 				Triangle& tri = triangles[i];
 				unsigned int mat = tri.material;
 
-				SkinVInfoVertexBuffer* vbo = NULL;
+				VertexBuffer* vbo = NULL;
 
 				// see if there is a VBO with this material already...
 				for(vector<MaterialModelPair>::iterator iter = temp_vbos.begin(); iter != temp_vbos.end(); iter++)
 				{
 					if(iter->material_index == mat)
 					{
-						vbo = (SkinVInfoVertexBuffer*)(iter->vbo);
+						vbo = iter->vbo;
 						break;
 					}
 				}
@@ -80,7 +80,14 @@ namespace CibraryEngine
 				// didn't find an existing VBO with this material?
 				if(vbo == NULL)
 				{
-					vbo = new SkinVInfoVertexBuffer();
+					vbo = new VertexBuffer(Triangles);
+					vbo->AddAttribute("gl_Vertex", Float, 3);
+					vbo->AddAttribute("gl_Normal", Float, 3);
+					vbo->AddAttribute("gl_MultiTexCoord0", Float, 3);
+					vbo->AddAttribute("gl_MultiTexCoord1", Float, 3);
+					vbo->AddAttribute("gl_MultiTexCoord2", Float, 3);
+					vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
+					vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
 					MaterialModelPair mmp;
 					mmp.vbo = vbo;
@@ -95,7 +102,7 @@ namespace CibraryEngine
 					SkinVInfo a = SkinVInfo(vertices[tri.a.v], texcoords[tri.a.t], normals[tri.a.n], bone_influences[tri.a.v].indices, bone_influences[tri.a.v].weights);
 					SkinVInfo b = SkinVInfo(vertices[tri.b.v], texcoords[tri.b.t], normals[tri.b.n], bone_influences[tri.b.v].indices, bone_influences[tri.b.v].weights);
 					SkinVInfo c = SkinVInfo(vertices[tri.c.v], texcoords[tri.c.t], normals[tri.c.n], bone_influences[tri.c.v].indices, bone_influences[tri.c.v].weights);
-					vbo->AddTriangleVertexInfo(a, b, c);
+					AddTriangleVertexInfo(vbo, a, b, c);
 				}
 				else
 				{
@@ -107,7 +114,7 @@ namespace CibraryEngine
 					SkinVInfo a = SkinVInfo(vertices[tri.a.v], texcoords[tri.a.t], normals[tri.a.n], indices, weights);
 					SkinVInfo b = SkinVInfo(vertices[tri.b.v], texcoords[tri.b.t], normals[tri.b.n], indices, weights);
 					SkinVInfo c = SkinVInfo(vertices[tri.c.v], texcoords[tri.c.t], normals[tri.c.n], indices, weights);
-					vbo->AddTriangleVertexInfo(a, b, c);
+					AddTriangleVertexInfo(vbo, a, b, c);
 				}
 			}
 
@@ -948,59 +955,6 @@ namespace CibraryEngine
 		return 0;
 	}
 
-	UberModel* UberModelLoader::CopyVTNModel(VTNModel* vtn, string material)
-	{
-		UberModel::LOD* lod = new UberModel::LOD();
-
-		VUVNTTCVertexBuffer* vbo = (VUVNTTCVertexBuffer*)vtn->GetVBO();
-		for(unsigned int i = 0; i < vbo->vertex_infos.size();)
-		{
-			UberModel::Triangle triangle;
-			triangle.material = 0;
-
-			for(int corner = 0; corner < 3; corner++, i++)
-			{
-				UberModel::VTN& corner_vtn = corner == 0 ? triangle.a : corner == 1 ? triangle.b : triangle.c;
-
-				VUVNTTC& vinfo = vbo->vertex_infos[i];
-
-				unsigned int j;
-
-				Vec3 x = vinfo.x;
-				for(j = 0; j < lod->vertices.size(); j++)
-					if(lod->vertices[j] == x)
-						break;
-				if(j == lod->vertices.size())
-					lod->vertices.push_back(x);
-				corner_vtn.v = j;
-
-				Vec3 uvw = vinfo.uvw;
-				for(j = 0; j < lod->texcoords.size(); j++)
-					if(lod->texcoords[j] == uvw)
-						break;
-				if(j == lod->texcoords.size())
-					lod->texcoords.push_back(uvw);
-				corner_vtn.t = j;
-
-				Vec3 n = vinfo.n;
-				for(j = 0; j < lod->normals.size(); j++)
-					if(lod->normals[j] == n)
-						break;
-				if(j == lod->normals.size())
-					lod->normals.push_back(n);
-				corner_vtn.n = j;
-			}
-
-			lod->triangles.push_back(triangle);
-		}
-
-		UberModel* uber = new UberModel();
-		uber->lods.push_back(lod);
-		uber->materials.push_back(material);
-
-		return uber;
-	}
-
 	UberModel* UberModelLoader::CopySkinnedModel(SkinnedModel* skinny)
 	{
 		if(skinny == NULL)
@@ -1039,10 +993,9 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < skinny->material_model_pairs.size(); i++)
 		{
 			MaterialModelPair& pair = skinny->material_model_pairs[i];
+			VertexBuffer* vbo = pair.vbo;
 
-			SkinVInfoVertexBuffer* vbo = (SkinVInfoVertexBuffer*)pair.vbo;
-
-			for(unsigned int j = 0; j < vbo->vertex_infos.size();)
+			for(unsigned int j = 0; j < vbo->GetNumVerts();)
 			{
 				UberModel::Triangle triangle;
 				triangle.material = pair.material_index + initial_material;
@@ -1051,7 +1004,7 @@ namespace CibraryEngine
 				{
 					UberModel::VTN& corner_vtn = corner == 0 ? triangle.a : corner == 1 ? triangle.b : triangle.c;
 
-					SkinVInfo& vinfo = vbo->vertex_infos[j];
+					SkinVInfo& vinfo = GetSkinVInfo(vbo, j);
 
 					unsigned int k;
 
