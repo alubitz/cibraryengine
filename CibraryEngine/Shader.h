@@ -122,6 +122,9 @@ namespace CibraryEngine
 
 			/** Set the active ShaderProgram; pass NULL to use the fixed-function pipeline */
 			static void SetActiveProgram(ShaderProgram* program);
+
+			/** Get the active ShaderProgram; returns NULL if the fixed-function pipeline is being used */
+			static ShaderProgram* GetActiveProgram();
 	};
 
 

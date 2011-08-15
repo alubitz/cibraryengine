@@ -59,6 +59,7 @@ namespace CibraryEngine
 			virtual void Render();
 
 			virtual void BeginRender();
+
 			virtual void RenderOpaque();
 			virtual void RenderTranslucent();
 			virtual void RenderShadowVolumes(Vec4 origin);

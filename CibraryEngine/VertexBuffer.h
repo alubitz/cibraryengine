@@ -100,5 +100,8 @@ namespace CibraryEngine
 			void Draw(unsigned int num_instances);
 			void Draw(unsigned int num_instances, DrawMode mode);
 			void Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices);
+
+			/** Draws this vertex buffer, and sends the output to the specified feedback buffer */
+			void DrawToFeedbackBuffer(VertexBuffer* target, bool keep_fragments);
 	};
 }

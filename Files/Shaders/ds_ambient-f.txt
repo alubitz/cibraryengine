@@ -32,10 +32,12 @@ void main()
 {
 	vec2 uv = gl_TexCoord[0].xy;
 
-	vec4 normal_sample = texture2D(normal, uv);
 	vec4 diffuse_sample = texture2D(diffuse, uv);
+	vec4 normal_sample = texture2D(normal, uv);
 	vec4 specular_sample = texture2D(specular, uv);
 	vec4 depth_sample = texture2D(depth, uv);
+
+	vec3 emission_color = vec3(diffuse_sample.w, normal_sample.w, depth_sample.w);
 
 	float z = color_to_distance(depth_sample.xyz);
 	vec3 uPos = normalize(vec3(position.xy * z, -z) - cameraPosToWorld(vec3(0.0)));
@@ -51,7 +53,8 @@ void main()
 	vec3 diffuse_color = diffuse_sample.xyz;
 	vec3 specular_color = specular_sample.xyz;
 
-	vec3 base_color = diffuse_color * (ambient_color.xyz);
+
+	vec3 base_color = diffuse_color * (ambient_color.xyz) + emission_color;
 #if ENVIRONMENT_MAPPING
 	base_color += specular_sample.w * env_color.xyz;					// perfect specularity coefficient is stored in diffuse map's alpha channel!
 #endif

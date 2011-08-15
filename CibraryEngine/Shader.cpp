@@ -204,6 +204,11 @@ namespace CibraryEngine
 		}
 	}
 
+	ShaderProgram* ShaderProgram::GetActiveProgram()
+	{
+		return active_program;
+	}
+
 
 
 

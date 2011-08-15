@@ -90,7 +90,6 @@ namespace CibraryEngine
 	void AddVertexInfo(VertexBuffer* vbo, VTNTT info)
 	{
 		int index = vbo->GetNumVerts();
-
 		vbo->SetNumVerts(index + 1);
 		SetVertexInfo(vbo, index, info);
 	}
@@ -206,8 +205,8 @@ namespace CibraryEngine
 		SkinVInfo result(vtn);
 		for(int i = 0; i < 4; i++)
 		{
-			result.indices[i] = indices[index * 4 + i];
-			result.weights[i] = weights[index * 4 + i];
+			result.indices[i] = (unsigned char)indices[index * 4 + i];
+			result.weights[i] = (unsigned char)weights[index * 4 + i];
 		}
 		return result;
 	}

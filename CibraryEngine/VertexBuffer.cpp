@@ -3,6 +3,8 @@
 
 #include "DebugLog.h"
 
+#include "Shader.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -272,9 +274,13 @@ namespace CibraryEngine
 			}
 			else
 			{
-				GLuint index = 0;	//(GLuint)glGetAttribLocation(program, name);
-				glEnableVertexAttribArray(index);
-				glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
+				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
+				if(shader != NULL)
+				{
+					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, attrib.name.c_str());
+					glEnableVertexAttribArray(index);
+					glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
+				}
 			}
 
 			if(attrib.type == Float)
@@ -316,8 +322,12 @@ namespace CibraryEngine
 			}
 			else
 			{
-				GLuint index = 0;	//(GLuint)glGetAttribLocation(program, name);
-				glDisableVertexAttribArray(index);
+				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
+				if(shader != NULL)
+				{
+					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, attrib.name.c_str());
+					glDisableVertexAttribArray(index);
+				}				
 			}
 		}
 
@@ -333,4 +343,31 @@ namespace CibraryEngine
 	void VertexBuffer::Draw(unsigned int num_instances) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices) { }
+
+	void VertexBuffer::DrawToFeedbackBuffer(VertexBuffer* target, bool keep_fragments)
+	{
+		GLuint index = 0;
+		GLuint buffer = 0;
+		GLsizeiptr size = 0;
+		
+		glEnable(GL_TRANSFORM_FEEDBACK);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, index, buffer);
+
+		glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, size, NULL, GL_DYNAMIC_COPY);
+
+		if(keep_fragments)
+			glDisable(GL_RASTERIZER_DISCARD);
+		else
+			glEnable(GL_RASTERIZER_DISCARD);
+
+		// TODO: finish initialization
+
+		Draw();
+
+		// TODO: finish cleanup
+		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+		glDisable(GL_TRANSFORM_FEEDBACK);
+
+		glDisable(GL_RASTERIZER_DISCARD);
+	}
 }

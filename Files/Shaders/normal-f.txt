@@ -39,15 +39,15 @@ void main()
 
 	vec4 specular_rgba = texture2D(specular, gl_TexCoord[0].xy);
 
-	// diffuse color (x3) and opacity
-	gl_FragData[0] = vec4(texture2D(diffuse, gl_TexCoord[0].xy).xyz, specular_rgba.w);
+	// diffuse color (x3)
+	gl_FragData[0] = vec4(texture2D(diffuse, gl_TexCoord[0].xy).xyz, 0.0);
 
 	// normal (x3)
-	gl_FragData[1] = vec4(uNorm * 0.5 + 0.5, specular_rgba.x);
+	gl_FragData[1] = vec4(uNorm * 0.5 + 0.5, 0.0);
 
 	// specular color (x4)
 	gl_FragData[2] = specular_rgba;
 
 	// depth (x3)
-	gl_FragData[3] = vec4(distance_to_color(-position.z), specular_rgba.z);
+	gl_FragData[3] = vec4(distance_to_color(-position.z), 0.0);
 }
