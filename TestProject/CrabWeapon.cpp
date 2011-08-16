@@ -65,7 +65,7 @@ namespace Test
 			if(dist > outer_r)
 				continue;
 
-			const float inner_r = 0.5f;
+			const float inner_r = 0.25f;
 			const float full_damage = 0.15f;
 			const float coeff = full_damage / (outer_r - inner_r);
 

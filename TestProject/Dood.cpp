@@ -28,6 +28,9 @@ namespace Test
 	float jump_speed = 4.0f;
 	float jump_pack_accel = 15.0f;
 
+	float bug_leap_duration = 0.5f;
+	float bug_leap_speed = 8.0f;
+
 	float jump_to_fly_delay = 0.3f;
 
 	float gravity = 9.8f;
@@ -171,7 +174,7 @@ namespace Test
 		float traction = standing * ground_traction + (1 - standing) * air_traction;
 
 		bool can_recharge = true;
-		Vec3 desired_vel = forward * (top_speed_forward * GetFloatControl(this, "forward")) + rightward * (top_speed_sideways * GetFloatControl(this, "sidestep"));
+		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep"))));
 
 		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
@@ -192,6 +195,17 @@ namespace Test
 
 				jumped = true;
 			}
+			else if(GetBoolControl(this, "leap") && time.total > jump_start_timer)
+			{
+				// crab bug leaps forward
+				float leap_angle = 0.4f;
+				Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0)) * (mass * bug_leap_speed);
+				rigid_body->body->applyCentralImpulse(btVector3(leap_vector.x, leap_vector.y, leap_vector.z));
+
+				jump_start_timer = time.total + bug_leap_duration;
+
+				jumped = true;
+			}
 		}
 		else if (GetBoolControl(this, "jump"))
 		{
@@ -205,7 +219,7 @@ namespace Test
 					jump_fuel -= timestep * (jump_fuel_spend_rate);
 
 					Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
-					Vec3 lateral_accel = forward * GetFloatControl(this, "forward") + rightward * GetFloatControl(this, "sidestep");
+					Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward"))) + rightward * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep")));
 					jump_accel_vec += lateral_accel * (flying_accel);
 
 					Vec3 jump_force = jump_accel_vec * mass;
@@ -272,8 +286,8 @@ namespace Test
 
 	void Dood::DoPitchAndYawControls(float timestep)
 	{
-		float desired_yaw = GetFloatControl(this, "yaw");
-		float desired_pitch = GetFloatControl(this, "pitch");
+		float desired_yaw = max(-1.0f, min(1.0f, GetFloatControl(this, "yaw")));
+		float desired_pitch = max(-1.0f, min(1.0f, GetFloatControl(this, "pitch")));
 
 		if (abs(desired_yaw) <= timestep * yaw_rate)
 		{

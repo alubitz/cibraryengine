@@ -59,6 +59,7 @@ function crab_bug_ai(dood)
 	local control_state = dood.getControlState()
 	control_state.primary_fire = false
 	control_state.forward = 0
+	control_state.leap = false
 
 	local yaw = dood.getYaw()
 	local forward = ba.createVector(-math.sin(yaw), 0, math.cos(yaw))
@@ -76,28 +77,30 @@ function crab_bug_ai(dood)
 
 		local target_nav = gs.getNearestNav(target.getPosition())
 		local target_thing = { pos = target.getPosition(), nav = nil }
+		if (target_thing.pos - my_pos).length > 10 then
 
-		if not path_search or path_search.target ~= target_nav then
-			path = nil
-			path_search = gs.newPathSearch(nav, target_nav)
-		end
-
-		if not path_search.finished then
-			path_search.think(5)
-			if path_search.finished then
-				path = path_search.solution
+			if not path_search or path_search.target ~= target_nav then
+				path = nil
+				path_search = gs.newPathSearch(nav, target_nav)
 			end
-		end
 
-		props.path_search = path_search
-		props.path = path
-
-		if path then
-			if #path > 0 then
-				target_thing = { pos = path[1].pos, nav = path[1] }
+			if not path_search.finished then
+				path_search.think(5)
+				if path_search.finished then
+					path = path_search.solution
+				end
 			end
-		else
-			target_thing = { pos = nil, nav = nil }
+
+			props.path_search = path_search
+			props.path = path
+
+			if path then
+				if #path > 0 then
+					target_thing = { pos = path[1].pos, nav = path[1] }
+				end
+			else
+				target_thing = { pos = nil, nav = nil }
+			end
 		end
 
 		if target_thing.pos then
@@ -120,7 +123,13 @@ function crab_bug_ai(dood)
 					control_state.primary_fire = true
 				end
 
-				control_state.forward = 1
+				if fdot > 0 then
+					if not target_thing.nav and dist < 8 and dist > 2 and fdot > dist * 0.95 then
+						control_state.leap = true
+					else
+						control_state.forward = 1
+					end
+				end
 			else
 				control_state.forward = -1
 			end

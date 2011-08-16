@@ -123,6 +123,8 @@ namespace CibraryEngine
 
 	void RenderTarget::Bind(RenderTarget* target)
 	{
+		GLDEBUG();
+
 		if(target != NULL)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->my_fbo);
@@ -142,6 +144,8 @@ namespace CibraryEngine
 		}
 
 		bound_rt = target;
+
+		GLDEBUG();
 	}
 
 	RenderTarget* RenderTarget::GetBoundRenderTarget() { return bound_rt; }

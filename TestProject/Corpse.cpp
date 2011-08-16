@@ -6,6 +6,9 @@
 
 namespace Test
 {
+	float active_lifetime = 5.0f;
+	bool allow_become_permanent = false;
+
 	/*
 	 * Corpse implementation; private variables and methods
 	 */
@@ -41,7 +44,7 @@ namespace Test
 			origin(dood->pos),
 			initial_vel(dood->vel),
 			character_pose_time(-1),
-			fizzle_time(gs->total_game_time + 10),
+			fizzle_time(gs->total_game_time + active_lifetime),
 			immortal(false),
 			physics(NULL),
 			rigid_bodies(),
@@ -271,7 +274,7 @@ namespace Test
 				return;
 			else if(time.total > fizzle_time)
 				corpse->is_valid = false;
-			else
+			else if(allow_become_permanent)
 			{
 				unsigned int i;
 				unsigned int n = rigid_bodies.size();

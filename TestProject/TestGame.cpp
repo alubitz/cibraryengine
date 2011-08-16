@@ -580,7 +580,7 @@ namespace Test
 			// redraw depth buffer
 			glDepthMask(true);
 			glColorMask(false, false, false, false);
-			glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 			renderer.RenderOpaque();
 
 			glDepthMask(false);
@@ -605,25 +605,9 @@ namespace Test
 			deferred_ambient->SetUniform<float>("zoom", &zoom);
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
-
-			// stencil shadows, ahoy!
-			// only writing to stencil buffer (but taking into account depth buffer)
-			glEnable(GL_DEPTH_TEST);
-			glColorMask(false, false, false, false);
-			glStencilMask(0xFF);
-			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-			glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-			renderer.RenderShadowVolumes(Vec4(sun->position, 0.0f));
-
-			glDisable(GL_DEPTH_TEST);
-			glEnable(GL_STENCIL_TEST);
-			glStencilFunc(GL_EQUAL, 0x00, 0x01);
 			
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
-
-			glColorMask(true, true, true, false);
-			glStencilMask(0x00);
 
 			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
@@ -634,8 +618,6 @@ namespace Test
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
 			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
-
-			glDisable(GL_STENCIL_TEST);
 
 			GLDEBUG();
 			renderer.RenderTranslucent();
