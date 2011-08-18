@@ -9,20 +9,14 @@ uniform	mat4			inv_view;
 const float near_plane = 0.1;
 const float far_plane = 16384.0;
 const float log_plane_ratio = log(far_plane / near_plane) - 1.0;
-const float inv_256 = 1.0 / 256;
-const float inv_255 = 1.0 / 255;
+const float inv_256 = 1.0 / 256.0;
+const float inv_255 = 1.0 / 255.0;
 
 float color_to_distance(vec3 color)
 {
-	int tot = int(color.z * 255);
-	tot *= 256;
-	tot += int(color.y * 255);
-	tot *= 256;
-	tot += int(color.x * 255);
-
-	float frac = float(tot) * inv_256 * inv_256 * inv_255;
-
-	return exp(frac * log_plane_ratio + 1.0) * near_plane;
+	color *= 255.0;
+	float frac = color.z * 256.0 + color.y + color.x * inv_256;
+	return frac;
 }
 
 vec3 cameraVecToWorld(vec3 v) { return (inv_view * vec4(v, 0.0)).xyz; }
@@ -37,7 +31,7 @@ void main()
 	vec4 specular_sample = texture2D(specular, uv);
 	vec4 depth_sample = texture2D(depth, uv);
 
-	vec3 emission_color = vec3(diffuse_sample.w, normal_sample.w, depth_sample.w);
+	vec3 emission_color = vec3(diffuse_sample.w, normal_sample.w, specular_sample.w);
 
 	float z = color_to_distance(depth_sample.xyz);
 	vec3 uPos = normalize(vec3(position.xy * z, -z) - cameraPosToWorld(vec3(0.0)));
@@ -53,12 +47,9 @@ void main()
 	vec3 diffuse_color = diffuse_sample.xyz;
 	vec3 specular_color = specular_sample.xyz;
 
-
 	vec3 base_color = diffuse_color * (ambient_color.xyz) + emission_color;
-#if ENVIRONMENT_MAPPING
-	base_color += specular_sample.w * env_color.xyz;					// perfect specularity coefficient is stored in diffuse map's alpha channel!
-#endif
 
 	gl_FragColor.xyz = base_color;
+	//gl_FragColor.xyz = vec3((depth_sample.z * 256 * 256 + depth_sample.y * 256 + depth_sample.x) * inv_256 * inv_256);
 	gl_FragColor.w = 1.0;
 }

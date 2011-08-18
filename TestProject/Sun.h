@@ -26,5 +26,8 @@ namespace Test
 			void UnsetLight(int which);
 
 			void Draw();
+
+			Mat4 GetShadowMatrix(Vec3 camera_position);
+			Mat4 GetUnShadowMatrix(Vec3 camera_position);
 	};
 }

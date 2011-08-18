@@ -445,7 +445,7 @@ namespace CibraryEngine
 			PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
 			PFD_TYPE_RGBA,
 			bpp,
-			0, 0, 0, 0, 0, 0,				// ignore color bits
+			8, 0, 8, 0, 8, 0,				// ignore color bits
 			0,								// no alpha buffer
 			0,								// ignore shift bit ???
 			0,								// no accumulation buffer

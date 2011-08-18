@@ -35,8 +35,11 @@ namespace CibraryEngine
 	{
 		glDeleteFramebuffers(1, &my_fbo);
 
-		glDeleteRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
-		my_color_buffers.clear();
+		if(my_color_buffers.size() > 0)
+		{
+			glDeleteRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
+			my_color_buffers.clear();
+		}
 
 		glDeleteRenderbuffers(1, &my_depth_buffer);
 	}
@@ -46,8 +49,11 @@ namespace CibraryEngine
 		GLDEBUG();
 
 		// generate color and depth renderbuffers
-		my_color_buffers.resize(n_buffers);
-		glGenRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
+		if(n_buffers > 0)
+		{
+			my_color_buffers.resize(n_buffers);
+			glGenRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
+		}
 		glGenRenderbuffers(1, &my_depth_buffer);
 
 		// generate an fbo
@@ -71,9 +77,9 @@ namespace CibraryEngine
 
 		// fill in the fbo's data
 		for(unsigned int i = 0; i < my_color_buffers.size(); i++)
-			glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i,	GL_RENDERBUFFER,	my_color_buffers[i] );
+			glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER,	GL_COLOR_ATTACHMENT0 + i,	GL_RENDERBUFFER,	my_color_buffers[i] );
 
-		glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer );
+		glFramebufferRenderbuffer(		GL_DRAW_FRAMEBUFFER,	GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer );
 
 		// unbind stuff
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);

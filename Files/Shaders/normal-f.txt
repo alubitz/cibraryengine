@@ -1,3 +1,5 @@
+#extension GL_EXT_gpu_shader4 : enable
+
 varying	vec3			normal, position;
 
 uniform	sampler2D		diffuse, specular, normal_map;
@@ -8,16 +10,17 @@ const float inv_near_plane = 1.0 / near_plane;
 const float log_plane_ratio = log(far_plane * inv_near_plane) - 1.0;
 const float inv_log_plane_ratio = 1.0 / log_plane_ratio;
 const float inv_255 = 1.0 / 255.0;
+const float inv_256 = 1.0 / 256.0;
 
 vec3 distance_to_color(float dist)
 {
-	int tot = int(256.0 * 256.0 * 256.0 * (log(dist * inv_near_plane) - 1.0) * inv_log_plane_ratio);
+	int tot = int(dist * 256.0);
 
-	int a = tot % 256;
-	int b = (tot / 256) % 256;
-	int c = (tot / 256 / 256) % 256;
+	float a = (tot / 65536) % 256;
+	float b = (tot / 256) % 256;
+	float c = (tot / 1) % 256;
 
-	return vec3(a, b, c) * inv_255;
+	return vec3(c, b, a) * inv_255;
 }
 
 vec3 fragmentNormal(sampler2D normal_map)
@@ -37,8 +40,6 @@ void main()
 {
 	vec3 uNorm = fragmentNormal(normal_map);
 
-	vec4 specular_rgba = texture2D(specular, gl_TexCoord[0].xy);
-
 	// diffuse color (x3)
 	gl_FragData[0] = vec4(texture2D(diffuse, gl_TexCoord[0].xy).xyz, 0.0);
 
@@ -46,8 +47,8 @@ void main()
 	gl_FragData[1] = vec4(uNorm * 0.5 + 0.5, 0.0);
 
 	// specular color (x4)
-	gl_FragData[2] = specular_rgba;
+	gl_FragData[2] = vec4(texture2D(specular, gl_TexCoord[0].xy).xyz, 0.0);
 
 	// depth (x3)
-	gl_FragData[3] = vec4(distance_to_color(-position.z), 0.0);
+	gl_FragData[3].xyz = distance_to_color(-position.z);
 }
