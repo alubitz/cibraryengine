@@ -20,19 +20,27 @@ namespace Test
 		{
 			ContentMan* content = menu->content;
 
-			auto_menu_items.push_back(new AutoMenuItem(content, "Credits", 0, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", 1, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Made at the Art Institute of Washington", 2, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP350 Skeletal Animation", 3, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP215 Programming for Shading and Dynamics", 4, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP Independent Study", 5, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Programming", 6, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", 7, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Artwork", 8, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", 9, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Trevor Finney", 10, false));
-
-			auto_menu_items.push_back(new BackButton(content, 12));
+			int index = 0;
+			auto_menu_items.push_back(new AutoMenuItem(content, "Credits", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Programming", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Artwork", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    Trevor Finney", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Instructor", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    M. Q. Azhar", index++, false));
+			index++;
+			auto_menu_items.push_back(new AutoMenuItem(content, "Made at the Art Institute of Washington", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP350 Skeletal Animation", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP215 Programming for Shading and Dynamics", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP Independent Study", index++, false));
+			index++;
+			auto_menu_items.push_back(new AutoMenuItem(content, "Contact Info", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    aml316@stu.aii.edu", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    andrew.lubitz@gmail.com", index++, false));
+			index++;
+			auto_menu_items.push_back(new BackButton(content, index));
 
 			for(unsigned int i = 0; i < auto_menu_items.size(); i++)
 				menu->AddItem(auto_menu_items[i]);

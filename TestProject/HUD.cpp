@@ -19,10 +19,10 @@ namespace Test
 		no_jump_flash_timer(0),
 		no_ammo_flash_timer(0),
 		low_hp_dim(false),
-		no_ammo_dim(true),
-		low_ammo_dim(true),
-		no_jump_dim(true),
-		low_jump_dim(true),
+		no_ammo_dim(false),
+		low_ammo_dim(false),
+		no_jump_dim(false),
+		low_jump_dim(false),
 		render_target(NULL),
 		directional_damage(),
 		OnAmmoFailure(this),
@@ -106,7 +106,10 @@ namespace Test
 		glBegin(GL_QUADS);
 
 		// the bar itself
-		glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_hp_dim ? 0.5f : 1.0f);
+		if(low_hp_dim)
+			glColor4f(1, 0, 0, 1);
+		else
+			glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0, 1);
 		glTexCoord2f(min_u, 0.5f);
 		glVertex2f((float)min_x, 0);
 		glTexCoord2f(min_u, 1);
@@ -170,7 +173,10 @@ namespace Test
 			no_ammo_flash_timer = 0.0;
 
 			// the bar itself
-			glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_ammo_dim ? 0.5f : 1.0f);
+			if(low_ammo_dim)
+				glColor4f(1, 0, 0, 1);
+			else
+				glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0, 1);
 			glTexCoord2f(min_u, 0.5f);
 			glVertex2f((float)min_x, 0);
 			glTexCoord2f(min_u, 1);
@@ -182,7 +188,10 @@ namespace Test
 		}
 
 		// the frame and label
-		glColor4f(0.5f, 0.5f, 1.0f, no_ammo_dim ? 0.5f : 1.0f);
+		if(no_ammo_dim)
+			glColor4f(1, 0, 0, 1);
+		else
+			glColor4f(0.5f, 0.5f, 1, 1);
 		glTexCoord2f(0, 0);
 		glVertex2f(2, 0);
 		glTexCoord2f(0, 0.5f);
@@ -202,7 +211,7 @@ namespace Test
 			string ammo_string = ss.str();
 			while(ammo_string.length() < 3)
 				ammo_string = "0" + ammo_string;
-			Print(50 + 4, 82 + 4, ammo_string, Vec4(1, 1, 1, no_ammo_dim ? 0.5f : 1)); 
+			Print(50 + 4, 82 + 4, ammo_string, no_ammo_dim ? Vec4(1, 0, 0, 1) : Vec4(1, 1, 1, 1)); 
 		}
 
 		glPopMatrix();
@@ -243,7 +252,10 @@ namespace Test
 			no_jump_flash_timer = 0.0f;
 
 			// the bar itself
-			glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0.0, low_jump_dim ? 0.5f : 1.0f);
+			if(low_jump_dim)
+				glColor4f(1, 0, 0, 1);
+			else
+				glColor4f(red * 0.5f + 0.5f, green * 0.5f + 0.5f, 0, 1);
 			glTexCoord2f(min_u, 0.5f);
 			glVertex2f((float)min_x, 0);
 			glTexCoord2f(min_u, 1);
@@ -255,7 +267,10 @@ namespace Test
 		}
 
 		// the frame and label
-		glColor4f(0.5f, 0.5f, 1.0, no_jump_dim ? 0.5f : 1.0f);
+		if(no_jump_dim)
+			glColor4f(1, 0, 0, 1);
+		else
+			glColor4f(0.5f, 0.5f, 1, 1);
 		glTexCoord2f(0, 0);
 		glVertex2f(2, 0);
 		glTexCoord2f(0, 0.5f);
@@ -281,7 +296,7 @@ namespace Test
 
 		// Draw radar backdrop
 
-		glColor4f(0.5f, 0.5f, 1.0f, 0.1f);
+		glColor4f(0.0f, 0.0f, 0.0f, 0.35f);
 
 		glBegin(GL_TRIANGLE_FAN);
 
@@ -318,7 +333,7 @@ namespace Test
 		float radar_size = 50, inv_radar_scale = 1.0f / radar_size;
 
 		glEnable(GL_POINT_SMOOTH);
-		glPointSize(5);
+		glPointSize(10);
 		glBegin(GL_POINTS);
 
 		struct : EntityQualifier { bool Accept(Entity* ent) { return (dynamic_cast<Dood*>(ent)) != NULL; } } predicate;
@@ -589,7 +604,7 @@ namespace Test
 	/*
 	 * HUD::AmmoFailureCallback methods
 	 */
-	void HUD::AmmoFailureCallback::HandleEvent(Event* evt) { hud->no_ammo_flash_timer = 0.2f; }
+	void HUD::AmmoFailureCallback::HandleEvent(Event* evt) { hud->no_ammo_flash_timer = 0.1f; }
 
 
 
