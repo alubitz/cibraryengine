@@ -34,9 +34,7 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
-
-
-
+dofile("Files/Scripts/goals.lua")
 
 -- the crab bugs' ai
 function crab_bug_ai(dood)
@@ -77,8 +75,8 @@ function crab_bug_ai(dood)
 
 		local target_nav = gs.getNearestNav(target.getPosition())
 		local target_thing = { pos = target.getPosition(), nav = nil }
-		if (target_thing.pos - my_pos).length > 10 then
 
+		if not props.goal or (target_thing.pos - my_pos).length > 10 then
 			if not path_search or path_search.target ~= target_nav then
 				path = nil
 				path_search = gs.newPathSearch(nav, target_nav)
@@ -88,55 +86,22 @@ function crab_bug_ai(dood)
 				path_search.think(5)
 				if path_search.finished then
 					path = path_search.solution
+					props.goal = goal_follow_path(dood, path)
+					props.goal.activate()
 				end
 			end
 
 			props.path_search = path_search
 			props.path = path
 
-			if path then
-				if #path > 0 then
-					target_thing = { pos = path[1].pos, nav = path[1] }
-				end
-			else
-				target_thing = { pos = nil, nav = nil }
-			end
-		end
-
-		if target_thing.pos then
-			local t_pos = target_thing.pos
-			local dx = t_pos - my_pos
-			local dist = dx.length
-			local inv_dist = 1 / dist
-
-			if target_thing.nav or dist > 1 then
-				local target_dir = dx / dist
-
-				local rdot = dot(rightward, dx)
-				local fdot = dot(forward, dx)
-
-				control_state.yaw = math.atan2(rdot, fdot)
-				control_state.pitch = math.asin(-dx.y * inv_dist) - dood.getPitch()
-
-				local can_see = true
-				if not target_thing.nav and can_see and dist < 2 then
-					control_state.primary_fire = true
-				end
-
-				if fdot > 0 then
-					if not target_thing.nav and dist < 8 and dist > 2 and fdot > dist * 0.95 then
-						control_state.leap = true
-					else
-						control_state.forward = 1
-					end
-				end
-			else
-				control_state.forward = -1
-			end
-
-			if target_thing.nav and dist < 5 then table.remove(path, 1) end
 		end
 	end
+
+	if props.goal and props.goal.status == GoalStatus.ACTIVE then
+		props.goal.process()
+	end
+
+	do_steering_behavior(dood, control_state)
 end
 
 -- function called every time a bug dies
@@ -146,3 +111,4 @@ function crab_bug_death(dood)
 		kills = kills + 1
 	end
 end
+

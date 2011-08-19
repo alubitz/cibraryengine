@@ -71,12 +71,7 @@ namespace Test
 
 	Mat4 Sun::GetShadowMatrix(Vec3 camera_position)
 	{
-		return Mat4::Translation(0, 0, -256) * Mat4::Scale(0.125f, 0.125f, 1) * Mat4::FromMat3(rm) * Mat4::Translation(-camera_position);
-	}
-
-	Mat4 Sun::GetUnShadowMatrix(Vec3 camera_position)
-	{
-		//return Mat4::Translation(0, 0, -256) * Mat4::Scale(1, 1, 1) * Mat4::FromMat3(rm) * Mat4::Translation(-camera_position);
-		return GetShadowMatrix(camera_position);
+		float shadow_radius = 1.5f;
+		return Mat4::Translation(0, 0, -256) * Mat4::Scale(1.0f / shadow_radius, 1.0f / shadow_radius, 1) * Mat4::FromMat3(rm) * Mat4::Translation(-camera_position);
 	}
 }

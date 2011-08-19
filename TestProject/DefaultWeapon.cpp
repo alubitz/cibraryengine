@@ -24,4 +24,10 @@ namespace Test
 		Quaternion ori = Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction));
 		return new Shot(game_state, shot_model, shot_material, origin, vel, ori, owner);
 	}
+
+	bool DefaultWeapon::GetAmmoCount(int& result)
+	{
+		result = clip;
+		return true;
+	}
 };

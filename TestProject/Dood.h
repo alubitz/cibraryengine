@@ -81,6 +81,7 @@ namespace Test
 			void Die(Damage cause);
 
 			bool GetAmmoFraction(float& result);
+			bool GetAmmoCount(int& result);
 
 			struct AmmoFailureEvent : public Event
 			{

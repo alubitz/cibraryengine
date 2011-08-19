@@ -43,6 +43,7 @@ namespace Test
 	}
 
 	bool Weapon::GetAmmoFraction(float& result) { return false; }
+	bool Weapon::GetAmmoCount(int& result) { return false; }
 
 
 

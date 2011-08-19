@@ -186,9 +186,9 @@ namespace Test
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));	
+		//deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));	
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
-		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
+		//deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
 		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
 
@@ -609,10 +609,12 @@ namespace Test
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 			
+			/*
 			Texture2D* shadow_texture = GetShadowTexture(renderer, sun);
 			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			*/
 
 			glViewport(0, 0, width, height);	// viewport got modified, fix it here
 
@@ -620,26 +622,27 @@ namespace Test
 			glDepthMask(false);
 			glColorMask(true, true, true, false);
 
-			Mat4 shadow_matrix = sun->GetUnShadowMatrix(camera.GetPosition()) * Mat4::Translation(camera.GetPosition());
+			//Mat4 shadow_matrix = sun->GetShadowMatrix(camera.GetPosition()) * Mat4::Translation(camera.GetPosition());
 
 			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
 			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
 			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
-			deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
-			deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
+			//deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
+			//deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
 			deferred_lighting->SetUniform<Mat4>("inv_view", &view_matrix);
 			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
+			glDisable(GL_DEPTH_TEST);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
 
 			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
 			//DrawScreenQuad(deferred_lighting, width, height, shadow_texture->width, shadow_texture->height);
 
-			shadow_texture->Dispose();
-			delete shadow_texture;
+			//shadow_texture->Dispose();
+			//delete shadow_texture;
 
 			GLDEBUG();
 			renderer.RenderTranslucent();

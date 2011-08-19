@@ -154,12 +154,12 @@ namespace Test
 		float red = min(2.0f - 2.0f * ammo_frac, 1.0f);
 		float green = min(2.0f * ammo_frac, 1.0f);
 
-		int dx = (int)(unammo * (167));
+		int dx = (int)(unammo * (148));
 
-		int min_x = 28;
+		int min_x = 47;
 		int max_x = 200 - dx;
 
-		float min_u = (dx + 26) / 256.0f;
+		float min_u = (dx + 45) / 256.0f;
 		float max_u = 198.0f / 256.0f;
 
 		glBegin(GL_QUADS);
@@ -187,12 +187,23 @@ namespace Test
 		glVertex2f(2, 0);
 		glTexCoord2f(0, 0.5f);
 		glVertex2f(2, 32);
-		glTexCoord2f(1, 0.5);
+		glTexCoord2f(1, 0.5F);
 		glVertex2f(258, 32);
 		glTexCoord2f(1, 0);
 		glVertex2f(258, 0);
 
 		glEnd();
+
+		int ammo;
+		if(player->GetAmmoCount(ammo))
+		{
+			stringstream ss;
+			ss << ammo;
+			string ammo_string = ss.str();
+			while(ammo_string.length() < 3)
+				ammo_string = "0" + ammo_string;
+			Print(50 + 4, 82 + 4, ammo_string, Vec4(1, 1, 1, no_ammo_dim ? 0.5f : 1)); 
+		}
 
 		glPopMatrix();
 	}

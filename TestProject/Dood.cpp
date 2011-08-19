@@ -501,6 +501,15 @@ namespace Test
 		return false;
 	}
 
+	bool Dood::GetAmmoCount(int& result)
+	{
+		if(equipped_weapon != NULL && equipped_weapon->GetAmmoCount(result))
+			return true;
+		if(intrinsic_weapon != NULL && intrinsic_weapon->GetAmmoCount(result))
+			return true;
+		return false;
+	}
+
 
 
 

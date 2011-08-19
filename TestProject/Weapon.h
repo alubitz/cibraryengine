@@ -53,6 +53,7 @@ namespace Test
 			virtual void PlayWeaponSound(SoundBuffer* buffer, float vol, bool looping);
 
 			virtual bool GetAmmoFraction(float& result);
+			virtual bool GetAmmoCount(int& result);
 
 			static BoolControlChannel PrimaryFire;
 			static BoolControlChannel AltFire;
