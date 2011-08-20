@@ -16,12 +16,12 @@ function spawn_one(gs, player_pos)
 	local bot = spawnBotAtPosition(gs, x, z)
 	bots_spawned = bots_spawned + 1
 
-	bot.setAI(crab_bug_ai)
-	bot.setDeath(crab_bug_death)
+	bot.ai_callback = crab_bug_ai
+	bot.death_callback = crab_bug_death
 
 	local props = {}
 	props.dood = bot
-	props.nav = gs.getNearestNav(bot.getPosition())
+	props.nav = gs.getNearestNav(bot.position)
 
 	dood_properties[bot] = props
 end
@@ -34,7 +34,7 @@ function begin_level(gs, player_pos, level)
 	levelStartMessage()
 end
 
-player_pos = player.getPosition()
+player_pos = player.position
 if level == 0 then
 	level = 1
 	begin_level(gs, player_pos, level)

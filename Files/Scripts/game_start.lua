@@ -1,4 +1,3 @@
-
 -- function to be called when the player dies
 function player_death(dood)
 	local retry_text = "Press Esc to return to the main menu"
@@ -9,8 +8,8 @@ end
 
 -- figure out which dood is the player, and remember that
 player = gs.spawnPlayer(ba.createVector(8.3, 149.2 + 1, 69.5))
-player.setAI(player_ai)
-player.setDeath(player_death)
+player.ai_callback = player_ai
+player.death_callback = player_death
 
 dood_properties = {}
 
@@ -38,62 +37,31 @@ dofile("Files/Scripts/goals.lua")
 
 -- the crab bugs' ai
 function crab_bug_ai(dood)
-
 	local props = dood_properties[dood]
 
 	-- select a target
-	local my_pos = dood.getPosition()
+	local my_pos = dood.position
 
 	local dood_list = gs.getDoodsList()
 
 	local target = nil
 	for i, ent in ipairs(dood_list) do
-		if ent.isPlayer() and ent ~= dood then
+		if ent.is_player and ent ~= dood then
 			target = ent
 		end
 	end
 
 	-- reset certain parts of the control state...
-	local control_state = dood.getControlState()
+	local control_state = dood.control_state
 	control_state.primary_fire = false
 	control_state.forward = 0
 	control_state.leap = false
 
-	local yaw = dood.getYaw()
-	local forward = ba.createVector(-math.sin(yaw), 0, math.cos(yaw))
-	local rightward = ba.createVector(-forward.z, 0, forward.x)
-
-	local nav = gs.getNearestNav(my_pos)
-	props.nav = nav
-
-	-- handle moving into a neighboring nav point's area
-	local path_search = props.path_search
-	local path = props.path
-
 	-- engage target, if applicable
 	if target then
-
-		local target_nav = gs.getNearestNav(target.getPosition())
-		local target_thing = { pos = target.getPosition(), nav = nil }
-
-		if not props.goal or (target_thing.pos - my_pos).length > 10 then
-			if not path_search or path_search.target ~= target_nav then
-				path = nil
-				path_search = gs.newPathSearch(nav, target_nav)
-			end
-
-			if not path_search.finished then
-				path_search.think(5)
-				if path_search.finished then
-					path = path_search.solution
-					props.goal = goal_follow_path(dood, path)
-					props.goal.activate()
-				end
-			end
-
-			props.path_search = path_search
-			props.path = path
-
+		if not props.goal then
+			props.goal = goal_move_attack(dood, target)
+			props.goal.activate()
 		end
 	end
 
@@ -109,6 +77,8 @@ function crab_bug_death(dood)
 	if not game_over then
 		kills_this_level = kills_this_level + 1
 		kills = kills + 1
+
+		dood_properties[dood] = nil
+		steering_behaviors[dood] = nil
 	end
 end
-

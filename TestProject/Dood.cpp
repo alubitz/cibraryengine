@@ -56,6 +56,7 @@ namespace Test
 	Dood::Dood(GameState* gs, UberModel* model, Vec3 pos) :
 		Pawn(gs),
 		character_pose_time(-1),
+		scripting_handle(new Dood*(this)),
 		materials(),
 		pos(pos),
 		vel(),
@@ -117,6 +118,9 @@ namespace Test
 
 	void Dood::InnerDispose()
 	{
+		if(scripting_handle != NULL)
+			*scripting_handle = NULL;
+
 		delete control_state;
 		control_state = NULL;
 
@@ -568,117 +572,6 @@ namespace Test
 	/*
 	 * Dood scripting stuff
 	 */
-	int dood_setAI(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 1 && lua_isfunction(L, 1))
-		{
-			lua_getmetatable(L, lua_upvalueindex(1));			// push; top = 2
-
-			lua_getfield(L, 2, "ai_callback");					// push the ai_callback table; top = 3
-			lua_pushvalue(L, lua_upvalueindex(1));				// push the dood; top = 4
-
-			lua_pushvalue(L, 1);								// push the function; top = 5
-			lua_settable(L, 3);									// pop x2; top = 3
-
-			lua_settop(L, 0);
-			return 0;
-		}
-
-		Debug("Dood:setAI takes exactly one parameter, a callback function (which should take a Dood as parameter)\n");
-		return 0;
-	}
-
-	int dood_setUpdate(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 1 && lua_isfunction(L, 1))
-		{
-			lua_getmetatable(L, lua_upvalueindex(1));			// push; top = 2
-
-			lua_getfield(L, 2, "update_callback");				// push the update_callback table; top = 3
-			lua_pushvalue(L, lua_upvalueindex(1));				// push the dood; top = 4
-			lua_pushvalue(L, 1);								// push the function; top = 5
-			lua_settable(L, 3);									// pop x2; top = 3
-
-			lua_settop(L, 0);
-			return 0;
-		}
-
-		Debug("Dood:setUpdate takes exactly one parameter, a callback function (which should take a Dood as parameter)\n");
-		return 0;
-	}
-
-	int dood_setDeath(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 1 && lua_isfunction(L, 1))
-		{
-			lua_getmetatable(L, lua_upvalueindex(1));			// push; top = 2
-
-			lua_getfield(L, 2, "death_callback");				// push the update_callback table; top = 3
-			lua_pushvalue(L, lua_upvalueindex(1));				// push the dood; top = 4
-			lua_pushvalue(L, 1);								// push the function; top = 5
-			lua_settable(L, 3);									// pop x2; top = 3
-
-			lua_settop(L, 0);
-			return 0;
-		}
-
-		Debug("Dood:setDeath takes exactly one parameter, a callback function (which should take a Dood as parameter)\n");
-		return 0;
-	}
-
-	int dood_getPosition(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-			Vec3 pos = dood->pos;
-
-			lua_pushnumber(L, pos.x);
-			lua_pushnumber(L, pos.y);
-			lua_pushnumber(L, pos.z);
-
-			return ba_createVector(L);
-		}
-
-		Debug("Dood:getPosition doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
-	int dood_isPlayer(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-			TestGame* game = (TestGame*)dood->game_state;
-
-			lua_pushboolean(L, dood == game->player_pawn);
-			return 1;
-		}
-
-		Debug("Dood:isPlayer doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
-	int dood_getHealth(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-
-			lua_pushnumber(L, dood->hp);
-			return 1;
-		}
-
-		Debug("Dood:getHealth doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
 	void GetDoodControlState(lua_State* L, Dood* dood)
 	{
 		PushDoodHandle(L, dood);
@@ -690,7 +583,7 @@ namespace Test
 
 		if(lua_istable(L, -1))
 		{
-			lua_pushlightuserdata(L, dood);						// push; top = 4
+			lua_pushvalue(L, -3);
 			lua_gettable(L, -2);								// pop, push; top = 4
 
 			// is there a control state yet? if not, create one
@@ -698,7 +591,7 @@ namespace Test
 			{
 				lua_pop(L, 1);									// pop; top = 3
 
-				lua_pushlightuserdata(L, dood);					// push dood; top = 4
+				lua_pushvalue(L, -3);
 				lua_newtable(L);								// push; top = 5
 
 					// begin contents of control state table
@@ -726,7 +619,7 @@ namespace Test
 
 				lua_settable(L, -3);			// pop x2; top = 3
 
-				lua_pushlightuserdata(L, dood);
+				lua_pushvalue(L, -3);
 				lua_gettable(L, -2);
 			}
 
@@ -740,54 +633,9 @@ namespace Test
 		}
 	}
 
-	int dood_getControlState(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-			GetDoodControlState(L, dood);
-
-			return 1;
-		}
-
-		Debug("Dood:getControlState doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
-	int dood_getYaw(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-
-			lua_pushnumber(L, dood->yaw);
-			return 1;
-		}
-
-		Debug("Dood:getYaw doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
-	int dood_getPitch(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 0)
-		{
-			Dood* dood = (Dood*)lua_touserdata(L, lua_upvalueindex(1));
-
-			lua_pushnumber(L, dood->pitch);
-			return 1;
-		}
-
-		Debug("Dood:getPitch doesn't take any parameters; returning nil\n");
-		return 0;
-	}
-
 	int dood_index(lua_State* L)
 	{
-		Dood* dood = (Dood*)lua_touserdata(L, 1);
+		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
 
 		if(lua_isstring(L, 2))
 		{
@@ -795,15 +643,87 @@ namespace Test
 
 			lua_settop(L, 0);
 
-			if		(key == "getPosition")		{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getPosition, 1); return 1; }
-			else if	(key == "isPlayer")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_isPlayer, 1); return 1; }
-			else if	(key == "getHealth")		{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getHealth, 1); return 1; }
-			else if	(key == "setAI")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setAI, 1); return 1; }
-			else if	(key == "setUpdate")		{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setUpdate, 1); return 1; }
-			else if	(key == "setDeath")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_setDeath, 1); return 1; }
-			else if	(key == "getControlState")	{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getControlState, 1); return 1; }
-			else if	(key == "getYaw")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getYaw, 1); return 1; }
-			else if	(key == "getPitch")			{ lua_pushlightuserdata(L, dood); lua_pushcclosure(L, dood_getPitch, 1); return 1; }
+			if		(key == "is_valid")					{ lua_pushboolean(L,  *dood_ptr != NULL); return 1; }
+			else
+			{
+				Dood* dood = *dood_ptr;
+				if(dood != NULL)
+				{
+					if		(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
+					else if	(key == "is_player")			{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
+					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }			
+					else if	(key == "control_state")		{ GetDoodControlState(L, dood); return 1; }
+					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
+					else if	(key == "pitch")			{ lua_pushnumber(L, dood->pitch); return 1; }
+					else
+						Debug("unrecognized key for Dood:index: " + key + "\n");
+				}
+				else
+					Debug("Attempting to access the properties of an invalid dood handle\n");
+			}
+		}
+		return 0;
+	}
+
+	int dood_newindex(lua_State* L)
+	{
+		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
+		Dood* dood = *dood_ptr;
+		if(dood == NULL)
+		{
+			Debug("Attempting to modify the properties of an invalid dood handle\n");
+			return 0;
+		}
+		else
+		{
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+				if (key == "ai_callback")
+				{
+					if(lua_isfunction(L, 3))
+					{
+						lua_getmetatable(L, 1);								// push; top = 4
+						lua_getfield(L, 4, "ai_callback");					// push the ai_callback table; top = 5
+						lua_pushvalue(L, 1);								// push the dood; top = 6
+						lua_pushvalue(L, 3);								// push the function; top = 7
+						lua_settable(L, 5);									// pop x2; top = 5
+
+						lua_settop(L, 0);
+						return 0;
+					}
+				}
+				else if (key == "update_callback")
+				{
+					if(lua_isfunction(L, 3))
+					{
+						lua_getmetatable(L, 1);								// push; top = 4
+						lua_getfield(L, 4, "update_callback");				// push the ai_callback table; top = 5
+						lua_pushvalue(L, 1);								// push the dood; top = 6
+						lua_pushvalue(L, 3);								// push the function; top = 7
+						lua_settable(L, 5);									// pop x2; top = 5
+
+						lua_settop(L, 0);
+						return 0;
+					}
+				}
+				else if (key == "death_callback")
+				{
+					if(lua_isfunction(L, 3))
+					{
+						lua_getmetatable(L, 1);								// push; top = 4
+						lua_getfield(L, 4, "death_callback");				// push the ai_callback table; top = 5
+						lua_pushvalue(L, 1);								// push the dood; top = 6
+						lua_pushvalue(L, 3);								// push the function; top = 7
+						lua_settable(L, 5);									// pop x2; top = 5
+
+						lua_settop(L, 0);
+						return 0;
+					}
+				}
+				else
+					Debug("unrecognized key for Dood:newindex: " + key + "\n");
+			}
 		}
 
 		return 0;
@@ -813,6 +733,11 @@ namespace Test
 	{
 		void* a = lua_touserdata(L, 1);
 		void* b = lua_touserdata(L, 2);
+
+		stringstream ss;
+		ss << "a = " << a << "; b = " << b << endl;
+		Debug(ss.str());
+
 		if(a != NULL && b != NULL && a == b)
 			return true;
 		return false;
@@ -820,39 +745,48 @@ namespace Test
 
 	void PushDoodHandle(lua_State* L, Dood* dood)
 	{
-		int n = lua_gettop(L);
+		lua_pushlightuserdata(L, dood->scripting_handle);
 
-		lua_pushlightuserdata(L, dood);
+		lua_getmetatable(L, -1);
+		if(lua_istable(L, -1))
+		{
+			lua_pop(L, 1);
+			return;
+		}
 
+		// I tried putting this inside the if statement, but that didn't work
 		lua_getglobal(L, "DoodMeta");
-		if(lua_isnil(L, n + 2))
+		if(lua_isnil(L, -1))
 		{
 			lua_pop(L, 1);
 			// must create metatable for globals
 			lua_newtable(L);									// push; top = 2
 
 			lua_pushcclosure(L, dood_index, 0);					// push; top = 3
-			lua_setfield(L, n + 2, "__index");					// pop; top = 2
+			lua_setfield(L, -2, "__index");						// pop; top = 2
+
+			lua_pushcclosure(L, dood_newindex, 0);
+			lua_setfield(L, -2, "__newindex");
 
 			lua_pushcclosure(L, dood_eq, 0);
-			lua_setfield(L, n + 2, "__eq");
+			lua_setfield(L, -2, "__eq");
 
 			lua_newtable(L);
-			lua_setfield(L, n + 2, "ai_callback");
+			lua_setfield(L, -2, "ai_callback");
 
 			lua_newtable(L);
-			lua_setfield(L, n + 2, "update_callback");
+			lua_setfield(L, -2, "update_callback");
 			
 			lua_newtable(L);
-			lua_setfield(L, n + 2, "death_callback");
+			lua_setfield(L, -2, "death_callback");
 
 			lua_newtable(L);
-			lua_setfield(L, n + 2, "control_state");
+			lua_setfield(L, -2, "control_state");
 
 			lua_setglobal(L, "DoodMeta");
 			lua_getglobal(L, "DoodMeta");
 		}
-		lua_setmetatable(L, n + 1);							// set field of 1; pop; top = 1
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1		
 	}
 
 	bool MaybeDoScriptedUpdate(Dood* dood)
@@ -862,14 +796,14 @@ namespace Test
 		lua_settop(L, 0);
 		PushDoodHandle(L, dood);
 
-		lua_getmetatable(L, 1);					// push; top = 2
+		lua_getmetatable(L, 1);						// push; top = 2
 		if(!lua_isnil(L, 2))
 		{
 			lua_getfield(L, 2, "update_callback");	// pop+push; top = 3
 			if(lua_istable(L, 3))
 			{
-				lua_pushvalue(L, 1);			// push dood; top = 4
-				lua_gettable(L, 3);				// pop+push; top = 4
+				lua_pushvalue(L, 1);				// push dood; top = 4
+				lua_gettable(L, 3);					// pop+push; top = 4
 
 				if(lua_isfunction(L, 4))
 				{
@@ -892,7 +826,7 @@ namespace Test
 	// return value = success or failure; success pushes 1 onto stack; failure doesn't affect stack
 	bool PushControl(lua_State* L, Dood* dood, string control_name)
 	{
-		GetDoodControlState(L, dood);					// top = 1
+		GetDoodControlState(L, dood);						// top = 1
 
 		if(lua_istable(L, -1))
 		{

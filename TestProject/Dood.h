@@ -29,6 +29,8 @@ namespace Test
 
 		public:
 
+			Dood** scripting_handle;
+
 			vector<Material*> materials;
 
 			Vec3 pos;
