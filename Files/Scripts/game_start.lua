@@ -39,6 +39,9 @@ dofile("Files/Scripts/goals.lua")
 function crab_bug_ai(dood)
 	local props = dood_properties[dood]
 
+	-- sometimes this will get called after the bug is dead... return here to suppress error messages
+	if not props then return end
+
 	-- select a target
 	local my_pos = dood.position
 
