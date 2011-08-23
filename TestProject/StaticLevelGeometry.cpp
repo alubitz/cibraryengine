@@ -4,6 +4,7 @@
 #include "DSNMaterial.h"
 #include "TestGame.h"
 #include "Particle.h"
+#include "Rubbish.h"
 
 namespace Test
 {
@@ -89,6 +90,8 @@ namespace Test
 
 			game_state->Spawn(p);
 		}
+
+		//game_state->Spawn(new StaticLevelGeometry(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("small_rock"), poi, Random3D::RandomQuaternionRotation()));
 
 		return true;
 	}

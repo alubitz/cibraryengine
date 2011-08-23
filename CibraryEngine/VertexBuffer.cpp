@@ -147,6 +147,21 @@ namespace CibraryEngine
 		return results;
 	}
 
+	int VertexBuffer::GetVertexSize()
+	{
+		vector<VertexAttribute> attribs = GetAttributes();
+
+		int total_size = 0;
+		for(unsigned int i = 0; i < attribs.size(); i++)
+		{
+			VertexAttribute attrib = attribs[i];
+
+			if(attrib.type == Float)
+				total_size += sizeof(float) * attrib.n_per_vertex;
+		}
+		return total_size;
+	}
+
 	float* VertexBuffer::GetFloatPointer(string name)
 	{
 		VertexAttribute a = GetAttribute(name);
@@ -170,16 +185,7 @@ namespace CibraryEngine
 		GLDEBUG();
 
 		vector<VertexAttribute> attribs = GetAttributes();
-
-		// figure out the total size of our vertex info
-		int total_size = 0;
-		for(unsigned int i = 0; i < attribs.size(); i++)
-		{
-			VertexAttribute attrib = attribs[i];
-
-			if(attrib.type == Float)
-				total_size += sizeof(float) * attrib.n_per_vertex;
-		}
+		int total_size = GetVertexSize();
 
 		InvalidateVBO();					// just in case...
 
@@ -346,28 +352,19 @@ namespace CibraryEngine
 
 	void VertexBuffer::DrawToFeedbackBuffer(VertexBuffer* target, bool keep_fragments)
 	{
+		GLDEBUG();
+
 		GLuint index = 0;
 		GLuint buffer = 0;
-		GLsizeiptr size = 0;
+
+		// assumes number of verts output by geometry shader = the number of verts in the target vertex buffer
+		// maybe we should resize the target instead?
+		GLsizeiptr size = target->GetVertexSize() * target->GetNumVerts();
 		
-		glEnable(GL_TRANSFORM_FEEDBACK);
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, index, buffer);
-
-		glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, size, NULL, GL_DYNAMIC_COPY);
-
-		if(keep_fragments)
-			glDisable(GL_RASTERIZER_DISCARD);
-		else
-			glEnable(GL_RASTERIZER_DISCARD);
-
-		// TODO: finish initialization
-
-		Draw();
-
-		// TODO: finish cleanup
-		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
-		glDisable(GL_TRANSFORM_FEEDBACK);
+		// TODO: finish writing this stupid function
 
 		glDisable(GL_RASTERIZER_DISCARD);
+
+		GLDEBUG();
 	}
 }

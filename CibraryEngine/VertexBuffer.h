@@ -78,6 +78,7 @@ namespace CibraryEngine
 			VertexAttribute GetAttribute(string name);
 
 			vector<VertexAttribute> GetAttributes();
+			int GetVertexSize();
 
 			/** Returns a pointer to the float data for the given attribute name, if applicable; if non-applicable, returns NULL */
 			float* GetFloatPointer(string name);
