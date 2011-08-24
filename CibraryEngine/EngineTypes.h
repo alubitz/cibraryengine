@@ -8,5 +8,6 @@
 #include "Scripting.h"
 
 #include "Physics.h"
+#include "IKSolver.h"
 
 #include "Control.h"
