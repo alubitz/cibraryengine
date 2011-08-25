@@ -342,7 +342,7 @@ namespace Test
 		{
 			Dood* dood = (Dood*)doods[i];
 
-			if (dood != player)
+			if (player->team.Attacks(dood->team))
 				glColor4f(1, 0, 0, 0.5);
 			else
 				glColor4f(0.5, 0.5, 1, 0.5);

@@ -21,6 +21,8 @@ namespace CibraryEngine
 	void IKSolver::IKObject::ComputeNextState(PhysicsWorld* physics, TimingInfo time)
 	{
 		// TODO: make this do stuff; this will be considerably trickier than implementing ApplyComputedState
+
+		result = new Skeleton(skeleton);
 	}
 
 	void IKSolver::IKObject::ApplyComputedState()
@@ -29,26 +31,26 @@ namespace CibraryEngine
 		result_pos = desired_pos;
 		result_ori = desired_ori;
 		
-		// copy result to skeleton
-		for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); iter++)
-		{
-			Bone* bone_i = *iter;
-			string bone_name = (*iter)->name;
-			for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); jter++)
-			{
-				Bone* bone_j = *jter;
-				if(bone_name == bone_j->name)
-				{
-					bone_j->pos = bone_i->pos;
-					bone_j->ori = bone_i->ori;
-					break;
-				}
-			}
-		}
-
-		// delete result once we are done with it
 		if(result != NULL)
 		{
+			// copy result to skeleton
+			for(vector<Bone*>::iterator iter = result->bones.begin(); iter != result->bones.end(); iter++)
+			{
+				Bone* bone_i = *iter;
+				string bone_name = (*iter)->name;
+				for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); jter++)
+				{
+					Bone* bone_j = *jter;
+					if(bone_name == bone_j->name)
+					{
+						bone_j->pos = bone_i->pos;
+						bone_j->ori = bone_i->ori;
+						break;
+					}
+				}
+			}
+
+			// delete result once we are done with it
 			result->Dispose();
 			delete result;
 			result = NULL;

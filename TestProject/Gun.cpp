@@ -92,7 +92,7 @@ namespace Test
 	{
 		owner->PoseCharacter();						// to make sure we have a gun_xform... it will conveniently change our gun_xform for us
 
-		Mat4 shot_mat = gun_xform * Mat4::Translation(0, 0.03f, 0.79f);
+		Mat4 shot_mat = gun_xform * Mat4::Translation(0, 0.03f, 0.5f);
 
 		Vec3 origin = shot_mat.TransformVec3(0, 0, 0, 1);
 		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
@@ -154,7 +154,7 @@ namespace Test
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{
-				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.79f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5f)) * Mat4::UniformScale(mflash_size);
+				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.5f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5f)) * Mat4::UniformScale(mflash_size);
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 			}
 		}

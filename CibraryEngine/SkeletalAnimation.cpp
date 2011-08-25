@@ -19,7 +19,6 @@ namespace CibraryEngine
 		Quaternion rotation = rest_ori * ori;
 
 		if (parent == NULL)
-//			return Mat4::FromPositionAndOrientation(pos, rotation);
 			return Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);
 		else
 		{

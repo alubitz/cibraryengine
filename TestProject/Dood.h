@@ -6,6 +6,8 @@
 #include "Shootable.h"
 #include "Damage.h"
 
+#include "Team.h"
+
 namespace Test
 {
 	using namespace std;
@@ -29,6 +31,7 @@ namespace Test
 
 		public:
 
+			Team team;
 			Dood** scripting_handle;
 
 			vector<Material*> materials;
@@ -45,6 +48,7 @@ namespace Test
 
 			UberModel* model;
 			SkinnedCharacter* character;
+			Skeleton* ik_skeleton;
 
 			PoseAimingGun* p_adp;
 
@@ -60,7 +64,7 @@ namespace Test
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
-			Dood(GameState* gs, UberModel* model_, Vec3 pos);
+			Dood(GameState* gs, UberModel* model_, Vec3 pos, Team& team);
 
 			Vec3 GetPosition();
 			void SetPosition(Vec3 pos);

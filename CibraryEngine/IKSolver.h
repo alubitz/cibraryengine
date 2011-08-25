@@ -5,6 +5,8 @@
 #include "Vector.h"
 #include "Quaternion.h"
 
+#include "SkeletalAnimation.h"
+
 namespace CibraryEngine
 {
 	using namespace std;

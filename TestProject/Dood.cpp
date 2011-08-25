@@ -66,9 +66,10 @@ namespace Test
 	/*
 	 * Dood methods
 	 */
-	Dood::Dood(GameState* gs, UberModel* model, Vec3 pos) :
+	Dood::Dood(GameState* gs, UberModel* model, Vec3 pos, Team& team) :
 		Pawn(gs),
 		character_pose_time(-1),
+		team(team),
 		scripting_handle(new Dood*(this)),
 		materials(),
 		pos(pos),
@@ -81,6 +82,7 @@ namespace Test
 		gun_hand_bone(NULL),
 		model(model),
 		character(NULL),
+		ik_skeleton(NULL),
 		p_adp(NULL),
 		rigid_body(NULL),
 		physics(NULL),
@@ -100,6 +102,7 @@ namespace Test
 		contact_callback = new MyContactResultCallback(this);
 
 		character = new SkinnedCharacter(model->CreateSkeleton());
+		ik_skeleton = new Skeleton(character->skeleton);
 
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); iter++)
 		{
@@ -128,7 +131,7 @@ namespace Test
 			materials.push_back(mat);
 		}
 
-		((TestGame*)gs)->ik_solver->AddObject((void*)this, character->skeleton, pos, PYToQuaternion(pitch, yaw));
+		((TestGame*)gs)->ik_solver->AddObject((void*)this, ik_skeleton, pos, PYToQuaternion(pitch, yaw));
 	}
 
 	void Dood::InnerDispose()
@@ -148,6 +151,13 @@ namespace Test
 
 		delete p_adp;
 		p_adp = NULL;
+
+		if(ik_skeleton != NULL)
+		{
+			ik_skeleton->Dispose();
+			delete ik_skeleton;
+			ik_skeleton = NULL;
+		}
 
 		((TestGame*)game_state)->ik_solver->DeleteObject((void*)this);
 
@@ -277,6 +287,7 @@ namespace Test
 			yaw += angular_vel.y * timestep;
 		}
 
+		p_adp->pos = pos;
 		p_adp->yaw = yaw;
 		p_adp->pitch = pitch;
 
@@ -374,7 +385,7 @@ namespace Test
 		{
 			Sphere bs = Sphere(pos, 2.5);
 			if(renderer->camera->CheckSphereVisibility(bs))
-				((TestGame*)game_state)->VisUberModel(renderer, model, 0, Mat4::FromPositionAndOrientation(pos, Quaternion::FromPYR(0, yaw, 0)), character, &materials);
+				((TestGame*)game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), character, &materials);
 		}
 	}
 
@@ -382,20 +393,26 @@ namespace Test
 
 	Mat4 Dood::GetViewMatrix()
 	{
-		Mat4 eye = Mat4::Translation(-eye_bone->rest_pos);
 		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, M_PI, 0));
-		Mat4 loc = Mat4::Translation(-pos);
-		Mat4 yaw_mat = Mat4::FromQuaternion(Quaternion::FromPYR(0, yaw, 0));
+
 		if(eye_bone == NULL)
-		{
+		{	
 			Mat4 pitch_mat = Mat4::FromQuaternion(Quaternion::FromPYR(-pitch, 0, 0));
+			Mat4 yaw_mat = Mat4::FromQuaternion(Quaternion::FromPYR(0, yaw, 0));
+			Mat4 loc = Mat4::Translation(-pos);
 
 			return flip * pitch_mat * yaw_mat * loc;
 		}
 		else
 		{
-			Mat4 head_mat = eye_bone->GetTransformationMatrix();
-			return eye * head_mat * flip * yaw_mat * loc;
+			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
+			Vec3 pos_vec = eye_xform.TransformVec3(Vec3(), 1.0);
+			Vec3 left = eye_xform.TransformVec3(Vec3(1, 0, 0), 0.0);
+			Vec3 up = eye_xform.TransformVec3(Vec3(0, 1, 0), 0.0);
+			Vec3 forward = eye_xform.TransformVec3(Vec3(0, 0, 1), 0.0);
+
+			float rm_values[] = { left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z };
+			return flip * Mat4::Translation(-eye_bone->rest_pos) * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-pos);
 		}
 	}
 
@@ -407,6 +424,7 @@ namespace Test
 
 		if (time.total > character_pose_time)
 		{
+			p_adp->pos = pos;
 			p_adp->yaw = yaw;
 			p_adp->pitch = pitch;
 
@@ -414,7 +432,7 @@ namespace Test
 
 			if(equipped_weapon != NULL && gun_hand_bone != NULL)
 			{
-				equipped_weapon->gun_xform = Mat4::FromPositionAndOrientation(pos, Quaternion::FromPYR(0, yaw, 0)) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos) /* * Mat4::Translation(-0.3, 1.3, 0.08) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -0.75) * Quaternion::FromPYR(1.5, 0.0, 0.0) * Quaternion::FromPYR(0, 0.1, 0) * Quaternion::FromPYR(0.1, 0, 0)) * Mat4::Translation(0, 0.05, 0.35) */;
+				equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos) /* * Mat4::Translation(-0.3, 1.3, 0.08) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -0.75) * Quaternion::FromPYR(1.5, 0.0, 0.0) * Quaternion::FromPYR(0, 0.1, 0) * Quaternion::FromPYR(0.1, 0, 0)) * Mat4::Translation(0, 0.05, 0.35) */;
 				equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3(0, 0, 0, 1);
 				equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 			}

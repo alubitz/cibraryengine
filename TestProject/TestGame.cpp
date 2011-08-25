@@ -8,7 +8,6 @@
 #include "GlowyModelMaterial.h"
 #include "Sun.h"
 #include "Weapon.h"
-#include "AIController.h"
 
 #include "ConverterWhiz.h"
 #include "SoldierConverter.h"
@@ -47,14 +46,14 @@ namespace Test
 
 
 	/*
-	 * Struct to get all of the bots on a level
+	 * Struct to get all of the bugs on a level
 	 */
-	struct BotGetter : public EntityQualifier
+	struct BugGetter : public EntityQualifier
 	{
 		bool Accept(Entity* ent)
 		{
 			Dood* dood = dynamic_cast<Dood*>(ent);
-			if(dood != NULL && dynamic_cast<AIController*>(dood->controller) != NULL)
+			if(dood != NULL && dood->team == TestGame::bug_team)
 				return true;
 			else
 				return false;
@@ -63,6 +62,8 @@ namespace Test
 
 
 
+	Team TestGame::human_team = Team(1);
+	Team TestGame::bug_team = Team(2);
 
 	unsigned int BuildNavGraph(TestGame* test_game);
 	DebugRenderer debug_renderer = DebugRenderer();
@@ -331,9 +332,9 @@ namespace Test
 		load_status.stopped = true;
 	}
 
-	Dood* TestGame::SpawnDood(Vec3 pos, UberModel* model)
+	Dood* TestGame::SpawnDood(Vec3 pos, UberModel* model, Team& team)
 	{
-		Dood* dood = new Dood(this, model, pos);
+		Dood* dood = new Dood(this, model, pos, team);
 		dood->yaw = Random3D::Rand(2.0 * M_PI);
 
 		Spawn(dood);
@@ -348,7 +349,7 @@ namespace Test
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
-		player_pawn = SpawnDood(pos, model);
+		player_pawn = SpawnDood(pos, model, human_team);
 		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, gun_model, mflash_model, shot_model, mflash_material, shot_material, fire_sound, chamber_click_sound, reload_sound));
 
 		player_pawn->OnDeath += &player_death_handler;
@@ -363,25 +364,21 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
-		Dood* dood = SpawnDood(pos, enemy);
+		Dood* dood = SpawnDood(pos, enemy, bug_team);
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
 		dood->hp *= 0.3f;
 
 		dood->OnDeath += &bot_death_handler;
 
-		AIController* ai = new AIController(this);
-		ai->Possess(dood);
-		Spawn(ai);
-
 		return dood;
 	}
 
-	unsigned int TestGame::GetNumberOfBots()
+	unsigned int TestGame::GetNumberOfBugs()
 	{
-		BotGetter getter = BotGetter();
-		EntityList bots = GetQualifyingEntities(getter);
+		BugGetter getter = BugGetter();
+		EntityList bugs = GetQualifyingEntities(getter);
 
-		return bots.Count();
+		return bugs.Count();
 	}
 
 	TestGame::~TestGame() { Dispose(); ScriptSystem::SetGS(NULL); }
@@ -964,7 +961,7 @@ namespace Test
 	int gs_spawnBot(lua_State* L);
 	int gs_spawnPlayer(lua_State* L);
 	int gs_getTerrainHeight(lua_State* L);
-	int gs_getNumberOfBots(lua_State* L);
+	int gs_getNumberOfBugs(lua_State* L);
 	int gs_getDoodsList(lua_State* L);
 	int gs_getNearestNavNode(lua_State* L);
 	int gs_showChapterText(lua_State* L);
@@ -992,8 +989,8 @@ namespace Test
 		lua_setfield(L, 1, "getTerrainHeight");
 
 		lua_pushlightuserdata(L, (void*)this);
-		lua_pushcclosure(L, gs_getNumberOfBots, 1);
-		lua_setfield(L, 1, "getNumberOfBots");
+		lua_pushcclosure(L, gs_getNumberOfBugs, 1);
+		lua_setfield(L, 1, "getNumberOfBugs");
 
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_getDoodsList, 1);
@@ -1130,7 +1127,7 @@ namespace Test
 		return 0;
 	}
 
-	int gs_getNumberOfBots(lua_State* L)
+	int gs_getNumberOfBugs(lua_State* L)
 	{
 		int n = lua_gettop(L);
 		if(n == 0)
@@ -1140,7 +1137,7 @@ namespace Test
 			TestGame* gs = (TestGame*)lua_touserdata(L, 1);
 			lua_pop(L, 1);
 
-			lua_pushnumber(L, gs->GetNumberOfBots());
+			lua_pushnumber(L, gs->GetNumberOfBugs());
 
 			return 1;
 		}

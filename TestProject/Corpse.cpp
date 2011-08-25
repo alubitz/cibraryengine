@@ -40,7 +40,7 @@ namespace Test
 			corpse(corpse),
 			character(dood->character),
 			model(dood->model),
-			whole_xform(Mat4::FromPositionAndOrientation(dood->pos + Vec3(0, 0.2f, 0), Quaternion::FromPYR(0, dood->yaw, 0))),
+			whole_xform(Mat4::Translation(dood->pos + Vec3(0, 0.2f, 0))),
 			origin(dood->pos),
 			initial_vel(dood->vel),
 			character_pose_time(-1),

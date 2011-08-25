@@ -2,6 +2,8 @@
 
 #include "StdAfx.h"
 
+#include "Team.h"
+
 namespace Test
 {
 	using namespace CibraryEngine;
@@ -19,7 +21,7 @@ namespace Test
 
 			TestScreen* screen;
 
-			Dood* SpawnDood(Vec3 pos, UberModel* model);
+			Dood* SpawnDood(Vec3 pos, UberModel* model, Team& team);
 
 			class DoodDeathHandler : public EventHandler
 			{
@@ -44,6 +46,9 @@ namespace Test
 			void InnerDispose();
 
 		public:
+
+			static Team human_team;
+			static Team bug_team;
 
 			float total_game_time;
 
@@ -127,7 +132,7 @@ namespace Test
 
 			Dood* SpawnPlayer(Vec3 pos);
 			Dood* SpawnBot(Vec3 pos);
-			unsigned int GetNumberOfBots();
+			unsigned int GetNumberOfBugs();
 
 			void Update(TimingInfo time);
 			void Draw(int width, int height);

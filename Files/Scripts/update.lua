@@ -40,7 +40,7 @@ if level == 0 then
 	begin_level(gs, player_pos, level)
 end
 
-num_bots = gs.getNumberOfBots()
+num_bots = gs.getNumberOfBugs()
 
 bot_spawn_timer = bot_spawn_timer + gs.getElapsedTime()
 if bot_spawn_timer > 2 then
