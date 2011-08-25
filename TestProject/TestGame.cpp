@@ -90,6 +90,7 @@ namespace Test
 		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
+		ik_solver(new IKSolver(physics_world)),
 		debug_text(""),
 		nav_graph(0),
 		tex2d_cache(screen->window->content->GetCache<Texture2D>()),
@@ -419,6 +420,7 @@ namespace Test
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/update.lua");
 
 		GameState::Update(clamped_time);
+		ik_solver->Update(clamped_time);
 
 		NGDEBUG();
 	}
@@ -909,6 +911,13 @@ namespace Test
 		}
 
 		GameState::InnerDispose();
+
+		if(ik_solver != NULL)
+		{
+			ik_solver->Dispose();
+			delete ik_solver;
+			ik_solver = NULL;
+		}
 	}
 
 	void TestGame::VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character, vector<Material*>* materials)

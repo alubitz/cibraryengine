@@ -16,15 +16,19 @@ namespace CibraryEngine
 	{
 		Vec3 axis(x, y, z);
 		float sine = axis.ComputeMagnitude();			// doesn't cover the possibility of a negative sine
-		//float cosine = w;
-		float half = asin(sine);
-		float angle = half * 2.0f;
-		return Vec3::Normalize(axis, angle);
+		if(sine == 0.0)
+			return Vec3();
+		else
+		{
+			float half = asin(sine);
+			float angle = half * 2.0f;
+			return Vec3::Normalize(axis, angle);
+		}
 	}
 
 	Mat3 Quaternion::ToMat3()
 	{
-		Quaternion n = Normalize(*this);			// normalized copy
+		Quaternion n = Normalize(*this);				// normalized copy
 
 		float W = n.w, X = n.x, Y = n.y, Z = n.z;
 

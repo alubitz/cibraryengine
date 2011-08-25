@@ -92,6 +92,7 @@ namespace Test
 
 			PlayerController* player_controller;
 			Dood* player_pawn;
+			IKSolver* ik_solver;
 
 			string debug_text;
 

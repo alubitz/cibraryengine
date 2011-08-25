@@ -45,10 +45,23 @@ namespace Test
 	float flying_accel = 8.0f;
 
 
+	// some lua-related dood functions
 	bool GetBoolControl(Dood* dood, string control_name);
 	float GetFloatControl(Dood* dood, string control_name);
 	void SetBoolControl(Dood* dood, string control_name, bool value);
 	void SetFloatControl(Dood* dood, string control_name, float value);
+
+	// a couple of util functions
+	Quaternion PYToQuaternion(float pitch, float yaw) { return Quaternion::FromPYR(0, yaw, 0) * Quaternion::FromPYR(pitch, 0, 0); }
+	void QuaternionToPY(Quaternion q, float& pitch, float &yaw)
+	{
+		Mat3 rm = q.ToMat3();
+		Vec3 fwd = Vec3::Normalize(rm * Vec3(0, 0, 1));
+		Vec3 left = Vec3::Normalize(rm * Vec3(1, 0, 0));
+
+		pitch = asin(-fwd.y);
+		yaw = atan2(left.x, left.z) - 0.5f * M_PI;
+	}
 
 	/*
 	 * Dood methods
@@ -114,6 +127,8 @@ namespace Test
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
+
+		((TestGame*)gs)->ik_solver->AddObject((void*)this, character->skeleton, pos, PYToQuaternion(pitch, yaw));
 	}
 
 	void Dood::InnerDispose()
@@ -134,11 +149,17 @@ namespace Test
 		delete p_adp;
 		p_adp = NULL;
 
+		((TestGame*)game_state)->ik_solver->DeleteObject((void*)this);
+
 		Pawn::InnerDispose();
 	}
 
 	void Dood::Update(TimingInfo time)
 	{
+		Quaternion py_ori;
+		((TestGame*)game_state)->ik_solver->GetResultState((void*)this, pos, py_ori);
+		QuaternionToPY(py_ori, pitch, yaw);
+
 		Pawn::Update(time);
 
 		MaybeDoScriptedAI(this);
@@ -286,6 +307,8 @@ namespace Test
 
 			character->UpdatePoses(time);
 		}
+
+		((TestGame*)game_state)->ik_solver->SetDesiredState((void*)this, pos, PYToQuaternion(pitch, yaw));
 	}
 
 	void Dood::DoPitchAndYawControls(float timestep)

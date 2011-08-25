@@ -1,6 +1,9 @@
 #pragma once
 
 #include "StdAfx.h"
+#include "Disposable.h"
+#include "Vector.h"
+#include "Quaternion.h"
 
 namespace CibraryEngine
 {
@@ -12,7 +15,7 @@ namespace CibraryEngine
 	struct TimingInfo;
 
 	/** System for batch-processing inverse kinematics for multiple entities */
-	class IKSolver
+	class IKSolver : public Disposable
 	{
 		protected:
 
@@ -28,10 +31,18 @@ namespace CibraryEngine
 				 */
 				Skeleton* skeleton;
 
-				// TODO: add desired-state info here
+				/** The desired position of the character controller */
+				Vec3 desired_pos;
+				/** The desired orientation of the character controller */
+				Quaternion desired_ori;
+
+				/** The resultant position of the character controller */
+				Vec3 result_pos;
+				/** The resultant orientation of the character controller */
+				Quaternion result_ori;
 
 				/** Constructs an IK object with the given skeleton for I/O */
-				IKObject(Skeleton* skeleton);
+				IKObject(Skeleton* skeleton, Vec3 pos, Quaternion ori);
 
 				/** Computes the state the skeleton should assume at the end of the update, and stores that temporarily */
 				void ComputeNextState(PhysicsWorld* physics, TimingInfo time);
@@ -42,6 +53,8 @@ namespace CibraryEngine
 
 			/** Collection of all the objects using inverse kinematics, indexed by a user pointer */
 			map<void*, IKObject*> ik_objects;
+
+			void InnerDispose();
 
 		public:
 
@@ -54,12 +67,14 @@ namespace CibraryEngine
 			/** Removes all IK objects from the solver */
 			void ClearObjects();
 			/** Creates an IK object mapped to the given user pointer, assigning to it the given Skeleton */
-			void AddObject(void* user_ptr, Skeleton* skeleton);
+			void AddObject(void* user_ptr, Skeleton* skeleton, Vec3 pos, Quaternion ori);
 			/** Deletes the IK object mapped to the given user pointer */
 			void DeleteObject(void* user_ptr);
 			/** Gets the skeleton of the IK object mapped to the given user pointer */
 			Skeleton* GetObjectSkeleton(void* user_ptr);
-			// TODO: add desired-state setter function here
+			
+			void SetDesiredState(void* user_ptr, Vec3 pos, Quaternion ori);
+			void GetResultState(void* user_ptr, Vec3& pos, Quaternion& ori);
 
 			/** Updates the IK objects */
 			void Update(TimingInfo time);
