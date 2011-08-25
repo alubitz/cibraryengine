@@ -118,8 +118,8 @@ namespace Test
 		MassInfo mass_info = MassInfo();
 		for(int i = -3; i <= 3; i++)
 			for(int j = 0; j <= 20; j++)
-				for(int k = -3; k <=	 3; k++)
-					mass_info += MassInfo(Vec3(i * 0.1f, j * 0.1f, k * 0.1f), 0.02915451895043731778425655976676f);
+				for(int k = -3; k <= 3; k++)
+					mass_info += MassInfo(Vec3(i * 0.1f, j * 0.1f, k * 0.1f), 0.09523809523809523809523809523808f);
 		mass = mass_info.mass;
 		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
 
@@ -406,13 +406,13 @@ namespace Test
 		else
 		{
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
-			Vec3 pos_vec = eye_xform.TransformVec3(Vec3(), 1.0);
+			Vec3 pos_vec = eye_xform.TransformVec3(eye_bone->rest_pos, 1.0);
 			Vec3 left = eye_xform.TransformVec3(Vec3(1, 0, 0), 0.0);
 			Vec3 up = eye_xform.TransformVec3(Vec3(0, 1, 0), 0.0);
 			Vec3 forward = eye_xform.TransformVec3(Vec3(0, 0, 1), 0.0);
 
 			float rm_values[] = { left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z };
-			return flip * Mat4::Translation(-eye_bone->rest_pos) * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-pos);
+			return flip * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-(pos + pos_vec));
 		}
 	}
 
@@ -476,9 +476,11 @@ namespace Test
 		TakeDamage(shot->GetDamage(), from_dir);
 
 		// let's transfer us some momentum!
-		vel += momentum / mass;                       // linear component is fairly straight-forward
 
-		Vec3 radius_vec = poi - pos;                  // now for the angular part...
+		// character controllers are special cases where angular momentum doesn't get applied the same way...
+		rigid_body->body->applyCentralForce(btVector3(momentum.x, momentum.y, momentum.z));
+
+		Vec3 radius_vec = poi - pos;						// now for the angular part...
 		double radius = radius_vec.ComputeMagnitude();
 		if (radius > 0)
 		{

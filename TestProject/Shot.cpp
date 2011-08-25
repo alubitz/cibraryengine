@@ -24,7 +24,7 @@ namespace Test
 		draw_xform(Mat4::FromPositionAndOrientation(origin, ori)),
 		causer(firer),
 		firer(firer),
-		mass(0.2f)
+		mass(0.05f)
 	{
 	}
 

@@ -2,14 +2,13 @@
 
 #include "StdAfx.h"
 
-#include "Shootable.h"
 #include "Dood.h"
 
 namespace Test
 {
 	using namespace std;
 
-	class Corpse : public Entity, public Shootable
+	class Corpse : public Entity
 	{
 		private:
 
@@ -30,8 +29,6 @@ namespace Test
 			void DeSpawned();
 
 			void Vis(SceneRenderer* renderer);
-
-			bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
 
 			Vec3 GetPosition();;
 	};

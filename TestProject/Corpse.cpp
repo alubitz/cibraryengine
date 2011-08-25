@@ -8,6 +8,38 @@ namespace Test
 {
 	float active_lifetime = 5.0f;
 	bool allow_become_permanent = false;
+	
+	
+	
+
+	// Each bone is a separate shootable object
+	struct CorpseBoneShootable : Entity, Shootable
+	{
+		Corpse* corpse;
+		RigidBodyInfo* rbi;
+
+		CorpseBoneShootable(GameState* gs, Corpse* corpse, RigidBodyInfo* rbi) : Entity(gs), corpse(corpse), rbi(rbi) { }
+
+		bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+		{
+			ParticleMaterial* material = ((TestGame*)corpse->game_state)->blood_particle;
+
+			for (int i = 0; i < 16; i++)
+			{
+				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, Random3D::Rand(0.02f, 0.1f), 1);
+				p->gravity = 9.8f;
+				p->damp = 0.2f;
+
+				corpse->game_state->Spawn(p);
+			}
+
+			rbi->body->applyForce(btVector3(momentum.x, momentum.y, momentum.z), btVector3(poi.x, poi.y, poi.z));
+			return true;
+		}
+	};
+
+
+
 
 	/*
 	 * Corpse implementation; private variables and methods
@@ -32,6 +64,7 @@ namespace Test
 
 		PhysicsWorld* physics;
 		vector<RigidBodyInfo*> rigid_bodies;
+		vector<CorpseBoneShootable*> shootables;
 		vector<Vec3> bone_offsets;
 		vector<btTypedConstraint*> constraints;
 
@@ -66,29 +99,13 @@ namespace Test
 		{
 			DeSpawned();
 
+			for(unsigned int i = 0; i < shootables.size(); i++)
+				delete shootables[i];
+			shootables.clear();
+
 			character->Dispose();
 			delete character;
 			character = NULL;
-		}
-
-		void Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
-		{
-			ParticleMaterial* material = ((TestGame*)corpse->game_state)->blood_particle;
-
-			for (int i = 0; i < 16; i++)
-			{
-				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, Random3D::Rand(0.02f, 0.1f), 1);
-				p->gravity = 9.8f;
-				p->damp = 0.2f;
-
-				corpse->game_state->Spawn(p);
-			}
-		}
-
-		bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
-		{
-			Splatter(shot, poi, momentum);
-			return true;
 		}
 
 		// position of the drawn bones
@@ -144,6 +161,8 @@ namespace Test
 
 			UberModel::BonePhysics** bone_physes = new UberModel::BonePhysics* [count];
 
+			float total_mass = 0;
+
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; i++)
 			{
@@ -172,13 +191,18 @@ namespace Test
 
 						MassInfo mass_info;
 						mass_info.mass = phys->mass;
+						total_mass += mass_info.mass;
+
 						mass_info.moi[0] = local_inertia.getX();
 						mass_info.moi[4] = local_inertia.getY();
 						mass_info.moi[8] = local_inertia.getZ();
 
 						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, bone_pos, bone->ori);
 						rigid_body->body->setLinearVelocity(btVector3(initial_vel.x, initial_vel.y, initial_vel.z));
-						rigid_body->body->setUserPointer(corpse);
+						
+						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body);
+						shootables.push_back(shootable);
+						rigid_body->body->setUserPointer(shootable);
 
 						// these constants taken from the ragdoll demo
 						rigid_body->body->setDamping(0.05f, 0.85f);
@@ -327,6 +351,5 @@ namespace Test
 	void Corpse::DeSpawned() { imp->DeSpawned(); }
 	void Corpse::Update(TimingInfo time) { imp->Update(time); }
 	void Corpse::Vis(SceneRenderer* renderer) { imp->Vis(renderer); }
-	bool Corpse::GetShot(Shot* shot, Vec3 poi, Vec3 momentum) { return imp->GetShot(shot, poi, momentum); }
 	Vec3 Corpse::GetPosition() { return imp->origin; }
 }
