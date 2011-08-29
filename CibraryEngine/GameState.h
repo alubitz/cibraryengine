@@ -10,6 +10,7 @@ namespace CibraryEngine
 
 	class PhysicsWorld;
 	class SoundSystem;
+	class IKSolver;
 
 	class Entity;
 	struct ContentMan;
@@ -41,6 +42,8 @@ namespace CibraryEngine
 			PhysicsWorld* physics_world;
 			/** The SoundSystem the game uses */
 			SoundSystem* sound_system;
+
+			IKSolver* ik_solver;
 
 			/** The total amount of game time that has passed */
 			float total_game_time;

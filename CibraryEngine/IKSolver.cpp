@@ -20,9 +20,9 @@ namespace CibraryEngine
 
 	void IKSolver::IKObject::ComputeNextState(PhysicsWorld* physics, TimingInfo time)
 	{
-		// TODO: make this do stuff; this will be considerably trickier than implementing ApplyComputedState
-
 		result = new Skeleton(skeleton);
+
+		// TODO: implement this
 	}
 
 	void IKSolver::IKObject::ApplyComputedState()

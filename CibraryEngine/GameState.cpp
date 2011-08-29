@@ -2,6 +2,8 @@
 #include "GameState.h"
 #include "Physics.h"
 
+#include "IKSolver.h"
+
 #include "Entity.h"
 #include "EntityList.h"
 #include "SoundSystem.h"
@@ -10,7 +12,7 @@
 
 namespace CibraryEngine
 {
-	GameState::GameState() : spawn_directly(true), entities(), spawning(), content(NULL), sound_system(NULL) { physics_world = new PhysicsWorld(); }
+	GameState::GameState() : spawn_directly(true), entities(), spawning(), content(NULL), sound_system(NULL) { physics_world = new PhysicsWorld(); ik_solver = new IKSolver(physics_world); }
 
 	GameState::~GameState() { }
 
@@ -38,6 +40,13 @@ namespace CibraryEngine
 		physics_world->Dispose();
 		delete physics_world;
 		physics_world = NULL;
+
+		if(ik_solver != NULL)
+		{
+			ik_solver->Dispose();
+			delete ik_solver;
+			ik_solver = NULL;
+		}
 	}
 
 	void GameState::Update(TimingInfo time)

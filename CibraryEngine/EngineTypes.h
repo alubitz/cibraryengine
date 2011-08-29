@@ -9,5 +9,6 @@
 
 #include "Physics.h"
 #include "IKSolver.h"
+#include "IKPose.h"
 
 #include "Control.h"

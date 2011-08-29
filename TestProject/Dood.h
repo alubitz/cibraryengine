@@ -48,9 +48,9 @@ namespace Test
 
 			UberModel* model;
 			SkinnedCharacter* character;
-			Skeleton* ik_skeleton;
 
 			PoseAimingGun* p_adp;
+			IKPose* ik_pose;
 
 			RigidBodyInfo* rigid_body;
 			PhysicsWorld* physics;

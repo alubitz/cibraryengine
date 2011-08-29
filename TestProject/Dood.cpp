@@ -51,18 +51,6 @@ namespace Test
 	void SetBoolControl(Dood* dood, string control_name, bool value);
 	void SetFloatControl(Dood* dood, string control_name, float value);
 
-	// a couple of util functions
-	Quaternion PYToQuaternion(float pitch, float yaw) { return Quaternion::FromPYR(0, yaw, 0) * Quaternion::FromPYR(pitch, 0, 0); }
-	void QuaternionToPY(Quaternion q, float& pitch, float &yaw)
-	{
-		Mat3 rm = q.ToMat3();
-		Vec3 fwd = Vec3::Normalize(rm * Vec3(0, 0, 1));
-		Vec3 left = Vec3::Normalize(rm * Vec3(1, 0, 0));
-
-		pitch = asin(-fwd.y);
-		yaw = atan2(left.x, left.z) - 0.5f * M_PI;
-	}
-
 	/*
 	 * Dood methods
 	 */
@@ -82,7 +70,6 @@ namespace Test
 		gun_hand_bone(NULL),
 		model(model),
 		character(NULL),
-		ik_skeleton(NULL),
 		p_adp(NULL),
 		rigid_body(NULL),
 		physics(NULL),
@@ -102,7 +89,9 @@ namespace Test
 		contact_callback = new MyContactResultCallback(this);
 
 		character = new SkinnedCharacter(model->CreateSkeleton());
-		ik_skeleton = new Skeleton(character->skeleton);
+		
+		ik_pose = new IKPose(game_state, character->skeleton, pos, pitch, yaw);
+		character->active_poses.push_back(ik_pose);
 
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); iter++)
 		{
@@ -130,8 +119,6 @@ namespace Test
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
-
-		((TestGame*)gs)->ik_solver->AddObject((void*)this, ik_skeleton, pos, PYToQuaternion(pitch, yaw));
 	}
 
 	void Dood::InnerDispose()
@@ -152,23 +139,17 @@ namespace Test
 		delete p_adp;
 		p_adp = NULL;
 
-		if(ik_skeleton != NULL)
-		{
-			ik_skeleton->Dispose();
-			delete ik_skeleton;
-			ik_skeleton = NULL;
-		}
-
-		((TestGame*)game_state)->ik_solver->DeleteObject((void*)this);
+		delete ik_pose;
+		ik_pose = NULL;
 
 		Pawn::InnerDispose();
 	}
 
 	void Dood::Update(TimingInfo time)
 	{
-		Quaternion py_ori;
-		((TestGame*)game_state)->ik_solver->GetResultState((void*)this, pos, py_ori);
-		QuaternionToPY(py_ori, pitch, yaw);
+		pos = ik_pose->pos;
+		yaw = ik_pose->yaw;
+		pitch = ik_pose->pitch;
 
 		Pawn::Update(time);
 
@@ -319,7 +300,7 @@ namespace Test
 			character->UpdatePoses(time);
 		}
 
-		((TestGame*)game_state)->ik_solver->SetDesiredState((void*)this, pos, PYToQuaternion(pitch, yaw));
+		ik_pose->SetDesiredState(pos, pitch, yaw);
 	}
 
 	void Dood::DoPitchAndYawControls(float timestep)

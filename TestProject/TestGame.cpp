@@ -91,7 +91,6 @@ namespace Test
 		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
-		ik_solver(new IKSolver(physics_world)),
 		debug_text(""),
 		nav_graph(0),
 		tex2d_cache(screen->window->content->GetCache<Texture2D>()),
