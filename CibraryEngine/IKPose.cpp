@@ -20,6 +20,13 @@ namespace CibraryEngine
 
 
 
+	/*
+	 * IKPose::EndEffector methods
+	 */
+	IKPose::EndEffector::EndEffector(string bone_name, Vec3 lcs_pos, bool set) : bone_name(bone_name), lcs_pos(lcs_pos), set(set), grounded(false) { }
+
+
+
 
 	/*
 	 * IKPose methods
@@ -28,6 +35,7 @@ namespace CibraryEngine
 		pos(pos),
 		pitch(pitch),
 		yaw(yaw),
+		end_effectors(),
 		game_state(game_state),
 		ik_skeleton(new Skeleton(skeleton))
 	{
@@ -51,6 +59,14 @@ namespace CibraryEngine
 		Quaternion py_ori;
 		game_state->ik_solver->GetResultState((void*)this, pos, py_ori);
 		QuaternionToPY(py_ori, pitch, yaw);
+
+		for(unsigned int i = 0; i < end_effectors.size(); i++)
+		{
+			if(end_effectors[i].set)
+				SetBonePose(end_effectors[i].bone_name, Vec3(cos(time.total * M_PI), 0, 0), Vec3(), 1);
+			else
+				SetBonePose(end_effectors[i].bone_name, Vec3(-cos(time.total * M_PI), 0, 0), Vec3(), 1);
+		}
 	}
 
 	void IKPose::SetDesiredState(Vec3 pos_, float pitch_, float yaw_)
@@ -58,5 +74,10 @@ namespace CibraryEngine
 		pos = pos_;
 		pitch = pitch_;
 		yaw = yaw_;
+	}
+
+	void IKPose::AddEndEffector(string bone_name, Vec3 lcs_pos, bool set)
+	{
+		end_effectors.push_back(EndEffector(bone_name, lcs_pos, set));
 	}
 }

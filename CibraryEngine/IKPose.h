@@ -9,19 +9,36 @@ namespace CibraryEngine
 
 	class IKPose : public Pose
 	{
+		protected:
 
-	public:
-		// these are outputs
-		Vec3 pos;
-		float pitch, yaw;
+			struct EndEffector
+			{
+				string bone_name;
+				Vec3 lcs_pos;
+				bool set;
 
-		GameState* game_state;
-		Skeleton* ik_skeleton;
+				bool grounded;
 
-		IKPose(GameState* game_state, Skeleton* skeleton, Vec3 pos, float pitch, float yaw);
-		~IKPose();
+				EndEffector(string bone_name, Vec3 lcs_pos, bool set);
+			};
 
-		void UpdatePose(TimingInfo time);
-		void SetDesiredState(Vec3 pos, float pitch, float yaw);
+			vector<EndEffector> end_effectors;
+
+		public:
+
+			// these are outputs
+			Vec3 pos;
+			float pitch, yaw;
+
+			GameState* game_state;
+			Skeleton* ik_skeleton;
+
+			IKPose(GameState* game_state, Skeleton* skeleton, Vec3 pos, float pitch, float yaw);
+			~IKPose();
+
+			void UpdatePose(TimingInfo time);
+			void SetDesiredState(Vec3 pos, float pitch, float yaw);
+
+			void AddEndEffector(string bone_name, Vec3 lcs_pos, bool set);
 	};
 }

@@ -91,7 +91,15 @@ namespace Test
 		character = new SkinnedCharacter(model->CreateSkeleton());
 		
 		ik_pose = new IKPose(game_state, character->skeleton, pos, pitch, yaw);
+
+		ik_pose->AddEndEffector("l leg a 3", Vec3(0.27, 0, 1.299), true);
+		ik_pose->AddEndEffector("r leg a 3", Vec3(-0.27, 0, 1.299), false);
+		ik_pose->AddEndEffector("l leg b 3", Vec3(1.98, 0, 0.44), false);
+		ik_pose->AddEndEffector("r leg b 3", Vec3(-1.98, 0, 0.44), true);
+		ik_pose->AddEndEffector("l leg c 3", Vec3(0.80, 0, -1.36), true);
+		ik_pose->AddEndEffector("r leg c 3", Vec3(-0.80, 0, -1.36), false);
 		character->active_poses.push_back(ik_pose);
+
 
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); iter++)
 		{
