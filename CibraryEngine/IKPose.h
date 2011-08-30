@@ -6,6 +6,7 @@
 namespace CibraryEngine
 {
 	class GameState;
+	class KeyframeAnimation;
 
 	class IKPose : public Pose
 	{
@@ -32,6 +33,7 @@ namespace CibraryEngine
 
 			GameState* game_state;
 			Skeleton* ik_skeleton;
+			KeyframeAnimation* keyframe_animation;
 
 			IKPose(GameState* game_state, Skeleton* skeleton, Vec3 pos, float pitch, float yaw);
 			~IKPose();

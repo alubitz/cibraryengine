@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 
+#include "KeyframeAnimation.h"
 #include "IKPose.h"
 #include "IKSolver.h"
 #include "GameState.h"
@@ -17,6 +18,7 @@ namespace CibraryEngine
 		pitch = asin(-fwd.y);
 		yaw = atan2(left.x, left.z) - 0.5f * M_PI;
 	}
+
 
 
 
@@ -40,6 +42,7 @@ namespace CibraryEngine
 		ik_skeleton(new Skeleton(skeleton))
 	{
 		game_state->ik_solver->AddObject((void*)this, ik_skeleton, pos, PYToQuaternion(pitch, yaw));
+		keyframe_animation = new KeyframeAnimation();
 	}
 
 	IKPose::~IKPose()
@@ -51,6 +54,12 @@ namespace CibraryEngine
 			ik_skeleton = NULL;
 		}
 
+		if(keyframe_animation != NULL)
+		{
+			delete keyframe_animation;
+			keyframe_animation = NULL;
+		}
+
 		game_state->ik_solver->DeleteObject((void*)this);
 	}
 
@@ -60,12 +69,11 @@ namespace CibraryEngine
 		game_state->ik_solver->GetResultState((void*)this, pos, py_ori);
 		QuaternionToPY(py_ori, pitch, yaw);
 
-		for(unsigned int i = 0; i < end_effectors.size(); i++)
+		keyframe_animation->UpdatePose(time);
+		for(map<string, BoneInfluence>::iterator iter = keyframe_animation->bones.begin(); iter != keyframe_animation->bones.end(); iter++)
 		{
-			if(end_effectors[i].set)
-				SetBonePose(end_effectors[i].bone_name, Vec3(cos(time.total * M_PI), 0, 0), Vec3(), 1);
-			else
-				SetBonePose(end_effectors[i].bone_name, Vec3(-cos(time.total * M_PI), 0, 0), Vec3(), 1);
+			BoneInfluence& bi = iter->second;
+			SetBonePose(iter->first, bi.ori, bi.pos, bi.div);
 		}
 	}
 

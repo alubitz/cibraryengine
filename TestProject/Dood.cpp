@@ -51,6 +51,56 @@ namespace Test
 	void SetBoolControl(Dood* dood, string control_name, bool value);
 	void SetFloatControl(Dood* dood, string control_name, float value);
 
+	void GenerateHardCodedWalkAnimation(IKPose* ik_pose)
+	{
+		KeyframeAnimation* ka = ik_pose->keyframe_animation;
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 1;
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(1, 0.3f, 0), Vec3(), 1);
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(1, -0.3f, 0), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(0, -1, 0), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(0, 1, 0), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(1, 0.5f, 0), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(1, -0.5f, 0), Vec3(), 1);
+			ka->frames.push_back(kf);
+		}
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(0, 0.3f, 0), Vec3(), 1);
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(0, -0.3f, 0), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(1, -1, 0), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(1, 1, 0), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(0, 0.5f, 0), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(0, -0.5f, 0), Vec3(), 1);
+			ka->frames.push_back(kf);
+		}
+		{
+			Keyframe kf(0.5f);
+			kf.next = 3;
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(0, -0.3f, 0), Vec3(), 1);
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(0, 0.3f, 0), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(1, 1, 0), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(1, -1, 0), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(0, -0.5f, 0), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(0, 0.5f, 0), Vec3(), 1);
+			ka->frames.push_back(kf);
+		}
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(1, -0.3f, 0), Vec3(), 1);
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(1, 0.3f, 0), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(0, 1, 0), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(0, -1, 0), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(1, -0.5f, 0), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(1, 0.5f, 0), Vec3(), 1);
+			ka->frames.push_back(kf);
+		}
+	}
+
 	/*
 	 * Dood methods
 	 */
@@ -88,19 +138,26 @@ namespace Test
 
 		contact_callback = new MyContactResultCallback(this);
 
+		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
 		
+		// character animation stuff
 		ik_pose = new IKPose(game_state, character->skeleton, pos, pitch, yaw);
 
-		ik_pose->AddEndEffector("l leg a 3", Vec3(0.27, 0, 1.299), true);
-		ik_pose->AddEndEffector("r leg a 3", Vec3(-0.27, 0, 1.299), false);
+		GenerateHardCodedWalkAnimation(ik_pose);
+		ik_pose->AddEndEffector("l leg a 3", Vec3(0.27, 0, 1.29), true);
+		ik_pose->AddEndEffector("r leg a 3", Vec3(-0.27, 0, 1.29), false);
 		ik_pose->AddEndEffector("l leg b 3", Vec3(1.98, 0, 0.44), false);
 		ik_pose->AddEndEffector("r leg b 3", Vec3(-1.98, 0, 0.44), true);
 		ik_pose->AddEndEffector("l leg c 3", Vec3(0.80, 0, -1.36), true);
 		ik_pose->AddEndEffector("r leg c 3", Vec3(-0.80, 0, -1.36), false);
+
 		character->active_poses.push_back(ik_pose);
 
+		p_adp = new PoseAimingGun();
+		character->active_poses.push_back(p_adp);
 
+		// figure out which bones are the eye and gun-holding bones
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); iter++)
 		{
 			if((*iter)->name == "eye")
@@ -109,9 +166,7 @@ namespace Test
 				gun_hand_bone = *iter;
 		}
 
-		p_adp = new PoseAimingGun();
-		character->active_poses.push_back(p_adp);
-
+		// too bad this isn't saved somewhere?
 		MassInfo mass_info = MassInfo();
 		for(int i = -3; i <= 3; i++)
 			for(int j = 0; j <= 20; j++)
@@ -120,6 +175,7 @@ namespace Test
 		mass = mass_info.mass;
 		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
 
+		// look up all the materials the model uses in advance
 		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
 		for(unsigned int i = 0; i < model->materials.size(); i++)
 		{
