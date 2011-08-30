@@ -34,7 +34,13 @@ function begin_level(gs, player_pos, level)
 	levelStartMessage()
 end
 
-player_pos = player.position
+-- don't try to update player position if the player is dead
+if player.is_valid then
+	player_pos = player.position
+else if not player_pos then
+	player_pos = ba.createVector()
+end
+
 if level == 0 then
 	level = 1
 	begin_level(gs, player_pos, level)

@@ -236,8 +236,12 @@ function goal_move_attack(owner, target)
 	result.target = target
 
 	result.in_range = function()
-		local dx = result.target.position - result.owner.position
-		return dx.length < 10
+		if not target.is_valid then
+			return false
+		else
+			local dx = result.target.position - result.owner.position
+			return dx.length < 10
+		end
 	end
 
 	result.add_move_subgoal = function()
