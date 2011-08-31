@@ -58,45 +58,57 @@ namespace Test
 		{
 			Keyframe kf(0.5f);
 			kf.next = 1;
-			kf.values["l leg a 1"] = BoneInfluence(Vec3(1, 0.3f, 0), Vec3(), 1);
-			kf.values["r leg a 1"] = BoneInfluence(Vec3(1, -0.3f, 0), Vec3(), 1);
-			kf.values["l leg b 1"] = BoneInfluence(Vec3(0, -1, 0), Vec3(), 1);
-			kf.values["r leg b 1"] = BoneInfluence(Vec3(0, 1, 0), Vec3(), 1);
-			kf.values["l leg c 1"] = BoneInfluence(Vec3(1, 0.5f, 0), Vec3(), 1);
-			kf.values["r leg c 1"] = BoneInfluence(Vec3(1, -0.5f, 0), Vec3(), 1);
+
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(	1,	0.3f,	0	), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(	0,	-1,		0	), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(	1,	0.5f,	0	), Vec3(), 1);
+
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(	0,	0.3f,	0	), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(	1,	-1,		0	), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(	0,	0.5f,	0	), Vec3(), 1);
+
 			ka->frames.push_back(kf);
 		}
 		{
 			Keyframe kf(0.5f);
 			kf.next = 2;
-			kf.values["l leg a 1"] = BoneInfluence(Vec3(0, 0.3f, 0), Vec3(), 1);
-			kf.values["r leg a 1"] = BoneInfluence(Vec3(0, -0.3f, 0), Vec3(), 1);
-			kf.values["l leg b 1"] = BoneInfluence(Vec3(1, -1, 0), Vec3(), 1);
-			kf.values["r leg b 1"] = BoneInfluence(Vec3(1, 1, 0), Vec3(), 1);
-			kf.values["l leg c 1"] = BoneInfluence(Vec3(0, 0.5f, 0), Vec3(), 1);
-			kf.values["r leg c 1"] = BoneInfluence(Vec3(0, -0.5f, 0), Vec3(), 1);
+			
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(	0,	0.3f,	0	), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(	1,	-1,		0	), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(	0,	0.5f,	0	), Vec3(), 1);
+
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(	1,	0.3f,	0	), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(	0,	-1,		0	), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(	1,	0.5f,	0	), Vec3(), 1);
+
 			ka->frames.push_back(kf);
 		}
 		{
 			Keyframe kf(0.5f);
 			kf.next = 3;
-			kf.values["l leg a 1"] = BoneInfluence(Vec3(0, -0.3f, 0), Vec3(), 1);
-			kf.values["r leg a 1"] = BoneInfluence(Vec3(0, 0.3f, 0), Vec3(), 1);
-			kf.values["l leg b 1"] = BoneInfluence(Vec3(1, 1, 0), Vec3(), 1);
-			kf.values["r leg b 1"] = BoneInfluence(Vec3(1, -1, 0), Vec3(), 1);
-			kf.values["l leg c 1"] = BoneInfluence(Vec3(0, -0.5f, 0), Vec3(), 1);
-			kf.values["r leg c 1"] = BoneInfluence(Vec3(0, 0.5f, 0), Vec3(), 1);
+
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(	0,	-0.3f,	0	), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(	1,	1,		0	), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(	0,	-0.5f,	0	), Vec3(), 1);
+
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(	1,	-0.3f,	0	), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(	0,	1,		0	), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(	1,	-0.5f,	0	), Vec3(), 1);
+			
 			ka->frames.push_back(kf);
 		}
 		{
 			Keyframe kf(0.5f);
 			kf.next = 0;
-			kf.values["l leg a 1"] = BoneInfluence(Vec3(1, -0.3f, 0), Vec3(), 1);
-			kf.values["r leg a 1"] = BoneInfluence(Vec3(1, 0.3f, 0), Vec3(), 1);
-			kf.values["l leg b 1"] = BoneInfluence(Vec3(0, 1, 0), Vec3(), 1);
-			kf.values["r leg b 1"] = BoneInfluence(Vec3(0, -1, 0), Vec3(), 1);
-			kf.values["l leg c 1"] = BoneInfluence(Vec3(1, -0.5f, 0), Vec3(), 1);
-			kf.values["r leg c 1"] = BoneInfluence(Vec3(1, 0.5f, 0), Vec3(), 1);
+
+			kf.values["l leg a 1"] = BoneInfluence(Vec3(	1,	-0.3f,	0	), Vec3(), 1);
+			kf.values["l leg b 1"] = BoneInfluence(Vec3(	0,	1,		0	), Vec3(), 1);
+			kf.values["l leg c 1"] = BoneInfluence(Vec3(	1,	-0.5f,	0	), Vec3(), 1);
+
+			kf.values["r leg a 1"] = BoneInfluence(Vec3(	0,	-0.3f,	0	), Vec3(), 1);
+			kf.values["r leg b 1"] = BoneInfluence(Vec3(	1,	1,		0	), Vec3(), 1);
+			kf.values["r leg c 1"] = BoneInfluence(Vec3(	0,	-0.5f,	0	), Vec3(), 1);
+			
 			ka->frames.push_back(kf);
 		}
 	}
@@ -145,12 +157,12 @@ namespace Test
 		ik_pose = new IKPose(game_state, character->skeleton, pos, pitch, yaw);
 
 		GenerateHardCodedWalkAnimation(ik_pose);
-		ik_pose->AddEndEffector("l leg a 3", Vec3(0.27, 0, 1.29), true);
-		ik_pose->AddEndEffector("r leg a 3", Vec3(-0.27, 0, 1.29), false);
-		ik_pose->AddEndEffector("l leg b 3", Vec3(1.98, 0, 0.44), false);
-		ik_pose->AddEndEffector("r leg b 3", Vec3(-1.98, 0, 0.44), true);
-		ik_pose->AddEndEffector("l leg c 3", Vec3(0.80, 0, -1.36), true);
-		ik_pose->AddEndEffector("r leg c 3", Vec3(-0.80, 0, -1.36), false);
+		ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
+		ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);
+		ik_pose->AddEndEffector("l leg b 3", Vec3(	1.98f,	0,	0.44f	), false);
+		ik_pose->AddEndEffector("r leg b 3", Vec3(	-1.98f,	0,	0.44f	), true);
+		ik_pose->AddEndEffector("l leg c 3", Vec3(	0.80f,	0,	-1.36f	), true);
+		ik_pose->AddEndEffector("r leg c 3", Vec3(	-0.80f,	0,	-1.36f	), false);
 
 		character->active_poses.push_back(ik_pose);
 

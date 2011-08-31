@@ -37,7 +37,7 @@ end
 -- don't try to update player position if the player is dead
 if player.is_valid then
 	player_pos = player.position
-else if not player_pos then
+elseif not player_pos then
 	player_pos = ba.createVector()
 end
 
