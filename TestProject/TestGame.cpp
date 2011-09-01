@@ -20,9 +20,6 @@
 
 #include "LevelLoad.h"
 
-#include "NavGraph.h"
-#include "Pathfinding.h"
-
 #include "MaterialLoader.h"
 
 #include "Corpse.h"

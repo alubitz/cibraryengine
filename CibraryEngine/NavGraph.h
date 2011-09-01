@@ -2,10 +2,15 @@
 
 #include "StdAfx.h"
 
-namespace Test
-{
-	using namespace CibraryEngine;
+#include "Disposable.h"
 
+namespace CibraryEngine
+{
+	using namespace std;
+
+	class GameState;
+
+	struct Vec3;
 
 	class NavGraph : public Disposable
 	{

@@ -2,8 +2,8 @@
 
 namespace CibraryEngine
 {
-	class Vec3;
-	class Mat3;
+	struct Vec3;
+	struct Mat3;
 
 	/** Class providing a few utility functions */
 	class Util

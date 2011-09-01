@@ -11,7 +11,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class Texture2D;
-	class Vec2;
+	struct Vec2;
 
 	class Cursor : public Disposable
 	{

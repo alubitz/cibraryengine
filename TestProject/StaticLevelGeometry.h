@@ -6,10 +6,7 @@
 
 namespace Test
 {
-	class DSNMaterial;
-	class TestGame;
-
-	class StaticLevelGeometry : public Entity, public Shootable
+	class StaticLevelGeometry : public Entity, public Shootable, public VisionBlocker
 	{
 		protected:
 

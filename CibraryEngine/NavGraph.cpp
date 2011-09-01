@@ -1,11 +1,17 @@
 #include "StdAfx.h"
+
 #include "NavGraph.h"
 
-#include "StaticLevelGeometry.h"
+#include "Serialize.h"
+#include "Vector.h"
+#include "GameState.h"
+#include "Entity.h"
+#include "Physics.h"
+#include "VisionBlocker.h"
 
 #include <boost/unordered/unordered_map.hpp>
 
-namespace Test
+namespace CibraryEngine
 {
 	using boost::unordered_map;
 
@@ -206,7 +212,7 @@ namespace Test
 							void* void_pointer = rayResult.m_collisionObject->getUserPointer();
 							if(void_pointer != NULL)
 							{
-								StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>((Entity*)void_pointer);
+								VisionBlocker* slg = dynamic_cast<VisionBlocker*>((Entity*)void_pointer);
 								if(slg != NULL)
 								{
 									float frac = rayResult.m_hitFraction;

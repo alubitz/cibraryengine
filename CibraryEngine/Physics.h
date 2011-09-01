@@ -15,8 +15,9 @@ namespace CibraryEngine
 	using namespace std;
 
 	class RigidBodyInfo;
-	class Mat4;
-	class Quaternion;
+
+	struct Mat4;
+	struct Quaternion;
 
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable

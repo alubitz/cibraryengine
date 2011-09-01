@@ -6,34 +6,33 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class Mat3;
+	struct Mat3;
 
 	/** Class representing a 2-component vector */
-	class Vec2
+	struct Vec2
 	{
-		public:
-			/** The x-component of the vector */
-			float x;
-			/** The y-component of the vector */
-			float y;
+		/** The x-component of the vector */
+		float x;
+		/** The y-component of the vector */
+		float y;
 
-			/** Initializes a zero-vector */
-			Vec2();
-			/** Initializes a vector with the specified x and y components */
-			Vec2(float x, float y);
+		/** Initializes a zero-vector */
+		Vec2();
+		/** Initializes a vector with the specified x and y components */
+		Vec2(float x, float y);
 
-			/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
-			float ComputeMagnitudeSquared();
-			/** Returns the magnitude of the vector */
-			float ComputeMagnitude();
+		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
+		float ComputeMagnitudeSquared();
+		/** Returns the magnitude of the vector */
+		float ComputeMagnitude();
 
-			/** Computes the dot product of two vectors */
-			static float Dot(Vec2 a, Vec2 b);
+		/** Computes the dot product of two vectors */
+		static float Dot(Vec2 a, Vec2 b);
 
-			/** Computes the magnitude of a vector with the given x and y components */
-			static float Magnitude(float x, float y);
-			/** Computes the square of the magnitude of a vector with the given x and y components (one less step than taking a square root) */
-			static float MagnitudeSquared(float x, float y);
+		/** Computes the magnitude of a vector with the given x and y components */
+		static float Magnitude(float x, float y);
+		/** Computes the square of the magnitude of a vector with the given x and y components (one less step than taking a square root) */
+		static float MagnitudeSquared(float x, float y);
 	};
 
 	/** Returns the opposite of the vector */
@@ -60,42 +59,41 @@ namespace CibraryEngine
 	bool operator ==(Vec2 a, Vec2 b);
 
 	/** Class representing a 3-component vector */
-	class Vec3
+	struct Vec3
 	{
-		public:
-			/** The x-component of the vector */
-			float x;
-			/** The y-component of the vector */
-			float y;
-			/** The z-component of the vector */
-			float z;
+		/** The x-component of the vector */
+		float x;
+		/** The y-component of the vector */
+		float y;
+		/** The z-component of the vector */
+		float z;
 
-			/** Initializes a zero vector */
-			Vec3();
-			/** Initializes a vector with the specified x, y, and z components */
-			Vec3(float x, float y, float z);
+		/** Initializes a zero vector */
+		Vec3();
+		/** Initializes a vector with the specified x, y, and z components */
+		Vec3(float x, float y, float z);
 
-			/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
-			float ComputeMagnitudeSquared();
-			/** Returns the magnitude of the vector */
-			float ComputeMagnitude();
+		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
+		float ComputeMagnitudeSquared();
+		/** Returns the magnitude of the vector */
+		float ComputeMagnitude();
 
-			
+		
 
-			/** Computes the dot product of two vectors */
-			static float Dot(Vec3 a, Vec3 b);
-			/** Computes the cross product of two vectors */
-			static Vec3 Cross(Vec3 a, Vec3 b);
+		/** Computes the dot product of two vectors */
+		static float Dot(Vec3 a, Vec3 b);
+		/** Computes the cross product of two vectors */
+		static Vec3 Cross(Vec3 a, Vec3 b);
 
-			/** Returns a unit vector parallel to the given vector */
-			static Vec3 Normalize(Vec3 a);
-			/** Returns a vector parallel to the given vector with the specified magnitude */
-			static Vec3 Normalize(Vec3 a, float len);
+		/** Returns a unit vector parallel to the given vector */
+		static Vec3 Normalize(Vec3 a);
+		/** Returns a vector parallel to the given vector with the specified magnitude */
+		static Vec3 Normalize(Vec3 a, float len);
 
-			/** Computes the magnitude of a vector with the given x, y, and z components */
-			static float Magnitude(float x, float y, float z);
-			/** Computes the square of the magnitude of a vector with the given x, y, and z components (one less step than taking a square root) */
-			static float MagnitudeSquared(float x, float y, float z);
+		/** Computes the magnitude of a vector with the given x, y, and z components */
+		static float Magnitude(float x, float y, float z);
+		/** Computes the square of the magnitude of a vector with the given x, y, and z components (one less step than taking a square root) */
+		static float MagnitudeSquared(float x, float y, float z);
 	};
 
 	/** Returns the opposite of the vector */
@@ -122,33 +120,32 @@ namespace CibraryEngine
 	bool operator ==(Vec3 a, Vec3 b);
 
 	/** Class representing a 4-component vector */
-	class Vec4
+	struct Vec4
 	{
-		public:
-			/** The x-component of the vector */
-			float x;
-			/** The y-component of the vector */
-			float y;
-			/** The z-component of the vector */
-			float z;
-			/** The w-component of the vector */
-			float w;
+		/** The x-component of the vector */
+		float x;
+		/** The y-component of the vector */
+		float y;
+		/** The z-component of the vector */
+		float z;
+		/** The w-component of the vector */
+		float w;
 
-			/** Initializes a zero vector */
-			Vec4();
-			/** Initializes a vector with the specified x, y, z, and w components */
-			Vec4(Vec3 xyz, float w);
-			/** Initializes a vector with the specified x, y, z, and w components */
-			Vec4(float x, float y, float z, float w);
+		/** Initializes a zero vector */
+		Vec4();
+		/** Initializes a vector with the specified x, y, z, and w components */
+		Vec4(Vec3 xyz, float w);
+		/** Initializes a vector with the specified x, y, z, and w components */
+		Vec4(float x, float y, float z, float w);
 
-			/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
-			float ComputeMagnitudeSquared();
-			/** Returns the magnitude of the vector */
-			float ComputeMagnitude();
+		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
+		float ComputeMagnitudeSquared();
+		/** Returns the magnitude of the vector */
+		float ComputeMagnitude();
 
-			
-			/** Computes the dot product of two vectors */
-			static float Dot(Vec4 a, Vec4 b);
+		
+		/** Computes the dot product of two vectors */
+		static float Dot(Vec4 a, Vec4 b);
 	};
 
 	/** Returns the opposite of the vector */

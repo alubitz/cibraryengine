@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 
-namespace Test
+namespace CibraryEngine
 {
 	using namespace std;
 

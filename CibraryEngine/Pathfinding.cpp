@@ -2,8 +2,10 @@
 
 #include "Pathfinding.h"
 #include "NavGraph.h"
+#include "Vector.h"
+#include "DebugLog.h"
 
-namespace Test
+namespace CibraryEngine
 {
 	struct Edge
 	{
