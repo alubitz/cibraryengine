@@ -16,6 +16,7 @@ namespace Test
 	class PoseAimingGun;
 	class WeaponEquip;
 	class WeaponIntrinsic;
+
 	struct Damage;
 
 	class Dood : public Pawn, public Shootable
@@ -132,14 +133,6 @@ namespace Test
 			};
 
 			MyContactResultCallback* contact_callback;
-
-			static FloatControlChannel Forward;
-			static FloatControlChannel Sidestep;
-			static FloatControlChannel Yaw;
-			static FloatControlChannel Pitch;
-
-			static BoolControlChannel Jump;
-
 	};
 
 	void PushDoodHandle(lua_State* L, Dood* dood);

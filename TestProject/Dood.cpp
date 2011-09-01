@@ -657,19 +657,6 @@ namespace Test
 
 
 	/*
-	 * Dood control channels
-	 */
-	FloatControlChannel Dood::Forward = FloatControlChannel("Fwd", 0, -1, 1);
-	FloatControlChannel Dood::Sidestep = FloatControlChannel("SdStep", 0, -1, 1);
-	FloatControlChannel Dood::Yaw = FloatControlChannel("Yaw", 0, -1, 1);
-	FloatControlChannel Dood::Pitch = FloatControlChannel("Pitch", 0, -1, 1);
-
-	BoolControlChannel Dood::Jump = BoolControlChannel("Jump", false);
-
-
-
-
-	/*
 	 * Dood scripting stuff
 	 */
 	void GetDoodControlState(lua_State* L, Dood* dood)
