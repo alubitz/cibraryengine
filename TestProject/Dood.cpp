@@ -376,7 +376,7 @@ namespace Test
 			character->UpdatePoses(time);
 		}
 
-		ik_pose->SetDesiredState(pos, pitch, yaw);
+		ik_pose->SetDesiredState(game_state->ik_solver, pos, pitch, yaw);
 	}
 
 	void Dood::DoPitchAndYawControls(float timestep)

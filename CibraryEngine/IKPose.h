@@ -8,8 +8,15 @@ namespace CibraryEngine
 	class GameState;
 	class KeyframeAnimation;
 
+	class IKSolver;
+
 	class IKPose : public Pose
 	{
+		private:
+		
+			struct Imp;
+			Imp* imp;
+
 		protected:
 
 			struct EndEffector
@@ -39,7 +46,7 @@ namespace CibraryEngine
 			~IKPose();
 
 			void UpdatePose(TimingInfo time);
-			void SetDesiredState(Vec3 pos, float pitch, float yaw);
+			void SetDesiredState(IKSolver* solver, Vec3 pos, float pitch, float yaw);
 
 			void AddEndEffector(string bone_name, Vec3 lcs_pos, bool set);
 	};

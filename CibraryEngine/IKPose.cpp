@@ -23,6 +23,19 @@ namespace CibraryEngine
 
 
 	/*
+	 * IKPose private implementation struct
+	 */
+	struct IKPose::Imp
+	{
+		TimingInfo time;
+
+		Imp() : time() { }
+	};
+
+
+
+
+	/*
 	 * IKPose::EndEffector methods
 	 */
 	IKPose::EndEffector::EndEffector(string bone_name, Vec3 lcs_pos, bool set) : bone_name(bone_name), lcs_pos(lcs_pos), set(set), grounded(false) { }
@@ -34,6 +47,7 @@ namespace CibraryEngine
 	 * IKPose methods
 	 */
 	IKPose::IKPose(GameState* game_state, Skeleton* skeleton, Vec3 pos, float pitch, float yaw) :
+		imp(new Imp()),
 		pos(pos),
 		pitch(pitch),
 		yaw(yaw),
@@ -47,6 +61,12 @@ namespace CibraryEngine
 
 	IKPose::~IKPose()
 	{
+		if(imp != NULL)
+		{
+			delete imp;
+			imp = NULL;
+		}
+
 		if(ik_skeleton != NULL)
 		{
 			ik_skeleton->Dispose();
@@ -69,19 +89,32 @@ namespace CibraryEngine
 		game_state->ik_solver->GetResultState((void*)this, pos, py_ori);
 		QuaternionToPY(py_ori, pitch, yaw);
 
-		keyframe_animation->UpdatePose(time);
+		if(time.elapsed > 0)
+		{
+			// here we are using the internal animation timer, not the main game timer
+			TimingInfo& imp_time = imp->time;
+
+			keyframe_animation->UpdatePose(imp_time);
+			imp_time.total += imp_time.elapsed;
+			imp_time.elapsed = 0;
+		}
+
 		for(map<string, BoneInfluence>::iterator iter = keyframe_animation->bones.begin(); iter != keyframe_animation->bones.end(); iter++)
 		{
-			BoneInfluence& bi = iter->second;
-			SetBonePose(iter->first, bi.ori, bi.pos, bi.div);
+			BoneInfluence& binf = iter->second;
+			SetBonePose(iter->first, binf.ori, binf.pos, binf.div);
 		}
 	}
 
-	void IKPose::SetDesiredState(Vec3 pos_, float pitch_, float yaw_)
+	void IKPose::SetDesiredState(IKSolver* solver, Vec3 nuPos, float nuPitch, float nuYaw)
 	{
-		pos = pos_;
-		pitch = pitch_;
-		yaw = yaw_;
+		imp->time.elapsed += (nuPos - pos).ComputeMagnitude() * 0.25f;
+
+		pos = nuPos;
+		pitch = nuPitch;
+		yaw = nuYaw;
+
+		solver->SetDesiredState((void*)this, pos, PYToQuaternion(pitch, yaw));
 	}
 
 	void IKPose::AddEndEffector(string bone_name, Vec3 lcs_pos, bool set)
