@@ -73,6 +73,8 @@ namespace CibraryEngine
 			unsigned int GetNumVerts();
 			void SetNumVerts(unsigned int num_verts);
 
+			void SetAllocatedSize(unsigned int n);
+
 			void AddAttribute(string name, VertexAttributeType type, int n_per_vertex);
 			void RemoveAttribute(string name);
 			VertexAttribute GetAttribute(string name);

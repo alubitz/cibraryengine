@@ -38,8 +38,16 @@ namespace CibraryEngine
 	void VertexBuffer::SetNumVerts(unsigned int verts)
 	{
 		if(verts > allocated_size)
+			SetAllocatedSize(verts + 20);
+
+		num_verts = verts;
+	}
+
+	void VertexBuffer::SetAllocatedSize(unsigned int verts)
+	{
+		if(verts > allocated_size)
 		{
-			allocated_size = verts + 20;			// in case they want to upsize it again soon
+			allocated_size = verts;
 
 			map<string, VertexData> nu_attribute_data;
 			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); iter++)
@@ -93,7 +101,8 @@ namespace CibraryEngine
 			attribute_data = nu_attribute_data;
 		}
 
-		num_verts = verts;
+		if(verts < num_verts)
+			num_verts = verts;
 	}
 
 	void VertexBuffer::AddAttribute(string name, VertexAttributeType type, int n_per_vertex)

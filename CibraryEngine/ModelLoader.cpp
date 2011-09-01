@@ -231,6 +231,9 @@ namespace CibraryEngine
 			nxyz.push_back(Vec3(nx, ny, nz));
 		}
 		int xyz_index, uv_index, n_index;
+
+		vbo->SetAllocatedSize(triangles.size() * 3);
+
 		for (i = 0; i < triangles.size(); i++)
 		{
 			string line = triangles[i];
@@ -397,6 +400,9 @@ namespace CibraryEngine
 		unsigned int vinfo_count = ReadUInt32(file);
 		VTNTT verts[3];
 		int target_vert = 0;
+
+		vbo->SetAllocatedSize(vinfo_count);
+
 		for(unsigned int i = 0; i < vinfo_count; i++)
 		{
 			unsigned int x_index = ReadUInt32(file);
@@ -541,6 +547,9 @@ namespace CibraryEngine
 			unsigned int vinfo_count = ReadUInt32(file);
 			int target = 0;
 			SkinVInfo tri[3];
+
+			vbo->SetAllocatedSize(vinfo_count);
+
 			for(unsigned int j = 0; j < vinfo_count; j++)
 			{
 				float x = ReadSingle(file);

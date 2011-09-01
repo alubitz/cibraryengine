@@ -309,7 +309,7 @@ namespace CibraryEngine
 	{
 		lua_settop(L, 0);
 
-		Vec3* ptr = (Vec3*)lua_newuserdata(L, sizeof(Vec3));			// push; top = 1
+		Vec3* ptr = (Vec3*)lua_newuserdata(L, sizeof(Vec3));				// push; top = 1
 		*ptr = vec;
 
 		lua_getglobal(L, "VectorMeta");
