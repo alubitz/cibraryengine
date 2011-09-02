@@ -22,7 +22,7 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	float ground_traction = 8.0f, air_traction = 0.1f;
+	float ground_traction = 20.0f, air_traction = 0.1f;
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
 	float jump_speed = 4.0f;
@@ -34,9 +34,8 @@ namespace Test
 	float jump_to_fly_delay = 0.3f;
 
 	float gravity = 9.8f;
-	float movement_damp = 0.1f;
+	float movement_damp = 0.2f;
 
-	float k_fric_coeff = 0.8f;
 	float air_spin_fix = 100;
 
 	float yaw_rate = 10.0f, pitch_rate = 10.0f;
