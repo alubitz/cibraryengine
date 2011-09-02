@@ -18,4 +18,6 @@
 #include "InputState.h"
 #include "TimingInfo.h"
 
+#include "NetTypes.h"
+
 #include "TableParse.h"
