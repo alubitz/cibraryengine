@@ -2,11 +2,11 @@
 
 #include "StdAfx.h"
 
+#include "ReceivedPacket.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
-
-	struct ReceivedPacket;
 
 	struct Inbox
 	{
@@ -14,7 +14,7 @@ namespace CibraryEngine
 
 			list<ReceivedPacket> collection;
 
-			unsigned char* to_be_assigned;
+			vector<unsigned char> to_be_assigned;
 			unsigned int next_packet;
 
 		public:

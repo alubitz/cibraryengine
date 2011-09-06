@@ -1,14 +1,14 @@
 #pragma once
 
 #include "StdAfx.h"
-#include "Disposable.h"
+
 #include "Connection.h"
 
 namespace CibraryEngine
 {
-	using namespace std;
+	class Server;
 
-	class Client : public Connection
+	class ServerConnection : public Connection
 	{
 		private:
 
@@ -21,13 +21,13 @@ namespace CibraryEngine
 
 		public:
 
-			Client(string server_ip_string, int port_num);
+			ServerConnection(Server* server, unsigned int id);
 
+			Server* GetServer();
 			unsigned int GetClientID();
 
 			void Send(Packet p);
 
-			void Connect();
 			void Disconnect();
 			bool IsConnected();
 	};

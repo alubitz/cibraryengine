@@ -5,7 +5,9 @@
 
 namespace CibraryEngine
 {
-	class Connection;
+	class ServerConnection;
+
+	struct Packet;
 
 	class Server
 	{
@@ -31,8 +33,8 @@ namespace CibraryEngine
 			void BufferedSendAll(Packet p);
 			void SendBufferedPackets();
 
-			bool HasTerminated();
+			bool IsActive();
 
-			Connection* GetConnection(int id);
+			ServerConnection* GetConnection(int id);
 	};
 }

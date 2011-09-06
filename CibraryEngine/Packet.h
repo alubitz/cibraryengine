@@ -15,6 +15,9 @@ namespace CibraryEngine
 	public:
 
 		// member methods
+		Packet();
+		Packet(vector<unsigned char> data);
+
 		unsigned int GetContentLength();
 		vector<unsigned char> GetContentBytes();
 

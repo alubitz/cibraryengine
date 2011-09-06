@@ -22,10 +22,14 @@ namespace CibraryEngine
 			Inbox inbox;
 			Outbox outbox;
 
+			Connection();
+
 			// no Connect method because that isn't applicable for a server
 
-			virtual void BufferedSend(Packet p) = 0;
-			virtual void SendBufferedPackets() = 0;
+			virtual void Send(Packet p) = 0;
+
+			virtual void BufferedSend(Packet p);
+			virtual void SendBufferedPackets();
 
 			virtual void Disconnect() = 0;
 			virtual bool IsConnected() = 0;
