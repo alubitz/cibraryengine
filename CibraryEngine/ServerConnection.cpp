@@ -1,5 +1,9 @@
 #include "StdAfx.h"
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+
 #include "ServerConnection.h"
 #include "Server.h"
 
@@ -13,9 +17,35 @@ namespace CibraryEngine
 		Server* server;
 		unsigned int id;
 
-		Imp(Server* server, unsigned int id) :
+		SOCKET socket;
+
+		bool disconnected;
+
+		Imp(Server* server, SOCKET socket, unsigned int id) :
 			server(server),
-			id(id)
+			id(id),
+			socket(socket),
+			disconnected(false)
+		{
+			// TODO: implement this
+		}
+
+		~Imp() { Disconnect(); }
+
+		void Disconnect()
+		{
+			if (!disconnected)
+            {
+                //if (clientSocket.Connected)
+                //    clientSocket.Close();
+                disconnected = true;
+
+                //server.GotDisconnectedFromClient(this);
+            }
+		}
+		bool IsConnected() { return !disconnected; }
+
+		void Send(Packet p)
 		{
 			// TODO: implement this
 		}
@@ -27,7 +57,7 @@ namespace CibraryEngine
 	/*
 	 * ServerConnection methods
 	 */
-	ServerConnection::ServerConnection(Server* server, unsigned int id) : imp(new Imp(server, id)) { }
+	ServerConnection::ServerConnection(Server* server, UINT_PTR socket, unsigned int id) : Connection(), imp(new Imp(server, socket, id)) { }
 
 	void ServerConnection::InnerDispose()
 	{
@@ -41,17 +71,7 @@ namespace CibraryEngine
 	Server* ServerConnection::GetServer() { return imp->server; }
 	unsigned int ServerConnection::GetClientID() { return imp->id; }
 
-	void ServerConnection::Send(Packet p)
-	{
-		// TODO: implement this
-	}
-	void ServerConnection::Disconnect()
-	{
-		// TODO: implement this
-	}
-	bool ServerConnection::IsConnected()
-	{
-		// TODO: implement this
-		return false;
-	}
+	void ServerConnection::Send(Packet p) { imp->Send(p); }
+	void ServerConnection::Disconnect() { imp->Disconnect(); }
+	bool ServerConnection::IsConnected() { return imp->IsConnected(); }
 }

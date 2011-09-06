@@ -21,7 +21,7 @@ namespace CibraryEngine
 
 		public:
 
-			ServerConnection(Server* server, unsigned int id);
+			ServerConnection(Server* server, UINT_PTR socket, unsigned int id);
 
 			Server* GetServer();
 			unsigned int GetClientID();

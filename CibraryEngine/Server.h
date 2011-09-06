@@ -5,6 +5,8 @@
 
 namespace CibraryEngine
 {
+	using namespace std;
+
 	class ServerConnection;
 
 	struct Packet;
@@ -27,14 +29,12 @@ namespace CibraryEngine
 			void Start();
 			void Disconnect();
 
-			void SendAll(Packet p);
-			bool SendToClient(int id, Packet p);
-
 			void BufferedSendAll(Packet p);
 			void SendBufferedPackets();
 
 			bool IsActive();
 
-			ServerConnection* GetConnection(int id);
+			list<unsigned int> GetClientIDs();
+			ServerConnection* GetConnection(unsigned int id);
 	};
 }
