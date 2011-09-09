@@ -359,20 +359,38 @@ namespace CibraryEngine
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices) { }
 
-	void VertexBuffer::DrawToFeedbackBuffer(VertexBuffer* target, bool keep_fragments)
+	void VertexBuffer::DrawToFeedbackBuffer(VertexBuffer* target, ShaderProgram* shader_program, bool keep_fragments)
 	{
 		GLDEBUG();
 
-		GLuint index = 0;
-		GLuint buffer = 0;
+		if(!keep_fragments)
+			glEnable(GL_RASTERIZER_DISCARD);
 
-		// assumes number of verts output by geometry shader = the number of verts in the target vertex buffer
-		// maybe we should resize the target instead?
-		GLsizeiptr size = target->GetVertexSize() * target->GetNumVerts();
+		ShaderProgram::SetActiveProgram(shader_program);
+
+		GLuint query;
+		glGenQueries(1, &query);
+
+		/*
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, first buffer);
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, second buffer);
+		etc.
+
+		glBindVertexArray(transform vertex array name);
+		*/
+
+		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
+		glBeginTransformFeedback(GL_TRIANGLES);
+			//glDrawArraysInstanced(GL_TRIANGLES, 0, vertex_count, 1);
+		glEndTransformFeedback();
+		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN); 
 		
-		// TODO: finish writing this stupid function
-
 		glDisable(GL_RASTERIZER_DISCARD);
+
+		GLuint primitives_written = 0;
+		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);
+
+		glDeleteQueries(1, &query);
 
 		GLDEBUG();
 	}

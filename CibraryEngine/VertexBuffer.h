@@ -8,6 +8,8 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	class ShaderProgram;
+
 	enum VertexAttributeType
 	{
 		BadVertexAttribute	= 0,
@@ -105,6 +107,6 @@ namespace CibraryEngine
 			void Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices);
 
 			/** Draws this vertex buffer, and sends the output to the specified feedback buffer */
-			void DrawToFeedbackBuffer(VertexBuffer* target, bool keep_fragments);
+			void DrawToFeedbackBuffer(VertexBuffer* target, ShaderProgram* shader_program, bool keep_fragments);
 	};
 }
