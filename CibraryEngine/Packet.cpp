@@ -13,6 +13,8 @@ namespace CibraryEngine
 	Packet::Packet() : data() { }
 	Packet::Packet(vector<unsigned char> data) : data(data) { }
 
+	vector<unsigned char> Packet::GetBytes() { return data; }
+
 	unsigned int Packet::GetContentLength()
 	{
 		string s;

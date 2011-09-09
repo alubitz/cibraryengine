@@ -193,8 +193,8 @@ namespace CibraryEngine
 
 			Init();
 
-			WSADATA wsa_data;
-			WSAStartup(MAKEWORD(2, 2), &wsa_data);
+			//WSADATA wsa_data;
+			//WSAStartup(MAKEWORD(2, 2), &wsa_data);
 
 			current_screen = initial_screen;
 			current_screen->Activate();
@@ -211,7 +211,7 @@ namespace CibraryEngine
 				}
 			}
 
-			WSACleanup();
+			//WSACleanup();
 
 			return 0;
 		}

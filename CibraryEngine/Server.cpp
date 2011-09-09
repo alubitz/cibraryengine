@@ -1,8 +1,6 @@
 #include "StdAfx.h"
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
+#include <boost/asio.hpp>
 
 #include "Server.h"
 #include "ServerConnection.h"
@@ -12,12 +10,15 @@
 namespace CibraryEngine
 {
 	using namespace std;
+	using namespace boost::asio;
 
 	/*
 	 * Server private implementation struct
 	 */
 	struct Server::Imp
 	{
+		Server* server;
+
 		unsigned int next_client_id;
 		int port_num;
 
@@ -26,19 +27,29 @@ namespace CibraryEngine
 		bool started;
 		bool terminated;
 
-		SOCKET socket;
+		ip::tcp::acceptor* socket;
+		ip::tcp::socket* next_socket;
 
-		Imp(int port_num) :
+		Imp(Server* server, int port_num) :
+			server(server),
 			next_client_id(1),
 			port_num(port_num),
 			connections(),
-			socket(INVALID_SOCKET)
+			socket(NULL),
+			next_socket(NULL)
 		{
-			// serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            // localEndPoint = new IPEndPoint(IPAddress.Any, port_num);
 		}
 
-		~Imp() { Disconnect(); }
+		~Imp()
+		{ 
+			Disconnect();
+
+			if(next_socket != NULL)
+			{
+				delete next_socket;
+				next_socket = NULL;
+			}
+		}
 
 		void BufferedSendAll(Packet p)
 		{
@@ -71,36 +82,78 @@ namespace CibraryEngine
 
 		void Start()
 		{
-			// TODO: implement this
+			// TODO: synchronize this
+			if(!started)
+			{
+				ip::tcp::endpoint endpoint(ip::tcp::v4(), port_num);
+			
+				socket = new ip::tcp::acceptor(io_service());
+				socket->open(endpoint.protocol());
+				socket->bind(endpoint);
+				socket->listen();
+
+				// TODO: trigger started listening event here
+
+				next_socket = new ip::tcp::socket(io_service());
+
+				MyAcceptHandler handler(this);
+				socket->async_accept(*next_socket, handler);
+
+				started = true;
+			}
 		}
 
 		void Disconnect()
 		{
 			if (started && !terminated)
             {
-                //lock (this)
-                //{
-                    terminated = true;
-                    if (socket != INVALID_SOCKET)
-                    {
-                        //if (Disconnected != null) { Disconnected(this); }
+                // TODO: syncrhonize this
+                if (socket != NULL)
+                {
+                    // TODO: trigger disconnected event here
 
-                        //serverSocket.Close();
+                    socket->close();
 
-                        //lock (connections)
-                        //{
-							for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
-							{
-								iter->second->Send(Packet::CreateFixedLength("BYE", NULL, 0));
-                                iter->second->Disconnect();
-                            }
-                        //}
+					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
+					{
+						iter->second->Send(Packet::CreateFixedLength("BYE", NULL, 0));
+                        iter->second->Disconnect();
                     }
-                //}
+
+					delete socket;
+					socket = NULL;
+                }
+
+				terminated = true;
             }
 		}
 
 		bool IsActive() { return started && !terminated; }
+
+		struct MyAcceptHandler
+		{
+			Imp* imp;
+
+			MyAcceptHandler(Imp* imp) : imp(imp) { }
+
+			void operator() (const boost::system::error_code& error)
+			{
+				unsigned int id = imp->next_client_id++;
+				imp->connections[id] = new ServerConnection(imp->server, imp->next_socket, id);
+
+				// TODO: trigger connection incoming event
+
+				if(!imp->terminated)
+				{
+					imp->next_socket = new ip::tcp::socket(io_service());
+
+					MyAcceptHandler handler(imp);
+					imp->socket->async_accept(*imp->next_socket, handler);
+				}
+				else
+					imp->next_socket = NULL;
+			}
+		};
 	};
 
 
@@ -109,7 +162,7 @@ namespace CibraryEngine
 	/*
 	 * Server methods
 	 */
-	Server::Server(int port_num) : imp(new Imp(port_num)) { }
+	Server::Server(int port_num) : imp(new Imp(this, port_num)) { }
 
 	void Server::InnerDispose()
 	{

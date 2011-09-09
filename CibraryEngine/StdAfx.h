@@ -24,6 +24,9 @@
 #include <fstream>
 #include <sstream>
 
+#define BOOST_SYSTEM_USE_LIB
+#include <boost/asio.hpp>
+
 #include <vector>
 #include <list>
 #include <map>

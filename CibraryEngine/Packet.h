@@ -18,6 +18,8 @@ namespace CibraryEngine
 		Packet();
 		Packet(vector<unsigned char> data);
 
+		vector<unsigned char> GetBytes();
+
 		unsigned int GetContentLength();
 		vector<unsigned char> GetContentBytes();
 

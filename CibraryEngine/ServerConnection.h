@@ -8,6 +8,8 @@ namespace CibraryEngine
 {
 	class Server;
 
+	using namespace boost::asio;
+
 	class ServerConnection : public Connection
 	{
 		private:
@@ -21,7 +23,7 @@ namespace CibraryEngine
 
 		public:
 
-			ServerConnection(Server* server, UINT_PTR socket, unsigned int id);
+			ServerConnection(Server* server, ip::tcp::socket* socket, unsigned int id);
 
 			Server* GetServer();
 			unsigned int GetClientID();
