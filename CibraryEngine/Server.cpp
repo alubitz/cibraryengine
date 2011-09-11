@@ -1,9 +1,9 @@
 #include "StdAfx.h"
-
-#include <boost/asio.hpp>
+#include "DebugLog.h"
 
 #include "Server.h"
 #include "ServerConnection.h"
+#include "Network.h"
 
 #include "Packet.h"
 
@@ -13,6 +13,82 @@ namespace CibraryEngine
 	using namespace boost::asio;
 
 	/*
+	 * Handlers for passing client (ServerConnection) events to the server event dispatchers
+	 */
+	void RemoveDefaultHandlers(ServerConnection* connection);
+
+	struct ClientDisconnectedHandler : public EventHandler
+	{ 
+		void HandleEvent(Event* evt)
+		{
+			Connection::DisconnectedEvent* cde = (Connection::DisconnectedEvent*)evt; 
+			ServerConnection* connection = (ServerConnection*)cde->connection;
+			Server* server = connection->GetServer();
+			Server::ClientDisconnectedEvent server_evt(server, connection);
+			server->ClientDisconnected(&server_evt);
+		} 
+	} client_disconnected_handler;
+
+	struct BytesReceivedHandler : public EventHandler
+	{
+		void HandleEvent(Event* evt)
+		{
+			Connection::BytesReceivedEvent* bre = (Connection::BytesReceivedEvent*)evt;
+			ServerConnection* connection = (ServerConnection*)bre->connection;
+			Server* server = connection->GetServer();
+			Server::BytesReceivedEvent server_evt(connection, bre->bytes);
+			server->BytesReceived(&server_evt);
+		}
+	} bytes_received_handler;
+
+	struct PacketReceivedHandler : public EventHandler
+	{
+		void HandleEvent(Event* evt)
+		{
+			Connection::PacketReceivedEvent* pre = (Connection::PacketReceivedEvent*)evt;
+			ServerConnection* connection = (ServerConnection*)pre->connection;
+			Server* server = connection->GetServer();
+			Server::PacketReceivedEvent server_evt(connection, pre->packet);
+			server->PacketReceived(&server_evt);
+		}
+	} packet_received_handler;
+
+	struct BytesSentHandler : public EventHandler
+	{
+		void HandleEvent(Event* evt)
+		{
+			Connection::BytesSentEvent* bse = (Connection::BytesSentEvent*)evt;
+			ServerConnection* connection = (ServerConnection*)bse->connection;
+			Server* server = connection->GetServer();
+			Server::BytesSentEvent server_evt(connection, bse->bytes);
+			server->BytesSent(&server_evt);
+		}
+	} bytes_sent_handler;
+
+	struct ConnectionErrorHandler : public EventHandler
+	{
+		void HandleEvent(Event* evt)
+		{
+			Connection::ConnectionErrorEvent* cee = (Connection::ConnectionErrorEvent*)evt;
+			ServerConnection* connection = (ServerConnection*)cee->connection;
+			Server* server = connection->GetServer();
+			server->ConnectionError(cee);
+		}
+	} connection_error_handler;
+
+	void RemoveDefaultHandlers(ServerConnection* connection)
+	{
+		connection->Disconnected -= &client_disconnected_handler;
+		connection->BytesReceived -= &bytes_received_handler;
+		connection->PacketReceived -= &packet_received_handler;
+		connection->BytesSent -= &bytes_sent_handler;
+		connection->ConnectionError -= &connection_error_handler;
+	}
+
+
+
+
+	/*
 	 * Server private implementation struct
 	 */
 	struct Server::Imp
@@ -20,7 +96,7 @@ namespace CibraryEngine
 		Server* server;
 
 		unsigned int next_client_id;
-		int port_num;
+		unsigned short port_num;
 
 		map<unsigned int, ServerConnection*> connections;
 
@@ -30,13 +106,16 @@ namespace CibraryEngine
 		ip::tcp::acceptor* socket;
 		ip::tcp::socket* next_socket;
 
-		Imp(Server* server, int port_num) :
+		Imp(Server* server) :
 			server(server),
 			next_client_id(1),
-			port_num(port_num),
+			port_num(0),
 			connections(),
+			started(false),
+			terminated(false),
 			socket(NULL),
-			next_socket(NULL)
+			next_socket(NULL),
+			my_accept_handler(this)
 		{
 		}
 
@@ -80,25 +159,26 @@ namespace CibraryEngine
 				return NULL;
 		}
 
-		void Start()
+		void AsyncAccept();
+
+		void Start(unsigned short port_num)
 		{
 			// TODO: synchronize this
 			if(!started)
 			{
 				ip::tcp::endpoint endpoint(ip::tcp::v4(), port_num);
 			
-				socket = new ip::tcp::acceptor(io_service());
+				socket = new ip::tcp::acceptor(Network::GetIOService());
 				socket->open(endpoint.protocol());
 				socket->bind(endpoint);
 				socket->listen();
 
-				// TODO: trigger started listening event here
+				Server::BeganListeningEvent evt(server);
+				server->BeganListening(&evt);
 
-				next_socket = new ip::tcp::socket(io_service());
+				AsyncAccept();
 
-				MyAcceptHandler handler(this);
-				socket->async_accept(*next_socket, handler);
-
+				this->port_num = port_num;
 				started = true;
 			}
 		}
@@ -110,15 +190,21 @@ namespace CibraryEngine
                 // TODO: syncrhonize this
                 if (socket != NULL)
                 {
-                    // TODO: trigger disconnected event here
+					Server::DisconnectedEvent evt(server);
+					server->ServerDisconnected(&evt);
 
                     socket->close();
 
 					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
 					{
 						iter->second->Send(Packet::CreateFixedLength("BYE", NULL, 0));
+
+						RemoveDefaultHandlers(iter->second);
                         iter->second->Disconnect();
+
+						delete iter->second;
                     }
+					connections.clear();
 
 					delete socket;
 					socket = NULL;
@@ -126,6 +212,14 @@ namespace CibraryEngine
 
 				terminated = true;
             }
+		}
+
+		void DisconnectClient(unsigned int id)
+		{
+			ServerConnection* connection = GetConnection(id);
+			RemoveDefaultHandlers(connection);
+
+			connection->Disconnect();
 		}
 
 		bool IsActive() { return started && !terminated; }
@@ -138,31 +232,47 @@ namespace CibraryEngine
 
 			void operator() (const boost::system::error_code& error)
 			{
-				unsigned int id = imp->next_client_id++;
-				imp->connections[id] = new ServerConnection(imp->server, imp->next_socket, id);
-
-				// TODO: trigger connection incoming event
-
-				if(!imp->terminated)
+				if(!error)
 				{
-					imp->next_socket = new ip::tcp::socket(io_service());
+					unsigned int id = imp->next_client_id++;
+					
+					ServerConnection* connection = new ServerConnection(imp->server, imp->next_socket, id);
+					imp->connections[id] = connection;
 
-					MyAcceptHandler handler(imp);
-					imp->socket->async_accept(*imp->next_socket, handler);
+					Server::IncomingConnectionEvent evt(imp->server, connection);
+					imp->server->IncomingConnection(&evt);
+					
+					connection->Disconnected += &client_disconnected_handler;
+					connection->BytesReceived += &bytes_received_handler;
+					connection->PacketReceived += &packet_received_handler;
+					connection->BytesSent += &bytes_sent_handler;
+					connection->ConnectionError += &connection_error_handler;
+
+					if(!imp->terminated)
+						imp->AsyncAccept();
+					else
+						imp->next_socket = NULL;
 				}
 				else
-					imp->next_socket = NULL;
+				{
+					ServerErrorEvent evt(imp->server, error);
+					imp->server->ServerError(&evt);
+				}
 			}
-		};
+		} my_accept_handler;
 	};
 
-
+	void Server::Imp::AsyncAccept()
+	{
+		next_socket = new ip::tcp::socket(Network::GetIOService());
+		socket->async_accept(*next_socket, my_accept_handler);
+	}
 
 
 	/*
 	 * Server methods
 	 */
-	Server::Server(int port_num) : imp(new Imp(this, port_num)) { }
+	Server::Server() : imp(new Imp(this)) { }
 
 	void Server::InnerDispose()
 	{
@@ -173,8 +283,9 @@ namespace CibraryEngine
 		}
 	}
 
-	void Server::Start() { imp->Start(); }
+	void Server::Start(unsigned short port_num) { imp->Start(port_num); }
 	void Server::Disconnect() { imp->Disconnect(); }
+	void Server::DisconnectClient(unsigned int id) { imp->DisconnectClient(id); }
 	bool Server::IsActive() { return imp->IsActive(); }
 
 	void Server::BufferedSendAll(Packet p) { imp->BufferedSendAll(p); }

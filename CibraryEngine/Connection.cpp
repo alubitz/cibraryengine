@@ -8,6 +8,11 @@
 
 namespace CibraryEngine
 {
+	using namespace boost::asio;
+
+
+
+
 	/*
 	 * Connection methods
 	 */

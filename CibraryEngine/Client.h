@@ -21,14 +21,22 @@ namespace CibraryEngine
 
 		public:
 
-			Client(string server_ip_string, int port_num);
+			Client();
 
 			unsigned int GetClientID();
 
 			void Send(Packet p);
 
-			void Connect();
+			void Connect(string server_ip_string, unsigned short port_num);
 			void Disconnect();
 			bool IsConnected();
+
+			EventDispatcher Connected;
+
+			struct ConnectedEvent : public Event
+			{
+				Client* client;
+				ConnectedEvent(Client* client) : client(client) { }
+			};
 	};
 }

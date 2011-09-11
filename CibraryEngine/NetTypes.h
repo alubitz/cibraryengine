@@ -6,3 +6,5 @@
 #include "ServerConnection.h"
 // ReceivedPacket.h includes Packet.h
 #include "ReceivedPacket.h"
+
+#include "Network.h"

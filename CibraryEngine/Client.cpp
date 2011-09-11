@@ -1,8 +1,7 @@
 #include "StdAfx.h"
 
-#include <boost/asio.hpp>
-
 #include "Client.h"
+#include "Network.h"
 
 #include "DebugLog.h"
 
@@ -12,13 +11,16 @@ namespace CibraryEngine
 
 
 
+
 	/*
 	 * Client private implementation struct
 	 */
 	struct Client::Imp
 	{
+		Client* client;
+
 		string server_ip_string;
-		int port_num;
+		unsigned short port_num;
 
 		unsigned int id;
 
@@ -30,33 +32,40 @@ namespace CibraryEngine
 
 		ip::tcp::socket* socket;
 
-		Imp(string server_ip_string, int port_num, Inbox* inbox) :
-			server_ip_string(server_ip_string),
-			port_num(port_num),
+		Imp(Client* client, Inbox* inbox) :
+			client(client),
+			server_ip_string(),
+			port_num(0),
 			id(0),
 			started(false),
 			connected(false),
 			terminated(false),
 			inbox(inbox),
-			socket(NULL)
+			socket(NULL),
+			my_connect_handler(this),
+			my_receive_handler(this),
+			my_send_handler(this)
 		{
 		}
 
 		~Imp() { Disconnect(); }
 
-		void Connect()
+		void Connect(string server_ip_string, unsigned short port_num)
 		{
 			// TODO: synchronize this
 			if(!started)
 			{
 				started = true;
 
-				socket = new ip::tcp::socket(io_service());
+				socket = new ip::tcp::socket(Network::GetIOService());
 
 				ip::address address = ip::address_v4::from_string(server_ip_string.c_str());
 				ip::tcp::endpoint endpoint(address, port_num);
 				
-				// TODO: socket->async_connect(endpoint, ???);
+				this->server_ip_string = server_ip_string;
+				this->port_num = port_num;
+
+				socket->async_connect(endpoint, my_connect_handler);
 			}
 		}
 
@@ -68,7 +77,8 @@ namespace CibraryEngine
                 terminated = true;
                 if (socket != NULL)
                 {
-                    // TODO: trigger client disconected event
+					Connection::DisconnectedEvent evt(client);
+					client->Disconnected(&evt);
 
                     socket->close();
 
@@ -86,10 +96,14 @@ namespace CibraryEngine
 			if (connected && !terminated)
             {
 				vector<unsigned char> bytes = p.GetBytes();
+				for(unsigned int i = 0; i < bytes.size(); i++)
+					my_send_handler.bytes[i] = bytes[i];
 
-				socket->async_send(buffer(&bytes[0], bytes.size() * sizeof(unsigned char)), MySendHandler(this));
+				socket->async_send(buffer(&my_send_handler.bytes[0], bytes.size() * sizeof(unsigned char)), my_send_handler);
             }
 		}
+
+		void AsyncReceive();
 
 		struct MyConnectHandler
 		{
@@ -102,54 +116,89 @@ namespace CibraryEngine
 				{
 					imp->connected = true;
 
-					// TODO: trigger client connected event here
+					Client::ConnectedEvent evt(imp->client);
+					imp->client->Connected(&evt);
 
-					MyReceiveHandler handler(imp);
-					imp->socket->async_receive(buffer(handler.buf), handler);
+					imp->AsyncReceive();
+				}
+				else
+				{
+					Connection::ConnectionErrorEvent evt(imp->client, error);
+					imp->client->ConnectionError(&evt);
 				}
 			}
-		};
+		} my_connect_handler;
 
 		struct MyReceiveHandler
 		{
 			Imp* imp;
+			vector<unsigned char> bytes;
 			mutable_buffer buf;
 
-			MyReceiveHandler(Imp* imp) : imp(imp), buf() { }
-
+			MyReceiveHandler(Imp* imp) : imp(imp), bytes(1024), buf(&bytes[0], 1024 * sizeof(unsigned char)) { }
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
 				if(!error)
 				{
 					unsigned char* my_byte_array = buffer_cast<unsigned char*>(buf);
-					
-					// TODO: trigger bytes received event
+
+					vector<unsigned char> packet_bytes(bytes_transferred);
+					for(unsigned int i = 0; i < bytes_transferred; i++)
+						packet_bytes[i] = my_byte_array[i];
+
+					Connection::BytesReceivedEvent evt(imp->client, packet_bytes);
+					imp->client->BytesReceived(&evt);
 
 					list<ReceivedPacket> received = imp->inbox->Receive(my_byte_array, bytes_transferred);
 					for(list<ReceivedPacket>::iterator iter = received.begin(); iter != received.end(); iter++)
 					{
-						// TODO: trigger packet received event
+						Connection::PacketReceivedEvent evt(imp->client, *iter);
+						imp->client->PacketReceived(&evt);
 					}
 					imp->inbox->ClearPackets();
 
 					if(!imp->terminated)
-					{
-						MyReceiveHandler handler(imp);
-						imp->socket->async_receive(buffer(handler.buf), handler);
-					}
+						imp->AsyncReceive();
+				}
+				else
+				{
+					Connection::ConnectionErrorEvent evt(imp->client, error);
+					imp->client->ConnectionError(&evt);
 				}
 			}
-		};
+		} my_receive_handler;
 
 		struct MySendHandler
 		{
 			Imp* imp;
-			MySendHandler(Imp* imp) : imp(imp) { }
+			vector<unsigned char> bytes;
+			MySendHandler(Imp* imp) : imp(imp), bytes(1024) { }
 
-			void operator ()(const boost::system::error_code& error, size_t bytes_transferred) { /* TODO: trigger a packet sent event */ }
-		};
+			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
+			{
+				if(!error)
+				{
+					vector<unsigned char> sent_bytes(bytes_transferred);
+					for(unsigned int i = 0; i < bytes_transferred; i++)
+						sent_bytes[i] = bytes[i];
+
+					Connection::BytesSentEvent evt(imp->client, sent_bytes);
+					imp->client->BytesSent(&evt);
+				}
+				else
+				{
+					Connection::ConnectionErrorEvent evt(imp->client, error);
+					imp->client->ConnectionError(&evt);
+				}
+			}
+		} my_send_handler;
 	};
+
+	void Client::Imp::AsyncReceive()
+	{
+		socket->async_receive(buffer(my_receive_handler.buf), my_receive_handler);
+	}
 
 
 
@@ -157,7 +206,7 @@ namespace CibraryEngine
 	/*
 	 * Client methods
 	 */
-	Client::Client(string server_ip_string, int port_num) : Connection(), imp(new Imp(server_ip_string, port_num, &inbox)) { }
+	Client::Client() : Connection(), imp(new Imp(this, &inbox)) { }
 
 	void Client::InnerDispose()
 	{
@@ -168,7 +217,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void Client::Connect() { imp->Connect(); }
+	void Client::Connect(string server_ip_string, unsigned short port_num) { imp->Connect(server_ip_string, port_num); }
 	void Client::Disconnect() { imp->Disconnect(); }
 	bool Client::IsConnected() { return imp->IsConnected(); }
 

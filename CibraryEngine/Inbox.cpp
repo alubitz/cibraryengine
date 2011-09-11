@@ -27,7 +27,6 @@ namespace CibraryEngine
             while (true)         // not really infinite, see below
             {
 				Packet packet;
-				vector<unsigned char> unused_bytes;
 
                 if (!Packet::MaybeExtractPacket(to_be_assigned, to_be_assigned, packet))
                     break;

@@ -6,6 +6,8 @@
 #include "Inbox.h"
 #include "Outbox.h"
 
+#include "Events.h"
+
 namespace CibraryEngine
 {
 	/**
@@ -33,5 +35,45 @@ namespace CibraryEngine
 
 			virtual void Disconnect() = 0;
 			virtual bool IsConnected() = 0;
+
+			EventDispatcher Disconnected;
+			EventDispatcher BytesReceived;
+			EventDispatcher PacketReceived;
+			EventDispatcher BytesSent;
+			EventDispatcher ConnectionError;
+
+			struct DisconnectedEvent : public Event
+			{
+				Connection* connection;
+				DisconnectedEvent(Connection* connection) : connection(connection) { }
+			};
+
+			struct BytesReceivedEvent : public Event
+			{
+				Connection* connection;
+				vector<unsigned char> bytes;
+				BytesReceivedEvent(Connection* connection, vector<unsigned char> bytes) : connection(connection), bytes(bytes) { }
+			};
+
+			struct PacketReceivedEvent : public Event
+			{
+				Connection* connection;
+				ReceivedPacket packet;
+				PacketReceivedEvent(Connection* connection, ReceivedPacket packet) : connection(connection), packet(packet) { }
+			};
+
+			struct BytesSentEvent : public Event
+			{
+				Connection* connection;
+				vector<unsigned char> bytes;
+				BytesSentEvent(Connection* connection, vector<unsigned char> bytes) : connection(connection), bytes(bytes) { }
+			};
+
+			struct ConnectionErrorEvent : public Event
+			{
+				Connection* connection;
+				boost::system::error_code error;
+				ConnectionErrorEvent(Connection* connection, boost::system::error_code error) : connection(connection), error(error) { }
+			};
 	};
 }
