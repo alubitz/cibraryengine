@@ -95,11 +95,11 @@ namespace CibraryEngine
 			// TODO: synchronize this
 			if (connected && !terminated)
             {
-				vector<unsigned char> bytes = p.GetBytes();
-				for(unsigned int i = 0; i < bytes.size(); i++)
+				string bytes = p.GetBytes();
+				for(unsigned int i = 0; i < bytes.length(); i++)
 					my_send_handler.bytes[i] = bytes[i];
 
-				socket->async_send(buffer(&my_send_handler.bytes[0], bytes.size() * sizeof(unsigned char)), my_send_handler);
+				socket->async_send(buffer(&my_send_handler.bytes[0], bytes.length() * sizeof(unsigned char)), my_send_handler);
             }
 		}
 

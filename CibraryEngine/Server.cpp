@@ -197,7 +197,7 @@ namespace CibraryEngine
 
 					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
 					{
-						iter->second->Send(Packet::CreateFixedLength("BYE", NULL, 0));
+						iter->second->Send(Packet::CreateNamedAutoLength("BYE", string()));
 
 						RemoveDefaultHandlers(iter->second);
                         iter->second->Disconnect();

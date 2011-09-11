@@ -26,9 +26,5 @@ namespace CibraryEngine
 
 	void Connection::BufferedSend(Packet p) { outbox.packets.push_back(p); }
 
-	void Connection::SendBufferedPackets()
-	{
-		vector<unsigned char> bytes = outbox.GetBytesAndClear();
-		Send(Packet::CreateAutoLength(bytes));
-	}
+	void Connection::SendBufferedPackets() { Send(Packet::CreateAutoLength(outbox.GetBytesAndClear())); }
 }

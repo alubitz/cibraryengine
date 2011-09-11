@@ -14,6 +14,6 @@ namespace CibraryEngine
 
 		Outbox();
 
-		vector<unsigned char> GetBytesAndClear();
+		string GetBytesAndClear();
 	};
 }

@@ -10,25 +10,25 @@ namespace CibraryEngine
 	{
 	private:
 
-		vector<unsigned char> data;
+		string data;
 
 	public:
 
 		// member methods
 		Packet();
-		Packet(vector<unsigned char> data);
+		Packet(string data);
 
-		vector<unsigned char> GetBytes();
+		string GetBytes();
 
 		unsigned int GetContentLength();
-		vector<unsigned char> GetContentBytes();
+		string GetContentBytes();
 
-		bool DecodePacket(string& type, vector<unsigned char>& data);
+		bool DecodePacket(string& type, string& data);
 
 		// static methods
-		static Packet CreateAutoLength(vector<unsigned char>& data);
-		static Packet CreateFixedLength(string type, unsigned char* data, unsigned int len);
+		static Packet CreateAutoLength(string data);
+		static Packet CreateNamedAutoLength(string type, string data);
 
-		static bool MaybeExtractPacket(vector<unsigned char>& byte_stream, vector<unsigned char>& unused_bytes, Packet& packet_out);
+		static bool MaybeExtractPacket(string& byte_stream, string& unused_bytes, Packet& packet_out);
 	};
 }

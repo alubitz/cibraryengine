@@ -14,7 +14,7 @@ namespace CibraryEngine
 
 			list<ReceivedPacket> collection;
 
-			vector<unsigned char> to_be_assigned;
+			string to_be_assigned;
 			unsigned int next_packet;
 
 		public:

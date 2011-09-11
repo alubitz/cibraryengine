@@ -11,41 +11,38 @@ namespace CibraryEngine
 	 * Packet methods
 	 */
 	Packet::Packet() : data() { }
-	Packet::Packet(vector<unsigned char> data) : data(data) { }
+	Packet::Packet(string data) : data(data) { }
 
-	vector<unsigned char> Packet::GetBytes() { return data; }
+	string Packet::GetBytes() { return data; }
 
 	unsigned int Packet::GetContentLength()
 	{
-		string s;
-		for(unsigned int i = 0; i < data.size(); i++)
-			s += data[i];
-
-		istringstream ss(s);
-
+		istringstream ss(data);
 		return ReadUInt32(ss);
 	}
 
-	vector<unsigned char> Packet::GetContentBytes()
+	string Packet::GetContentBytes()
 	{
-		vector<unsigned char> result(max(4, data.size()) - 4);
-		for(unsigned int i = 0; i < result.size(); i++)
-			result[i] = data[i + 4];
+		string result;
+		unsigned int len = max(data.length() - 4, 0);
+		for(unsigned int i = 0; i < len; i++)
+			result += data[i + 4];
 
 		return result;
 	}
 
-	bool Packet::DecodePacket(string& type, vector<unsigned char>& out_data)
+	bool Packet::DecodePacket(string& type, string& out_data)
 	{
-		if (data.size() >= 12)
+		if (data.length() >= 12)
         {
-            type = "";
+            type = string();
             for (int i = 0; i < 8; i++)
-                type += (char)data[i + 4];
+                type += data[i + 4];
 
-            out_data = vector<unsigned char>(data.size() - 12);
-			for(unsigned int i = 0; i < out_data.size(); i++)
-				out_data[i] = data[i + 12];
+			unsigned int len = data.size() - 12;
+            out_data = string();
+			for(unsigned int i = 0; i < len; i++)
+				out_data += data[i + 12];
 
             return true;
         }
@@ -53,24 +50,18 @@ namespace CibraryEngine
             return false;
 	}
 
-	Packet Packet::CreateAutoLength(vector<unsigned char>& data)
+	Packet Packet::CreateAutoLength(string data)
 	{
 		stringstream ss;
 
 		WriteUInt32(data.size(), ss);
-		for(unsigned int i = 0; i < data.size(); i++)
+		for(unsigned int i = 0; i < data.length(); i++)
 			WriteByte(data[i], ss);
-		
-		string s = ss.str();
 
-		vector<unsigned char> bytes;
-		for(unsigned int i = 0; i < s.length(); i++)
-			bytes.push_back(s[i]);
-
-        return Packet(bytes);
+        return Packet(ss.str());
 	}
 
-	Packet Packet::CreateFixedLength(string type, unsigned char* data, unsigned int len)
+	Packet Packet::CreateNamedAutoLength(string type, string data)
 	{
 		if(type.length() > 8)
 			type = type.substr(0, 8);
@@ -80,6 +71,8 @@ namespace CibraryEngine
 				type += '_';
 		}
 
+		unsigned int len = data.length();
+
 		stringstream ss;
 		
 		WriteUInt32(len + 8, ss);
@@ -88,49 +81,31 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < len; i++)
 			WriteByte(data[i], ss);
 
-		string s = ss.str();
-
-		vector<unsigned char> bytes(s.length());
-
-		for(unsigned int i = 0; i < s.length(); i++)
-			bytes[i] = s[i];
-
-        return Packet(bytes);
+        return Packet(ss.str());
 	}
 
-	bool Packet::MaybeExtractPacket(vector<unsigned char>& byte_stream, vector<unsigned char>& unused_bytes, Packet& packet_out)
+	bool Packet::MaybeExtractPacket(string& byte_stream, string& unused_bytes, Packet& packet_out)
 	{
-		if (byte_stream.size() < 4)
+		if (byte_stream.length() < 4)
         {
             unused_bytes = byte_stream;
             return false;
         }
 		
-		string s;
-		for(int i = 0; i < 4; i++)
-			s += byte_stream[i];
-		istringstream ss(s);
-
+		istringstream ss(byte_stream);
         unsigned int len = ReadUInt32(ss);
 
-        if (byte_stream.size() < len + 4)
+        if (byte_stream.length() < len + 4)
         {
             unused_bytes = byte_stream;
             return false;
         }
         else
         {
-			vector<unsigned char> packet_bytes(len + 4);
-			for(unsigned int i = 0; i < len + 4; i++)
-				packet_bytes[i] = byte_stream[i];
-
+			string packet_bytes = byte_stream.substr(0, len + 4);
 			packet_out = Packet(packet_bytes);
 
-			// doing this just in case the two reference params are the same
-			vector<unsigned char> extra_bytes(byte_stream.size() - (len + 4));
-			for(unsigned int i = 0; i < byte_stream.size() - (len + 4); i++)
-				extra_bytes[i] = byte_stream[i + len + 4];
-            unused_bytes = extra_bytes;
+			unused_bytes = byte_stream.substr(len + 4);
 
             return true;
         }
