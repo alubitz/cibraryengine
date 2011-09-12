@@ -6,9 +6,6 @@
 
 #include "MainMenu.h"
 
-#define BOOST_THREAD_USE_LIB
-#include <boost/thread.hpp>
-
 namespace Test
 {
 	using namespace CibraryEngine;

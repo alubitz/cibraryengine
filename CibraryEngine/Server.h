@@ -15,7 +15,7 @@ namespace CibraryEngine
 
 	struct Packet;
 
-	class Server
+	class Server : public Disposable
 	{
 		private:
 

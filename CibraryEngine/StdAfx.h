@@ -27,6 +27,9 @@
 #define BOOST_SYSTEM_USE_LIB
 #include <boost/asio.hpp>
 
+#define BOOST_THREAD_USE_LIB
+#include <boost/thread.hpp>
+
 #include <vector>
 #include <list>
 #include <map>

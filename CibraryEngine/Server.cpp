@@ -93,7 +93,20 @@ namespace CibraryEngine
 	 */
 	struct Server::Imp
 	{
+		struct ImpPtr
+		{
+			Imp* imp;
+			bool accept;
+
+			boost::mutex mutex;
+
+			ImpPtr(Imp* imp) : imp(imp), accept(false), mutex() { }
+
+			bool CanDelete() { return imp == NULL && !accept; }
+		};
+
 		Server* server;
+		ImpPtr* self;
 
 		unsigned int next_client_id;
 		unsigned short port_num;
@@ -114,13 +127,24 @@ namespace CibraryEngine
 			started(false),
 			terminated(false),
 			socket(NULL),
-			next_socket(NULL),
-			my_accept_handler(this)
+			next_socket(NULL)
 		{
 		}
 
 		~Imp()
-		{ 
+		{
+			// curly braces to limit scope of lock
+			{
+				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
+				self->imp = NULL;
+				if(self->CanDelete())
+				{
+					delete self;
+					self = NULL;
+				}
+			}
+
 			Disconnect();
 
 			if(next_socket != NULL)
@@ -138,6 +162,8 @@ namespace CibraryEngine
 
 		void SendBufferedPackets()
 		{
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
 			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
 				iter->second->SendBufferedPackets();
 		}
@@ -163,7 +189,8 @@ namespace CibraryEngine
 
 		void Start(unsigned short port_num)
 		{
-			// TODO: synchronize this
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			
 			if(!started)
 			{
 				ip::tcp::endpoint endpoint(ip::tcp::v4(), port_num);
@@ -185,9 +212,10 @@ namespace CibraryEngine
 
 		void Disconnect()
 		{
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
 			if (started && !terminated)
             {
-                // TODO: syncrhonize this
                 if (socket != NULL)
                 {
 					Server::DisconnectedEvent evt(server);
@@ -201,6 +229,7 @@ namespace CibraryEngine
 
 						RemoveDefaultHandlers(iter->second);
                         iter->second->Disconnect();
+						iter->second->Dispose();
 
 						delete iter->second;
                     }
@@ -226,44 +255,56 @@ namespace CibraryEngine
 
 		struct MyAcceptHandler
 		{
-			Imp* imp;
+			ImpPtr* ptr;
 
-			MyAcceptHandler(Imp* imp) : imp(imp) { }
+			MyAcceptHandler() : ptr(NULL) { }
 
 			void operator() (const boost::system::error_code& error)
 			{
-				if(!error)
+				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+
+				ptr->accept = false;
+				Imp* imp = ptr->imp;
+
+				if(imp != NULL)
 				{
-					unsigned int id = imp->next_client_id++;
-					
-					ServerConnection* connection = new ServerConnection(imp->server, imp->next_socket, id);
-					imp->connections[id] = connection;
+					if(!error)
+					{
+						unsigned int id = imp->next_client_id++;
+						
+						ServerConnection* connection = new ServerConnection(imp->server, imp->next_socket, id);
+						imp->connections[id] = connection;
 
-					Server::IncomingConnectionEvent evt(imp->server, connection);
-					imp->server->IncomingConnection(&evt);
-					
-					connection->Disconnected += &client_disconnected_handler;
-					connection->BytesReceived += &bytes_received_handler;
-					connection->PacketReceived += &packet_received_handler;
-					connection->BytesSent += &bytes_sent_handler;
-					connection->ConnectionError += &connection_error_handler;
+						Server::IncomingConnectionEvent evt(imp->server, connection);
+						imp->server->IncomingConnection(&evt);
+						
+						connection->Disconnected += &client_disconnected_handler;
+						connection->BytesReceived += &bytes_received_handler;
+						connection->PacketReceived += &packet_received_handler;
+						connection->BytesSent += &bytes_sent_handler;
+						connection->ConnectionError += &connection_error_handler;
 
-					if(!imp->terminated)
-						imp->AsyncAccept();
+						if(!imp->terminated)
+							imp->AsyncAccept();
+						else
+							imp->next_socket = NULL;
+					}
 					else
-						imp->next_socket = NULL;
+					{
+						ServerErrorEvent evt(imp->server, error);
+						imp->server->ServerError(&evt);
+					}
 				}
-				else
-				{
-					ServerErrorEvent evt(imp->server, error);
-					imp->server->ServerError(&evt);
-				}
+
+				if(ptr->CanDelete())
+					delete ptr;
 			}
 		} my_accept_handler;
 	};
 
 	void Server::Imp::AsyncAccept()
 	{
+		self->accept = true;
 		next_socket = new ip::tcp::socket(Network::GetIOService());
 		socket->async_accept(*next_socket, my_accept_handler);
 	}
@@ -272,7 +313,11 @@ namespace CibraryEngine
 	/*
 	 * Server methods
 	 */
-	Server::Server() : imp(new Imp(this)) { }
+	Server::Server()
+	{
+		imp = new Imp(this);
+		imp->my_accept_handler.ptr = imp->self = new Imp::ImpPtr(imp);
+	}
 
 	void Server::InnerDispose()
 	{

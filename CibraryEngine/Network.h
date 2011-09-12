@@ -10,5 +10,7 @@ namespace CibraryEngine
 
 		static void StartAsyncSystem();
 		static void StopAsyncSystem();
+
+		static void DoTestProgram();
 	};
 }

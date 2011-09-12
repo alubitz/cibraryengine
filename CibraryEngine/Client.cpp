@@ -17,7 +17,22 @@ namespace CibraryEngine
 	 */
 	struct Client::Imp
 	{
+		struct ImpPtr
+		{
+			Imp* imp;
+			bool send;
+			bool receive;
+			bool connect;
+
+			boost::mutex mutex;
+
+			ImpPtr(Imp* imp) : imp(imp), send(false), receive(false), connect(false), mutex() { }
+
+			bool CanDelete() { return imp == NULL && !send && !receive && !connect; }
+		};
+
 		Client* client;
+		ImpPtr* self;
 
 		string server_ip_string;
 		unsigned short port_num;
@@ -41,18 +56,30 @@ namespace CibraryEngine
 			connected(false),
 			terminated(false),
 			inbox(inbox),
-			socket(NULL),
-			my_connect_handler(this),
-			my_receive_handler(this),
-			my_send_handler(this)
+			socket(NULL)
 		{
 		}
 
-		~Imp() { Disconnect(); }
+		~Imp()
+		{
+			{
+				boost::mutex::scoped_lock lock(self->mutex);				// synchronize this block of code...
+
+				self->imp = NULL;
+				if(self->CanDelete())
+				{
+					delete self;
+					self = NULL;
+				}
+			}
+
+			Disconnect();
+		}
 
 		void Connect(string server_ip_string, unsigned short port_num)
 		{
-			// TODO: synchronize this
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
 			if(!started)
 			{
 				started = true;
@@ -65,13 +92,15 @@ namespace CibraryEngine
 				this->server_ip_string = server_ip_string;
 				this->port_num = port_num;
 
+				self->connect = true;
 				socket->async_connect(endpoint, my_connect_handler);
 			}
 		}
 
 		void Disconnect()
 		{
-			// TODO: synchronize this
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
 			if (connected && !terminated)
             {
                 terminated = true;
@@ -92,13 +121,15 @@ namespace CibraryEngine
 
 		void Send(Packet p)
 		{
-			// TODO: synchronize this
+			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+
 			if (connected && !terminated)
             {
 				string bytes = p.GetBytes();
 				for(unsigned int i = 0; i < bytes.length(); i++)
 					my_send_handler.bytes[i] = bytes[i];
 
+				self->send = true;
 				socket->async_send(buffer(&my_send_handler.bytes[0], bytes.length() * sizeof(unsigned char)), my_send_handler);
             }
 		}
@@ -107,96 +138,132 @@ namespace CibraryEngine
 
 		struct MyConnectHandler
 		{
-			Imp* imp;
-			MyConnectHandler(Imp* imp) : imp(imp) { }
+			ImpPtr* ptr;
+
+			MyConnectHandler() : ptr(NULL) { }
 
 			void operator ()(const boost::system::error_code& error) 
 			{
-				if(!error)
-				{
-					imp->connected = true;
+				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
 
-					Client::ConnectedEvent evt(imp->client);
-					imp->client->Connected(&evt);
+				ptr->connect = false;
+				Imp* imp = ptr->imp;
 
-					imp->AsyncReceive();
-				}
-				else
+				if(imp != NULL)
 				{
-					Connection::ConnectionErrorEvent evt(imp->client, error);
-					imp->client->ConnectionError(&evt);
+					if(!error)
+					{
+						imp->connected = true;
+
+						Client::ConnectedEvent evt(imp->client);
+						imp->client->Connected(&evt);
+
+						imp->AsyncReceive();
+					}
+					else
+					{
+						Connection::ConnectionErrorEvent evt(imp->client, error);
+						imp->client->ConnectionError(&evt);
+					}
 				}
+
+				if(ptr->CanDelete())
+					delete ptr;
 			}
 		} my_connect_handler;
 
 		struct MyReceiveHandler
 		{
-			Imp* imp;
+			ImpPtr* ptr;
 			vector<unsigned char> bytes;
 			mutable_buffer buf;
 
-			MyReceiveHandler(Imp* imp) : imp(imp), bytes(1024), buf(&bytes[0], 1024 * sizeof(unsigned char)) { }
+			MyReceiveHandler() : ptr(NULL), bytes(1024), buf(&bytes[0], 1024 * sizeof(unsigned char)) { }
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				if(!error)
+				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+
+				ptr->receive = false;
+				Imp* imp = ptr->imp;
+
+				if(imp != NULL)
 				{
-					unsigned char* my_byte_array = buffer_cast<unsigned char*>(buf);
-
-					vector<unsigned char> packet_bytes(bytes_transferred);
-					for(unsigned int i = 0; i < bytes_transferred; i++)
-						packet_bytes[i] = my_byte_array[i];
-
-					Connection::BytesReceivedEvent evt(imp->client, packet_bytes);
-					imp->client->BytesReceived(&evt);
-
-					list<ReceivedPacket> received = imp->inbox->Receive(my_byte_array, bytes_transferred);
-					for(list<ReceivedPacket>::iterator iter = received.begin(); iter != received.end(); iter++)
+					if(!error)
 					{
-						Connection::PacketReceivedEvent evt(imp->client, *iter);
-						imp->client->PacketReceived(&evt);
-					}
-					imp->inbox->ClearPackets();
+						unsigned char* my_byte_array = buffer_cast<unsigned char*>(buf);
 
-					if(!imp->terminated)
-						imp->AsyncReceive();
+						vector<unsigned char> packet_bytes(bytes_transferred);
+						for(unsigned int i = 0; i < bytes_transferred; i++)
+							packet_bytes[i] = my_byte_array[i];
+
+						Connection::BytesReceivedEvent evt(imp->client, packet_bytes);
+						imp->client->BytesReceived(&evt);
+
+						list<ReceivedPacket> received = imp->inbox->Receive(my_byte_array, bytes_transferred);
+						for(list<ReceivedPacket>::iterator iter = received.begin(); iter != received.end(); iter++)
+						{
+							Connection::PacketReceivedEvent evt(imp->client, *iter);
+							imp->client->PacketReceived(&evt);
+						}
+						imp->inbox->ClearPackets();
+
+						if(!imp->terminated)
+							imp->AsyncReceive();
+					}
+					else
+					{
+						Connection::ConnectionErrorEvent evt(imp->client, error);
+						imp->client->ConnectionError(&evt);
+					}
 				}
-				else
-				{
-					Connection::ConnectionErrorEvent evt(imp->client, error);
-					imp->client->ConnectionError(&evt);
-				}
+
+				if(ptr->CanDelete())
+					delete ptr;
 			}
 		} my_receive_handler;
 
 		struct MySendHandler
 		{
-			Imp* imp;
+			ImpPtr* ptr;
 			vector<unsigned char> bytes;
-			MySendHandler(Imp* imp) : imp(imp), bytes(1024) { }
+
+			MySendHandler() : ptr(NULL), bytes(1024) { }
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				if(!error)
-				{
-					vector<unsigned char> sent_bytes(bytes_transferred);
-					for(unsigned int i = 0; i < bytes_transferred; i++)
-						sent_bytes[i] = bytes[i];
+				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
 
-					Connection::BytesSentEvent evt(imp->client, sent_bytes);
-					imp->client->BytesSent(&evt);
-				}
-				else
+				ptr->send = false;
+				Imp* imp = ptr->imp;
+
+				if(imp != NULL)
 				{
-					Connection::ConnectionErrorEvent evt(imp->client, error);
-					imp->client->ConnectionError(&evt);
+					if(!error)
+					{
+						vector<unsigned char> sent_bytes(bytes_transferred);
+						for(unsigned int i = 0; i < bytes_transferred; i++)
+							sent_bytes[i] = bytes[i];
+
+						Connection::BytesSentEvent evt(imp->client, sent_bytes);
+						imp->client->BytesSent(&evt);
+					}
+					else
+					{
+						Connection::ConnectionErrorEvent evt(imp->client, error);
+						imp->client->ConnectionError(&evt);
+					}
 				}
+
+				if(ptr->CanDelete())
+					delete ptr;
 			}
 		} my_send_handler;
 	};
 
 	void Client::Imp::AsyncReceive()
 	{
+		self->receive = true;
 		socket->async_receive(buffer(my_receive_handler.buf), my_receive_handler);
 	}
 
@@ -206,7 +273,11 @@ namespace CibraryEngine
 	/*
 	 * Client methods
 	 */
-	Client::Client() : Connection(), imp(new Imp(this, &inbox)) { }
+	Client::Client() : Connection()
+	{
+		imp = new Imp(this, &inbox);
+		imp->my_connect_handler.ptr = imp->my_send_handler.ptr = imp->my_receive_handler.ptr = imp->self = new Imp::ImpPtr(imp); 
+	}
 
 	void Client::InnerDispose()
 	{
