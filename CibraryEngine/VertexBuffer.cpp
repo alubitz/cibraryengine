@@ -372,6 +372,8 @@ namespace CibraryEngine
 		glGenQueries(1, &query);
 
 		/*
+		TODO: modify this appropriately
+
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, first buffer);
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, second buffer);
 		etc.
@@ -380,8 +382,8 @@ namespace CibraryEngine
 		*/
 
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
-		glBeginTransformFeedback(GL_TRIANGLES);
-			//glDrawArraysInstanced(GL_TRIANGLES, 0, vertex_count, 1);
+		glBeginTransformFeedback((GLenum)storage_mode);
+			glDrawArrays((GLenum)storage_mode, 0, num_verts);
 		glEndTransformFeedback();
 		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN); 
 		
@@ -391,6 +393,11 @@ namespace CibraryEngine
 		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);
 
 		glDeleteQueries(1, &query);
+
+		/*
+		TODO: put results into target
+		*/
+
 
 		GLDEBUG();
 	}

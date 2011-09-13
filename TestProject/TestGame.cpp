@@ -184,9 +184,7 @@ namespace Test
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
-		//deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));	
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view", false));
-		//deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
 		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
 
@@ -420,7 +418,6 @@ namespace Test
 
 	// forward declare this...
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
-	Texture2D* GetShadowTexture(SceneRenderer& renderer, Sun* sun);
 
 	void TestGame::Draw(int width_, int height_)
 	{
@@ -578,7 +575,7 @@ namespace Test
 			// redraw depth buffer
 			glDepthMask(true);
 			glColorMask(false, false, false, false);
-			glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			renderer.RenderOpaque();
 
 			glDepthMask(false);
@@ -604,40 +601,25 @@ namespace Test
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 			
-			/*
-			Texture2D* shadow_texture = GetShadowTexture(renderer, sun);
-			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			*/
+			glStencilFunc(GL_EQUAL, 0x00, 0x01);
+			
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ONE);
 
-			glViewport(0, 0, width, height);	// viewport got modified, fix it here
-
-			// wheee, back to normal drawing mode again
-			glDepthMask(false);
 			glColorMask(true, true, true, false);
-
-			//Mat4 shadow_matrix = sun->GetShadowMatrix(camera.GetPosition()) * Mat4::Translation(camera.GetPosition());
+			glStencilMask(0x00);
 
 			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
 			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
 			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
-			//deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
-			//deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
 			deferred_lighting->SetUniform<Mat4>("inv_view", &view_matrix);
 			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
-			glDisable(GL_DEPTH_TEST);
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_ONE, GL_ONE);
-
 			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
-			//DrawScreenQuad(deferred_lighting, width, height, shadow_texture->width, shadow_texture->height);
 
-			//shadow_texture->Dispose();
-			//delete shadow_texture;
+			glDisable(GL_STENCIL_TEST);
 
 			GLDEBUG();
 			renderer.RenderTranslucent();
@@ -686,49 +668,6 @@ namespace Test
 
 		glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
-	}
-
-	Texture2D* GetShadowTexture(SceneRenderer& renderer, Sun* sun)
-	{
-		int w = 1024, h = 1024;
-		glViewport(0, 0, w, h);
-
-		RenderTarget shadow_buffer(w, h, 0, 4);
-		RenderTarget::Bind(&shadow_buffer);
-
-		glMatrixMode(GL_MODELVIEW);
-
-		glPushMatrix();
-
-		Mat4 shadow_mat = sun->GetShadowMatrix(renderer.camera->GetPosition());
-		glLoadMatrixf(shadow_mat.Transpose().values);
-
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-
-		glLoadIdentity();
-		glOrtho(-1, 1, -1, 1, 0.1f, 16384);
-
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(true);
-		glColorMask(true, true, true, true);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		renderer.RenderOpaque();
-
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
-
-		RenderTarget::Bind(NULL);
-
-		Texture2D* shadow_texture = new Texture2D(w, h, new unsigned char[w * h * 4], false, true);
-		shadow_buffer.GetColorBufferTex(3, shadow_texture->GetGLName());
-
-		shadow_buffer.Dispose();
-
-		return shadow_texture;
 	}
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
