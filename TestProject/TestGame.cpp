@@ -600,8 +600,21 @@ namespace Test
 			deferred_ambient->SetUniform<float>("zoom", &zoom);
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
-			
-			glStencilFunc(GL_EQUAL, 0x00, 0x01);
+
+			// stencil shadows, ahoy!
+			// only writing to stencil buffer (but taking into account depth buffer)
+			glEnable(GL_DEPTH_TEST);
+			glColorMask(false, false, false, false);
+			glStencilMask(0xFF);
+			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+			glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+
+			renderer.RenderShadowVolumes(Vec4(sun->position, 0.0f));
+
+			glDisable(GL_DEPTH_TEST);
+
+			glEnable(GL_STENCIL_TEST);
+			glStencilFunc(GL_EQUAL, 0x00, 0xFF);
 			
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
