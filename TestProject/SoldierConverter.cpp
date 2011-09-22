@@ -70,6 +70,8 @@ namespace Test
 		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
 		{
 			VertexBuffer* vbo = (VertexBuffer*)iter->vbo;
+			vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
+			vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 			for(unsigned int jter = 0; jter < vbo->GetNumVerts(); jter++)
 			{
 				SkinVInfo vertex_info = GetSkinVInfo(vbo, jter);

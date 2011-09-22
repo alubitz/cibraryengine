@@ -218,7 +218,7 @@ namespace Test
 			UberModel::Bone eye_bone;
 			eye_bone.name = "eye";
 			eye_bone.parent = 5;
-			eye_bone.pos = Vec3(0, 1.88f, -0.1f);
+			eye_bone.pos = Vec3(0, 1.88f, 0.1f);
 			uber_model->bones.push_back(eye_bone);
 
 			UberModel::Bone lgrip_bone;
