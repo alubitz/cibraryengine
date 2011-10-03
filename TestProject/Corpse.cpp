@@ -346,7 +346,7 @@ namespace Test
 	 * Corpse methods
 	 */
 	Corpse::Corpse(GameState* gs, Dood* dood) : Entity(gs), imp(new Imp(this, gs, dood)) { }
-	void Corpse::InnerDispose() { imp->Dispose(); delete imp; imp = NULL; }
+	void Corpse::InnerDispose() { imp->Dispose(); delete imp; imp = NULL; Entity::InnerDispose(); }
 	void Corpse::Spawned() { imp->Spawned(); }
 	void Corpse::DeSpawned() { imp->DeSpawned(); }
 	void Corpse::Update(TimingInfo time) { imp->Update(time); }

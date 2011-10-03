@@ -14,6 +14,7 @@ namespace CibraryEngine
 			disposed = true;
 		}
 	}
+
 	void Disposable::InnerDispose() { }
 
 }

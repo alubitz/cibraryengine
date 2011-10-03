@@ -119,7 +119,6 @@ namespace Test
 		Pawn(gs),
 		character_pose_time(-1),
 		team(team),
-		scripting_handle(new Dood*(this)),
 		materials(),
 		pos(pos),
 		vel(),
@@ -198,9 +197,6 @@ namespace Test
 
 	void Dood::InnerDispose()
 	{
-		if(scripting_handle != NULL)
-			*scripting_handle = NULL;
-
 		delete control_state;
 		control_state = NULL;
 
@@ -831,7 +827,7 @@ namespace Test
 
 	void PushDoodHandle(lua_State* L, Dood* dood)
 	{
-		lua_pushlightuserdata(L, dood->scripting_handle);
+		dood->GetScriptingHandle().PushHandle(L);
 
 		lua_getmetatable(L, -1);
 		if(lua_istable(L, -1))

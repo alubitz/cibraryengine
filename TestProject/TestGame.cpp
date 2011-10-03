@@ -369,7 +369,7 @@ namespace Test
 
 	unsigned int TestGame::GetNumberOfBugs()
 	{
-		BugGetter getter = BugGetter();
+		BugGetter getter;
 		EntityList bugs = GetQualifyingEntities(getter);
 
 		return bugs.Count();

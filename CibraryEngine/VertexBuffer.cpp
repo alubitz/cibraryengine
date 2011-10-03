@@ -368,18 +368,24 @@ namespace CibraryEngine
 
 		ShaderProgram::SetActiveProgram(shader_program);
 
+		GLchar const* strings[] = { "gl_Position" };
+//		glTransformFeedbackVaryings(shader_program->program_id, 1, strings, GL_SEPARATE_ATTRIBS);
+
+		// we must re-link the program to force some things to update (i think?)
+		glLinkProgram(shader_program->program_id);
+
 		GLuint query;
 		glGenQueries(1, &query);
 
-		/*
-		TODO: modify this appropriately
+		GLuint out_buf;
+		glGenBuffers(1, &out_buf);
+		glBindBuffer(GL_ARRAY_BUFFER, out_buf);
+		glBufferData(GL_ARRAY_BUFFER, 4 * num_verts * sizeof(float), NULL, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, first buffer);
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, second buffer);
-		etc.
+		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, out_buf);
 
-		glBindVertexArray(transform vertex array name);
-		*/
+//		glBindVertexArray(transform vertex array name);
 
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
 		glBeginTransformFeedback((GLenum)storage_mode);

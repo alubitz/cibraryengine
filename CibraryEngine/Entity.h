@@ -4,6 +4,7 @@
 #include "TimingInfo.h"
 
 #include "Disposable.h"
+#include "ScriptingHandle.h"
 
 namespace CibraryEngine
 {
@@ -14,6 +15,9 @@ namespace CibraryEngine
 	class Entity : public Disposable
 	{
 		protected:
+
+			ScriptingHandle<Entity> scripting_handle;
+
 			virtual void InnerDispose();
 
 		public:
@@ -23,6 +27,8 @@ namespace CibraryEngine
 
 			/** Whether this entity is valid; if not, it may be removed from the GameState */
 			bool is_valid;
+
+
 
 			/** Initializes an Entity with the specified GameState */
 			Entity(GameState* gs);
@@ -41,5 +47,9 @@ namespace CibraryEngine
 			virtual void Spawned();
 			/** Called when the Entity is removed from the GameState */
 			virtual void DeSpawned();
+
+
+			/** Gets a scripting handle for this, so that if this ever gets deleted, it won't break scripting */
+			ScriptingHandle<Entity> GetScriptingHandle();
 	};
 }

@@ -33,7 +33,6 @@ namespace Test
 		public:
 
 			Team team;
-			Dood** scripting_handle;
 
 			vector<Material*> materials;
 
