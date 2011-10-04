@@ -33,7 +33,7 @@ namespace Test
 
 		InputState* input_state;
 
-		Imp(LoadingScreen* scr, ProgramScreen* previous) :
+		Imp(LoadingScreen* scr, ProgramScreen* previous, NetworkRole role) :
 			window(scr->window),
 			scr(scr),
 			test_screen(new TestScreen(window)),
@@ -47,6 +47,7 @@ namespace Test
 			key_handler(this)
 		{
 			test_screen->test_game = test_game;
+			test_game->network_role = role;
 		}
 
 		~Imp() { }
@@ -147,9 +148,9 @@ namespace Test
 
 
 	/* LoadingScreen methods */
-	LoadingScreen::LoadingScreen(ProgramWindow* window, ProgramScreen* previous) :
+	LoadingScreen::LoadingScreen(ProgramWindow* window, ProgramScreen* previous, NetworkRole role) :
 		ProgramScreen(window),
-		imp(new Imp(this, previous))
+		imp(new Imp(this, previous, role))
 	{
 	}
 

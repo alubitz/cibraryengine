@@ -13,10 +13,16 @@ namespace Test
 	 */
 	struct MainMenu::Imp
 	{
-		struct NewGameButton : public AutoMenuItem
+		struct CreateGameButton : public AutoMenuItem
 		{
-			NewGameButton(ContentMan* content, int row) : AutoMenuItem(content, "New Game...", row, true) { }
-			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu)); }
+			CreateGameButton(ContentMan* content, int row) : AutoMenuItem(content, "Create Game...", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu, NR_Server)); }
+		};
+
+		struct JoinGameButton : public AutoMenuItem
+		{
+			JoinGameButton(ContentMan* content, int row) : AutoMenuItem(content, "Join Game...", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu, NR_Client)); }
 		};
 
 		struct InstructionsButton : public AutoMenuItem
@@ -46,7 +52,8 @@ namespace Test
 			int row = 0;
 			auto_menu_items.push_back(new AutoMenuItem(content, "FPS", row++, false));
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
-			auto_menu_items.push_back(new NewGameButton(content, row++));
+			auto_menu_items.push_back(new CreateGameButton(content, row++));
+			auto_menu_items.push_back(new JoinGameButton(content, row++));
 			//auto_menu_items.push_back(new AutoMenuItem(content, "Options...", row++, true));		// default implementation does nothing when selected
 			auto_menu_items.push_back(new InstructionsButton(content, row++));
 			auto_menu_items.push_back(new CreditsButton(content, row++));

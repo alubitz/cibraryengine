@@ -15,7 +15,7 @@ namespace Test
 
 		public:
 
-			LoadingScreen(ProgramWindow* window, ProgramScreen* previous);
+			LoadingScreen(ProgramWindow* window, ProgramScreen* previous, NetworkRole role);
 			~LoadingScreen();
 
 			void Draw(int width, int height);

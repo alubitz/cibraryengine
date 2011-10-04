@@ -20,6 +20,13 @@ namespace CibraryEngine
 
 	class ScriptingState;
 
+	enum NetworkRole
+	{
+		NR_SinglePlayer	= 0,
+		NR_Server		= 1,
+		NR_Client
+	};
+
 	/** Class storing the state of the game's simulation */
 	class GameState : public Disposable
 	{
@@ -38,6 +45,8 @@ namespace CibraryEngine
 
 			ContentMan* content;
 
+			NetworkRole network_role;
+
 			/** The PhysicsWorld the game is using */
 			PhysicsWorld* physics_world;
 			/** The SoundSystem the game uses */
@@ -49,6 +58,9 @@ namespace CibraryEngine
 			float total_game_time;
 
 			float elapsed_game_time;
+
+
+			
 
 			/** Initializes a GameState */
 			GameState();

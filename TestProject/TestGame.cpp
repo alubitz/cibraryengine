@@ -59,6 +59,7 @@ namespace Test
 
 
 
+
 	Team TestGame::human_team = Team(1);
 	Team TestGame::bug_team = Team(2);
 
@@ -319,7 +320,6 @@ namespace Test
 		hud = new HUD(this, screen->content);
 
 		// if your game start script doesn't init the player, there will be trouble
-
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
 

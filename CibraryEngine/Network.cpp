@@ -8,9 +8,6 @@
 #include "Client.h"
 #include "DebugLog.h"
 
-#define BOOST_THREAD_USE_LIB
-#include <boost/thread.hpp>
-
 namespace CibraryEngine
 {
 	using namespace boost::asio;

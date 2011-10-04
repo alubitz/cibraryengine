@@ -12,7 +12,7 @@
 
 namespace CibraryEngine
 {
-	GameState::GameState() : spawn_directly(true), entities(), spawning(), content(NULL), sound_system(NULL) { physics_world = new PhysicsWorld(); ik_solver = new IKSolver(physics_world); }
+	GameState::GameState() : spawn_directly(true), entities(), spawning(), content(NULL), network_role(NR_SinglePlayer), sound_system(NULL) { physics_world = new PhysicsWorld(); ik_solver = new IKSolver(physics_world); }
 
 	GameState::~GameState() { }
 
