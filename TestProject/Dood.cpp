@@ -827,7 +827,7 @@ namespace Test
 
 	void PushDoodHandle(lua_State* L, Dood* dood)
 	{
-		dood->GetScriptingHandle().PushHandle(L);
+		lua_pushlightuserdata(L, dood->GetScriptingHandle());
 
 		lua_getmetatable(L, -1);
 		if(lua_istable(L, -1))

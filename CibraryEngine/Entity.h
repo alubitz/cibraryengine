@@ -4,19 +4,24 @@
 #include "TimingInfo.h"
 
 #include "Disposable.h"
-#include "ScriptingHandle.h"
 
 namespace CibraryEngine
 {
+	using namespace std;
+
 	class GameState;
 	class SceneRenderer;
 
 	/** Class representing an entity within the simulation */
 	class Entity : public Disposable
 	{
-		protected:
+		private:
 
-			ScriptingHandle<Entity> scripting_handle;
+			unsigned long int id;
+
+			Entity** scripting_handle;
+
+		protected:
 
 			virtual void InnerDispose();
 
@@ -27,7 +32,6 @@ namespace CibraryEngine
 
 			/** Whether this entity is valid; if not, it may be removed from the GameState */
 			bool is_valid;
-
 
 
 			/** Initializes an Entity with the specified GameState */
@@ -49,7 +53,9 @@ namespace CibraryEngine
 			virtual void DeSpawned();
 
 
-			/** Gets a scripting handle for this, so that if this ever gets deleted, it won't break scripting */
-			ScriptingHandle<Entity> GetScriptingHandle();
+
+			unsigned long int GetID();
+
+			virtual Entity** GetScriptingHandle();
 	};
 }
