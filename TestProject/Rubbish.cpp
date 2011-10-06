@@ -73,12 +73,13 @@ namespace Test
 			rigid_body = new RigidBodyInfo(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
 			rigid_body->body->setUserPointer(this);
 
-			rigid_body->body->setDamping(0.05f, 0.85f);
-			rigid_body->body->setDeactivationTime(0.8f);
-			rigid_body->body->setSleepingThresholds(1.6f, 2.5f);
+			//rigid_body->body->setDamping(0.05f, 0.85f);
+			//rigid_body->body->setDeactivationTime(0.8f);
+			//rigid_body->body->setSleepingThresholds(1.6f, 2.5f);
 
-			rigid_body->body->setFriction(1.0f);
-			rigid_body->body->setRestitution(0.01f);
+			//rigid_body->body->setFriction(1.0f);
+			//rigid_body->body->setFriction(0.5f);
+			//rigid_body->body->setRestitution(0.01f);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;
@@ -104,12 +105,32 @@ namespace Test
 			game_state->Spawn(p);
 		}
 
+		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+		Vec3 x_axis = xform.TransformVec3(1, 0, 0, 0);
+		Vec3 y_axis = xform.TransformVec3(0, 1, 0, 0);
+		Vec3 z_axis = xform.TransformVec3(0, 0, 1, 0);
+
+		Vec3 local_poi;
+		local_poi = poi - pos;
+		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
+		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
+
+		rigid_body->body->activate();
+		rigid_body->body->applyImpulse(btVector3(momentum.x, momentum.y, momentum.z), btVector3(local_poi.x, local_poi.y, local_poi.z));
+
 		return true;
 	}
 
 	void Rubbish::Update(TimingInfo time)
 	{
 		xform = rigid_body->GetTransformationMatrix();
+
+		float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
+		Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
+
+		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+
+		xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
 	}
 
 }

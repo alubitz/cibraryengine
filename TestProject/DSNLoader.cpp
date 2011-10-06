@@ -19,6 +19,6 @@ namespace Test
 		if(normal == NULL)
 			normal = default_normal;
 
-		return new DSNMaterial(shader, diffuse, specular, normal);
+		return new DSNMaterial(shader, diffuse, specular, normal, default_blend_style);
 	}
 }

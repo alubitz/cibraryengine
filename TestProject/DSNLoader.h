@@ -21,13 +21,15 @@ namespace Test
 			ShaderProgram* shader;
 			Texture2D* default_normal;
 			Texture2D* default_specular;
+			BlendStyle default_blend_style;
 
-			DSNLoader(ContentMan* content, ShaderProgram* shader, Texture2D* default_normal, Texture2D* default_specular) :
+			DSNLoader(ContentMan* content, ShaderProgram* shader, Texture2D* default_normal, Texture2D* default_specular, BlendStyle default_blend_style) :
 				content(content),
 				tex_cache(content->GetCache<Texture2D>()),
 				shader(shader),
 				default_normal(default_normal),
-				default_specular(default_specular)
+				default_specular(default_specular),
+				default_blend_style(default_blend_style)
 			{ }
 
 			DSNMaterial* Load(string asset_name);

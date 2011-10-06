@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 
 	InitEndianness();
 
-	//Network::DoTestProgram();
+	// Network::DoTestProgram();
 
 	ProgramWindow* win = ProgramWindow::CreateProgramWindow("C++ Game Engine", 0, 0, 0, false);
 	if(win == NULL)

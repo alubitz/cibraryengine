@@ -27,7 +27,9 @@ namespace Test
 		shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 4));
 		shader->AddUniform<int>(new UniformInt("bone_count"));
 
-		dsn_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"));
+		dsn_opaque_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Opaque);
+		dsn_additive_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Additive);
+		dsn_alpha_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Alpha);
 
 
 
@@ -158,10 +160,17 @@ namespace Test
 
 		NamedItemDictionaryTableParser parser(&file);
 
-		DSNMaterialSetter dsn_setter(&file, dsn_loader, result_out);
+		DSNMaterialSetter dsn_opaque_setter(&file, dsn_opaque_loader, result_out);
+		DSNMaterialSetter dsn_additive_setter(&file, dsn_additive_loader, result_out);
+		DSNMaterialSetter dsn_alpha_setter(&file, dsn_alpha_loader, result_out);
 		GlowyMaterialSetter glowy_setter(&file, man, glowy2d_shader, glowy3d_shader, result_out);
 
-		parser.field_setters["dsn"] = &dsn_setter;
+		parser.field_setters["dsn"] = &dsn_opaque_setter;				// duplicates, lol
+		parser.field_setters["dsn_opaque"] = &dsn_opaque_setter;
+
+		parser.field_setters["dsn_additive"] = &dsn_additive_setter;
+		parser.field_setters["dsn_alpha"] = &dsn_alpha_setter;
+
 		parser.field_setters["glowy"] = &glowy_setter;
 
 		parser.ParseTable();

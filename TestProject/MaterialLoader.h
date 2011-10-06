@@ -12,7 +12,10 @@ namespace Test
 	{
 		private:
 
-			DSNLoader* dsn_loader;
+			DSNLoader* dsn_opaque_loader;
+			DSNLoader* dsn_additive_loader;
+			DSNLoader* dsn_alpha_loader;
+
 			ShaderProgram* glowy2d_shader;
 			ShaderProgram* glowy3d_shader;
 

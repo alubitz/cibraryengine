@@ -21,12 +21,13 @@ namespace Test
 	/*
 	 * DSNMaterial methods
 	 */
-	DSNMaterial::DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal) :
+	DSNMaterial::DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style) :
 		Material(2, Opaque, true),
 		shader(shader),
 		diffuse(diffuse),
 		specular(specular),
-		normal(normal)
+		normal(normal),
+		blend_style(blend_style)
 	{
 		// now would be a good time to init the default bone matrices (we have an OpenGL context, nay?)
 		if(default_bone_matrices == NULL)
@@ -58,8 +59,9 @@ namespace Test
 		glEnable(GL_LIGHTING);
 		glEnable(GL_RESCALE_NORMAL);
 
+		
 		glDisable(GL_BLEND);
-
+		
 		GLDEBUG();
 
 		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();

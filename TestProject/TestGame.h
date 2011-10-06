@@ -134,11 +134,14 @@ namespace Test
 			unsigned int GetNumberOfBugs();
 
 			void Update(TimingInfo time);
-			void Draw(int width, int height);
 
+			// Drawing-related functions...
+			void Draw(int width, int height);
 			void DrawBackground(Mat4 view_matrix);
+			// Functions for drawing alternate display modes
 			void DrawPhysicsDebuggingInfo(SceneRenderer* renderer);
 			void DrawNavEditorInfo(SceneRenderer* renderer);
+			// Call this from within an object's Vis function to draw an UberModel
 			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character = NULL,  vector<Material*>* materials = NULL);
 
 			void ShowChapterText(string title, string subtitle, float duration);

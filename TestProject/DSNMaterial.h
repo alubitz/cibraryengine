@@ -41,7 +41,9 @@ namespace Test
 			Texture2D* specular;
 			Texture2D* normal;
 
-			DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal);
+			BlendStyle blend_style;
+
+			DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style);
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
