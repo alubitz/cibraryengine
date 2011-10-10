@@ -419,6 +419,8 @@ namespace Test
 	// forward declare this...
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
 
+	void RenderShadowTexture(Texture2D* texture, CameraView camera);
+
 	void TestGame::Draw(int width_, int height_)
 	{
 		GLDEBUG();
@@ -514,6 +516,7 @@ namespace Test
 
 			RenderTarget::Bind(NULL);
 
+			// See if we need to [re]create our RenderTargets
 			if(rtt_diffuse == NULL || rtt_diffuse->width < width || rtt_diffuse->height < height)
 			{
 				if(rtt_diffuse != NULL)
@@ -540,6 +543,7 @@ namespace Test
 				int needed_w = 4;
 				int needed_h = 4;
 
+				// Increasing powers of two until they are are big enough
 				while(needed_w < width)
 					needed_w <<= 1;
 				while(needed_h < height)
@@ -572,11 +576,13 @@ namespace Test
 			render_target->GetColorBufferTex(2, rtt_specular->GetGLName());
 			render_target->GetColorBufferTex(3, rtt_depth->GetGLName());
 
+			/*
 			// redraw depth buffer
 			glDepthMask(true);
 			glColorMask(false, false, false, false);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			renderer.RenderOpaque();
+			*/
 
 			glDepthMask(false);
 			glColorMask(true, true, true, false);
@@ -601,6 +607,7 @@ namespace Test
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
+			/*
 			// stencil shadows, ahoy!
 			// only writing to stencil buffer (but taking into account depth buffer)
 			glEnable(GL_DEPTH_TEST);
@@ -615,12 +622,18 @@ namespace Test
 
 			glEnable(GL_STENCIL_TEST);
 			glStencilFunc(GL_EQUAL, 0x00, 0xFF);
-			
+			*/
+
+			Texture2D* shadow_texture = new Texture2D(512, 512, NULL, false, true);
+			RenderShadowTexture(shadow_texture, camera);
+					
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
 
 			glColorMask(true, true, true, false);
+			/*
 			glStencilMask(0x00);
+			*/
 
 			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
@@ -632,7 +645,13 @@ namespace Test
 
 			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
+			shadow_texture->Dispose();
+			delete shadow_texture;
+			shadow_texture = NULL;
+
+			/*
 			glDisable(GL_STENCIL_TEST);
+			*/
 
 			GLDEBUG();
 			renderer.RenderTranslucent();
@@ -681,6 +700,18 @@ namespace Test
 
 		glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
+	}
+
+	void RenderShadowTexture(Texture2D* texture, CameraView camera)
+	{
+		RenderTarget* shadow_render_target = new RenderTarget(texture->width, texture->height, 1, 0);
+
+		// TODO: render to shadow texture
+
+		shadow_render_target->GetColorBufferTex(0, texture->GetGLName());
+
+		shadow_render_target->Dispose();
+		delete shadow_render_target;
 	}
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
