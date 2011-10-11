@@ -18,6 +18,7 @@ namespace Test
 		// creating shader
 		Shader* vertex_shader = shader_cache->Load("skel-v");
 		Shader* fragment_shader = shader_cache->Load("normal-f");
+		Shader* shadow_fragment_shader = shader_cache->Load("shadow-f");
 
 		ShaderProgram* shader = new ShaderProgram(vertex_shader, fragment_shader);
 
@@ -27,11 +28,13 @@ namespace Test
 		shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 4));
 		shader->AddUniform<int>(new UniformInt("bone_count"));
 
-		dsn_opaque_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Opaque);
-		dsn_additive_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Additive);
-		dsn_alpha_loader = new DSNLoader(man, shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Alpha);
+		ShaderProgram* shadow_shader = new ShaderProgram(vertex_shader, shadow_fragment_shader);
+		shadow_shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 0));
+		shadow_shader->AddUniform<int>(new UniformInt("bone_count"));
 
-
+		dsn_opaque_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Opaque);
+		dsn_additive_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Additive);
+		dsn_alpha_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Alpha);
 
 		Shader* glowy_v = shader_cache->Load("pass-v");
 		Shader* glowy2d_f = shader_cache->Load("glowy2d-f");

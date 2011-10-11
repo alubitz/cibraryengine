@@ -458,7 +458,7 @@ namespace CibraryEngine
 			0,								// no accumulation buffer
 			0, 0, 0, 0,						// ignore accumulation bits
 			24,								// z-buffer bits
-			8,								// 8-bit stencil buffer
+			0,	//8,						// 8-bit stencil buffer
 			0,								// no auxiliary buffer
 			PFD_MAIN_PLANE,					// main drawing layer ???
 			0,								// reserved

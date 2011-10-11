@@ -112,6 +112,37 @@ namespace CibraryEngine
 		// TODO: implement this
 	}
 
+	void SceneRenderer::RenderDepth(bool colors)
+	{
+		GLDEBUG();
+
+		in_depth_draw = true;
+
+		if(colors)
+			glColorMask(true, true, true, false);
+		else
+			glColorMask(false, false, false, false);
+
+		for(map<Material*, vector<RenderNode> >::iterator iter = opaque_items.begin(); iter != opaque_items.end(); iter++)
+		{
+			Material* mat = iter->first;
+			vector<RenderNode>& node_list = iter->second;
+
+			mat->BeginDraw(this);
+
+			for(vector<RenderNode>::iterator jter = node_list.begin(); jter != node_list.end(); jter++)
+				mat->Draw(*jter);
+
+			mat->EndDraw();
+		}
+
+		in_depth_draw = false;
+
+		GLDEBUG();
+	}
+
+	bool SceneRenderer::DrawingDepth() { return in_depth_draw; }
+
 	void SceneRenderer::Cleanup()
 	{
 		for(vector<RenderNode>::iterator iter = objects.begin(); iter != objects.end(); iter++)

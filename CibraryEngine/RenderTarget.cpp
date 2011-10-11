@@ -69,7 +69,8 @@ namespace CibraryEngine
 
 		// and the depth buffer too
 		glBindRenderbuffer(GL_RENDERBUFFER, my_depth_buffer);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+		//glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
 
 
 		// now that we have set those options, unbind

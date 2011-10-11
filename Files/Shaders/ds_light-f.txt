@@ -3,10 +3,10 @@
 varying	vec3			position;
 
 uniform	sampler2D		diffuse, normal, specular, depth;
-//uniform	sampler2D		shadow_depth;
+uniform	sampler2D		shadow_depth;
 
 uniform	mat4			inv_view;
-//uniform	mat4			shadow_matrix;
+uniform	mat4			shadow_matrix;
 
 const float near_plane = 0.1;
 const float far_plane = 16384.0;
@@ -38,17 +38,17 @@ void main()
 
 	vec3 uLight = normalize(gl_LightSource[0].position.xyz);
 
-	/*
 	vec2 shadow_coord = (vec4(cameraPosToWorld(pos), 1.0) * shadow_matrix).xy * 0.5 + 0.5;
 	float out_of_region = length(shadow_coord - vec2(0.5)) > 0.5 ? 1.0 : 0.0;	//min(1.0, length(shadow_coord - vec2(0.5)) * 2.0);
 
 	vec4 shadow_depth_sample = texture2D(shadow_depth, shadow_coord);
+
+	/*
 	float shadow_z = color_to_distance(shadow_depth_sample.xyz);
-	*/
 
 	float prox = dot(pos, uLight);
 
-	/*
+
 	float shadow_threshold = -3.0 * inv_256;
 	float shadow_br = prox + shadow_z - 256.0 > shadow_threshold ? 1.0 : 0.0;
 	float br = max(out_of_region, shadow_br);
@@ -80,6 +80,7 @@ void main()
 		//gl_FragColor.xyz = base_color * br;
 		gl_FragColor.xyz = base_color;
 		gl_FragColor.w = 1.0;
+
 	/*
 	}
 	else

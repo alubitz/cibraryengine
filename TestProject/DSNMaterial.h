@@ -36,6 +36,7 @@ namespace Test
 		public:
 
 			ShaderProgram* shader;
+			ShaderProgram* shadow_shader;
 
 			Texture2D* diffuse;
 			Texture2D* specular;
@@ -43,7 +44,7 @@ namespace Test
 
 			BlendStyle blend_style;
 
-			DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style);
+			DSNMaterial(ShaderProgram* shader, ShaderProgram* shadow_shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style);
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();

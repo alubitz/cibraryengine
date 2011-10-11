@@ -21,9 +21,10 @@ namespace Test
 	/*
 	 * DSNMaterial methods
 	 */
-	DSNMaterial::DSNMaterial(ShaderProgram* shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style) :
+	DSNMaterial::DSNMaterial(ShaderProgram* shader, ShaderProgram* shadow_shader, Texture2D* diffuse, Texture2D* specular, Texture2D* normal, BlendStyle blend_style) :
 		Material(2, Opaque, true),
 		shader(shader),
+		shadow_shader(shadow_shader),
 		diffuse(diffuse),
 		specular(specular),
 		normal(normal),
@@ -49,68 +50,82 @@ namespace Test
 
 	void DSNMaterial::Draw(RenderNode node) { node_data.push_back((DSNMaterialNodeData*)node.data); }
 
+	void DrawNodeData(DSNMaterialNodeData* data, ShaderProgram* use_shader);
+
 	void DSNMaterial::EndDraw()
 	{
+		bool shadow = scene->DrawingDepth();
+		ShaderProgram* use_shader = shadow ? shadow_shader : shader;
+
 		GLDEBUG();
+
+		GLboolean color_mask[4];
+		glGetBooleanv(GL_COLOR_WRITEMASK, color_mask);
+
+		bool shadow_color = color_mask[0] || color_mask[1] || color_mask[2] || color_mask[3];
+
+		glEnable(GL_LIGHTING);
+		if(shadow_color)
+			glColorMask(true, true, true, true);
+		glDepthMask(true);
+
 		glMatrixMode(GL_MODELVIEW);
 
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_LIGHTING);
 		glEnable(GL_RESCALE_NORMAL);
 
-		
 		glDisable(GL_BLEND);
 		
 		GLDEBUG();
 
 		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();
-		for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
+		if(!shadow)
 		{
-			light_effects[*iter] = vector<DSNMaterialNodeData*>();
-			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); jter++)
-				if ((*iter)->IsWithinLightingRange((*jter)->bs))
-					light_effects[*iter].push_back(*jter);
-		}
+			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
+			{
+				light_effects[*iter] = vector<DSNMaterialNodeData*>();
+				for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); jter++)
+					if ((*iter)->IsWithinLightingRange((*jter)->bs))
+						light_effects[*iter].push_back(*jter);
+			}
 
-		shader->SetUniform<Texture2D>("diffuse", diffuse);
-		shader->SetUniform<Texture2D>("specular", specular);
-		shader->SetUniform<Texture2D>("normal_map", normal);
+			use_shader->SetUniform<Texture2D>("diffuse", diffuse);
+			use_shader->SetUniform<Texture2D>("specular", specular);
+			use_shader->SetUniform<Texture2D>("normal_map", normal);
+		}
 
 		GLDEBUG();
 
-		shader->SetUniform<Texture1D>("bone_matrices", default_bone_matrices);
+		use_shader->SetUniform<Texture1D>("bone_matrices", default_bone_matrices);
+
 		int bone_count = 1;
-		shader->SetUniform<int>("bone_count", &bone_count);
+		use_shader->SetUniform<int>("bone_count", &bone_count);
 
-		ShaderProgram::SetActiveProgram(shader);
+		ShaderProgram::SetActiveProgram(use_shader);
 
-		for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
+		if(shadow)
 		{
-			glPushMatrix();
-			glLoadIdentity();
-
-			(*iter)->SetLight(0);
-
-			glPopMatrix();
-			GLDEBUG();
-
-			for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); jter++)
+			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); jter++)
+				DrawNodeData(*jter, use_shader);
+		}
+		else
+		{
+			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
 			{
-				DSNMaterialNodeData* node_data = *jter;
-				shader->SetUniform<Texture1D>("bone_matrices", node_data->bone_matrices);
+				glPushMatrix();
+				glLoadIdentity();
 
-				bone_count = node_data->bone_count;
-				shader->SetUniform<int>("bone_count", &bone_count);
+				(*iter)->SetLight(0);
 
-				shader->UpdateUniforms();
-
+				glPopMatrix();
 				GLDEBUG();
-				node_data->Draw();
-				GLDEBUG();
+
+				for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); jter++)
+					DrawNodeData(*jter, use_shader);
+
+				(*iter)->UnsetLight(0);
 			}
-
-			(*iter)->UnsetLight(0);
 		}
 
 		ShaderProgram::SetActiveProgram(NULL);
@@ -118,6 +133,22 @@ namespace Test
 		glDepthFunc(GL_LEQUAL);
 		glDisable(GL_RESCALE_NORMAL);
 
+		glColorMask(color_mask[0], color_mask[1], color_mask[2], color_mask[3]);
+
+		GLDEBUG();
+	}
+
+	void DrawNodeData(DSNMaterialNodeData* data, ShaderProgram* use_shader)
+	{
+		use_shader->SetUniform<Texture1D>("bone_matrices", data->bone_matrices);
+
+		int bone_count = data->bone_count;
+		use_shader->SetUniform<int>("bone_count", &bone_count);
+
+		use_shader->UpdateUniforms();
+
+		GLDEBUG();
+		data->Draw();
 		GLDEBUG();
 	}
 
