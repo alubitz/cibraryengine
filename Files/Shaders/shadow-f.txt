@@ -2,11 +2,6 @@
 
 varying	vec3			position;
 
-const float near_plane = 0.1;
-const float far_plane = 16384.0;
-const float inv_near_plane = 1.0 / near_plane;
-const float log_plane_ratio = log(far_plane * inv_near_plane) - 1.0;
-const float inv_log_plane_ratio = 1.0 / log_plane_ratio;
 const float inv_255 = 1.0 / 255.0;
 const float inv_256 = 1.0 / 256.0;
 

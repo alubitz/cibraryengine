@@ -593,7 +593,10 @@ namespace Test
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
 			Mat4 shadow_matrix;
-			Texture2D* shadow_texture = new Texture2D(512, 512, NULL, false, true);
+			Texture2D* shadow_texture = new Texture2D(1024, 1024, NULL, false, true);
+			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 			RenderShadowTexture(shadow_texture, shadow_matrix, sun, renderer);
 					
@@ -690,7 +693,6 @@ namespace Test
 	{
 		shadow_matrix = sun->GetShadowMatrix(renderer.camera->GetPosition());
 
-		/*
 		RenderTarget* shadow_render_target = new RenderTarget(texture->width, texture->height, 1, 1);
 		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();
 
@@ -699,7 +701,7 @@ namespace Test
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
 		glLoadIdentity();
-		glOrtho(-50, 50, -50, 50, 0, 1000);
+		glOrtho(-1, 1, -1, 1, 0, 1000);
 
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
@@ -722,7 +724,6 @@ namespace Test
 		glPopMatrix();
 
 		RenderTarget::Bind(previous_render_target);
-		*/
 	}
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)

@@ -107,11 +107,6 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void SceneRenderer::RenderShadowVolumes(Vec4 origin)
-	{
-		// TODO: implement this
-	}
-
 	void SceneRenderer::RenderDepth(bool colors)
 	{
 		GLDEBUG();
