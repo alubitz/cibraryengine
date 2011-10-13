@@ -250,6 +250,108 @@ namespace CibraryEngine
 		return Mat4(values);
 	}
 
+	void row_swap(float*& r1, float*& r2)
+	{
+		float* temp = r1;
+		r1 = r2;
+		r2 = temp;
+	}
+	void row_mult(float* row, float coeff)
+	{
+		for(int i = 0; i < 8; i++)
+			row[i] *= coeff;
+	}
+	void row_combine(float* from, float* to, float coeff)
+	{
+		for(int i = 0; i < 8; i++)
+			to[i] += from[i] * coeff;
+	}
+
+	Mat4 Mat4::Invert(Mat4 a)
+	{
+		float ra[] = {	a[0],	a[1],	a[2],	a[3],	1, 0, 0, 0 };
+		float rb[] = {	a[4],	a[5],	a[6],	a[7],	0, 1, 0, 0 };
+		float rc[] = {	a[8],	a[9],	a[10],	a[11],	0, 0, 1, 0 };
+		float rd[] = {	a[12],	a[13],	a[14],	a[15],	0, 0, 0, 1 };
+
+		float *r[] = { ra, rb, rc, rd };
+
+		// working on first column...
+		if(r[0][0] == 0)
+		{
+			if(r[3][0] != 0)
+				row_swap(r[0], r[3]);
+			else if(r[2][0] != 0)
+				row_swap(r[0], r[2]);
+			else if(r[1][0] != 0)
+				row_swap(r[0], r[1]);
+			else
+				return Mat4();				// SINGULAR MATRIX!
+		}
+		row_mult(r[0], 1.0f / r[0][0]);
+		if(r[1][0] != 0)
+			row_combine(r[0], r[1], -r[1][0]);
+		if(r[2][0] != 0)
+			row_combine(r[0], r[2], -r[2][0]);
+		if(r[3][0] != 0)
+			row_combine(r[0], r[3], -r[3][0]);
+
+		// working on second column
+		if(r[1][1] == 0)
+		{
+			if(r[2][1] != 0)
+				row_combine(r[2], r[1], 1.0f);
+			else if(r[3][1] != 0)
+				row_combine(r[3], r[1], 1.0f);
+			else
+				return Mat4();				// SINGULAR MATRIX!
+		}
+		row_mult(r[1], 1.0f / r[1][1]);
+		if(r[0][1] != 0)
+			row_combine(r[1], r[0], -r[0][1]);
+		if(r[2][1] != 0)
+			row_combine(r[1], r[2], -r[2][1]);
+		if(r[3][1] != 0)
+			row_combine(r[1], r[3], -r[3][1]);
+
+		// working on third column
+		if(r[2][2] == 0)
+		{
+			if(r[3][2] != 0)
+				row_combine(r[3], r[2], 1.0f);
+			else
+				return Mat4();				// SINGULAR MATRIX!
+		}
+		row_mult(r[2], 1.0f / r[2][2]);
+		if(r[0][2] != 0)
+			row_combine(r[2], r[0], -r[0][2]);
+		if(r[1][2] != 0)
+			row_combine(r[2], r[1], -r[1][2]);
+		if(r[3][2] != 0)
+			row_combine(r[2], r[3], -r[3][2]);
+
+		// working on fourth column
+		if(r[3][3] == 0)
+			return Mat4();					// SINGULAR MATRIX!
+		row_mult(r[3], 1.0f / r[3][3]);
+		if(r[0][3] != 0)
+			row_combine(r[3], r[0], -r[0][3]);
+		if(r[1][3] != 0)
+			row_combine(r[3], r[1], -r[1][3]);
+		if(r[2][3] != 0)
+			row_combine(r[3], r[2], -r[2][3]);
+
+		// consolidating results
+		float result[] =
+		{
+			r[0][4],	r[0][5],	r[0][6],	r[0][7],
+			r[1][4],	r[1][5],	r[1][6],	r[1][7],
+			r[2][4],	r[2][5],	r[2][6],	r[2][7],
+			r[3][4],	r[3][5],	r[3][6],	r[3][7]
+		};
+		return Mat4(result);
+	}
+
 
 
 
