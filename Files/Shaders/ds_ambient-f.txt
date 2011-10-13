@@ -4,11 +4,8 @@ varying	vec3			position;
 
 uniform	sampler2D		diffuse, normal, specular, depth;
 uniform	samplerCube		ambient_cubemap, env_cubemap;
-uniform	mat4			inv_view;
+uniform	mat4			view_matrix;
 
-const float near_plane = 0.1;
-const float far_plane = 16384.0;
-const float log_plane_ratio = log(far_plane / near_plane) - 1.0;
 const float inv_256 = 1.0 / 256.0;
 const float inv_255 = 1.0 / 255.0;
 
@@ -19,8 +16,8 @@ float color_to_distance(vec3 color)
 	return frac;
 }
 
-vec3 cameraVecToWorld(vec3 v) { return (inv_view * vec4(v, 0.0)).xyz; }
-vec3 cameraPosToWorld(vec3 v) { return (inv_view * vec4(v, 1.0)).xyz; }
+vec3 cameraVecToWorld(vec3 v) { return (view_matrix * vec4(v, 0.0)).xyz; }
+vec3 cameraPosToWorld(vec3 v) { return (view_matrix * vec4(v, 1.0)).xyz; }
 
 void main()
 {
@@ -50,6 +47,5 @@ void main()
 	vec3 base_color = diffuse_color * (ambient_color.xyz) + emission_color;
 
 	gl_FragColor.xyz = base_color;
-	//gl_FragColor.xyz = vec3((depth_sample.z * 256 * 256 + depth_sample.y * 256 + depth_sample.x) * inv_256 * inv_256);
 	gl_FragColor.w = 1.0;
 }

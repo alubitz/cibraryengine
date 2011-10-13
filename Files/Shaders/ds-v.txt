@@ -1,7 +1,9 @@
-varying	vec3			position;
+uniform	mat4			view_matrix;
 
-uniform float aspect_ratio;
-uniform float zoom;
+uniform	float			aspect_ratio;
+uniform	float			zoom;
+
+varying	vec3			position;
 
 void main()
 {
