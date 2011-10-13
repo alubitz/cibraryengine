@@ -33,7 +33,27 @@ namespace Test
 				corpse->game_state->Spawn(p);
 			}
 
-			rbi->body->applyForce(btVector3(momentum.x, momentum.y, momentum.z), btVector3(poi.x, poi.y, poi.z));
+			Mat4 xform;
+			{
+				xform = rbi->GetTransformationMatrix();
+				float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
+				Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
+				Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+				xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
+			}
+
+			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+			Vec3 x_axis = xform.TransformVec3(1, 0, 0, 0);
+			Vec3 y_axis = xform.TransformVec3(0, 1, 0, 0);
+			Vec3 z_axis = xform.TransformVec3(0, 0, 1, 0);
+
+			Vec3 local_poi;
+			local_poi = poi - pos;
+			local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
+			local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
+
+			rbi->body->activate();
+			rbi->body->applyImpulse(btVector3(momentum.x, momentum.y, momentum.z), btVector3(local_poi.x, local_poi.y, local_poi.z));
 			return true;
 		}
 	};
