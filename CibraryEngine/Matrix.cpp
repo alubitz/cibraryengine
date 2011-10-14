@@ -277,17 +277,10 @@ namespace CibraryEngine
 		float *r[] = { ra, rb, rc, rd };
 
 		// working on first column...
-		if(r[0][0] == 0)
-		{
-			if(r[3][0] != 0)
-				row_swap(r[0], r[3]);
-			else if(r[2][0] != 0)
-				row_swap(r[0], r[2]);
-			else if(r[1][0] != 0)
-				row_swap(r[0], r[1]);
-			else
-				return Mat4();				// SINGULAR MATRIX!
-		}
+		for(int i = 0; i < 3; i++)
+			for(int j = 0; j < 3 - i; j++)
+				if(fabs(r[j][0]) < fabs(r[j + 1][0]))
+					row_swap(r[j], r[j + 1]);
 		row_mult(r[0], 1.0f / r[0][0]);
 		if(r[1][0] != 0)
 			row_combine(r[0], r[1], -r[1][0]);
@@ -297,15 +290,10 @@ namespace CibraryEngine
 			row_combine(r[0], r[3], -r[3][0]);
 
 		// working on second column
-		if(r[1][1] == 0)
-		{
-			if(r[2][1] != 0)
-				row_combine(r[2], r[1], 1.0f);
-			else if(r[3][1] != 0)
-				row_combine(r[3], r[1], 1.0f);
-			else
-				return Mat4();				// SINGULAR MATRIX!
-		}
+		for(int i = 0; i < 2; i++)
+			for(int j = 1; j < 3 - i; j++)
+				if(fabs(r[j][1]) < fabs(r[j + 1][1]))
+					row_swap(r[j], r[j + 1]);
 		row_mult(r[1], 1.0f / r[1][1]);
 		if(r[0][1] != 0)
 			row_combine(r[1], r[0], -r[0][1]);
@@ -315,13 +303,8 @@ namespace CibraryEngine
 			row_combine(r[1], r[3], -r[3][1]);
 
 		// working on third column
-		if(r[2][2] == 0)
-		{
-			if(r[3][2] != 0)
-				row_combine(r[3], r[2], 1.0f);
-			else
-				return Mat4();				// SINGULAR MATRIX!
-		}
+		if(fabs(r[2][1]) < fabs(r[3][1]))
+			row_swap(r[2], r[3]);
 		row_mult(r[2], 1.0f / r[2][2]);
 		if(r[0][2] != 0)
 			row_combine(r[2], r[0], -r[0][2]);

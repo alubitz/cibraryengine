@@ -163,7 +163,7 @@ namespace Test
 		Shader* sky_fragment_shader = shader_cache->Load("sky-f");
 		sky_shader = new ShaderProgram(sky_vertex_shader, sky_fragment_shader);
 		sky_shader->AddUniform<TextureCube>(new UniformTextureCube("sky_texture", 0));
-		sky_shader->AddUniform<Mat4>(new UniformMatrix4("inv_view", true));
+		sky_shader->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
 		sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
 		sky_sphere = vtn_cache->Load("sky_sphere");
 
@@ -187,7 +187,8 @@ namespace Test
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
-		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
+		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_shadow_matrix", false));
+		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view_matrix", false));
 		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
 
@@ -198,7 +199,7 @@ namespace Test
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
 		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
 		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("env_cubemap", 5));
-		deferred_ambient->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
+		deferred_ambient->AddUniform<Mat4>(new UniformMatrix4("inv_view_matrix", false));
 		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
 
@@ -578,7 +579,7 @@ namespace Test
 			glDisable(GL_CULL_FACE);
 			glDisable(GL_BLEND);
 
-			Mat4 view_matrix = renderer.camera->GetViewMatrix();
+			Mat4 inv_view_matrix = Mat4::Invert(renderer.camera->GetViewMatrix());
 
 			deferred_ambient->SetUniform<Texture2D>("diffuse", rtt_diffuse);
 			deferred_ambient->SetUniform<Texture2D>("normal", rtt_normal);
@@ -586,7 +587,7 @@ namespace Test
 			deferred_ambient->SetUniform<Texture2D>("depth", rtt_depth);
 			deferred_ambient->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
 			deferred_ambient->SetUniform<TextureCube>("env_cubemap", sky_texture);
-			deferred_ambient->SetUniform<Mat4>("view_matrix", &view_matrix);
+			deferred_ambient->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
 			deferred_ambient->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_ambient->SetUniform<float>("zoom", &zoom);
 
@@ -599,7 +600,8 @@ namespace Test
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 			RenderShadowTexture(shadow_texture, shadow_matrix, sun, renderer);
-					
+			Mat4 inv_shadow_matrix = Mat4::Invert(shadow_matrix);
+
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
 
@@ -611,8 +613,9 @@ namespace Test
 			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
 			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
 			deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
-			deferred_lighting->SetUniform<Mat4>("view_matrix", &view_matrix);
+			deferred_lighting->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
 			deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
+			deferred_lighting->SetUniform<Mat4>("inv_shadow_matrix", &inv_shadow_matrix);
 			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
@@ -624,6 +627,7 @@ namespace Test
 
 			// re-draw the depth buffer (previous draw was on a different RenderTarget)
 			glClear(GL_DEPTH_BUFFER_BIT);
+
 			renderer.RenderDepth(false);
 
 			GLDEBUG();
@@ -709,7 +713,12 @@ namespace Test
 		glMultMatrixf(shadow_matrix.Transpose().values);
 
 		glViewport(0, 0, texture->width, texture->height);
-		ClearDepthAndColor();
+		
+		// not using "ClearDepthAndColor" because clear color must represent "far"
+		glColorMask(true, true, true, true);
+		glDepthMask(true);
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		renderer.RenderDepth(true);
 
 		shadow_render_target->GetColorBufferTex(0, texture->GetGLName());
@@ -799,7 +808,7 @@ namespace Test
 		GLDEBUG();
 
 		sky_shader->SetUniform<TextureCube>("sky_texture", sky_texture);
-		sky_shader->SetUniform<Mat4>("inv_view", &view_matrix);
+		sky_shader->SetUniform<Mat4>("view_matrix", &view_matrix);
 		ShaderProgram::SetActiveProgram(sky_shader);
 
 		GLDEBUG();

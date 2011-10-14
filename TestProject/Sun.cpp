@@ -71,8 +71,8 @@ namespace Test
 
 	Mat4 Sun::GetShadowMatrix(Vec3 camera_position)
 	{
-		float shadow_radius = 50.0f;
-		float light_distance = 256.0f;			// fragment shader assumes 256.0
+		float shadow_radius = 20.0f;
+		float light_distance = 256.0f;
 
 		Mat4 light_translation = Mat4::Translation(0, 0, -light_distance);
 		Mat4 scale = Mat4::Scale(1.0f / shadow_radius, 1.0f / shadow_radius, 1.0f);
