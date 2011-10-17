@@ -695,7 +695,7 @@ namespace Test
 
 	void RenderShadowTexture(Texture2D* texture, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer)
 	{
-		shadow_matrix = sun->GetShadowMatrix(renderer.camera->GetPosition());
+		shadow_matrix = sun->GenerateShadowMatrix(*renderer.camera);
 
 		RenderTarget* shadow_render_target = new RenderTarget(texture->width, texture->height, 1, 1);
 		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();

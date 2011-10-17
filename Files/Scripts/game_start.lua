@@ -23,6 +23,8 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
+disable_enemies = false
+
 god_toggle = false
 nav_edit_toggle = false
 debug_draw_toggle = false

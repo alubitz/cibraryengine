@@ -27,11 +27,13 @@ function spawn_one(gs, player_pos)
 end
 
 function begin_level(gs, player_pos, level)
-	local bugs_this_level = 1 + 2 * level + math.floor(math.random() * 3.0)
-	for i = 1, bugs_this_level do
-		spawn_one(gs, player_pos)
+	if not disable_enemies then
+		local bugs_this_level = 1 + 2 * level + math.floor(math.random() * 3.0)
+		for i = 1, bugs_this_level do
+			spawn_one(gs, player_pos)
+		end
+		levelStartMessage()
 	end
-	levelStartMessage()
 end
 
 -- don't try to update player position if the player is dead

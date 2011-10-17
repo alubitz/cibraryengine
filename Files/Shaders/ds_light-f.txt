@@ -52,6 +52,7 @@ void main()
 	float shadow_br = distance_past_shadow < shadow_threshold ? 1.0 : 0.0;
 
 	float br = max(out_of_region, shadow_br);
+	//br = 1.0f;
 
 	if(br > 0.0)
 	{
@@ -81,4 +82,6 @@ void main()
 	}
 	else
 		discard;
+
+	//gl_FragColor.xyz = shadow_depth_sample.xyz;
 }

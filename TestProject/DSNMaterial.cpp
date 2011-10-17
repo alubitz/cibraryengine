@@ -72,6 +72,7 @@ namespace Test
 		glMatrixMode(GL_MODELVIEW);
 
 		glEnable(GL_CULL_FACE);
+		glCullFace(shadow ? GL_FRONT : GL_BACK);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_RESCALE_NORMAL);
 
@@ -132,6 +133,7 @@ namespace Test
 
 		glDepthFunc(GL_LEQUAL);
 		glDisable(GL_RESCALE_NORMAL);
+		glCullFace(GL_BACK);
 
 		glColorMask(color_mask[0], color_mask[1], color_mask[2], color_mask[3]);
 

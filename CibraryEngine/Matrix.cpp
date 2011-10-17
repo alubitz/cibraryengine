@@ -303,7 +303,7 @@ namespace CibraryEngine
 			row_combine(r[1], r[3], -r[3][1]);
 
 		// working on third column
-		if(fabs(r[2][1]) < fabs(r[3][1]))
+		if(fabs(r[2][2]) < fabs(r[3][2]))
 			row_swap(r[2], r[3]);
 		row_mult(r[2], 1.0f / r[2][2]);
 		if(r[0][2] != 0)
@@ -332,6 +332,7 @@ namespace CibraryEngine
 			r[2][4],	r[2][5],	r[2][6],	r[2][7],
 			r[3][4],	r[3][5],	r[3][6],	r[3][7]
 		};
+
 		return Mat4(result);
 	}
 
