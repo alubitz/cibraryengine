@@ -69,21 +69,6 @@ namespace Test
 		}
 	}
 
-	/*
-	Mat4 Sun::GetShadowMatrix(Vec3 camera_position)
-	{
-		float shadow_radius = 2.5f;
-		float light_distance = 256.0f;
-
-		Mat4 light_translation = Mat4::Translation(0, 0, -light_distance);
-		Mat4 scale = Mat4::Scale(1.0f / shadow_radius, 1.0f / shadow_radius, 1.0f);
-		Mat4 rotate = Mat4::FromMat3(rm);
-		Mat4 eye_translation = Mat4::Translation(-camera_position);
-
-		return light_translation * scale * rotate * eye_translation;
-	}
-	*/
-
 	/** Generates the view matrix for shadow-mapping purposes */
 	Mat4 Sun::GenerateShadowMatrix(CameraView& camera)
 	{
@@ -96,15 +81,6 @@ namespace Test
 		// we'll be doing a bunch of transforms on these same verts
 		Vec3 verts[] =
 		{
-			Vec3(	-1.0f,	-1.0f,	0.0f),				// 8 corners
-			Vec3(	-1.0f,	1.0f,	0.0f),
-			Vec3(	1.0f,	-1.0f,	0.0f),
-			Vec3(	1.0f,	1.0f,	0.0f),
-			Vec3(	-1.0f,	-1.0f,	1.0f),
-			Vec3(	-1.0f,	1.0f,	1.0f),
-			Vec3(	1.0f,	-1.0f,	1.0f),
-			Vec3(	1.0f,	1.0f,	1.0f),
-
 			Vec3(	0.0f,	0.0f,	0.0f),				// centers of near and far planes
 			Vec3(	0.0f,	0.0f,	1.0f)
 		};
@@ -115,17 +91,12 @@ namespace Test
 		for(int i = 0; i < n; i++)
 		{
 			verts[i] = inv_camera_matrix.TransformVec3(verts[i], 1.0f);
-			//verts[i] -= light_dir * Vec3::Dot(verts[i], light_dir);
+			verts[i] -= light_dir * Vec3::Dot(verts[i], light_dir);
 		}
+		Vec3 forward = verts[1] - verts[0];
 
-		float near_radius = sqrtf(max((verts[0] - verts[3]).ComputeMagnitudeSquared(), (verts[1] - verts[2]).ComputeMagnitudeSquared()) * 0.5f);
-		float far_radius = sqrtf(max((verts[4] - verts[7]).ComputeMagnitudeSquared(), (verts[5] - verts[6]).ComputeMagnitudeSquared()) * 0.5f);
-
-		Vec3 forward = verts[9] - verts[8];
-		float frustum_length = forward.ComputeMagnitude();
-
-		Vec3 forward_f = Vec3::Normalize(forward - light_dir * Vec3::Dot(light_dir, forward));			// flatten that onto plane perpendicular to light direction
-		Vec3 right_f = Vec3::Normalize(Vec3::Cross(light_dir, forward_f));								// the other vector in that plane
+		Vec3 forward_f = Vec3::Normalize(forward);								// flatten that onto plane perpendicular to light direction
+		Vec3 right_f = Vec3::Normalize(Vec3::Cross(light_dir, forward_f));		// the other vector in that plane
 
 		float rm_values[] =
 		{
@@ -133,13 +104,15 @@ namespace Test
 			forward_f.x,	forward_f.y,	forward_f.z,
 			light_dir.x,	light_dir.y,	light_dir.z
 		};
+		Mat4 rotation(Mat4::FromMat3(Mat3(rm_values)));
 
-		float shadow_w = 20.0f;
-		float shadow_l = 20.0f;
+		float shadow_w = 5.0f;
+		float shadow_l = 5.0f;
+		Vec3 light_translation_vec(camera.GetPosition());
+
 		Mat4 scale_mat(Mat4::Scale(1.0f / shadow_w, 1.0f / shadow_l, 1.0f));
+		Mat4 light_translation(Mat4::Translation(-light_translation_vec));
 
-		Vec3 light_translation = verts[8] + forward * ((shadow_l - 2.5f) / frustum_length);
-
-		return Mat4::Translation(0, 0, -256.0f) * scale_mat * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-light_translation);
+		return Mat4::Translation(0, 0, -256.0f) * scale_mat * rotation * light_translation;		
 	}
 }

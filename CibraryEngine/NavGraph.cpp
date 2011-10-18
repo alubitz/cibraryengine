@@ -202,36 +202,7 @@ namespace CibraryEngine
 				vector<unsigned int> results;
 				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
 				{
-					// define a callback for when a ray intersects an object
-					struct : btCollisionWorld::RayResultCallback
-					{
-						float result;
-
-						btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
-						{
-							void* void_pointer = rayResult.m_collisionObject->getUserPointer();
-							if(void_pointer != NULL)
-							{
-								VisionBlocker* slg = dynamic_cast<VisionBlocker*>((Entity*)void_pointer);
-								if(slg != NULL)
-								{
-									float frac = rayResult.m_hitFraction;
-									if(frac > result)
-										result = frac;
-								}
-							}
-							return 1;
-						}
-					} ray_callback;
-
-					ray_callback.result = 0;
-
-					// run that function for anything on this ray...
-					Vec3 node_pos = iter->second->pos;
-					game_state->physics_world->dynamics_world->rayTest(btVector3(node_pos.x, node_pos.y, node_pos.z), btVector3(pos.x, pos.y, pos.z), ray_callback);
-
-					// if it's still zero, that means nothing is between those two points
-					if(ray_callback.result == 0)
+					if(VisionBlocker::CheckLineOfSight(game_state->physics_world, pos, iter->second->pos))
 						results.push_back(iter->first);
 				}
 

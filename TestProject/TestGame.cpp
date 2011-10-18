@@ -29,6 +29,8 @@
 
 using namespace std;
 
+#define ENABLE_SHADOWS 0
+
 namespace Test
 {
 	/*
@@ -185,9 +187,11 @@ namespace Test
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
+#if ENABLE_SHADOWS
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_shadow_matrix", false));
+#endif
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view_matrix", false));
 		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
@@ -423,7 +427,9 @@ namespace Test
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
 
 	void ClearDepthAndColor();
+#if ENABLE_SHADOWS
 	void RenderShadowTexture(Texture2D* texture, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer);
+#endif
 
 	void TestGame::Draw(int width_, int height_)
 	{
@@ -593,14 +599,16 @@ namespace Test
 
 			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
+#if ENABLE_SHADOWS
 			Mat4 shadow_matrix;
-			Texture2D* shadow_texture = new Texture2D(1024, 1024, NULL, false, true);
+			Texture2D* shadow_texture = new Texture2D(256, 256, NULL, false, true);
 			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 			RenderShadowTexture(shadow_texture, shadow_matrix, sun, renderer);
 			Mat4 inv_shadow_matrix = Mat4::Invert(shadow_matrix);
+#endif
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
@@ -612,20 +620,25 @@ namespace Test
 			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
 			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
 			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
+#if ENABLE_SHADOWS
 			deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
-			deferred_lighting->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
 			deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
 			deferred_lighting->SetUniform<Mat4>("inv_shadow_matrix", &inv_shadow_matrix);
+#endif
+			deferred_lighting->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
 			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
 			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
 
+#if ENABLE_SHADOWS
 			shadow_texture->Dispose();
 			delete shadow_texture;
 			shadow_texture = NULL;
+#endif
 
 			// re-draw the depth buffer (previous draw was on a different RenderTarget)
+			glDepthMask(true);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
 			renderer.RenderDepth(false);
@@ -693,6 +706,7 @@ namespace Test
 		glPopMatrix();
 	}
 
+#if ENABLE_SHADOWS
 	void RenderShadowTexture(Texture2D* texture, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer)
 	{
 		shadow_matrix = sun->GenerateShadowMatrix(*renderer.camera);
@@ -734,6 +748,7 @@ namespace Test
 
 		RenderTarget::Bind(previous_render_target);
 	}
+#endif
 
 	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
 	{
