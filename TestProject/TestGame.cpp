@@ -984,6 +984,7 @@ namespace Test
 	int gs_setNavEditMode(lua_State* L);
 	int gs_setDebugDrawMode(lua_State* L);
 	int gs_newPathSearch(lua_State* L);
+	int gs_checkLineOfSight(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -1034,6 +1035,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_newPathSearch, 1);
 		lua_setfield(L, 1, "newPathSearch");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_checkLineOfSight, 1);
+		lua_setfield(L, 1, "checkLineOfSight");
 	}
 
 
@@ -1299,6 +1304,28 @@ namespace Test
 		}
 
 		Debug("gs.setDebugDrawMode takes exactly one parameter, a boolean\n");
+		return 0;
+	}
+
+	int gs_checkLineOfSight(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 2)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			Vec3* from = (Vec3*)lua_touserdata(L, 1);
+			Vec3* to = (Vec3*)lua_touserdata(L, 2);
+
+			bool result = VisionBlocker::CheckLineOfSight(gs->physics_world, *from, *to);
+
+			lua_settop(L, 0);
+			lua_pushboolean(L, result);
+
+			return 1;
+		}
+
+		Debug("gs.checkLineOfSight takes two parameters, the points to check line of sight between\n");
 		return 0;
 	}
 

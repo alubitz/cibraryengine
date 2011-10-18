@@ -51,8 +51,10 @@ function crab_bug_ai(dood)
 
 	local target = nil
 	for i, ent in ipairs(dood_list) do
-		if ent.is_player and ent ~= dood then
-			target = ent
+		if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
+			if ent.is_player and ent ~= dood then
+				target = ent
+			end
 		end
 	end
 
@@ -72,6 +74,8 @@ function crab_bug_ai(dood)
 
 	if props.goal and props.goal.status == GoalStatus.ACTIVE then
 		props.goal.process()
+	else
+		get_steering_behavior(dood).cancel()
 	end
 
 	do_steering_behavior(dood, control_state)
