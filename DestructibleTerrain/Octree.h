@@ -135,6 +135,35 @@ namespace DestructibleTerrain
 
 			return max;
 		}
+		
+		/** True if ANY branches below this node reach the specified relative depth (or beyond) */
+		bool AnyChildrenAtDepth(int depth)
+		{
+			if(depth <= 0)
+				return true;
+
+			for(int i = 0; i < 8; i++)
+				if(children[i] != NULL)
+					if(children[i]->AnyChildrenAtDepth(depth - 1))
+						return true;
+
+			return false;
+		}
+
+		/** True if ALL branches below this node reach the specified relative depth (or beyond) */
+		bool AllChildrenAtDepth(int depth)
+		{
+			if(depth <= 0)
+				return true;
+
+			for(int i = 0; i < 8; i++)
+				if(children[i] == NULL)
+					return false;
+				else if(!children[i]->AllChildrenAtDepth(depth - 1))
+					return false;
+
+			return true;
+		}
 
 		struct OctreeAction { virtual void operator ()(Octree<T>* node) = 0; };
 

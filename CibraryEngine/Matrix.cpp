@@ -239,6 +239,7 @@ namespace CibraryEngine
 	}
 
 	Mat4 Mat4::UniformScale(float scale) { return Mat4::Scale(scale, scale, scale); }
+	Mat4 Mat4::Scale(Vec3 vec) { return Mat4::Scale(vec.x, vec.y, vec.z); }
 	Mat4 Mat4::Scale(float x, float y, float z)
 	{
 		float values[] = {

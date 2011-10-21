@@ -2,6 +2,7 @@
 
 #include "DTScreen.h"
 #include "VoxelTerrain.h"
+#include "VoxelMaterial.h"
 
 namespace DestructibleTerrain
 {
@@ -10,7 +11,10 @@ namespace DestructibleTerrain
 	 */
 	struct DTScreen::Imp
 	{
+		VoxelMaterial material;
 		VoxelTerrain terrain;
+
+		Imp() : material(), terrain(&material, 10, 10, 10) { }
 
 		void Draw(int width, int height)
 		{
@@ -39,7 +43,11 @@ namespace DestructibleTerrain
 	{
 	}
 
-	DTScreen::~DTScreen() { delete imp; imp = NULL; }
+	DTScreen::~DTScreen()
+	{ 
+		delete imp; 
+		imp = NULL;
+	}
 
 	ProgramScreen* DTScreen::Update(TimingInfo time)
 	{

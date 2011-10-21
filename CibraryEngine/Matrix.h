@@ -98,6 +98,8 @@ namespace CibraryEngine
 		static Mat4 UniformScale(float scale);
 		/** Returns a non-uniform scale matrix, scaling each axis by the corresponding parameter */
 		static Mat4 Scale(float x, float y, float z);
+		/** Returns a non-uniform scale matrix, scaling each axis by the corresponding parameter */
+		static Mat4 Scale(Vec3 vec);
 		/** Returns the matrix inverse of the given matrix */
 		static Mat4 Invert(Mat4 a);
 	};

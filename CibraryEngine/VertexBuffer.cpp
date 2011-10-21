@@ -272,6 +272,11 @@ namespace CibraryEngine
 					glEnable(GL_NORMAL_ARRAY);
 					glNormalPointer((GLenum)attrib.type, 0, (void*)(num_verts * offset));
 				}
+				else if(attrib.name == "gl_Color")
+				{
+					glEnable(GL_COLOR_ARRAY);
+					glColorPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
+				}
 				else
 				{
 					int max_texture_units;
@@ -321,6 +326,8 @@ namespace CibraryEngine
 					glDisable(GL_VERTEX_ARRAY);
 				else if(attrib.name == "gl_Normal")
 					glDisable(GL_NORMAL_ARRAY);
+				else if(attrib.name == "gl_Color")
+					glDisable(GL_COLOR_ARRAY);
 				else
 				{
 					int max_texture_units;
