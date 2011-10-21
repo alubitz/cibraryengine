@@ -17,6 +17,8 @@ namespace DestructibleTerrain
 			DTScreen(ProgramWindow* win);
 			~DTScreen();
 
+			void Activate();
+
 			void Draw(int width, int height);
 			ProgramScreen* Update(TimingInfo time);	
 	};

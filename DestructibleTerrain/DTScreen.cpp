@@ -14,14 +14,26 @@ namespace DestructibleTerrain
 		VoxelMaterial material;
 		VoxelTerrain terrain;
 
-		Imp() : material(), terrain(&material, 10, 10, 10) { }
+		float rotation;
+
+		Imp() : material(), terrain(&material, 32, 32, 32), rotation() { }
 
 		void Draw(int width, int height)
 		{
+			glDepthMask(true);
+			glColorMask(true, true, true, false);
+
 			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			CameraView camera(Vec3(), Vec3(0, 0, -1), Vec3(0, 1, 0), 3.0f, (float)width / (float)height);
+			Mat3 rm(Mat3::FromScaledAxis(0, rotation,0));
+			Vec3 forward(rm * Vec3(0, 0, -1));
+			CameraView camera(-5 * forward, forward, Vec3(0, 1, 0), 3.0f, (float)width / (float)height);
+
+			glMatrixMode(GL_PROJECTION);
+			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
+			glMatrixMode(GL_MODELVIEW);
+			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
 
 			SceneRenderer renderer(&camera);
 			
@@ -39,7 +51,7 @@ namespace DestructibleTerrain
 	 */
 	DTScreen::DTScreen(ProgramWindow* win) :
 		ProgramScreen(win),
-		imp(new Imp())
+		imp(NULL)
 	{
 	}
 
@@ -49,12 +61,23 @@ namespace DestructibleTerrain
 		imp = NULL;
 	}
 
+	void DTScreen::Activate()
+	{
+		if(imp == NULL)
+			imp = new Imp();
+	}
+
 	ProgramScreen* DTScreen::Update(TimingInfo time)
 	{
 		if(input_state->keys[VK_ESCAPE])
 			return NULL;
 		else
+		{
+			imp->rotation += time.elapsed;
+			//imp->terrain  = VoxelTerrain(&imp->material, 10, 10, 10);
+
 			return this;
+		}
 	}
 
 	void DTScreen::Draw(int width, int height) { imp->Draw(width, height); }

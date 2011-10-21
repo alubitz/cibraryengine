@@ -5,9 +5,9 @@
 
 namespace CibraryEngine
 {
-	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float left_, float right_, float top_, float bottom_, float near_, float far_) : position(position_), forward(forward_), up(up_), left(left_), right(right_), top(top_), bottom(bottom_), _near(near_), _far(far_) { }
-	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float zoom, float aspect_ratio) : position(position_), forward(forward_), up(up_) { SetProjection(zoom, aspect_ratio); }
-	CameraView::CameraView(Mat4 view_, float zoom, float aspect_ratio) { SetViewMatrix(view_); SetProjection(zoom, aspect_ratio); }
+	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float left_, float right_, float top_, float bottom_, float near_, float far_) : position(position_), forward(forward_), up(up_), left(left_), right(right_), top(top_), bottom(bottom_), _near(near_), _far(far_), view_valid(false), proj_valid(false) { }
+	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float zoom, float aspect_ratio) : position(position_), forward(forward_), up(up_), view_valid(false), proj_valid(false) { SetProjection(zoom, aspect_ratio); }
+	CameraView::CameraView(Mat4 view_, float zoom, float aspect_ratio) : view_valid(false), proj_valid(false) { SetViewMatrix(view_); SetProjection(zoom, aspect_ratio); }
 
 	void CameraView::InvalidatePlanes() { planes_valid[0] = planes_valid[1] = planes_valid[2] = planes_valid[3] = planes_valid[4] = planes_valid[5] = false; }
 

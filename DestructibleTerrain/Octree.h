@@ -165,9 +165,7 @@ namespace DestructibleTerrain
 			return true;
 		}
 
-		struct OctreeAction { virtual void operator ()(Octree<T>* node) = 0; };
-
-		void ForEach(OctreeAction& action)
+		template <class U> void ForEach(U& action)
 		{
 			for(int i = 0; i < 8; i++)
 				if(children[i] != NULL)

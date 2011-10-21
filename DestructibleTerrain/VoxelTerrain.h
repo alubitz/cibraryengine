@@ -13,9 +13,10 @@ namespace DestructibleTerrain
 	struct TerrainLeaf
 	{
 		float value;
+		Vec3 color;
 
 		TerrainLeaf();
-		TerrainLeaf(float value);
+		TerrainLeaf(float value, Vec3 color);
 	};
 
 	class VoxelTerrain
@@ -25,13 +26,15 @@ namespace DestructibleTerrain
 			vector<TerrainLeaf> data;
 			int dim[3];
 
-			Vec3 min_xyz;
-			Vec3 step_xyz;
+			Mat4 scale;
+			Mat4 xform;
 
 			VoxelMaterial* material;
 			VertexBuffer* model;
 
 			TerrainLeaf& Element(int x, int y, int z);
+
+			VertexBuffer* CreateVBO();
 
 		public:
 
