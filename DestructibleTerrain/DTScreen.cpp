@@ -16,10 +16,12 @@ namespace DestructibleTerrain
 
 		float rotation;
 
-		Imp() : material(), terrain(&material, 32, 32, 32), rotation() { }
+		Imp() : material(), terrain(&material, 128, 128, 128), rotation() { }
 
 		void Draw(int width, int height)
 		{
+			glViewport(0, 0, width, height);
+
 			glDepthMask(true);
 			glColorMask(true, true, true, false);
 
@@ -28,7 +30,7 @@ namespace DestructibleTerrain
 
 			Mat3 rm(Mat3::FromScaledAxis(0, rotation,0));
 			Vec3 forward(rm * Vec3(0, 0, -1));
-			CameraView camera(-5 * forward, forward, Vec3(0, 1, 0), 3.0f, (float)width / (float)height);
+			CameraView camera(-3 * forward, forward, Vec3(0, 1, 0), 3.0f, (float)width / (float)height);
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
@@ -74,7 +76,6 @@ namespace DestructibleTerrain
 		else
 		{
 			imp->rotation += time.elapsed;
-			//imp->terrain  = VoxelTerrain(&imp->material, 10, 10, 10);
 
 			return this;
 		}

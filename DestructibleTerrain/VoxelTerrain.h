@@ -13,10 +13,10 @@ namespace DestructibleTerrain
 	struct TerrainLeaf
 	{
 		float value;
-		Vec3 color;
+		Vec3 normal;
 
 		TerrainLeaf();
-		TerrainLeaf(float value, Vec3 color);
+		TerrainLeaf(float value, Vec3 normal);
 	};
 
 	class VoxelTerrain
@@ -25,6 +25,7 @@ namespace DestructibleTerrain
 
 			vector<TerrainLeaf> data;
 			int dim[3];
+			int x_span;
 
 			Mat4 scale;
 			Mat4 xform;

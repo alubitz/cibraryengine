@@ -43,7 +43,19 @@ namespace DestructibleTerrain
 		glDisable(GL_BLEND);
 
 		glDisable(GL_TEXTURE_2D);
-		glDisable(GL_LIGHTING);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		float light_pos[] = { -1, 1, 1, 0 };
+		glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+
+		glPopMatrix();
+
+		glEnable(GL_RESCALE_NORMAL);
 
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 

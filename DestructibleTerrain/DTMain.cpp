@@ -13,7 +13,7 @@ int main(int argc, char** argv)
 
 	InitEndianness();
 
-	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Destructible Terrain Test Program", 640, 480, 0, false);
+	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Destructible Terrain Test Program", 0, 0, 0, false);
 	if(win == NULL)
 		return 1;
 

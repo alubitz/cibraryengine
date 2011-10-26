@@ -1,0 +1,92 @@
+#include "StdAfx.h"
+
+#include "PerlinNoise.h"
+
+namespace DestructibleTerrain
+{
+	/*
+	 * PerlinNoise methods
+	 */
+	PerlinNoise::PerlinNoise(int res) :
+		res(res),
+		res_sq(res * res),
+		gradients(NULL)
+	{
+		int n = res * res * res;
+		gradients = new Vec3[n];
+
+		for(int i = 0; i < n; i++)
+			gradients[i] = Vec3(Random3D::RandomNormalizedVector(1.0f));
+	}
+
+	PerlinNoise::~PerlinNoise()
+	{
+		if(gradients != NULL)
+		{
+			delete[] gradients;
+			gradients = NULL;
+		}
+	}
+
+	float PerlinNoise::Sample(Vec3 uvw)
+	{
+		float noise_x = uvw.x - floor(uvw.x), noise_y = uvw.y - floor(uvw.y), noise_z = uvw.z - floor(uvw.z);
+		noise_x *= res;
+		noise_y *= res;
+		noise_z *= res;
+
+		int x1 = (int)floor(noise_x);
+		int y1 = (int)floor(noise_y);
+		int z1 = (int)floor(noise_z);
+		int x2 = (x1 + 1) % res;
+		int y2 = (y1 + 1) % res;
+		int z2 = (z1 + 1) % res;
+
+		Vec3 eight[] = 
+		{
+			gradients[x1 * res_sq + y1 * res + z1],
+			gradients[x1 * res_sq + y1 * res + z2],
+			gradients[x1 * res_sq + y2 * res + z1],
+			gradients[x1 * res_sq + y2 * res + z2],
+			gradients[x2 * res_sq + y1 * res + z1],
+			gradients[x2 * res_sq + y1 * res + z2],
+			gradients[x2 * res_sq + y2 * res + z1],
+			gradients[x2 * res_sq + y2 * res + z2]
+		};
+
+		float x_frac = noise_x - x1, y_frac = noise_y - y1, z_frac = noise_z - z1;
+
+		float vert_values[] =
+		{
+			Vec3::Dot(eight[0], Vec3(	x_frac,		y_frac,		z_frac		)),
+			Vec3::Dot(eight[1], Vec3(	x_frac,		y_frac,		z_frac - 1	)),
+			Vec3::Dot(eight[2], Vec3(	x_frac,		y_frac - 1,	z_frac		)),
+			Vec3::Dot(eight[3], Vec3(	x_frac,		y_frac - 1,	z_frac - 1	)),
+			Vec3::Dot(eight[4], Vec3(	x_frac - 1,	y_frac,		z_frac		)),
+			Vec3::Dot(eight[5], Vec3(	x_frac - 1,	y_frac,		z_frac - 1	)),
+			Vec3::Dot(eight[6], Vec3(	x_frac - 1,	y_frac - 1,	z_frac		)),
+			Vec3::Dot(eight[7], Vec3(	x_frac - 1,	y_frac - 1,	z_frac - 1	))
+		};
+
+		float sx_frac = 3.0f * x_frac * x_frac - 2.0f * x_frac * x_frac * x_frac;
+		float sy_frac = 3.0f * y_frac * y_frac - 2.0f * y_frac * y_frac * y_frac;
+		float sz_frac = 3.0f * z_frac * z_frac - 2.0f * z_frac * z_frac * z_frac;
+
+		float anti_x = 1.0f - x_frac;
+		float anti_y = 1.0f - y_frac;
+		float anti_z = 1.0f - z_frac;
+		float anti_sx = 3.0f * anti_x * anti_x - 2.0f * anti_x * anti_x * anti_x;
+		float anti_sy = 3.0f * anti_y * anti_y - 2.0f * anti_y * anti_y * anti_y;
+		float anti_sz = 3.0f * anti_z * anti_z - 2.0f * anti_z * anti_z * anti_z;
+
+		return
+			vert_values[0] * anti_sx * anti_sy * anti_sz +
+			vert_values[1] * anti_sx * anti_sy * sz_frac +
+			vert_values[2] * anti_sx * sy_frac * anti_sz +
+			vert_values[3] * anti_sx * sy_frac * sz_frac +
+			vert_values[4] * sx_frac * anti_sy * anti_sz +
+			vert_values[5] * sx_frac * anti_sy * sz_frac +
+			vert_values[6] * sx_frac * sy_frac * anti_sz +
+			vert_values[7] * sx_frac * sy_frac * sz_frac;
+	}
+}

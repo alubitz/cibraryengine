@@ -2,6 +2,7 @@
 
 #include "VoxelTerrain.h"
 #include "VoxelMaterial.h"
+#include "PerlinNoise.h"
 
 namespace DestructibleTerrain
 {
@@ -10,8 +11,8 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainLeaf methods
 	 */
-	TerrainLeaf::TerrainLeaf() : value() { }
-	TerrainLeaf::TerrainLeaf(float value, Vec3 color) : value(value), color(color) { }
+	TerrainLeaf::TerrainLeaf() : value(), normal() { }
+	TerrainLeaf::TerrainLeaf(float value, Vec3 normal) : value(value), normal(normal) { }
 
 
 
@@ -21,6 +22,7 @@ namespace DestructibleTerrain
 	 */
 	VoxelTerrain::VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z) :
 		data(),
+		x_span(dim_y * dim_z),
 		material(material),
 		model(NULL)
 	{
@@ -30,6 +32,8 @@ namespace DestructibleTerrain
 
 		scale = Mat4::Scale(2.0f / (dim[0] - 1), 2.0f / (dim[1] - 1), 2.0f / (dim[2] - 1));
 		xform = Mat4::Translation(-1.0f, -1.0f, -1.0f);
+
+		PerlinNoise noise = PerlinNoise(10);
 
 		for(int x = 0; x < dim[0]; x++)
 			for(int y = 0; y < dim[1]; y++)
@@ -45,7 +49,9 @@ namespace DestructibleTerrain
 					float r2 = 0.25f;
 					
 					float value = pos.z * pos.z + pow(sqrt(pos.x * pos.x + pos.y * pos.y) - r1, 2.0f) - r2;
-					value += Random3D::Rand(-0.9f, 0.9f) * Random3D::Rand() * Random3D::Rand();
+
+					float n_sample = noise.Sample(pos * 0.25f);
+					value += n_sample;// * 0.5f;
 
 					data.push_back(TerrainLeaf(value, pos * 0.5f + Vec3(0.5f, 0.5f, 0.5f)));
 				}
@@ -61,7 +67,7 @@ namespace DestructibleTerrain
 		}
 	}
 
-	TerrainLeaf& VoxelTerrain::Element(int x, int y, int z) { return data[x * dim[1] * dim[2] + y * dim[2] + z]; }
+	TerrainLeaf& VoxelTerrain::Element(int x, int y, int z) { return data[x * x_span + y * dim[2] + z]; }
 
 	void VoxelTerrain::Vis(SceneRenderer *renderer)
 	{
@@ -79,12 +85,11 @@ namespace DestructibleTerrain
 		VertexBuffer* model = new VertexBuffer(Triangles);
 
 		model->AddAttribute("gl_Vertex", Float, 3);
-		model->AddAttribute("gl_Color", Float, 3);
+		model->AddAttribute("gl_Normal", Float, 3);
 
 		struct GridStruct
 		{
 			float value;
-			Vec3 color;
 			Vec3 position;
 
 			GridStruct(VoxelTerrain* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
@@ -92,24 +97,24 @@ namespace DestructibleTerrain
 				TerrainLeaf& leaf = t->Element(x, y, z);
 
 				value = leaf.value;
-				color = leaf.color;
 			}
 		};
 
 		struct VertStruct
 		{
 			Vec3 pos;
-			Vec3 color;
 
-			VertStruct() : pos(), color() { }
-			VertStruct(GridStruct grid) : pos(grid.position), color(grid.color) { }
-			VertStruct(Vec3 pos, Vec3 color) : pos(pos), color(color) { }
+			VertStruct() : pos() { }
+			VertStruct(GridStruct grid) : pos(grid.position) { }
+			VertStruct(Vec3 pos) : pos(pos) { }
 			
-			VertStruct operator *(float amount) { return VertStruct(pos * amount, color * amount); }
-			VertStruct operator +(VertStruct a) { return VertStruct(pos + a.pos, color + a.color); }
+			VertStruct operator *(float amount) { return VertStruct(pos * amount); }
+			VertStruct operator +(VertStruct a) { return VertStruct(pos + a.pos); }
 		};
 
-		vector<VertStruct> vertex_data;
+		vector<VertStruct>* vertex_data = new vector<VertStruct>[data.size()];
+
+		int num_verts = 0;
 
 		for(int x = 1; x < dim[0]; x++)
 			for(int y = 1; y < dim[1]; y++)
@@ -127,31 +132,83 @@ namespace DestructibleTerrain
 						GridStruct(this, x, y, z - 1)
 					};
 
-					Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, vertex_data);
+					// find the verts for this one cube
+					vector<VertStruct> cube_vertex_data;
+					Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, cube_vertex_data);
+
+					num_verts += cube_vertex_data.size();
+
+					vertex_data[x * x_span + y * dim[2] + z] = cube_vertex_data;
 				}
 
-		model->SetNumVerts(vertex_data.size());
+		model->SetNumVerts(num_verts);
 
-		// efficient iteration!
 		float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
-		float* color_ptr = model->GetFloatPointer("gl_Color");
-		for(vector<VertStruct>::iterator iter = vertex_data.begin(); iter != vertex_data.end(); iter++)
-		{
-			Vec3 pos = iter->pos, color = iter->color;
+		float* normal_ptr = model->GetFloatPointer("gl_Normal");
 
-			*(vertex_ptr++) = pos.x;
-			*(vertex_ptr++) = pos.y;
-			*(vertex_ptr++) = pos.z;
+		// now go back through them and find the normal vectors...
+		for(int x = 1; x < dim[0]; x++)
+			for(int y = 1; y < dim[1]; y++)
+				for(int z = 1; z < dim[2]; z++)
+				{
+					vector<VertStruct>& cube_verts = vertex_data[x * x_span + y * dim[2] + z];
 
-			*(color_ptr++) = color.x;
-			*(color_ptr++) = color.y;
-			*(color_ptr++) = color.z;
-		}
+					if(cube_verts.empty())
+						continue;
+
+					// iterate through all of the verts
+					for(vector<VertStruct>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
+					{
+						Vec3 pos = iter->pos;
+						Vec3 normal;
+	
+						for(int i = x - 1; i <= x + 1; i++)
+							for(int j = y - 1; j <= y + 1; j++)
+								for(int k = z - 1; k <= z + 1; k++)
+								{
+									vector<VertStruct>& other_verts = vertex_data[i * x_span + j * dim[2] + k];
+									if(other_verts.empty())
+										continue;
+									
+									// find triangles which contain this vertex
+									for(vector<VertStruct>::iterator jter = other_verts.begin(); jter != other_verts.end(); )
+									{
+										Vec3 a = (jter++)->pos;
+										Vec3 b = (jter++)->pos;
+										Vec3 c = (jter++)->pos;
+
+										//if(pos == a || pos == b || pos == c)
+										if((pos - a).ComputeMagnitudeSquared() < 0.00001f || (pos - b).ComputeMagnitudeSquared() < 0.00001f || (pos - c).ComputeMagnitudeSquared() < 0.00001f)
+										{
+											// add this triangle's contribution to the vert's normal vector
+											Vec3 tri_normal = Vec3::Cross(b - a, c - a);
+											float len = tri_normal.ComputeMagnitudeSquared();
+											if(len > 0.0f)
+												normal += tri_normal / sqrtf(len);
+										}
+									}
+								}
+
+						// make sure the normal vector we computed has unit magnitude
+						normal = Vec3::Normalize(normal);
+
+						// now put this data in the VBO
+						*(vertex_ptr++) = pos.x;
+						*(vertex_ptr++) = pos.y;
+						*(vertex_ptr++) = pos.z;
+
+						*(normal_ptr++) = normal.x;
+						*(normal_ptr++) = normal.y;
+						*(normal_ptr++) = normal.z;
+					}
+				}
+
+		delete[] vertex_data;
 
 		model->BuildVBO();
 
 		stringstream ss;
-		ss << "Marching cubes algorithm produced a mesh with " << (vertex_data.size() / 3) << " triangles" << endl;
+		ss << "Marching cubes algorithm produced a mesh with " << (num_verts / 3) << " triangles" << endl;
 		Debug(ss.str());
 
 		return model;
