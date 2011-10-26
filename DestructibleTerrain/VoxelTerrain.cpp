@@ -162,9 +162,9 @@ namespace DestructibleTerrain
 						Vec3 pos = iter->pos;
 						Vec3 normal;
 	
-						for(int i = x - 1; i <= x + 1; i++)
-							for(int j = y - 1; j <= y + 1; j++)
-								for(int k = z - 1; k <= z + 1; k++)
+						for(int i = x - 1; i <= x + 1 && i < dim[0]; i++)
+							for(int j = y - 1; j <= y + 1 && j < dim[1]; j++)
+								for(int k = z - 1; k <= z + 1 && k < dim[2]; k++)
 								{
 									vector<VertStruct>& other_verts = vertex_data[i * x_span + j * dim[2] + k];
 									if(other_verts.empty())
