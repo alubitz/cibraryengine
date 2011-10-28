@@ -33,7 +33,24 @@ namespace DestructibleTerrain
 		scale = Mat4::Scale(2.0f / (dim[0] - 1), 2.0f / (dim[1] - 1), 2.0f / (dim[2] - 1));
 		xform = Mat4::Translation(-1.0f, -1.0f, -1.0f);
 
-		PerlinNoise noise = PerlinNoise(10);
+		// Populate the scalar field with values
+		struct
+		{
+			PerlinNoise* noise;
+
+			float operator() (Vec3 vec)
+			{ 
+				return (*this)(vec, 1.0f) + (*this)(vec, 2.0f) + (*this)(vec, 4.0f) + (*this)(vec, 8.0f);
+			}
+			float operator() (Vec3 vec, float k)
+			{
+				float sample = noise->Sample(vec * k);
+				return (1.0f - fabs(sample)) / k; 
+			}
+
+		} n;
+		PerlinNoise noise = PerlinNoise(256);
+		n.noise = &noise;
 
 		for(int x = 0; x < dim[0]; x++)
 			for(int y = 0; y < dim[1]; y++)
@@ -48,10 +65,10 @@ namespace DestructibleTerrain
 					float r1 = 1.0f;
 					float r2 = 0.25f;
 					
-					float value = pos.z * pos.z + pow(sqrt(pos.x * pos.x + pos.y * pos.y) - r1, 2.0f) - r2;
+					Vec3 flat_pos = Vec3(pos.x, 0, pos.z);
 
-					float n_sample = noise.Sample(pos * 0.25f);
-					value += n_sample;// * 0.5f;
+					float value = pos.y + 1.5f - n(flat_pos * 0.5f) * (1.0f + 0.15f * n(pos));//pos.ComputeMagnitude() - 1.0f;//pos.z * pos.z + pow(sqrt(pos.x * pos.x + pos.y * pos.y) - r1, 2.0f) - r2;
+					//value += n(pos);
 
 					data.push_back(TerrainLeaf(value, pos * 0.5f + Vec3(0.5f, 0.5f, 0.5f)));
 				}
@@ -189,6 +206,7 @@ namespace DestructibleTerrain
 									}
 								}
 
+
 						// make sure the normal vector we computed has unit magnitude
 						normal = Vec3::Normalize(normal);
 
@@ -231,7 +249,7 @@ namespace DestructibleTerrain
 		if(grid[6].value < isolevel) { classification |= 64; }
 		if(grid[7].value < isolevel) { classification |= 128; }
 
-		int edge_table[256] = 
+		static const int edge_table[256] = 
 		{
 			0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
 			0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
@@ -266,7 +284,7 @@ namespace DestructibleTerrain
 			0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
 			0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
 		};
-		int tri_table[256][16] =
+		static const int tri_table[256][16] =
 		{
 			{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 			{0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},

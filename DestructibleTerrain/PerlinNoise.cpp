@@ -30,14 +30,11 @@ namespace DestructibleTerrain
 
 	float PerlinNoise::Sample(Vec3 uvw)
 	{
-		float noise_x = uvw.x - floor(uvw.x), noise_y = uvw.y - floor(uvw.y), noise_z = uvw.z - floor(uvw.z);
-		noise_x *= res;
-		noise_y *= res;
-		noise_z *= res;
+		float noise_x = uvw.x - res * floor(uvw.x / res), noise_y = uvw.y - res * floor(uvw.y / res), noise_z = uvw.z - res * floor(uvw.z / res);
 
-		int x1 = (int)floor(noise_x);
-		int y1 = (int)floor(noise_y);
-		int z1 = (int)floor(noise_z);
+		int x1 = (int)floor(noise_x) % res;
+		int y1 = (int)floor(noise_y) % res;
+		int z1 = (int)floor(noise_z) % res;
 		int x2 = (x1 + 1) % res;
 		int y2 = (y1 + 1) % res;
 		int z2 = (z1 + 1) % res;
