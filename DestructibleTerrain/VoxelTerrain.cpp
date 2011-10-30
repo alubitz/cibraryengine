@@ -34,23 +34,15 @@ namespace DestructibleTerrain
 		xform = Mat4::Translation(-1.0f, -1.0f, -1.0f);
 
 		// Populate the scalar field with values
-		struct
+		struct PNFunc
 		{
-			PerlinNoise* noise;
+			PerlinNoise n1, n2, n3, n4;
 
-			float operator() (Vec3 vec)
-			{ 
-				return (*this)(vec, 1.0f) + (*this)(vec, 2.0f) + (*this)(vec, 4.0f) + (*this)(vec, 8.0f);
-			}
-			float operator() (Vec3 vec, float k)
-			{
-				float sample = noise->Sample(vec * k);
-				return (1.0f - fabs(sample)) / k; 
-			}
+			PNFunc() : n1(256), n2(256), n3(256), n4(256) { }
+
+			float operator() (Vec3 vec) { return n1.Sample(vec) + n2.Sample(vec * 2) / 4 + n3.Sample(vec * 4) / 8 + n4.Sample(vec * 8) / 16; }
 
 		} n;
-		PerlinNoise noise = PerlinNoise(256);
-		n.noise = &noise;
 
 		for(int x = 0; x < dim[0]; x++)
 			for(int y = 0; y < dim[1]; y++)
@@ -67,8 +59,7 @@ namespace DestructibleTerrain
 					
 					Vec3 flat_pos = Vec3(pos.x, 0, pos.z);
 
-					float value = pos.y + 1.5f - n(flat_pos * 0.5f) * (1.0f + 0.15f * n(pos));//pos.ComputeMagnitude() - 1.0f;//pos.z * pos.z + pow(sqrt(pos.x * pos.x + pos.y * pos.y) - r1, 2.0f) - r2;
-					//value += n(pos);
+					float value = pos.y - n(pos);
 
 					data.push_back(TerrainLeaf(value, pos * 0.5f + Vec3(0.5f, 0.5f, 0.5f)));
 				}
