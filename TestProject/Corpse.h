@@ -30,6 +30,6 @@ namespace Test
 
 			void Vis(SceneRenderer* renderer);
 
-			Vec3 GetPosition();;
+			Vec3 GetPosition();
 	};
 }

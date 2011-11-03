@@ -12,11 +12,17 @@ namespace DestructibleTerrain
 		res_sq(res * res),
 		gradients(NULL)
 	{
+		int n_unique = 256;							// there only need to be this many unique gradients
+		Vec3* unique_gradients = new Vec3[n_unique];
+		for(int i = 0; i < n_unique; i++)
+			unique_gradients[i] = Random3D::RandomNormalizedVector(1.0f);
+
 		int n = res * res * res;
 		gradients = new Vec3[n];
-
 		for(int i = 0; i < n; i++)
-			gradients[i] = Vec3(Random3D::RandomNormalizedVector(1.0f));
+			gradients[i] = unique_gradients[Random3D::RandInt(n_unique)];
+
+		delete[] unique_gradients;
 	}
 
 	PerlinNoise::~PerlinNoise()

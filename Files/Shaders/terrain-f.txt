@@ -1,0 +1,26 @@
+varying	vec3			normal, position;
+
+void main()
+{
+	vec3 uPos = normalize(position);
+	vec3 uLight = normalize(gl_LightSource[0].position.xyz);
+
+	vec3 uNorm = normalize(normal);
+
+	float light_dot = dot(uNorm, uLight);
+	float eye_dot = dot(uNorm, uPos);
+	vec3 uBounce = uPos - (2.0 * eye_dot) * uNorm;
+
+	float diffuse_amount = max(0.0, min(1.0, light_dot));
+
+	float specular_dot = dot(uBounce, uLight);
+	float specular_base = max(0.0, min(1.0, specular_dot));
+	float specular_amount = pow(specular_base, 4.0);
+
+	float light = diffuse_amount * 0.8 + 0.2;
+
+	vec3 base_color = gl_Color.xyz * light;//(diffuse_amount * gl_LightSource[0].diffuse.xyz);// + specular_amount * gl_LightSource[0].specular.xyz);
+
+	gl_FragColor.xyz = base_color;
+	gl_FragColor.w = 1.0;
+}

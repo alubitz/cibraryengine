@@ -1,9 +1,11 @@
-varying	vec3			position;
+varying	vec3			position, normal;
 
 void main()
 {
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;
 	gl_TexCoord[0] = gl_MultiTexCoord0;
 
+	normal = (gl_ModelViewMatrix * vec4(gl_Normal, 0.0)).xyz;
 	position = (gl_ModelViewMatrix * gl_Vertex).xyz;
+	gl_FrontColor = gl_BackColor = gl_Color;
 }

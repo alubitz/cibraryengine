@@ -4,6 +4,8 @@
 #include "VoxelTerrain.h"
 #include "VoxelMaterial.h"
 
+#define TERRAIN_RESOLUTION 128
+
 namespace DestructibleTerrain
 {
 	/*
@@ -16,7 +18,7 @@ namespace DestructibleTerrain
 
 		float rotation;
 
-		Imp() : material(), terrain(&material, 128, 128, 128), rotation() { }
+		Imp(ContentMan* content) : material(content), terrain(&material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION), rotation() { }
 
 		void Draw(int width, int height)
 		{
@@ -31,7 +33,7 @@ namespace DestructibleTerrain
 			Mat3 rm(Mat3::FromScaledAxis(0, rotation,0));
 			Vec3 forward(Vec3::Normalize(rm * Vec3(0, -1, -1)));
 			Vec3 up = Vec3::Normalize(Vec3::Cross(Vec3::Cross(forward, Vec3(0, 1, 0)), forward));
-			CameraView camera(-3 * forward, forward, up, 3.0f, (float)width / (float)height);
+			CameraView camera(-4 * forward, forward, up, 3.0f, (float)width / (float)height);
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
@@ -67,7 +69,7 @@ namespace DestructibleTerrain
 	void DTScreen::Activate()
 	{
 		if(imp == NULL)
-			imp = new Imp();
+			imp = new Imp(content);
 	}
 
 	ProgramScreen* DTScreen::Update(TimingInfo time)

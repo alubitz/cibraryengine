@@ -31,7 +31,14 @@ namespace DestructibleTerrain
 	/*
 	 * VoxelMaterial methods
 	 */
-	VoxelMaterial::VoxelMaterial() : Material(4, Opaque, false) { }
+	VoxelMaterial::VoxelMaterial(ContentMan* content) : Material(4, Opaque, false)
+	{
+		Shader* vs = content->GetCache<Shader>()->Load("pass-v");
+		Shader* fs = content->GetCache<Shader>()->Load("terrain-f");
+
+		shader = new ShaderProgram(vs, fs);
+		shader->UpdateUniforms();
+	}
 
 	void VoxelMaterial::BeginDraw(SceneRenderer* renderer)
 	{ 
@@ -56,15 +63,20 @@ namespace DestructibleTerrain
 		glPopMatrix();
 
 		glEnable(GL_RESCALE_NORMAL);
+		glDisable(GL_CULL_FACE);
 
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 
-		ShaderProgram::SetActiveProgram(NULL);
+		ShaderProgram::SetActiveProgram(shader);
 
 		GLDEBUG();
 	}
 	void VoxelMaterial::Draw(RenderNode node) { ((VoxelMaterialNodeData*)node.data)->Draw(); }
-	void VoxelMaterial::EndDraw() { GLDEBUG(); }
+	void VoxelMaterial::EndDraw()
+	{ 
+		ShaderProgram::SetActiveProgram(NULL);	
+		GLDEBUG(); 
+	}
 
 	void VoxelMaterial::Cleanup(RenderNode node) { delete (VoxelMaterialNodeData*)node.data; }
 

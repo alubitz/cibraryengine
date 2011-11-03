@@ -20,7 +20,9 @@ namespace DestructibleTerrain
 	{
 		public:
 
-			VoxelMaterial();
+			ShaderProgram* shader;
+
+			VoxelMaterial(ContentMan* content);
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();

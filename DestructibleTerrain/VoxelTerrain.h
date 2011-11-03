@@ -12,11 +12,19 @@ namespace DestructibleTerrain
 
 	struct TerrainLeaf
 	{
-		float value;
-		Vec3 normal;
+		unsigned char types[4], weights[4];
 
 		TerrainLeaf();
-		TerrainLeaf(float value, Vec3 normal);
+		TerrainLeaf(unsigned char type);
+
+		void ClearMaterials();
+		unsigned char GetMaterialAmount(unsigned char mat);
+		void SetMaterialAmount(unsigned char mat, unsigned char amount);
+
+		unsigned int GetTotalNonzero();
+
+		float GetScalarValue();
+		bool IsSolid();
 	};
 
 	class VoxelTerrain

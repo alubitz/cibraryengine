@@ -11,9 +11,77 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainLeaf methods
 	 */
-	TerrainLeaf::TerrainLeaf() : value(), normal() { }
-	TerrainLeaf::TerrainLeaf(float value, Vec3 normal) : value(value), normal(normal) { }
+	TerrainLeaf::TerrainLeaf() { ClearMaterials(); }
+	TerrainLeaf::TerrainLeaf(unsigned char type) 
+	{
+		types[0] = type;
+		types[1] = types[2] = types[3] = 0;
+		
+		weights[0] = 255;
+		weights[1] = weights[2] = weights[3] = 0;
+	}
 
+	void TerrainLeaf::ClearMaterials() { types[0] = types[1] = types[2] = types[3] = 0; weights[0] = 255; weights[1] = weights[2] = weights[3] = 0; }
+
+	unsigned char TerrainLeaf::GetMaterialAmount(unsigned char mat)
+	{
+		int total = 0;
+
+		for(int i = 0; i < 4; i++)
+			if(types[i] == mat)
+				total += weights[i];
+		
+		return (unsigned char)max(0, min(255, total));
+	}
+
+	void TerrainLeaf::SetMaterialAmount(unsigned char mat, unsigned char amount)
+	{
+		int cur = GetMaterialAmount(mat);
+		if(cur < amount)
+		{
+			// increasing the amount
+			if(cur > 0)
+			{
+				// there is already a slot for this material
+				for(int i = 1; i < 4; i++)
+					if(types[i] == mat)
+						weights[i] = amount;
+			}
+			else
+			{
+				// scrap whatever slot has the least stuff in it
+				int min = 0;
+				for(int i = 1; i < 4; i++)
+					if(weights[i] < weights[min])
+						min = i;
+				types[min] = mat;
+				weights[min] = amount;
+			}
+		}
+		else if(cur > amount)
+		{
+			// decreasing the amount
+			for(int i = 0; i < 4; i++)
+				if(types[i] == mat)
+					weights[i] = amount;
+		}
+	}
+
+	unsigned int TerrainLeaf::GetTotalNonzero()
+	{
+		unsigned int total = 0;
+
+		for(int i = 0; i < 4; i++)
+			if(types[i] != 0)
+				total += weights[i];
+		
+		return max(0, min(255, total));
+	}
+
+	float TerrainLeaf::GetScalarValue() { return -(GetTotalNonzero() - 127.5f); }
+
+	bool TerrainLeaf::IsSolid() { return GetScalarValue() < 0; }
+	
 
 
 
@@ -33,17 +101,14 @@ namespace DestructibleTerrain
 		scale = Mat4::Scale(2.0f / (dim[0] - 1), 2.0f / (dim[1] - 1), 2.0f / (dim[2] - 1));
 		xform = Mat4::Translation(-1.0f, -1.0f, -1.0f);
 
-		// Populate the scalar field with values
+		// Generate stone using Perlin noise
 		struct PNFunc
 		{
-			PerlinNoise n1, n2, n3, n4;
+			PerlinNoise n1;
 
-			PNFunc() : n1(256), n2(256), n3(256), n4(256) { }
-
-			float operator() (Vec3 vec) { return n1.Sample(vec) + n2.Sample(vec * 2) / 4 + n3.Sample(vec * 4) / 8 + n4.Sample(vec * 8) / 16; }
-
+			PNFunc() : n1(256) { }
+			float operator() (Vec3 vec) { return n1.Sample(vec) + n1.Sample(vec * 2) / 4 + n1.Sample(vec * 4) / 8 + n1.Sample(vec * 8) / 16; }
 		} n;
-
 		for(int x = 0; x < dim[0]; x++)
 			for(int y = 0; y < dim[1]; y++)
 				for(int z = 0; z < dim[2]; z++)
@@ -54,15 +119,32 @@ namespace DestructibleTerrain
 						float(z) / (dim[2] - 1) * 2.0f - 1.0f);
 					pos *= 2.0f;
 
-					float r1 = 1.0f;
-					float r2 = 0.25f;
-					
-					Vec3 flat_pos = Vec3(pos.x, 0, pos.z);
+					TerrainLeaf leaf;
 
-					float value = pos.y - n(pos);
+					unsigned char rock_amount = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * (n(pos) + 1.0f - pos.y)));
+					leaf.SetMaterialAmount(1, rock_amount);
 
-					data.push_back(TerrainLeaf(value, pos * 0.5f + Vec3(0.5f, 0.5f, 0.5f)));
+					data.push_back(leaf);
 				}
+
+		// Drop sand on top of everything
+		for(int x = 0; x < dim[0]; x++)
+			for(int z = 0; z < dim[2]; z++)
+				for(int y = dim[1] - 1; y >= 0; y--)
+				{
+					TerrainLeaf& leaf = Element(x, y, z);
+
+					if(leaf.IsSolid())
+					{
+						int amount = leaf.GetTotalNonzero();
+						leaf.ClearMaterials();
+						leaf.SetMaterialAmount(2, amount);
+
+						break;
+					}
+				}
+
+		// TODO: erode stuff
 	}
 
 	VoxelTerrain::~VoxelTerrain()
@@ -92,32 +174,61 @@ namespace DestructibleTerrain
 	{
 		VertexBuffer* model = new VertexBuffer(Triangles);
 
-		model->AddAttribute("gl_Vertex", Float, 3);
-		model->AddAttribute("gl_Normal", Float, 3);
+		model->AddAttribute("gl_Vertex",	Float, 3);
+		model->AddAttribute("gl_Normal",	Float, 3);
+		model->AddAttribute("gl_Color",		Float, 3);
 
 		struct GridStruct
 		{
 			float value;
 			Vec3 position;
+			Vec4 color;
 
 			GridStruct(VoxelTerrain* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 			{ 
 				TerrainLeaf& leaf = t->Element(x, y, z);
 
-				value = leaf.value;
+				color = Vec4();
+
+				if(leaf.IsSolid())
+				{
+					for(int i = 0; i < 4; i++)
+					{
+						switch(leaf.types[i])
+						{
+						case 1:
+						
+							// stone color
+							color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * leaf.weights[i];
+							break;
+
+						case 2:
+						
+							// sand color
+							color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * leaf.weights[i];
+							break;
+						}
+					}
+				}
+
+				value = leaf.GetScalarValue();
+				position = Vec3(float(x), float(y), float(z));
+
+				color *= color.w == 0 ? 1.0f : 1.0f / color.w;
 			}
 		};
 
 		struct VertStruct
 		{
 			Vec3 pos;
+			Vec4 color;
 
-			VertStruct() : pos() { }
-			VertStruct(GridStruct grid) : pos(grid.position) { }
-			VertStruct(Vec3 pos) : pos(pos) { }
+			VertStruct() : pos(), color(1.0f, 1.0f, 1.0f, 0.0f) { }
+			VertStruct(Vec3 pos, Vec4 color) : pos(pos), color(color) { }
+			VertStruct(GridStruct grid) : pos(grid.position), color(grid.color) { }
 			
-			VertStruct operator *(float amount) { return VertStruct(pos * amount); }
-			VertStruct operator +(VertStruct a) { return VertStruct(pos + a.pos); }
+			VertStruct operator *(float amount) { return VertStruct(pos * amount, color * amount); }
+			VertStruct operator +(VertStruct a) { return VertStruct(pos + a.pos, color + a.color); }
 		};
 
 		vector<VertStruct>* vertex_data = new vector<VertStruct>[data.size()];
@@ -153,6 +264,7 @@ namespace DestructibleTerrain
 
 		float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
 		float* normal_ptr = model->GetFloatPointer("gl_Normal");
+		float* color_ptr = model->GetFloatPointer("gl_Color");
 
 		// now go back through them and find the normal vectors...
 		for(int x = 1; x < dim[0]; x++)
@@ -168,6 +280,13 @@ namespace DestructibleTerrain
 					for(vector<VertStruct>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
 					{
 						Vec3 pos = iter->pos;
+						
+						Vec4 color = iter->color;
+						float inv = color.w == 0 ? 1.0f : 1.0f / color.w;
+						color.x *= inv;
+						color.y *= inv;
+						color.z *= inv;
+
 						Vec3 normal;
 	
 						for(int i = x - 1; i <= x + 1 && i < dim[0]; i++)
@@ -209,6 +328,10 @@ namespace DestructibleTerrain
 						*(normal_ptr++) = normal.x;
 						*(normal_ptr++) = normal.y;
 						*(normal_ptr++) = normal.z;
+
+						*(color_ptr++) = color.x;
+						*(color_ptr++) = color.y;
+						*(color_ptr++) = color.z;
 					}
 				}
 
