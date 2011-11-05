@@ -18,7 +18,7 @@ namespace DestructibleTerrain
 
 		float rotation;
 
-		Imp(ContentMan* content) : material(content), terrain(&material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION), rotation() { }
+		Imp(ContentMan* content) : material(content), terrain(&material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION), rotation(), explode_handler(&terrain) { }
 
 		void Draw(int width, int height)
 		{
@@ -46,6 +46,20 @@ namespace DestructibleTerrain
 
 			renderer.Render();
 		}
+
+		struct ExplodeHandler : public EventHandler
+		{
+			VoxelTerrain* terrain;
+			ExplodeHandler(VoxelTerrain* terrain) : terrain(terrain) { }
+
+			void HandleEvent(Event* evt)
+			{
+				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
+
+				if(mbse->button == 0 && mbse->state)
+					terrain->Explode();
+			}
+		} explode_handler;
 	};
 
 
@@ -70,6 +84,13 @@ namespace DestructibleTerrain
 	{
 		if(imp == NULL)
 			imp = new Imp(content);
+
+		window->input_state->MouseButtonStateChanged += &imp->explode_handler;
+	}
+
+	void DTScreen::Deactivate()
+	{
+		window->input_state->MouseButtonStateChanged -= &imp->explode_handler;
 	}
 
 	ProgramScreen* DTScreen::Update(TimingInfo time)

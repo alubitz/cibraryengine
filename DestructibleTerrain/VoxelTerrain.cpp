@@ -11,8 +11,8 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainLeaf methods
 	 */
-	TerrainLeaf::TerrainLeaf() { ClearMaterials(); }
-	TerrainLeaf::TerrainLeaf(unsigned char type) 
+	TerrainLeaf::TerrainLeaf() : solidity(0) { ClearMaterials(); }
+	TerrainLeaf::TerrainLeaf(unsigned char type) : solidity(255)
 	{
 		types[0] = type;
 		types[1] = types[2] = types[3] = 0;
@@ -21,7 +21,12 @@ namespace DestructibleTerrain
 		weights[1] = weights[2] = weights[3] = 0;
 	}
 
-	void TerrainLeaf::ClearMaterials() { types[0] = types[1] = types[2] = types[3] = 0; weights[0] = 255; weights[1] = weights[2] = weights[3] = 0; }
+	void TerrainLeaf::ClearMaterials()
+	{ 
+		types[0] = types[1] = types[2] = types[3] = 0;
+		weights[0] = 255;
+		weights[1] = weights[2] = weights[3] = 0; 
+	}
 
 	unsigned char TerrainLeaf::GetMaterialAmount(unsigned char mat)
 	{
@@ -66,19 +71,16 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
-
-	unsigned int TerrainLeaf::GetTotalNonzero()
+	int TerrainLeaf::GetTotalNonzero()
 	{
-		unsigned int total = 0;
-
+		int total = 0;
 		for(int i = 0; i < 4; i++)
 			if(types[i] != 0)
 				total += weights[i];
-		
-		return max(0, min(255, total));
+		return total;
 	}
 
-	float TerrainLeaf::GetScalarValue() { return -(GetTotalNonzero() - 127.5f); }
+	float TerrainLeaf::GetScalarValue() { return -(solidity - 127.5f); }
 
 	bool TerrainLeaf::IsSolid() { return GetScalarValue() < 0; }
 	
@@ -121,11 +123,13 @@ namespace DestructibleTerrain
 
 					TerrainLeaf leaf;
 
-					unsigned char rock_amount = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * (n(pos) + 1.0f - pos.y)));
-					leaf.SetMaterialAmount(1, rock_amount);
+					leaf.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * (n(pos) + 1.0f - pos.y)));
+					leaf.SetMaterialAmount(1, 255);
 
 					data.push_back(leaf);
 				}
+
+		Solidify();
 
 		// Drop sand on top of everything
 		for(int x = 0; x < dim[0]; x++)
@@ -136,15 +140,43 @@ namespace DestructibleTerrain
 
 					if(leaf.IsSolid())
 					{
-						int amount = leaf.GetTotalNonzero();
 						leaf.ClearMaterials();
-						leaf.SetMaterialAmount(2, amount);
+						leaf.SetMaterialAmount(2, 255);
 
 						break;
 					}
 				}
+	}
 
-		// TODO: erode stuff
+	void VoxelTerrain::Solidify()
+	{
+		// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
+		for(int x = 0; x < dim[0]; x++)
+			for(int y = 0; y < dim[1]; y++)
+				for(int z = 0; z < dim[2]; z++)
+				{
+					int tot = Element(x, y, z).solidity;
+					if(tot == 0 || tot == 255)
+						continue;
+
+					bool solid = Element(x, y, z).IsSolid();
+
+					bool pass = true;
+					for(int xx = x - 1; xx <= x + 1 && pass; xx++)
+						if(xx >= 0 && xx < dim[0])
+							for(int yy = y - 1; yy <= y + 1 && pass; yy++)
+								if(yy >= 0 && yy < dim[1])
+									for(int zz = z - 1; zz <= z + 1 && pass; zz++)
+										if(zz >= 0 && zz < dim[2])
+											if(Element(xx, yy, zz).IsSolid() != solid)
+												pass = false;
+					if(pass)
+						if(solid)
+							Element(x, y, z).solidity = 255;
+						else
+							Element(x, y, z).solidity = 0;
+				}
+		
 	}
 
 	VoxelTerrain::~VoxelTerrain()
@@ -344,6 +376,49 @@ namespace DestructibleTerrain
 		Debug(ss.str());
 
 		return model;
+	}
+
+	void VoxelTerrain::Explode()
+	{
+		int x = Random3D::RandInt(dim[0]), z = Random3D::RandInt(dim[2]);
+		int y;
+
+		for(y = dim[1] - 1; y >= 0; y--)
+			if(Element(x, y, z).IsSolid())
+				break;
+
+		Vec3 blast_center = Vec3(float(x), float(y), float(z));
+		float blast_force = Random3D::Rand(4, 10);
+		float blast_radius_sq = blast_force * blast_force;
+
+		int blast_radius = (int)ceil(blast_force);
+		int min_x = max(0, x - blast_radius), max_x = min(dim[0] - 1, x + blast_radius);
+		int min_y = max(0, y - blast_radius), max_y = min(dim[1] - 1, y + blast_radius);
+		int min_z = max(0, z - blast_radius), max_z = min(dim[2] - 1, z + blast_radius);
+
+		for(int xx = min_x; xx <= max_x; xx++)
+			for(int yy = min_y; yy <= max_y; yy++)
+				for(int zz = min_z; zz <= max_z; zz++)
+				{
+					Vec3 point = Vec3(float(xx), float(yy), float(zz));
+					Vec3 radius_vec = point - blast_center;
+
+					float dist_sq = radius_vec.ComputeMagnitudeSquared();
+					float damage = blast_force * 200.0f / (dist_sq + 1.0f);
+
+					if(radius_vec.ComputeMagnitudeSquared() < blast_radius_sq)
+						Element(xx, yy, zz).solidity = (unsigned char)max(0, (int)Element(xx, yy, zz).solidity - damage);
+				}
+
+		Solidify();
+
+		if(model != NULL)
+		{
+			delete model;
+			model = NULL;
+		}
+
+		model = CreateVBO();
 	}
 
 	// used in Polygonize

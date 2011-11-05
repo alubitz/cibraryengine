@@ -13,6 +13,7 @@ namespace DestructibleTerrain
 	struct TerrainLeaf
 	{
 		unsigned char types[4], weights[4];
+		unsigned char solidity;
 
 		TerrainLeaf();
 		TerrainLeaf(unsigned char type);
@@ -20,8 +21,7 @@ namespace DestructibleTerrain
 		void ClearMaterials();
 		unsigned char GetMaterialAmount(unsigned char mat);
 		void SetMaterialAmount(unsigned char mat, unsigned char amount);
-
-		unsigned int GetTotalNonzero();
+		int GetTotalNonzero();
 
 		float GetScalarValue();
 		bool IsSolid();
@@ -45,10 +45,14 @@ namespace DestructibleTerrain
 
 			VertexBuffer* CreateVBO();
 
+			void Solidify();
+
 		public:
 
 			VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 			~VoxelTerrain();
+
+			void Explode();
 
 			void Vis(SceneRenderer* renderer);
 	};
