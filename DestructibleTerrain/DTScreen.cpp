@@ -4,7 +4,7 @@
 #include "VoxelTerrain.h"
 #include "VoxelMaterial.h"
 
-#define TERRAIN_RESOLUTION 128
+#define TERRAIN_RESOLUTION 32
 
 namespace DestructibleTerrain
 {
@@ -56,8 +56,11 @@ namespace DestructibleTerrain
 			{
 				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
 
-				if(mbse->button == 0 && mbse->state)
-					terrain->Explode();
+				if(mbse->state)
+					if(mbse->button == 0)
+						terrain->Explode();
+					else if(mbse->button == 2)
+						terrain->Erode();
 			}
 		} explode_handler;
 	};

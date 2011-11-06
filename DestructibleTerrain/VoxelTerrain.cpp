@@ -179,7 +179,97 @@ namespace DestructibleTerrain
 		
 	}
 
-	VoxelTerrain::~VoxelTerrain()
+	void VoxelTerrain::Erode()
+	{
+		// internal struct for the erosion simulation
+		struct ErosionNode
+		{
+			unsigned char stone;
+			unsigned char sand;
+			unsigned char water;
+			unsigned char air;
+
+			ErosionNode(TerrainLeaf& leaf)
+			{
+				unsigned char leaf_stone = leaf.GetMaterialAmount(1);
+				unsigned char leaf_sand = leaf.GetMaterialAmount(2);
+				unsigned short int total = leaf_stone + leaf_sand;
+
+				if(total > 0)
+				{
+					stone = (unsigned char)leaf_stone * leaf.solidity / total;
+					sand = (unsigned char)leaf_sand * leaf.solidity / total;
+				}
+				else
+					stone = sand = 0;
+
+				water = 0;
+				air = 255 - stone - sand - water;
+			}
+
+			TerrainLeaf ToTerrainLeaf()
+			{
+				TerrainLeaf result;
+
+				result.solidity = stone + sand;
+				result.SetMaterialAmount(1, stone);
+				result.SetMaterialAmount(2, sand);
+
+				return result;
+			}
+
+			void FillWithWater()
+			{
+				water = 255 - air;
+				air = 0;
+			}
+		};
+
+		// convert TerrainLeaf to ErosionNode
+		vector<ErosionNode> nodes = vector<ErosionNode>();
+		for(vector<TerrainLeaf>::iterator iter = data.begin(); iter != data.end(); iter++)
+			nodes.push_back(ErosionNode(*iter));
+
+		// do a few episodic "rainfalls"
+		for(int i = 0; i < 1; i++)
+		{
+			// place some "rain" in the top layer of the working copy
+			int y_offset = (dim[1] - 1) * dim[2];
+			for(int x = 0; x < dim[0]; x++)
+				for(int z = 0; z < dim[2]; z++)
+					nodes[x * x_span + y_offset + z].FillWithWater();
+
+			// main simulation loop
+			while(true)
+			{
+				// make a working copy of the grid
+				vector<ErosionNode> nu_nodes = vector<ErosionNode>();
+				for(vector<ErosionNode>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+					nu_nodes.push_back(*iter);
+
+				// TODO: change some nodes
+
+				// update the nodes grid
+				nodes = nu_nodes;
+
+				// TODO: have a condition for exiting the loop!
+				break;
+			}
+		}
+
+		// convert ErosionNode back to TerrainLeaf
+		data.clear();
+		for(vector<ErosionNode>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+			data.push_back(iter->ToTerrainLeaf());
+
+		Solidify();
+
+		InvalidateVBO();
+	}
+
+	VoxelTerrain::~VoxelTerrain() { InvalidateVBO(); }
+
+	void VoxelTerrain::InvalidateVBO()
 	{
 		if(model != NULL)
 		{
@@ -412,13 +502,7 @@ namespace DestructibleTerrain
 
 		Solidify();
 
-		if(model != NULL)
-		{
-			delete model;
-			model = NULL;
-		}
-
-		model = CreateVBO();
+		InvalidateVBO();
 	}
 
 	// used in Polygonize

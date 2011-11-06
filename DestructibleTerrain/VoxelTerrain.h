@@ -44,15 +44,17 @@ namespace DestructibleTerrain
 			TerrainLeaf& Element(int x, int y, int z);
 
 			VertexBuffer* CreateVBO();
-
-			void Solidify();
+			void InvalidateVBO();
 
 		public:
 
 			VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 			~VoxelTerrain();
 
+			void Solidify();
+
 			void Explode();
+			void Erode();
 
 			void Vis(SceneRenderer* renderer);
 	};
