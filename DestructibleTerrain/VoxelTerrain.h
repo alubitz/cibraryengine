@@ -9,29 +9,14 @@ namespace DestructibleTerrain
 	using namespace CibraryEngine;
 
 	class VoxelMaterial;
-
-	struct TerrainLeaf
-	{
-		unsigned char types[4], weights[4];
-		unsigned char solidity;
-
-		TerrainLeaf();
-		TerrainLeaf(unsigned char type);
-
-		void ClearMaterials();
-		unsigned char GetMaterialAmount(unsigned char mat);
-		void SetMaterialAmount(unsigned char mat, unsigned char amount);
-		int GetTotalNonzero();
-
-		float GetScalarValue();
-		bool IsSolid();
-	};
+	struct TerrainLeaf;	
+	class TerrainChunk;
 
 	class VoxelTerrain
 	{
 		private:
 
-			vector<TerrainLeaf> data;
+			vector<TerrainChunk*> chunks;
 			int dim[3];
 			int x_span;
 
@@ -39,23 +24,19 @@ namespace DestructibleTerrain
 			Mat4 xform;
 
 			VoxelMaterial* material;
-			VertexBuffer* model;
-
-			TerrainLeaf& Element(int x, int y, int z);
-
-			VertexBuffer* CreateVBO();
-			void InvalidateVBO();
 
 		public:
 
 			VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 			~VoxelTerrain();
 
-			void Solidify();
+			TerrainChunk*& Chunk(int x, int y, int z);
 
-			void Explode();
-			void Erode();
+			void GetDimensions(int& x, int& y, int& z);
+
 
 			void Vis(SceneRenderer* renderer);
+
+			void Explode();
 	};
 }

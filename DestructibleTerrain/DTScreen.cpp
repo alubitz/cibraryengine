@@ -2,9 +2,10 @@
 
 #include "DTScreen.h"
 #include "VoxelTerrain.h"
+#include "TerrainChunk.h"
 #include "VoxelMaterial.h"
 
-#define TERRAIN_RESOLUTION 32
+#define TERRAIN_RESOLUTION 4
 
 namespace DestructibleTerrain
 {
@@ -33,7 +34,7 @@ namespace DestructibleTerrain
 			Mat3 rm(Mat3::FromScaledAxis(0, rotation,0));
 			Vec3 forward(Vec3::Normalize(rm * Vec3(0, -1, -1)));
 			Vec3 up = Vec3::Normalize(Vec3::Cross(Vec3::Cross(forward, Vec3(0, 1, 0)), forward));
-			CameraView camera(-4 * forward, forward, up, 3.0f, (float)width / (float)height);
+			CameraView camera(-10 * forward, forward, up, 3.0f, (float)width / (float)height);
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
@@ -59,8 +60,8 @@ namespace DestructibleTerrain
 				if(mbse->state)
 					if(mbse->button == 0)
 						terrain->Explode();
-					else if(mbse->button == 2)
-						terrain->Erode();
+					//else if(mbse->button == 2)
+					//	terrain->Erode();
 			}
 		} explode_handler;
 	};
