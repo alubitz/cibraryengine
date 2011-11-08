@@ -42,7 +42,6 @@ namespace DestructibleTerrain
 			void Solidify();
 
 			void Explode(Vec3 center, float blast_force);
-			void Erode();
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 
