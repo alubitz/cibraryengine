@@ -41,6 +41,8 @@ namespace CibraryEngine
 		static void Init();
 		static void Shutdown();
 
+		static bool IsInit();			// init and not shut down
+
 		static ScriptingState GetGlobalState();
 		static void SetGS(GameState* gs);
 		static void SetContentReqList(ContentReqList* req);

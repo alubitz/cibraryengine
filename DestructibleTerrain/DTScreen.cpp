@@ -5,7 +5,7 @@
 #include "TerrainChunk.h"
 #include "VoxelMaterial.h"
 
-#define TERRAIN_RESOLUTION 4
+#define TERRAIN_RESOLUTION 8
 
 namespace DestructibleTerrain
 {
@@ -60,8 +60,6 @@ namespace DestructibleTerrain
 				if(mbse->state)
 					if(mbse->button == 0)
 						terrain->Explode();
-					//else if(mbse->button == 2)
-					//	terrain->Erode();
 			}
 		} explode_handler;
 	};

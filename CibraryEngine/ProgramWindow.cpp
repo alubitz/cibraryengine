@@ -193,9 +193,6 @@ namespace CibraryEngine
 
 			Init();
 
-			//WSADATA wsa_data;
-			//WSAStartup(MAKEWORD(2, 2), &wsa_data);
-
 			current_screen = initial_screen;
 			current_screen->Activate();
 
@@ -210,8 +207,6 @@ namespace CibraryEngine
 					SwapBuffers(device_context);
 				}
 			}
-
-			//WSACleanup();
 
 			return 0;
 		}
@@ -232,6 +227,7 @@ namespace CibraryEngine
 
 		bool CheckInput()
 		{
+			Debug("In ProgramWindow::Imp::CheckInput()\n");
 			MSG msg;
 			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 			{

@@ -104,7 +104,7 @@ namespace DestructibleTerrain
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(4, 10);
+		float blast_force = Random3D::Rand(4, 10) * 2;
 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
 			(*iter)->Explode(blast_center, blast_force);

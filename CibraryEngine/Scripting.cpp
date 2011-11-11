@@ -121,6 +121,8 @@ namespace CibraryEngine
 	}
 	void ScriptSystem::Shutdown() { global_state.Dispose(); }
 
+	bool ScriptSystem::IsInit() { return global_state.GetLuaState() != NULL; }
+
 	ScriptingState ScriptSystem::GetGlobalState() { return global_state; }
 
 	void ScriptSystem::SetGS(GameState* gs)
@@ -143,6 +145,9 @@ namespace CibraryEngine
 
 	void ScriptSystem::DoKeyStateCallback(int key, bool state)
 	{
+		if(!ScriptSystem::IsInit())
+			return;
+
 		lua_State* L = global_state.GetLuaState();
 		lua_settop(L, 0);
 		lua_getglobal(L, "ba");						// push; top = 1
@@ -158,6 +163,9 @@ namespace CibraryEngine
 
 	void ScriptSystem::DoMouseButtonStateCallback(int button, bool state)
 	{
+		if(!ScriptSystem::IsInit())
+			return;
+
 		lua_State* L = global_state.GetLuaState();
 		lua_settop(L, 0);
 		lua_getglobal(L, "ba");								// push; top = 1
@@ -173,6 +181,9 @@ namespace CibraryEngine
 
 	void ScriptSystem::DoMouseMovementCallback(int x, int y, int dx, int dy)
 	{
+		if(!ScriptSystem::IsInit())
+			return;
+
 		lua_State* L = global_state.GetLuaState();
 		lua_settop(L, 0);
 		lua_getglobal(L, "ba");								// push; top = 1
