@@ -48,7 +48,7 @@ namespace DestructibleTerrain
 
 						TerrainLeaf operator ()(int x, int y, int z)
 						{
-							Vec3 pos = Vec3(float(ox * 8 + x), float(oy * 8 + y), float(oz * 8 + z)) / 16.0f;
+							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 16.0f;
 
 							TerrainLeaf result;
 							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 1.0f - pos.y)));
@@ -96,11 +96,11 @@ namespace DestructibleTerrain
 
 	void VoxelTerrain::Explode()
 	{
-		int x = Random3D::RandInt(dim[0] * 8), z = Random3D::RandInt(dim[2] * 8);
+		int x = Random3D::RandInt(dim[0] * TerrainChunk::ChunkSize), z = Random3D::RandInt(dim[2] * TerrainChunk::ChunkSize);
 		int y;
 
-		for(y = dim[1] * 8 - 1; y >= 0; y--)
-			if(Chunk(x / 8, y / 8, z / 8)->Element(x % 8, y % 8, z % 8).IsSolid())
+		for(y = dim[1] * TerrainChunk::ChunkSize - 1; y >= 0; y--)
+			if(Chunk(x / TerrainChunk::ChunkSize, y / TerrainChunk::ChunkSize, z / TerrainChunk::ChunkSize)->Element(x % TerrainChunk::ChunkSize, y % TerrainChunk::ChunkSize, z % TerrainChunk::ChunkSize).IsSolid())
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));

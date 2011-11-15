@@ -16,8 +16,6 @@ namespace DestructibleTerrain
 		private:
 
 			vector<TerrainLeaf> data;
-			int dim[3];
-			int x_span;
 
 			int chunk_x, chunk_y, chunk_z;
 
@@ -33,11 +31,13 @@ namespace DestructibleTerrain
 
 		public:
 
+			static const unsigned int ChunkSize = 8;
+			static const unsigned int ChunkSizeSquared = 64;
+
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
 
 			TerrainLeaf& Element(int x, int y, int z);
-			void GetDimensions(int& x, int& y, int& z);
 
 			void Solidify();
 
@@ -45,12 +45,14 @@ namespace DestructibleTerrain
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 
-			template <class T> void PopulateValues(T t) 
-			{
-				for(int x = 0; x < dim[0]; x++)
-					for(int y = 0; y < dim[1]; y++)
-						for(int z = 0; z < dim[2]; z++)
-							Element(x, y, z) = t(x, y, z);
-			}
+			template <class T> void PopulateValues(T t);
 	};
+
+	template <class T> void TerrainChunk::PopulateValues(T t) 
+	{
+		for(int x = 0; x < ChunkSize; x++)
+			for(int y = 0; y < ChunkSize; y++)
+				for(int z = 0; z < ChunkSize; z++)
+					Element(x, y, z) = t(x, y, z);
+	}
 }

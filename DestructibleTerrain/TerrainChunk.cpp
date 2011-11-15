@@ -19,28 +19,16 @@ namespace DestructibleTerrain
 		model(NULL),
 		owner(owner)
 	{
-		dim[0] = 8;
-		dim[1] = 8;
-		dim[2] = 8;
 
-		x_span = dim[1] * dim[2];
+		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
-		xform = Mat4::Translation(float(x * 8), float(y * 8), float(z * 8));
-
-		for(int i = 0; i < 512; i++)
+		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; i++)
 			data.push_back(TerrainLeaf());
 	}
 
 	TerrainChunk::~TerrainChunk() { InvalidateVBO(); }
 
-	TerrainLeaf& TerrainChunk::Element(int x, int y, int z) { return data[x * x_span + y * dim[2] + z]; }
-	
-	void TerrainChunk::GetDimensions(int& x, int& y, int& z)
-	{
-		x = dim[0];
-		y = dim[1];
-		z = dim[2];
-	}
+	TerrainLeaf& TerrainChunk::Element(int x, int y, int z) { return data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
 	void TerrainChunk::InvalidateVBO()
 	{
@@ -75,7 +63,7 @@ namespace DestructibleTerrain
 			GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 			{
 				TerrainLeaf* leaf_ptr;
-				if(x < t->dim[0] && y < t->dim[1] && z < t->dim[2])
+				if(x < ChunkSize && y < ChunkSize && z < ChunkSize)
 					leaf_ptr = &t->Element(x, y, z);
 				else
 				{
@@ -85,7 +73,7 @@ namespace DestructibleTerrain
 					int chunk_x = t->chunk_x, chunk_y = t->chunk_y, chunk_z = t->chunk_z;
 					int use_x = x, use_y = y, use_z = z;
 
-					if(x == t->dim[0])
+					if(x == ChunkSize)
 					{
 						if(chunk_x + 1 < world_dim_x)
 						{
@@ -96,7 +84,7 @@ namespace DestructibleTerrain
 							assert(false);
 					}
 							
-					if(y == t->dim[1])
+					if(y == ChunkSize)
 					{
 						if(chunk_y + 1 < world_dim_y)
 						{
@@ -107,7 +95,7 @@ namespace DestructibleTerrain
 							assert(false);
 					}
 
-					if(z == t->dim[2])
+					if(z == ChunkSize)
 					{
 						if(chunk_z + 1 < world_dim_z)
 						{
@@ -170,9 +158,9 @@ namespace DestructibleTerrain
 		int max_x, max_y, max_z;
 		owner->GetDimensions(max_x, max_y, max_z);
 
-		max_x = max_x == chunk_x + 1 ? dim[0] : dim[0] + 1;
-		max_y = max_y == chunk_y + 1 ? dim[1] : dim[1] + 1;
-		max_z = max_z == chunk_z + 1 ? dim[2] : dim[2] + 1;
+		max_x = max_x == chunk_x + 1 ? ChunkSize : ChunkSize + 1;
+		max_y = max_y == chunk_y + 1 ? ChunkSize : ChunkSize + 1;
+		max_z = max_z == chunk_z + 1 ? ChunkSize : ChunkSize + 1;
 		
 		int vbo_x_span = max_y * max_z;
 
@@ -308,9 +296,9 @@ namespace DestructibleTerrain
 		owner->GetDimensions(owner_dim_x, owner_dim_y, owner_dim_z);
 
 		// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
-		for(int x = 0; x < dim[0]; x++)
-			for(int y = 0; y < dim[1]; y++)
-				for(int z = 0; z < dim[2]; z++)
+		for(int x = 0; x < ChunkSize; x++)
+			for(int y = 0; y < ChunkSize; y++)
+				for(int z = 0; z < ChunkSize; z++)
 				{
 					int tot = Element(x, y, z).solidity;
 					if(tot == 0 || tot == 255)
@@ -328,12 +316,12 @@ namespace DestructibleTerrain
 							if(chunk_x > 0)
 							{
 								use_chunk_x = chunk_x - 1;
-								use_x = dim[0] - 1;
+								use_x = ChunkSize - 1;
 							}
 							else
 								continue;
 						}
-						else if(xx == dim[0])
+						else if(xx == ChunkSize)
 						{
 							if(chunk_x + 1 < owner_dim_x)
 							{
@@ -353,12 +341,12 @@ namespace DestructibleTerrain
 								if(chunk_y > 0)
 								{
 									use_chunk_y = chunk_y - 1;
-									use_y = dim[1] - 1;
+									use_y = ChunkSize - 1;
 								}
 								else
 									continue;
 							}
-							else if(yy == dim[1])
+							else if(yy == ChunkSize)
 							{
 								if(chunk_y + 1 < owner_dim_y)
 								{
@@ -378,12 +366,12 @@ namespace DestructibleTerrain
 									if(chunk_z > 0)
 									{
 										use_chunk_z = chunk_z - 1;
-										use_z = dim[0] - 1;
+										use_z = ChunkSize - 1;
 									}
 									else
 										continue;
 								}
-								else if(zz == dim[0])
+								else if(zz == ChunkSize)
 								{
 									if(chunk_z + 1 < owner_dim_z)
 									{
@@ -419,9 +407,9 @@ namespace DestructibleTerrain
 		int blast_radius = (int)ceil(sqrtf(blast_force_multiplier * blast_force - 1.0f));
 		blast_center -= Vec3(float(chunk_x * 8), float(chunk_y * 8), float(chunk_z * 8));
 
-		int min_x = max(0, (int)floor(blast_center.x - blast_radius)), max_x = min(dim[0] - 1, (int)ceil(blast_center.x + blast_radius));
-		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(dim[1] - 1, (int)ceil(blast_center.y + blast_radius));
-		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(dim[2] - 1, (int)ceil(blast_center.z + blast_radius));
+		int min_x = max(0, (int)floor(blast_center.x - blast_radius)), max_x = min(ChunkSize - 1, (int)ceil(blast_center.x + blast_radius));
+		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(ChunkSize - 1, (int)ceil(blast_center.y + blast_radius));
+		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(ChunkSize - 1, (int)ceil(blast_center.z + blast_radius));
 
 		bool any = false;
 
