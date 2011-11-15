@@ -29,3 +29,5 @@
 #include "SceneRenderer.h"
 
 #include "ParticleMaterial.h"
+
+#include "UnclampedVertexBoneWeightInfo.h"
