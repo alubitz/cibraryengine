@@ -2,8 +2,6 @@
 
 #include "StdAfx.h"
 
-#include "Octree.h"
-
 namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;

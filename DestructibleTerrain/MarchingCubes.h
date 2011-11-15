@@ -37,7 +37,6 @@ namespace DestructibleTerrain
 		if(grid[6].value < isolevel) { classification |= 64; }
 		if(grid[7].value < isolevel) { classification |= 128; }
 
-
 		if (edge_table[classification] == 0)
 			return;
 

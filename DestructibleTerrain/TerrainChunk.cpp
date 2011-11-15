@@ -30,6 +30,23 @@ namespace DestructibleTerrain
 
 	TerrainLeaf& TerrainChunk::Element(int x, int y, int z) { return data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
+	TerrainLeaf* TerrainChunk::GetElementRelative(int x, int y, int z)
+	{
+		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
+			return &data[x * ChunkSizeSquared + y * ChunkSize + z];
+		else
+		{
+			int cx = x / ChunkSize + chunk_x, cy = y / ChunkSize + chunk_y, cz = z / ChunkSize + chunk_z;
+			int dx = x - (cx - chunk_x) * ChunkSize, dy = y - (cy - chunk_y) * ChunkSize, dz = z - (cz - chunk_z) * ChunkSize;
+
+			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
+			if(neighbor_chunk == NULL)
+				return NULL;
+			else
+				return &neighbor_chunk->Element(dx, dy, dz);
+		}
+	}
+
 	void TerrainChunk::InvalidateVBO()
 	{
 		if(model != NULL)
@@ -62,52 +79,8 @@ namespace DestructibleTerrain
 
 			GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 			{
-				TerrainLeaf* leaf_ptr;
-				if(x < ChunkSize && y < ChunkSize && z < ChunkSize)
-					leaf_ptr = &t->Element(x, y, z);
-				else
-				{
-					int world_dim_x, world_dim_y, world_dim_z;
-					t->owner->GetDimensions(world_dim_x, world_dim_y, world_dim_z);
-
-					int chunk_x = t->chunk_x, chunk_y = t->chunk_y, chunk_z = t->chunk_z;
-					int use_x = x, use_y = y, use_z = z;
-
-					if(x == ChunkSize)
-					{
-						if(chunk_x + 1 < world_dim_x)
-						{
-							chunk_x++;
-							use_x = 0;
-						}
-						else
-							assert(false);
-					}
-							
-					if(y == ChunkSize)
-					{
-						if(chunk_y + 1 < world_dim_y)
-						{
-							chunk_y++;
-							use_y = 0;
-						}
-						else
-							assert(false);
-					}
-
-					if(z == ChunkSize)
-					{
-						if(chunk_z + 1 < world_dim_z)
-						{
-							chunk_z++;
-							use_z = 0;
-						}
-						else
-							assert(false);
-					}
-
-					leaf_ptr = &t->owner->Chunk(chunk_x, chunk_y, chunk_z)->Element(use_x, use_y, use_z);
-				}
+				TerrainLeaf* leaf_ptr = t->GetElementRelative(x, y, z);
+				assert(leaf_ptr != NULL);
 
 				TerrainLeaf& leaf = *leaf_ptr;
 				color = Vec4();
@@ -190,6 +163,7 @@ namespace DestructibleTerrain
 
 					num_verts += cube_vertex_data.size();
 
+					// TODO: find redundant vertices here, instead of later
 					vertex_data[x * vbo_x_span + y * max_z + z] = cube_vertex_data;
 				}
 			}
@@ -393,7 +367,6 @@ namespace DestructibleTerrain
 						else
 							Element(x, y, z).solidity = 0;
 				}
-		
 	}
 
 

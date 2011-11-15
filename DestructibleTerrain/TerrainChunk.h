@@ -37,10 +37,18 @@ namespace DestructibleTerrain
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
 
+			/** 
+			 * Get a reference to the specified element
+			 */
 			TerrainLeaf& Element(int x, int y, int z);
+			
+			/**
+			 * Get a pointer to the element at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
+			 * Unlike Element, this works for elements outside the range of this chunk
+			 */
+			TerrainLeaf* GetElementRelative(int x, int y, int z);
 
 			void Solidify();
-
 			void Explode(Vec3 center, float blast_force);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
