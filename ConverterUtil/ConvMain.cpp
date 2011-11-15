@@ -1,6 +1,5 @@
 #include "StdAfx.h"
 
-//#include "ConverterScreen.h"
 #include "UnrealImport.h"
 
 using namespace std;
@@ -66,7 +65,10 @@ void ShowMainMenu()
 	else if(num_verts > 0)
 		cout << "1. New model" << endl;
 
-	cout << "3. Import model" << endl;
+	if(num_verts > 0)
+		cout << "3. Merge model" << endl;
+	else
+		cout << "3. Open model" << endl;
 
 	if(num_verts > 0)
 	{
@@ -140,6 +142,21 @@ void ImportModel()
 			changes = true;
 			UpdateStatus();
 		}
+	}
+	else if(ext.compare("ZZZ") == 0)
+	{
+		if(model == NULL)
+		{
+			if(unsigned int load_result = UberModelLoader::LoadZZZ(model, input))
+				cout << "ERROR! LoadZZZ returned with status " << load_result << "!" << endl;
+			else
+			{
+				changes = true;
+				UpdateStatus();
+			}
+		}
+		else
+			cout << "Can't merge a ZZZ model" << endl;
 	}
 	else
 		cout << "Can't import that type of file" << endl;
@@ -362,47 +379,6 @@ int main(int argc, char** argv)
 			break;
 		}
 	}
-
-	/*
-	cout << "argc = " << argc << endl;
-	for(int i = 0; i < argc; i++)
-		cout << "argv[" << i << "] = " << argv[i] << endl;
-
-	if(argc == 1)
-	{
-		cout << "Usage: ConverterUtil <input-filename> <output-filename>" << endl;
-	}
-	if(argc == 3)
-	{
-		string input_filename = argv[1];
-		string output_filename = argv[2];
-
-		string input_format_ext = GetFileExtension(input_filename);
-		cout << "input_format_ext = " << input_format_ext << endl;
-
-		string output_format_ext = GetFileExtension(output_filename);
-		cout << "output_format_ext = " << output_format_ext << endl;
-
-		UberModel* uber = NULL;
-		if(input_format_ext.compare("PSK") == 0)
-		{
-			SkinnedModel* model = new SkinnedModel(vector<MaterialModelPair>(), vector<string>(), new Skeleton());
-			LoadPSK(input_filename, model, 1.0f);
-
-			uber = UberModelLoader::CopySkinnedModel(model);
-		}
-		if(uber == NULL)
-			cout << "couldn't import that file or format" << endl;
-		else if(output_format_ext.compare("ZZZ") == 0)
-		{
-			UberModelLoader::SaveZZZ(uber, output_filename);
-		}
-		else
-			cout << "couldn't export that" << endl;
-		
-	}
-	*/
-
 	return 0;
 }
 

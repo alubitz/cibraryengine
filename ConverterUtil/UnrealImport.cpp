@@ -133,7 +133,7 @@ namespace ConverterUtil
 		{
 			VMaterial& mat = mats[i];
 			//string name = mat.MaterialName;
-			string name = "gun2";						// TODO: come up with a way to set this
+			string name = "gun2";												// TODO: come up with a way to set this
 
 			model->material_names.push_back(name);
 
@@ -159,8 +159,8 @@ namespace ConverterUtil
 		}
 
 		// finally, load the skeleton
-		model->skeleton = new Skeleton();
-		model->skeleton->bones.push_back(new Bone("root", NULL, Quaternion::Identity(), Vec3()));	// PSK does not have a root bone, it's bone 0 is our bone 1
+		Skeleton* skeleton = model->skeleton = new Skeleton();
+		skeleton->bones.push_back(new Bone("root", NULL, Quaternion::Identity(), Vec3()));	// PSK does not have a root bone, it's bone 0 is our bone 1
 		for(int i = 0; i < bones_header.DataCount; i++)
 		{
 			VBone& bone = bones[i];
@@ -169,16 +169,47 @@ namespace ConverterUtil
 			string bone_name = bone.Name;
 			bone_name.erase(bone_name.find_last_not_of(" ") + 1);									// trim trailing spaces
 
-			//model->skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(bone_pos.Orientation.X, bone_pos.Orientation.Y, bone_pos.Orientation.Z, bone_pos.Orientation.W), Vec3(bone_pos.Position.X, bone_pos.Position.Y, bone_pos.Position.Z) * scale));
-			model->skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(-bone_pos.Orientation.X, bone_pos.Orientation.Z, bone_pos.Orientation.Y, bone_pos.Orientation.W), Vec3(-bone_pos.Position.X, bone_pos.Position.Z, bone_pos.Position.Y) * scale));
+			//skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(bone_pos.Orientation.X, bone_pos.Orientation.Y, bone_pos.Orientation.Z, bone_pos.Orientation.W), Vec3(bone_pos.Position.X, bone_pos.Position.Y, bone_pos.Position.Z) * scale));
+			skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(-bone_pos.Orientation.X, bone_pos.Orientation.Z, bone_pos.Orientation.Y, bone_pos.Orientation.W), Vec3(-bone_pos.Position.X, bone_pos.Position.Z, bone_pos.Position.Y) * scale));
 
-			Debug("Bone \"" + bone_name + "\"\n");
+			stringstream ss;
+			ss << "Bone \"" << bone_name << "\", position = (" << bone_pos.Position.X << ", " << bone_pos.Position.Y << ", " << bone_pos.Position.Z << ")" << endl;
+			Debug(ss.str());
 		}
+
+		// set bones' parents
 		for(int i = 0; i < bones_header.DataCount; i++)
 		{
 			VBone& bone = bones[i];
 			INT parent_index = bone.ParentIndex;
-			model->skeleton->bones[i + 1]->parent = model->skeleton->bones[parent_index];
+			skeleton->bones[i + 1]->parent = skeleton->bones[parent_index];
+		}
+
+		// this part converts from Unreal-style bone pos/ori to my format
+		vector<Vec3> bone_positions;
+		vector<Quaternion> bone_orientations;
+		// first compute the new state without changing the current state
+		for(int i = 0; i < bones_header.DataCount; i++)
+		{
+			Bone* bone = skeleton->bones[i + 1];
+
+			Vec3 pos = bone->rest_pos;
+			Quaternion ori = bone->rest_ori;
+
+			// TODO: fix hierarchy here :|
+
+			ori = Quaternion::Identity();
+
+			bone_positions.push_back(pos);
+			bone_orientations.push_back(ori);
+		}
+		// now go back and apply the changes
+		for(int i = 0; i < bones_header.DataCount; i++)
+		{
+			Bone* bone = skeleton->bones[i + 1];
+
+			bone->rest_pos = bone_positions[i];
+			bone->rest_ori = bone_orientations[i];
 		}
 
 		delete[] points;
