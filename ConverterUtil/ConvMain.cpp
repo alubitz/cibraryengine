@@ -8,8 +8,6 @@ using namespace ConverterUtil;
 
 int main(int argc, char** argv)
 {
-	//ScriptSystem::Init();
-
 	InitEndianness();
 
 	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Converter Util", 0, 0, 0, false);

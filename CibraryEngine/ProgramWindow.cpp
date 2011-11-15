@@ -227,7 +227,6 @@ namespace CibraryEngine
 
 		bool CheckInput()
 		{
-			Debug("In ProgramWindow::Imp::CheckInput()\n");
 			MSG msg;
 			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 			{

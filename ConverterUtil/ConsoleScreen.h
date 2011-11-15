@@ -6,15 +6,7 @@ using namespace CibraryEngine;
 
 namespace ConverterUtil
 {
-	/**
-	 * Screen for converting models
-	 *
-	 * Convert UnrealEngine's psk/psa models to UberModel (zzz) format
-	 * Convert obj models
-	 *
-	 * Edit collision shapes
-	 */
-	class ConverterScreen : public ProgramScreen
+	class ConsoleScreen : public ProgramScreen
 	{
 		private:
 
@@ -23,8 +15,8 @@ namespace ConverterUtil
 
 		public:
 
-			ConverterScreen(ProgramWindow* win);
-			~ConverterScreen();
+			ConsoleScreen(ProgramWindow* win);
+			~ConsoleScreen();
 
 			void Activate();
 			void Deactivate();
