@@ -131,6 +131,7 @@ namespace CibraryEngine
 					LOD();
 
 					vector<MaterialModelPair>* GetVBOs();
+					void InvalidateVBOs();
 			};
 
 

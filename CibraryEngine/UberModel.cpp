@@ -124,6 +124,21 @@ namespace CibraryEngine
 		return vbos;
 	}
 
+	void UberModel::LOD::InvalidateVBOs()
+	{
+		if(vbos != NULL)
+		{
+			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); iter++)
+			{
+				iter->vbo->Dispose();
+				delete iter->vbo;
+			}
+		
+			delete vbos;
+			vbos = NULL;
+		}
+	}
+
 
 
 

@@ -132,7 +132,8 @@ namespace ConverterUtil
 		for(int i = 0; i < mats_header.DataCount; i++)
 		{
 			VMaterial& mat = mats[i];
-			string name = mat.MaterialName;
+			//string name = mat.MaterialName;
+			string name = "gun2";						// TODO: come up with a way to set this
 
 			model->material_names.push_back(name);
 
@@ -151,7 +152,7 @@ namespace ConverterUtil
 			mmp.vbo = vbo;
 
 			for(int j = 0; j < faces_header.DataCount; j++)
-				if(faces[i].MatIndex == i)
+				//if(faces[j].MatIndex == i)									// TODO: fix this (some reason MatIndex >= mats_header.DataCount ??? )
 					AddTriangleVertexInfo(vbo, vertex_infos[j * 3 + 0], vertex_infos[j * 3 + 2], vertex_infos[j * 3 + 1]);
 
 			model->material_model_pairs.push_back(mmp);
@@ -205,7 +206,7 @@ namespace ConverterUtil
 		// open the file
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
-				return 1;
+			return 1;
 
 		// load the stuff from the file directly into memory
 		VChunkHeader general_header;
@@ -215,71 +216,71 @@ namespace ConverterUtil
 		file.read((char*)&bones_header, sizeof(VChunkHeader));
 		FNamedBoneBinary* bones = new FNamedBoneBinary[bones_header.DataCount];
 		for(int i = 0; i < bones_header.DataCount; i++)
-				file.read((char*)&bones[i], bones_header.DataSize);
+			file.read((char*)&bones[i], bones_header.DataSize);
 
 		VChunkHeader anims_header;
 		file.read((char*)&anims_header, sizeof(VChunkHeader));
 		AnimInfoBinary* anims = new AnimInfoBinary[anims_header.DataCount];
 		for(int i = 0; i < anims_header.DataCount; i++)
-				file.read((char*)&anims[i], anims_header.DataSize);
+			file.read((char*)&anims[i], anims_header.DataSize);
 
 		VChunkHeader raw_keys_header;
 		file.read((char*)&raw_keys_header, sizeof(VChunkHeader));
 		VQuatAnimKey* raw_keys = new VQuatAnimKey[raw_keys_header.DataCount];
 		for(int i = 0; i < raw_keys_header.DataCount; i++)
-				file.read((char*)&raw_keys[i], raw_keys_header.DataSize);
+			file.read((char*)&raw_keys[i], raw_keys_header.DataSize);
 
 		VChunkHeader scale_keys_header;
 		file.read((char*)&scale_keys_header, sizeof(VChunkHeader));
 		VScaleAnimKey* scale_keys = new VScaleAnimKey[scale_keys_header.DataCount];
 		for(int i = 0; i < scale_keys_header.DataCount; i++)
-				file.read((char*)&scale_keys[i], scale_keys_header.DataSize);
+			file.read((char*)&scale_keys[i], scale_keys_header.DataSize);
 
 		// ignoring curve keys because i have no idea wtf those are
 
 		VQuatAnimKey* key_pointer = &raw_keys[0];
 		for(int i = 0; i < anims_header.DataCount; i++)
 		{
-				AnimInfoBinary& anim = anims[i];
+			AnimInfoBinary& anim = anims[i];
 
-				int total_bones = anim.TotalBones;
-				int frame_count = anim.NumRawFrames;
+			int total_bones = anim.TotalBones;
+			int frame_count = anim.NumRawFrames;
 
-				float frame_length = anim.AnimRate == 0.0f ? 0.0f : 1.0f / anim.AnimRate;
+			float frame_length = anim.AnimRate == 0.0f ? 0.0f : 1.0f / anim.AnimRate;
 
-				string anim_name = anim.Name;
-				anim_name.erase(anim_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
+			string anim_name = anim.Name;
+			anim_name.erase(anim_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
 
-				KeyframeAnimation keyframe_animation = KeyframeAnimation(anim_name);
-				for(int j = 0; j < frame_count; j++)
+			KeyframeAnimation keyframe_animation = KeyframeAnimation(anim_name);
+			for(int j = 0; j < frame_count; j++)
+			{
+				Keyframe frame = Keyframe(frame_length);
+
+				frame.next = j + 1;
+				if(frame.next == frame_count)
+					frame.next = 0;
+
+				keyframe_animation.frames.push_back(frame);
+			}
+
+			for(int j = 0; j < total_bones; j++)
+				for(int k = 0; k < frame_count; k++)
 				{
-						Keyframe frame = Keyframe(frame_length);
+					VQuatAnimKey key = *key_pointer;
 
-						frame.next = j + 1;
-						if(frame.next == frame_count)
-								frame.next = 0;
+					Vec3 ori = Quaternion(-key.Orientation.X, key.Orientation.Y, key.Orientation.Z, key.Orientation.W).ToPYR();
+					//Vec3 pos = Vec3(key.Position.X, key.Position.Y, key.Position.Z) * scale;
+					Vec3 pos = Vec3(-key.Position.X, key.Position.Z, key.Position.Y) * scale;
 
-						keyframe_animation.frames.push_back(frame);
+					string bone_name = bones[j].Name;
+					bone_name.erase(bone_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
+
+					keyframe_animation.frames[k].values[bone_name] = BoneInfluence(ori, pos, 1.0f);
+
+					key_pointer++;
 				}
 
-				for(int j = 0; j < total_bones; j++)
-						for(int k = 0; k < frame_count; k++)
-						{
-								VQuatAnimKey key = *key_pointer;
-
-								Vec3 ori = Quaternion(-key.Orientation.X, key.Orientation.Y, key.Orientation.Z, key.Orientation.W).ToPYR();
-								//Vec3 pos = Vec3(key.Position.X, key.Position.Y, key.Position.Z) * scale;
-								Vec3 pos = Vec3(-key.Position.X, key.Position.Z, key.Position.Y) * scale;
-
-								string bone_name = bones[j].Name;
-								bone_name.erase(bone_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
-
-								keyframe_animation.frames[k].values[bone_name] = BoneInfluence(ori, pos, 1.0f);
-
-								key_pointer++;
-						}
-
-				animations.push_back(keyframe_animation);
+			animations.push_back(keyframe_animation);
 		}
 
 		delete[] bones;

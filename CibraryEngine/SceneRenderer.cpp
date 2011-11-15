@@ -40,6 +40,8 @@ namespace CibraryEngine
 		{
 			Material* mat = iter->first;
 
+			assert(mat && "Material must not be NULL!");
+
 			if (mat->blend_style == Opaque)
 				opaque_items[mat] = material_model_lists[mat];
 			else
