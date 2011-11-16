@@ -51,7 +51,7 @@ namespace DestructibleTerrain
 							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 16.0f;
 
 							TerrainLeaf result;
-							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 1.0f - pos.y)));
+							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 2.5f - pos.y)));
 							result.SetMaterialAmount(1, 255);
 
 							return result;

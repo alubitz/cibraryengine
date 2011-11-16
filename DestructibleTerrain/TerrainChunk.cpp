@@ -137,7 +137,8 @@ namespace DestructibleTerrain
 		
 		int vbo_x_span = max_y * max_z;
 
-		vector<VertStruct>* vertex_data = new vector<VertStruct>[vbo_x_span * max_x];
+		vector<VertStruct> unique_vertices;
+		vector<unsigned int>* vertex_indices = new vector<unsigned int>[vbo_x_span * max_x];
 
 		for(int x = 1; x < max_x; x++)
 		{
@@ -149,11 +150,11 @@ namespace DestructibleTerrain
 					{
 						GridStruct(this, x - 1, y - 1, z - 1),	
 						GridStruct(this, x - 1, y - 1, z),
-						GridStruct(this, x - 1, y, z),					// order of verts 6&7 swapped to conform with the tables' vertex ordering
+						GridStruct(this, x - 1, y, z),
 						GridStruct(this, x - 1, y, z - 1),			
 						GridStruct(this, x, y - 1, z - 1),	
 						GridStruct(this, x, y - 1, z),
-						GridStruct(this, x, y, z),						// order of verts 6&7 swapped to conform with the tables' vertex ordering
+						GridStruct(this, x, y, z),
 						GridStruct(this, x, y, z - 1)
 					};
 
@@ -163,8 +164,76 @@ namespace DestructibleTerrain
 
 					num_verts += cube_vertex_data.size();
 
-					// TODO: find redundant vertices here, instead of later
-					vertex_data[x * vbo_x_span + y * max_z + z] = cube_vertex_data;
+					vector<unsigned int> cube_vertex_indices = vector<unsigned int>();
+					for(vector<VertStruct>::iterator iter = cube_vertex_data.begin(); iter != cube_vertex_data.end(); iter++)
+					{
+						// find out if this vert is a duplicate of one which has already been assigned an index
+						Vec3& pos = iter->pos;
+
+						bool found = false;
+						unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
+
+						for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
+							for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
+								for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
+								{
+									vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
+									for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
+									{
+										VertStruct& value = unique_vertices[*jter];
+										if((value.pos - pos).ComputeMagnitudeSquared() < 0.000001f)
+										{
+											use_index = *jter;
+											found = true;
+											break;
+										}
+									}
+								}
+
+						// vert doesn't already exist; create it
+						if(!found)
+							unique_vertices.push_back(*iter);
+
+						cube_vertex_indices.push_back(use_index);
+
+					}
+					vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
+				}
+			}
+		}
+
+		Vec3* normal_vectors = new Vec3[unique_vertices.size()];
+		for(unsigned int i = 0; i < unique_vertices.size(); i++)
+			normal_vectors[i] = Vec3();
+
+		// go back through them and find the normal vectors (faster than it used to be!)
+		for(int x = 1; x < max_x; x++)
+		{
+			for(int y = 1; y < max_y; y++)
+			{
+				for(int z = 1; z < max_z; z++)
+				{
+					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
+
+					if(cube_verts.empty())
+						continue;
+
+					// iterate through all of the verts
+					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); )
+					{
+						unsigned int a = *(iter++), b = *(iter++), c = *(iter++);
+						Vec3 va = unique_vertices[a].pos, vb = unique_vertices[b].pos, vc = unique_vertices[c].pos;
+
+						Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
+						float len = tri_normal.ComputeMagnitudeSquared();
+						if(len > 0.0f)
+						{
+							tri_normal /= sqrtf(len);
+							normal_vectors[a] += tri_normal;
+							normal_vectors[b] += tri_normal;
+							normal_vectors[c] += tri_normal;
+						}
+					}
 				}
 			}
 		}
@@ -175,67 +244,32 @@ namespace DestructibleTerrain
 		float* normal_ptr = model->GetFloatPointer("gl_Normal");
 		float* color_ptr = model->GetFloatPointer("gl_Color");
 
-		// now go back through them and find the normal vectors...
+		// now build the actual vbo with the values we computed
 		for(int x = 1; x < max_x; x++)
 		{
 			for(int y = 1; y < max_y; y++)
 			{
 				for(int z = 1; z < max_z; z++)
 				{
-					vector<VertStruct>& cube_verts = vertex_data[x * vbo_x_span + y * max_z + z];
+					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
 					if(cube_verts.empty())
 						continue;
 
-					// iterate through all of the verts
-					for(vector<VertStruct>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
+					// iterate through all of the verts in this cube
+					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
 					{
-						Vec3 pos = iter->pos;
-						
-						Vec4 color = iter->color;
-						float inv = color.w == 0 ? 1.0f : 1.0f / color.w;
-						color.x *= inv;
-						color.y *= inv;
-						color.z *= inv;
+						VertStruct& vert = unique_vertices[*iter];
 
-						Vec3 normal;
-	
-						for(int i = x - 1; i <= x + 1 && i < max_x; i++)
-						{
-							for(int j = y - 1; j <= y + 1 && j < max_y; j++)
-							{
-								for(int k = z - 1; k <= z + 1 && k < max_z; k++)
-								{
-									vector<VertStruct>& other_verts = vertex_data[i * vbo_x_span + j * max_z + k];
-									if(other_verts.empty())
-										continue;
-									
-									// find triangles which contain this vertex
-									for(vector<VertStruct>::iterator jter = other_verts.begin(); jter != other_verts.end(); )
-									{
-										Vec3 a = (jter++)->pos;
-										Vec3 b = (jter++)->pos;
-										Vec3 c = (jter++)->pos;
+						Vec3 pos = vert.pos;
 
-										//if(pos == a || pos == b || pos == c)
-										if((pos - a).ComputeMagnitudeSquared() < 0.00001f || (pos - b).ComputeMagnitudeSquared() < 0.00001f || (pos - c).ComputeMagnitudeSquared() < 0.00001f)
-										{
-											// add this triangle's contribution to the vert's normal vector
-											Vec3 tri_normal = Vec3::Cross(b - a, c - a);
-											float len = tri_normal.ComputeMagnitudeSquared();
-											if(len > 0.0f)
-												normal += tri_normal / sqrtf(len);
-										}
-									}
-								}
-							}
-						}
+						Vec4 color = vert.color;
+						if(color.w > 0)
+							color /= color.w;
 
+						Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
 
-						// make sure the normal vector we computed has unit magnitude
-						normal = Vec3::Normalize(normal);
-
-						// now put this data in the VBO
+						// put the data for this vertex into the VBO
 						*(vertex_ptr++) = pos.x;
 						*(vertex_ptr++) = pos.y;
 						*(vertex_ptr++) = pos.z;
@@ -252,7 +286,8 @@ namespace DestructibleTerrain
 			}
 		}
 
-		delete[] vertex_data;
+		delete[] normal_vectors;
+		delete[] vertex_indices;
 
 		model->BuildVBO();
 		return model;
