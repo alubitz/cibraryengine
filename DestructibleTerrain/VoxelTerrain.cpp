@@ -17,7 +17,7 @@ namespace DestructibleTerrain
 	VoxelTerrain::VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z) :
 		chunks(),
 		scale(Mat4::UniformScale(1.0f / 4.0f)),
-		xform(Mat4::Translation(float(-dim_x * 4), float(-dim_y * 4), float(-dim_z * 4)))
+		xform(Mat4::Translation(float(-0.5f * dim_x * TerrainChunk::ChunkSize), float(-0.5f * dim_y * TerrainChunk::ChunkSize), float(-0.5f * dim_z * TerrainChunk::ChunkSize)))
 	{
 		dim[0] = dim_x;
 		dim[1] = dim_y;
@@ -48,7 +48,7 @@ namespace DestructibleTerrain
 
 						TerrainLeaf operator ()(int x, int y, int z)
 						{
-							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 16.0f;
+							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 32.0f;
 
 							TerrainLeaf result;
 							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 2.5f - pos.y)));
@@ -82,7 +82,13 @@ namespace DestructibleTerrain
 		z = dim[2];
 	}
 
-	TerrainChunk*& VoxelTerrain::Chunk(int x, int y, int z) { return chunks[x * x_span + y * dim[2] + z]; }
+	TerrainChunk* VoxelTerrain::Chunk(int x, int y, int z) 
+	{
+		if(x < 0 || y < 0 || z < 0 || x >= dim[0] || y >= dim[1] || z >= dim[2])
+			return NULL;
+		else
+			return chunks[x * x_span + y * dim[2] + z]; 
+	}
 
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
 	{ 
@@ -104,9 +110,21 @@ namespace DestructibleTerrain
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(4, 10) * 2;
+		float blast_force = Random3D::Rand(4, 10) * 4;
+
+		set<TerrainChunk*> affected_chunks;
 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
-			(*iter)->Explode(blast_center, blast_force);
+			(*iter)->Explode(blast_center, blast_force, affected_chunks);
+
+		unsigned int count = 0;
+
+		for(set<TerrainChunk*>::iterator iter = affected_chunks.begin(); iter != affected_chunks.end(); iter++)
+		{
+			TerrainChunk* chunk = *iter;
+			chunk->Solidify();
+			chunk->InvalidateVBO();
+			count++;
+		}
 	}
 }

@@ -25,14 +25,14 @@ namespace DestructibleTerrain
 			VertexBuffer* model;
 
 			VertexBuffer* CreateVBO();
-			void InvalidateVBO();
 
 			VoxelTerrain* owner;
 
 		public:
 
-			static const unsigned int ChunkSize = 8;
-			static const unsigned int ChunkSizeSquared = 64;
+			// If these were unsigned ints it would cause some stupid errors with underflow
+			static const int ChunkSize = 16;
+			static const int ChunkSizeSquared = 256;
 
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
@@ -48,8 +48,10 @@ namespace DestructibleTerrain
 			 */
 			TerrainLeaf* GetElementRelative(int x, int y, int z);
 
+			void InvalidateVBO();
+
 			void Solidify();
-			void Explode(Vec3 center, float blast_force);
+			void TerrainChunk::Explode(Vec3 blast_center, float blast_force, set<TerrainChunk*>& affected_chunks);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 

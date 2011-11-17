@@ -28,7 +28,7 @@ namespace DestructibleTerrain
 			VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 			~VoxelTerrain();
 
-			TerrainChunk*& Chunk(int x, int y, int z);
+			TerrainChunk* Chunk(int x, int y, int z);
 
 			void GetDimensions(int& x, int& y, int& z);
 

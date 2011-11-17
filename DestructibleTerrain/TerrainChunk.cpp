@@ -36,8 +36,13 @@ namespace DestructibleTerrain
 			return &data[x * ChunkSizeSquared + y * ChunkSize + z];
 		else
 		{
-			int cx = x / ChunkSize + chunk_x, cy = y / ChunkSize + chunk_y, cz = z / ChunkSize + chunk_z;
-			int dx = x - (cx - chunk_x) * ChunkSize, dy = y - (cy - chunk_y) * ChunkSize, dz = z - (cz - chunk_z) * ChunkSize;
+			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
+			int cy = (int)floor((float)y / ChunkSize) + chunk_y;
+			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
+
+			int dx = x - (cx - chunk_x) * ChunkSize;
+			int dy = y - (cy - chunk_y) * ChunkSize; 
+			int dz = z - (cz - chunk_z) * ChunkSize;
 
 			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
 			if(neighbor_chunk == NULL)
@@ -131,9 +136,9 @@ namespace DestructibleTerrain
 		int max_x, max_y, max_z;
 		owner->GetDimensions(max_x, max_y, max_z);
 
-		max_x = max_x == chunk_x + 1 ? ChunkSize : ChunkSize + 1;
-		max_y = max_y == chunk_y + 1 ? ChunkSize : ChunkSize + 1;
-		max_z = max_z == chunk_z + 1 ? ChunkSize : ChunkSize + 1;
+		max_x = max_x == chunk_x + 1 ? ChunkSize : ChunkSize + 2;
+		max_y = max_y == chunk_y + 1 ? ChunkSize : ChunkSize + 2;
+		max_z = max_z == chunk_z + 1 ? ChunkSize : ChunkSize + 2;
 		
 		int vbo_x_span = max_y * max_z;
 
@@ -180,8 +185,11 @@ namespace DestructibleTerrain
 									vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
 									for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
 									{
-										VertStruct& value = unique_vertices[*jter];
-										if((value.pos - pos).ComputeMagnitudeSquared() < 0.000001f)
+										Vec3 vertex_pos = unique_vertices[*jter].pos;
+									
+										if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
+											(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
+											(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
 										{
 											use_index = *jter;
 											found = true;
@@ -225,10 +233,12 @@ namespace DestructibleTerrain
 						Vec3 va = unique_vertices[a].pos, vb = unique_vertices[b].pos, vc = unique_vertices[c].pos;
 
 						Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
-						float len = tri_normal.ComputeMagnitudeSquared();
-						if(len > 0.0f)
+
+						float len_sq = tri_normal.ComputeMagnitudeSquared();
+						if(len_sq > 0.0f)
 						{
-							tri_normal /= sqrtf(len);
+							//tri_normal /= sqrtf(len_sq);
+
 							normal_vectors[a] += tri_normal;
 							normal_vectors[b] += tri_normal;
 							normal_vectors[c] += tri_normal;
@@ -244,12 +254,17 @@ namespace DestructibleTerrain
 		float* normal_ptr = model->GetFloatPointer("gl_Normal");
 		float* color_ptr = model->GetFloatPointer("gl_Color");
 
+		// we extended to ChunkSize + 2 to make the normal vectors compute correctly, but now we only want the ones within this chunk
+		int cmax_x = min(max_x, ChunkSize + 1);
+		int cmax_y = min(max_y, ChunkSize + 1);
+		int cmax_z = min(max_z, ChunkSize + 1);
+
 		// now build the actual vbo with the values we computed
-		for(int x = 1; x < max_x; x++)
+		for(int x = 1; x < cmax_x; x++)
 		{
-			for(int y = 1; y < max_y; y++)
+			for(int y = 1; y < cmax_y; y++)
 			{
-				for(int z = 1; z < max_z; z++)
+				for(int z = 1; z < cmax_z; z++)
 				{
 					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
@@ -265,7 +280,12 @@ namespace DestructibleTerrain
 
 						Vec4 color = vert.color;
 						if(color.w > 0)
-							color /= color.w;
+						{
+							float inv = 1.0f / color.w;
+							color.x *= inv;
+							color.y *= inv;
+							color.z *= inv;
+						}
 
 						Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
 
@@ -317,85 +337,14 @@ namespace DestructibleTerrain
 					bool pass = true;
 
 					for(int xx = x - 1; xx <= x + 1 && pass; xx++)
-					{
-						int use_chunk_x = chunk_x, use_x = xx;
-
-						if(xx == -1)
-						{
-							if(chunk_x > 0)
-							{
-								use_chunk_x = chunk_x - 1;
-								use_x = ChunkSize - 1;
-							}
-							else
-								continue;
-						}
-						else if(xx == ChunkSize)
-						{
-							if(chunk_x + 1 < owner_dim_x)
-							{
-								use_chunk_x = chunk_x + 1;
-								use_x = 0;
-							}
-							else
-								continue;
-						}
-
 						for(int yy = y - 1; yy <= y + 1 && pass; yy++)
-						{
-							int use_chunk_y = chunk_y, use_y = yy;
-
-							if(yy == -1)
-							{
-								if(chunk_y > 0)
-								{
-									use_chunk_y = chunk_y - 1;
-									use_y = ChunkSize - 1;
-								}
-								else
-									continue;
-							}
-							else if(yy == ChunkSize)
-							{
-								if(chunk_y + 1 < owner_dim_y)
-								{
-									use_chunk_y = chunk_y + 1;
-									use_y = 0;
-								}
-								else
-									continue;
-							}
-
 							for(int zz = z - 1; zz <= z + 1 && pass; zz++)
 							{
-								int use_chunk_z = chunk_z, use_z = zz;
-
-								if(zz == -1)
-								{
-									if(chunk_z > 0)
-									{
-										use_chunk_z = chunk_z - 1;
-										use_z = ChunkSize - 1;
-									}
-									else
-										continue;
-								}
-								else if(zz == ChunkSize)
-								{
-									if(chunk_z + 1 < owner_dim_z)
-									{
-										use_chunk_z = chunk_z + 1;
-										use_z = 0;
-									}
-									else
-										continue;
-								}
-
-								if(owner->Chunk(use_chunk_x, use_chunk_y, use_chunk_z)->Element(use_x, use_y, use_z).IsSolid() != solid)
+								TerrainLeaf* neighbor = GetElementRelative(xx, yy, zz);
+								if(neighbor != NULL && neighbor->IsSolid() != solid)
 									pass = false;
 							}
-						}
-					}
+
 					if(pass)
 						if(solid)
 							Element(x, y, z).solidity = 255;
@@ -407,26 +356,32 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::Explode(Vec3 blast_center, float blast_force)
+	void TerrainChunk::Explode(Vec3 blast_center, float blast_force, set<TerrainChunk*>& affected_chunks)
 	{
-		const float blast_force_multiplier = 100.0f;
-		const float damage_threshold = 10.0f;					// should be at least 1 (gets converted to integer)
+		const float blast_force_multiplier = 200.0f;
+		const float damage_threshold = 50.0f;					// should be at least 1 (gets converted to integer)
 
 		int blast_radius = (int)ceil(sqrtf(blast_force_multiplier * blast_force - 1.0f));
-		blast_center -= Vec3(float(chunk_x * 8), float(chunk_y * 8), float(chunk_z * 8));
+		blast_center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
 
 		int min_x = max(0, (int)floor(blast_center.x - blast_radius)), max_x = min(ChunkSize - 1, (int)ceil(blast_center.x + blast_radius));
 		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(ChunkSize - 1, (int)ceil(blast_center.y + blast_radius));
 		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(ChunkSize - 1, (int)ceil(blast_center.z + blast_radius));
 
-		bool any = false;
+		bool has_x_neighbor = min_x == 0 && chunk_x > 0;
+		bool has_y_neighbor = min_y == 0 && chunk_y > 0;
+		bool has_z_neighbor = min_z == 0 && chunk_z > 0;
 
 		for(int xx = min_x; xx <= max_x; xx++)
 		{
+			bool is_x_neighbor = has_x_neighbor && xx == 0;
 			for(int yy = min_y; yy <= max_y; yy++)
 			{
+				bool is_y_neighbor = has_y_neighbor && yy == 0;
 				for(int zz = min_z; zz <= max_z; zz++)
 				{
+					bool is_z_neighbor = has_z_neighbor && zz == 0;
+
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
 					Vec3 radius_vec = point - blast_center;
 
@@ -440,17 +395,32 @@ namespace DestructibleTerrain
 						if(nu_value != leaf.solidity)
 						{
 							leaf.solidity = nu_value;
-							any = true;
+							affected_chunks.insert(this);
+
+							if(is_x_neighbor)
+							{
+								affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y, chunk_z));
+								if(is_y_neighbor)
+								{
+									affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z));
+
+									if(is_z_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z - 1));
+								}
+							}
+							if(is_y_neighbor)
+							{
+								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z));
+
+								if(is_z_neighbor)
+									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z - 1));
+							}
+							if(is_z_neighbor)
+								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y, chunk_z - 1));
 						}
 					}
 				}
 			}
-		}
-
-		if(any)
-		{
-			Solidify();
-			InvalidateVBO();
 		}
 	}
 

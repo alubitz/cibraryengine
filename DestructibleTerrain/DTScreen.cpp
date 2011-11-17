@@ -34,7 +34,7 @@ namespace DestructibleTerrain
 			Mat3 rm(Mat3::FromScaledAxis(0, rotation,0));
 			Vec3 forward(Vec3::Normalize(rm * Vec3(0, -1, -1)));
 			Vec3 up = Vec3::Normalize(Vec3::Cross(Vec3::Cross(forward, Vec3(0, 1, 0)), forward));
-			CameraView camera(-25 * forward, forward, up, 3.0f, (float)width / (float)height);
+			CameraView camera(-50 * forward, forward, up, 3.0f, (float)width / (float)height);
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
