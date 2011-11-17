@@ -313,18 +313,9 @@ namespace DestructibleTerrain
 		return model;
 	}
 
-
-
-
-	/*
-	 * Solidify function is also kind of long
-	 */
+	// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
 	void TerrainChunk::Solidify()
 	{
-		int owner_dim_x, owner_dim_y, owner_dim_z;
-		owner->GetDimensions(owner_dim_x, owner_dim_y, owner_dim_z);
-
-		// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
 		for(int x = 0; x < ChunkSize; x++)
 			for(int y = 0; y < ChunkSize; y++)
 				for(int z = 0; z < ChunkSize; z++)
@@ -346,20 +337,17 @@ namespace DestructibleTerrain
 							}
 
 					if(pass)
-						if(solid)
-							Element(x, y, z).solidity = 255;
-						else
-							Element(x, y, z).solidity = 0;
+						Element(x, y, z).solidity = solid ? 255 : 0;
 				}
 	}
 
-
-
-
 	void TerrainChunk::Explode(Vec3 blast_center, float blast_force, set<TerrainChunk*>& affected_chunks)
 	{
+		int owner_dim_x, owner_dim_y, owner_dim_z;
+		owner->GetDimensions(owner_dim_x, owner_dim_y, owner_dim_z);
+
 		const float blast_force_multiplier = 200.0f;
-		const float damage_threshold = 50.0f;					// should be at least 1 (gets converted to integer)
+		const float damage_threshold = 50.0f;					// value gets converted to integer!
 
 		int blast_radius = (int)ceil(sqrtf(blast_force_multiplier * blast_force - 1.0f));
 		blast_center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
@@ -368,19 +356,21 @@ namespace DestructibleTerrain
 		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(ChunkSize - 1, (int)ceil(blast_center.y + blast_radius));
 		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(ChunkSize - 1, (int)ceil(blast_center.z + blast_radius));
 
-		bool has_x_neighbor = min_x == 0 && chunk_x > 0;
-		bool has_y_neighbor = min_y == 0 && chunk_y > 0;
-		bool has_z_neighbor = min_z == 0 && chunk_z > 0;
+		bool has_nx_neighbor = min_x == 0 && chunk_x > 0, has_ny_neighbor = min_y == 0 && chunk_y > 0, has_nz_neighbor = min_z == 0 && chunk_z > 0;
+		bool has_px_neighbor = max_x + 1 == ChunkSize && chunk_x + 1 < owner_dim_x, has_py_neighbor = max_y + 1 == ChunkSize && chunk_y + 1 < owner_dim_y, has_pz_neighbor = max_z + 1 == ChunkSize && chunk_z + 1 < owner_dim_z;
 
 		for(int xx = min_x; xx <= max_x; xx++)
 		{
-			bool is_x_neighbor = has_x_neighbor && xx == 0;
+			bool is_nx_neighbor = has_nx_neighbor && xx == 0;
+			bool is_px_neighbor = has_px_neighbor && xx + 1 == ChunkSize;
 			for(int yy = min_y; yy <= max_y; yy++)
 			{
-				bool is_y_neighbor = has_y_neighbor && yy == 0;
+				bool is_ny_neighbor = has_ny_neighbor && yy == 0;
+				bool is_py_neighbor = has_py_neighbor && yy + 1 == ChunkSize;
 				for(int zz = min_z; zz <= max_z; zz++)
 				{
-					bool is_z_neighbor = has_z_neighbor && zz == 0;
+					bool is_nz_neighbor = has_nz_neighbor && zz == 0;
+					bool is_pz_neighbor = has_pz_neighbor && zz + 1 == ChunkSize;
 
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
 					Vec3 radius_vec = point - blast_center;
@@ -397,26 +387,74 @@ namespace DestructibleTerrain
 							leaf.solidity = nu_value;
 							affected_chunks.insert(this);
 
-							if(is_x_neighbor)
+							if(is_nx_neighbor)
 							{
 								affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y, chunk_z));
-								if(is_y_neighbor)
+								if(is_ny_neighbor)
 								{
 									affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z));
 
-									if(is_z_neighbor)
+									if(is_nz_neighbor)
 										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z - 1));
+									else if(is_pz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z + 1));
+								}
+								else if(is_py_neighbor)
+								{
+									affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y + 1, chunk_z));
+
+									if(is_nz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z - 1));
+									else if(is_pz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z + 1));
 								}
 							}
-							if(is_y_neighbor)
+							else if(is_px_neighbor)
+							{
+								affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y, chunk_z));
+								if(is_ny_neighbor)
+								{
+									affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z));
+
+									if(is_nz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z - 1));
+									else if(is_pz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z + 1));
+								}
+								else if(is_py_neighbor)
+								{
+									affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y + 1, chunk_z));
+
+									if(is_nz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z - 1));
+									else if(is_pz_neighbor)
+										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z + 1));
+								}
+							}
+
+							if(is_ny_neighbor)
 							{
 								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z));
 
-								if(is_z_neighbor)
+								if(is_nz_neighbor)
 									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z - 1));
+								else if(is_pz_neighbor)
+									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z + 1));
 							}
-							if(is_z_neighbor)
+							else if(is_py_neighbor)
+							{
+								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z));
+
+								if(is_nz_neighbor)
+									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z - 1));
+								else if(is_pz_neighbor)
+									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z + 1));
+							}
+
+							if(is_nz_neighbor)
 								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y, chunk_z - 1));
+							else if(is_pz_neighbor)
+								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y, chunk_z + 1));
 						}
 					}
 				}

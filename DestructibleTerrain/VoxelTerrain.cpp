@@ -61,6 +61,10 @@ namespace DestructibleTerrain
 					chunk->PopulateValues(pop);
 					chunks.push_back(chunk);
 				}
+
+		// go back and solidify those chunks
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
+			(*iter)->Solidify();
 	}
 
 	VoxelTerrain::~VoxelTerrain() 
