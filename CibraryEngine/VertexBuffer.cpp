@@ -280,7 +280,8 @@ namespace CibraryEngine
 				else
 				{
 					int max_texture_units;
-					glGetIntegerv(GL_MAX_TEXTURE_UNITS, &max_texture_units);
+					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
+
 					for(int j = 0; j < max_texture_units; j++)
 					{
 						if(attrib.name == MultiTexName(j))
@@ -331,7 +332,7 @@ namespace CibraryEngine
 				else
 				{
 					int max_texture_units;
-					glGetIntegerv(GL_MAX_TEXTURE_UNITS, &max_texture_units);
+					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
 					for(int j = 0; j < max_texture_units; j++)
 					{
 						if(attrib.name == MultiTexName(j))

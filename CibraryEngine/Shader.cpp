@@ -188,7 +188,7 @@ namespace CibraryEngine
 			glUseProgram(0);
 
 			int max;
-			glGetIntegerv(GL_MAX_TEXTURE_UNITS, &max);
+			glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max);
 			for (int i = 0; i < max; i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
