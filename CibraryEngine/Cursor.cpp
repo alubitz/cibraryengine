@@ -106,7 +106,13 @@ namespace CibraryEngine
 		ContentHandle<Texture2D> texture(cache->GetHandle(what.name));
 		cache->ForceLoad(texture);
 		if(texture.GetObject() == NULL)
+		{
+			stringstream ss;
+			ss << "Couldn't load texture for cursor \"" << what.name << "\"" << endl;
+			Debug(ss.str());
+
 			return NULL;
+		}
 		else
 			return new Cursor(texture.GetObject(), Vec2());
 	}

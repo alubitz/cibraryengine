@@ -65,7 +65,13 @@ namespace CibraryEngine
 		tex_cache->ForceLoad(texture_handle);
 
 		if(texture_handle.GetObject() == NULL)
+		{
+			stringstream ss;
+			ss << "Couldn't load texture for font \"" << what.name << "\"" << endl;
+			Debug(ss.str());
+
 			return NULL;
+		}
 
 		float font_height = 16.0f;
 		float font_spacing = font_height * 0.625f;
