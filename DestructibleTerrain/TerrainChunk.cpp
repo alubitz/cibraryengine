@@ -52,6 +52,8 @@ namespace DestructibleTerrain
 		}
 	}
 
+	TerrainLeafReference TerrainChunk::GetReferenceElement(int x, int y, int z) { return TerrainLeafReference(this, x, y, z); }
+
 	void TerrainChunk::InvalidateVBO()
 	{
 		if(model != NULL)
@@ -346,7 +348,7 @@ namespace DestructibleTerrain
 		int owner_dim_x, owner_dim_y, owner_dim_z;
 		owner->GetDimensions(owner_dim_x, owner_dim_y, owner_dim_z);
 
-		const float blast_force_multiplier = 200.0f;
+		const float blast_force_multiplier = 100.0f;
 		const float damage_threshold = 50.0f;					// value gets converted to integer!
 
 		int blast_radius = (int)ceil(sqrtf(blast_force_multiplier * blast_force - 1.0f));

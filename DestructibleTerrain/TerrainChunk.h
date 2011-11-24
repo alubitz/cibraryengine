@@ -10,6 +10,7 @@ namespace DestructibleTerrain
 	using namespace CibraryEngine;
 
 	class VoxelTerrain;
+	struct TerrainLeafReference;
 
 	class TerrainChunk
 	{
@@ -41,6 +42,8 @@ namespace DestructibleTerrain
 			 * Get a reference to the specified element
 			 */
 			TerrainLeaf& Element(int x, int y, int z);
+
+			TerrainLeafReference GetReferenceElement(int x, int y, int z);
 			
 			/**
 			 * Get a pointer to the element at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk

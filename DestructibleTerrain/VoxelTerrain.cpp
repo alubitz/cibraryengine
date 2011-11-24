@@ -16,7 +16,7 @@ namespace DestructibleTerrain
 	 */
 	VoxelTerrain::VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z) :
 		chunks(),
-		scale(Mat4::UniformScale(1.0f / 4.0f)),
+		scale(Mat4::UniformScale(0.25f)),
 		xform(Mat4::Translation(float(-0.5f * dim_x * TerrainChunk::ChunkSize), float(-0.5f * dim_y * TerrainChunk::ChunkSize), float(-0.5f * dim_z * TerrainChunk::ChunkSize)))
 	{
 		dim[0] = dim_x;
@@ -51,7 +51,7 @@ namespace DestructibleTerrain
 							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 32.0f;
 
 							TerrainLeaf result;
-							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 2.5f - pos.y)));
+							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 2.5 - pos.y)));
 							result.SetMaterialAmount(1, 255);
 
 							return result;
@@ -94,6 +94,20 @@ namespace DestructibleTerrain
 			return chunks[x * x_span + y * dim[2] + z]; 
 	}
 
+	TerrainLeafReference VoxelTerrain::GetLeafReference(int x, int y, int z)
+	{
+		if(x < 0 || y < 0 || z < 0)
+			return TerrainLeafReference();
+
+		int cx = x / TerrainChunk::ChunkSize, cy = y / TerrainChunk::ChunkSize, cz = z / TerrainChunk::ChunkSize;
+		
+		TerrainChunk* chunk = Chunk(cx, cy, cz);
+		if(chunk != NULL)
+			return chunk->GetReferenceElement(x - cx * TerrainChunk::ChunkSize, y - cy * TerrainChunk::ChunkSize, z - cz * TerrainChunk::ChunkSize);
+		else
+			return TerrainLeafReference();
+	}
+
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
 	{ 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
@@ -114,7 +128,7 @@ namespace DestructibleTerrain
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(4, 10) * 4;
+		float blast_force = Random3D::Rand(4, 10) * 8;
 
 		set<TerrainChunk*> affected_chunks;
 

@@ -4,6 +4,8 @@
 
 namespace DestructibleTerrain
 {
+	class TerrainChunk;
+
 	struct TerrainLeaf
 	{
 		unsigned char types[4], weights[4];
@@ -19,5 +21,18 @@ namespace DestructibleTerrain
 
 		float GetScalarValue();
 		bool IsSolid();
+	};
+
+	struct TerrainLeafReference
+	{
+		TerrainChunk* chunk;
+		int x, y, z;
+
+		TerrainLeafReference();
+		TerrainLeafReference(TerrainChunk* chunk, int x, int y, int z);
+
+		operator TerrainLeaf&();
+
+		void operator =(TerrainLeaf& leaf);
 	};
 }

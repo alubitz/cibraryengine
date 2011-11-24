@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "TerrainLeaf.h"
 
+#include "TerrainChunk.h"
+
 namespace DestructibleTerrain
 {
 	using namespace std;
@@ -81,4 +83,17 @@ namespace DestructibleTerrain
 	float TerrainLeaf::GetScalarValue() { return -(solidity - 127.5f); }
 
 	bool TerrainLeaf::IsSolid() { return GetScalarValue() < 0; }
+
+
+
+
+	/*
+	 * TerrainLeafReference methods
+	 */
+	TerrainLeafReference::TerrainLeafReference() : chunk(NULL), x(), y(), z() { }
+	TerrainLeafReference::TerrainLeafReference(TerrainChunk* chunk, int x, int y, int z) : chunk(chunk), x(x), y(y), z(z) { }
+
+	TerrainLeafReference::operator TerrainLeaf&() { return chunk->Element(x, y, z); }
+
+	void TerrainLeafReference::operator =(TerrainLeaf& leaf) { chunk->Element(x, y, z) = leaf; }
 }
