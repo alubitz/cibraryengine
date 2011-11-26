@@ -35,6 +35,8 @@ namespace CibraryEngine
 	{
 		if(gl_name == 0)
 		{
+			GLDEBUG();
+
 			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
 			glEnable(GL_TEXTURE_2D);
 
@@ -56,6 +58,8 @@ namespace CibraryEngine
 
 			if (!were_textures_enabled)
 				glDisable(GL_TEXTURE_2D);
+
+			GLDEBUG();
 		}
 		return gl_name;
 	}
@@ -78,6 +82,14 @@ namespace CibraryEngine
 		unsigned int result = ImageIO::LoadPNG(filename, image, width, height);
 		if(result != 0)
 			return NULL;
+		else if(width == 0 || height == 0)
+		{
+			stringstream ss;
+			ss << "Image loaded from file \"" << filename << "\" has dimensions " << width << " x " << height << "!" << endl;
+			Debug(ss.str());
+
+			return NULL;
+		}
 
 		int dim = image.size();
 		unsigned char* byte_data = new unsigned char[dim];

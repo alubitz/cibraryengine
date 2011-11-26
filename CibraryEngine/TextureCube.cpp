@@ -37,6 +37,8 @@ namespace CibraryEngine
 	{
 		if(gl_name == 0)
 		{
+			GLDEBUG();
+
 			glGenTextures(1, &gl_name);
 			glEnable(GL_TEXTURE_CUBE_MAP);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, gl_name);
@@ -54,6 +56,8 @@ namespace CibraryEngine
 			}
 
 			glDisable(GL_TEXTURE_CUBE_MAP);
+
+			GLDEBUG();
 		}
 		return gl_name;
 	}

@@ -34,6 +34,8 @@ namespace CibraryEngine
 	{
 		if(gl_name == 0)
 		{
+			GLDEBUG();
+
 			glDisable(GL_TEXTURE_2D);
 
 			bool were_textures_enabled = glIsEnabled(GL_TEXTURE_3D) == GL_TRUE;
@@ -56,6 +58,8 @@ namespace CibraryEngine
 
 			if (!were_textures_enabled)
 				glDisable(GL_TEXTURE_3D);
+
+			GLDEBUG();
 		}
 		return gl_name;
 	}

@@ -31,6 +31,8 @@ namespace CibraryEngine
 	{
 		if(gl_name == 0)
 		{
+			GLDEBUG();
+
 			glGenTextures(1, &gl_name);
 			glEnable(GL_TEXTURE_1D);
 			glBindTexture(GL_TEXTURE_1D, gl_name);
@@ -42,6 +44,8 @@ namespace CibraryEngine
 
 			glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA8, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data);
 			glDisable(GL_TEXTURE_1D);
+
+			GLDEBUG();
 		}
 		return gl_name;
 	}
