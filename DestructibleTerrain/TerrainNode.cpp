@@ -71,14 +71,6 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
-	int TerrainNode::GetTotalNonzero()
-	{
-		int total = 0;
-		for(int i = 0; i < 4; i++)
-			if(types[i] != 0)
-				total += weights[i];
-		return total;
-	}
 
 	float TerrainNode::GetScalarValue() { return -(solidity - 127.5f); }
 

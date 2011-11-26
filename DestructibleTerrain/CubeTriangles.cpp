@@ -13,14 +13,23 @@ namespace DestructibleTerrain
 		x(x),
 		y(y),
 		z(z),
-		valid(false),
-		data()
+		triangles_valid(false),
+		normals_valid(false)
 	{
 	}
 
-	void CubeTriangles::Invalidate()
+	void CubeTriangles::InvalidateTriangles()
 	{
-		valid = false;
+		triangles_valid = false;
+		normals_valid = false;
+		chunk->InvalidateVBO();
+
+		// TODO: invalidate neighboring cubes' normals?
+	}
+
+	void CubeTriangles::InvalidateNormals() 
+	{
+		normals_valid = false;
 		chunk->InvalidateVBO();
 	}
 }

@@ -37,43 +37,47 @@ namespace DestructibleTerrain
 		if(grid[6].value < isolevel) { classification |= 64; }
 		if(grid[7].value < isolevel) { classification |= 128; }
 
-		if (edge_table[classification] == 0)
+		int edges = edge_table[classification];
+		if(edges == 0)
 			return;
 
 		O vert_list[12];
 
-		/* Find the vertices where the surface intersects the cube */
-		if (edge_table[classification] & 1)
+		// find the vertices where the surface intersects the cube
+		if(edges & 1)
 			vert_list[0] = InterpolateVertex<O>(isolevel, grid[0], grid[1]);
-		if (edge_table[classification] & 2)
+		if(edges & 2)
 			vert_list[1] = InterpolateVertex<O>(isolevel, grid[1], grid[2]);
-		if (edge_table[classification] & 4)
+		if(edges & 4)
 			vert_list[2] = InterpolateVertex<O>(isolevel, grid[2], grid[3]);
-		if (edge_table[classification] & 8)
+		if(edges & 8)
 			vert_list[3] = InterpolateVertex<O>(isolevel, grid[3], grid[0]);
-		if (edge_table[classification] & 16)
+		if(edges & 16)
 			vert_list[4] = InterpolateVertex<O>(isolevel, grid[4], grid[5]);
-		if (edge_table[classification] & 32)
+		if(edges & 32)
 			vert_list[5] = InterpolateVertex<O>(isolevel, grid[5], grid[6]);
-		if (edge_table[classification] & 64)
+		if(edges & 64)
 			vert_list[6] = InterpolateVertex<O>(isolevel, grid[6], grid[7]);
-		if (edge_table[classification] & 128)
+		if(edges & 128)
 			vert_list[7] = InterpolateVertex<O>(isolevel, grid[7], grid[4]);
-		if (edge_table[classification] & 256)
+		if(edges & 256)
 			vert_list[8] = InterpolateVertex<O>(isolevel, grid[0], grid[4]);
-		if (edge_table[classification] & 512)
+		if(edges & 512)
 			vert_list[9] = InterpolateVertex<O>(isolevel, grid[1], grid[5]);
-		if (edge_table[classification] & 1024)
+		if(edges & 1024)
 			vert_list[10] = InterpolateVertex<O>(isolevel, grid[2], grid[6]);
-		if (edge_table[classification] & 2048)
+		if(edges & 2048)
 			vert_list[11] = InterpolateVertex<O>(isolevel, grid[3], grid[7]);
 
-		/* Add the triangles to the vertex buffer */
-		for(int i = 0; tri_table[classification][i] != -1; i += 3)
+		// add the triangles to the vertex buffer
+
+		const int* vert_indices = &tri_table[classification][0];
+
+		for(int i = 0; vert_indices[i] != -1; i += 3)
 		{	
-			target.push_back(vert_list[tri_table[classification][i    ]]);
-			target.push_back(vert_list[tri_table[classification][i + 1]]);
-			target.push_back(vert_list[tri_table[classification][i + 2]]);
+			target.push_back(vert_list[vert_indices[i    ]]);
+			target.push_back(vert_list[vert_indices[i + 1]]);
+			target.push_back(vert_list[vert_indices[i + 2]]);
 		}
 	}
 

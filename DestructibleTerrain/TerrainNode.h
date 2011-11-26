@@ -17,7 +17,6 @@ namespace DestructibleTerrain
 		void ClearMaterials();
 		unsigned char GetMaterialAmount(unsigned char mat);
 		void SetMaterialAmount(unsigned char mat, unsigned char amount);
-		int GetTotalNonzero();
 
 		float GetScalarValue();
 		bool IsSolid();
