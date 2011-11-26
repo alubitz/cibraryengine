@@ -8,9 +8,7 @@ namespace DestructibleTerrain
 
 	class VoxelMaterial;
 	
-	struct TerrainLeaf;
-	struct TerrainLeafReference;
-
+	struct TerrainNode;
 	class TerrainChunk;
 
 	class VoxelTerrain
@@ -32,11 +30,8 @@ namespace DestructibleTerrain
 			~VoxelTerrain();
 
 			TerrainChunk* Chunk(int x, int y, int z);
-			TerrainLeafReference GetLeafReference(int x, int y, int z);
 
 			void GetDimensions(int& x, int& y, int& z);
-
-
 			void Vis(SceneRenderer* renderer);
 
 			void Explode();

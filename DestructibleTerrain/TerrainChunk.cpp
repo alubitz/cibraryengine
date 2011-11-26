@@ -1,6 +1,6 @@
 #include "StdAfx.h"
 #include "TerrainChunk.h"
-#include "TerrainLeaf.h"
+#include "TerrainNode.h"
 #include "VoxelMaterial.h"
 
 #include "MarchingCubes.h"
@@ -23,14 +23,14 @@ namespace DestructibleTerrain
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
 		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; i++)
-			data.push_back(TerrainLeaf());
+			data.push_back(TerrainNode());
 	}
 
 	TerrainChunk::~TerrainChunk() { InvalidateVBO(); }
 
-	TerrainLeaf& TerrainChunk::Element(int x, int y, int z) { return data[x * ChunkSizeSquared + y * ChunkSize + z]; }
+	TerrainNode& TerrainChunk::Element(int x, int y, int z) { return data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
-	TerrainLeaf* TerrainChunk::GetElementRelative(int x, int y, int z)
+	TerrainNode* TerrainChunk::GetElementRelative(int x, int y, int z)
 	{
 		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
 			return &data[x * ChunkSizeSquared + y * ChunkSize + z];
@@ -51,8 +51,6 @@ namespace DestructibleTerrain
 				return &neighbor_chunk->Element(dx, dy, dz);
 		}
 	}
-
-	TerrainLeafReference TerrainChunk::GetReferenceElement(int x, int y, int z) { return TerrainLeafReference(this, x, y, z); }
 
 	void TerrainChunk::InvalidateVBO()
 	{
@@ -86,34 +84,34 @@ namespace DestructibleTerrain
 
 			GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 			{
-				TerrainLeaf* leaf_ptr = t->GetElementRelative(x, y, z);
-				assert(leaf_ptr != NULL);
+				TerrainNode* node_ptr = t->GetElementRelative(x, y, z);
+				assert(node_ptr != NULL);
 
-				TerrainLeaf& leaf = *leaf_ptr;
+				TerrainNode& node = *node_ptr;
 				color = Vec4();
 
-				if(leaf.IsSolid())
+				if(node.IsSolid())
 				{
 					for(int i = 0; i < 4; i++)
 					{
-						switch(leaf.types[i])
+						switch(node.types[i])
 						{
 						case 1:
 						
 							// stone color
-							color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * leaf.weights[i];
+							color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * node.weights[i];
 							break;
 
 						case 2:
 						
 							// dirt (sand) color
-							color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * leaf.weights[i];
+							color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * node.weights[i];
 							break;
 						}
 					}
 				}
 
-				value = leaf.GetScalarValue();
+				value = node.GetScalarValue();
 				position = Vec3(float(x), float(y), float(z));
 
 				color *= color.w == 0 ? 1.0f : 1.0f / color.w;
@@ -333,7 +331,7 @@ namespace DestructibleTerrain
 						for(int yy = y - 1; yy <= y + 1 && pass; yy++)
 							for(int zz = z - 1; zz <= z + 1 && pass; zz++)
 							{
-								TerrainLeaf* neighbor = GetElementRelative(xx, yy, zz);
+								TerrainNode* neighbor = GetElementRelative(xx, yy, zz);
 								if(neighbor != NULL && neighbor->IsSolid() != solid)
 									pass = false;
 							}
@@ -382,11 +380,11 @@ namespace DestructibleTerrain
 
 					if(damage >= damage_threshold)
 					{
-						TerrainLeaf& leaf = Element(xx, yy, zz);
-						int nu_value = (unsigned char)max(0, (int)leaf.solidity - damage);
-						if(nu_value != leaf.solidity)
+						TerrainNode& node = Element(xx, yy, zz);
+						int nu_value = (unsigned char)max(0, (int)node.solidity - damage);
+						if(nu_value != node.solidity)
 						{
-							leaf.solidity = nu_value;
+							node.solidity = nu_value;
 							affected_chunks.insert(this);
 
 							if(is_nx_neighbor)
@@ -469,6 +467,7 @@ namespace DestructibleTerrain
 		if(model == NULL)
 			model = CreateVBO();
 
-		renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, main_xform * xform), 0));
+		if(model->GetNumVerts() > 0)
+			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, main_xform * xform), 0));
 	}
 }

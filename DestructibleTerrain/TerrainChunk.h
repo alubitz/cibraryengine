@@ -10,13 +10,12 @@ namespace DestructibleTerrain
 	using namespace CibraryEngine;
 
 	class VoxelTerrain;
-	struct TerrainLeafReference;
 
 	class TerrainChunk
 	{
 		private:
 
-			vector<TerrainLeaf> data;
+			vector<TerrainNode> data;
 
 			int chunk_x, chunk_y, chunk_z;
 
@@ -32,8 +31,8 @@ namespace DestructibleTerrain
 		public:
 
 			// If these were unsigned ints it would cause some stupid errors with underflow
-			static const int ChunkSize = 16;
-			static const int ChunkSizeSquared = 256;
+			static const int ChunkSize = 8;
+			static const int ChunkSizeSquared = 64;
 
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
@@ -41,15 +40,13 @@ namespace DestructibleTerrain
 			/** 
 			 * Get a reference to the specified element
 			 */
-			TerrainLeaf& Element(int x, int y, int z);
-
-			TerrainLeafReference GetReferenceElement(int x, int y, int z);
+			TerrainNode& Element(int x, int y, int z);
 			
 			/**
 			 * Get a pointer to the element at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
 			 * Unlike Element, this works for elements outside the range of this chunk
 			 */
-			TerrainLeaf* GetElementRelative(int x, int y, int z);
+			TerrainNode* GetElementRelative(int x, int y, int z);
 
 			void InvalidateVBO();
 

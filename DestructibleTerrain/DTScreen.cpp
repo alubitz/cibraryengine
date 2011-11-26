@@ -5,7 +5,7 @@
 #include "TerrainChunk.h"
 #include "VoxelMaterial.h"
 
-#define TERRAIN_RESOLUTION 6
+#define TERRAIN_RESOLUTION 8
 
 namespace DestructibleTerrain
 {

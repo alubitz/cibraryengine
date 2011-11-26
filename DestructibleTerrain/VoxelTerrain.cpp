@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 
 #include "VoxelTerrain.h"
-#include "TerrainLeaf.h"
+#include "TerrainNode.h"
 #include "TerrainChunk.h"
 
 #include "VoxelMaterial.h"
@@ -46,17 +46,17 @@ namespace DestructibleTerrain
 
 						Populator(PNFunc& func, int ox, int oy, int oz) : n(&func), ox(ox), oy(oy), oz(oz) { }
 
-						TerrainLeaf operator ()(int x, int y, int z)
+						TerrainNode operator ()(int x, int y, int z)
 						{
 							Vec3 pos = Vec3(float(ox * TerrainChunk::ChunkSize + x), float(oy * TerrainChunk::ChunkSize + y), float(oz * TerrainChunk::ChunkSize + z)) / 32.0f;
 
-							TerrainLeaf result;
-							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) + 2.5 - pos.y)));
+							TerrainNode result;
+							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) - pos.y)));
 							result.SetMaterialAmount(1, 255);
 
 							return result;
 						}
-					} pop(n, x, y, z);
+					} pop(n, x, y - dim[1] / 2, z);
 
 					chunk->PopulateValues(pop);
 					chunks.push_back(chunk);
@@ -94,20 +94,6 @@ namespace DestructibleTerrain
 			return chunks[x * x_span + y * dim[2] + z]; 
 	}
 
-	TerrainLeafReference VoxelTerrain::GetLeafReference(int x, int y, int z)
-	{
-		if(x < 0 || y < 0 || z < 0)
-			return TerrainLeafReference();
-
-		int cx = x / TerrainChunk::ChunkSize, cy = y / TerrainChunk::ChunkSize, cz = z / TerrainChunk::ChunkSize;
-		
-		TerrainChunk* chunk = Chunk(cx, cy, cz);
-		if(chunk != NULL)
-			return chunk->GetReferenceElement(x - cx * TerrainChunk::ChunkSize, y - cy * TerrainChunk::ChunkSize, z - cz * TerrainChunk::ChunkSize);
-		else
-			return TerrainLeafReference();
-	}
-
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
 	{ 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
@@ -128,7 +114,7 @@ namespace DestructibleTerrain
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(4, 10) * 8;
+		float blast_force = Random3D::Rand(4, 10);
 
 		set<TerrainChunk*> affected_chunks;
 
@@ -140,9 +126,12 @@ namespace DestructibleTerrain
 		for(set<TerrainChunk*>::iterator iter = affected_chunks.begin(); iter != affected_chunks.end(); iter++)
 		{
 			TerrainChunk* chunk = *iter;
-			chunk->Solidify();
-			chunk->InvalidateVBO();
-			count++;
+			if(chunk != NULL)
+			{
+				chunk->Solidify();
+				chunk->InvalidateVBO();
+				count++;
+			}
 		}
 	}
 }

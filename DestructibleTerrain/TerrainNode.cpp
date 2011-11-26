@@ -1,5 +1,5 @@
 #include "StdAfx.h"
-#include "TerrainLeaf.h"
+#include "TerrainNode.h"
 
 #include "TerrainChunk.h"
 
@@ -9,10 +9,10 @@ namespace DestructibleTerrain
 	using namespace CibraryEngine;
 
 	/*
-	 * TerrainLeaf methods
+	 * TerrainNode methods
 	 */
-	TerrainLeaf::TerrainLeaf() : solidity(0) { ClearMaterials(); }
-	TerrainLeaf::TerrainLeaf(unsigned char type) : solidity(255)
+	TerrainNode::TerrainNode() : solidity(0) { ClearMaterials(); }
+	TerrainNode::TerrainNode(unsigned char type) : solidity(255)
 	{
 		types[0] = type;
 		types[1] = types[2] = types[3] = 0;
@@ -21,14 +21,14 @@ namespace DestructibleTerrain
 		weights[1] = weights[2] = weights[3] = 0;
 	}
 
-	void TerrainLeaf::ClearMaterials()
+	void TerrainNode::ClearMaterials()
 	{ 
 		types[0] = types[1] = types[2] = types[3] = 0;
 		weights[0] = 255;
 		weights[1] = weights[2] = weights[3] = 0; 
 	}
 
-	unsigned char TerrainLeaf::GetMaterialAmount(unsigned char mat)
+	unsigned char TerrainNode::GetMaterialAmount(unsigned char mat)
 	{
 		int total = 0;
 
@@ -39,7 +39,7 @@ namespace DestructibleTerrain
 		return (unsigned char)max(0, min(255, total));
 	}
 
-	void TerrainLeaf::SetMaterialAmount(unsigned char mat, unsigned char amount)
+	void TerrainNode::SetMaterialAmount(unsigned char mat, unsigned char amount)
 	{
 		int cur = GetMaterialAmount(mat);
 		if(cur < amount)
@@ -71,7 +71,7 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
-	int TerrainLeaf::GetTotalNonzero()
+	int TerrainNode::GetTotalNonzero()
 	{
 		int total = 0;
 		for(int i = 0; i < 4; i++)
@@ -80,20 +80,7 @@ namespace DestructibleTerrain
 		return total;
 	}
 
-	float TerrainLeaf::GetScalarValue() { return -(solidity - 127.5f); }
+	float TerrainNode::GetScalarValue() { return -(solidity - 127.5f); }
 
-	bool TerrainLeaf::IsSolid() { return GetScalarValue() < 0; }
-
-
-
-
-	/*
-	 * TerrainLeafReference methods
-	 */
-	TerrainLeafReference::TerrainLeafReference() : chunk(NULL), x(), y(), z() { }
-	TerrainLeafReference::TerrainLeafReference(TerrainChunk* chunk, int x, int y, int z) : chunk(chunk), x(x), y(y), z(z) { }
-
-	TerrainLeafReference::operator TerrainLeaf&() { return chunk->Element(x, y, z); }
-
-	void TerrainLeafReference::operator =(TerrainLeaf& leaf) { chunk->Element(x, y, z) = leaf; }
+	bool TerrainNode::IsSolid() { return GetScalarValue() < 0; }
 }
