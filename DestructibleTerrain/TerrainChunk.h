@@ -33,11 +33,8 @@ namespace DestructibleTerrain
 		public:
 
 			// If these were unsigned ints it would cause some stupid errors with underflow
-			static const int ChunkSize = 8;
+			static const int ChunkSize = 16;
 			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
-
-			static const int ChunkCubes = ChunkSize - 1;
-			static const int ChunkCubesSquared = ChunkCubes * ChunkCubes;
 
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();

@@ -27,9 +27,9 @@ namespace DestructibleTerrain
 		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; i++)
 			node_data.push_back(TerrainNode());
 
-		for(int x = 0; x < ChunkCubes; x++)
-			for(int y = 0; y < ChunkCubes; y++)
-				for(int z = 0; z < ChunkCubes; z++)
+		for(int x = 0; x < ChunkSize; x++)
+			for(int y = 0; y < ChunkSize; y++)
+				for(int z = 0; z < ChunkSize; z++)
 					tri_data.push_back(CubeTriangles(this, x, y, z));
 	}
 
@@ -48,7 +48,7 @@ namespace DestructibleTerrain
 			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
 
 			int dx = x - (cx - chunk_x) * ChunkSize;
-			int dy = y - (cy - chunk_y) * ChunkSize; 
+			int dy = y - (cy - chunk_y) * ChunkSize;
 			int dz = z - (cz - chunk_z) * ChunkSize;
 
 			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
@@ -59,21 +59,21 @@ namespace DestructibleTerrain
 		}
 	}
 
-	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkCubesSquared + y * ChunkCubes + z]; }
+	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
 	CubeTriangles* TerrainChunk::GetCubeRelative(int x, int y, int z)
 	{
-		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkCubes && y < ChunkCubes && z < ChunkCubes)
-			return &tri_data[x * ChunkCubesSquared + y * ChunkCubes + z];
+		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
+			return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z];
 		else
 		{
-			int cx = (int)floor((float)x / ChunkCubes) + chunk_x;
-			int cy = (int)floor((float)y / ChunkCubes) + chunk_y;
-			int cz = (int)floor((float)z / ChunkCubes) + chunk_z;
+			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
+			int cy = (int)floor((float)y / ChunkSize) + chunk_y;
+			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
 
-			int dx = x - (cx - chunk_x) * ChunkCubes;
-			int dy = y - (cy - chunk_y) * ChunkCubes; 
-			int dz = z - (cz - chunk_z) * ChunkCubes;
+			int dx = x - (cx - chunk_x) * ChunkSize;
+			int dy = y - (cy - chunk_y) * ChunkSize; 
+			int dz = z - (cz - chunk_z) * ChunkSize;
 
 			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
 			if(neighbor_chunk == NULL)
@@ -112,13 +112,10 @@ namespace DestructibleTerrain
 		int max_x, max_y, max_z;
 		owner->GetDimensions(max_x, max_y, max_z);
 	
-		/*
-		max_x = max_x == chunk_x + 1 ? ChunkSize : ChunkSize + 2;
-		max_y = max_y == chunk_y + 1 ? ChunkSize : ChunkSize + 2;
-		max_z = max_z == chunk_z + 1 ? ChunkSize : ChunkSize + 2;
-		*/
-		max_x = max_y = max_z = ChunkCubes + 1;
-		
+		max_x = max_x == chunk_x + 1 ? ChunkSize - 1 : ChunkSize + 1;
+		max_y = max_y == chunk_y + 1 ? ChunkSize - 1 : ChunkSize + 1;
+		max_z = max_z == chunk_z + 1 ? ChunkSize - 1 : ChunkSize + 1;
+
 		int vbo_x_span = max_y * max_z;
 
 		vector<TerrainVertex> unique_vertices;
@@ -226,16 +223,16 @@ namespace DestructibleTerrain
 		float* color_ptr = model->GetFloatPointer("gl_Color");
 
 		// we extended to ChunkSize + 2 to make the normal vectors compute correctly, but now we only want the ones within this chunk
-		int cmax_x = min(max_x, ChunkSize + 1);
-		int cmax_y = min(max_y, ChunkSize + 1);
-		int cmax_z = min(max_z, ChunkSize + 1);
+		int cmax_x = min(max_x, ChunkSize);
+		int cmax_y = min(max_y, ChunkSize);
+		int cmax_z = min(max_z, ChunkSize);
 
 		// now build the actual vbo with the values we computed
-		for(int x = 1; x < cmax_x; x++)
+		for(int x = 0; x < cmax_x; x++)
 		{
-			for(int y = 1; y < cmax_y; y++)
+			for(int y = 0; y < cmax_y; y++)
 			{
-				for(int z = 1; z < cmax_z; z++)
+				for(int z = 0; z < cmax_z; z++)
 				{
 					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
