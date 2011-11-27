@@ -110,7 +110,7 @@ namespace DestructibleTerrain
 		int y;
 
 		for(y = dim[1] * TerrainChunk::ChunkSize - 1; y >= 0; y--)
-			if(Chunk(x / TerrainChunk::ChunkSize, y / TerrainChunk::ChunkSize, z / TerrainChunk::ChunkSize)->Element(x % TerrainChunk::ChunkSize, y % TerrainChunk::ChunkSize, z % TerrainChunk::ChunkSize).IsSolid())
+			if(Chunk(x / TerrainChunk::ChunkSize, y / TerrainChunk::ChunkSize, z / TerrainChunk::ChunkSize)->GetNode(x % TerrainChunk::ChunkSize, y % TerrainChunk::ChunkSize, z % TerrainChunk::ChunkSize)->IsSolid())
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));

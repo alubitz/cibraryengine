@@ -1,9 +1,11 @@
 #include "StdAfx.h"
 #include "TerrainChunk.h"
-#include "TerrainNode.h"
-#include "VoxelMaterial.h"
 
-#include "MarchingCubes.h"
+#include "TerrainNode.h"
+#include "CubeTriangles.h"
+#include "TerrainVertex.h"
+
+#include "VoxelMaterial.h"
 
 namespace DestructibleTerrain
 {
@@ -11,7 +13,8 @@ namespace DestructibleTerrain
 	 * TerrainChunk methods
 	 */
 	TerrainChunk::TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z) :
-		data(),
+		node_data(),
+		tri_data(),
 		chunk_x(x),
 		chunk_y(y),
 		chunk_z(z),
@@ -19,21 +22,25 @@ namespace DestructibleTerrain
 		model(NULL),
 		owner(owner)
 	{
-
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
 		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; i++)
-			data.push_back(TerrainNode());
+			node_data.push_back(TerrainNode());
+
+		for(int x = 0; x < ChunkCubes; x++)
+			for(int y = 0; y < ChunkCubes; y++)
+				for(int z = 0; z < ChunkCubes; z++)
+					tri_data.push_back(CubeTriangles(this, x, y, z));
 	}
 
 	TerrainChunk::~TerrainChunk() { InvalidateVBO(); }
 
-	TerrainNode& TerrainChunk::Element(int x, int y, int z) { return data[x * ChunkSizeSquared + y * ChunkSize + z]; }
+	TerrainNode* TerrainChunk::GetNode(int x, int y, int z) { return &node_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
-	TerrainNode* TerrainChunk::GetElementRelative(int x, int y, int z)
+	TerrainNode* TerrainChunk::GetNodeRelative(int x, int y, int z)
 	{
 		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
-			return &data[x * ChunkSizeSquared + y * ChunkSize + z];
+			return &node_data[x * ChunkSizeSquared + y * ChunkSize + z];
 		else
 		{
 			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
@@ -48,7 +55,31 @@ namespace DestructibleTerrain
 			if(neighbor_chunk == NULL)
 				return NULL;
 			else
-				return &neighbor_chunk->Element(dx, dy, dz);
+				return neighbor_chunk->GetNode(dx, dy, dz);
+		}
+	}
+
+	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkCubesSquared + y * ChunkCubes + z]; }
+
+	CubeTriangles* TerrainChunk::GetCubeRelative(int x, int y, int z)
+	{
+		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkCubes && y < ChunkCubes && z < ChunkCubes)
+			return &tri_data[x * ChunkCubesSquared + y * ChunkCubes + z];
+		else
+		{
+			int cx = (int)floor((float)x / ChunkCubes) + chunk_x;
+			int cy = (int)floor((float)y / ChunkCubes) + chunk_y;
+			int cz = (int)floor((float)z / ChunkCubes) + chunk_z;
+
+			int dx = x - (cx - chunk_x) * ChunkCubes;
+			int dy = y - (cy - chunk_y) * ChunkCubes; 
+			int dz = z - (cz - chunk_z) * ChunkCubes;
+
+			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
+			if(neighbor_chunk == NULL)
+				return NULL;
+			else
+				return neighbor_chunk->GetCube(dx, dy, dz);
 		}
 	}
 
@@ -76,136 +107,76 @@ namespace DestructibleTerrain
 		model->AddAttribute("gl_Normal",	Float, 3);
 		model->AddAttribute("gl_Color",		Float, 3);
 
-		struct GridStruct
-		{
-			float value;
-			Vec3 position;
-			Vec4 color;
-
-			GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
-			{
-				TerrainNode* node_ptr = t->GetElementRelative(x, y, z);
-				assert(node_ptr != NULL);
-
-				TerrainNode& node = *node_ptr;
-				color = Vec4();
-
-				if(node.IsSolid())
-				{
-					for(int i = 0; i < 4; i++)
-					{
-						switch(node.types[i])
-						{
-						case 1:
-						
-							// stone color
-							color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * node.weights[i];
-							break;
-
-						case 2:
-						
-							// dirt (sand) color
-							color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * node.weights[i];
-							break;
-						}
-					}
-				}
-
-				value = node.GetScalarValue();
-				position = Vec3(float(x), float(y), float(z));
-
-				color *= color.w == 0 ? 1.0f : 1.0f / color.w;
-			}
-		};
-
-		struct VertStruct
-		{
-			Vec3 pos;
-			Vec4 color;
-
-			VertStruct() : pos(), color(1.0f, 1.0f, 1.0f, 0.0f) { }
-			VertStruct(Vec3 pos, Vec4 color) : pos(pos), color(color) { }
-			VertStruct(GridStruct grid) : pos(grid.position), color(grid.color) { }
-			
-			VertStruct operator *(float amount) { return VertStruct(pos * amount, color * amount); }
-			VertStruct operator +(VertStruct a) { return VertStruct(pos + a.pos, color + a.color); }
-		};
-
 		int num_verts = 0;
 
 		int max_x, max_y, max_z;
 		owner->GetDimensions(max_x, max_y, max_z);
-
+	
+		/*
 		max_x = max_x == chunk_x + 1 ? ChunkSize : ChunkSize + 2;
 		max_y = max_y == chunk_y + 1 ? ChunkSize : ChunkSize + 2;
 		max_z = max_z == chunk_z + 1 ? ChunkSize : ChunkSize + 2;
+		*/
+		max_x = max_y = max_z = ChunkCubes + 1;
 		
 		int vbo_x_span = max_y * max_z;
 
-		vector<VertStruct> unique_vertices;
+		vector<TerrainVertex> unique_vertices;
 		vector<unsigned int>* vertex_indices = new vector<unsigned int>[vbo_x_span * max_x];
 
-		for(int x = 1; x < max_x; x++)
+		for(int x = 0; x < max_x; x++)
 		{
-			for(int y = 1; y < max_y; y++)
+			for(int y = 0; y < max_y; y++)
 			{
-				for(int z = 1; z < max_z; z++)
+				for(int z = 0; z < max_z; z++)
 				{
-					GridStruct grid[] =
-					{
-						GridStruct(this, x - 1, y - 1, z - 1),	
-						GridStruct(this, x - 1, y - 1, z),
-						GridStruct(this, x - 1, y, z),
-						GridStruct(this, x - 1, y, z - 1),			
-						GridStruct(this, x, y - 1, z - 1),	
-						GridStruct(this, x, y - 1, z),
-						GridStruct(this, x, y, z),
-						GridStruct(this, x, y, z - 1)
-					};
-
 					// find the verts for this one cube
-					vector<VertStruct> cube_vertex_data;
-					MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, cube_vertex_data);
+					CubeTriangles* cube = GetCubeRelative(x, y, z);
 
-					num_verts += cube_vertex_data.size();
-
-					vector<unsigned int> cube_vertex_indices = vector<unsigned int>();
-					for(vector<VertStruct>::iterator iter = cube_vertex_data.begin(); iter != cube_vertex_data.end(); iter++)
+					if(cube != NULL)
 					{
-						// find out if this vert is a duplicate of one which has already been assigned an index
-						Vec3& pos = iter->pos;
+						vector<TerrainVertex> cube_vertex_data;
+						cube->AppendVertexData(cube_vertex_data);
 
-						bool found = false;
-						unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
+						num_verts += cube_vertex_data.size();
 
-						for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
-							for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
-								for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
-								{
-									vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
-									for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
+						vector<unsigned int> cube_vertex_indices = vector<unsigned int>();
+						for(vector<TerrainVertex>::iterator iter = cube_vertex_data.begin(); iter != cube_vertex_data.end(); iter++)
+						{
+							// find out if this vert is a duplicate of one which has already been assigned an index
+							Vec3& pos = iter->pos;
+
+							bool found = false;
+							unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
+
+							for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
+								for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
+									for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
 									{
-										Vec3 vertex_pos = unique_vertices[*jter].pos;
-									
-										if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
-											(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
-											(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
+										vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
+										for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
 										{
-											use_index = *jter;
-											found = true;
-											break;
+											Vec3 vertex_pos = unique_vertices[*jter].pos;
+										
+											if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
+												(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
+												(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
+											{
+												use_index = *jter;
+												found = true;
+												break;
+											}
 										}
 									}
-								}
 
-						// vert doesn't already exist; create it
-						if(!found)
-							unique_vertices.push_back(*iter);
+							// vert doesn't already exist; create it
+							if(!found)
+								unique_vertices.push_back(*iter);
 
-						cube_vertex_indices.push_back(use_index);
-
+							cube_vertex_indices.push_back(use_index);
+						}
+						vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
 					}
-					vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
 				}
 			}
 		}
@@ -215,11 +186,11 @@ namespace DestructibleTerrain
 			normal_vectors[i] = Vec3();
 
 		// go back through them and find the normal vectors (faster than it used to be!)
-		for(int x = 1; x < max_x; x++)
+		for(int x = 0; x < max_x; x++)
 		{
-			for(int y = 1; y < max_y; y++)
+			for(int y = 0; y < max_y; y++)
 			{
-				for(int z = 1; z < max_z; z++)
+				for(int z = 0; z < max_z; z++)
 				{
 					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
@@ -274,7 +245,7 @@ namespace DestructibleTerrain
 					// iterate through all of the verts in this cube
 					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
 					{
-						VertStruct& vert = unique_vertices[*iter];
+						TerrainVertex& vert = unique_vertices[*iter];
 
 						Vec3 pos = vert.pos;
 
@@ -320,24 +291,24 @@ namespace DestructibleTerrain
 			for(int y = 0; y < ChunkSize; y++)
 				for(int z = 0; z < ChunkSize; z++)
 				{
-					int tot = Element(x, y, z).solidity;
+					int tot = GetNode(x, y, z)->solidity;
 					if(tot == 0 || tot == 255)
 						continue;
 
-					bool solid = Element(x, y, z).IsSolid();
+					bool solid = GetNode(x, y, z)->IsSolid();
 					bool pass = true;
 
 					for(int xx = x - 1; xx <= x + 1 && pass; xx++)
 						for(int yy = y - 1; yy <= y + 1 && pass; yy++)
 							for(int zz = z - 1; zz <= z + 1 && pass; zz++)
 							{
-								TerrainNode* neighbor = GetElementRelative(xx, yy, zz);
+								TerrainNode* neighbor = GetNodeRelative(xx, yy, zz);
 								if(neighbor != NULL && neighbor->IsSolid() != solid)
 									pass = false;
 							}
 
 					if(pass)
-						Element(x, y, z).solidity = solid ? 255 : 0;
+						GetNode(x, y, z)->solidity = solid ? 255 : 0;
 				}
 	}
 
@@ -380,7 +351,7 @@ namespace DestructibleTerrain
 
 					if(damage >= damage_threshold)
 					{
-						TerrainNode& node = Element(xx, yy, zz);
+						TerrainNode& node = *GetNode(xx, yy, zz);
 						int nu_value = (unsigned char)max(0, (int)node.solidity - damage);
 						if(nu_value != node.solidity)
 						{

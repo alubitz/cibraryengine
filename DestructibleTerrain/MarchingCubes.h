@@ -12,7 +12,7 @@ namespace DestructibleTerrain
 		static const int edge_table[256];
 		static const int tri_table[256][16];
 
-		template <class I, class O> static void Polygonize(Vec3 base_xyz, I grid[8], float isolevel, vector<O>& target);
+		template <class I, class O> static void Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, int* indices);
 		template <class O, class I> static O InterpolateVertex(float isolevel, I p1, I p2);
 	};
 
@@ -23,7 +23,7 @@ namespace DestructibleTerrain
 	 * At least I didn't have to put the tables in the same file...
 	 *
 	 */
-	template <class I, class O> static void MarchingCubes::Polygonize(Vec3 base_xyz, I grid[8], float isolevel, vector<O>& target)
+	template <class I, class O> static void MarchingCubes::Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, int* indices)
 	{
 		// tables and much of the algorithm is from http://paulbourke.net/geometry/polygonise
 		int classification = 0;
@@ -39,46 +39,41 @@ namespace DestructibleTerrain
 
 		int edges = edge_table[classification];
 		if(edges == 0)
+		{
+			indices[0] = -1;
 			return;
-
-		O vert_list[12];
+		}
 
 		// find the vertices where the surface intersects the cube
 		if(edges & 1)
-			vert_list[0] = InterpolateVertex<O>(isolevel, grid[0], grid[1]);
+			target[0] = InterpolateVertex<O>(isolevel, grid[0], grid[1]);
 		if(edges & 2)
-			vert_list[1] = InterpolateVertex<O>(isolevel, grid[1], grid[2]);
+			target[1] = InterpolateVertex<O>(isolevel, grid[1], grid[2]);
 		if(edges & 4)
-			vert_list[2] = InterpolateVertex<O>(isolevel, grid[2], grid[3]);
+			target[2] = InterpolateVertex<O>(isolevel, grid[2], grid[3]);
 		if(edges & 8)
-			vert_list[3] = InterpolateVertex<O>(isolevel, grid[3], grid[0]);
+			target[3] = InterpolateVertex<O>(isolevel, grid[3], grid[0]);
 		if(edges & 16)
-			vert_list[4] = InterpolateVertex<O>(isolevel, grid[4], grid[5]);
+			target[4] = InterpolateVertex<O>(isolevel, grid[4], grid[5]);
 		if(edges & 32)
-			vert_list[5] = InterpolateVertex<O>(isolevel, grid[5], grid[6]);
+			target[5] = InterpolateVertex<O>(isolevel, grid[5], grid[6]);
 		if(edges & 64)
-			vert_list[6] = InterpolateVertex<O>(isolevel, grid[6], grid[7]);
+			target[6] = InterpolateVertex<O>(isolevel, grid[6], grid[7]);
 		if(edges & 128)
-			vert_list[7] = InterpolateVertex<O>(isolevel, grid[7], grid[4]);
+			target[7] = InterpolateVertex<O>(isolevel, grid[7], grid[4]);
 		if(edges & 256)
-			vert_list[8] = InterpolateVertex<O>(isolevel, grid[0], grid[4]);
+			target[8] = InterpolateVertex<O>(isolevel, grid[0], grid[4]);
 		if(edges & 512)
-			vert_list[9] = InterpolateVertex<O>(isolevel, grid[1], grid[5]);
+			target[9] = InterpolateVertex<O>(isolevel, grid[1], grid[5]);
 		if(edges & 1024)
-			vert_list[10] = InterpolateVertex<O>(isolevel, grid[2], grid[6]);
+			target[10] = InterpolateVertex<O>(isolevel, grid[2], grid[6]);
 		if(edges & 2048)
-			vert_list[11] = InterpolateVertex<O>(isolevel, grid[3], grid[7]);
-
-		// add the triangles to the vertex buffer
+			target[11] = InterpolateVertex<O>(isolevel, grid[3], grid[7]);
 
 		const int* vert_indices = &tri_table[classification][0];
-
-		for(int i = 0; vert_indices[i] != -1; i += 3)
-		{	
-			target.push_back(vert_list[vert_indices[i    ]]);
-			target.push_back(vert_list[vert_indices[i + 1]]);
-			target.push_back(vert_list[vert_indices[i + 2]]);
-		}
+		for(int i = 0; i < 16; i++)
+			if((indices[i] = vert_indices[i]) == -1)
+				break;
 	}
 
 	template <class O, class I> static O MarchingCubes::InterpolateVertex(float isolevel, I p1, I p2)

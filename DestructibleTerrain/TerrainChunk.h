@@ -10,12 +10,14 @@ namespace DestructibleTerrain
 	using namespace CibraryEngine;
 
 	class VoxelTerrain;
+	struct CubeTriangles;
 
 	class TerrainChunk
 	{
 		private:
 
-			vector<TerrainNode> data;
+			vector<TerrainNode> node_data;
+			vector<CubeTriangles> tri_data;
 
 			int chunk_x, chunk_y, chunk_z;
 
@@ -32,21 +34,27 @@ namespace DestructibleTerrain
 
 			// If these were unsigned ints it would cause some stupid errors with underflow
 			static const int ChunkSize = 8;
-			static const int ChunkSizeSquared = 64;
+			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
+
+			static const int ChunkCubes = ChunkSize - 1;
+			static const int ChunkCubesSquared = ChunkCubes * ChunkCubes;
 
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
 
 			/** 
-			 * Get a reference to the specified element
+			 * Get a pointer to the specified node
 			 */
-			TerrainNode& Element(int x, int y, int z);
+			TerrainNode* GetNode(int x, int y, int z);
 			
 			/**
-			 * Get a pointer to the element at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
-			 * Unlike Element, this works for elements outside the range of this chunk
+			 * Get a pointer to the node at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
+			 * Unlike GetNode, this works for nodes outside the range of this chunk
 			 */
-			TerrainNode* GetElementRelative(int x, int y, int z);
+			TerrainNode* GetNodeRelative(int x, int y, int z);
+
+			CubeTriangles* GetCube(int x, int y, int z);
+			CubeTriangles* GetCubeRelative(int x, int y, int z);
 
 			void InvalidateVBO();
 
@@ -63,6 +71,6 @@ namespace DestructibleTerrain
 		for(int x = 0; x < ChunkSize; x++)
 			for(int y = 0; y < ChunkSize; y++)
 				for(int z = 0; z < ChunkSize; z++)
-					Element(x, y, z) = t(x, y, z);
+					*GetNode(x, y, z) = t(x, y, z);
 	}
 }
