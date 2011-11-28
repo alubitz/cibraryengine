@@ -37,7 +37,18 @@ namespace DestructibleTerrain
 	/*
 	 * CubeTriangles methods
 	 */
-	void CubeTriangles::Invalidate() { num_vertices = -1; chunk->InvalidateVBO(); }
+	void CubeTriangles::Invalidate()
+	{
+		num_vertices = -1;
+
+		if(cache != NULL)
+		{
+			delete cache;
+			cache = NULL;
+		}
+
+		chunk->InvalidateVBO();
+	}
 
 	void CubeTriangles::BuildAsNeeded()
 	{
@@ -55,13 +66,20 @@ namespace DestructibleTerrain
 				GridStruct(chunk, x + 1, y + 1, z)
 			};
 
-			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, &verts[0], &indices[0]);
+			assert(cache == NULL);
+
+			CacheData temp_cache;
+
+			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, &temp_cache.verts[0], &temp_cache.indices[0]);
 
 			int i;
 			for(i = 0; i < 16; i++)
-				if(indices[i] == -1)
+				if(temp_cache.indices[i] == -1)
 					break;
 			num_vertices = i;
+
+			if(num_vertices > 0)
+				cache = new CacheData(temp_cache);
 		}
 	}
 }

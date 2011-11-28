@@ -142,15 +142,15 @@ namespace DestructibleTerrain
 					{						
 						cube->BuildAsNeeded();
 
-						int cube_vert_count = cube->num_vertices;
+						char cube_vert_count = cube->num_vertices;
 						if(cube_vert_count == 0)
 							continue;
 
 						num_verts += cube_vert_count;
 
-						int* cube_indices = &cube->indices[0];
-						TerrainVertex* cube_verts = &cube->verts[0];
-						int cube_global_indices[12];						// key = index in "cube_verts", value = index in "unique_vertices"
+						char* cube_indices = &cube->cache->indices[0];
+						TerrainVertex* cube_verts = &cube->cache->verts[0];
+						int cube_global_indices[12];							// key = index in "cube_verts", value = index in "unique_vertices"
 
 						unsigned short int known_mask = 0;
 
@@ -158,7 +158,7 @@ namespace DestructibleTerrain
 						for(int i = 0; i < cube_vert_count; i++)
 						{
 							// find out if this vert is a duplicate of one which has already been assigned an index
-							int index = cube_indices[i];
+							char index = cube_indices[i];
 							if((known_mask & (1 << index)) == 0)
 							{
 								TerrainVertex& vert = cube_verts[index];

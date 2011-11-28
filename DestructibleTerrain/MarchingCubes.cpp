@@ -6,7 +6,7 @@ namespace DestructibleTerrain
 	/*
 	 * Tables used by MarchingCubes methods
 	 */
-	const int MarchingCubes::edge_table[256] = 
+	const unsigned short int MarchingCubes::edge_table[256] = 
 	{
 		0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
 		0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
@@ -41,7 +41,7 @@ namespace DestructibleTerrain
 		0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
 		0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
 	};
-	const int MarchingCubes::tri_table[256][16] =
+	const char MarchingCubes::tri_table[256][16] =
 	{
 		{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 		{0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},

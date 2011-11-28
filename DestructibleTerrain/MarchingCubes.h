@@ -9,10 +9,10 @@ namespace DestructibleTerrain
 
 	struct MarchingCubes
 	{
-		static const int edge_table[256];
-		static const int tri_table[256][16];
+		static const unsigned short int edge_table[256];
+		static const char tri_table[256][16];
 
-		template <class I, class O> static void Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, int* indices);
+		template <class I, class O> static void Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, char* indices);
 		template <class O, class I> static O InterpolateVertex(float isolevel, I p1, I p2);
 	};
 
@@ -23,7 +23,7 @@ namespace DestructibleTerrain
 	 * At least I didn't have to put the tables in the same file...
 	 *
 	 */
-	template <class I, class O> static void MarchingCubes::Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, int* indices)
+	template <class I, class O> static void MarchingCubes::Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, char* indices)
 	{
 		// tables and much of the algorithm is from http://paulbourke.net/geometry/polygonise
 		int classification = 0;
@@ -37,7 +37,7 @@ namespace DestructibleTerrain
 		if(grid[6].value < isolevel) { classification |= 64; }
 		if(grid[7].value < isolevel) { classification |= 128; }
 
-		int edges = edge_table[classification];
+		unsigned short int edges = edge_table[classification];
 		if(edges == 0)
 		{
 			indices[0] = -1;
@@ -70,7 +70,7 @@ namespace DestructibleTerrain
 		if(edges & 2048)
 			target[11] = InterpolateVertex<O>(isolevel, grid[3], grid[7]);
 
-		const int* vert_indices = &tri_table[classification][0];
+		const char* vert_indices = &tri_table[classification][0];
 		for(int i = 0; i < 16; i++)
 			if((indices[i] = vert_indices[i]) == -1)
 				break;
