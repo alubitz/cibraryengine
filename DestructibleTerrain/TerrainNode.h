@@ -10,19 +10,18 @@ namespace DestructibleTerrain
 
 	struct TerrainNode
 	{
-		unsigned char types[4], weights[4];
 		unsigned char solidity;
+		unsigned char types[4], weights[4];
 
 		TerrainNode();
-		TerrainNode(unsigned char type);
-
-		void ClearMaterials();
-		unsigned char GetMaterialAmount(unsigned char mat);
-		void SetMaterialAmount(unsigned char mat, unsigned char amount);
 
 		float GetScalarValue();
 		bool IsSolid();
-
+		
+		void ClearMaterials();
+		unsigned char GetMaterialAmount(unsigned char mat);
+		void SetMaterialAmount(unsigned char mat, unsigned char amount);
+		
 		Vec4 GetColor();
 	};
 }

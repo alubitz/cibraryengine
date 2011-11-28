@@ -9,8 +9,6 @@ using namespace DestructibleTerrain;
 
 int main(int argc, char** argv)
 {
-	ScriptSystem::Init();
-
 	InitEndianness();
 
 	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Destructible Terrain Test Program", 0, 0, 0, false);

@@ -81,13 +81,6 @@ namespace DestructibleTerrain
 		chunks.clear();
 	}
 
-	void VoxelTerrain::GetDimensions(int& x, int& y, int& z)
-	{
-		x = dim[0];
-		y = dim[1];
-		z = dim[2];
-	}
-
 	TerrainChunk* VoxelTerrain::Chunk(int x, int y, int z) 
 	{
 		if(x < 0 || y < 0 || z < 0 || x >= dim[0] || y >= dim[1] || z >= dim[2])

@@ -24,7 +24,9 @@ namespace DestructibleTerrain
 			Mat4 xform;
 
 			VoxelMaterial* material;
+
 			VertexBuffer* model;
+			bool vbo_valid;
 
 			VertexBuffer* CreateVBO();
 
@@ -36,36 +38,38 @@ namespace DestructibleTerrain
 			static const int ChunkSize = 8;
 			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
 
+
+
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
 			~TerrainChunk();
+
+			template <class T> void PopulateValues(T t);
+
+
 
 			/** 
 			 * Get a pointer to the specified node
 			 */
 			TerrainNode* GetNode(int x, int y, int z);
+			CubeTriangles* GetCube(int x, int y, int z);
 			
 			/**
 			 * Get a pointer to the node at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
 			 * Unlike GetNode, this works for nodes outside the range of this chunk
 			 */
 			TerrainNode* GetNodeRelative(int x, int y, int z);
-
-			CubeTriangles* GetCube(int x, int y, int z);
 			CubeTriangles* GetCubeRelative(int x, int y, int z);
 
-			bool GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz);
+			bool GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz);						// internal utility function, but possibly useful for external code as well (thus, public)
 
+			void InvalidateNode(int x, int y, int z);
+			void InvalidateCubeRelative(int x, int y, int z);
 			void InvalidateVBO();
 
 			void Solidify();
 			void TerrainChunk::Explode(Vec3 blast_center, float blast_force);
 
-			void InvalidateNode(int x, int y, int z);
-			void InvalidateCubeRelative(int x, int y, int z);
-
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
-
-			template <class T> void PopulateValues(T t);
 	};
 
 	template <class T> void TerrainChunk::PopulateValues(T t) 

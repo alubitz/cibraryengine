@@ -31,7 +31,9 @@ namespace DestructibleTerrain
 
 			TerrainChunk* Chunk(int x, int y, int z);
 
-			void GetDimensions(int& x, int& y, int& z);
+			int GetXDim() { return dim[0]; }
+			int GetYDim() { return dim[1]; }
+			int GetZDim() { return dim[2]; }
 			void Vis(SceneRenderer* renderer);
 
 			void Explode();

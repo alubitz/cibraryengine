@@ -12,14 +12,9 @@ namespace DestructibleTerrain
 	 * TerrainNode methods
 	 */
 	TerrainNode::TerrainNode() : solidity(0) { ClearMaterials(); }
-	TerrainNode::TerrainNode(unsigned char type) : solidity(255)
-	{
-		types[0] = type;
-		types[1] = types[2] = types[3] = 0;
-		
-		weights[0] = 255;
-		weights[1] = weights[2] = weights[3] = 0;
-	}
+
+	float TerrainNode::GetScalarValue() { return -(solidity - 127.5f); }
+	bool TerrainNode::IsSolid() { return GetScalarValue() < 0; }
 
 	void TerrainNode::ClearMaterials()
 	{ 
@@ -71,10 +66,6 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
-
-	float TerrainNode::GetScalarValue() { return -(solidity - 127.5f); }
-
-	bool TerrainNode::IsSolid() { return GetScalarValue() < 0; }
 
 	Vec4 TerrainNode::GetColor() 
 	{
