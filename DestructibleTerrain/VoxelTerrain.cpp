@@ -11,8 +11,6 @@ namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;
 
-	ProfilingTimer* timer = NULL;
-
 	/*
 	 * VoxelTerrain methods
 	 */
@@ -64,9 +62,7 @@ namespace DestructibleTerrain
 					chunks.push_back(chunk);
 				}
 
-		// go back and solidify those chunks
-		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			(*iter)->Solidify();
+		Solidify();
 	}
 
 	VoxelTerrain::~VoxelTerrain() 
@@ -89,38 +85,49 @@ namespace DestructibleTerrain
 			return chunks[x * x_span + y * dim[2] + z]; 
 	}
 
+	bool VoxelTerrain::PosToNode(Vec3 pos, TerrainChunk*& chunk, int& x, int& y, int& z)
+	{
+		int gx = (int)floor(pos.x), gy = (int)floor(pos.y), gz = (int)floor(pos.z);
+
+		if(gx < 0 || gy < 0 || gz < 0)
+			return false;
+		else
+		{
+			int cx = gx / TerrainChunk::ChunkSize, cy = gy / TerrainChunk::ChunkSize, cz = gz / TerrainChunk::ChunkSize;
+			
+			chunk = Chunk(cx, cy, cz);
+			if(chunk == NULL)
+				return false;
+			else
+			{
+				x = gx - TerrainChunk::ChunkSize * cx;
+				y = gy - TerrainChunk::ChunkSize * cy;
+				z = gz - TerrainChunk::ChunkSize * cz;
+
+				return true;
+			}
+		}
+	}
+
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
 	{ 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 		{
 			TerrainChunk* chunk = *iter;
 			if(chunk != NULL)
-				chunk->Vis(renderer, scale * xform);
-		}
-
-		if(timer != NULL)
-		{
-			delete timer;
-			timer = NULL;
+				chunk->Vis(renderer, GetTransform());
 		}
 	}
 
-	void VoxelTerrain::Explode()
+	void VoxelTerrain::Solidify()
 	{
-		if(timer == NULL)
-			timer = new ProfilingTimer("Explosion");
-
-		int x = Random3D::RandInt(dim[0] * TerrainChunk::ChunkSize), z = Random3D::RandInt(dim[2] * TerrainChunk::ChunkSize);
-		int y;
-
-		for(y = dim[1] * TerrainChunk::ChunkSize - 1; y >= 0; y--)
-			if(Chunk(x / TerrainChunk::ChunkSize, y / TerrainChunk::ChunkSize, z / TerrainChunk::ChunkSize)->GetNode(x % TerrainChunk::ChunkSize, y % TerrainChunk::ChunkSize, z % TerrainChunk::ChunkSize)->IsSolid())
-				break;
-
-		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(2, 5);
-
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			(*iter)->Explode(blast_center, blast_force);
+			(*iter)->Solidify();
+	}
+
+	void VoxelTerrain::Explode(Vec3 center, float inner_radius, float outer_radius)
+	{
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
+			(*iter)->Explode(center, inner_radius, outer_radius);
 	}
 }

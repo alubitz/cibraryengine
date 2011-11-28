@@ -160,16 +160,12 @@ namespace DestructibleTerrain
 				}
 	}
 
-	void TerrainChunk::Explode(Vec3 blast_center, float blast_force)
+	void TerrainChunk::Explode(Vec3 blast_center, float inner_radius, float outer_radius)
 	{
-		static const float falloff_range = 3;
-		static const float inv_range = 1.0f / falloff_range;
+		const float inv_range = 1.0f / (outer_radius - inner_radius);
+		const float outer_radius_sq = outer_radius * outer_radius;
 
 		int owner_dim_x = owner->GetXDim(), owner_dim_y = owner->GetYDim(), owner_dim_z = owner->GetZDim();
-
-		float inner_radius = blast_force;
-		float outer_radius = blast_force + falloff_range;
-		float outer_radius_sq = outer_radius * outer_radius;
 
 		int blast_radius = (int)ceil(outer_radius);
 		blast_center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));

@@ -30,12 +30,16 @@ namespace DestructibleTerrain
 			~VoxelTerrain();
 
 			TerrainChunk* Chunk(int x, int y, int z);
+			bool PosToNode(Vec3 pos, TerrainChunk*& chunk, int& x, int& y, int& z);
 
 			int GetXDim() { return dim[0]; }
 			int GetYDim() { return dim[1]; }
 			int GetZDim() { return dim[2]; }
+			Mat4 GetTransform() { return scale * xform; }
+
 			void Vis(SceneRenderer* renderer);
 
-			void Explode();
+			void Solidify();
+			void Explode(Vec3 center, float inner_radius, float outer_radius);
 	};
 }

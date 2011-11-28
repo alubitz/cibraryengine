@@ -67,7 +67,7 @@ namespace DestructibleTerrain
 			void InvalidateVBO();
 
 			void Solidify();
-			void TerrainChunk::Explode(Vec3 blast_center, float blast_force);
+			void Explode(Vec3 blast_center, float inner_radius, float outer_radius);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 	};
