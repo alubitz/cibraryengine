@@ -46,6 +46,7 @@ namespace DestructibleTerrain
 			terrain.Vis(&renderer);
 
 			renderer.Render();
+			renderer.Cleanup();
 		}
 
 		struct ExplodeHandler : public EventHandler
