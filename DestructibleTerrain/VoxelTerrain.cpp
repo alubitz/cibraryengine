@@ -11,6 +11,8 @@ namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;
 
+	ProfilingTimer* timer = NULL;
+
 	/*
 	 * VoxelTerrain methods
 	 */
@@ -102,10 +104,19 @@ namespace DestructibleTerrain
 			if(chunk != NULL)
 				chunk->Vis(renderer, scale * xform);
 		}
+
+		if(timer != NULL)
+		{
+			delete timer;
+			timer = NULL;
+		}
 	}
 
 	void VoxelTerrain::Explode()
 	{
+		if(timer == NULL)
+			timer = new ProfilingTimer("Explosion");
+
 		int x = Random3D::RandInt(dim[0] * TerrainChunk::ChunkSize), z = Random3D::RandInt(dim[2] * TerrainChunk::ChunkSize);
 		int y;
 

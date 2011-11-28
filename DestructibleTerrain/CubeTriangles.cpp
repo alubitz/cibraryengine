@@ -39,7 +39,7 @@ namespace DestructibleTerrain
 	 */
 	void CubeTriangles::Invalidate() { num_vertices = -1; chunk->InvalidateVBO(); }
 
-	int CubeTriangles::GetVertexData(TerrainVertex* verts_, int* indices_)
+	void CubeTriangles::BuildAsNeeded()
 	{
 		if(num_vertices == -1)
 		{
@@ -63,13 +63,5 @@ namespace DestructibleTerrain
 					break;
 			num_vertices = i;
 		}
-
-		for(int i = 0; i < 12; i++)
-			verts_[i] = verts[i];
-
-		for(int i = 0; i < 16; i++)
-			indices_[i] = indices[i];
-
-		return num_vertices;
 	}
 }

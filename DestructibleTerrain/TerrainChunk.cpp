@@ -139,21 +139,22 @@ namespace DestructibleTerrain
 					CubeTriangles* cube = GetCubeRelative(x, y, z);
 
 					if(cube != NULL)
-					{
-						TerrainVertex cube_verts[12];
-						int cube_indices[16];						// value = index in "cube_unique_verts"
-						int cube_global_indices[12];				// key = index in "cube_verts", value = index in "unique_vertices"
-						unsigned short int known_mask = 0;
-						
-						int cube_vert_count = cube->GetVertexData(&cube_verts[0], &cube_indices[0]);
+					{						
+						cube->BuildAsNeeded();
 
+						int cube_vert_count = cube->num_vertices;
 						if(cube_vert_count == 0)
 							continue;
 
 						num_verts += cube_vert_count;
 
-						vector<unsigned int> cube_vertex_indices;
+						int* cube_indices = &cube->indices[0];
+						TerrainVertex* cube_verts = &cube->verts[0];
+						int cube_global_indices[12];						// key = index in "cube_verts", value = index in "unique_vertices"
 
+						unsigned short int known_mask = 0;
+
+						vector<unsigned int> cube_vertex_indices;
 						for(int i = 0; i < cube_vert_count; i++)
 						{
 							// find out if this vert is a duplicate of one which has already been assigned an index

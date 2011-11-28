@@ -31,7 +31,6 @@ namespace DestructibleTerrain
 		/** Call this when one of the 8 nodes at the corners of this cube is changed */
 		void Invalidate();
 
-		/** Gets the vertex data for the triangulation of this cube, computing it if it isn't already known; the return value is the number of vertices */
-		int GetVertexData(TerrainVertex* verts, int* indices);
+		void BuildAsNeeded();
 	};
 }
