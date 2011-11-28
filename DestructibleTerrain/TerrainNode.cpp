@@ -75,4 +75,32 @@ namespace DestructibleTerrain
 	float TerrainNode::GetScalarValue() { return -(solidity - 127.5f); }
 
 	bool TerrainNode::IsSolid() { return GetScalarValue() < 0; }
+
+	Vec4 TerrainNode::GetColor() 
+	{
+		Vec4 color;
+
+		for(int i = 0; i < 4; i++)
+		{
+			switch(types[i])
+			{
+			case 1:
+			
+				// stone color
+				color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * weights[i];
+				break;
+
+			case 2:
+			
+				// dirt (sand) color
+				color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * weights[i];
+				break;
+			}
+		}
+
+		if(color.w != 0)
+			color /= color.w;
+
+		return color;
+	}
 }

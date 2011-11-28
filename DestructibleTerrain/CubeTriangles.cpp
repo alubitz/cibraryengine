@@ -8,29 +8,7 @@
 namespace DestructibleTerrain
 {
 	/*
-	 * CubeTriangles methods
-	 */
-	CubeTriangles::CubeTriangles(TerrainChunk* chunk, int x, int y, int z) :
-		chunk(chunk),
-		x(x),
-		y(y),
-		z(z),
-		valid(false)
-	{
-	}
-
-	void CubeTriangles::Invalidate()
-	{
-		valid = false;
-		chunk->InvalidateVBO();
-	}
-
-
-
-
-
-	/*
-	 * Struct used for input to MarchingCubes::Polygonize in CubeTriangles::AppendVertexData, below
+	 * Struct used for input to MarchingCubes::Polygonize in CubeTriangles::AppendVertexData
 	 */
 	struct GridStruct
 	{
@@ -44,33 +22,10 @@ namespace DestructibleTerrain
 			assert(node_ptr != NULL);
 
 			TerrainNode& node = *node_ptr;
-			color = Vec4();
 
-			if(node.IsSolid())
-			{
-				for(int i = 0; i < 4; i++)
-				{
-					switch(node.types[i])
-					{
-					case 1:
-					
-						// stone color
-						color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * node.weights[i];
-						break;
-
-					case 2:
-					
-						// dirt (sand) color
-						color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * node.weights[i];
-						break;
-					}
-				}
-			}
-
+			color = node.IsSolid() ? node.GetColor() : Vec4();
 			value = node.GetScalarValue();
 			position = Vec3(float(x), float(y), float(z));
-
-			color *= color.w == 0 ? 1.0f : 1.0f / color.w;
 		}
 
 		operator TerrainVertex() { return TerrainVertex(position, color); }
@@ -80,11 +35,13 @@ namespace DestructibleTerrain
 
 
 	/*
-	 * More CubeTriangles methods
+	 * CubeTriangles methods
 	 */
-	void CubeTriangles::AppendVertexData(vector<TerrainVertex>& target)
+	void CubeTriangles::Invalidate() { num_vertices = -1; chunk->InvalidateVBO(); }
+
+	int CubeTriangles::GetVertexData(TerrainVertex* verts_, int* indices_)
 	{
-		if(!valid)
+		if(num_vertices == -1)
 		{
 			GridStruct grid[] =
 			{
@@ -100,14 +57,19 @@ namespace DestructibleTerrain
 
 			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, &verts[0], &indices[0]);
 
-			valid = true;
+			int i;
+			for(i = 0; i < 16; i++)
+				if(indices[i] == -1)
+					break;
+			num_vertices = i;
 		}
 
-		for(int i = 0; indices[i] != -1; i += 3)
-		{
-			target.push_back(verts[indices[i    ]]);
-			target.push_back(verts[indices[i + 1]]);
-			target.push_back(verts[indices[i + 2]]);
-		}
+		for(int i = 0; i < 12; i++)
+			verts_[i] = verts[i];
+
+		for(int i = 0; i < 16; i++)
+			indices_[i] = indices[i];
+
+		return num_vertices;
 	}
 }

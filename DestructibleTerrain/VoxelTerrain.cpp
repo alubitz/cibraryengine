@@ -114,24 +114,9 @@ namespace DestructibleTerrain
 				break;
 
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
-		float blast_force = Random3D::Rand(4, 10);
-
-		set<TerrainChunk*> affected_chunks;
+		float blast_force = Random3D::Rand(2, 5);
 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
-			(*iter)->Explode(blast_center, blast_force, affected_chunks);
-
-		unsigned int count = 0;
-
-		for(set<TerrainChunk*>::iterator iter = affected_chunks.begin(); iter != affected_chunks.end(); iter++)
-		{
-			TerrainChunk* chunk = *iter;
-			if(chunk != NULL)
-			{
-				chunk->Solidify();
-				chunk->InvalidateVBO();
-				count++;
-			}
-		}
+			(*iter)->Explode(blast_center, blast_force);
 	}
 }

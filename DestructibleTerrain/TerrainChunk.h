@@ -33,7 +33,7 @@ namespace DestructibleTerrain
 		public:
 
 			// If these were unsigned ints it would cause some stupid errors with underflow
-			static const int ChunkSize = 16;
+			static const int ChunkSize = 8;
 			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
 
 			TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z);
@@ -53,10 +53,15 @@ namespace DestructibleTerrain
 			CubeTriangles* GetCube(int x, int y, int z);
 			CubeTriangles* GetCubeRelative(int x, int y, int z);
 
+			bool GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz);
+
 			void InvalidateVBO();
 
 			void Solidify();
-			void TerrainChunk::Explode(Vec3 blast_center, float blast_force, set<TerrainChunk*>& affected_chunks);
+			void TerrainChunk::Explode(Vec3 blast_center, float blast_force);
+
+			void InvalidateNode(int x, int y, int z);
+			void InvalidateCubeRelative(int x, int y, int z);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 

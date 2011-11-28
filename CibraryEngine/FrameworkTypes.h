@@ -12,6 +12,7 @@
 
 #include "DebugLog.h"
 #include "Serialize.h"
+#include "ProfilingTimer.h"
 
 #include "Content.h"
 #include "Events.h"

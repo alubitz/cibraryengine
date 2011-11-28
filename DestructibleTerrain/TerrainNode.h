@@ -4,6 +4,8 @@
 
 namespace DestructibleTerrain
 {
+	using namespace CibraryEngine;
+
 	class TerrainChunk;
 
 	struct TerrainNode
@@ -20,5 +22,7 @@ namespace DestructibleTerrain
 
 		float GetScalarValue();
 		bool IsSolid();
+
+		Vec4 GetColor();
 	};
 }

@@ -35,52 +35,60 @@ namespace DestructibleTerrain
 
 	TerrainChunk::~TerrainChunk() { InvalidateVBO(); }
 
-	TerrainNode* TerrainChunk::GetNode(int x, int y, int z) { return &node_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
-
-	TerrainNode* TerrainChunk::GetNodeRelative(int x, int y, int z)
+	bool TerrainChunk::GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz)
 	{
 		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
-			return &node_data[x * ChunkSizeSquared + y * ChunkSize + z];
+			return false;
 		else
 		{
 			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
 			int cy = (int)floor((float)y / ChunkSize) + chunk_y;
 			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
 
-			int dx = x - (cx - chunk_x) * ChunkSize;
-			int dy = y - (cy - chunk_y) * ChunkSize;
-			int dz = z - (cz - chunk_z) * ChunkSize;
+			dx = x - (cx - chunk_x) * ChunkSize;
+			dy = y - (cy - chunk_y) * ChunkSize;
+			dz = z - (cz - chunk_z) * ChunkSize;
 
-			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
-			if(neighbor_chunk == NULL)
-				return NULL;
-			else
-				return neighbor_chunk->GetNode(dx, dy, dz);
+			chunk = owner->Chunk(cx, cy, cz);
+
+			return true;
 		}
+	}
+
+	TerrainNode* TerrainChunk::GetNode(int x, int y, int z) { return &node_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
+
+	TerrainNode* TerrainChunk::GetNodeRelative(int x, int y, int z)
+	{
+		TerrainChunk* chunk;
+		int dx, dy, dz;
+
+		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
+		{
+			if(chunk != NULL)
+				return chunk->GetNode(dx, dy, dz);
+			else
+				return NULL;
+		}
+		else
+			return GetNode(x, y, z);
 	}
 
 	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
 	CubeTriangles* TerrainChunk::GetCubeRelative(int x, int y, int z)
 	{
-		if(x >= 0 && y >= 0 && z >= 0 && x < ChunkSize && y < ChunkSize && z < ChunkSize)
-			return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z];
-		else
+		TerrainChunk* chunk;
+		int dx, dy, dz;
+
+		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
-			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
-			int cy = (int)floor((float)y / ChunkSize) + chunk_y;
-			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
-
-			int dx = x - (cx - chunk_x) * ChunkSize;
-			int dy = y - (cy - chunk_y) * ChunkSize; 
-			int dz = z - (cz - chunk_z) * ChunkSize;
-
-			TerrainChunk* neighbor_chunk = owner->Chunk(cx, cy, cz);
-			if(neighbor_chunk == NULL)
-				return NULL;
+			if(chunk != NULL)
+				return chunk->GetCube(dx, dy, dz);
 			else
-				return neighbor_chunk->GetCube(dx, dy, dz);
+				return NULL;
 		}
+		else
+			return GetCube(x, y, z);
 	}
 
 	void TerrainChunk::InvalidateVBO()
@@ -132,46 +140,64 @@ namespace DestructibleTerrain
 
 					if(cube != NULL)
 					{
-						vector<TerrainVertex> cube_vertex_data;
-						cube->AppendVertexData(cube_vertex_data);
+						TerrainVertex cube_verts[12];
+						int cube_indices[16];						// value = index in "cube_unique_verts"
+						int cube_global_indices[12];				// key = index in "cube_verts", value = index in "unique_vertices"
+						unsigned short int known_mask = 0;
+						
+						int cube_vert_count = cube->GetVertexData(&cube_verts[0], &cube_indices[0]);
 
-						num_verts += cube_vertex_data.size();
+						if(cube_vert_count == 0)
+							continue;
 
-						vector<unsigned int> cube_vertex_indices = vector<unsigned int>();
-						for(vector<TerrainVertex>::iterator iter = cube_vertex_data.begin(); iter != cube_vertex_data.end(); iter++)
+						num_verts += cube_vert_count;
+
+						vector<unsigned int> cube_vertex_indices;
+
+						for(int i = 0; i < cube_vert_count; i++)
 						{
 							// find out if this vert is a duplicate of one which has already been assigned an index
-							Vec3& pos = iter->pos;
+							int index = cube_indices[i];
+							if((known_mask & (1 << index)) == 0)
+							{
+								TerrainVertex& vert = cube_verts[index];
+								Vec3& pos = vert.pos;
 
-							bool found = false;
-							unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
+								bool found = false;
+								unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
 
-							for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
-								for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
-									for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
-									{
-										vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
-										for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
+								for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
+									for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
+										for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
 										{
-											Vec3 vertex_pos = unique_vertices[*jter].pos;
-										
-											if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
-												(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
-												(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
+											vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
+											for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
 											{
-												use_index = *jter;
-												found = true;
-												break;
+												Vec3 vertex_pos = unique_vertices[*jter].pos;
+											
+												if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
+													(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
+													(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
+												{
+													use_index = *jter;
+													found = true;
+													break;
+												}
 											}
 										}
-									}
 
-							// vert doesn't already exist; create it
-							if(!found)
-								unique_vertices.push_back(*iter);
+								// vert doesn't already exist; create it
+								if(!found)
+									unique_vertices.push_back(vert);
 
-							cube_vertex_indices.push_back(use_index);
+								cube_global_indices[index] = use_index;
+
+								known_mask |= (1 << index);
+							}
+
+							cube_vertex_indices.push_back(cube_global_indices[index]);
 						}
+
 						vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
 					}
 				}
@@ -309,125 +335,77 @@ namespace DestructibleTerrain
 				}
 	}
 
-	void TerrainChunk::Explode(Vec3 blast_center, float blast_force, set<TerrainChunk*>& affected_chunks)
+	void TerrainChunk::Explode(Vec3 blast_center, float blast_force)
 	{
+		static const float falloff_range = 3;
+		static const float inv_range = 1.0f / falloff_range;
+
 		int owner_dim_x, owner_dim_y, owner_dim_z;
 		owner->GetDimensions(owner_dim_x, owner_dim_y, owner_dim_z);
 
-		const float blast_force_multiplier = 100.0f;
-		const float damage_threshold = 50.0f;					// value gets converted to integer!
+		float inner_radius = blast_force;
+		float outer_radius = blast_force + falloff_range;
+		float outer_radius_sq = outer_radius * outer_radius;
 
-		int blast_radius = (int)ceil(sqrtf(blast_force_multiplier * blast_force - 1.0f));
+		int blast_radius = (int)ceil(outer_radius);
 		blast_center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
 
 		int min_x = max(0, (int)floor(blast_center.x - blast_radius)), max_x = min(ChunkSize - 1, (int)ceil(blast_center.x + blast_radius));
 		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(ChunkSize - 1, (int)ceil(blast_center.y + blast_radius));
 		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(ChunkSize - 1, (int)ceil(blast_center.z + blast_radius));
 
-		bool has_nx_neighbor = min_x == 0 && chunk_x > 0, has_ny_neighbor = min_y == 0 && chunk_y > 0, has_nz_neighbor = min_z == 0 && chunk_z > 0;
-		bool has_px_neighbor = max_x + 1 == ChunkSize && chunk_x + 1 < owner_dim_x, has_py_neighbor = max_y + 1 == ChunkSize && chunk_y + 1 < owner_dim_y, has_pz_neighbor = max_z + 1 == ChunkSize && chunk_z + 1 < owner_dim_z;
-
 		for(int xx = min_x; xx <= max_x; xx++)
 		{
-			bool is_nx_neighbor = has_nx_neighbor && xx == 0;
-			bool is_px_neighbor = has_px_neighbor && xx + 1 == ChunkSize;
 			for(int yy = min_y; yy <= max_y; yy++)
 			{
-				bool is_ny_neighbor = has_ny_neighbor && yy == 0;
-				bool is_py_neighbor = has_py_neighbor && yy + 1 == ChunkSize;
 				for(int zz = min_z; zz <= max_z; zz++)
 				{
-					bool is_nz_neighbor = has_nz_neighbor && zz == 0;
-					bool is_pz_neighbor = has_pz_neighbor && zz + 1 == ChunkSize;
-
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
 					Vec3 radius_vec = point - blast_center;
 
 					float dist_sq = radius_vec.ComputeMagnitudeSquared();
-					float damage = blast_force * blast_force_multiplier / (dist_sq + 1.0f);
-
-					if(damage >= damage_threshold)
+					if(dist_sq < outer_radius_sq)
 					{
 						TerrainNode& node = *GetNode(xx, yy, zz);
-						int nu_value = (unsigned char)max(0, (int)node.solidity - damage);
-						if(nu_value != node.solidity)
+
+						float dist = sqrtf(dist_sq);
+						int crater_value = 255 - max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range))));
+
+						if(crater_value < node.solidity)
 						{
-							node.solidity = nu_value;
-							affected_chunks.insert(this);
-
-							if(is_nx_neighbor)
-							{
-								affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y, chunk_z));
-								if(is_ny_neighbor)
-								{
-									affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z));
-
-									if(is_nz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z - 1));
-									else if(is_pz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z + 1));
-								}
-								else if(is_py_neighbor)
-								{
-									affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y + 1, chunk_z));
-
-									if(is_nz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z - 1));
-									else if(is_pz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x - 1, chunk_y - 1, chunk_z + 1));
-								}
-							}
-							else if(is_px_neighbor)
-							{
-								affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y, chunk_z));
-								if(is_ny_neighbor)
-								{
-									affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z));
-
-									if(is_nz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z - 1));
-									else if(is_pz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z + 1));
-								}
-								else if(is_py_neighbor)
-								{
-									affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y + 1, chunk_z));
-
-									if(is_nz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z - 1));
-									else if(is_pz_neighbor)
-										affected_chunks.insert(owner->Chunk(chunk_x + 1, chunk_y - 1, chunk_z + 1));
-								}
-							}
-
-							if(is_ny_neighbor)
-							{
-								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z));
-
-								if(is_nz_neighbor)
-									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z - 1));
-								else if(is_pz_neighbor)
-									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y - 1, chunk_z + 1));
-							}
-							else if(is_py_neighbor)
-							{
-								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z));
-
-								if(is_nz_neighbor)
-									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z - 1));
-								else if(is_pz_neighbor)
-									affected_chunks.insert(owner->Chunk(chunk_x, chunk_y + 1, chunk_z + 1));
-							}
-
-							if(is_nz_neighbor)
-								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y, chunk_z - 1));
-							else if(is_pz_neighbor)
-								affected_chunks.insert(owner->Chunk(chunk_x, chunk_y, chunk_z + 1));
+							node.solidity = crater_value;
+							InvalidateNode(xx, yy, zz);
 						}
 					}
 				}
 			}
 		}
+	}
+
+	void TerrainChunk::InvalidateNode(int x, int y, int z)
+	{
+		InvalidateCubeRelative(	x - 1,	y - 1,	z - 1	);
+		InvalidateCubeRelative(	x - 1,	y - 1,	z		);
+		InvalidateCubeRelative(	x - 1,	y,		z - 1	);
+		InvalidateCubeRelative(	x - 1,	y,		z		);
+		InvalidateCubeRelative(	x,		y - 1,	z - 1	);
+		InvalidateCubeRelative(	x,		y - 1,	z		);
+		InvalidateCubeRelative(	x,		y,		z - 1	);
+		InvalidateCubeRelative(	x,		y,		z		);
+	}
+
+	void TerrainChunk::InvalidateCubeRelative(int x, int y, int z)
+	{
+		TerrainChunk* chunk;
+		int dx, dy, dz;
+
+		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
+		{
+			if(chunk != NULL)
+				chunk->GetCube(dx, dy, dz)->Invalidate();
+		}
+		else
+			GetCube(x, y, z)->Invalidate();
 	}
 
 	void TerrainChunk::Vis(SceneRenderer *renderer, Mat4 main_xform)
