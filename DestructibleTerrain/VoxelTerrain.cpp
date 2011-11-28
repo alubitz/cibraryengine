@@ -65,13 +65,13 @@ namespace DestructibleTerrain
 				}
 
 		// go back and solidify those chunks
-		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 			(*iter)->Solidify();
 	}
 
 	VoxelTerrain::~VoxelTerrain() 
 	{
-		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 		{
 			TerrainChunk* chunk = *iter;
 			if(chunk != NULL)
@@ -98,7 +98,7 @@ namespace DestructibleTerrain
 
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
 	{ 
-		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 		{
 			TerrainChunk* chunk = *iter;
 			if(chunk != NULL)
@@ -127,7 +127,7 @@ namespace DestructibleTerrain
 		Vec3 blast_center = Vec3(float(x), float(y), float(z));
 		float blast_force = Random3D::Rand(2, 5);
 
-		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); iter++)
+		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 			(*iter)->Explode(blast_center, blast_force);
 	}
 }

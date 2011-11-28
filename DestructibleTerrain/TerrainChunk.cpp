@@ -172,7 +172,7 @@ namespace DestructibleTerrain
 										for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
 										{
 											vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
-											for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); jter++)
+											for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); ++jter)
 											{
 												Vec3 vertex_pos = unique_vertices[*jter].pos;
 											
@@ -243,6 +243,7 @@ namespace DestructibleTerrain
 			}
 		}
 
+		// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 		model->SetNumVerts(num_verts);
 
 		float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
@@ -267,7 +268,7 @@ namespace DestructibleTerrain
 						continue;
 
 					// iterate through all of the verts in this cube
-					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); iter++)
+					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); ++iter)
 					{
 						TerrainVertex& vert = unique_vertices[*iter];
 
