@@ -6,6 +6,7 @@
 #include "Texture2D.h"
 #include "Texture3D.h"
 #include "TextureCube.h"
+#include "Vector.h"
 #include "Matrix.h"
 
 namespace CibraryEngine
@@ -34,6 +35,19 @@ namespace CibraryEngine
 
 			float* GetValue();
 			void SetValue(float* v);
+	};
+
+	class UniformVector3 : public TypedUniformVariable<Vec3>
+	{
+		public:
+			void ApplyValue(int location);
+
+			Vec3 value;
+
+			UniformVector3(string name);
+
+			Vec3* GetValue();
+			void SetValue(Vec3* v);
 	};
 
 	class UniformTexture1D : public TypedUniformVariable<Texture1D>

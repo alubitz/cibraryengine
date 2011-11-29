@@ -32,6 +32,19 @@ namespace CibraryEngine
 
 
 	/*
+	 * UniformVector3 methods
+	 */
+	UniformVector3::UniformVector3(string name) : TypedUniformVariable<Vec3>(name), value() { }
+
+	void UniformVector3::ApplyValue(int location) { glUniform3f(location, value.x, value.y, value.z); }
+
+	Vec3* UniformVector3::GetValue() { return &value; }
+	void UniformVector3::SetValue(Vec3* v) { value = *v; }
+
+
+
+
+	/*
 	 * UniformTexture1D methods
 	 */
 	UniformTexture1D::UniformTexture1D(string name, int which) : TypedUniformVariable<Texture1D>(name), which(which), texture(NULL) { }
