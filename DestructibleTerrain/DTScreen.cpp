@@ -47,8 +47,12 @@ namespace DestructibleTerrain
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);			
-			glMatrixMode(GL_MODELVIEW);
+			
+			glMatrixMode(GL_MODELVIEW);		
 			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
+
+			float light_pos[] = {0, 1, 0, 0};
+			glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
 
 			SceneRenderer renderer(&camera);
 			
@@ -63,10 +67,21 @@ namespace DestructibleTerrain
 			if(window->input_state->mb[0])
 				Explode();
 
+			Mat3 camera_rm = camera_ori.ToMat3();
+
 			if(window->input_state->keys['W'])
-				camera_vel += camera_ori.ToMat3() * Vec3(0, 0, -50.0f * time.elapsed);
+				camera_vel += camera_rm * Vec3(0, 0, -50.0f * time.elapsed);
 			if(window->input_state->keys['S'])
-				camera_vel += camera_ori.ToMat3() * Vec3(0, 0, 50.0f * time.elapsed);
+				camera_vel += camera_rm * Vec3(0, 0, 50.0f * time.elapsed);
+			if(window->input_state->keys['A'])
+				camera_vel += camera_rm * Vec3(-50.0f * time.elapsed, 0, 0);
+			if(window->input_state->keys['D'])
+				camera_vel += camera_rm * Vec3(50.0f * time.elapsed, 0, 0);
+			if(window->input_state->keys[VK_SPACE])
+				camera_vel += Vec3(0, 50 * time.elapsed, 0);
+			if(window->input_state->keys['C'])
+				camera_vel += Vec3(0, -50 * time.elapsed, 0);
+
 
 			camera_vel *= exp(-10.0f * time.elapsed);
 			camera_pos += camera_vel * time.elapsed;

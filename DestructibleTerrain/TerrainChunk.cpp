@@ -215,7 +215,7 @@ namespace DestructibleTerrain
 		}
 
 		if(model != NULL)
-			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, main_xform * xform), 0));
+			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)), main_xform * xform), 0));
 	}
 
 
@@ -357,9 +357,9 @@ namespace DestructibleTerrain
 		{
 			VertexBuffer* model = new VertexBuffer(Triangles);
 
-			model->AddAttribute("gl_Vertex",	Float, 3);
-			model->AddAttribute("gl_Normal",	Float, 3);
-			model->AddAttribute("gl_Color",		Float, 3);
+			model->AddAttribute("gl_Vertex",			Float, 3);
+			model->AddAttribute("gl_Normal",			Float, 3);
+			model->AddAttribute("gl_Color",				Float, 3);
 
 			// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 			model->SetNumVerts(num_verts);

@@ -1,4 +1,8 @@
+uniform	sampler3D		diffuse;
+uniform	vec3			chunk_pos;
+
 varying	vec3			normal, position;
+varying	vec3			vertex;
 
 void main()
 {
@@ -19,7 +23,9 @@ void main()
 
 	float light = diffuse_amount * 0.8 + 0.2;
 
-	vec3 base_color = gl_Color.xyz * light;//(diffuse_amount * gl_LightSource[0].diffuse.xyz);// + specular_amount * gl_LightSource[0].specular.xyz);
+	vec4 diffuse_sample = texture3D(diffuse, (vertex + chunk_pos) * 0.2);
+
+	vec3 base_color = gl_Color.xyz * diffuse_sample.xyz * light;
 
 	gl_FragColor.xyz = base_color;
 	gl_FragColor.w = 1.0;
