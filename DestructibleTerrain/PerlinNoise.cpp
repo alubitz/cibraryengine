@@ -7,7 +7,7 @@ namespace DestructibleTerrain
 	/*
 	 * PerlinNoise methods
 	 */
-	PerlinNoise::PerlinNoise(int res) :
+	PerlinNoise::PerlinNoise(int res, bool tileable) :
 		res(res),
 		res_sq(res * res),
 		gradients(NULL)
@@ -21,6 +21,30 @@ namespace DestructibleTerrain
 		gradients = new Vec3[n];
 		for(int i = 0; i < n; i++)
 			gradients[i] = unique_gradients[Random3D::RandInt(n_unique)];
+
+		if(tileable)
+		{
+			int x_span = res * res;
+			int res_minus_one = res - 1;
+			int rm1_res = res_minus_one * res;
+			int rm1_xs = res_minus_one * x_span;
+
+			for(int x = 0; x < res; x++)
+			{
+				int xx = x * x_span;
+
+				for(int y = 0; y < res; y++)
+					gradients[xx + y * res] = gradients[xx + y * res + res_minus_one];
+				for(int z = 0; z < res; z++)
+					gradients[xx + z] = gradients[xx + rm1_res + z];
+			}
+			for(int y = 0; y < res; y++)
+			{
+				int yy = y * res;
+				for(int z = 0; z < res; z++)
+					gradients[yy + z] = gradients[rm1_xs + yy + z];
+			}
+		}
 
 		delete[] unique_gradients;
 	}

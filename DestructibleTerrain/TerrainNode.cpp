@@ -69,6 +69,7 @@ namespace DestructibleTerrain
 
 	Vec4 TerrainNode::GetColor() 
 	{
+		/*
 		Vec4 color;
 
 		for(int i = 0; i < 4; i++)
@@ -93,5 +94,7 @@ namespace DestructibleTerrain
 			color /= color.w;
 
 		return color;
+		*/
+		return Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 }

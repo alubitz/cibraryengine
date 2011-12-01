@@ -23,6 +23,7 @@ namespace DestructibleTerrain
 		glMultMatrixf(xform.Transpose().values);
 
 		shader->SetUniform<Vec3>("chunk_pos", &chunk_pos);
+		shader->UpdateUniforms();
 
 		model->Draw();
 
@@ -39,7 +40,6 @@ namespace DestructibleTerrain
 	{
 		Texture2D* rock = content->GetCache<Texture2D>()->Load("rock3d");
 		int texture_res = min(rock->width, rock->height);
-		rock->GetGLName();
 
 		texture = new Texture3D(texture_res, texture_res, texture_res, rock->byte_data, true, false);
 
@@ -49,8 +49,6 @@ namespace DestructibleTerrain
 		shader = new ShaderProgram(vs, fs);
 		shader->AddUniform<Texture3D>(new UniformTexture3D("diffuse", 0));
 		shader->AddUniform<Vec3>(new UniformVector3("chunk_pos"));
-
-		shader->UpdateUniforms();
 	}
 
 	void VoxelMaterial::BeginDraw(SceneRenderer* renderer)

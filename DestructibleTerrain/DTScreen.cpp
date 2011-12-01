@@ -17,18 +17,39 @@ namespace DestructibleTerrain
 	{
 		ProgramWindow* window;
 
-		VoxelMaterial material;
-		VoxelTerrain terrain;
+		VoxelMaterial* material;
+		VoxelTerrain* terrain;
 
 		Vec3 camera_pos;
 		Vec3 camera_vel;
 		float yaw, pitch;
 		Quaternion camera_ori;
 
-		Imp(ProgramWindow* window) : window(window), material(window->content), terrain(&material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION), camera_pos(0, TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.125f, 0), yaw(), pitch(), camera_ori(Quaternion::Identity()), mouse_button_handler(this), mouse_motion_handler(&yaw, &pitch) { }
+		Imp(ProgramWindow* window) : window(window), material(NULL), terrain(NULL), camera_pos(0, TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.125f, 0), yaw(), pitch(), camera_ori(Quaternion::Identity()), mouse_button_handler(this), mouse_motion_handler(&yaw, &pitch) { }
+		~Imp()
+		{
+			if(material != NULL)
+			{
+				delete material;
+				material = NULL;
+			}
+			if(terrain != NULL)
+			{
+				delete terrain;
+				terrain = NULL;
+			}
+		}
 
 		void Draw(int width, int height)
 		{
+			GLDEBUG();
+
+			if(material == NULL)
+				material = new VoxelMaterial(window->content);
+
+			if(terrain == NULL)
+				terrain = new VoxelTerrain(material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
+
 			glViewport(0, 0, width, height);
 
 			glDepthMask(true);
@@ -54,12 +75,16 @@ namespace DestructibleTerrain
 			float light_pos[] = {0, 1, 0, 0};
 			glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
 
+			GLDEBUG();
+
 			SceneRenderer renderer(&camera);
 			
-			terrain.Vis(&renderer);
+			terrain->Vis(&renderer);
 
 			renderer.Render();
 			renderer.Cleanup();
+
+			GLDEBUG();
 		}
 
 		void Update(TimingInfo time)
@@ -78,9 +103,9 @@ namespace DestructibleTerrain
 			if(window->input_state->keys['D'])
 				camera_vel += camera_rm * Vec3(50.0f * time.elapsed, 0, 0);
 			if(window->input_state->keys[VK_SPACE])
-				camera_vel += Vec3(0, 50 * time.elapsed, 0);
+				camera_vel += camera_rm * Vec3(0, 50.0f * time.elapsed, 0);
 			if(window->input_state->keys['C'])
-				camera_vel += Vec3(0, -50 * time.elapsed, 0);
+				camera_vel += camera_rm * Vec3(0, -50.0f * time.elapsed, 0);
 
 
 			camera_vel *= exp(-10.0f * time.elapsed);
@@ -89,7 +114,7 @@ namespace DestructibleTerrain
 
 		void Explode()
 		{
-			Vec3 pos = Mat4::Invert(terrain.GetTransform()).TransformVec3(camera_pos, 1);
+			Vec3 pos = Mat4::Invert(terrain->GetTransform()).TransformVec3(camera_pos, 1);
 			Vec3 forward = camera_ori.ToMat3() * Vec3(0, 0, -0.5f);
 
 			float center_xyz = TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.5f;
@@ -102,11 +127,11 @@ namespace DestructibleTerrain
 			{
 				int x, y, z;
 				TerrainChunk* chunk;
-				if(terrain.PosToNode(pos, chunk, x, y, z))
+				if(terrain->PosToNode(pos, chunk, x, y, z))
 				{
 					if(chunk->GetNode(x, y, z)->IsSolid())
 					{
-						terrain.Explode(pos, 2, 3);
+						terrain->Explode(pos, 1.5f, 3.5f);
 						break;
 					}
 				}

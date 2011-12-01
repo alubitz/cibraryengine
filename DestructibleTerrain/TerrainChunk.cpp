@@ -215,7 +215,7 @@ namespace DestructibleTerrain
 		}
 
 		if(model != NULL)
-			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)), main_xform * xform), 0));
+			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize)), main_xform * xform), 0));
 	}
 
 
@@ -359,14 +359,12 @@ namespace DestructibleTerrain
 
 			model->AddAttribute("gl_Vertex",			Float, 3);
 			model->AddAttribute("gl_Normal",			Float, 3);
-			model->AddAttribute("gl_Color",				Float, 3);
 
 			// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 			model->SetNumVerts(num_verts);
 
 			float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
 			float* normal_ptr = model->GetFloatPointer("gl_Normal");
-			float* color_ptr = model->GetFloatPointer("gl_Color");
 
 			// we extended to ChunkSize + 2 to make the normal vectors compute correctly, but now we only want the ones within this chunk
 			int cmax_x = min(max_x, ChunkSize);
@@ -411,10 +409,6 @@ namespace DestructibleTerrain
 							*(normal_ptr++) = normal.x;
 							*(normal_ptr++) = normal.y;
 							*(normal_ptr++) = normal.z;
-
-							*(color_ptr++) = color.x;
-							*(color_ptr++) = color.y;
-							*(color_ptr++) = color.z;
 						}
 					}
 				}

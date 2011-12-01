@@ -23,9 +23,9 @@ void main()
 
 	float light = diffuse_amount * 0.8 + 0.2;
 
-	vec4 diffuse_sample = texture3D(diffuse, (vertex + chunk_pos) * 0.2);
+	vec4 diffuse_sample = texture3D(diffuse, (vertex + chunk_pos) / 1.0);
 
-	vec3 base_color = gl_Color.xyz * diffuse_sample.xyz * light;
+	vec3 base_color = diffuse_sample.xyz * light;
 
 	gl_FragColor.xyz = base_color;
 	gl_FragColor.w = 1.0;

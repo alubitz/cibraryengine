@@ -16,9 +16,11 @@ namespace DestructibleTerrain
 
 		public:
 
-			PerlinNoise(int res);
+			PerlinNoise(int res, bool tileable = false);
 			~PerlinNoise();
 
 			float Sample(Vec3 uvw);
+
+			int GetResolution() { return res; }
 	};
 }
