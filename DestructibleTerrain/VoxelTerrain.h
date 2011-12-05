@@ -11,8 +11,10 @@ namespace DestructibleTerrain
 	struct TerrainNode;
 	class TerrainChunk;
 
-	class VoxelTerrain
+	class VoxelTerrain : public Disposable
 	{
+		friend struct VoxelTerrainLoader;
+
 		private:
 
 			vector<TerrainChunk*> chunks;
@@ -23,6 +25,10 @@ namespace DestructibleTerrain
 			Mat4 xform;
 
 			VoxelMaterial* material;
+
+		protected:
+
+			void InnerDispose();
 
 		public:
 
@@ -41,5 +47,24 @@ namespace DestructibleTerrain
 
 			void Solidify();
 			void Explode(Vec3 center, float inner_radius, float outer_radius);
+	};
+
+	struct VoxelTerrainLoader : public ContentTypeHandler<VoxelTerrain>
+	{
+		private:
+
+			VoxelMaterial* default_material;				// pointer to material created elsewhere	
+
+		public:
+
+			VoxelTerrainLoader(ContentMan* man, VoxelMaterial* default_material);
+
+			VoxelTerrain* Load(ContentMetadata& what);
+			void Unload(VoxelTerrain* content, ContentMetadata& meta);
+
+			static unsigned int SaveVVV(VoxelTerrain* terrain, string filename);
+			static unsigned int LoadVVV(VoxelTerrain*& terrain, VoxelMaterial* material, string filename);
+
+			static VoxelTerrain* GenerateTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 	};
 }

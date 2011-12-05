@@ -48,7 +48,23 @@ namespace DestructibleTerrain
 				material = new VoxelMaterial(window->content);
 
 			if(terrain == NULL)
-				terrain = new VoxelTerrain(material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
+			{
+				if(unsigned int terrain_load_error = VoxelTerrainLoader::LoadVVV(terrain, material, "Files/Levels/VoxelWorld.vvv"))
+				{
+					stringstream load_err_ss;
+					load_err_ss << "LoadVVV returned with status " << terrain_load_error << "! Generating random terrain instead..." << endl;
+					Debug(load_err_ss.str());
+
+					terrain = VoxelTerrainLoader::GenerateTerrain(material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
+
+					if(unsigned int terrain_save_error = VoxelTerrainLoader::SaveVVV(terrain, "Files/Levels/VoxelWorld.vvv"))
+					{
+						stringstream save_err_ss;
+						save_err_ss << "SaveVVV returned with status " << terrain_save_error << "!" << endl;
+						Debug(save_err_ss.str());
+					}
+				}
+			}
 
 			glViewport(0, 0, width, height);
 

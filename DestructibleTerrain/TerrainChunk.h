@@ -70,6 +70,10 @@ namespace DestructibleTerrain
 			void Explode(Vec3 blast_center, float inner_radius, float outer_radius);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
+
+			// Member I/O functions
+			unsigned int Write(ostream& stream);
+			unsigned int Read(istream& stream);
 	};
 
 	template <class T> void TerrainChunk::PopulateValues(T t) 

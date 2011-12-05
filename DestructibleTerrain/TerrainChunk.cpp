@@ -421,4 +421,26 @@ namespace DestructibleTerrain
 			return model;
 		}
 	}
+
+
+
+
+	/*
+	 * TerrainChunk I/O functions
+	 */
+	unsigned int TerrainChunk::Write(ostream& stream)
+	{
+		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); iter++)
+			if(unsigned int node_write_error = iter->Write(stream))
+				return node_write_error;
+		return 0;
+	}
+
+	unsigned int TerrainChunk::Read(istream& stream)
+	{
+		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); iter++)
+			if(unsigned int node_read_error = iter->Read(stream))
+				return node_read_error;
+		return 0;
+	}
 }

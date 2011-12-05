@@ -97,4 +97,29 @@ namespace DestructibleTerrain
 		*/
 		return Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	}
+
+
+
+
+	unsigned int TerrainNode::Write(ostream& stream)
+	{
+		WriteByte(solidity, stream);
+		for(int i = 0; i < 4; i++)
+		{
+			WriteByte(types[i], stream);
+			WriteByte(weights[i], stream);
+		}
+		return 0;
+	}
+
+	unsigned int TerrainNode::Read(istream& stream)
+	{
+		solidity = ReadByte(stream);
+		for(int i = 0; i < 4; i++)
+		{
+			types[i] = ReadByte(stream);
+			weights[i] = ReadByte(stream);
+		}
+		return 0;
+	}
 }
