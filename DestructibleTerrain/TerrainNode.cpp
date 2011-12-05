@@ -67,36 +67,7 @@ namespace DestructibleTerrain
 		}
 	}
 
-	Vec4 TerrainNode::GetColor() 
-	{
-		/*
-		Vec4 color;
-
-		for(int i = 0; i < 4; i++)
-		{
-			switch(types[i])
-			{
-			case 1:
-			
-				// stone color
-				color += Vec4(0.5f, 0.5f, 0.5f, 1.0f) * weights[i];
-				break;
-
-			case 2:
-			
-				// dirt (sand) color
-				color += Vec4(0.85f, 0.75f, 0.55f, 1.0f) * weights[i];
-				break;
-			}
-		}
-
-		if(color.w != 0)
-			color /= color.w;
-
-		return color;
-		*/
-		return Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	}
+	Vec4 TerrainNode::GetColor() { return Vec4(1.0f, 1.0f, 1.0f, 1.0f); }
 
 
 
@@ -104,22 +75,31 @@ namespace DestructibleTerrain
 	unsigned int TerrainNode::Write(ostream& stream)
 	{
 		WriteByte(solidity, stream);
-		for(int i = 0; i < 4; i++)
-		{
-			WriteByte(types[i], stream);
-			WriteByte(weights[i], stream);
-		}
+		
+		if(solidity > 0)
+			for(int i = 0; i < 4; i++)
+			{
+				WriteByte(types[i], stream);
+				WriteByte(weights[i], stream);
+			}
+
 		return 0;
 	}
 
 	unsigned int TerrainNode::Read(istream& stream)
 	{
+		if(!stream)
+			return 1;
+
 		solidity = ReadByte(stream);
-		for(int i = 0; i < 4; i++)
-		{
-			types[i] = ReadByte(stream);
-			weights[i] = ReadByte(stream);
-		}
+
+		if(solidity > 0)
+			for(int i = 0; i < 4; i++)
+			{
+				types[i] = ReadByte(stream);
+				weights[i] = ReadByte(stream);
+			}
+
 		return 0;
 	}
 }
