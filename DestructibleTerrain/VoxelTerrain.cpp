@@ -94,12 +94,11 @@ namespace DestructibleTerrain
 			(*iter)->Solidify();
 	}
 
-	void VoxelTerrain::Explode(Vec3 center, float inner_radius, float outer_radius)
+	void VoxelTerrain::ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material)
 	{
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			(*iter)->Explode(center, inner_radius, outer_radius);
+			(*iter)->ModifySphere(center, inner_radius, outer_radius, material);
 	}
-
 
 
 

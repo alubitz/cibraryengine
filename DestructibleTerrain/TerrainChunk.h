@@ -67,7 +67,8 @@ namespace DestructibleTerrain
 			void InvalidateVBO();
 
 			void Solidify();
-			void Explode(Vec3 blast_center, float inner_radius, float outer_radius);
+
+			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 

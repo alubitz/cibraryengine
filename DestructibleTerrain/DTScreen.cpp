@@ -15,29 +15,53 @@ namespace DestructibleTerrain
 	 */
 	struct DTScreen::Imp
 	{
+		struct EditorBrush
+		{
+		public:
+
+			string name;
+
+			EditorBrush(string name) : name(name) { }			
+			virtual void DoAction(DTScreen::Imp* imp) = 0;
+		};
+
 		ProgramWindow* window;
 
 		VoxelMaterial* material;
 		VoxelTerrain* terrain;
+
+		BitmapFont* font;
 
 		Vec3 camera_pos;
 		Vec3 camera_vel;
 		float yaw, pitch;
 		Quaternion camera_ori;
 
-		Imp(ProgramWindow* window) : window(window), material(NULL), terrain(NULL), camera_pos(0, TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.125f, 0), yaw(), pitch(), camera_ori(Quaternion::Identity()), mouse_button_handler(this), mouse_motion_handler(&yaw, &pitch) { }
+		EditorBrush* current_brush;
+
+		Imp(ProgramWindow* window) :
+			window(window),
+			material(NULL), 
+			terrain(NULL), 
+			font(NULL),
+			camera_pos(0, TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.125f, 0), 
+			yaw(), 
+			pitch(), 
+			camera_ori(Quaternion::Identity()), 
+			current_brush(NULL), 
+			mouse_button_handler(this), 
+			mouse_motion_handler(&yaw, &pitch),
+			subtract_brush(),
+			add_brush()
+		{
+			current_brush = &subtract_brush;
+			font = window->content->GetCache<BitmapFont>()->Load("../Font");
+		}
+
 		~Imp()
 		{
-			if(material != NULL)
-			{
-				delete material;
-				material = NULL;
-			}
-			if(terrain != NULL)
-			{
-				delete terrain;
-				terrain = NULL;
-			}
+			if(material != NULL) { delete material; material = NULL; }
+			if(terrain != NULL) { delete terrain; terrain = NULL; }
 		}
 
 		void Draw(int width, int height)
@@ -101,12 +125,36 @@ namespace DestructibleTerrain
 			renderer.Cleanup();
 
 			GLDEBUG();
+
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, width, height, 0, -1, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+			if(current_brush != NULL)
+			{
+				stringstream ss;
+				ss << current_brush->name;
+
+				Vec3 origin, direction;
+				GetCameraRay(origin, direction);
+
+				Vec3 pos;
+
+				if(RayTrace(origin, direction, pos))
+					ss << " - " << (int)(pos - origin).ComputeMagnitude();
+				
+				font->Print(ss.str(), 0, 0);
+			}
 		}
 
 		void Update(TimingInfo time)
 		{
-			if(window->input_state->mb[0])
-				Explode();
+			if(window->input_state->mb[0] && current_brush != NULL)
+				current_brush->DoAction(this);
 
 			Mat3 camera_rm = camera_ori.ToMat3();
 
@@ -128,10 +176,26 @@ namespace DestructibleTerrain
 			camera_pos += camera_vel * time.elapsed;
 		}
 
-		void Explode()
+		void ModifySphere(unsigned char material)
 		{
-			Vec3 pos = Mat4::Invert(terrain->GetTransform()).TransformVec3(camera_pos, 1);
-			Vec3 forward = camera_ori.ToMat3() * Vec3(0, 0, -0.5f);
+			Vec3 origin, direction;
+			GetCameraRay(origin, direction);
+
+			Vec3 pos;
+			if(RayTrace(origin, direction, pos))
+				terrain->ModifySphere(pos, 1.5f, 3.5f, material);
+		}
+
+		void GetCameraRay(Vec3& origin, Vec3& direction)
+		{ 
+			origin = Mat4::Invert(terrain->GetTransform()).TransformVec3(camera_pos, 1); 
+			direction = camera_ori.ToMat3() * Vec3(0, 0, -1); 
+		}
+
+		bool RayTrace(Vec3 origin, Vec3 direction, Vec3& result)
+		{
+			Vec3 pos = origin;
+			direction = Vec3::Normalize(direction, 0.5f);
 
 			float center_xyz = TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.5f;
 			Vec3 center = Vec3(center_xyz, center_xyz, center_xyz);
@@ -147,20 +211,22 @@ namespace DestructibleTerrain
 				{
 					if(chunk->GetNode(x, y, z)->IsSolid())
 					{
-						terrain->Explode(pos, 1.5f, 3.5f);
-						break;
+						result = pos;
+						return true;
 					}
 				}
 				else
 				{
 					Vec3 offset = pos - center;
-					if(Vec3::Dot(offset, forward) > 0 && offset.ComputeMagnitudeSquared() > radius_squared)
+					if(Vec3::Dot(offset, direction) > 0 && offset.ComputeMagnitudeSquared() > radius_squared)
 						break;
 				}
 
-				pos += forward;
+				pos += direction;
 				steps++;				
 			}
+
+			return false;
 		}
 
 
@@ -172,13 +238,14 @@ namespace DestructibleTerrain
 
 			void HandleEvent(Event* evt)
 			{
-				/*
 				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
-
-				if(mbse->state)
-					if(mbse->button == 0)
-						imp->Explode();
-				*/
+				if(mbse->button == 2 && mbse->state)
+				{
+					if(imp->current_brush == &imp->subtract_brush)
+						imp->current_brush = &imp->add_brush;
+					else
+						imp->current_brush = &imp->subtract_brush;
+				}
 			}
 		} mouse_button_handler;
 
@@ -196,6 +263,21 @@ namespace DestructibleTerrain
 				*pitch = max(-1.5f, min(1.5f, *pitch + mme->dy * 0.001f));
 			}
 		} mouse_motion_handler;
+
+
+
+
+		struct SubtractBrush : public EditorBrush
+		{
+			SubtractBrush() : EditorBrush("Subtract") { }
+			void DoAction(Imp* imp) { imp->ModifySphere(0); }
+		} subtract_brush;
+
+		struct AddBrush : public EditorBrush
+		{
+			AddBrush () : EditorBrush("Add") { }
+			void DoAction(Imp* imp) { imp->ModifySphere(1); }
+		} add_brush;
 	};
 
 

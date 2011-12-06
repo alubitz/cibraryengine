@@ -46,7 +46,8 @@ namespace DestructibleTerrain
 			void Vis(SceneRenderer* renderer);
 
 			void Solidify();
-			void Explode(Vec3 center, float inner_radius, float outer_radius);
+
+			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material);
 	};
 
 	struct VoxelTerrainLoader : public ContentTypeHandler<VoxelTerrain>

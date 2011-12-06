@@ -160,19 +160,19 @@ namespace DestructibleTerrain
 				}
 	}
 
-	void TerrainChunk::Explode(Vec3 blast_center, float inner_radius, float outer_radius)
+	void TerrainChunk::ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material)
 	{
 		const float inv_range = 1.0f / (outer_radius - inner_radius);
 		const float outer_radius_sq = outer_radius * outer_radius;
 
 		int owner_dim_x = owner->GetXDim(), owner_dim_y = owner->GetYDim(), owner_dim_z = owner->GetZDim();
 
-		int blast_radius = (int)ceil(outer_radius);
-		blast_center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
+		int max_radius = (int)ceil(outer_radius);
+		center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
 
-		int min_x = max(0, (int)floor(blast_center.x - blast_radius)), max_x = min(ChunkSize - 1, (int)ceil(blast_center.x + blast_radius));
-		int min_y = max(0, (int)floor(blast_center.y - blast_radius)), max_y = min(ChunkSize - 1, (int)ceil(blast_center.y + blast_radius));
-		int min_z = max(0, (int)floor(blast_center.z - blast_radius)), max_z = min(ChunkSize - 1, (int)ceil(blast_center.z + blast_radius));
+		int min_x = max(0, (int)floor(center.x - max_radius)), max_x = min(ChunkSize - 1, (int)ceil(center.x + max_radius));
+		int min_y = max(0, (int)floor(center.y - max_radius)), max_y = min(ChunkSize - 1, (int)ceil(center.y + max_radius));
+		int min_z = max(0, (int)floor(center.z - max_radius)), max_z = min(ChunkSize - 1, (int)ceil(center.z + max_radius));
 
 		for(int xx = min_x; xx <= max_x; xx++)
 		{
@@ -181,7 +181,7 @@ namespace DestructibleTerrain
 				for(int zz = min_z; zz <= max_z; zz++)
 				{
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
-					Vec3 radius_vec = point - blast_center;
+					Vec3 radius_vec = point - center;
 
 					float dist_sq = radius_vec.ComputeMagnitudeSquared();
 					if(dist_sq < outer_radius_sq)
@@ -189,11 +189,18 @@ namespace DestructibleTerrain
 						TerrainNode& node = *GetNode(xx, yy, zz);
 
 						float dist = sqrtf(dist_sq);
-						int crater_value = 255 - max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range))));
 
-						if(crater_value < node.solidity)
+						unsigned char nu_value = max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range))));
+						if(material == 0)
+							nu_value = 255 - nu_value;
+
+						if(material == 0 ? nu_value < node.solidity : nu_value > node.solidity)
 						{
-							node.solidity = crater_value;
+							node.solidity = nu_value;
+
+							if(material != 0)
+								node.SetMaterialAmount(material, nu_value);
+
 							InvalidateNode(xx, yy, zz);
 						}
 					}
@@ -201,6 +208,7 @@ namespace DestructibleTerrain
 			}
 		}
 	}
+
 
 
 
