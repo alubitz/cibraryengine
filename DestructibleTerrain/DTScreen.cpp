@@ -22,13 +22,15 @@ namespace DestructibleTerrain
 			string name;
 
 			EditorBrush(string name) : name(name) { }			
-			virtual void DoAction(DTScreen::Imp* imp) = 0;
+			virtual void DoAction(Imp* imp) = 0;
 		};
 
 		ProgramWindow* window;
 
 		VoxelMaterial* material;
 		VoxelTerrain* terrain;
+
+		VertexBuffer* editor_orb;
 
 		BitmapFont* font;
 
@@ -38,6 +40,8 @@ namespace DestructibleTerrain
 		Quaternion camera_ori;
 
 		EditorBrush* current_brush;
+		float brush_distance;
+		float brush_radius;
 
 		Imp(ProgramWindow* window) :
 			window(window),
@@ -49,6 +53,8 @@ namespace DestructibleTerrain
 			pitch(), 
 			camera_ori(Quaternion::Identity()), 
 			current_brush(NULL), 
+			brush_distance(20.0f),
+			brush_radius(2.5f),
 			mouse_button_handler(this), 
 			mouse_motion_handler(&yaw, &pitch),
 			subtract_brush(),
@@ -56,6 +62,8 @@ namespace DestructibleTerrain
 		{
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
+
+			editor_orb = window->content->GetCache<VertexBuffer>()->Load("terrain_edit_orb");
 		}
 
 		~Imp()
@@ -64,10 +72,8 @@ namespace DestructibleTerrain
 			if(terrain != NULL) { delete terrain; terrain = NULL; }
 		}
 
-		void Draw(int width, int height)
+		void MakeTerrainAsNeeded()
 		{
-			GLDEBUG();
-
 			if(material == NULL)
 				material = new VoxelMaterial(window->content);
 
@@ -89,6 +95,13 @@ namespace DestructibleTerrain
 					}
 				}
 			}
+		}
+
+		void Draw(int width, int height)
+		{
+			GLDEBUG();
+
+			MakeTerrainAsNeeded();
 
 			glViewport(0, 0, width, height);
 
@@ -126,6 +139,37 @@ namespace DestructibleTerrain
 
 			GLDEBUG();
 
+			if(current_brush != NULL)
+			{
+				Vec3 ori, dir;
+				GetCameraRay(ori, dir);
+
+				Vec3 orb_pos = ori + dir * brush_distance;
+
+				glPushMatrix();
+
+				glMultMatrixf(terrain->GetTransform().Transpose().values);
+				glTranslatef(orb_pos.x, orb_pos.y, orb_pos.z);
+				glScalef(brush_radius, brush_radius, brush_radius);
+
+				ShaderProgram::SetActiveProgram(NULL);
+				
+				glEnable(GL_LIGHTING);
+				glDisable(GL_TEXTURE_2D);
+				glDisable(GL_CULL_FACE);
+
+				glDepthMask(false);
+
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				
+				glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
+
+				editor_orb->Draw();
+
+				glPopMatrix();
+			}
+
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
 			glOrtho(0, width, height, 0, -1, 1);
@@ -137,15 +181,7 @@ namespace DestructibleTerrain
 			if(current_brush != NULL)
 			{
 				stringstream ss;
-				ss << current_brush->name;
-
-				Vec3 origin, direction;
-				GetCameraRay(origin, direction);
-
-				Vec3 pos;
-
-				if(RayTrace(origin, direction, pos))
-					ss << " - " << (int)(pos - origin).ComputeMagnitude();
+				ss << current_brush->name << " - radius " << brush_radius;
 				
 				font->Print(ss.str(), 0, 0);
 			}
@@ -158,18 +194,20 @@ namespace DestructibleTerrain
 
 			Mat3 camera_rm = camera_ori.ToMat3();
 
+			float dv = 50.0f * time.elapsed;
+
 			if(window->input_state->keys['W'])
-				camera_vel += camera_rm * Vec3(0, 0, -50.0f * time.elapsed);
+				camera_vel += camera_rm * Vec3(	0,		0,		-dv);
 			if(window->input_state->keys['S'])
-				camera_vel += camera_rm * Vec3(0, 0, 50.0f * time.elapsed);
+				camera_vel += camera_rm * Vec3(	0,		0,		dv);
 			if(window->input_state->keys['A'])
-				camera_vel += camera_rm * Vec3(-50.0f * time.elapsed, 0, 0);
+				camera_vel += camera_rm * Vec3(	-dv,	0,		0);
 			if(window->input_state->keys['D'])
-				camera_vel += camera_rm * Vec3(50.0f * time.elapsed, 0, 0);
+				camera_vel += camera_rm * Vec3(	dv,		0,		0);
 			if(window->input_state->keys[VK_SPACE])
-				camera_vel += camera_rm * Vec3(0, 50.0f * time.elapsed, 0);
+				camera_vel += camera_rm * Vec3(	0,		dv,		0);
 			if(window->input_state->keys['C'])
-				camera_vel += camera_rm * Vec3(0, -50.0f * time.elapsed, 0);
+				camera_vel += camera_rm * Vec3(	0,		-dv,	0);
 
 
 			camera_vel *= exp(-10.0f * time.elapsed);
@@ -181,9 +219,8 @@ namespace DestructibleTerrain
 			Vec3 origin, direction;
 			GetCameraRay(origin, direction);
 
-			Vec3 pos;
-			if(RayTrace(origin, direction, pos))
-				terrain->ModifySphere(pos, 1.5f, 3.5f, material);
+			Vec3 pos = origin + direction * brush_distance;
+			terrain->ModifySphere(pos, brush_radius - 1.0f, brush_radius + 1.0f, material);
 		}
 
 		void GetCameraRay(Vec3& origin, Vec3& direction)
@@ -259,8 +296,10 @@ namespace DestructibleTerrain
 			{
 				MouseMotionEvent* mme = (MouseMotionEvent*)evt;
 
-				*yaw += mme->dx * 0.001f;
-				*pitch = max(-1.5f, min(1.5f, *pitch + mme->dy * 0.001f));
+				const float rotation_coeff = 0.001f;
+
+				*yaw += mme->dx * rotation_coeff;
+				*pitch = max(-1.5f, min(1.5f, *pitch + mme->dy * rotation_coeff));
 			}
 		} mouse_motion_handler;
 
@@ -292,11 +331,7 @@ namespace DestructibleTerrain
 	{
 	}
 
-	DTScreen::~DTScreen()
-	{ 
-		delete imp; 
-		imp = NULL;
-	}
+	DTScreen::~DTScreen() { delete imp; imp = NULL; }
 
 	void DTScreen::Activate()
 	{
