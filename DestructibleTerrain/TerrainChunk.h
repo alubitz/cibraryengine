@@ -68,7 +68,7 @@ namespace DestructibleTerrain
 
 			void Solidify();
 
-			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material);
+			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action);
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 

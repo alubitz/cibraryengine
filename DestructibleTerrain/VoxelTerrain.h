@@ -11,6 +11,11 @@ namespace DestructibleTerrain
 	struct TerrainNode;
 	class TerrainChunk;
 
+	struct TerrainAction
+	{
+		virtual void AffectNode(TerrainChunk* chunk, TerrainNode& node, int x, int y, int z, unsigned char amount) = 0;
+	};
+
 	class VoxelTerrain : public Disposable
 	{
 		friend struct VoxelTerrainLoader;
@@ -47,7 +52,7 @@ namespace DestructibleTerrain
 
 			void Solidify();
 
-			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material);
+			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action);
 	};
 
 	struct VoxelTerrainLoader : public ContentTypeHandler<VoxelTerrain>

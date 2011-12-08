@@ -160,7 +160,7 @@ namespace DestructibleTerrain
 				}
 	}
 
-	void TerrainChunk::ModifySphere(Vec3 center, float inner_radius, float outer_radius, unsigned char material)
+	void TerrainChunk::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)
 	{
 		const float inv_range = 1.0f / (outer_radius - inner_radius);
 		const float outer_radius_sq = outer_radius * outer_radius;
@@ -189,20 +189,8 @@ namespace DestructibleTerrain
 						TerrainNode& node = *GetNode(xx, yy, zz);
 
 						float dist = sqrtf(dist_sq);
-
-						unsigned char nu_value = max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range))));
-						if(material == 0)
-							nu_value = 255 - nu_value;
-
-						if(material == 0 ? nu_value < node.solidity : nu_value > node.solidity)
-						{
-							node.solidity = nu_value;
-
-							if(material != 0)
-								node.SetMaterialAmount(material, nu_value);
-
-							InvalidateNode(xx, yy, zz);
-						}
+						
+						action.AffectNode(this, node, xx, yy, zz, max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range)))));
 					}
 				}
 			}

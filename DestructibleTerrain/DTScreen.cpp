@@ -10,6 +10,61 @@
 
 namespace DestructibleTerrain
 {
+	struct SphereSmoother : public TerrainAction
+	{
+		void AffectNode(TerrainChunk* chunk, TerrainNode& node, int x, int y, int z, unsigned char amount)
+		{
+			amount = 255 - amount;
+
+			int total_solidity = node.solidity * 255;
+			int total_weight = 255;
+
+			for(int xx = x - 1; xx <= x + 1; xx++)
+				for(int yy = y - 1; yy <= y + 1; yy++)
+					for(int zz = z - 1; zz <= z + 1; zz++)
+						if(xx != x || yy != y || zz != z)			
+							if(TerrainNode* neighbor_node = chunk->GetNodeRelative(xx, yy, zz))
+							{
+								int weight = amount;
+
+								total_weight += weight;
+								total_solidity += int(neighbor_node->solidity) * weight;
+							}
+
+			unsigned char nu_value = (unsigned char)floor(max(0.0f, min(255.0f, float(total_solidity) / total_weight + 0.5f)));
+			if(nu_value != node.solidity)
+			{
+				node.solidity = nu_value;
+				chunk->InvalidateNode(x, y, z);
+			}
+		};
+	};
+
+	struct SphereMaterialSetter : public TerrainAction
+	{
+		unsigned char material;
+		SphereMaterialSetter(unsigned char material) : material(material) { }
+
+		void AffectNode(TerrainChunk* chunk, TerrainNode& node, int x, int y, int z, unsigned char amount)
+		{
+			if(material == 0)
+				amount = 255 - amount;
+
+			if(material == 0 ? amount < node.solidity : amount > node.solidity)
+			{
+				node.solidity = amount;
+
+				if(material != 0)
+					node.SetMaterialAmount(material, amount);
+
+				chunk->InvalidateNode(x, y, z);
+			}
+		}
+	};
+
+
+
+
 	/*
 	 * DTScreen private implementation struct
 	 */
@@ -58,7 +113,8 @@ namespace DestructibleTerrain
 			mouse_button_handler(this), 
 			mouse_motion_handler(&yaw, &pitch),
 			subtract_brush(),
-			add_brush()
+			add_brush(),
+			smooth_brush()
 		{
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
@@ -216,13 +272,16 @@ namespace DestructibleTerrain
 			camera_pos += camera_vel * time.elapsed;
 		}
 
-		void ModifySphere(unsigned char material)
+
+		
+
+		void ApplyBrush(TerrainAction& action)
 		{
 			Vec3 origin, direction;
 			GetCameraRay(origin, direction);
 
 			Vec3 pos = origin + direction * brush_distance;
-			terrain->ModifySphere(pos, brush_radius - 1.0f, brush_radius + 1.0f, material);
+			terrain->ModifySphere(pos, brush_radius - 1.0f, brush_radius + 1.0f, action);
 		}
 
 		void GetCameraRay(Vec3& origin, Vec3& direction)
@@ -270,6 +329,7 @@ namespace DestructibleTerrain
 
 
 
+
 		struct MouseButtonHandler : public EventHandler
 		{
 			Imp* imp;
@@ -282,6 +342,8 @@ namespace DestructibleTerrain
 				{
 					if(imp->current_brush == &imp->subtract_brush)
 						imp->current_brush = &imp->add_brush;
+					else if(imp->current_brush == &imp->add_brush)
+						imp->current_brush = &imp->smooth_brush;
 					else
 						imp->current_brush = &imp->subtract_brush;
 				}
@@ -311,14 +373,20 @@ namespace DestructibleTerrain
 		struct SubtractBrush : public EditorBrush
 		{
 			SubtractBrush() : EditorBrush("Subtract") { }
-			void DoAction(Imp* imp) { imp->ModifySphere(0); }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(0)); }
 		} subtract_brush;
 
 		struct AddBrush : public EditorBrush
 		{
-			AddBrush () : EditorBrush("Add") { }
-			void DoAction(Imp* imp) { imp->ModifySphere(1); }
+			AddBrush() : EditorBrush("Add") { }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); }
 		} add_brush;
+
+		struct SmoothBrush : public EditorBrush
+		{
+			SmoothBrush() : EditorBrush("Smooth Surface") { }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); }
+		} smooth_brush;
 	};
 
 
