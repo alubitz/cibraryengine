@@ -38,16 +38,15 @@ namespace DestructibleTerrain
 	 */
 	VoxelMaterial::VoxelMaterial(ContentMan* content) : Material(4, Opaque, false)
 	{
-		Texture2D* rock = content->GetCache<Texture2D>()->Load("rock3d");
-		int texture_res = min(rock->width, rock->height);
-
-		texture = new Texture3D(texture_res, texture_res, texture_res, rock->byte_data, true, false);
+		top_texture = content->GetCache<Texture2D>()->Load("rock-top");
+		sides_texture = content->GetCache<Texture2D>()->Load("rock-sides");
 
 		Shader* vs = content->GetCache<Shader>()->Load("pass-v");
 		Shader* fs = content->GetCache<Shader>()->Load("terrain-f");
 
 		shader = new ShaderProgram(vs, fs);
-		shader->AddUniform<Texture3D>(new UniformTexture3D("diffuse", 0));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("top_texture", 0));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("sides_texture", 1));
 		shader->AddUniform<Vec3>(new UniformVector3("chunk_pos"));
 	}
 
@@ -71,7 +70,8 @@ namespace DestructibleTerrain
 
 		Vec3 v;
 
-		shader->SetUniform<Texture3D>("diffuse", texture);
+		shader->SetUniform<Texture2D>("top_texture", top_texture);
+		shader->SetUniform<Texture2D>("sides_texture", sides_texture);
 		shader->SetUniform<Vec3>("chunk_pos", &v);
 		ShaderProgram::SetActiveProgram(shader);
 

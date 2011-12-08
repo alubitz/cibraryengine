@@ -22,7 +22,8 @@ namespace DestructibleTerrain
 		public:
 
 			ShaderProgram* shader;
-			Texture3D* texture;
+			Texture2D* top_texture;
+			Texture2D* sides_texture;
 
 			VoxelMaterial(ContentMan* content);
 

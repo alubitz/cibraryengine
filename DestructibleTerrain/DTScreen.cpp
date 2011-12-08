@@ -185,6 +185,8 @@ namespace DestructibleTerrain
 				
 				font->Print(ss.str(), 0, 0);
 			}
+
+			GLDEBUG();
 		}
 
 		void Update(TimingInfo time)

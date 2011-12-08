@@ -1,8 +1,9 @@
-uniform	sampler3D		diffuse;
+uniform	sampler2D		top_texture;
+uniform	sampler2D		sides_texture;
 uniform	vec3			chunk_pos;
 
 varying	vec3			normal, position;
-varying	vec3			vertex;
+varying	vec3			input_normal, vertex;
 
 void main()
 {
@@ -23,7 +24,13 @@ void main()
 
 	float light = diffuse_amount * 0.8 + 0.2;
 
-	vec4 diffuse_sample = texture3D(diffuse, (vertex + chunk_pos) / 1.0);
+	vec3 sample_xyz = (vertex + chunk_pos) / 1.0;
+
+	vec4 x_sample = texture2D(sides_texture, sample_xyz.yz);
+	vec4 y_sample = texture2D(top_texture, sample_xyz.xz);
+	vec4 z_sample = texture2D(sides_texture, sample_xyz.xy);
+
+	vec4 diffuse_sample = (x_sample * abs(input_normal.x) + y_sample * abs(input_normal.y) + z_sample * abs(input_normal.z)) / (abs(input_normal.x) + abs(input_normal.y) + abs(input_normal.z));
 
 	vec3 base_color = diffuse_sample.xyz * light;
 
