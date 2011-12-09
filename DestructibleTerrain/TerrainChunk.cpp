@@ -355,12 +355,14 @@ namespace DestructibleTerrain
 
 			model->AddAttribute("gl_Vertex",			Float, 3);
 			model->AddAttribute("gl_Normal",			Float, 3);
+			model->AddAttribute("material_weights",		Float, 3);
 
 			// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 			model->SetNumVerts(num_verts);
 
 			float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
 			float* normal_ptr = model->GetFloatPointer("gl_Normal");
+			float* mat_ptr = model->GetFloatPointer("material_weights");
 
 			// we extended to ChunkSize + 2 to make the normal vectors compute correctly, but now we only want the ones within this chunk
 			int cmax_x = min(max_x, ChunkSize);
@@ -405,6 +407,11 @@ namespace DestructibleTerrain
 							*(normal_ptr++) = normal.x;
 							*(normal_ptr++) = normal.y;
 							*(normal_ptr++) = normal.z;
+
+							// TODO: deal with materials!
+							*(mat_ptr++) = 1.0f;
+							*(mat_ptr++) = 0.0f;
+							*(mat_ptr++) = 0.0f;
 						}
 					}
 				}

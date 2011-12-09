@@ -38,15 +38,17 @@ namespace DestructibleTerrain
 	 */
 	VoxelMaterial::VoxelMaterial(ContentMan* content) : Material(4, Opaque, false)
 	{
-		top_texture = content->GetCache<Texture2D>()->Load("rock-top");
-		sides_texture = content->GetCache<Texture2D>()->Load("rock-sides");
+		texture_a = content->GetCache<Texture2D>()->Load("rock1");
+		texture_b = content->GetCache<Texture2D>()->Load("rock2");
+		texture_c = content->GetCache<Texture2D>()->Load("rock3");
 
-		Shader* vs = content->GetCache<Shader>()->Load("pass-v");
+		Shader* vs = content->GetCache<Shader>()->Load("terrain-v");
 		Shader* fs = content->GetCache<Shader>()->Load("terrain-f");
 
 		shader = new ShaderProgram(vs, fs);
-		shader->AddUniform<Texture2D>(new UniformTexture2D("top_texture", 0));
-		shader->AddUniform<Texture2D>(new UniformTexture2D("sides_texture", 1));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_a", 0));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_b", 1));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_c", 2));
 		shader->AddUniform<Vec3>(new UniformVector3("chunk_pos"));
 	}
 
@@ -70,8 +72,9 @@ namespace DestructibleTerrain
 
 		Vec3 v;
 
-		shader->SetUniform<Texture2D>("top_texture", top_texture);
-		shader->SetUniform<Texture2D>("sides_texture", sides_texture);
+		shader->SetUniform<Texture2D>("texture_a", texture_a);
+		shader->SetUniform<Texture2D>("texture_b", texture_b);
+		shader->SetUniform<Texture2D>("texture_c", texture_c);
 		shader->SetUniform<Vec3>("chunk_pos", &v);
 		ShaderProgram::SetActiveProgram(shader);
 

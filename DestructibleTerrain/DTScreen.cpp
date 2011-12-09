@@ -14,7 +14,8 @@ namespace DestructibleTerrain
 	{
 		void AffectNode(TerrainChunk* chunk, TerrainNode& node, int x, int y, int z, unsigned char amount)
 		{
-			amount = 255 - amount;
+			if(amount < 128)
+				return;
 
 			int total_solidity = node.solidity * 255;
 			int total_weight = 255;
@@ -25,7 +26,7 @@ namespace DestructibleTerrain
 						if(xx != x || yy != y || zz != z)			
 							if(TerrainNode* neighbor_node = chunk->GetNodeRelative(xx, yy, zz))
 							{
-								int weight = amount;
+								int weight = 255;
 
 								total_weight += weight;
 								total_solidity += int(neighbor_node->solidity) * weight;
