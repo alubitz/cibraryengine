@@ -58,6 +58,4 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
-
-	Vec4 MultiMaterial::GetColor() { return Vec4(1.0f, 1.0f, 1.0f, 1.0f); }
 }

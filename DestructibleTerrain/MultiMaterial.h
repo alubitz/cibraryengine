@@ -14,7 +14,5 @@ namespace DestructibleTerrain
 		void Clear();
 		unsigned char GetMaterialAmount(unsigned char mat);
 		void SetMaterialAmount(unsigned char mat, unsigned char amount);
-		
-		Vec4 GetColor();
 	};
 }
