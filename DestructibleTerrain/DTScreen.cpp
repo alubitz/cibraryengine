@@ -56,7 +56,7 @@ namespace DestructibleTerrain
 				node.solidity = amount;
 
 				if(material != 0)
-					node.SetMaterialAmount(material, amount);
+					node.material.SetMaterialAmount(material, amount);
 
 				chunk->InvalidateNode(x, y, z);
 			}

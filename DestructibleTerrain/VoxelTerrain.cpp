@@ -233,7 +233,7 @@ namespace DestructibleTerrain
 
 							TerrainNode result;
 							result.solidity = (unsigned char)max(0.0f, min(255.0f, 128.0f + 255.0f * ((*n)(pos) - pos.y)));
-							result.SetMaterialAmount(1, 255);
+							result.material.SetMaterialAmount(1, 255);
 
 							return result;
 						}

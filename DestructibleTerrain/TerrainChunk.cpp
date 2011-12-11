@@ -388,15 +388,6 @@ namespace DestructibleTerrain
 
 							Vec3 pos = vert.pos;
 
-							Vec4 color = vert.color;
-							if(color.w > 0)
-							{
-								float inv = 1.0f / color.w;
-								color.x *= inv;
-								color.y *= inv;
-								color.z *= inv;
-							}
-
 							Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
 
 							// put the data for this vertex into the VBO

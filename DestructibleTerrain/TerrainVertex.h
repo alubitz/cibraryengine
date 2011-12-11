@@ -9,10 +9,9 @@ namespace DestructibleTerrain
 	struct TerrainVertex
 	{
 		Vec3 pos;
-		Vec4 color;
 
 		TerrainVertex();
-		TerrainVertex(Vec3 pos, Vec4 color);
+		TerrainVertex(Vec3 pos);
 		
 		TerrainVertex operator *(float amount);
 		TerrainVertex operator +(TerrainVertex a);

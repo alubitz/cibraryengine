@@ -14,7 +14,6 @@ namespace DestructibleTerrain
 	{
 		float value;
 		Vec3 position;
-		Vec4 color;
 
 		GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 		{
@@ -23,12 +22,11 @@ namespace DestructibleTerrain
 
 			TerrainNode& node = *node_ptr;
 
-			color = node.IsSolid() ? node.GetColor() : Vec4();
 			value = node.GetScalarValue();
 			position = Vec3(float(x), float(y), float(z));
 		}
 
-		operator TerrainVertex() { return TerrainVertex(position, color); }
+		operator TerrainVertex() { return TerrainVertex(position); }
 	};
 
 
