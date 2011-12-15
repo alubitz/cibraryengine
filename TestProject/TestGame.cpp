@@ -13,7 +13,6 @@
 #include "SoldierConverter.h"
 #include "CrabBugConverter.h"
 
-#include "AlienGun.h"
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
 #include "WorldBoundary.h"
@@ -261,10 +260,11 @@ namespace Test
 		}
 
 		mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
-		shot_material = (GlowyModelMaterial*)mat_cache->Load("shot");
+		shot_material = (BillboardMaterial*)mat_cache->Load("shot");
 		gun_model = ubermodel_cache->Load("gun");
 		mflash_model = vtn_cache->Load("mflash");
 		shot_model = vtn_cache->Load("shot");
+		blood_billboard = (BillboardMaterial*)mat_cache->Load("blood");
 
 		if(load_status.abort)
 		{

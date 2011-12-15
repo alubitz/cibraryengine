@@ -55,12 +55,5 @@ namespace CibraryEngine
 
 			/** Abstract function to determine whether on material equals another; implementations should check mclass_id! */
 			virtual bool Equals(Material* other) = 0;
-
-
-
-			// stuff for Content class :|
-			void Load(ContentMan* content) { }
-			bool IsLoaded() { return true; }
-			void RecommendUnload() { }
 	};
 }

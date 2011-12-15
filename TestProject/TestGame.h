@@ -68,7 +68,8 @@ namespace Test
 			VertexBuffer* mflash_model;
 			VertexBuffer* shot_model;
 			GlowyModelMaterial* mflash_material;
-			GlowyModelMaterial* shot_material;
+			BillboardMaterial* shot_material;
+			BillboardMaterial* blood_billboard;
 
 			ParticleMaterial* blood_particle;
 			ParticleMaterial* dirt_particle;

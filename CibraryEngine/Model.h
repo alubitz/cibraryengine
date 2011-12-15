@@ -47,10 +47,10 @@ namespace CibraryEngine
 	struct VTNTT
 	{
 		Vec3 x;
-        Vec3 uvw;
-        Vec3 n;
-        Vec3 tan_1; 
-        Vec3 tan_2;
+		Vec3 uvw;
+		Vec3 n;
+		Vec3 tan_1; 
+		Vec3 tan_2;
 
 		VTNTT() { }
 		VTNTT(Vec3 x, Vec3 uvw, Vec3 n) : x(x), uvw(uvw), n(n) { }
@@ -60,7 +60,7 @@ namespace CibraryEngine
 	struct SkinVInfo : public VTNTT
 	{
 		unsigned char indices[4];
-        unsigned char weights[4];
+		unsigned char weights[4];
 
 		SkinVInfo();
 		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n);

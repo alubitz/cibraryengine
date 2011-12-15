@@ -22,13 +22,15 @@ namespace Test
 
 		bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 		{
-			ParticleMaterial* material = ((TestGame*)corpse->game_state)->blood_particle;
+			//ParticleMaterial* material = ((TestGame*)game_state)->blood_particle;
+			ParticleMaterial* material = NULL;
+			BillboardMaterial* b_mat = ((TestGame*)corpse->game_state)->blood_billboard;
 
-			for (int i = 0; i < 16; i++)
+			for (int i = 0; i < 8; i++)
 			{
-				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, Random3D::Rand(0.02f, 0.1f), 1);
+				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), material, b_mat, Random3D::Rand(0.05f, 0.25f), 0.15f);
 				p->gravity = 9.8f;
-				p->damp = 0.2f;
+				p->damp = 0.05f;
 
 				corpse->game_state->Spawn(p);
 			}

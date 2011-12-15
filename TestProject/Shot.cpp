@@ -11,7 +11,7 @@ namespace Test
 	/*
 	 * Shot methods
 	 */
-	Shot::Shot(GameState* gs, VertexBuffer* model, GlowyModelMaterial* material, Vec3 origin, Vec3 initial_vel, Quaternion ori, Dood* firer) :
+	Shot::Shot(GameState* gs, VertexBuffer* model, BillboardMaterial* material, Vec3 origin, Vec3 initial_vel, Quaternion ori, Dood* firer) :
 		Entity(gs),
 		bs(origin, -1),
 		model(model),
@@ -24,7 +24,8 @@ namespace Test
 		draw_xform(Mat4::FromPositionAndOrientation(origin, ori)),
 		causer(firer),
 		firer(firer),
-		mass(0.05f)
+		mass(0.05f),
+		trail_head(NULL)
 	{
 	}
 
@@ -35,20 +36,12 @@ namespace Test
 		Entity::InnerDispose();
 	}
 
-	void Shot::Vis(SceneRenderer* renderer)
-	{
-		if (renderer->camera->CheckSphereVisibility(bs))
-		{
-			GlowyModelMaterialNodeData* datum = new GlowyModelMaterialNodeData(model, draw_xform * Mat4::Scale(0.02f, 0.02f, 5.0f));
-			renderer->objects.push_back(RenderNode(material, datum, Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
-		}
-	}
-
-	void Shot::VisCleanup() { }
-
 	void Shot::Spawned()
 	{
 		physics = game_state->physics_world;
+
+		trail_head = new TrailHead(this);
+		game_state->Spawn(new BillboardTrail(game_state, trail_head, material, 0.03f, 0.15f));
 	}
 
 	void Shot::Update(TimingInfo time)
@@ -81,6 +74,12 @@ namespace Test
 				Shootable* hit = callback.hits[i].obj;
 				if(hit->GetShot(this, poi, GetMomentum()))
 				{
+					if(trail_head != NULL)
+					{
+						trail_head->end_pos = poi;
+						trail_head->shot = NULL;
+					}
+
 					is_valid = false;
 					return;
 				}
@@ -98,6 +97,33 @@ namespace Test
 
 	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }			// was .03 in C# version, but it took too many shots to do 1 damage
 	Vec3 Shot::GetMomentum() { return vel * mass; }
+
+
+
+
+	/*
+	 * Shot::TrailHead methods
+	 */
+	Shot::TrailHead::TrailHead(Shot* shot) : shot(shot), ended(false) { }
+	bool Shot::TrailHead::operator ()(BillboardTrail::TrailNode& node)
+	{
+		if(shot == NULL)
+		{
+			if(ended)
+				return false;
+			else
+			{
+				node = BillboardTrail::TrailNode(end_pos, 0.0f, 0.1f);
+				ended = true;
+				return true;
+			}
+		}
+		else
+		{
+			node = BillboardTrail::TrailNode(shot->pos, 0.0f, 0.1f);
+			return true;
+		}
+	}
 
 
 

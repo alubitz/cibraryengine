@@ -1,1 +1,1 @@
-: glowy "tracer"
+: billboard "tracer"

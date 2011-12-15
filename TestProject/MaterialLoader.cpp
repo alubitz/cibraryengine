@@ -15,7 +15,7 @@ namespace Test
 		shader_cache(man->GetCache<Shader>()),
 		tex_cache(man->GetCache<Texture2D>())
 	{
-		// creating shader
+		// dsn shader stuff...
 		Shader* vertex_shader = shader_cache->Load("skel-v");
 		Shader* fragment_shader = shader_cache->Load("normal-f");
 		Shader* shadow_fragment_shader = shader_cache->Load("shadow-f");
@@ -36,6 +36,8 @@ namespace Test
 		dsn_additive_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Additive);
 		dsn_alpha_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Alpha);
 
+
+		// glowy shader stuff...
 		Shader* glowy_v = shader_cache->Load("pass-v");
 		Shader* glowy2d_f = shader_cache->Load("glowy2d-f");
 		Shader* glowy3d_f = shader_cache->Load("glowy3d-f");
@@ -155,6 +157,23 @@ namespace Test
 
 
 
+	struct BillboardMaterialSetter : public NamedItemDictionaryTableParser::FieldSetter
+	{
+		istream* stream;
+		ContentMan* content;
+		
+		BlendStyle blend;
+		ShaderProgram* shader;
+		Material** result_out;
+
+		BillboardMaterialSetter(istream* stream, ContentMan* content, BlendStyle blend, ShaderProgram* shader, Material** result_out) : stream(stream), content(content), blend(blend), shader(shader), result_out(result_out) { }
+
+		TableParseable* Set(string val) { *result_out = new BillboardMaterial(content->GetCache<Texture2D>()->Load(val.substr(1, val.length() - 2)), blend); return NULL; }
+	};
+
+
+
+
 	int MaterialLoader::LoadMaterial(string filename, Material** result_out)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
@@ -167,6 +186,8 @@ namespace Test
 		DSNMaterialSetter dsn_additive_setter(&file, dsn_additive_loader, result_out);
 		DSNMaterialSetter dsn_alpha_setter(&file, dsn_alpha_loader, result_out);
 		GlowyMaterialSetter glowy_setter(&file, man, glowy2d_shader, glowy3d_shader, result_out);
+		BillboardMaterialSetter billboard_setter(&file, man, Additive, glowy2d_shader, result_out);
+		BillboardMaterialSetter billboard_alpha_setter(&file, man, Alpha, glowy2d_shader, result_out);
 
 		parser.field_setters["dsn"] = &dsn_opaque_setter;				// duplicates, lol
 		parser.field_setters["dsn_opaque"] = &dsn_opaque_setter;
@@ -175,6 +196,9 @@ namespace Test
 		parser.field_setters["dsn_alpha"] = &dsn_alpha_setter;
 
 		parser.field_setters["glowy"] = &glowy_setter;
+
+		parser.field_setters["billboard"] = &billboard_setter;
+		parser.field_setters["billboard_alpha"] = &billboard_alpha_setter;
 
 		parser.ParseTable();
 

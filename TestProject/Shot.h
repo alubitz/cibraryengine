@@ -23,7 +23,7 @@ namespace Test
 
 			Sphere bs;
 			VertexBuffer* model;
-			GlowyModelMaterial* material;
+			BillboardMaterial* material;
 
 			PhysicsWorld* physics;
 
@@ -40,16 +40,26 @@ namespace Test
 
 			float mass;
 
-			Shot(GameState* gs, VertexBuffer* model, GlowyModelMaterial* material, Vec3 origin, Vec3 vel, Quaternion ori, Dood* firer);
+			Shot(GameState* gs, VertexBuffer* model, BillboardMaterial* material, Vec3 origin, Vec3 vel, Quaternion ori, Dood* firer);
 
-			void Vis(SceneRenderer* renderer);
-			void VisCleanup();
 			void Spawned();
 
 			virtual void Update(TimingInfo time);
 
 			virtual Damage GetDamage();
 			virtual Vec3 GetMomentum();
+
+			struct TrailHead : public BillboardTrail::TrailHead
+			{ 
+				Shot* shot;
+
+				Vec3 end_pos;
+				bool ended;
+
+				TrailHead(Shot* shot);
+				bool operator()(BillboardTrail::TrailNode& node);
+			};
+			TrailHead* trail_head;
 
 			struct HitObject
 			{
@@ -64,7 +74,7 @@ namespace Test
 				Shot* shot;
 				vector<HitObject> hits;
 
-				MyRayResultCallback (Shot* shot);
+				MyRayResultCallback(Shot* shot);
 				btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace);
 			};
 	};

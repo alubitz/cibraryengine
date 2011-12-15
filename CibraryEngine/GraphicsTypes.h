@@ -29,5 +29,7 @@
 #include "SceneRenderer.h"
 
 #include "ParticleMaterial.h"
+#include "BillboardTrail.h"
+#include "BillboardMaterial.h"
 
 #include "UnclampedVertexBoneWeightInfo.h"
