@@ -296,7 +296,6 @@ namespace Test
 		reload_sound = NULL;
 
 		// loading particle materials...
-		blood_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("blood_splatter"), 32, 32, 4, 2, 7), Alpha);
 		dirt_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("dirt_impact"), 32, 32, 2, 2, 4), Alpha);
 
 		if(load_status.abort)

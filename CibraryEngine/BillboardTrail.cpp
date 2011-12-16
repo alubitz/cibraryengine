@@ -12,16 +12,14 @@ namespace CibraryEngine
 	/*
 	 * BillboardTrail
 	 */
-	BillboardTrail::BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width, float precision) :
+	BillboardTrail::BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width) :
 		Entity(gs),
 		node_count(0),
 		trail(),
 		nu_trail(),
+		shrinking(false),
 		material(material),
 		width(width),
-		precision(precision),
-		precision_sq(precision * precision),
-		shrinking(false),
 		bs(Vec3(), -1),
 		trailhead(trailhead)
 	{

@@ -41,7 +41,7 @@ namespace Test
 		physics = game_state->physics_world;
 
 		trail_head = new TrailHead(this);
-		game_state->Spawn(new BillboardTrail(game_state, trail_head, material, 0.03f, 0.15f));
+		game_state->Spawn(new BillboardTrail(game_state, trail_head, material, 0.03f));
 	}
 
 	void Shot::Update(TimingInfo time)

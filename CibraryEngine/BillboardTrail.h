@@ -35,21 +35,20 @@ namespace CibraryEngine
 			unsigned int node_count;
 			vector<TrailNode> trail;
 			vector<int> nu_trail;				// used to save on new/delete
+			bool shrinking;
 
 			BillboardMaterial* material;
 			float width;
 
-			float precision, precision_sq;
-			bool shrinking;
-
 			Sphere bs;
+
 
 			bool AddNode();
 			void InvalidateBoundingSphere();
 
 		public:
 
-			BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width, float precision);
+			BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width);
 			void Update(TimingInfo time);
 			void Vis(SceneRenderer* renderer);
 

@@ -13,7 +13,7 @@ namespace Test
 		if(billboard_mat != NULL)
 		{
 			trailhead = new TrailHead(this);
-			game_state->Spawn(new BillboardTrail(game_state, trailhead, billboard_mat, radius, 0.05f));
+			game_state->Spawn(new BillboardTrail(game_state, trailhead, billboard_mat, radius));
 		}
 	}
 
@@ -64,7 +64,7 @@ namespace Test
 		if(particle == NULL)
 			return false;
 
-		node = BillboardTrail::TrailNode(particle->pos, particle->age, particle->max_age);
+		node = BillboardTrail::TrailNode(particle->pos, 0, particle->max_age);
 		return true;
 	}
 }

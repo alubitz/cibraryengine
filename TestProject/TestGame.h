@@ -71,7 +71,6 @@ namespace Test
 			BillboardMaterial* shot_material;
 			BillboardMaterial* blood_billboard;
 
-			ParticleMaterial* blood_particle;
 			ParticleMaterial* dirt_particle;
 
 			VertexBuffer* sky_sphere;
