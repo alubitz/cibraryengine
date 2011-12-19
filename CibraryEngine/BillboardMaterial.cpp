@@ -14,6 +14,8 @@ namespace CibraryEngine
 
 	void BillboardMaterial::BeginDraw(SceneRenderer* renderer)
 	{
+		GLDEBUG();
+
 		camera_position = renderer->camera->GetPosition();
 
 		switch(blend_style)
@@ -33,17 +35,18 @@ namespace CibraryEngine
 				break;
 		}
 
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
-        glDisable(GL_LIGHTING);
+		glDisable(GL_LIGHTING);
 
-        glEnable(GL_TEXTURE_2D);
+		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, texture->GetGLName());
 
-        glDepthMask(false);
+		glDepthMask(false);
 
-        glBegin(GL_QUADS);
+		GLDEBUG();
+		glBegin(GL_QUADS);
 	}
 
 	void BillboardMaterial::EndDraw() { glEnd(); }
@@ -83,37 +86,37 @@ namespace CibraryEngine
 	{
 		glColor4f(red, green, blue, alpha);
 
-        Vec3 normal, pos, anti_normal;
-        pos = front - back;
+		Vec3 normal, pos, anti_normal;
+		pos = front - back;
 		normal = Vec3::Normalize(front - camera_position);            // temporarily uses the same variable to store it
 		normal = Vec3::Cross(normal, pos);
-        normal *= width * 0.5f / normal.ComputeMagnitude();
-        anti_normal = -normal;
+		normal *= width * 0.5f / normal.ComputeMagnitude();
+		anti_normal = -normal;
 
-        Vec3 points[6];
-        points[0] = front + normal;
-        points[1] = front;
-        points[2] = front + anti_normal;
-        points[3] = back + normal;
-        points[4] = back;
-        points[5] = back + anti_normal;
+		Vec3 points[6];
+		points[0] = front + normal;
+		points[1] = front;
+		points[2] = front + anti_normal;
+		points[3] = back + normal;
+		points[4] = back;
+		points[5] = back + anti_normal;
 
-        glTexCoord3f(front_u,	0.0f, 0);
-        glVertex3f(points[0].x, points[0].y, points[0].z);
-        glTexCoord3f(front_u,	0.5f, 0);
-        glVertex3f(points[1].x, points[1].y, points[1].z);
-        glTexCoord3f(back_u,	0.5f, 0);
-        glVertex3f(points[4].x, points[4].y, points[4].z);
-        glTexCoord3f(back_u,	0.0f, 0);
-        glVertex3f(points[3].x, points[3].y, points[3].z);
+		glTexCoord3f(front_u,	0.0f, 0);
+		glVertex3f(points[0].x, points[0].y, points[0].z);
+		glTexCoord3f(front_u,	0.5f, 0);
+		glVertex3f(points[1].x, points[1].y, points[1].z);
+		glTexCoord3f(back_u,	0.5f, 0);
+		glVertex3f(points[4].x, points[4].y, points[4].z);
+		glTexCoord3f(back_u,	0.0f, 0);
+		glVertex3f(points[3].x, points[3].y, points[3].z);
 
-        glTexCoord3f(front_u,	0.5f, 0);
-        glVertex3f(points[1].x, points[1].y, points[1].z);
-        glTexCoord3f(front_u,	1.0f, 0);
-        glVertex3f(points[2].x, points[2].y, points[2].z);
-        glTexCoord3f(back_u,	1.0f, 0);
-        glVertex3f(points[5].x, points[5].y, points[5].z);
-        glTexCoord3f(back_u,	0.5f, 0);
-        glVertex3f(points[4].x, points[4].y, points[4].z);
+		glTexCoord3f(front_u,	0.5f, 0);
+		glVertex3f(points[1].x, points[1].y, points[1].z);
+		glTexCoord3f(front_u,	1.0f, 0);
+		glVertex3f(points[2].x, points[2].y, points[2].z);
+		glTexCoord3f(back_u,	1.0f, 0);
+		glVertex3f(points[5].x, points[5].y, points[5].z);
+		glTexCoord3f(back_u,	0.5f, 0);
+		glVertex3f(points[4].x, points[4].y, points[4].z);
 	}
 }

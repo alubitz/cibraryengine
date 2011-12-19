@@ -3,6 +3,8 @@
 
 #include "DebugLog.h"
 
+#include "Texture2D.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -10,6 +12,7 @@ namespace CibraryEngine
 	 */
 	RenderTarget::RenderTarget() :
 		Disposable(),
+		my_textures(),
 		my_color_buffers(),
 		my_depth_buffer(0),
 		my_fbo(0),
@@ -21,6 +24,7 @@ namespace CibraryEngine
 
 	RenderTarget::RenderTarget(GLsizei width, GLsizei height, GLsizei samples, int n_buffers) :
 		Disposable(),
+		my_textures(),
 		my_color_buffers(),
 		my_depth_buffer(0),
 		my_fbo(0),
@@ -34,6 +38,10 @@ namespace CibraryEngine
 	void RenderTarget::InnerDispose()
 	{
 		glDeleteFramebuffers(1, &my_fbo);
+
+		for(vector<Texture2D*>::iterator iter = my_textures.begin(); iter != my_textures.end(); iter++)
+			delete *iter;
+		my_textures.clear();
 
 		if(my_color_buffers.size() > 0)
 		{
@@ -52,6 +60,7 @@ namespace CibraryEngine
 		if(n_buffers > 0)
 		{
 			my_color_buffers.resize(n_buffers);
+			my_textures.resize(n_buffers);
 			glGenRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
 		}
 		glGenRenderbuffers(1, &my_depth_buffer);
@@ -82,6 +91,25 @@ namespace CibraryEngine
 
 		glFramebufferRenderbuffer(		GL_DRAW_FRAMEBUFFER,	GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer );
 
+		// create and attach textures
+		bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
+		
+		glEnable(GL_TEXTURE_2D);
+		for(int i = 0; i < n_buffers; i++)
+		{
+			my_textures[i] = new Texture2D(width, height, NULL, false, true);
+			unsigned int id = my_textures[i]->GetGLName();
+
+			glBindTexture(GL_TEXTURE_2D, id);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, id, 0);
+		}
+		if(!were_textures_enabled)
+			glDisable(GL_TEXTURE_2D);
+
 		// unbind stuff
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
@@ -96,36 +124,10 @@ namespace CibraryEngine
 	GLsizei RenderTarget::GetHeight() { return my_height; }
 	GLsizei RenderTarget::GetSampleCount() { return my_samples; }
 
-	void RenderTarget::GetColorBufferTex(int which, GLuint tex)
-	{
-		GLDEBUG();
+	Texture2D* RenderTarget::GetColorBufferTex(int which) { return my_textures[which]; }
 
-		RenderTarget* prev_bound = GetBoundRenderTarget();
-		Bind(NULL);
 
-		GLuint temp_fbo;
-		glGenFramebuffers(1, &temp_fbo);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, temp_fbo);
-		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
-
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, my_fbo);
-
-		glReadBuffer(GL_COLOR_ATTACHMENT0 + which);
-
-		glBlitFramebuffer(0, 0, my_width, my_height, 0, 0, my_width, my_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-		glDeleteFramebuffers(1, &temp_fbo);
-
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-		glReadBuffer(GL_BACK);
-
-		Bind(prev_bound);
-
-		GLDEBUG();
-	}
-
+	// global variable!!!
 	RenderTarget* bound_rt = NULL;
 
 	void RenderTarget::Bind(RenderTarget* target)

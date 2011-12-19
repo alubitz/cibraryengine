@@ -1,6 +1,6 @@
 #extension GL_EXT_gpu_shader4 : enable
 
-#define ENABLE_SHADOWS 0
+#define ENABLE_SHADOWS 1
 
 varying	vec3			position;
 
@@ -62,6 +62,7 @@ void main()
 	float shadow_threshold = 0.0 * inv_256;
 	float shadow_br = distance_past_shadow < shadow_threshold ? 1.0 : 0.0;
 
+	//float br = out_of_region == 1.0 ? 0.0 : shadow_br;
 	float br = max(out_of_region, shadow_br);
 
 	if(br > 0.0)

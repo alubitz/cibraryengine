@@ -85,7 +85,7 @@ namespace Test
 			Vec3(	0.0f,	0.0f,	1.0f)
 		};
 
-		int n = 10;										// number of verts in the above array; if you change that, change this!
+		int n = 2;										// number of verts in the above array; if you change that, change this!
 
 		// transform screen-space coords to world-space, and flatten onto plane
 		for(int i = 0; i < n; i++)
@@ -106,8 +106,8 @@ namespace Test
 		};
 		Mat4 rotation(Mat4::FromMat3(Mat3(rm_values)));
 
-		float shadow_w = 5.0f;
-		float shadow_l = 5.0f;
+		float shadow_w = 50.0f;
+		float shadow_l = 50.0f;
 		Vec3 light_translation_vec(camera.GetPosition());
 
 		Mat4 scale_mat(Mat4::Scale(1.0f / shadow_w, 1.0f / shadow_l, 1.0f));

@@ -28,7 +28,7 @@
 
 using namespace std;
 
-#define ENABLE_SHADOWS 0
+#define ENABLE_SHADOWS 1
 
 namespace Test
 {
@@ -83,10 +83,7 @@ namespace Test
 		debug_draw(false),
 		alive(true),
 		render_target(NULL),
-		rtt_diffuse(NULL),
-		rtt_normal(NULL),
-		rtt_specular(NULL),
-		rtt_depth(NULL),
+		shadow_render_target(NULL),
 		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
@@ -427,7 +424,7 @@ namespace Test
 
 	void ClearDepthAndColor();
 #if ENABLE_SHADOWS
-	void RenderShadowTexture(Texture2D* texture, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer);
+	Texture2D* RenderShadowTexture(RenderTarget* target, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer);
 #endif
 
 	void TestGame::Draw(int width_, int height_)
@@ -486,6 +483,12 @@ namespace Test
 				}
 				render_target = new RenderTarget(width, height, 0, 4);
 			}
+
+#ifdef ENABLE_SHADOWS
+			if(shadow_render_target == NULL)
+				shadow_render_target = new RenderTarget(2048, 2048, 0, 1);
+#endif
+
 			RenderTarget::Bind(render_target);
 
 			ClearDepthAndColor();
@@ -515,66 +518,6 @@ namespace Test
 
 			RenderTarget::Bind(NULL);
 
-			// See if we need to [re]create our RenderTargets
-			if(rtt_diffuse == NULL || rtt_diffuse->width < width || rtt_diffuse->height < height)
-			{
-				if(rtt_diffuse != NULL)
-				{
-					rtt_diffuse->Dispose();
-					delete rtt_diffuse;
-				}
-				if(rtt_normal != NULL)
-				{
-					rtt_normal->Dispose();
-					delete rtt_normal;
-				}
-				if(rtt_specular != NULL)
-				{
-					rtt_specular->Dispose();
-					delete rtt_specular;
-				}
-				if(rtt_depth != NULL)
-				{
-					rtt_depth->Dispose();
-					delete rtt_depth;
-				}
-
-				int needed_w = 4;
-				int needed_h = 4;
-
-				// Increasing powers of two until they are are big enough
-				while(needed_w < width)
-					needed_w <<= 1;
-				while(needed_h < height)
-					needed_h <<= 1;
-
-				rtt_diffuse = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
-				rtt_normal = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
-				rtt_specular = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
-				rtt_depth = new Texture2D(needed_w, needed_h, new unsigned char[needed_w * needed_h * 4], false, false);
-
-				glBindTexture(GL_TEXTURE_2D, rtt_diffuse->GetGLName());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-				glBindTexture(GL_TEXTURE_2D, rtt_normal->GetGLName());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-				glBindTexture(GL_TEXTURE_2D, rtt_specular->GetGLName());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-				glBindTexture(GL_TEXTURE_2D, rtt_depth->GetGLName());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			}
-
-			render_target->GetColorBufferTex(0, rtt_diffuse->GetGLName());
-			render_target->GetColorBufferTex(1, rtt_normal->GetGLName());
-			render_target->GetColorBufferTex(2, rtt_specular->GetGLName());
-			render_target->GetColorBufferTex(3, rtt_depth->GetGLName());
-
 			glDepthMask(false);
 			glColorMask(true, true, true, false);
 
@@ -586,26 +529,26 @@ namespace Test
 
 			Mat4 inv_view_matrix = Mat4::Invert(renderer.camera->GetViewMatrix());
 
-			deferred_ambient->SetUniform<Texture2D>("diffuse", rtt_diffuse);
-			deferred_ambient->SetUniform<Texture2D>("normal", rtt_normal);
-			deferred_ambient->SetUniform<Texture2D>("specular", rtt_specular);
-			deferred_ambient->SetUniform<Texture2D>("depth", rtt_depth);
+			deferred_ambient->SetUniform<Texture2D>("diffuse", render_target->GetColorBufferTex(0));
+			deferred_ambient->SetUniform<Texture2D>("normal", render_target->GetColorBufferTex(1));
+			deferred_ambient->SetUniform<Texture2D>("specular", render_target->GetColorBufferTex(2));
+			deferred_ambient->SetUniform<Texture2D>("depth", render_target->GetColorBufferTex(3));
 			deferred_ambient->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
 			deferred_ambient->SetUniform<TextureCube>("env_cubemap", sky_texture);
 			deferred_ambient->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
 			deferred_ambient->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_ambient->SetUniform<float>("zoom", &zoom);
 
-			DrawScreenQuad(deferred_ambient, width, height, rtt_diffuse->width, rtt_diffuse->height);
+			DrawScreenQuad(deferred_ambient, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 #if ENABLE_SHADOWS
 			Mat4 shadow_matrix;
-			Texture2D* shadow_texture = new Texture2D(256, 256, NULL, false, true);
+			Texture2D* shadow_texture = RenderShadowTexture(shadow_render_target, shadow_matrix, sun, renderer);
+
 			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-			RenderShadowTexture(shadow_texture, shadow_matrix, sun, renderer);
 			Mat4 inv_shadow_matrix = Mat4::Invert(shadow_matrix);
 #endif
 
@@ -615,10 +558,10 @@ namespace Test
 			glViewport(0, 0, width, height);
 			glColorMask(true, true, true, false);
 
-			deferred_lighting->SetUniform<Texture2D>("diffuse", rtt_diffuse);
-			deferred_lighting->SetUniform<Texture2D>("normal", rtt_normal);
-			deferred_lighting->SetUniform<Texture2D>("specular", rtt_specular);
-			deferred_lighting->SetUniform<Texture2D>("depth", rtt_depth);
+			deferred_lighting->SetUniform<Texture2D>("diffuse", render_target->GetColorBufferTex(0));
+			deferred_lighting->SetUniform<Texture2D>("normal", render_target->GetColorBufferTex(1));
+			deferred_lighting->SetUniform<Texture2D>("specular", render_target->GetColorBufferTex(2));
+			deferred_lighting->SetUniform<Texture2D>("depth", render_target->GetColorBufferTex(3));
 #if ENABLE_SHADOWS
 			deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
 			deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
@@ -628,13 +571,7 @@ namespace Test
 			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
 			deferred_lighting->SetUniform<float>("zoom", &zoom);
 
-			DrawScreenQuad(deferred_lighting, width, height, rtt_diffuse->width, rtt_diffuse->height);
-
-#if ENABLE_SHADOWS
-			shadow_texture->Dispose();
-			delete shadow_texture;
-			shadow_texture = NULL;
-#endif
+			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 			// re-draw the depth buffer (previous draw was on a different RenderTarget)
 			glDepthMask(true);
@@ -706,14 +643,12 @@ namespace Test
 	}
 
 #if ENABLE_SHADOWS
-	void RenderShadowTexture(Texture2D* texture, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer)
+	Texture2D* RenderShadowTexture(RenderTarget* target, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer)
 	{
 		shadow_matrix = sun->GenerateShadowMatrix(*renderer.camera);
 
-		RenderTarget* shadow_render_target = new RenderTarget(texture->width, texture->height, 1, 1);
 		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();
-
-		RenderTarget::Bind(shadow_render_target);
+		RenderTarget::Bind(target);
 
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
@@ -725,7 +660,7 @@ namespace Test
 		glLoadIdentity();
 		glMultMatrixf(shadow_matrix.Transpose().values);
 
-		glViewport(0, 0, texture->width, texture->height);
+		glViewport(0, 0, target->GetWidth(), target->GetHeight());
 		
 		// not using "ClearDepthAndColor" because clear color must represent "far"
 		glColorMask(true, true, true, true);
@@ -734,11 +669,6 @@ namespace Test
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		renderer.RenderDepth(true);
 
-		shadow_render_target->GetColorBufferTex(0, texture->GetGLName());
-
-		shadow_render_target->Dispose();
-		delete shadow_render_target;
-
 		// in case render functions changed the matrix mode
 		glMatrixMode(GL_PROJECTION);
 		glPopMatrix();
@@ -746,6 +676,8 @@ namespace Test
 		glPopMatrix();
 
 		RenderTarget::Bind(previous_render_target);
+
+		return target->GetColorBufferTex(0);
 	}
 #endif
 
@@ -900,25 +832,18 @@ namespace Test
 			nav_graph = 0;
 		}
 
-		if(rtt_diffuse != NULL)
+		if(render_target != NULL)
 		{
-			rtt_diffuse->Dispose();
-			delete rtt_diffuse;
-			rtt_diffuse = NULL;
+			render_target->Dispose();
+			delete render_target;
+			render_target = NULL;
 		}
 
-		if(rtt_normal != NULL)
+		if(shadow_render_target != NULL)
 		{
-			rtt_normal->Dispose();
-			delete rtt_normal;
-			rtt_normal = NULL;
-		}
-
-		if(rtt_specular != NULL)
-		{
-			rtt_specular->Dispose();
-			delete rtt_specular;
-			rtt_specular = NULL;
+			shadow_render_target->Dispose();
+			delete shadow_render_target;
+			shadow_render_target = NULL;
 		}
 
 		GameState::InnerDispose();

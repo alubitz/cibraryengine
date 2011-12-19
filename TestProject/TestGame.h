@@ -79,10 +79,8 @@ namespace Test
 
 			TextureCube* ambient_cubemap;
 			RenderTarget* render_target;
-			Texture2D* rtt_diffuse;
-			Texture2D* rtt_normal;
-			Texture2D* rtt_specular;
-			Texture2D* rtt_depth;
+			RenderTarget* shadow_render_target;
+
 			ShaderProgram* deferred_ambient;
 			ShaderProgram* deferred_lighting;
 

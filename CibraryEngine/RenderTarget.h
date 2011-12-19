@@ -7,10 +7,13 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	class Texture2D;
+
 	class RenderTarget : public Disposable
 	{
 		private:
 
+			vector<Texture2D*> my_textures;
 			vector<GLuint> my_color_buffers;
 			GLuint my_depth_buffer;
 
@@ -37,7 +40,7 @@ namespace CibraryEngine
 			GLsizei GetHeight();
 			GLsizei GetSampleCount();
 
-			void GetColorBufferTex(int which, GLuint tex);
+			Texture2D* GetColorBufferTex(int which);
 
 
 
