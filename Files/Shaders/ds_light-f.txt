@@ -31,6 +31,18 @@ float color_to_distance(vec3 color)
 vec3 cameraVecToWorld(vec3 v) { return (vec4(v, 0.0) * inv_view_matrix).xyz; }
 vec3 cameraPosToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_view_matrix; return temp.xyz / temp.w; }
 
+float getUnshadowedAmount(vec3 uLight, vec3 world_pos, vec2 shadow_coord)
+{
+	vec4 shadow_depth_sample = texture2D(shadow_depth, shadow_coord.xy * 0.5 + 0.5);
+	float shadow_z = color_to_distance(shadow_depth_sample.xyz);
+	vec3 shadow_pos = shadowToWorld(vec3(shadow_coord.xy, -shadow_z));
+
+	float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
+
+	float shadow_threshold = 0.0 * inv_256;
+	return distance_past_shadow < shadow_threshold ? 1.0 : 0.0;
+}
+
 void main()
 {
 	gl_FragColor.w = 1.0;
@@ -53,16 +65,14 @@ void main()
 	vec3 shadow_coord = worldToShadow(world_pos);
 	float out_of_region = min(1.0, length(vec2(shadow_coord.x, shadow_coord.y)));
 
-	vec4 shadow_depth_sample = texture2D(shadow_depth, shadow_coord.xy * 0.5 + 0.5);
-	float shadow_z = color_to_distance(shadow_depth_sample.xyz);
-	vec3 shadow_pos = shadowToWorld(vec3(shadow_coord.xy, -shadow_z));
+	const float soft_d = 1.0 / 4096.0;
 
-	float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
+	float shadow_br = 0.25 * (
+		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	soft_d	))	+
+		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	-soft_d	))	+
+		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	-soft_d	))	+
+		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	soft_d	)));
 
-	float shadow_threshold = 0.0 * inv_256;
-	float shadow_br = distance_past_shadow < shadow_threshold ? 1.0 : 0.0;
-
-	//float br = out_of_region == 1.0 ? 0.0 : shadow_br;
 	float br = max(out_of_region, shadow_br);
 
 	if(br > 0.0)

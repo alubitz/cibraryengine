@@ -486,7 +486,7 @@ namespace Test
 
 #ifdef ENABLE_SHADOWS
 			if(shadow_render_target == NULL)
-				shadow_render_target = new RenderTarget(2048, 2048, 0, 1);
+				shadow_render_target = new RenderTarget(4096, 4096, 0, 1);
 #endif
 
 			RenderTarget::Bind(render_target);
