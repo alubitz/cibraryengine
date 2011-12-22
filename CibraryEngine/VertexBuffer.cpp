@@ -236,15 +236,30 @@ namespace CibraryEngine
 		return vbo_id;
 	}
 
-	string MultiTexName(int i)
+	// utility stuff... do this once
+	string* multi_tex_names = NULL;
+	void BuildMultiTexNames()
 	{
-		stringstream ss;
-		ss << "gl_MultiTexCoord" << i;
-		return ss.str();
+		if(multi_tex_names == NULL)
+		{
+			int max_texture_units;
+			glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
+
+			multi_tex_names = new string[max_texture_units];
+
+			for(int i = 0; i < max_texture_units; i++)
+			{
+				stringstream ss;
+				ss << "gl_MultiTexCoord" << i;
+				multi_tex_names[i] = ss.str();
+			}
+		}
 	}
 
 	void VertexBuffer::Draw()
 	{
+		BuildMultiTexNames();
+
 		GLDEBUG();
 
 		unsigned int vbo = GetVBO();
@@ -284,7 +299,7 @@ namespace CibraryEngine
 
 					for(int j = 0; j < max_texture_units; j++)
 					{
-						if(attrib.name == MultiTexName(j))
+						if(attrib.name == multi_tex_names[j])
 						{
 							glClientActiveTexture(GL_TEXTURE0 + j);
 							glEnable(GL_TEXTURE_COORD_ARRAY);
@@ -335,7 +350,7 @@ namespace CibraryEngine
 					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
 					for(int j = 0; j < max_texture_units; j++)
 					{
-						if(attrib.name == MultiTexName(j))
+						if(attrib.name == multi_tex_names[j])
 						{
 							glClientActiveTexture(GL_TEXTURE0 + j);
 							glDisable(GL_TEXTURE_COORD_ARRAY);
