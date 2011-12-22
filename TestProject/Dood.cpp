@@ -437,7 +437,12 @@ namespace Test
 		{
 			Sphere bs = Sphere(pos, 2.5);
 			if(renderer->camera->CheckSphereVisibility(bs))
-				((TestGame*)game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), character, &materials);
+			{
+				double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
+				int use_lod = dist < 45.0f ? 0 : 1;
+
+				((TestGame*)game_state)->VisUberModel(renderer, model, use_lod, Mat4::Translation(pos), character, &materials);
+			}
 		}
 	}
 

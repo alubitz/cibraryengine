@@ -870,6 +870,9 @@ namespace Test
 				use_materials.push_back(mat_cache->Load(model->materials[i]));
 		}
 
+		int num_lods = model->lods.size();
+		if(lod >= num_lods)
+			lod = num_lods - 1;
 		UberModel::LOD* use_lod = model->lods[lod];
 
 		Sphere bs = model->GetBoundingSphere();

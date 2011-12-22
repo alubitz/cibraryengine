@@ -51,6 +51,11 @@ namespace CibraryEngine
 		mmp.material_index = 0;
 		mmp.vbo = model;
 
+		if(model->GetFloatPointer("gl_MultiTexCoord3") == NULL)
+			model->AddAttribute("gl_MultiTexCoord3", Float, 4);
+		if(model->GetFloatPointer("gl_MultiTexCoord4") == NULL)
+			model->AddAttribute("gl_MultiTexCoord4", Float, 4);
+
 		material_model_pairs.push_back(mmp);
 
 		Skeleton* skeleton = new Skeleton();

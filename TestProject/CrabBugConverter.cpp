@@ -10,6 +10,7 @@ namespace Test
 
 	void ConvertCrabBug(ContentMan* content)
 	{
+		
 		vector<BoneEntry> bones = vector<BoneEntry>();
 
 		//push bones here
@@ -46,19 +47,12 @@ namespace Test
 
 		Cache<VertexBuffer>* vtn_cache = content->GetCache<VertexBuffer>();
 
+		Skeleton* skeleton = new Skeleton();
+
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			BoneEntry& bone = bones[i];
 			bone.model = vtn_cache->Load(bone.name);
-		}
-
-		SkinnedModel* model = SkinnedModel::WrapVertexBuffer(vtn_cache->Load("crab_bug"), "crab_bug");
-
-		Skeleton* skeleton = model->skeleton = new Skeleton();
-
-		for(unsigned int i = 0; i < bones.size(); i++)
-		{
-			BoneEntry& bone = bones[i];
 			skeleton->AddBone(bone.name, Quaternion::Identity(), bone.pos);
 		}
 
@@ -81,42 +75,65 @@ namespace Test
 				}
 		}
 
-		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
+		vector<string> lod_inputs;
+		//lod_inputs.push_back("crab_lod_0");
+		lod_inputs.push_back("crab_lod_1");
+
+		for(vector<string>::iterator lod_iter = lod_inputs.begin(); lod_iter != lod_inputs.end(); lod_iter++)
 		{
-			VertexBuffer* vbo = iter->vbo;
-			for(unsigned int jter = 0; jter != vbo->GetNumVerts(); jter++)
+			UberModel* uber = new UberModel();
+
+			SkinnedModel* model = SkinnedModel::WrapVertexBuffer(vtn_cache->Load(*lod_iter), "crab_bug");
+			model->skeleton = skeleton;			
+
+			for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
 			{
-				SkinVInfo vertex_info = GetSkinVInfo(vbo, jter);
-				Vec3 pos = vertex_info.x;
+				VertexBuffer* vbo = iter->vbo;
+				vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
+				vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
-				VertexBoneWeightInfo vbwi = VertexBoneWeightInfo();
-
-				for(unsigned int bone_index = 0; bone_index < bones.size(); bone_index++)
+				unsigned int num_verts = vbo->GetNumVerts();
+				for(unsigned int j = 0; j < num_verts; j++)
 				{
-					BoneEntry& bone_entry = bones[bone_index];
-					VertexBuffer* model_vbo = bone_entry.model;
+					stringstream ss;
+					ss << "j = " << j << " of " << num_verts << endl;
+					Debug(ss.str());
 
-					for(unsigned int lter = 0; lter < model_vbo->GetNumVerts(); lter++)
+					SkinVInfo vertex_info = GetSkinVInfo(vbo, j);
+					Vec3 pos = vertex_info.x;
+
+					VertexBoneWeightInfo vbwi = VertexBoneWeightInfo();
+
+					for(unsigned int bone_index = 0; bone_index < bones.size(); bone_index++)
 					{
-						float dist_sq = (GetVTNTT(model_vbo, lter).x - pos).ComputeMagnitudeSquared();
-						if(dist_sq < 0.01)
-							vbwi.AddValue(bone_index, 1.0f / (dist_sq + 0.000001f));
+						BoneEntry& bone_entry = bones[bone_index];
+						VertexBuffer* model_vbo = bone_entry.model;
+
+						unsigned int seg_verts = model_vbo->GetNumVerts();
+						for(unsigned int k = 0; k < seg_verts; k++)
+						{
+							float dist_sq = (GetVTNTT(model_vbo, k).x - pos).ComputeMagnitudeSquared();
+							if(dist_sq < 0.01)
+								vbwi.AddValue(bone_index, 1.0f / (dist_sq + 0.000001f));
+						}
+					}
+
+					unsigned char indices[4];
+					unsigned char weights[4];
+					vbwi.GetByteValues(indices, weights);
+					for(int k = 0; k < 4; k++)
+					{
+						vertex_info.indices[k] = indices[k];
+						vertex_info.weights[k] = weights[k];
 					}
 				}
-
-				unsigned char indices[4];
-				unsigned char weights[4];
-				vbwi.GetByteValues(indices, weights);
-				for(int k = 0; k < 4; k++)
-				{
-					vertex_info.indices[k] = indices[k];
-					vertex_info.weights[k] = weights[k];
-				}
 			}
+
+			UberModelLoader::AddSkinnedModel(uber, model, *lod_iter);
+			UberModelLoader::SaveZZZ(uber, "Files/Models/crab_bug_new.zzz");
 		}
 
-		UberModel* uber = UberModelLoader::CopySkinnedModel(model);
-
+		/*
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			BoneEntry& entry = bones[i];
@@ -151,6 +168,15 @@ namespace Test
 			delete[] sphere_positions;
 			delete[] sphere_radii;
 		}
+		*/
+
+
+		UberModel* nu = content->GetCache<UberModel>()->Load("crab_bug_new");
+		UberModel* uber = content->GetCache<UberModel>()->Load("crab_bug_old");
+
+		uber->materials.push_back("crab_bug");			// second lod uses another material slot (but same name)
+
+		uber->lods.push_back(nu->lods[0]);
 
 		UberModelLoader::SaveZZZ(uber, "Files/Models/crab_bug.zzz");
 	}

@@ -67,11 +67,14 @@ void main()
 
 	const float soft_d = 1.0 / 4096.0;
 
+	float shadow_br = getUnshadowedAmount(uLight, world_pos, shadow_coord.xy);
+	/*
 	float shadow_br = 0.25 * (
 		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	soft_d	))	+
 		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	-soft_d	))	+
 		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	-soft_d	))	+
 		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	soft_d	)));
+	*/
 
 	float br = max(out_of_region, shadow_br);
 

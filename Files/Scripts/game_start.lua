@@ -24,6 +24,7 @@ bot_spawn_timer = 0
 bots_spawned = 0
 
 disable_enemies = false
+disable_ai = true
 
 god_toggle = false
 nav_edit_toggle = false
@@ -39,46 +40,48 @@ dofile("Files/Scripts/goals.lua")
 
 -- the crab bugs' ai
 function crab_bug_ai(dood)
-	local props = dood_properties[dood]
+	if not disable_ai then
+		local props = dood_properties[dood]
 
-	-- sometimes this will get called after the bug is dead... return here to suppress error messages
-	if not props then return end
+		-- sometimes this will get called after the bug is dead... return here to suppress error messages
+		if not props then return end
 
-	-- select a target
-	local my_pos = dood.position
+		-- select a target
+		local my_pos = dood.position
 
-	local dood_list = gs.getDoodsList()
+		local dood_list = gs.getDoodsList()
 
-	local target = nil
-	for i, ent in ipairs(dood_list) do
-		if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
-			if ent.is_player and ent ~= dood then
-				target = ent
+		local target = nil
+		for i, ent in ipairs(dood_list) do
+			if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
+				if ent.is_player and ent ~= dood then
+					target = ent
+				end
 			end
 		end
-	end
 
-	-- reset certain parts of the control state...
-	local control_state = dood.control_state
-	control_state.primary_fire = false
-	control_state.forward = 0
-	control_state.leap = false
+		-- reset certain parts of the control state...
+		local control_state = dood.control_state
+		control_state.primary_fire = false
+		control_state.forward = 0
+		control_state.leap = false
 
-	-- engage target, if applicable
-	if target then
-		if not props.goal then
-			props.goal = goal_move_attack(dood, target)
-			props.goal.activate()
+		-- engage target, if applicable
+		if target then
+			if not props.goal then
+				props.goal = goal_move_attack(dood, target)
+				props.goal.activate()
+			end
 		end
-	end
 
-	if props.goal and props.goal.status == GoalStatus.ACTIVE then
-		props.goal.process()
-	else
-		get_steering_behavior(dood).cancel()
-	end
+		if props.goal and props.goal.status == GoalStatus.ACTIVE then
+			props.goal.process()
+		else
+			get_steering_behavior(dood).cancel()
+		end
 
-	do_steering_behavior(dood, control_state)
+		do_steering_behavior(dood, control_state)
+	end
 end
 
 -- function called every time a bug dies
