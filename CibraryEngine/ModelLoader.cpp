@@ -687,7 +687,7 @@ namespace CibraryEngine
 				pos.y = ReadSingle(file);
 				pos.z = ReadSingle(file);
 
-				frame.values[bone_name] = BoneInfluence(ori, pos, 1.0f);
+				frame.values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos, 1.0f);
 			}
 
 			frames.push_back(frame);
@@ -730,13 +730,15 @@ namespace CibraryEngine
 			// write each bone of the frame
 			unsigned int values_count = frame.values.size();
 			WriteUInt32(values_count, file);
-			for(map<string, BoneInfluence>::iterator jter = frame.values.begin(); jter != frame.values.end(); jter++)
+			for(map<unsigned int, BoneInfluence>::iterator jter = frame.values.begin(); jter != frame.values.end(); jter++)
 			{
 				// name of the bone
-				unsigned char bone_name_len = jter->first.length();
+				string bone_name = Bone::string_table[jter->first];
+
+				unsigned char bone_name_len = bone_name.length();
 				WriteByte(bone_name_len, file);
 				for(unsigned int i = 0; i < bone_name_len; i++)
-					WriteByte(jter->first[i], file);
+					WriteByte(bone_name[i], file);
 
 				// bone influence
 				BoneInfluence& inf = jter->second;

@@ -37,7 +37,7 @@ namespace CibraryEngine
 			for(vector<Bone*>::iterator iter = result->bones.begin(); iter != result->bones.end(); iter++)
 			{
 				Bone* bone_i = *iter;
-				string bone_name = (*iter)->name;
+				unsigned int bone_name = (*iter)->name;
 				for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); jter++)
 				{
 					Bone* bone_j = *jter;

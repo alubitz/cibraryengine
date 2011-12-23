@@ -1,0 +1,64 @@
+#include "StdAfx.h"
+#include "StringTable.h"
+
+#include <boost/unordered/unordered_map.hpp>
+
+namespace CibraryEngine
+{
+	using namespace std;
+	using boost::unordered_map;
+
+	/*
+	 * StringTable private implementation struct
+	 */
+	struct StringTable::Imp
+	{
+		unordered_map<string, unsigned int> str_to_i;
+		unordered_map<unsigned int, string> i_to_str;
+
+		unsigned int next_id;
+
+		Imp() : str_to_i(), i_to_str(), next_id(1) { }
+		~Imp() { }
+	};
+
+
+
+
+	/*
+	 * StringTable methods
+	 */
+	StringTable::StringTable() : imp(new Imp()) { }
+	StringTable::~StringTable() { if(imp != NULL) { delete imp; imp = NULL; } }
+
+	bool StringTable::StringExists(string str) { return imp->str_to_i.find(str) != imp->str_to_i.end(); }
+	bool StringTable::IntExists(unsigned int i) { return imp->i_to_str.find(i) != imp->i_to_str.end(); }
+
+	unsigned int StringTable::StringToInt(string str)
+	{
+		unordered_map<string, unsigned int>::iterator found = imp->str_to_i.find(str);
+		if(found == imp->str_to_i.end())
+		{
+			unsigned int result = imp->next_id++;
+
+			imp->str_to_i[str] = result;
+			imp->i_to_str[result] = str;
+
+			return result;
+		}
+		else
+			return found->second;
+	}
+
+	string StringTable::IntToString(unsigned int i) 
+	{
+		unordered_map<unsigned int, string>::iterator found = imp->i_to_str.find(i);
+		if(found != imp->i_to_str.end())
+			return found->second;
+		else
+			return string();			// maybe you should have checked first
+	}
+
+	unsigned int StringTable::operator[] (string str) { return StringToInt(str); }
+	string StringTable::operator[] (unsigned int i) { return IntToString(i); }
+}

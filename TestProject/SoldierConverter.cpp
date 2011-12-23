@@ -45,7 +45,7 @@ namespace Test
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			BoneEntry& bone = bones[i];
-			skeleton->AddBone(bone.name, Quaternion::Identity(), bone.pos);
+			skeleton->AddBone(Bone::string_table[bone.name], Quaternion::Identity(), bone.pos);
 		}
 
 		for(unsigned int i = 0; i < bones.size(); i++)
@@ -59,7 +59,7 @@ namespace Test
 				for(unsigned int j = 0; j < skeleton->bones.size(); j++)
 				{
 					Bone* parent = skeleton->bones[j];
-					if(parent->name == parent_name)
+					if(parent->name == Bone::string_table[parent_name])
 					{
 						skeleton->bones[i]->parent = parent;
 						break;
@@ -138,7 +138,7 @@ namespace Test
 		{
 			Bone* bone = *iter;
 
-			map<string, Vec3>::iterator found = joint_positions.find(bone->name);
+			map<string, Vec3>::iterator found = joint_positions.find(Bone::string_table[bone->name]);
 			if(found != joint_positions.end())
 				bone->rest_pos = found->second;
 		}

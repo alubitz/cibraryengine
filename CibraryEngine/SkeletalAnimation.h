@@ -10,6 +10,7 @@
 #include "Quaternion.h"
 
 #include "Content.h"
+#include "StringTable.h"
 
 namespace CibraryEngine
 {
@@ -23,7 +24,7 @@ namespace CibraryEngine
 		public:
 
 			/** The name of this bone */
-			string name;
+			unsigned int name;
 
 			/** The bone to which this bone is attached */
 			Bone* parent;
@@ -38,10 +39,15 @@ namespace CibraryEngine
 			/** The default position of this bone */
 			Vec3 rest_pos;
 
-			Bone(string name, Bone* parent, Quaternion ori, Vec3 pos);
+			Bone(unsigned int, Bone* parent, Quaternion ori, Vec3 pos);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this bone, computing the transformation matrices of its ancestors in the parent hierarchy as necessary */
 			Mat4 GetTransformationMatrix();
+
+
+
+
+			static StringTable string_table;
 	};
 
 	/** Class representing an arrangement of bones */
@@ -63,9 +69,9 @@ namespace CibraryEngine
 			Skeleton(Skeleton* prototype);
 
 			/** Adds a bone with the specified name, default orientation, and default point of attachment */
-			Bone* AddBone(string bone_name, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int, Quaternion ori, Vec3 attach);
 			/** Adds a bone with the specified name, parent bone, default orientation, and default point of attachment */
-			Bone* AddBone(string bone_name, Bone* parent, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int, Bone* parent, Quaternion ori, Vec3 attach);
 
 			/** Reads a skeleton from a stream, and returns 0 if ok or an int error code */
 			static int ReadSkeleton(ifstream& file, Skeleton** skeleton);
@@ -145,12 +151,12 @@ namespace CibraryEngine
 		public:
 
 			/** For these bone names, a BoneInfluence may be specified */
-			map<string, BoneInfluence> bones;
+			map<unsigned int, BoneInfluence> bones;
 
 			Pose() : active(true), bones() { }
 
 			/** Sets how this Pose will affect the specified bone, by modifying the bones map */
-			void SetBonePose(string which, Vec3 ori, Vec3 pos, float weight) { bones[which] = BoneInfluence(ori, pos, weight); }
+			void SetBonePose(unsigned int which, Vec3 ori, Vec3 pos, float weight) { bones[which] = BoneInfluence(ori, pos, weight); }
 
 			/** Abstract function where you can call SetBonePose */
 			virtual void UpdatePose(TimingInfo time) = 0;

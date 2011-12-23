@@ -187,7 +187,7 @@ namespace CibraryEngine
 		Skeleton* skel = new Skeleton();
 
 		for(unsigned int i = 0; i < bones.size(); i++)
-			skel->AddBone(bones[i].name, bones[i].ori, bones[i].pos);
+			skel->AddBone(CibraryEngine::Bone::string_table[bones[i].name], bones[i].ori, bones[i].pos);
 		for(unsigned int i = 0; i < bones.size(); i++)
 		{
 			unsigned int parent = bones[i].parent;

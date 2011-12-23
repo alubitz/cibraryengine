@@ -11,7 +11,7 @@ namespace CibraryEngine
 	struct Keyframe
 	{
 		/** For these bones, the Pose's influence is specified */
-		map<string, BoneInfluence> values;
+		map<unsigned int, BoneInfluence> values;
 
 		/** The keyframe to display after this one ends */
 		int next;

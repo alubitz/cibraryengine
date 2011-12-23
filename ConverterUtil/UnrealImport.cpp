@@ -160,7 +160,7 @@ namespace ConverterUtil
 
 		// finally, load the skeleton
 		Skeleton* skeleton = model->skeleton = new Skeleton();
-		skeleton->bones.push_back(new Bone("root", NULL, Quaternion::Identity(), Vec3()));	// PSK does not have a root bone, it's bone 0 is our bone 1
+		skeleton->bones.push_back(new Bone(Bone::string_table["root"], NULL, Quaternion::Identity(), Vec3()));	// PSK does not have a root bone, it's bone 0 is our bone 1
 		for(int i = 0; i < bones_header.DataCount; i++)
 		{
 			VBone& bone = bones[i];
@@ -170,7 +170,7 @@ namespace ConverterUtil
 			bone_name.erase(bone_name.find_last_not_of(" ") + 1);									// trim trailing spaces
 
 			//skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(bone_pos.Orientation.X, bone_pos.Orientation.Y, bone_pos.Orientation.Z, bone_pos.Orientation.W), Vec3(bone_pos.Position.X, bone_pos.Position.Y, bone_pos.Position.Z) * scale));
-			skeleton->bones.push_back(new Bone(bone_name, NULL, Quaternion(-bone_pos.Orientation.X, bone_pos.Orientation.Z, bone_pos.Orientation.Y, bone_pos.Orientation.W), Vec3(-bone_pos.Position.X, bone_pos.Position.Z, bone_pos.Position.Y) * scale));
+			skeleton->bones.push_back(new Bone(Bone::string_table[bone_name], NULL, Quaternion(-bone_pos.Orientation.X, bone_pos.Orientation.Z, bone_pos.Orientation.Y, bone_pos.Orientation.W), Vec3(-bone_pos.Position.X, bone_pos.Position.Z, bone_pos.Position.Y) * scale));
 
 			stringstream ss;
 			ss << "Bone \"" << bone_name << "\", position = (" << bone_pos.Position.X << ", " << bone_pos.Position.Y << ", " << bone_pos.Position.Z << ")" << endl;
@@ -306,7 +306,7 @@ namespace ConverterUtil
 					string bone_name = bones[j].Name;
 					bone_name.erase(bone_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
 
-					keyframe_animation.frames[k].values[bone_name] = BoneInfluence(ori, pos, 1.0f);
+					keyframe_animation.frames[k].values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos, 1.0f);
 
 					key_pointer++;
 				}

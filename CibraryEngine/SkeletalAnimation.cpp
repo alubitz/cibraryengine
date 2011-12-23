@@ -12,7 +12,7 @@ namespace CibraryEngine
 	/*
 	 * Bone methods
 	 */
-	Bone::Bone(string name, Bone* parent, Quaternion ori, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori), rest_pos(pos) { }
+	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori), rest_pos(pos) { }
 
 	Mat4 Bone::GetTransformationMatrix()
 	{
@@ -30,6 +30,8 @@ namespace CibraryEngine
 			return parent_xform * to_rest_pos * rotation_mat * offset * from_rest_pos;
 		}
 	}
+
+	StringTable Bone::string_table = StringTable();
 
 
 
@@ -66,9 +68,9 @@ namespace CibraryEngine
 		bones.clear();
 	}
 
-	Bone* Skeleton::AddBone(string bone_name, Quaternion ori, Vec3 attach) { return AddBone(bone_name, NULL, ori, attach); }
+	Bone* Skeleton::AddBone(unsigned int bone_name, Quaternion ori, Vec3 attach) { return AddBone(bone_name, NULL, ori, attach); }
 
-	Bone* Skeleton::AddBone(string bone_name, Bone* parent, Quaternion ori, Vec3 attach)
+	Bone* Skeleton::AddBone(unsigned int bone_name, Bone* parent, Quaternion ori, Vec3 attach)
 	{
 		Bone* bone = new Bone(bone_name, parent, ori, attach);
 		bones.push_back(bone);
@@ -116,7 +118,7 @@ namespace CibraryEngine
 
 			Vec3 rest_pos = ReadVec3(file);
 			Quaternion rest_ori = ReadQuaternion(file);
-			temp->AddBone(name, rest_ori, rest_pos);
+			temp->AddBone(Bone::string_table[name], rest_ori, rest_pos);
 		}
 
 		for(unsigned int i = 0; i < bone_count; i++)
@@ -137,7 +139,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < skeleton->bones.size(); i++)
 		{
 			Bone* bone = skeleton->bones[i];
-			string name = bone->name;
+			string name = Bone::string_table[bone->name];
 
 			WriteByte((unsigned char)name.length(), file);
 			for(unsigned int j = 0; j < name.length(); j++)
@@ -211,14 +213,14 @@ namespace CibraryEngine
 				iter = active_poses.erase(iter);
 		}
 
-		map<string, BoneInfluence> bone_states = map<string, BoneInfluence>();
+		map<unsigned int, BoneInfluence> bone_states = map<unsigned int, BoneInfluence>();
 
 		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end(); iter++)
 		{
 			Pose* pose = *iter;
-			for(map<string, BoneInfluence>::iterator jter = pose->bones.begin(); jter != pose->bones.end(); jter++)
+			for(map<unsigned int, BoneInfluence>::iterator jter = pose->bones.begin(); jter != pose->bones.end(); jter++)
 			{
-				string name = jter->first;
+				unsigned int name = jter->first;
 
 				if(bone_states.find(name) == bone_states.end())
 					bone_states[name] = BoneInfluence();
@@ -227,21 +229,13 @@ namespace CibraryEngine
 			}
 		}
 
-		for(map<string, BoneInfluence>::iterator iter = bone_states.begin(); iter != bone_states.end(); iter++)
-		{
-			string name = iter->first;
-			BoneInfluence inf = iter->second;
-			int x = 0;
-			x++;
-		}
-
 		int i = 0;
 		for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); iter++, i++)
 		{
 			Bone* bone = *iter;
 
-			string name = bone->name;
-			map<string, BoneInfluence>::iterator found = bone_states.find(name);
+			unsigned int name = bone->name;
+			map<unsigned int, BoneInfluence>::iterator found = bone_states.find(name);
 
 			if(found != bone_states.end())
 			{

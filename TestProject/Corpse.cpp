@@ -196,7 +196,7 @@ namespace Test
 
 				UberModel::BonePhysics* phys = NULL;
 				for(unsigned int j = 0; j < model->bone_physics.size(); j++)
-					if(model->bone_physics[j].bone_name == bone->name)
+					if(Bone::string_table[model->bone_physics[j].bone_name] == bone->name)
 						phys = &model->bone_physics[j];
 
 				bone_physes[i] = phys;

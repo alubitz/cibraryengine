@@ -73,19 +73,19 @@ namespace CibraryEngine
 
 				float b_frac = current_time / cur.duration, a_frac = 1 - b_frac;                   // lerp coefficients
 
-				list<string> cur_names = list<string>();
-				list<string> next_names = list<string>();
-				for(map<string, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
+				list<unsigned int> cur_names = list<unsigned int>();
+				list<unsigned int> next_names = list<unsigned int>();
+				for(map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
 					cur_names.push_back(iter->first);
-				for(map<string, BoneInfluence>::iterator iter = nxt.values.begin(); iter != nxt.values.end(); iter++)
+				for(map<unsigned int, BoneInfluence>::iterator iter = nxt.values.begin(); iter != nxt.values.end(); iter++)
 					next_names.push_back(iter->first);
 
 				// find the list of bone names used in both bones...
-				list<string> shared_names = list<string>(cur_names);
-				for(list<string>::iterator iter = shared_names.begin(); iter != shared_names.end();)
+				list<unsigned int> shared_names = list<unsigned int>(cur_names);
+				for(list<unsigned int>::iterator iter = shared_names.begin(); iter != shared_names.end();)
 				{
 					bool found = false;
-					for(list<string>::iterator jter = next_names.begin(); jter != next_names.end(); jter++)
+					for(list<unsigned int>::iterator jter = next_names.begin(); jter != next_names.end(); jter++)
 						if(*jter == *iter)
 						{
 							found = true;
@@ -97,10 +97,10 @@ namespace CibraryEngine
 						iter++;
 				}
 				// ...and remove those names from the other two lists
-				for(list<string>::iterator iter = cur_names.begin(); iter != cur_names.end();)
+				for(list<unsigned int>::iterator iter = cur_names.begin(); iter != cur_names.end();)
 				{
 					bool found = false;
-					for(list<string>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
+					for(list<unsigned int>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
 						if(*jter == *iter)
 						{
 							found = true;
@@ -111,10 +111,10 @@ namespace CibraryEngine
 					else
 						iter++;
 				}
-				for(list<string>::iterator iter = next_names.begin(); iter != next_names.end();)
+				for(list<unsigned int>::iterator iter = next_names.begin(); iter != next_names.end();)
 				{
 					bool found = false;
-					for(list<string>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
+					for(list<unsigned int>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
 						if(*jter == *iter)
 						{
 							found = true;
@@ -126,17 +126,17 @@ namespace CibraryEngine
 						iter++;
 				}
 
-				for (list<string>::iterator iter = cur_names.begin(); iter != cur_names.end(); iter++)
+				for (list<unsigned int>::iterator iter = cur_names.begin(); iter != cur_names.end(); iter++)
 				{
 					BoneInfluence vec = cur.values[*iter];
 					SetBonePose(*iter, vec.ori * a_frac, vec.pos * a_frac, vec.div * a_frac);
 				}
-				for (list<string>::iterator iter = next_names.begin(); iter != next_names.end(); iter++)
+				for (list<unsigned int>::iterator iter = next_names.begin(); iter != next_names.end(); iter++)
 				{
 					BoneInfluence vec = nxt.values[*iter];
 					SetBonePose(*iter, vec.ori * b_frac, vec.pos * b_frac, vec.div * b_frac);
 				}
-				for (list<string>::iterator iter = shared_names.begin(); iter != shared_names.end(); iter++)
+				for (list<unsigned int>::iterator iter = shared_names.begin(); iter != shared_names.end(); iter++)
 				{
 					BoneInfluence cur_vec = cur.values[*iter];
 					BoneInfluence next_vec = nxt.values[*iter];
@@ -146,7 +146,7 @@ namespace CibraryEngine
 			else
 			{
 				// here we can forego the extra vector and scalar multiplications that are necessary for lerp
-				for(map<string, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
+				for(map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
 				{
 					BoneInfluence vec = cur.values[iter->first];
 					SetBonePose(iter->first, vec.ori, vec.pos, vec.div);
