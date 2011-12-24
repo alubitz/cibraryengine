@@ -25,7 +25,9 @@ namespace CibraryEngine
 			struct IKObject
 			{
 				/** Temporary variable used to store the result between calls to ComputeNextState and ApplyComputedState */
-				Skeleton* result;
+				Skeleton result;
+
+				bool result_valid;
 
 				/**
 				 * Skeleton used for both input and output

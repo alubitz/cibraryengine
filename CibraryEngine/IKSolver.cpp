@@ -9,7 +9,7 @@ namespace CibraryEngine
 	 * IKSolver::IKObject methods
 	 */
 	IKSolver::IKObject::IKObject(Skeleton* skeleton, Vec3 pos, Quaternion ori) :
-		result(NULL),
+		result_valid(false),
 		skeleton(skeleton),
 		desired_pos(pos),
 		result_pos(pos),
@@ -20,7 +20,8 @@ namespace CibraryEngine
 
 	void IKSolver::IKObject::ComputeNextState(PhysicsWorld* physics, TimingInfo time)
 	{
-		result = new Skeleton(skeleton);
+		result = Skeleton(skeleton);
+		result_valid = true;
 
 		// TODO: implement this
 	}
@@ -31,10 +32,10 @@ namespace CibraryEngine
 		result_pos = desired_pos;
 		result_ori = desired_ori;
 		
-		if(result != NULL)
+		if(result_valid)
 		{
 			// copy result to skeleton
-			for(vector<Bone*>::iterator iter = result->bones.begin(); iter != result->bones.end(); iter++)
+			for(vector<Bone*>::iterator iter = result.bones.begin(); iter != result.bones.end(); iter++)
 			{
 				Bone* bone_i = *iter;
 				unsigned int bone_name = (*iter)->name;
@@ -50,10 +51,7 @@ namespace CibraryEngine
 				}
 			}
 
-			// delete result once we are done with it
-			result->Dispose();
-			delete result;
-			result = NULL;
+			result_valid = false;
 		}
 	}
 

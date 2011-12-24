@@ -24,7 +24,7 @@ bot_spawn_timer = 0
 bots_spawned = 0
 
 disable_enemies = false
-disable_ai = true
+disable_ai = false
 
 god_toggle = false
 nav_edit_toggle = false
@@ -53,8 +53,8 @@ function crab_bug_ai(dood)
 
 		local target = nil
 		for i, ent in ipairs(dood_list) do
-			if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
-				if ent.is_player and ent ~= dood then
+			if ent.is_player and ent ~= dood then
+				if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
 					target = ent
 				end
 			end

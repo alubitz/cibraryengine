@@ -59,7 +59,7 @@ namespace CibraryEngine
 		material_model_pairs.push_back(mmp);
 
 		Skeleton* skeleton = new Skeleton();
-		skeleton->bones.push_back(new Bone(Bone::string_table["root"], NULL, Quaternion::Identity(), Vec3()));
+		skeleton->AddBone(Bone::string_table["root"], Quaternion::Identity(), Vec3());
 
 		return new SkinnedModel(material_model_pairs, material_names, skeleton);
 	}
