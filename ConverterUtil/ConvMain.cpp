@@ -17,7 +17,7 @@ string GetFileExtension(string filename)
 		filename = filename.substr(last_dot + 1);
 
 		string result;
-		for(unsigned int i = 0; i < filename.length(); i++)
+		for(unsigned int i = 0; i < filename.length(); ++i)
 			if(filename[i] >= 'a' && filename[i] <= 'z')
 				result += (filename[i] + 'A' - 'a');
 			else
@@ -170,13 +170,13 @@ void UpdateStatus()
 		
 	if(model != NULL)
 	{
-		for(unsigned int i = 0; i < model->lods.size(); i++)
+		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{
 			UberModel::LOD* lod = model->lods[i];
 			
 			vector<MaterialModelPair>* pairs = lod->GetVBOs();
 
-			for(vector<MaterialModelPair>::iterator iter = pairs->begin(); iter != pairs->end(); iter++)
+			for(vector<MaterialModelPair>::iterator iter = pairs->begin(); iter != pairs->end(); ++iter)
 			{
 				VertexBuffer* vbo = iter->vbo;
 
@@ -185,7 +185,7 @@ void UpdateStatus()
 				unsigned int count = vbo->GetNumVerts();
 				num_verts += count;
 				
-				for(unsigned int j = 0; j < count; j++)
+				for(unsigned int j = 0; j < count; ++j)
 				{
 					float x = *(vertex_data++), y = *(vertex_data++), z = *(vertex_data++);
 
@@ -232,11 +232,11 @@ void TranslateModel()
 
 	if(model != NULL)
 	{
-		for(unsigned int i = 0; i < model->lods.size(); i++)
+		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{
 			UberModel::LOD* lod = model->lods[i];
 
-			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); iter++)
+			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); ++iter)
 				*iter += translation;
 
 			lod->InvalidateVBOs();
@@ -268,11 +268,11 @@ void ScaleModel()
 
 	if(model != NULL)
 	{
-		for(unsigned int i = 0; i < model->lods.size(); i++)
+		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{
 			UberModel::LOD* lod = model->lods[i];
 
-			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); iter++)
+			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); ++iter)
 			{
 				iter->x *= x;
 				iter->y *= y;
@@ -310,11 +310,11 @@ void RotateModel()
 
 	if(model != NULL)
 	{
-		for(unsigned int i = 0; i < model->lods.size(); i++)
+		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{
 			UberModel::LOD* lod = model->lods[i];
 
-			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); iter++)
+			for(vector<Vec3>::iterator iter = lod->vertices.begin(); iter != lod->vertices.end(); ++iter)
 				*iter = rm * *iter;
 
 			lod->InvalidateVBOs();

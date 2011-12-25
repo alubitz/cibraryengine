@@ -25,7 +25,7 @@ namespace CibraryEngine
 		InvalidateVBO();
 
 		vector<VertexAttribute> attribs = GetAttributes();
-		for(unsigned int i = 0; i < attribs.size(); i++)
+		for(unsigned int i = 0; i < attribs.size(); ++i)
 			RemoveAttribute(attribs[i].name);
 
 		SetNumVerts(0);
@@ -50,7 +50,7 @@ namespace CibraryEngine
 			allocated_size = verts;
 
 			map<string, VertexData> nu_attribute_data;
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); iter++)
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 				if(attrib.type == Float)
@@ -59,14 +59,14 @@ namespace CibraryEngine
 					float* old_data = iter->second.floats;
 					if(old_data != NULL)
 					{
-						for(unsigned int i = 0; i < num_verts * attrib.n_per_vertex; i++)
+						for(unsigned int i = 0; i < num_verts * attrib.n_per_vertex; ++i)
 							new_data[i] = old_data[i];
 					}
 					nu_attribute_data[iter->first] = VertexData(new_data);
 				}
 			}
 
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); iter++)
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 				if(attrib.type == Float)
@@ -84,7 +84,7 @@ namespace CibraryEngine
 			allocated_size = 0;
 
 			map<string, VertexData> nu_attribute_data;
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); iter++)
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 
@@ -151,7 +151,7 @@ namespace CibraryEngine
 	vector<VertexAttribute> VertexBuffer::GetAttributes()
 	{
 		vector<VertexAttribute> results;
-		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); iter++)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 			results.push_back(iter->second);
 		return results;
 	}
@@ -161,7 +161,7 @@ namespace CibraryEngine
 		vector<VertexAttribute> attribs = GetAttributes();
 
 		int total_size = 0;
-		for(unsigned int i = 0; i < attribs.size(); i++)
+		for(unsigned int i = 0; i < attribs.size(); ++i)
 		{
 			VertexAttribute attrib = attribs[i];
 
@@ -206,7 +206,7 @@ namespace CibraryEngine
 		glBufferData(GL_ARRAY_BUFFER, total_size * num_verts, NULL, GL_STATIC_DRAW);
 
 		int offset = 0;
-		for(unsigned int i = 0; i < attribs.size(); i++)
+		for(unsigned int i = 0; i < attribs.size(); ++i)
 		{
 			VertexAttribute attrib = attribs[i];
 
@@ -247,7 +247,7 @@ namespace CibraryEngine
 
 			multi_tex_names = new string[max_texture_units];
 
-			for(int i = 0; i < max_texture_units; i++)
+			for(int i = 0; i < max_texture_units; ++i)
 			{
 				stringstream ss;
 				ss << "gl_MultiTexCoord" << i;
@@ -272,7 +272,7 @@ namespace CibraryEngine
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
 		int offset = 0;
-		for(unsigned int i = 0; i < attribs.size(); i++)
+		for(unsigned int i = 0; i < attribs.size(); ++i)
 		{
 			VertexAttribute attrib = attribs[i];
 			if(attrib.name.length() >= 3 && attrib.name.substr(0, 3) == "gl_")
@@ -297,7 +297,7 @@ namespace CibraryEngine
 					int max_texture_units;
 					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
 
-					for(int j = 0; j < max_texture_units; j++)
+					for(int j = 0; j < max_texture_units; ++j)
 					{
 						if(attrib.name == multi_tex_names[j])
 						{
@@ -333,7 +333,7 @@ namespace CibraryEngine
 		/*
 		 * Now to put everything back the way we found it...
 		 */
-		for(unsigned int i = 0; i < attribs.size(); i++)
+		for(unsigned int i = 0; i < attribs.size(); ++i)
 		{
 			VertexAttribute attrib = attribs[i];
 			if(attrib.name.length() >= 3 && attrib.name.substr(0, 3) == "gl_")
@@ -348,7 +348,7 @@ namespace CibraryEngine
 				{
 					int max_texture_units;
 					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
-					for(int j = 0; j < max_texture_units; j++)
+					for(int j = 0; j < max_texture_units; ++j)
 					{
 						if(attrib.name == multi_tex_names[j])
 						{

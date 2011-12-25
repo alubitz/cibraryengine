@@ -193,8 +193,8 @@ namespace CibraryEngine
 		float* matrices = new float[array_size * 16];
 
 		int target_index = 0;
-		for(unsigned int i = 0; i < array_size; i++)
-			for(unsigned int j = 0; j < 16; j++)
+		for(unsigned int i = 0; i < array_size; ++i)
+			for(unsigned int j = 0; j < 16; ++j)
 			{
 				float value = (*array)[i].values[j];
 				matrices[target_index++] = value;

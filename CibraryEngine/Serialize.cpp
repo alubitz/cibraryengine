@@ -30,11 +30,7 @@ namespace CibraryEngine
 
 		file.close();
 
-		string str = "";
-		for(unsigned int i = 0; i < buffer.size(); i++)
-			str += buffer[i];
-
-		*result = str;
+		result->assign(&buffer[0], (size_t)size);
 		return 0;
 	}
 
@@ -82,21 +78,21 @@ namespace CibraryEngine
 	{
 		unsigned char size = s.length();
 		WriteByte(size, stream);
-		for(unsigned int i = 0; i < size; i++)
+		for(unsigned int i = 0; i < size; ++i)
 			WriteByte(s[i], stream);
 	}
 	void WriteString4(string s, ostream& stream)
 	{
 		unsigned int size = s.length();
 		WriteUInt32(size, stream);
-		for(unsigned int i = 0; i < size; i++)
+		for(unsigned int i = 0; i < size; ++i)
 			WriteByte(s[i], stream);
 	}
 	string ReadString1(istream& stream)
 	{
 		unsigned char size = ReadByte(stream);
 		string s;
-		for(unsigned int i = 0; i < size; i++)
+		for(unsigned int i = 0; i < size; ++i)
 			s += ReadByte(stream);
 		return s;
 	}
@@ -104,7 +100,7 @@ namespace CibraryEngine
 	{
 		unsigned int size = ReadUInt32(stream);
 		string s;
-		for(unsigned int i = 0; i < size; i++)
+		for(unsigned int i = 0; i < size; ++i)
 			s += ReadByte(stream);
 		return s;
 	}

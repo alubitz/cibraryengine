@@ -30,7 +30,7 @@ namespace CibraryEngine
 			lua_State* GetLuaState();
 
 			int DoFunction(int args, int results);
-			int DoString(string str);
+			int DoString(string& str);
 			int DoFile(string filename);
 
 			bool IsValid();

@@ -40,7 +40,7 @@ namespace CibraryEngine
 		int length = text.length();
 		unsigned char* vals = new unsigned char[length];
 
-		for (int i = 0; i < length; i++)
+		for (int i = 0; i < length; ++i)
 			vals[i] = (unsigned char)text[i];
 
 		glCallLists(length, GL_UNSIGNED_BYTE, &vals[0]);
@@ -82,7 +82,7 @@ namespace CibraryEngine
 		float cy;
 
 		unsigned int first_display_list = glGenLists(256);
-		for (int i = 0; i < 256; i++)
+		for (int i = 0; i < 256; ++i)
 		{
 			cx = (float)(i % 16) / 16.0f;
 			cy = (float)(i / 16) / 16.0f;

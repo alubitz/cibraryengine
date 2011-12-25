@@ -30,6 +30,9 @@
 #define BOOST_THREAD_USE_LIB
 #include <boost/thread.hpp>
 
+#include <boost/unordered/unordered_map.hpp>
+#include <boost/unordered/unordered_set.hpp>
+
 #include <vector>
 #include <list>
 #include <map>

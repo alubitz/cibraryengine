@@ -15,6 +15,7 @@
 namespace CibraryEngine
 {
 	using namespace std;
+	using boost::unordered_map;
 
 	class Texture1D;
 
@@ -151,7 +152,7 @@ namespace CibraryEngine
 		public:
 
 			/** For these bone names, a BoneInfluence may be specified */
-			map<unsigned int, BoneInfluence> bones;
+			unordered_map<unsigned int, BoneInfluence> bones;
 
 			Pose() : active(true), bones() { }
 

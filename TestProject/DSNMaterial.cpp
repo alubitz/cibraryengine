@@ -83,10 +83,10 @@ namespace Test
 		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();
 		if(!shadow)
 		{
-			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
+			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); ++iter)
 			{
 				light_effects[*iter] = vector<DSNMaterialNodeData*>();
-				for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); jter++)
+				for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
 					if ((*iter)->IsWithinLightingRange((*jter)->bs))
 						light_effects[*iter].push_back(*jter);
 			}
@@ -107,12 +107,12 @@ namespace Test
 
 		if(shadow)
 		{
-			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); jter++)
+			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
 				DrawNodeData(*jter, use_shader);
 		}
 		else
 		{
-			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); iter++)
+			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); ++iter)
 			{
 				glPushMatrix();
 				glLoadIdentity();
@@ -122,7 +122,7 @@ namespace Test
 				glPopMatrix();
 				GLDEBUG();
 
-				for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); jter++)
+				for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); ++jter)
 					DrawNodeData(*jter, use_shader);
 
 				(*iter)->UnsetLight(0);

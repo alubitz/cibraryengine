@@ -25,12 +25,12 @@ namespace DestructibleTerrain
 	{
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
-		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; i++)
+		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; ++i)
 			node_data.push_back(TerrainNode());
 
-		for(int x = 0; x < ChunkSize; x++)
-			for(int y = 0; y < ChunkSize; y++)
-				for(int z = 0; z < ChunkSize; z++)
+		for(int x = 0; x < ChunkSize; ++x)
+			for(int y = 0; y < ChunkSize; ++y)
+				for(int z = 0; z < ChunkSize; ++z)
 					tri_data.push_back(CubeTriangles(this, x, y, z));
 	}
 
@@ -135,9 +135,9 @@ namespace DestructibleTerrain
 	// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
 	void TerrainChunk::Solidify()
 	{
-		for(int x = 0; x < ChunkSize; x++)
-			for(int y = 0; y < ChunkSize; y++)
-				for(int z = 0; z < ChunkSize; z++)
+		for(int x = 0; x < ChunkSize; ++x)
+			for(int y = 0; y < ChunkSize; ++y)
+				for(int z = 0; z < ChunkSize; ++z)
 				{
 					int tot = GetNode(x, y, z)->solidity;
 					if(tot == 0 || tot == 255)
@@ -146,9 +146,9 @@ namespace DestructibleTerrain
 					bool solid = GetNode(x, y, z)->IsSolid();
 					bool pass = true;
 
-					for(int xx = x - 1; xx <= x + 1 && pass; xx++)
-						for(int yy = y - 1; yy <= y + 1 && pass; yy++)
-							for(int zz = z - 1; zz <= z + 1 && pass; zz++)
+					for(int xx = x - 1; xx <= x + 1 && pass; ++xx)
+						for(int yy = y - 1; yy <= y + 1 && pass; ++yy)
+							for(int zz = z - 1; zz <= z + 1 && pass; ++zz)
 							{
 								TerrainNode* neighbor = GetNodeRelative(xx, yy, zz);
 								if(neighbor != NULL && neighbor->IsSolid() != solid)
@@ -174,11 +174,11 @@ namespace DestructibleTerrain
 		int min_y = max(0, (int)floor(center.y - max_radius)), max_y = min(ChunkSize - 1, (int)ceil(center.y + max_radius));
 		int min_z = max(0, (int)floor(center.z - max_radius)), max_z = min(ChunkSize - 1, (int)ceil(center.z + max_radius));
 
-		for(int xx = min_x; xx <= max_x; xx++)
+		for(int xx = min_x; xx <= max_x; ++xx)
 		{
-			for(int yy = min_y; yy <= max_y; yy++)
+			for(int yy = min_y; yy <= max_y; ++yy)
 			{
-				for(int zz = min_z; zz <= max_z; zz++)
+				for(int zz = min_z; zz <= max_z; ++zz)
 				{
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
 					Vec3 radius_vec = point - center;
@@ -233,11 +233,11 @@ namespace DestructibleTerrain
 		vector<TerrainVertex> unique_vertices;
 		vector<unsigned int>* vertex_indices = new vector<unsigned int>[vbo_x_span * max_x];
 
-		for(int x = 0; x < max_x; x++)
+		for(int x = 0; x < max_x; ++x)
 		{
-			for(int y = 0; y < max_y; y++)
+			for(int y = 0; y < max_y; ++y)
 			{
-				for(int z = 0; z < max_z; z++)
+				for(int z = 0; z < max_z; ++z)
 				{
 					// find the verts for this one cube
 					CubeTriangles* cube = GetCubeRelative(x, y, z);
@@ -259,7 +259,7 @@ namespace DestructibleTerrain
 						unsigned short int known_mask = 0;
 
 						vector<unsigned int> cube_vertex_indices;
-						for(int i = 0; i < cube_vert_count; i++)
+						for(int i = 0; i < cube_vert_count; ++i)
 						{
 							// find out if this vert is a duplicate of one which has already been assigned an index
 							char index = cube_indices[i];
@@ -271,9 +271,9 @@ namespace DestructibleTerrain
 								bool found = false;
 								unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
 
-								for(int xx = x - 1; xx >= 0 && xx <= x && !found; xx++)						
-									for(int yy = y - 1; yy >= 0 && yy <= y && !found; yy++)
-										for(int zz = z - 1; zz >= 0 && zz <= z && !found; zz++)
+								for(int xx = x - 1; xx >= 0 && xx <= x && !found; ++xx)						
+									for(int yy = y - 1; yy >= 0 && yy <= y && !found; ++yy)
+										for(int zz = z - 1; zz >= 0 && zz <= z && !found; ++zz)
 										{
 											vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
 											for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); ++jter)
@@ -310,15 +310,15 @@ namespace DestructibleTerrain
 		}
 
 		Vec3* normal_vectors = new Vec3[unique_vertices.size()];
-		for(unsigned int i = 0; i < unique_vertices.size(); i++)
+		for(unsigned int i = 0; i < unique_vertices.size(); ++i)
 			normal_vectors[i] = Vec3();
 
 		// go back through them and find the normal vectors (faster than it used to be!)
-		for(int x = 0; x < max_x; x++)
+		for(int x = 0; x < max_x; ++x)
 		{
-			for(int y = 0; y < max_y; y++)
+			for(int y = 0; y < max_y; ++y)
 			{
-				for(int z = 0; z < max_z; z++)
+				for(int z = 0; z < max_z; ++z)
 				{
 					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
@@ -370,11 +370,11 @@ namespace DestructibleTerrain
 			int cmax_z = min(max_z, ChunkSize);
 
 			// now build the actual vbo with the values we computed
-			for(int x = 0; x < cmax_x; x++)
+			for(int x = 0; x < cmax_x; ++x)
 			{
-				for(int y = 0; y < cmax_y; y++)
+				for(int y = 0; y < cmax_y; ++y)
 				{
-					for(int z = 0; z < cmax_z; z++)
+					for(int z = 0; z < cmax_z; ++z)
 					{
 						vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
 
@@ -424,7 +424,7 @@ namespace DestructibleTerrain
 	 */
 	unsigned int TerrainChunk::Write(ostream& stream)
 	{
-		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); iter++)
+		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
 			if(unsigned int node_write_error = iter->Write(stream))
 				return node_write_error;
 		return 0;
@@ -432,7 +432,7 @@ namespace DestructibleTerrain
 
 	unsigned int TerrainChunk::Read(istream& stream)
 	{
-		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); iter++)
+		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
 			if(unsigned int node_read_error = iter->Read(stream))
 				return node_read_error;
 		return 0;

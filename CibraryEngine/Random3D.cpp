@@ -68,7 +68,7 @@ namespace CibraryEngine
 	Quaternion Random3D::RandomQuaternionRotation()
 	{
 		Quaternion temp = Quaternion::Identity();
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 3; ++i)
 		{
 			Vec3 axis = RandomNormalizedVector(1.0f);
 			temp *= Quaternion::FromAxisAngle(axis.x, axis.y, axis.z, Rand((float)(16.0 * M_PI)));

@@ -19,7 +19,7 @@ namespace DestructibleTerrain
 	{
 		int total = 0;
 
-		for(int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; ++i)
 			if(types[i] == mat)
 				total += weights[i];
 		
@@ -35,7 +35,7 @@ namespace DestructibleTerrain
 			if(cur > 0)
 			{
 				// there is already a slot for this material
-				for(int i = 1; i < 4; i++)
+				for(int i = 1; i < 4; ++i)
 					if(types[i] == mat)
 						weights[i] = amount;
 			}
@@ -43,7 +43,7 @@ namespace DestructibleTerrain
 			{
 				// scrap whatever slot has the least stuff in it
 				int min = 0;
-				for(int i = 1; i < 4; i++)
+				for(int i = 1; i < 4; ++i)
 					if(weights[i] < weights[min])
 						min = i;
 				types[min] = mat;
@@ -53,7 +53,7 @@ namespace DestructibleTerrain
 		else if(cur > amount)
 		{
 			// decreasing the amount
-			for(int i = 0; i < 4; i++)
+			for(int i = 0; i < 4; ++i)
 				if(types[i] == mat)
 					weights[i] = amount;
 		}

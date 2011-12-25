@@ -58,7 +58,7 @@ namespace CibraryEngine
 
 		in_string_literal = false;
 
-		for (unsigned int i = 0; i < line.length() && mode != Error; i++)
+		for (unsigned int i = 0; i < line.length() && mode != Error; ++i)
 			ParseChar(line[i]);
 
 		ParseChar('\n');
@@ -299,7 +299,7 @@ namespace CibraryEngine
 	TableParseable* NamedItemDictionaryTableParser::DoOperation(string a, string b)
 	{
 		string lowercase_a = "";
-		for(unsigned int i = 0; i < a.length(); i++)
+		for(unsigned int i = 0; i < a.length(); ++i)
 			lowercase_a += tolower(a[i]);
 		map<string, FieldSetter*>::iterator found = field_setters.find(lowercase_a);
 		if(found != field_setters.end())

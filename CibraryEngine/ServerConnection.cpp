@@ -93,7 +93,7 @@ namespace CibraryEngine
 			if(!disconnected)
 			{
 				string bytes = p.GetBytes();
-				for(unsigned int i = 0; i < bytes.length(); i++)
+				for(unsigned int i = 0; i < bytes.length(); ++i)
 					my_send_handler.bytes[i] = bytes[i];
 
 				self->send = true;
@@ -122,14 +122,14 @@ namespace CibraryEngine
 						unsigned char* my_byte_array = buffer_cast<unsigned char*>(buf);
 
 						vector<unsigned char> packet_bytes(bytes_transferred);
-						for(unsigned int i = 0; i < bytes_transferred; i++)
+						for(unsigned int i = 0; i < bytes_transferred; ++i)
 							packet_bytes[i] = my_byte_array[i];
 
 						Connection::BytesReceivedEvent evt(imp->connection, packet_bytes);
 						imp->connection->BytesReceived(&evt);
 
 						list<ReceivedPacket> received = imp->connection->inbox.Receive(&packet_bytes[0], bytes_transferred);
-						for(list<ReceivedPacket>::iterator iter = received.begin(); iter != received.end(); iter++)
+						for(list<ReceivedPacket>::iterator iter = received.begin(); iter != received.end(); ++iter)
 						{
 							Connection::PacketReceivedEvent evt(imp->connection, *iter);
 							imp->connection->PacketReceived(&evt);
@@ -169,7 +169,7 @@ namespace CibraryEngine
 					if(!error)
 					{
 						vector<unsigned char> sent_bytes(bytes_transferred);
-						for(unsigned int i = 0; i < bytes_transferred; i++)
+						for(unsigned int i = 0; i < bytes_transferred; ++i)
 							sent_bytes[i] = bytes[i];
 
 						Connection::BytesSentEvent evt(imp->connection, sent_bytes);

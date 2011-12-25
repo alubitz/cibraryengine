@@ -36,7 +36,7 @@ namespace CibraryEngine
 	{
 		if(vbos != NULL)
 		{
-			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); iter++)
+			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); ++iter)
 			{
 				VertexBuffer* vbo = iter->vbo;
 
@@ -60,7 +60,7 @@ namespace CibraryEngine
 			// TODO: Put point and edge VBOs into the list too, once support for those is added
 
 			unsigned int num_triangles = triangles.size();
-			for(unsigned int i = 0; i < num_triangles; i++)
+			for(unsigned int i = 0; i < num_triangles; ++i)
 			{
 				Triangle& tri = triangles[i];
 				unsigned int mat = tri.material;
@@ -68,7 +68,7 @@ namespace CibraryEngine
 				VertexBuffer* vbo = NULL;
 
 				// see if there is a VBO with this material already...
-				for(vector<MaterialModelPair>::iterator iter = temp_vbos.begin(); iter != temp_vbos.end(); iter++)
+				for(vector<MaterialModelPair>::iterator iter = temp_vbos.begin(); iter != temp_vbos.end(); ++iter)
 				{
 					if(iter->material_index == mat)
 					{
@@ -128,7 +128,7 @@ namespace CibraryEngine
 	{
 		if(vbos != NULL)
 		{
-			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); iter++)
+			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); ++iter)
 			{
 				iter->vbo->Dispose();
 				delete iter->vbo;
@@ -172,7 +172,7 @@ namespace CibraryEngine
 
 	void UberModel::InnerDispose()
 	{
-		for(unsigned int i = 0; i < lods.size(); i++)
+		for(unsigned int i = 0; i < lods.size(); ++i)
 		{
 			LOD* lod = lods[i];
 
@@ -186,16 +186,16 @@ namespace CibraryEngine
 	{
 		Skeleton* skel = new Skeleton();
 
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 			skel->AddBone(CibraryEngine::Bone::string_table[bones[i].name], bones[i].ori, bones[i].pos);
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			unsigned int parent = bones[i].parent;
 			skel->bones[i]->parent = parent == 0 ? NULL : skel->bones[parent - 1];
 		}
 
 		/*
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			CibraryEngine::Bone* bone = skel->bones[i];
 
@@ -250,7 +250,7 @@ namespace CibraryEngine
 			unsigned int num_vertices = ReadUInt32(ss);
 			lod->vertices.resize(num_vertices);
 
-			for(unsigned int i = 0; i < num_vertices; i++)
+			for(unsigned int i = 0; i < num_vertices; ++i)
 				lod->vertices[i] = ReadVec3(ss);
 		}
 	};
@@ -267,7 +267,7 @@ namespace CibraryEngine
 			unsigned int num_coords = ReadUInt32(ss);
 			lod->texcoords.resize(num_coords);
 
-			for(unsigned int i = 0; i < num_coords; i++)
+			for(unsigned int i = 0; i < num_coords; ++i)
 				lod->texcoords[i] = ReadVec3(ss);
 		}
 	};
@@ -284,7 +284,7 @@ namespace CibraryEngine
 			unsigned int num_norms = ReadUInt32(ss);
 			lod->normals.resize(num_norms);
 
-			for(unsigned int i = 0; i < num_norms; i++)
+			for(unsigned int i = 0; i < num_norms; ++i)
 				lod->normals[i] = ReadVec3(ss);
 		}
 	};
@@ -301,10 +301,10 @@ namespace CibraryEngine
 			unsigned int num_infs = ReadUInt32(ss);
 			lod->bone_influences.resize(num_infs);
 
-			for(unsigned int i = 0; i < num_infs; i++)
+			for(unsigned int i = 0; i < num_infs; ++i)
 			{
 				UberModel::CompactBoneInfluence inf;
-				for(unsigned int k = 0; k < 4; k++)
+				for(unsigned int k = 0; k < 4; ++k)
 				{
 					inf.indices[k] = ReadByte(ss);
 					inf.weights[k] = ReadByte(ss);
@@ -327,7 +327,7 @@ namespace CibraryEngine
 			unsigned int num_points = ReadUInt32(ss);
 			lod->points.resize(num_points);
 
-			for(unsigned int i = 0; i < num_points; i++)
+			for(unsigned int i = 0; i < num_points; ++i)
 			{
 				UberModel::Point point;
 				point.material = ReadUInt32(ss);
@@ -356,7 +356,7 @@ namespace CibraryEngine
 			unsigned int num_edges = ReadUInt32(ss);
 			lod->edges.resize(num_edges);
 
-			for(unsigned int i = 0; i < num_edges; i++)
+			for(unsigned int i = 0; i < num_edges; ++i)
 			{
 				UberModel::Edge edge;
 				edge.material = ReadUInt32(ss);
@@ -391,7 +391,7 @@ namespace CibraryEngine
 			unsigned int num_tris = ReadUInt32(ss);
 			lod->triangles.resize(num_tris);
 
-			for(unsigned int i = 0; i < num_tris; i++)
+			for(unsigned int i = 0; i < num_tris; ++i)
 			{
 				UberModel::Triangle tri;
 				tri.material = ReadUInt32(ss);
@@ -443,7 +443,7 @@ namespace CibraryEngine
 
 			unsigned int num_vertices = lod->vertices.size();
 			WriteUInt32(num_vertices, vert_ss);
-			for(unsigned int j = 0; j < num_vertices; j++)
+			for(unsigned int j = 0; j < num_vertices; ++j)
 				WriteVec3(lod->vertices[j], vert_ss);
 			vert_chunk.data = vert_ss.str();
 			vert_chunk.Write(ss);
@@ -456,7 +456,7 @@ namespace CibraryEngine
 
 			unsigned int num_texcoords = lod->texcoords.size();
 			WriteUInt32(num_texcoords, tex_ss);
-			for(unsigned int j = 0; j < num_texcoords; j++)
+			for(unsigned int j = 0; j < num_texcoords; ++j)
 				WriteVec3(lod->texcoords[j], tex_ss);
 			texc_chunk.data = tex_ss.str();
 			texc_chunk.Write(ss);
@@ -469,7 +469,7 @@ namespace CibraryEngine
 
 			unsigned int num_normals = lod->normals.size();
 			WriteUInt32(num_normals, norm_ss);
-			for(unsigned int j = 0; j < num_normals; j++)
+			for(unsigned int j = 0; j < num_normals; ++j)
 				WriteVec3(lod->normals[j], norm_ss);
 			norm_chunk.data = norm_ss.str();
 			norm_chunk.Write(ss);
@@ -482,10 +482,10 @@ namespace CibraryEngine
 
 			unsigned int num_bone_infs = lod->bone_influences.size();
 			WriteUInt32(num_bone_infs, bone_ss);
-			for(unsigned int j = 0; j < num_bone_infs; j++)
+			for(unsigned int j = 0; j < num_bone_infs; ++j)
 			{
 				UberModel::CompactBoneInfluence& inf = lod->bone_influences[j];
-				for(unsigned int k = 0; k < 4; k++)
+				for(unsigned int k = 0; k < 4; ++k)
 				{
 					WriteByte(inf.indices[k], bone_ss);
 					WriteByte(inf.weights[k], bone_ss);
@@ -502,7 +502,7 @@ namespace CibraryEngine
 
 			unsigned int num_points = lod->points.size();
 			WriteUInt32(num_points, point_ss);
-			for(unsigned int j = 0; j < num_points; j++)
+			for(unsigned int j = 0; j < num_points; ++j)
 			{
 				UberModel::Point& point = lod->points[j];
 				WriteUInt32(point.material, point_ss);
@@ -521,7 +521,7 @@ namespace CibraryEngine
 
 			unsigned int num_edges = lod->edges.size();
 			WriteUInt32(num_edges, edge_ss);
-			for(unsigned int j = 0; j < num_edges; j++)
+			for(unsigned int j = 0; j < num_edges; ++j)
 			{
 				UberModel::Edge& edge = lod->edges[j];
 				WriteUInt32(edge.material, edge_ss);
@@ -543,7 +543,7 @@ namespace CibraryEngine
 
 			unsigned int num_triangles = lod->triangles.size();
 			WriteUInt32(num_triangles, tri_ss);
-			for(unsigned int j = 0; j < num_triangles; j++)
+			for(unsigned int j = 0; j < num_triangles; ++j)
 			{
 				UberModel::Triangle& tri = lod->triangles[j];
 				WriteUInt32(tri.material, tri_ss);
@@ -571,11 +571,11 @@ namespace CibraryEngine
 		if(bounding_sphere.radius < 0)
 		{
 			bool first = true;
-			for(unsigned int i = 0; i < lods.size(); i++)
+			for(unsigned int i = 0; i < lods.size(); ++i)
 			{
 				LOD* lod = lods[i];
 				unsigned int num_verts = lod->vertices.size();
-				for(unsigned int j = 0; j < num_verts; j++)
+				for(unsigned int j = 0; j < num_verts; ++j)
 				{
 					if(first)
 					{
@@ -604,7 +604,7 @@ namespace CibraryEngine
 			istringstream ss(chunk.data);
 
 			unsigned int num_lods = ReadUInt32(ss);
-			for(unsigned int i = 0; i < num_lods; i++)
+			for(unsigned int i = 0; i < num_lods; ++i)
 			{
 				BinaryChunk lod_chunk;
 				lod_chunk.Read(ss);
@@ -653,12 +653,12 @@ namespace CibraryEngine
 			unsigned int num_mats = ReadUInt32(ss);
 			model->materials.resize(num_mats);
 
-			for(unsigned int i = 0; i < num_mats; i++)
+			for(unsigned int i = 0; i < num_mats; ++i)
 			{
 				unsigned int mat_name_len = ReadUInt32(ss);
 
 				string mat_name;
-				for(unsigned int j = 0; j < mat_name_len; j++)
+				for(unsigned int j = 0; j < mat_name_len; ++j)
 					mat_name += ReadByte(ss);
 
 				model->materials[i] = mat_name;
@@ -678,7 +678,7 @@ namespace CibraryEngine
 			unsigned int num_bones = ReadUInt32(ss);
 			model->bones.resize(num_bones);
 
-			for(unsigned int i = 0; i < num_bones; i++)
+			for(unsigned int i = 0; i < num_bones; ++i)
 			{
 				UberModel::Bone bone;
 
@@ -704,13 +704,13 @@ namespace CibraryEngine
 			unsigned int num_phys = ReadUInt32(ss);
 			model->bone_physics.resize(num_phys);
 
-			for(unsigned int i = 0; i < num_phys; i++)
+			for(unsigned int i = 0; i < num_phys; ++i)
 			{
 				UberModel::BonePhysics phys;
 
 				unsigned int bone_name_len = ReadUInt32(ss);
 				phys.bone_name = "";
-				for(unsigned int j = 0; j < bone_name_len; j++)
+				for(unsigned int j = 0; j < bone_name_len; ++j)
 					phys.bone_name += ReadByte(ss);
 
 				phys.shape = ReadCollisionShape(ss);
@@ -748,7 +748,7 @@ namespace CibraryEngine
 			unsigned int num_specials = ReadUInt32(ss);
 			model->specials.resize(num_specials);
 
-			for(unsigned int i = 0; i < num_specials; i++)
+			for(unsigned int i = 0; i < num_specials; ++i)
 			{
 				UberModel::Special special;
 
@@ -769,7 +769,7 @@ namespace CibraryEngine
 
 				unsigned int info_len = ReadUInt32(ss);
 				string info;
-				for(unsigned int j = 0; j < info_len; j++)
+				for(unsigned int j = 0; j < info_len; ++j)
 					info += ReadByte(ss);
 
 				special.info = info;
@@ -815,7 +815,7 @@ namespace CibraryEngine
 		}
 
 		if(model != NULL)
-			for(unsigned int i = 0; i < model->materials.size(); i++)
+			for(unsigned int i = 0; i < model->materials.size(); ++i)
 				man->GetCache<Material>()->Load(model->materials[i]);
 
 		return model;
@@ -882,7 +882,7 @@ namespace CibraryEngine
 			BinaryChunk lods_chunk("LODS____");
 			stringstream lods_ss;
 			WriteUInt32(lods_count, lods_ss);
-			for(unsigned int i = 0; i < lods_count; i++)
+			for(unsigned int i = 0; i < lods_count; ++i)
 				WriteLOD(model->lods[i], lods_ss);
 			lods_chunk.data = lods_ss.str();
 			lods_chunk.Write(ss);
@@ -894,7 +894,7 @@ namespace CibraryEngine
 			BinaryChunk mats_chunk("MAT_____");
 			stringstream mat_ss;
 			WriteUInt32(mats_count, mat_ss);
-			for(unsigned int i = 0; i < mats_count; i++)
+			for(unsigned int i = 0; i < mats_count; ++i)
 				WriteString4(model->materials[i], mat_ss);
 			mats_chunk.data = mat_ss.str();
 			mats_chunk.Write(ss);
@@ -906,7 +906,7 @@ namespace CibraryEngine
 			BinaryChunk bones_chunk("BONE____");
 			stringstream bone_ss;
 			WriteUInt32(bone_count, bone_ss);
-			for(unsigned int i = 0; i < bone_count; i++)
+			for(unsigned int i = 0; i < bone_count; ++i)
 			{
 				UberModel::Bone& bone = model->bones[i];
 				WriteString4(bone.name, bone_ss);
@@ -924,7 +924,7 @@ namespace CibraryEngine
 			BinaryChunk phys_chunk("BPHYS___");
 			stringstream phys_ss;
 			WriteUInt32(phys_count, phys_ss);
-			for(unsigned int i = 0; i < phys_count; i++)
+			for(unsigned int i = 0; i < phys_count; ++i)
 			{
 				UberModel::BonePhysics& phys = model->bone_physics[i];
 				WriteString4(phys.bone_name, phys_ss);
@@ -944,7 +944,7 @@ namespace CibraryEngine
 			BinaryChunk special_chunk("SPC_____");
 			stringstream spc_ss;
 			WriteUInt32(special_count, spc_ss);
-			for(unsigned int i = 0; i < special_count; i++)
+			for(unsigned int i = 0; i < special_count; ++i)
 			{
 				UberModel::Special& spc = model->specials[i];
 				WriteVec3(spc.pos, spc_ss);
@@ -980,14 +980,14 @@ namespace CibraryEngine
 		AddSkinnedModel(uber, skinny, "LOD 0");
 
 		vector<Bone*>& bones = skinny->skeleton->bones;
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			UberModel::Bone bone;
 			bone.name = bones[i]->name;
 			bone.pos = bones[i]->rest_pos;
 			bone.ori = bones[i]->rest_ori;
 			bone.parent = 0;
-			for(unsigned int j = 0; j < bones.size(); j++)
+			for(unsigned int j = 0; j < bones.size(); ++j)
 				if(bones[j] == bones[i]->parent)
 				{
 					bone.parent = j + 1;
@@ -1005,7 +1005,7 @@ namespace CibraryEngine
 		unsigned int initial_material = uber->materials.size();
 		UberModel::LOD* lod = new UberModel::LOD();
 
-		for(unsigned int i = 0; i < skinny->material_model_pairs.size(); i++)
+		for(unsigned int i = 0; i < skinny->material_model_pairs.size(); ++i)
 		{
 			MaterialModelPair& pair = skinny->material_model_pairs[i];
 			VertexBuffer* vbo = pair.vbo;
@@ -1015,7 +1015,7 @@ namespace CibraryEngine
 				UberModel::Triangle triangle;
 				triangle.material = pair.material_index + initial_material;
 
-				for(int corner = 0; corner < 3; corner++, j++)
+				for(int corner = 0; corner < 3; corner++, ++j)
 				{
 					UberModel::VTN& corner_vtn = corner == 0 ? triangle.a : corner == 1 ? triangle.b : triangle.c;
 
@@ -1024,7 +1024,7 @@ namespace CibraryEngine
 					unsigned int k;
 
 					Vec3 x = vinfo.x;
-					for(k = 0; k < lod->vertices.size(); k++)
+					for(k = 0; k < lod->vertices.size(); ++k)
 						if(lod->vertices[k] == x)
 							break;
 					k = lod->vertices.size();
@@ -1034,7 +1034,7 @@ namespace CibraryEngine
 
 						// this doesn't exist in the plain VTN version
 						UberModel::CompactBoneInfluence inf;
-						for(int windex = 0; windex < 4; windex++)
+						for(int windex = 0; windex < 4; ++windex)
 						{
 							inf.indices[windex] = vinfo.indices[windex];
 							inf.weights[windex] = vinfo.weights[windex];
@@ -1044,7 +1044,7 @@ namespace CibraryEngine
 					corner_vtn.v = k;
 
 					Vec3 uvw = vinfo.uvw;
-					for(k = 0; k < lod->texcoords.size(); k++)
+					for(k = 0; k < lod->texcoords.size(); ++k)
 						if(lod->texcoords[k] == uvw)
 							break;
 					k = lod->texcoords.size();
@@ -1053,7 +1053,7 @@ namespace CibraryEngine
 					corner_vtn.t = k;
 
 					Vec3 n = vinfo.n;
-					for(k = 0; k < lod->normals.size(); k++)
+					for(k = 0; k < lod->normals.size(); ++k)
 						if(lod->normals[k] == n)
 							break;
 					k = lod->normals.size();
@@ -1067,7 +1067,7 @@ namespace CibraryEngine
 		}
 		uber->lods.push_back(lod);
 
-		for(unsigned int i = 0; i < skinny->material_names.size(); i++)
+		for(unsigned int i = 0; i < skinny->material_names.size(); ++i)
 			uber->materials.push_back(skinny->material_names[i]);
 	}
 }

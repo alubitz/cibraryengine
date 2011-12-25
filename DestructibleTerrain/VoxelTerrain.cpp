@@ -24,9 +24,9 @@ namespace DestructibleTerrain
 		dim[2] = dim_z;
 		x_span = dim_y * dim_z;
 
-		for(int x = 0; x < dim_x; x++)
-			for(int y = 0; y < dim_y; y++)
-				for(int z = 0; z < dim_z; z++)
+		for(int x = 0; x < dim_x; ++x)
+			for(int y = 0; y < dim_y; ++y)
+				for(int z = 0; z < dim_z; ++z)
 					chunks.push_back(new TerrainChunk(material, this, x, y, z));
 	}
 
@@ -145,9 +145,9 @@ namespace DestructibleTerrain
 		WriteUInt32(terrain->dim[1], ss);
 		WriteUInt32(terrain->dim[2], ss);
 
-		for(int x = 0; x < terrain->dim[0]; x++)
-			for(int y = 0; y < terrain->dim[1]; y++)
-				for(int z = 0; z < terrain->dim[2]; z++)
+		for(int x = 0; x < terrain->dim[0]; ++x)
+			for(int y = 0; y < terrain->dim[1]; ++y)
+				for(int z = 0; z < terrain->dim[2]; ++z)
 					if(unsigned int chunk_write_error = terrain->Chunk(x, y, z)->Write(ss))
 						return chunk_write_error + 2;
 
@@ -182,9 +182,9 @@ namespace DestructibleTerrain
 
 		VoxelTerrain* temp = new VoxelTerrain(material, dim_x, dim_y, dim_z);
 
-		for(unsigned int x = 0; x < dim_x; x++)
-			for(unsigned int y = 0; y < dim_y; y++)
-				for(unsigned int z = 0; z < dim_x; z++)
+		for(unsigned int x = 0; x < dim_x; ++x)
+			for(unsigned int y = 0; y < dim_y; ++y)
+				for(unsigned int z = 0; z < dim_x; ++z)
 					if(unsigned int chunk_read_error = temp->Chunk(x, y, z)->Read(ss))
 					{
 						delete temp;
@@ -214,9 +214,9 @@ namespace DestructibleTerrain
 
 		const int center_y = dim_y / 2;				// center point for terrain elevation
 
-		for(int x = 0; x < dim_x; x++)
-			for(int y = 0; y < dim_y; y++)
-				for(int z = 0; z < dim_z; z++)
+		for(int x = 0; x < dim_x; ++x)
+			for(int y = 0; y < dim_y; ++y)
+				for(int z = 0; z < dim_z; ++z)
 				{
 					TerrainChunk* chunk = *(iter++);
 

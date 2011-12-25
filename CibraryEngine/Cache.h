@@ -85,7 +85,7 @@ namespace CibraryEngine
 
 	template <class T> ContentHandle<T> Cache<T>::GetHandle(string name)
 	{
-		for(map<unsigned int, MetaDataPair>::iterator iter = content.begin(); iter != content.end(); iter++)
+		for(map<unsigned int, MetaDataPair>::iterator iter = content.begin(); iter != content.end(); ++iter)
 			if(iter->second.meta.name == name)
 				return ContentHandle<T>(this, iter->first);
 

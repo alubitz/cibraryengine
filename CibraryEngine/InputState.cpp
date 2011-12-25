@@ -19,9 +19,9 @@ namespace CibraryEngine
 	 */
 	InputState::InputState() : mouse_rect_valid(false), reset_mouse(false), KeyStateChanged(), MouseButtonStateChanged(), MouseMoved()
 	{
-		for(int i = 0; i < 1024; i++)
+		for(int i = 0; i < 1024; ++i)
 			keys[i] = false;
-		for(int i = 0; i < 3; i++)
+		for(int i = 0; i < 3; ++i)
 			mb[i] = false;
 	}
 

@@ -26,7 +26,7 @@ namespace Test
 	{
 		btTriangleMesh* mesh = new btTriangleMesh();
 		mesh->m_weldingThreshold = 0.05f;
-		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
+		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); ++iter)
 		{
 			VertexBuffer* vbo = iter->vbo;
 

@@ -24,7 +24,7 @@ namespace Test
 		{
 			BillboardMaterial* b_mat = ((TestGame*)corpse->game_state)->blood_billboard;
 
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 8; ++i)
 			{
 				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, b_mat, Random3D::Rand(0.05f, 0.15f), 0.25f);
 				p->gravity = 9.8f;
@@ -107,7 +107,7 @@ namespace Test
 			character->active_poses.clear();
 			dood->character = NULL;
 
-			for(unsigned int i = 0; i < model->materials.size(); i++)
+			for(unsigned int i = 0; i < model->materials.size(); ++i)
 			{
 				string material_name = model->materials[i];
 				DSNMaterial* mat = (DSNMaterial*)((TestGame*)gs)->mat_cache->Load(material_name);
@@ -119,7 +119,7 @@ namespace Test
 		{
 			DeSpawned();
 
-			for(unsigned int i = 0; i < shootables.size(); i++)
+			for(unsigned int i = 0; i < shootables.size(); ++i)
 				delete shootables[i];
 			shootables.clear();
 
@@ -139,7 +139,7 @@ namespace Test
 			{
 				origin = rigid_bodies[0]->GetTransformationMatrix().TransformVec3(0, 0, 0, 1);
 
-				for(unsigned int i = 0; i < rigid_bodies.size(); i++)
+				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
 					RigidBodyInfo* body = rigid_bodies[i];
 					Bone* bone = character->skeleton->bones[i];
@@ -171,7 +171,7 @@ namespace Test
 			// get bone pos/ori info
 			vector<Mat4> mats = vector<Mat4>();
 			unsigned int count = character->skeleton->bones.size();
-			for(unsigned int i = 0; i < count; i++)	
+			for(unsigned int i = 0; i < count; ++i)	
 			{
 				Bone* bone = character->skeleton->bones[i];
 
@@ -184,7 +184,7 @@ namespace Test
 			float total_mass = 0;
 
 			// create rigid bodies
-			for(unsigned int i = 0; i < count; i++)
+			for(unsigned int i = 0; i < count; ++i)
 			{
 				Bone* bone = character->skeleton->bones[i];
 
@@ -195,7 +195,7 @@ namespace Test
 				Vec3 bone_pos = mat.TransformVec3(bone_offsets[i], 1);
 
 				UberModel::BonePhysics* phys = NULL;
-				for(unsigned int j = 0; j < model->bone_physics.size(); j++)
+				for(unsigned int j = 0; j < model->bone_physics.size(); ++j)
 					if(Bone::string_table[model->bone_physics[j].bone_name] == bone->name)
 						phys = &model->bone_physics[j];
 
@@ -239,7 +239,7 @@ namespace Test
 			}
 
 			// create constraints between bones
-			for(unsigned int i = 0; i < count; i++)
+			for(unsigned int i = 0; i < count; ++i)
 			{
 				UberModel::BonePhysics* phys = bone_physes[i];
 				if(phys != NULL)
@@ -250,7 +250,7 @@ namespace Test
 					if(parent != NULL)
 					{
 						// find index of parent (bone's index is the same as rigid body info's index)
-						for(unsigned int j = 0; j < count; j++)
+						for(unsigned int j = 0; j < count; ++j)
 						{
 							if(character->skeleton->bones[j] == parent)
 							{
@@ -275,7 +275,7 @@ namespace Test
 			}
 
 			// emancipate bones
-			for(unsigned int i = 0; i < count; i++)
+			for(unsigned int i = 0; i < count; ++i)
 			{
 				Bone* bone = character->skeleton->bones[i];
 				bone->parent = NULL;									// orientation and position are no longer relative to a parent!
@@ -290,7 +290,7 @@ namespace Test
 		void DeSpawned()
 		{
 			// clear constraints
-			for(unsigned int i = 0; i < constraints.size(); i++)
+			for(unsigned int i = 0; i < constraints.size(); ++i)
 			{
 				btTypedConstraint* c = constraints[i];
 				physics->dynamics_world->removeConstraint(c);
@@ -300,7 +300,7 @@ namespace Test
 			constraints.clear();
 
 			// clear rigid bodies
-			for(unsigned int i = 0; i < rigid_bodies.size(); i++)
+			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 			{
 				RigidBodyInfo* body = rigid_bodies[i];
 				if(physics != NULL)
@@ -322,7 +322,7 @@ namespace Test
 			{
 				unsigned int i;
 				unsigned int n = rigid_bodies.size();
-				for(i = 0; i < n; i++)
+				for(i = 0; i < n; ++i)
 				{
 					RigidBodyInfo* r = rigid_bodies[i];
 					if(r->body->getActivationState() != ISLAND_SLEEPING)
@@ -330,10 +330,10 @@ namespace Test
 				}
 				if(i == n)
 				{
-					for(i = 0; i < n; i++)
+					for(i = 0; i < n; ++i)
 						rigid_bodies[i]->body->setCollisionFlags(btCollisionObject::CF_STATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
 					// clear constraints
-					for(i = 0; i < constraints.size(); i++)
+					for(i = 0; i < constraints.size(); ++i)
 					{
 						btTypedConstraint* c = constraints[i];
 						physics->dynamics_world->removeConstraint(c);

@@ -88,7 +88,7 @@ namespace Test
 		int n = 2;										// number of verts in the above array; if you change that, change this!
 
 		// transform screen-space coords to world-space, and flatten onto plane
-		for(int i = 0; i < n; i++)
+		for(int i = 0; i < n; ++i)
 		{
 			verts[i] = inv_camera_matrix.TransformVec3(verts[i], 1.0f);
 			verts[i] -= light_dir * Vec3::Dot(verts[i], light_dir);

@@ -27,15 +27,15 @@ namespace CibraryEngine
 		EntityList result = EntityList();
 
 		// add all of the smaller list
-		for(unsigned int i = 0; i < smaller_size; i++)
+		for(unsigned int i = 0; i < smaller_size; ++i)
 			result.entities.push_back(smaller.entities[i]);
 
 		// add whatever of the bigger list is not in the smaller list
-		for(unsigned int i = 0; i < bigger_size; i++)
+		for(unsigned int i = 0; i < bigger_size; ++i)
 		{
 			Entity* ent = bigger.entities[i];
 			unsigned int j;
-			for(j = 0; j < smaller_size; j++)
+			for(j = 0; j < smaller_size; ++j)
 				if(smaller.entities[j] == ent)
 					break;
 			if(j == smaller_size)
@@ -51,10 +51,10 @@ namespace CibraryEngine
 
 		unsigned int a_size = a.entities.size(), b_size = b.entities.size();
 
-		for(unsigned int i = 0; i < a_size; i++)
+		for(unsigned int i = 0; i < a_size; ++i)
 		{
 			Entity* ent = a.entities[i];
-			for(unsigned int j = 0; j < b_size; j++)
+			for(unsigned int j = 0; j < b_size; ++j)
 				if(b.entities[j] == ent)
 				{
 					result.entities.push_back(ent);
@@ -70,11 +70,11 @@ namespace CibraryEngine
 		EntityList result = EntityList();
 
 		unsigned int a_size = a.entities.size(), b_size = b.entities.size();
-		for(unsigned int i = 0; i < a_size; i++)
+		for(unsigned int i = 0; i < a_size; ++i)
 		{
 			Entity* ent = a.entities[i];
 			unsigned int j;
-			for(j = 0; j < b_size; j++)
+			for(j = 0; j < b_size; ++j)
 				if(b.entities[j] == ent)
 					break;
 			if(j == b_size)

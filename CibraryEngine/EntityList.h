@@ -39,7 +39,7 @@ namespace CibraryEngine
 			EntityList FindAll(EntityQualifier& p)
 			{
 				EntityList result = EntityList();
-				for(unsigned int i = 0; i < entities.size(); i++)
+				for(unsigned int i = 0; i < entities.size(); ++i)
 					if(p.Accept(entities[i]))
 						result.entities.push_back(entities[i]);
 				return result;

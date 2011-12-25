@@ -26,7 +26,7 @@ namespace CibraryEngine
 
 	void SoundSystem::InnerDispose()
 	{
-		for(list<SoundSource*>::iterator iter = sources.begin(); iter != sources.end(); iter++)
+		for(list<SoundSource*>::iterator iter = sources.begin(); iter != sources.end(); ++iter)
 		{
 			SoundSource* source = *iter;
 			source->Dispose();
@@ -100,7 +100,7 @@ namespace CibraryEngine
 				iter = sources.erase(iter);
 			}
 			else
-				iter++;
+				++iter;
 		}
 
 		CheckForALErrors();
@@ -108,7 +108,7 @@ namespace CibraryEngine
 
 	void SoundSystem::StopAll()
 	{
-		for(list<SoundSource*>::iterator iter = sources.begin(); iter != sources.end(); iter++)
+		for(list<SoundSource*>::iterator iter = sources.begin(); iter != sources.end(); ++iter)
 		{
 			SoundSource* source = *iter;
 			source->Dispose();

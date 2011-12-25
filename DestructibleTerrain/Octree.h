@@ -24,7 +24,7 @@ namespace DestructibleTerrain
 			min_xyz(min), 
 			max_xyz(max) 
 		{ 
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
 		}
 		
@@ -34,7 +34,7 @@ namespace DestructibleTerrain
 			min_xyz(min), 
 			max_xyz(max) 
 		{
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
 		}
 		
@@ -44,13 +44,13 @@ namespace DestructibleTerrain
 			min_xyz(min), 
 			max_xyz(max) 
 		{
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
 		}
 
 		~Octree()
 		{
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 			if(children[i] != NULL)
 			{
 				delete children[i];
@@ -61,7 +61,7 @@ namespace DestructibleTerrain
 		/** Determine whether this node is a leaf node (i.e. it has no children) */
 		bool IsLeaf()
 		{
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				if(children[i] != NULL)
 					return false;
 			return true;
@@ -91,7 +91,7 @@ namespace DestructibleTerrain
 
 			if(levels > 1)
 			{
-				for(int i = 0; i < 8; i++)
+				for(int i = 0; i < 8; ++i)
 					children[i]->Split(levels - 1);
 			}
 
@@ -129,7 +129,7 @@ namespace DestructibleTerrain
 		{
 			int max = 0;
 
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				if(children[i] != NULL)
 					max = max(max, children[i]->GetMaxChildDepth());
 
@@ -142,7 +142,7 @@ namespace DestructibleTerrain
 			if(depth <= 0)
 				return true;
 
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				if(children[i] != NULL)
 					if(children[i]->AnyChildrenAtDepth(depth - 1))
 						return true;
@@ -156,7 +156,7 @@ namespace DestructibleTerrain
 			if(depth <= 0)
 				return true;
 
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				if(children[i] == NULL)
 					return false;
 				else if(!children[i]->AllChildrenAtDepth(depth - 1))
@@ -167,7 +167,7 @@ namespace DestructibleTerrain
 
 		template <class U> void ForEach(U& action)
 		{
-			for(int i = 0; i < 8; i++)
+			for(int i = 0; i < 8; ++i)
 				if(children[i] != NULL)
 					action(children[i]);
 		}

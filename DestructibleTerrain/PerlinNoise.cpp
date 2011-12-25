@@ -14,12 +14,12 @@ namespace DestructibleTerrain
 	{
 		int n_unique = 256;							// there only need to be this many unique gradients
 		Vec3* unique_gradients = new Vec3[n_unique];
-		for(int i = 0; i < n_unique; i++)
+		for(int i = 0; i < n_unique; ++i)
 			unique_gradients[i] = Random3D::RandomNormalizedVector(1.0f);
 
 		int n = res * res * res;
 		gradients = new Vec3[n];
-		for(int i = 0; i < n; i++)
+		for(int i = 0; i < n; ++i)
 			gradients[i] = unique_gradients[Random3D::RandInt(n_unique)];
 
 		if(tileable)
@@ -29,19 +29,19 @@ namespace DestructibleTerrain
 			int rm1_res = res_minus_one * res;
 			int rm1_xs = res_minus_one * x_span;
 
-			for(int x = 0; x < res; x++)
+			for(int x = 0; x < res; ++x)
 			{
 				int xx = x * x_span;
 
-				for(int y = 0; y < res; y++)
+				for(int y = 0; y < res; ++y)
 					gradients[xx + y * res] = gradients[xx + y * res + res_minus_one];
-				for(int z = 0; z < res; z++)
+				for(int z = 0; z < res; ++z)
 					gradients[xx + z] = gradients[xx + rm1_res + z];
 			}
-			for(int y = 0; y < res; y++)
+			for(int y = 0; y < res; ++y)
 			{
 				int yy = y * res;
-				for(int z = 0; z < res; z++)
+				for(int z = 0; z < res; ++z)
 					gradients[yy + z] = gradients[rm1_xs + yy + z];
 			}
 		}

@@ -35,7 +35,7 @@ namespace Test
 		ammogauge_tex = game->tex2d_cache->Load("ammogauge");
 		jumpbar_tex = game->tex2d_cache->Load("jumpbar");
 
-		for(int i = 0; i < 8; i++)
+		for(int i = 0; i < 8; ++i)
 			directional_damage.push_back(0.0);
 	}
 
@@ -304,7 +304,7 @@ namespace Test
 
 		int ring_steps = 128;
 		float ring_coeff = M_PI * 2.0f / ring_steps;
-		for (int i = 0; i <= ring_steps; i++)
+		for (int i = 0; i <= ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
 			glVertex2f(cos(theta), sin(theta));
@@ -320,7 +320,7 @@ namespace Test
 
 		int fan_steps = 32;
 		float fan_coeff = M_PI * 0.25f / fan_steps;
-		for (int i = -fan_steps; i <= fan_steps; i++)
+		for (int i = -fan_steps; i <= fan_steps; ++i)
 		{
 			float theta = i * fan_coeff + player->yaw + M_PI * 0.5f;
 			glVertex2f(cosf(theta), sinf(theta));
@@ -338,7 +338,7 @@ namespace Test
 
 		struct : EntityQualifier { bool Accept(Entity* ent) { return (dynamic_cast<Dood*>(ent)) != NULL; } } predicate;
 		EntityList doods = game->GetQualifyingEntities(predicate);
-		for(unsigned int i = 0; i < doods.Count(); i++)
+		for(unsigned int i = 0; i < doods.Count(); ++i)
 		{
 			Dood* dood = (Dood*)doods[i];
 
@@ -371,7 +371,7 @@ namespace Test
 		glColor4f(0.5, 0.5, 1.0, 0.5);
 
 		glBegin(GL_LINE_LOOP);
-		for (int i = 0; i < ring_steps; i++)
+		for (int i = 0; i < ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
 			glVertex2f(cos(theta), sin(theta));
@@ -594,7 +594,7 @@ namespace Test
 			hud_flash_timer = 0.08f;
 		}
 
-		for (unsigned int i = 0; i < directional_damage.size(); i++)
+		for (unsigned int i = 0; i < directional_damage.size(); ++i)
 			directional_damage[i] = max(0.0f, directional_damage[i] - timestep);
 	}
 
@@ -620,7 +620,7 @@ namespace Test
 
 		float mag = from_direction.ComputeMagnitude();
 		if (mag == 0)
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 8; ++i)
 				hud->directional_damage[i] = 1.0;
 		else
 		{
@@ -629,7 +629,7 @@ namespace Test
 			Vec3 forward = Vec3(-sin(hud->player->yaw), 0, cos(hud->player->yaw));
 			Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 8; ++i)
 			{
 				float theta = (i + 5) * M_PI * 2.0f / 8.0f;           // 8 is the number of steps in our "circle"
 				Vec3 vec = rightward * cosf(theta) - forward * sinf(theta);

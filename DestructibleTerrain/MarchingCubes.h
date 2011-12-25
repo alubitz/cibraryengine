@@ -71,7 +71,7 @@ namespace DestructibleTerrain
 			target[11] = InterpolateVertex<O>(isolevel, grid[3], grid[7]);
 
 		const char* vert_indices = &tri_table[classification][0];
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			if((indices[i] = vert_indices[i]) == -1)
 				break;
 	}

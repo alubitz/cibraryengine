@@ -25,7 +25,7 @@ namespace CibraryEngine
 	{
 		string result;
 		unsigned int len = max(data.length() - 4, 0);
-		for(unsigned int i = 0; i < len; i++)
+		for(unsigned int i = 0; i < len; ++i)
 			result += data[i + 4];
 
 		return result;
@@ -36,12 +36,12 @@ namespace CibraryEngine
 		if (data.length() >= 12)
         {
             type = string();
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 8; ++i)
                 type += data[i + 4];
 
 			unsigned int len = data.size() - 12;
             out_data = string();
-			for(unsigned int i = 0; i < len; i++)
+			for(unsigned int i = 0; i < len; ++i)
 				out_data += data[i + 12];
 
             return true;
@@ -55,7 +55,7 @@ namespace CibraryEngine
 		stringstream ss;
 
 		WriteUInt32(data.size(), ss);
-		for(unsigned int i = 0; i < data.length(); i++)
+		for(unsigned int i = 0; i < data.length(); ++i)
 			WriteByte(data[i], ss);
 
         return Packet(ss.str());
@@ -76,9 +76,9 @@ namespace CibraryEngine
 		stringstream ss;
 		
 		WriteUInt32(len + 8, ss);
-		for(unsigned int i = 0; i < 8; i++)
+		for(unsigned int i = 0; i < 8; ++i)
 			WriteByte(type[i], ss);
-		for(unsigned int i = 0; i < len; i++)
+		for(unsigned int i = 0; i < len; ++i)
 			WriteByte(data[i], ss);
 
         return Packet(ss.str());

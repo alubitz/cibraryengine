@@ -22,7 +22,7 @@ namespace CibraryEngine
 
 		vector<unsigned char> result = vector<unsigned char>();
 		result.resize(size);
-		for(unsigned int i = 0; i < size; i++)
+		for(unsigned int i = 0; i < size; ++i)
 			result[i] = byte_data[i];
 
 		image = result;			// save the actual copy for last

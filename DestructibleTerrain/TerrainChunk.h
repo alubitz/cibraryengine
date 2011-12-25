@@ -79,9 +79,9 @@ namespace DestructibleTerrain
 
 	template <class T> void TerrainChunk::PopulateValues(T t) 
 	{
-		for(int x = 0; x < ChunkSize; x++)
-			for(int y = 0; y < ChunkSize; y++)
-				for(int z = 0; z < ChunkSize; z++)
+		for(int x = 0; x < ChunkSize; ++x)
+			for(int y = 0; y < ChunkSize; ++y)
+				for(int z = 0; z < ChunkSize; ++z)
 					*GetNode(x, y, z) = t(x, y, z);
 	}
 }

@@ -28,7 +28,7 @@ namespace CibraryEngine
 
 	void PhysicsWorld::InnerDispose()
 	{
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); iter++)
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 		{
 			dynamics_world->removeRigidBody((*iter)->body);
 			(*iter)->Dispose();
@@ -47,7 +47,7 @@ namespace CibraryEngine
 		if(r == NULL)
 			return;
 
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); iter++)
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			if(*iter == r)
 				return;
 
@@ -60,7 +60,7 @@ namespace CibraryEngine
 		if(r == NULL)
 			return false;
 
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); iter++)
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			if(*iter == r)
 			{
 				rigid_bodies.erase(iter);
@@ -168,7 +168,7 @@ namespace CibraryEngine
 
 		mass = totalmass;
 		com = new_com;
-		for(int i = 0; i < 9; i++)
+		for(int i = 0; i < 9; ++i)
 			moi[i] = left_moi[i] + right_moi[i];
 	}
 	MassInfo MassInfo::operator +(MassInfo other) { MassInfo temp = *this; temp += other; return temp; }

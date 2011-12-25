@@ -9,6 +9,8 @@
 
 namespace CibraryEngine
 {
+	using boost::unordered_map;
+
 	/*
 	 * Bone methods
 	 */
@@ -44,15 +46,15 @@ namespace CibraryEngine
 	Skeleton::Skeleton(Skeleton* prototype)			// hope that prototype is never NULL
 	{
 		unsigned int bone_count = prototype->bones.size();
-		for(unsigned int i = 0; i < bone_count; i++)
+		for(unsigned int i = 0; i < bone_count; ++i)
 		{
 			Bone* proto_bone = prototype->bones[i];
 			AddBone(proto_bone->name, proto_bone->rest_ori, proto_bone->rest_pos);
 		}
 
-		for(unsigned int i = 0; i < bone_count; i++)
+		for(unsigned int i = 0; i < bone_count; ++i)
 			if(prototype->bones[i]->parent != NULL)
-				for(unsigned int j = 0; j < bone_count; j++)
+				for(unsigned int j = 0; j < bone_count; ++j)
 					if(prototype->bones[i]->parent == prototype->bones[j])
 					{
 						bones[i]->parent = bones[j];
@@ -62,7 +64,7 @@ namespace CibraryEngine
 
 	void Skeleton::InnerDispose()
 	{
-		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); iter++)
+		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
 			delete *iter;
 
 		bones.clear();
@@ -82,7 +84,7 @@ namespace CibraryEngine
 		vector<Mat4> matrices = vector<Mat4>();
 
 		unsigned int bones_count = bones.size();
-		for(unsigned int i = 0; i < bones_count; i++)
+		for(unsigned int i = 0; i < bones_count; ++i)
 		{
 			Mat4 mat = bones[i]->GetTransformationMatrix();
 			matrices.push_back(mat);
@@ -99,7 +101,7 @@ namespace CibraryEngine
 
 		unsigned int* parent_indices = new unsigned int[bone_count];
 
-		for(unsigned int i = 0; i < bone_count; i++)
+		for(unsigned int i = 0; i < bone_count; ++i)
 		{
 			unsigned char name_len = ReadByte(file);
 
@@ -111,7 +113,7 @@ namespace CibraryEngine
 			}
 
 			string name = "";
-			for(unsigned char j = 0; j < name_len; j++)
+			for(unsigned char j = 0; j < name_len; ++j)
 				name += ReadByte(file);
 
 			parent_indices[i] = ReadUInt32(file);
@@ -121,7 +123,7 @@ namespace CibraryEngine
 			temp->AddBone(Bone::string_table[name], rest_ori, rest_pos);
 		}
 
-		for(unsigned int i = 0; i < bone_count; i++)
+		for(unsigned int i = 0; i < bone_count; ++i)
 		{
 			unsigned int parent_index = parent_indices[i];
 			temp->bones[i]->parent = parent_index == 0 ? NULL : temp->bones[parent_index - 1];
@@ -136,20 +138,20 @@ namespace CibraryEngine
 	int Skeleton::WriteSkeleton(ofstream& file, Skeleton* skeleton)
 	{
 		WriteUInt32(skeleton->bones.size(), file);
-		for(unsigned int i = 0; i < skeleton->bones.size(); i++)
+		for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
 		{
 			Bone* bone = skeleton->bones[i];
 			string name = Bone::string_table[bone->name];
 
 			WriteByte((unsigned char)name.length(), file);
-			for(unsigned int j = 0; j < name.length(); j++)
+			for(unsigned int j = 0; j < name.length(); ++j)
 				WriteByte((unsigned char)name.at(j), file);
 
 			unsigned int parent_index = 0;
 
 			Bone* parent = bone->parent;
 			if(parent != NULL)
-				for(unsigned int j = 0; j < skeleton->bones.size(); j++)
+				for(unsigned int j = 0; j < skeleton->bones.size(); ++j)
 					if(skeleton->bones[j] == parent)
 					{
 						parent_index = j + 1;
@@ -208,17 +210,17 @@ namespace CibraryEngine
 			pose->UpdatePose(time);
 
 			if(pose->IsActive())
-				iter++;
+				++iter;
 			else
 				iter = active_poses.erase(iter);
 		}
 
-		map<unsigned int, BoneInfluence> bone_states = map<unsigned int, BoneInfluence>();
+		unordered_map<unsigned int, BoneInfluence> bone_states;
 
-		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end(); iter++)
+		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end(); ++iter)
 		{
 			Pose* pose = *iter;
-			for(map<unsigned int, BoneInfluence>::iterator jter = pose->bones.begin(); jter != pose->bones.end(); jter++)
+			for(unordered_map<unsigned int, BoneInfluence>::iterator jter = pose->bones.begin(); jter != pose->bones.end(); ++jter)
 			{
 				unsigned int name = jter->first;
 
@@ -230,18 +232,18 @@ namespace CibraryEngine
 		}
 
 		int i = 0;
-		for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); iter++, i++)
+		for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); ++iter, ++i)
 		{
 			Bone* bone = *iter;
 
 			unsigned int name = bone->name;
-			map<unsigned int, BoneInfluence>::iterator found = bone_states.find(name);
+			unordered_map<unsigned int, BoneInfluence>::iterator found = bone_states.find(name);
 
 			if(found != bone_states.end())
 			{
 				BoneInfluence state = found->second;
-				bone->ori = Quaternion::FromPYR(state.ori);// / state.div);
-				bone->pos = state.pos;// / state.div;
+				bone->ori = Quaternion::FromPYR(state.ori);
+				bone->pos = state.pos;
 			}
 		}
 
@@ -279,16 +281,16 @@ namespace CibraryEngine
 		unsigned char* array = new unsigned char[use_size];
 		unsigned char* target = array;
 
-		for(unsigned int i = 0; i < matrix_count; i++)
+		for(unsigned int i = 0; i < matrix_count; ++i)
 		{
 			Mat4& mat = matrices[i];
-			for(unsigned int j = 0; j < 12; j++)
+			for(unsigned int j = 0; j < 12; ++j)
 			{
 				float val = mat[j];								// get value from the matrix
 				float expanded = val * 4096.0f + 32768.0f;		// scale to reasonable range
 
 				unsigned int int_val = (unsigned int)(max(0.0, min(65535.0, expanded + 0.5)));			// offset by 0.5 so it rounds nicely
-				for(int k = 0; k < 2; k++)
+				for(int k = 0; k < 2; ++k)
 					*(target++) = (unsigned char)((int_val & (0xFF << (k * 8))) >> (k * 8));
 			}
 		}

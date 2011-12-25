@@ -63,7 +63,7 @@ namespace CibraryEngine
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			// draw menu items
-			for(unsigned int i = 0; i < menu_items.size(); i++)
+			for(unsigned int i = 0; i < menu_items.size(); ++i)
 			{
 				MenuItem* item = menu_items[i];
 				item->Draw(w, h);
@@ -149,7 +149,7 @@ namespace CibraryEngine
 
 			// find out what, if anything, the cursor is over
 			MenuItem* selection = NULL;
-			for(unsigned int i = 0; i < menu_items.size(); i++)
+			for(unsigned int i = 0; i < menu_items.size(); ++i)
 			{
 				MenuItem* item = menu_items[i];
 				if(selection == NULL && item->IsSelectable() && item->RectContains(mx, my))
@@ -169,7 +169,7 @@ namespace CibraryEngine
 			UpdateSelection();
 
 			// update menu items
-			for(unsigned int i = 0; i < menu_items.size(); i++)
+			for(unsigned int i = 0; i < menu_items.size(); ++i)
 				menu_items[i]->Update(time);
 
 			return next;

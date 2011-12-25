@@ -25,7 +25,7 @@ namespace Test
 		bs.center += pos;
 
 		Cache<Material>* mat_cache = gs->content->GetCache<Material>();
-		for(unsigned int i = 0; i < model->materials.size(); i++)
+		for(unsigned int i = 0; i < model->materials.size(); ++i)
 		{
 			string material_name = model->materials[i];
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
@@ -81,7 +81,7 @@ namespace Test
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
 		ParticleMaterial* dirt_particle = ((TestGame*)game_state)->dirt_particle;
-		for (int i = 0; i < 6; i++)
+		for (int i = 0; i < 6; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1);
 			p->gravity = 9.8f;

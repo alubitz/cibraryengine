@@ -16,6 +16,8 @@ namespace CibraryEngine
 
 	struct TimingInfo;
 
+	using boost::unordered_map;
+
 	/** System for batch-processing inverse kinematics for multiple entities */
 	class IKSolver : public Disposable
 	{
@@ -56,7 +58,7 @@ namespace CibraryEngine
 			};
 
 			/** Collection of all the objects using inverse kinematics, indexed by a user pointer */
-			map<void*, IKObject*> ik_objects;
+			unordered_map<void*, IKObject*> ik_objects;
 
 			void InnerDispose();
 

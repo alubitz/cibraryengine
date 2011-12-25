@@ -39,7 +39,7 @@ namespace CibraryEngine
 	{
 		glDeleteFramebuffers(1, &my_fbo);
 
-		for(vector<Texture2D*>::iterator iter = my_textures.begin(); iter != my_textures.end(); iter++)
+		for(vector<Texture2D*>::iterator iter = my_textures.begin(); iter != my_textures.end(); ++iter)
 			delete *iter;
 		my_textures.clear();
 
@@ -70,7 +70,7 @@ namespace CibraryEngine
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, my_fbo);
 
 		// setting up the color buffer
-		for(unsigned int i = 0; i < my_color_buffers.size(); i++)
+		for(unsigned int i = 0; i < my_color_buffers.size(); ++i)
 		{
 			glBindRenderbuffer(GL_RENDERBUFFER, my_color_buffers[i]);
 			glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, width, height);
@@ -86,7 +86,7 @@ namespace CibraryEngine
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 		// fill in the fbo's data
-		for(unsigned int i = 0; i < my_color_buffers.size(); i++)
+		for(unsigned int i = 0; i < my_color_buffers.size(); ++i)
 			glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER,	GL_COLOR_ATTACHMENT0 + i,	GL_RENDERBUFFER,	my_color_buffers[i] );
 
 		glFramebufferRenderbuffer(		GL_DRAW_FRAMEBUFFER,	GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer );
@@ -95,7 +95,7 @@ namespace CibraryEngine
 		bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
 		
 		glEnable(GL_TEXTURE_2D);
-		for(int i = 0; i < n_buffers; i++)
+		for(int i = 0; i < n_buffers; ++i)
 		{
 			my_textures[i] = new Texture2D(width, height, NULL, false, true);
 			unsigned int id = my_textures[i]->GetGLName();
@@ -140,7 +140,7 @@ namespace CibraryEngine
 
 			unsigned int n = target->my_color_buffers.size();
 			GLenum* draw_buffers = new GLenum[n];
-			for(unsigned int i = 0; i < n; i++)
+			for(unsigned int i = 0; i < n; ++i)
 				draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 			glDrawBuffers(n, draw_buffers);
 			delete[] draw_buffers;

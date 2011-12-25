@@ -71,7 +71,7 @@ namespace DestructibleTerrain
 			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, &temp_cache.verts[0], &temp_cache.indices[0]);
 
 			int i;
-			for(i = 0; i < 16; i++)
+			for(i = 0; i < 16; ++i)
 				if(temp_cache.indices[i] == -1)
 					break;
 			num_vertices = i;

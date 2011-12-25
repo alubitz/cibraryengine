@@ -16,7 +16,7 @@ namespace CibraryEngine
 
 		string result;
 
-		for(list<Packet>::iterator iter = packets.begin(); iter != packets.end(); iter++)
+		for(list<Packet>::iterator iter = packets.begin(); iter != packets.end(); ++iter)
 			result += iter->GetContentBytes();
 
 		return result;

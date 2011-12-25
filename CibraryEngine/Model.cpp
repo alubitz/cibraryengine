@@ -21,7 +21,7 @@ namespace CibraryEngine
 		indices(),
 		weights()
 	{
-		for(int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; ++i)
 		{
 			indices[i] = indices_[i];
 			weights[i] = weights_[i];
@@ -107,7 +107,7 @@ namespace CibraryEngine
 
 		float* indices = vbo->GetFloatPointer("gl_MultiTexCoord3");
 		float* weights = vbo->GetFloatPointer("gl_MultiTexCoord4");
-		for(int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; ++i)
 		{
 			indices[index * 4 + i] = info.indices[i];
 			weights[index * 4 + i] = info.weights[i];
@@ -118,7 +118,7 @@ namespace CibraryEngine
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 3; ++i)
 		{
 			VTNTT* info;
 			switch (i)
@@ -154,7 +154,7 @@ namespace CibraryEngine
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 3; ++i)
 		{
 			SkinVInfo* info;
 			switch (i)
@@ -208,7 +208,7 @@ namespace CibraryEngine
 		float* indices = vbo->GetFloatPointer("gl_MultiTexCoord3");
 		float* weights = vbo->GetFloatPointer("gl_MultiTexCoord4");
 		SkinVInfo result(vtn);
-		for(int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; ++i)
 		{
 			result.indices[i] = (unsigned char)indices[index * 4 + i];
 			result.weights[i] = (unsigned char)weights[index * 4 + i];

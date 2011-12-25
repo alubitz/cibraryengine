@@ -126,7 +126,7 @@ namespace CibraryEngine
 		file.close();
 
 		string str = "";
-		for(unsigned int i = 0; i < buffer.size(); i++)
+		for(unsigned int i = 0; i < buffer.size(); ++i)
 			str += buffer[i];
 
 		vector<string> lines = vector<string>();
@@ -159,7 +159,7 @@ namespace CibraryEngine
 				}
 			}
 		}
-		for(unsigned int line_num = 0; line_num < lines.size(); line_num++)
+		for(unsigned int line_num = 0; line_num < lines.size(); ++line_num)
 		{
 			string line = lines[line_num];
 			switch ((char)line[0])
@@ -189,7 +189,7 @@ namespace CibraryEngine
 
 		float x, y, z, u, v, nx, ny, nz;
 		unsigned int i;
-		for (i = 0; i < vertices.size(); i++)
+		for (i = 0; i < vertices.size(); ++i)
 		{
 			string line = vertices[i];
 			int start = 0, end = line.find(' ', start);
@@ -204,7 +204,7 @@ namespace CibraryEngine
 			z = (float)atof(line.substr(start, end - start).c_str());
 			xyz.push_back(Vec3(x, y, z));
 		}
-		for (i = 0; i < texcoords.size(); i++)
+		for (i = 0; i < texcoords.size(); ++i)
 		{
 			string line = texcoords[i];
 			int start = 0, end = line.find(' ', start);
@@ -215,7 +215,7 @@ namespace CibraryEngine
 			v = (float)atof(line.substr(start, end - start).c_str());
 			uv.push_back(Vec3(u, v, 0.0f));
 		}
-		for (i = 0; i < normals.size(); i++)
+		for (i = 0; i < normals.size(); ++i)
 		{
 			string line = normals[i];
 			int start = 0, end = line.find(' ', start);
@@ -234,7 +234,7 @@ namespace CibraryEngine
 
 		vbo->SetAllocatedSize(triangles.size() * 3);
 
-		for (i = 0; i < triangles.size(); i++)
+		for (i = 0; i < triangles.size(); ++i)
 		{
 			string line = triangles[i];
 
@@ -304,12 +304,12 @@ namespace CibraryEngine
 		vector<unsigned int> texcoord_indices = vector<unsigned int>();
 		vector<unsigned int> normal_indices = vector<unsigned int>();
 
-		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); iter++)
+		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); ++iter)
 		{
 			VTNTT v = GetVTNTT(vbo, iter);
 			unsigned int i;
 
-			for(i = 0; i < vertices.size(); i++)
+			for(i = 0; i < vertices.size(); ++i)
 				if(vertices[i] == v.x)
 					break;
 			if(i == vertices.size())
@@ -317,14 +317,14 @@ namespace CibraryEngine
 			vertex_indices.push_back(i);
 
 			Vec2 uv = Vec2(v.uvw.x, v.uvw.y);
-			for(i = 0; i < texcoords.size(); i++)
+			for(i = 0; i < texcoords.size(); ++i)
 				if(texcoords[i] == uv)
 					break;
 			if(i == texcoords.size())
 				texcoords.push_back(uv);
 			texcoord_indices.push_back(i);
 
-			for(i = 0; i < normals.size(); i++)
+			for(i = 0; i < normals.size(); ++i)
 				if(normals[i] == v.n)
 					break;
 			if(i == normals.size())
@@ -334,11 +334,11 @@ namespace CibraryEngine
 
 		file << "o Main" << endl;
 
-		for(vector<Vec3>::iterator v = vertices.begin(); v != vertices.end(); v++)
+		for(vector<Vec3>::iterator v = vertices.begin(); v != vertices.end(); ++v)
 			file << "v " << v->x << " " << v->y << " " << v->z << endl;
-		for(vector<Vec2>::iterator v = texcoords.begin(); v != texcoords.end(); v++)
+		for(vector<Vec2>::iterator v = texcoords.begin(); v != texcoords.end(); ++v)
 			file << "vt " << v->x << " " << v->y << endl;
-		for(vector<Vec3>::iterator v = normals.begin(); v != normals.end(); v++)
+		for(vector<Vec3>::iterator v = normals.begin(); v != normals.end(); ++v)
 			file << "n " << v->x << " " << v->y << " " << v->z << endl;
 
 		file << "g Main_main" << endl;
@@ -346,7 +346,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < vertex_indices.size();)
 		{
 			file << "f";
-			for(int j = 0; j < 3; i++, j++)
+			for(int j = 0; j < 3; ++i, ++j)
 				file << " " << vertex_indices[i] + 1 << "/" << texcoord_indices[i] + 1 << "/" << normal_indices[i] + 1;
 			file << endl;
 		}
@@ -371,7 +371,7 @@ namespace CibraryEngine
 		vector<Vec3> normals = vector<Vec3>();
 
 		unsigned int vertex_count = ReadUInt32(file);
-		for(unsigned int i = 0; i < vertex_count; i++)
+		for(unsigned int i = 0; i < vertex_count; ++i)
 		{
 			float x = ReadSingle(file);
 			float y = ReadSingle(file);
@@ -380,7 +380,7 @@ namespace CibraryEngine
 		}
 
 		unsigned int texcoord_count = ReadUInt32(file);
-		for(unsigned int i = 0; i < texcoord_count; i++)
+		for(unsigned int i = 0; i < texcoord_count; ++i)
 		{
 			float u = ReadSingle(file);
 			float v = ReadSingle(file);
@@ -388,7 +388,7 @@ namespace CibraryEngine
 		}
 
 		unsigned int normal_count = ReadUInt32(file);
-		for(unsigned int i = 0; i < normal_count; i++)
+		for(unsigned int i = 0; i < normal_count; ++i)
 		{
 			float x = ReadSingle(file);
 			float y = ReadSingle(file);
@@ -403,7 +403,7 @@ namespace CibraryEngine
 
 		vbo->SetAllocatedSize(vinfo_count);
 
-		for(unsigned int i = 0; i < vinfo_count; i++)
+		for(unsigned int i = 0; i < vinfo_count; ++i)
 		{
 			unsigned int x_index = ReadUInt32(file);
 			unsigned int uv_index = ReadUInt32(file);
@@ -444,12 +444,12 @@ namespace CibraryEngine
 		vector<unsigned int> texcoord_indices = vector<unsigned int>();
 		vector<unsigned int> normal_indices = vector<unsigned int>();
 
-		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); iter++)
+		for(unsigned int iter = 0; iter < vbo->GetNumVerts(); ++iter)
 		{
 			VTNTT v = GetVTNTT(vbo, iter);
 			unsigned int i;
 
-			for(i = 0; i < vertices.size(); i++)
+			for(i = 0; i < vertices.size(); ++i)
 				if(vertices[i] == v.x)
 					break;
 			if(i == vertices.size())
@@ -457,14 +457,14 @@ namespace CibraryEngine
 			vertex_indices.push_back(i);
 
 			Vec2 uv = Vec2(v.uvw.x, v.uvw.y);
-			for(i = 0; i < texcoords.size(); i++)
+			for(i = 0; i < texcoords.size(); ++i)
 				if(texcoords[i] == uv)
 					break;
 			if(i == texcoords.size())
 				texcoords.push_back(uv);
 			texcoord_indices.push_back(i);
 
-			for(i = 0; i < normals.size(); i++)
+			for(i = 0; i < normals.size(); ++i)
 				if(normals[i] == v.n)
 					break;
 			if(i == normals.size())
@@ -475,7 +475,7 @@ namespace CibraryEngine
 		// the actual save operations
 		unsigned int vertex_count = vertices.size();
 		WriteUInt32(vertex_count, file);
-		for(unsigned int i = 0; i < vertex_count; i++)
+		for(unsigned int i = 0; i < vertex_count; ++i)
 		{
 			Vec3 vert = vertices[i];
 			WriteSingle(vert.x, file);
@@ -485,7 +485,7 @@ namespace CibraryEngine
 
 		unsigned int texcoord_count = texcoords.size();
 		WriteUInt32(texcoord_count, file);
-		for(unsigned int i = 0; i < texcoord_count; i++)
+		for(unsigned int i = 0; i < texcoord_count; ++i)
 		{
 			Vec2 uv = texcoords[i];
 			WriteSingle(uv.x, file);
@@ -494,7 +494,7 @@ namespace CibraryEngine
 
 		unsigned int normal_count = normals.size();
 		WriteUInt32(normal_count, file);
-		for(unsigned int i = 0; i < normal_count; i++)
+		for(unsigned int i = 0; i < normal_count; ++i)
 		{
 			Vec3 norm = normals[i];
 			WriteSingle(norm.x, file);
@@ -504,7 +504,7 @@ namespace CibraryEngine
 
 		unsigned int vinfo_count = vbo->GetNumVerts();
 		WriteUInt32(vinfo_count, file);
-		for(unsigned int i = 0; i < vinfo_count; i++)
+		for(unsigned int i = 0; i < vinfo_count; ++i)
 		{
 			WriteUInt32(vertex_indices[i], file);
 			WriteUInt32(texcoord_indices[i], file);
@@ -529,11 +529,11 @@ namespace CibraryEngine
 			return 1;
 
 		unsigned int materials_count = ReadUInt32(file);
-		for(unsigned int i = 0; i < materials_count; i++)
+		for(unsigned int i = 0; i < materials_count; ++i)
 		{
 			unsigned int mat_name_len = ReadByte(file);
 			string mat_name = "";
-			for(unsigned int j = 0; j < mat_name_len; j++)
+			for(unsigned int j = 0; j < mat_name_len; ++j)
 				mat_name += ReadByte(file);
 
 			material_names.push_back(mat_name);
@@ -550,7 +550,7 @@ namespace CibraryEngine
 
 			vbo->SetAllocatedSize(vinfo_count);
 
-			for(unsigned int j = 0; j < vinfo_count; j++)
+			for(unsigned int j = 0; j < vinfo_count; ++j)
 			{
 				float x = ReadSingle(file);
 				float y = ReadSingle(file);
@@ -562,7 +562,7 @@ namespace CibraryEngine
 				float nz = ReadSingle(file);
 				unsigned char indices[4];
 				unsigned char weights[4];
-				for(int k = 0; k < 4; k++)
+				for(int k = 0; k < 4; ++k)
 				{
 					indices[k] = ReadByte(file);
 					weights[k] = ReadByte(file);
@@ -603,7 +603,7 @@ namespace CibraryEngine
 		WriteUInt32(materials_count, file);
 
 		// write each material
-		for(unsigned int i = 0; i < materials_count; i++)
+		for(unsigned int i = 0; i < materials_count; ++i)
 		{
 			MaterialModelPair& mmp = model->material_model_pairs[i];
 			VertexBuffer* vbo = mmp.vbo;
@@ -611,13 +611,13 @@ namespace CibraryEngine
 			// name of material
 			unsigned int mat_name_len = model->material_names[i].length();
 			WriteByte((unsigned char)mat_name_len, file);
-			for(unsigned int j = 0; j < mat_name_len; j++)
+			for(unsigned int j = 0; j < mat_name_len; ++j)
 				WriteByte((unsigned char)model->material_names[i][j], file);
 
 			// vbo data
 			unsigned int vinfo_count = vbo->GetNumVerts();
 			WriteUInt32(vinfo_count, file);
-			for(unsigned int j = 0; j < vinfo_count; j++)
+			for(unsigned int j = 0; j < vinfo_count; ++j)
 			{
 				SkinVInfo& vinfo = GetSkinVInfo(vbo, j);
 
@@ -629,7 +629,7 @@ namespace CibraryEngine
 				WriteSingle(vinfo.n.x, file);
 				WriteSingle(vinfo.n.y, file);
 				WriteSingle(vinfo.n.z, file);
-				for(int k = 0; k < 4; k++)
+				for(int k = 0; k < 4; ++k)
 				{
 					WriteByte(vinfo.indices[k], file);
 					WriteByte(vinfo.weights[k], file);
@@ -658,12 +658,12 @@ namespace CibraryEngine
 
 		unsigned char anim_name_len = ReadByte(file);
 		string anim_name = "";
-		for(unsigned int i = 0; i < anim_name_len; i++)
+		for(unsigned int i = 0; i < anim_name_len; ++i)
 			anim_name += ReadByte(file);
 
 		unsigned int frame_count = ReadUInt32(file);
 		vector<Keyframe> frames = vector<Keyframe>();
-		for(unsigned int i = 0; i < frame_count; i++)
+		for(unsigned int i = 0; i < frame_count; ++i)
 		{
 			Keyframe frame = Keyframe();
 
@@ -671,11 +671,11 @@ namespace CibraryEngine
 			frame.duration = ReadSingle(file);
 
 			unsigned int bone_count = ReadUInt32(file);
-			for(unsigned int j = 0; j < bone_count; j++)
+			for(unsigned int j = 0; j < bone_count; ++j)
 			{
 				string bone_name = "";
 				unsigned char bone_name_len = ReadByte(file);
-				for(unsigned int k = 0; k < bone_name_len; k++)
+				for(unsigned int k = 0; k < bone_name_len; ++k)
 					bone_name += ReadByte(file);
 
 				Vec3 ori;
@@ -714,13 +714,13 @@ namespace CibraryEngine
 		// write animation name
 		unsigned char anim_name_len = anim.name.length();
 		WriteByte(anim_name_len, file);
-		for(unsigned int i = 0; i < anim_name_len; i++)
+		for(unsigned int i = 0; i < anim_name_len; ++i)
 			WriteByte(anim.name[i], file);
 
 		// write frames
 		unsigned int frame_count = anim.frames.size();
 		WriteUInt32(frame_count, file);
-		for(vector<Keyframe>::iterator iter =anim.frames.begin(); iter != anim.frames.end(); iter++)
+		for(vector<Keyframe>::iterator iter =anim.frames.begin(); iter != anim.frames.end(); ++iter)
 		{
 			Keyframe& frame = *iter;
 
@@ -730,14 +730,14 @@ namespace CibraryEngine
 			// write each bone of the frame
 			unsigned int values_count = frame.values.size();
 			WriteUInt32(values_count, file);
-			for(map<unsigned int, BoneInfluence>::iterator jter = frame.values.begin(); jter != frame.values.end(); jter++)
+			for(unordered_map<unsigned int, BoneInfluence>::iterator jter = frame.values.begin(); jter != frame.values.end(); ++jter)
 			{
 				// name of the bone
 				string bone_name = Bone::string_table[jter->first];
 
 				unsigned char bone_name_len = bone_name.length();
 				WriteByte(bone_name_len, file);
-				for(unsigned int i = 0; i < bone_name_len; i++)
+				for(unsigned int i = 0; i < bone_name_len; ++i)
 					WriteByte(bone_name[i], file);
 
 				// bone influence

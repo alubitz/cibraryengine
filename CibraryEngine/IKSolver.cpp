@@ -35,11 +35,11 @@ namespace CibraryEngine
 		if(result_valid)
 		{
 			// copy result to skeleton
-			for(vector<Bone*>::iterator iter = result.bones.begin(); iter != result.bones.end(); iter++)
+			for(vector<Bone*>::iterator iter = result.bones.begin(); iter != result.bones.end(); ++iter)
 			{
 				Bone* bone_i = *iter;
 				unsigned int bone_name = (*iter)->name;
-				for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); jter++)
+				for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); ++jter)
 				{
 					Bone* bone_j = *jter;
 					if(bone_name == bone_j->name)
@@ -67,7 +67,7 @@ namespace CibraryEngine
 
 	void IKSolver::ClearObjects()
 	{
-		for(map<void*, IKObject*>::iterator iter = ik_objects.begin(); iter != ik_objects.end(); iter++)
+		for(unordered_map<void*, IKObject*>::iterator iter = ik_objects.begin(); iter != ik_objects.end(); ++iter)
 		{
 			IKObject* obj = iter->second;
 			if(obj->skeleton != NULL)
@@ -84,14 +84,14 @@ namespace CibraryEngine
 
 	void IKSolver::DeleteObject(void* user_ptr)
 	{
-		map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
+		unordered_map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
 		if(found != ik_objects.end())
 			ik_objects.erase(found);
 	}
 
 	Skeleton* IKSolver::GetObjectSkeleton(void* user_ptr)
 	{
-		map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
+		unordered_map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
 		if(found != ik_objects.end())
 			return found->second->skeleton;
 		else
@@ -100,7 +100,7 @@ namespace CibraryEngine
 
 	void IKSolver::SetDesiredState(void* user_ptr, Vec3 pos, Quaternion ori)
 	{
-		map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
+		unordered_map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
 		if(found != ik_objects.end())
 		{
 			found->second->desired_pos = pos;
@@ -110,7 +110,7 @@ namespace CibraryEngine
 
 	void IKSolver::GetResultState(void* user_ptr, Vec3& pos, Quaternion& ori)
 	{
-		map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
+		unordered_map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
 		if(found != ik_objects.end())
 		{
 			pos = found->second->result_pos;
@@ -120,12 +120,12 @@ namespace CibraryEngine
 
 	void IKSolver::Update(TimingInfo time)
 	{
-		map<void*, IKObject*>::iterator iter;
+		unordered_map<void*, IKObject*>::iterator iter;
 
-		for(iter = ik_objects.begin(); iter != ik_objects.end(); iter++)
+		for(iter = ik_objects.begin(); iter != ik_objects.end(); ++iter)
 			iter->second->ComputeNextState(physics, time);
 
-		for(iter = ik_objects.begin(); iter != ik_objects.end(); iter++)
+		for(iter = ik_objects.begin(); iter != ik_objects.end(); ++iter)
 			iter->second->ApplyComputedState();
 	}
 }

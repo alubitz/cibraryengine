@@ -94,7 +94,7 @@ namespace CibraryEngine
 		int dim = image.size();
 		unsigned char* byte_data = new unsigned char[dim];
 
-		for(int i = 0; i < dim; i++)
+		for(int i = 0; i < dim; ++i)
 			byte_data[i] = image[i];
 
 		return new Texture2D(width, height, byte_data, default_mipmaps, default_clamp);

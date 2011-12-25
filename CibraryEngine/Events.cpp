@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 	void EventDispatcher::DispatchEvent(Event* evt)
 	{
-		for(set<EventHandler*>::iterator iter = event_handlers.begin(); iter != event_handlers.end(); iter++)
+		for(set<EventHandler*>::iterator iter = event_handlers.begin(); iter != event_handlers.end(); ++iter)
 			(*iter)->HandleEvent(evt);
 	}
 	void EventDispatcher::operator()(Event* evt) { DispatchEvent(evt); }

@@ -21,7 +21,7 @@ namespace CibraryEngine
 		spawn_directly = false;			// don't let anybody spawn anything now
 
 		// dispose of already-spawned entities
-		for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
+		for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
 		{
 			(*iter)->DeSpawned();
 			(*iter)->Dispose();
@@ -30,7 +30,7 @@ namespace CibraryEngine
 		entities.clear();
 
 		// dispose of entities that never entered the main list, as well
-		for(list<Entity*>::iterator iter = spawning.begin(); iter != spawning.end(); iter++)
+		for(list<Entity*>::iterator iter = spawning.begin(); iter != spawning.end(); ++iter)
 		{
 			(*iter)->Dispose();
 			delete *iter;
@@ -62,7 +62,7 @@ namespace CibraryEngine
 			Entity* e = *iter;
 			e->Update(time);
 			if(e->is_valid)
-				iter++;
+				++iter;
 			else
 			{
 				e->DeSpawned();
@@ -75,7 +75,7 @@ namespace CibraryEngine
 
 		spawn_directly = true;
 
-		for(list<Entity*>::iterator jter = spawning.begin(); jter != spawning.end(); jter++)
+		for(list<Entity*>::iterator jter = spawning.begin(); jter != spawning.end(); ++jter)
 		{
 			(*jter)->Spawned();
 			entities.push_back(*jter);
@@ -104,7 +104,7 @@ namespace CibraryEngine
 	EntityList GameState::GetQualifyingEntities(EntityQualifier& cond)
 	{
 		vector<Entity*> ent_vector;
-		for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
+		for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
 		{
 			Entity *ent = *iter;
 			if(cond.Accept(ent))

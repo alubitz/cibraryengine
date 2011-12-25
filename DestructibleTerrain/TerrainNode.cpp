@@ -21,7 +21,7 @@ namespace DestructibleTerrain
 		WriteByte(solidity, stream);
 		
 		if(solidity > 0)
-			for(int i = 0; i < 4; i++)
+			for(int i = 0; i < 4; ++i)
 			{
 				WriteByte(material.types[i], stream);
 				WriteByte(material.weights[i], stream);
@@ -38,7 +38,7 @@ namespace DestructibleTerrain
 		solidity = ReadByte(stream);
 
 		if(solidity > 0)
-			for(int i = 0; i < 4; i++)
+			for(int i = 0; i < 4; ++i)
 			{
 				material.types[i] = ReadByte(stream);
 				material.weights[i] = ReadByte(stream);

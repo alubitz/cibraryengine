@@ -239,7 +239,7 @@ namespace Test
 			rgrip_bone.ori = Quaternion::FromPYR(0, 0, -0.5f) * Quaternion::FromPYR(M_PI * 0.5f, 0, 0) * Quaternion::FromPYR(0, -0.1f, 0);
 			uber_model->bones.push_back(rgrip_bone);
 
-			for(unsigned int i = 0; i < uber_model->bones.size(); i++)
+			for(unsigned int i = 0; i < uber_model->bones.size(); ++i)
 			{
 				UberModel::BonePhysics phys;
 				phys.pos = uber_model->bones[i].pos;
@@ -392,6 +392,7 @@ namespace Test
 
 #define NGDEBUG() DebugNavGraphError(__LINE__, __FILE__)
 
+	string script_string;
 	void TestGame::Update(TimingInfo time)
 	{
 		NGDEBUG();
@@ -411,7 +412,9 @@ namespace Test
 			debug_text = fps_counter_ss.str();
 		}
 
-		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/update.lua");
+		if(script_string.empty())
+			GetFileString("Files/Scripts/update.lua", &script_string);
+		ScriptSystem::GetGlobalState().DoString(script_string);
 
 		GameState::Update(clamped_time);
 		ik_solver->Update(clamped_time);
@@ -500,7 +503,7 @@ namespace Test
 
 			SceneRenderer renderer(&camera);
 
-			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
+			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
 				(*iter)->Vis(&renderer);
 
 
@@ -584,7 +587,7 @@ namespace Test
 			renderer.RenderTranslucent();
 			GLDEBUG();
 
-			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); iter++)
+			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
 				(*iter)->VisCleanup();
 
 			renderer.Cleanup();
@@ -707,7 +710,7 @@ namespace Test
 		Vec3 camera_fwd = renderer->camera->GetForward();
 		float camera_dot = Vec3::Dot(camera_fwd, renderer->camera->GetPosition());
 		// skip nodes behind the camera
-		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 		{
 			unsigned int node = *iter;
 			Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
@@ -725,13 +728,13 @@ namespace Test
 		glLineWidth(1.0f);
 
 		glBegin(GL_LINES);
-		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 		{
 			unsigned int node = *iter;
 			Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
 			vector<unsigned int> edges = NavGraph::GetNodeEdges(nav_graph, node, NavGraph::PD_OUT);
 
-			for(vector<unsigned int>::iterator jter = edges.begin(); jter != edges.end(); jter++)
+			for(vector<unsigned int>::iterator jter = edges.begin(); jter != edges.end(); ++jter)
 			{
 				Vec3 other = NavGraph::GetNodePosition(nav_graph, *jter);
 
@@ -866,7 +869,7 @@ namespace Test
 			use_materials = *materials;
 		else
 		{
-			for(unsigned int i = 0; i < model->materials.size(); i++)
+			for(unsigned int i = 0; i < model->materials.size(); ++i)
 				use_materials.push_back(mat_cache->Load(model->materials[i]));
 		}
 
@@ -880,7 +883,7 @@ namespace Test
 
 		vector<MaterialModelPair>* mmps = use_lod->GetVBOs();
 
-		for(vector<MaterialModelPair>::iterator iter = mmps->begin(); iter != mmps->end(); iter++)
+		for(vector<MaterialModelPair>::iterator iter = mmps->begin(); iter != mmps->end(); ++iter)
 		{
 			MaterialModelPair& mmp = *iter;
 
@@ -1109,7 +1112,7 @@ namespace Test
 			// begin table
 			lua_newtable(L);							// push; top = 1
 
-			for(unsigned int i = 0; i < e.Count(); i++)
+			for(unsigned int i = 0; i < e.Count(); ++i)
 			{
 				lua_pushnumber(L, i + 1);
 				PushDoodHandle(L, (Dood*)e[i]);
@@ -1273,7 +1276,7 @@ namespace Test
 
 	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, vector<unsigned int> other_column)
 	{
-		for(vector<unsigned int>::iterator iter = other_column.begin(); iter != other_column.end(); iter++)
+		for(vector<unsigned int>::iterator iter = other_column.begin(); iter != other_column.end(); ++iter)
 		{
 			unsigned int other_node = *iter;
 
@@ -1316,7 +1319,7 @@ namespace Test
 		vector<float> valid_floors;
 		bool floor = true;
 		float y = top + min_ceiling_height;
-		for(list<float>::iterator iter = results.begin(); iter != results.end(); iter++)
+		for(list<float>::iterator iter = results.begin(); iter != results.end(); ++iter)
 		{
 			float new_y = *iter * top;
 			
@@ -1334,7 +1337,7 @@ namespace Test
 
 	template<class T> bool list_contains(list<T>& l, T& item)
 	{
-		for(list<T>::iterator iter = l.begin(); iter != l.end(); iter++)
+		for(list<T>::iterator iter = l.begin(); iter != l.end(); ++iter)
 			if(*iter == item)
 				return true;
 		return false;
@@ -1353,16 +1356,16 @@ namespace Test
 		const float grid_coeff = grid_size / grid_res;
 
 		// place all of the nodes
-		for(unsigned int i = 0; i < grid_res; i++)
+		for(unsigned int i = 0; i < grid_res; ++i)
 		{
 			float x = grid_min + (float)i * grid_coeff;
-			for(unsigned int j = 0; j < grid_res; j++)
+			for(unsigned int j = 0; j < grid_res; ++j)
 			{
 				float z = grid_min + (float)j * grid_coeff;
 				vector<unsigned int> column = vector<unsigned int>();
 
 				vector<float> floors = GetNavGraphHeights(test_game, x, z);
-				for(vector<float>::iterator iter = floors.begin(); iter != floors.end(); iter++)
+				for(vector<float>::iterator iter = floors.begin(); iter != floors.end(); ++iter)
 					column.push_back(NavGraph::NewNode(graph, Vec3(x, *iter, z)));
 
 				nodes[i * grid_res + j] = column;
@@ -1370,13 +1373,13 @@ namespace Test
 		}
 
 		// find out what nodes are directly connected to one another
-		for(unsigned int i = 0; i < grid_res; i++)
+		for(unsigned int i = 0; i < grid_res; ++i)
 		{
-			for(unsigned int j = 0; j < grid_res; j++)
+			for(unsigned int j = 0; j < grid_res; ++j)
 			{
 				vector<unsigned int> my_column = nodes[i * grid_res + j];
 
-				for(vector<unsigned int>::iterator iter = my_column.begin(); iter != my_column.end(); iter++)
+				for(vector<unsigned int>::iterator iter = my_column.begin(); iter != my_column.end(); ++iter)
 				{
 					unsigned int my_node = *iter;
 					Vec3 my_pos = NavGraph::GetNodePosition(graph, my_node);

@@ -42,13 +42,13 @@ namespace Test
 			index++;
 			auto_menu_items.push_back(new BackButton(content, index));
 
-			for(unsigned int i = 0; i < auto_menu_items.size(); i++)
+			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
 				menu->AddItem(auto_menu_items[i]);
 		}
 
 		void Destroy()
 		{
-			for(unsigned int i = 0; i < auto_menu_items.size(); i++)
+			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
 			{
 				auto_menu_items[i]->Dispose();
 				delete auto_menu_items[i];

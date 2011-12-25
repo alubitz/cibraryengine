@@ -69,18 +69,18 @@ namespace CibraryEngine
 		unsigned char* data = new unsigned char[frame_count * col_size * row_size * 4];		// gets deleted by Texture3D::InnerDispose
 
 		int data_index = 0;
-		for (int level = 0; level < frame_count; level++)
+		for (int level = 0; level < frame_count; ++level)
 		{
 			int row = level / cols;
 			int col = level % cols;
 			int from_x = col * col_size, to_x = from_x + col_size;
 			int from_y = row * row_size, to_y = from_y + row_size;
 
-			for (int x = from_x; x < to_x; x++)
-				for (int y = from_y; y < to_y; y++)
+			for (int x = from_x; x < to_x; ++x)
+				for (int y = from_y; y < to_y; ++y)
 				{
 					//unsigned char* rgba = &sheet->byte_data[(y * sheet->width + x) * 4];
-					for (int chan = 0; chan < 4; chan++)
+					for (int chan = 0; chan < 4; ++chan)
 						data[data_index++] = sheet->byte_data[(y * sheet->width + x) * 4 + chan];
 				}
 		}

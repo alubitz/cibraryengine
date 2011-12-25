@@ -20,9 +20,9 @@ namespace DestructibleTerrain
 			int total_solidity = node.solidity * 255;
 			int total_weight = 255;
 
-			for(int xx = x - 1; xx <= x + 1; xx++)
-				for(int yy = y - 1; yy <= y + 1; yy++)
-					for(int zz = z - 1; zz <= z + 1; zz++)
+			for(int xx = x - 1; xx <= x + 1; ++xx)
+				for(int yy = y - 1; yy <= y + 1; ++yy)
+					for(int zz = z - 1; zz <= z + 1; ++zz)
 						if(xx != x || yy != y || zz != z)			
 							if(TerrainNode* neighbor_node = chunk->GetNodeRelative(xx, yy, zz))
 							{

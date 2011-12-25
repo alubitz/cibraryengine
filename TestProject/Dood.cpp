@@ -168,7 +168,7 @@ namespace Test
 		character->active_poses.push_back(p_adp);
 
 		// figure out which bones are the eye and gun-holding bones
-		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); iter++)
+		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
 		{
 			if((*iter)->name == Bone::string_table["eye"])
 				eye_bone = *iter;
@@ -178,16 +178,16 @@ namespace Test
 
 		// too bad this isn't saved somewhere?
 		MassInfo mass_info = MassInfo();
-		for(int i = -3; i <= 3; i++)
-			for(int j = 0; j <= 20; j++)
-				for(int k = -3; k <= 3; k++)
+		for(int i = -3; i <= 3; ++i)
+			for(int j = 0; j <= 20; ++j)
+				for(int k = -3; k <= 3; ++k)
 					mass_info += MassInfo(Vec3(i * 0.1f, j * 0.1f, k * 0.1f), 0.09523809523809523809523809523808f);
 		mass = mass_info.mass;
 		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
 
 		// look up all the materials the model uses in advance
 		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
-		for(unsigned int i = 0; i < model->materials.size(); i++)
+		for(unsigned int i = 0; i < model->materials.size(); ++i)
 		{
 			string material_name = model->materials[i];
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
@@ -570,7 +570,7 @@ namespace Test
 	{
 		BillboardMaterial* b_mat = ((TestGame*)game_state)->blood_billboard;
 
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < 8; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, b_mat, Random3D::Rand(0.05f, 0.15f), 0.25f);
 			p->gravity = 9.8f;

@@ -156,7 +156,7 @@ namespace CibraryEngine
 
 		void BufferedSendAll(Packet p)
 		{
-			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
+			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 				iter->second->BufferedSend(p);
 		}
 
@@ -164,14 +164,14 @@ namespace CibraryEngine
 		{
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
-			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
+			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 				iter->second->SendBufferedPackets();
 		}
 
 		list<unsigned int> GetClientIDs()
 		{
 			list<unsigned int> ids;
-			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
+			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 				ids.push_back(iter->first);
 			return ids;
 		}
@@ -223,7 +223,7 @@ namespace CibraryEngine
 
                     socket->close();
 
-					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); iter++)
+					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 					{
 						iter->second->Send(Packet::CreateNamedAutoLength("BYE", string()));
 

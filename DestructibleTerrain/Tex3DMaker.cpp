@@ -18,7 +18,7 @@ namespace DestructibleTerrain
 
 		PerlinNoise striation(32, true);
 
-		for(int i = 0; i < octaves; i++)
+		for(int i = 0; i < octaves; ++i)
 		{
 			int octave_res = (8 << i);
 			noise[i] = new PerlinNoise(octave_res , true);
@@ -36,18 +36,18 @@ namespace DestructibleTerrain
 		Vec3 vec;
 		float inv_res_minus_one = 1.0f / (res - 1);
 		
-		for(int x = 0; x < res; x++)
+		for(int x = 0; x < res; ++x)
 		{
 			vec.x = x * inv_res_minus_one;
-			for(int y = 0; y < res; y++)
+			for(int y = 0; y < res; ++y)
 			{
 				vec.y = y * inv_res_minus_one;
-				for(int z = 0; z < res; z++)
+				for(int z = 0; z < res; ++z)
 				{
 					vec.z = z * inv_res_minus_one;
 
 					float value = 0.0;
-					for(int i = 0; i < octaves; i++)
+					for(int i = 0; i < octaves; ++i)
 					{
 						float bare_sample = noise[i]->Sample(vec * vec_coeffs[i]);
 						float sample_value = bare_sample * 0.5f + 0.5f;
@@ -69,7 +69,7 @@ namespace DestructibleTerrain
 
 		ImageIO::SaveTGA("tex3d.tga", data, res_sq, res);
 
-		for(int i = 0; i < octaves; i++)
+		for(int i = 0; i < octaves; ++i)
 			delete noise[i];
 		delete[] noise;
 

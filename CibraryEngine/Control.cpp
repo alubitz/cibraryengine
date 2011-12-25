@@ -10,9 +10,9 @@ namespace CibraryEngine
 
 	ControlState::~ControlState()
 	{
-		for(map<FloatControlChannel*, Control<float>*, ControlChannelComp>::iterator iter = float_controls.begin(); iter != float_controls.end(); iter++)
+		for(map<FloatControlChannel*, Control<float>*, ControlChannelComp>::iterator iter = float_controls.begin(); iter != float_controls.end(); ++iter)
 			delete iter->second;
-		for(map<BoolControlChannel*, Control<bool>*, ControlChannelComp>::iterator iter = bool_controls.begin(); iter != bool_controls.end(); iter++)
+		for(map<BoolControlChannel*, Control<bool>*, ControlChannelComp>::iterator iter = bool_controls.begin(); iter != bool_controls.end(); ++iter)
 			delete iter->second;
 	}
 

@@ -10,13 +10,13 @@ namespace CibraryEngine
 	 */
 	Mat3::Mat3()
 	{
-		for(int i = 0; i < 9; i++)
+		for(int i = 0; i < 9; ++i)
 			values[i] = 0.0;
 	}
 
 	Mat3::Mat3(float values_[9])
 	{
-		for(int i = 0; i < 9; i++)
+		for(int i = 0; i < 9; ++i)
 			values[i] = values_[i];
 	}
 
@@ -135,7 +135,7 @@ namespace CibraryEngine
 		nuvals[7] = avals[6] * bvals[1] + avals[7] * bvals[4] + avals[8] * bvals[7];
 		nuvals[8] = avals[6] * bvals[2] + avals[7] * bvals[5] + avals[8] * bvals[8];
 
-		for(int i = 0; i < 9; i++)
+		for(int i = 0; i < 9; ++i)
 			avals[i] = nuvals[i];
 	}
 	Mat3 operator *(Mat3 a, Mat3 b) { Mat3 result(a); result *= b; return result; }
@@ -148,13 +148,13 @@ namespace CibraryEngine
 	 */
 	Mat4::Mat4()
 	{
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			values[i] = 0.0;
 	}
 
 	Mat4::Mat4(float values_[16])
 	{
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			values[i] = values_[i];
 	}
 
@@ -259,12 +259,12 @@ namespace CibraryEngine
 	}
 	void row_mult(float* row, float coeff)
 	{
-		for(int i = 0; i < 8; i++)
+		for(int i = 0; i < 8; ++i)
 			row[i] *= coeff;
 	}
 	void row_combine(float* from, float* to, float coeff)
 	{
-		for(int i = 0; i < 8; i++)
+		for(int i = 0; i < 8; ++i)
 			to[i] += from[i] * coeff;
 	}
 
@@ -278,8 +278,8 @@ namespace CibraryEngine
 		float *r[] = { ra, rb, rc, rd };
 
 		// working on first column...
-		for(int i = 0; i < 3; i++)
-			for(int j = 0; j < 3 - i; j++)
+		for(int i = 0; i < 3; ++i)
+			for(int j = 0; j < 3 - i; ++j)
 				if(fabs(r[j][0]) < fabs(r[j + 1][0]))
 					row_swap(r[j], r[j + 1]);
 		row_mult(r[0], 1.0f / r[0][0]);
@@ -291,8 +291,8 @@ namespace CibraryEngine
 			row_combine(r[0], r[3], -r[3][0]);
 
 		// working on second column
-		for(int i = 0; i < 2; i++)
-			for(int j = 1; j < 3 - i; j++)
+		for(int i = 0; i < 2; ++i)
+			for(int j = 1; j < 3 - i; ++j)
 				if(fabs(r[j][1]) < fabs(r[j + 1][1]))
 					row_swap(r[j], r[j + 1]);
 		row_mult(r[1], 1.0f / r[1][1]);
@@ -380,7 +380,7 @@ namespace CibraryEngine
 			avals[12] * bvals[2] + avals[13] * bvals[6] + avals[14] * bvals[10] + avals[15] * bvals[14],
 			avals[12] * bvals[3] + avals[13] * bvals[7] + avals[14] * bvals[11] + avals[15] * bvals[15]
 		};
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			avals[i] = nuvals[i];
 	}
 	Mat4 operator *(Mat4 a, Mat4 b) { Mat4 result(a); result *= b; return result; }
@@ -388,7 +388,7 @@ namespace CibraryEngine
 	void operator *=(Mat4& a, float b)
 	{
 		float* avals = &a.values[0];
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			avals[i] *= b;
 	}
 	Mat4 operator *(Mat4 a, float b) { Mat4 result(a); result *= b; return result; }
@@ -397,7 +397,7 @@ namespace CibraryEngine
 	{
 		float* avals = &a.values[0];
 		float* bvals = &b.values[0];
-		for(int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; ++i)
 			avals[i] += bvals[i];
 	}
 	Mat4 operator +(Mat4 a, Mat4 b) { Mat4 result(a); result *= b; return result; }

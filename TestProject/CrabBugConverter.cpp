@@ -49,14 +49,14 @@ namespace Test
 
 		Skeleton* skeleton = new Skeleton();
 
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			BoneEntry& bone = bones[i];
 			bone.model = vtn_cache->Load(bone.name);
 			skeleton->AddBone(Bone::string_table[bone.name], Quaternion::Identity(), bone.pos);
 		}
 
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			BoneEntry& bone = bones[i];
 
@@ -64,7 +64,7 @@ namespace Test
 
 			string& parent_name = bone.parent;
 			if(parent_name != "")
-				for(unsigned int j = 0; j < skeleton->bones.size(); j++)
+				for(unsigned int j = 0; j < skeleton->bones.size(); ++j)
 				{
 					Bone* parent = skeleton->bones[j];
 					if(parent->name == Bone::string_table[parent_name])
@@ -79,21 +79,21 @@ namespace Test
 		//lod_inputs.push_back("crab_lod_0");
 		lod_inputs.push_back("crab_lod_1");
 
-		for(vector<string>::iterator lod_iter = lod_inputs.begin(); lod_iter != lod_inputs.end(); lod_iter++)
+		for(vector<string>::iterator lod_iter = lod_inputs.begin(); lod_iter != lod_inputs.end(); ++lod_iter)
 		{
 			UberModel* uber = new UberModel();
 
 			SkinnedModel* model = SkinnedModel::WrapVertexBuffer(vtn_cache->Load(*lod_iter), "crab_bug");
 			model->skeleton = skeleton;			
 
-			for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); iter++)
+			for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); ++iter)
 			{
 				VertexBuffer* vbo = iter->vbo;
 				vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
 				vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
 				unsigned int num_verts = vbo->GetNumVerts();
-				for(unsigned int j = 0; j < num_verts; j++)
+				for(unsigned int j = 0; j < num_verts; ++j)
 				{
 					stringstream ss;
 					ss << "j = " << j << " of " << num_verts << endl;
@@ -104,13 +104,13 @@ namespace Test
 
 					VertexBoneWeightInfo vbwi = VertexBoneWeightInfo();
 
-					for(unsigned int bone_index = 0; bone_index < bones.size(); bone_index++)
+					for(unsigned int bone_index = 0; bone_index < bones.size(); ++bone_index)
 					{
 						BoneEntry& bone_entry = bones[bone_index];
 						VertexBuffer* model_vbo = bone_entry.model;
 
 						unsigned int seg_verts = model_vbo->GetNumVerts();
-						for(unsigned int k = 0; k < seg_verts; k++)
+						for(unsigned int k = 0; k < seg_verts; ++k)
 						{
 							float dist_sq = (GetVTNTT(model_vbo, k).x - pos).ComputeMagnitudeSquared();
 							if(dist_sq < 0.01)
@@ -121,7 +121,7 @@ namespace Test
 					unsigned char indices[4];
 					unsigned char weights[4];
 					vbwi.GetByteValues(indices, weights);
-					for(int k = 0; k < 4; k++)
+					for(int k = 0; k < 4; ++k)
 					{
 						vertex_info.indices[k] = indices[k];
 						vertex_info.weights[k] = weights[k];
@@ -134,7 +134,7 @@ namespace Test
 		}
 
 		/*
-		for(unsigned int i = 0; i < bones.size(); i++)
+		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			BoneEntry& entry = bones[i];
 
@@ -147,7 +147,7 @@ namespace Test
 			unsigned int num_spheres = entry.spheres.size();
 			btVector3* sphere_positions = new btVector3[num_spheres];
 			btScalar* sphere_radii = new btScalar[num_spheres];
-			for(unsigned int j = 0; j < num_spheres; j++)
+			for(unsigned int j = 0; j < num_spheres; ++j)
 			{
 				Vec3 center = entry.spheres[j].center - entry.pos;
 				sphere_positions[j] = btVector3(center.x, center.y, center.z);
@@ -156,7 +156,7 @@ namespace Test
 			phys.shape = new btMultiSphereShape(sphere_positions, sphere_radii, num_spheres);
 
 			phys.pos = entry.pos;
-			for(unsigned int j = 0; j < bones.size(); j++)
+			for(unsigned int j = 0; j < bones.size(); ++j)
 				if(bones[j].name == entry.parent)
 				{
 					phys.pos -= bones[j].pos;

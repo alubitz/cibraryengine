@@ -6,12 +6,13 @@
 namespace CibraryEngine
 {
 	using namespace std;
+	using boost::unordered_map;
 
 	/** Class storing the Pose information for a single frame of a KeyframeAnimation */
 	struct Keyframe
 	{
 		/** For these bones, the Pose's influence is specified */
-		map<unsigned int, BoneInfluence> values;
+		unordered_map<unsigned int, BoneInfluence> values;
 
 		/** The keyframe to display after this one ends */
 		int next;

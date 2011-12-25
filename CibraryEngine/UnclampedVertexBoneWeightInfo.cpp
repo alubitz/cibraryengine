@@ -7,7 +7,7 @@ namespace CibraryEngine
 	{
 		int size = bones.size();
 
-		for(int i = 0; i < size; i++)
+		for(int i = 0; i < size; ++i)
 			if(bones[i] == bone)
 			{
 				weights[i] += weight;
@@ -26,10 +26,10 @@ namespace CibraryEngine
 			size = 4;
 
 		// get the topmost several bone indices/weights (count = size)
-		for(unsigned k = 0; k < size; k++)
+		for(unsigned k = 0; k < size; ++k)
 		{
 			unsigned int best = k;
-			for(unsigned int j = k + 1; j < bones.size(); j++)
+			for(unsigned int j = k + 1; j < bones.size(); ++j)
 			{
 				if(weights[j] > weights[best])
 					best = j;
@@ -46,10 +46,10 @@ namespace CibraryEngine
 		}
 
 		float total = 0;
-		for(unsigned int k = 0; k < size; k++)
+		for(unsigned int k = 0; k < size; ++k)
 			total += weights[k];
 
-		for(unsigned int k = 0; k < size; k++)
+		for(unsigned int k = 0; k < size; ++k)
 		{
 			unsigned char b = (unsigned char)(bones[k]);
 			unsigned char w = (unsigned char)(weights[k] * 255.0f / total);
@@ -57,7 +57,7 @@ namespace CibraryEngine
 			indices_out[k] = b;
 			weights_out[k] = w;
 		}
-		for(unsigned int k = size; k < 4; k++)
+		for(unsigned int k = size; k < 4; ++k)
 		{
 			indices_out[k] = 0;
 			weights_out[k] = 0;

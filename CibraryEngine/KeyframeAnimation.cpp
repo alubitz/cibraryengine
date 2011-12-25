@@ -5,6 +5,9 @@
 
 namespace CibraryEngine
 {
+	using boost::unordered_map;
+	using boost::unordered_set;
+
 	/*
 	 * Keyframe methods
 	 */
@@ -73,80 +76,63 @@ namespace CibraryEngine
 
 				float b_frac = current_time / cur.duration, a_frac = 1 - b_frac;                   // lerp coefficients
 
-				list<unsigned int> cur_names = list<unsigned int>();
-				list<unsigned int> next_names = list<unsigned int>();
-				for(map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
-					cur_names.push_back(iter->first);
-				for(map<unsigned int, BoneInfluence>::iterator iter = nxt.values.begin(); iter != nxt.values.end(); iter++)
-					next_names.push_back(iter->first);
+				unordered_set<unsigned int> cur_names;
+				unordered_set<unsigned int> next_names;
+
+				unordered_map<unsigned int, BoneInfluence>::iterator map_iter;
+				unordered_set<unsigned int>::iterator set_iter;
+
+				for(map_iter = cur.values.begin(); map_iter != cur.values.end(); ++map_iter)
+					cur_names.insert(map_iter->first);
+				for(map_iter = nxt.values.begin(); map_iter != nxt.values.end(); ++map_iter)
+					next_names.insert(map_iter->first);
 
 				// find the list of bone names used in both bones...
-				list<unsigned int> shared_names = list<unsigned int>(cur_names);
-				for(list<unsigned int>::iterator iter = shared_names.begin(); iter != shared_names.end();)
+				unordered_set<unsigned int> shared_names(cur_names);
+				for(set_iter = shared_names.begin(); set_iter != shared_names.end();)
 				{
-					bool found = false;
-					for(list<unsigned int>::iterator jter = next_names.begin(); jter != next_names.end(); jter++)
-						if(*jter == *iter)
-						{
-							found = true;
-							break;
-						}
-					if(!found)
-						iter = shared_names.erase(iter);
+					if(next_names.find(*set_iter) == next_names.end())
+						set_iter = shared_names.erase(set_iter);
 					else
-						iter++;
+						++set_iter;
 				}
 				// ...and remove those names from the other two lists
-				for(list<unsigned int>::iterator iter = cur_names.begin(); iter != cur_names.end();)
+				for(set_iter = cur_names.begin(); set_iter != cur_names.end();)
 				{
-					bool found = false;
-					for(list<unsigned int>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
-						if(*jter == *iter)
-						{
-							found = true;
-							break;
-						}
-					if(found)
-						iter = cur_names.erase(iter);
+					if(shared_names.find(*set_iter) != shared_names.end())
+						set_iter = cur_names.erase(set_iter);
 					else
-						iter++;
+						++set_iter;
 				}
-				for(list<unsigned int>::iterator iter = next_names.begin(); iter != next_names.end();)
+				for(set_iter = next_names.begin(); set_iter != next_names.end();)
 				{
-					bool found = false;
-					for(list<unsigned int>::iterator jter = shared_names.begin(); jter != shared_names.end(); jter++)
-						if(*jter == *iter)
-						{
-							found = true;
-							break;
-						}
-					if(found)
-						iter = next_names.erase(iter);
+					if(shared_names.find(*set_iter) != shared_names.end())
+						set_iter = next_names.erase(set_iter);
 					else
-						iter++;
+						++set_iter;
 				}
 
-				for (list<unsigned int>::iterator iter = cur_names.begin(); iter != cur_names.end(); iter++)
+				for(set_iter = cur_names.begin(); set_iter != cur_names.end(); ++set_iter)
 				{
-					BoneInfluence vec = cur.values[*iter];
-					SetBonePose(*iter, vec.ori * a_frac, vec.pos * a_frac, vec.div * a_frac);
+					BoneInfluence vec = cur.values[*set_iter];
+					SetBonePose(*set_iter, vec.ori * a_frac, vec.pos * a_frac, vec.div * a_frac);
 				}
-				for (list<unsigned int>::iterator iter = next_names.begin(); iter != next_names.end(); iter++)
+				for(set_iter = next_names.begin(); set_iter != next_names.end(); ++set_iter)
 				{
-					BoneInfluence vec = nxt.values[*iter];
-					SetBonePose(*iter, vec.ori * b_frac, vec.pos * b_frac, vec.div * b_frac);
+					BoneInfluence vec = nxt.values[*set_iter];
+					SetBonePose(*set_iter, vec.ori * b_frac, vec.pos * b_frac, vec.div * b_frac);
 				}
-				for (list<unsigned int>::iterator iter = shared_names.begin(); iter != shared_names.end(); iter++)
+				for(set_iter = shared_names.begin(); set_iter != shared_names.end(); ++set_iter)
 				{
-					BoneInfluence cur_vec = cur.values[*iter];
-					BoneInfluence next_vec = nxt.values[*iter];
-					SetBonePose(*iter, cur_vec.ori * a_frac + next_vec.ori * b_frac, cur_vec.pos * a_frac + next_vec.pos * b_frac, cur_vec.div * a_frac + next_vec.div * b_frac);
+					BoneInfluence cur_vec = cur.values[*set_iter];
+					BoneInfluence next_vec = nxt.values[*set_iter];
+					SetBonePose(*set_iter, cur_vec.ori * a_frac + next_vec.ori * b_frac, cur_vec.pos * a_frac + next_vec.pos * b_frac, cur_vec.div * a_frac + next_vec.div * b_frac);
 				}
 			}
 			else
 			{
 				// here we can forego the extra vector and scalar multiplications that are necessary for lerp
-				for(map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); iter++)
+				for(unordered_map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); ++iter)
 				{
 					BoneInfluence vec = cur.values[iter->first];
 					SetBonePose(iter->first, vec.ori, vec.pos, vec.div);

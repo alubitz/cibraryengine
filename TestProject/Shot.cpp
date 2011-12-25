@@ -57,8 +57,8 @@ namespace Test
 		unsigned int hits_count = callback.hits.size(); 
 		if(hits_count > 0)
 		{
-			for(unsigned int i = 0; i < hits_count; i++)
-				for(unsigned int j = 0; j < hits_count - i - 1; j++)
+			for(unsigned int i = 0; i < hits_count; ++i)
+				for(unsigned int j = 0; j < hits_count - i - 1; ++j)
 				{
 					HitObject temp = callback.hits[j];
 					if(callback.hits[j + 1].time < temp.time)
@@ -67,7 +67,7 @@ namespace Test
 						callback.hits[j + 1] = temp;
 					}
 				}
-			for(unsigned int i = 0; i < hits_count; i++)
+			for(unsigned int i = 0; i < hits_count; ++i)
 			{
 				float fraction = callback.hits[i].time;
 				Vec3 poi = pos + (end_pos - pos) * fraction;

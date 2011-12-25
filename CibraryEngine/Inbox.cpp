@@ -20,7 +20,7 @@ namespace CibraryEngine
 	{
 		if(len > 0)
 		{
-			for(unsigned int i = 0; i < len; i++)
+			for(unsigned int i = 0; i < len; ++i)
 				to_be_assigned.push_back(incoming[i]);
                 
             list<ReceivedPacket> newly_received;
@@ -47,7 +47,7 @@ namespace CibraryEngine
 	list<ReceivedPacket> Inbox::GetPackets()
 	{
 		list<ReceivedPacket> result;
-		for(list<ReceivedPacket>::iterator iter = collection.begin(); iter != collection.end(); iter++)
+		for(list<ReceivedPacket>::iterator iter = collection.begin(); iter != collection.end(); ++iter)
 			result.push_back(*iter);
 
 		return result;

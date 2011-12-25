@@ -27,37 +27,37 @@ namespace ConverterUtil
 		VChunkHeader points_header;
 		file.read((char*)&points_header, sizeof(VChunkHeader));
 		VPoint* points = new VPoint[points_header.DataCount];
-		for(int i = 0; i < points_header.DataCount; i++)
+		for(int i = 0; i < points_header.DataCount; ++i)
 			file.read((char*)&points[i], sizeof(VPoint));
 
 		VChunkHeader wedge_header;
 		file.read((char*)&wedge_header, sizeof(VChunkHeader));
 		VVertex* wedges = new VVertex[wedge_header.DataCount];
-		for(int i = 0; i < wedge_header.DataCount; i++)
+		for(int i = 0; i < wedge_header.DataCount; ++i)
 			file.read((char*)&wedges[i], sizeof(VVertex));
 
 		VChunkHeader faces_header;
 		file.read((char*)&faces_header, sizeof(VChunkHeader));
 		VTriangle* faces = new VTriangle[faces_header.DataCount];
-		for(int i = 0; i < faces_header.DataCount; i++)
+		for(int i = 0; i < faces_header.DataCount; ++i)
 			file.read((char*)&faces[i], sizeof(VTriangle));
 
 		VChunkHeader mats_header;
 		file.read((char*)&mats_header, sizeof(VChunkHeader));
 		VMaterial* mats = new VMaterial[mats_header.DataCount];
-		for(int i = 0; i < mats_header.DataCount; i++)
+		for(int i = 0; i < mats_header.DataCount; ++i)
 			file.read((char*)&mats[i], sizeof(VMaterial));
 
 		VChunkHeader bones_header;
 		file.read((char*)&bones_header, sizeof(VChunkHeader));
 		VBone* bones = new VBone[bones_header.DataCount];
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 			file.read((char*)&bones[i], sizeof(VBone));
 
 		VChunkHeader influence_header;
 		file.read((char*)&influence_header, sizeof(VChunkHeader));
 		VRawBoneInfluence* influences = new VRawBoneInfluence[influence_header.DataCount];
-		for(int i = 0; i < influence_header.DataCount; i++)
+		for(int i = 0; i < influence_header.DataCount; ++i)
 			file.read((char*)&influences[i], sizeof(VRawBoneInfluence));
 
 		file.close();						   // done with the file
@@ -67,14 +67,14 @@ namespace ConverterUtil
 
 		// shove position and texture coordinates into the vertex info array
 		// face normals will also be computed here
-		for(int i = 0; i < faces_header.DataCount; i++)
+		for(int i = 0; i < faces_header.DataCount; ++i)
 		{
 			VTriangle& tri = faces[i];
 
 			Vec3 xyz[3];
 			Vec3 uvw[3];
 
-			for(int j = 0; j < 3; j++)
+			for(int j = 0; j < 3; ++j)
 			{
 				VVertex& wedge = wedges[tri.WedgeIndex[j]];
 				FVector& point = points[wedge.PointIndex].Point;
@@ -90,10 +90,10 @@ namespace ConverterUtil
 
 		// process the bone influences list
 		VertexBoneWeightInfo* weights = new VertexBoneWeightInfo[points_header.DataCount];
-		for(int i = 0; i < points_header.DataCount; i++)
+		for(int i = 0; i < points_header.DataCount; ++i)
 			weights[i].point_index = i;
 
-		for(int i = 0; i < influence_header.DataCount; i ++)
+		for(int i = 0; i < influence_header.DataCount; ++i)
 		{
 			VRawBoneInfluence& influence = influences[i];
 
@@ -101,20 +101,20 @@ namespace ConverterUtil
 		}
 
 		// assign vertex normals based on face normals and smoothing groups
-		for(int i = 0; i < faces_header.DataCount; i++)
+		for(int i = 0; i < faces_header.DataCount; ++i)
 		{
 			VTriangle& tri = faces[i];
 			DWORD smoothing_groups = tri.SmoothingGroups;
-			for(int j = 0; j < 3; j++)
+			for(int j = 0; j < 3; ++j)
 			{
 				int point_index = wedges[tri.WedgeIndex[j]].PointIndex;
 				SkinVInfo& vertex_info = vertex_infos[i * 3 + j];
 
 				Vec3 normal_total = Vec3();
-				for(int k = 0; k < faces_header.DataCount; k++)
+				for(int k = 0; k < faces_header.DataCount; ++k)
 				{
 					VTriangle& other_tri = faces[k];
-					for(int l = 0; l < 3; l++)
+					for(int l = 0; l < 3; ++l)
 						if(wedges[other_tri.WedgeIndex[l]].PointIndex == point_index)
 							if((smoothing_groups & other_tri.SmoothingGroups) != 0)
 								normal_total += face_normals[k];
@@ -129,7 +129,7 @@ namespace ConverterUtil
 		}
 
 		// shove mmps into skinned model
-		for(int i = 0; i < mats_header.DataCount; i++)
+		for(int i = 0; i < mats_header.DataCount; ++i)
 		{
 			VMaterial& mat = mats[i];
 			//string name = mat.MaterialName;
@@ -151,7 +151,7 @@ namespace ConverterUtil
 
 			mmp.vbo = vbo;
 
-			for(int j = 0; j < faces_header.DataCount; j++)
+			for(int j = 0; j < faces_header.DataCount; ++j)
 				//if(faces[j].MatIndex == i)									// TODO: fix this (some reason MatIndex >= mats_header.DataCount ??? )
 					AddTriangleVertexInfo(vbo, vertex_infos[j * 3 + 0], vertex_infos[j * 3 + 2], vertex_infos[j * 3 + 1]);
 
@@ -162,7 +162,7 @@ namespace ConverterUtil
 		Skeleton* skeleton = model->skeleton = new Skeleton();
 		skeleton->AddBone(Bone::string_table["root"], Quaternion::Identity(), Vec3());				// PSK does not have a root bone, it's bone 0 is our bone 1
 
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 		{
 			VBone& bone = bones[i];
 			VJointPos& bone_pos = bone.BonePos;
@@ -178,7 +178,7 @@ namespace ConverterUtil
 		}
 
 		// set bones' parents
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 		{
 			VBone& bone = bones[i];
 			INT parent_index = bone.ParentIndex;
@@ -189,7 +189,7 @@ namespace ConverterUtil
 		vector<Vec3> bone_positions;
 		vector<Quaternion> bone_orientations;
 		// first compute the new state without changing the current state
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 		{
 			Bone* bone = skeleton->bones[i + 1];
 
@@ -204,7 +204,7 @@ namespace ConverterUtil
 			bone_orientations.push_back(ori);
 		}
 		// now go back and apply the changes
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 		{
 			Bone* bone = skeleton->bones[i + 1];
 
@@ -246,31 +246,31 @@ namespace ConverterUtil
 		VChunkHeader bones_header;
 		file.read((char*)&bones_header, sizeof(VChunkHeader));
 		FNamedBoneBinary* bones = new FNamedBoneBinary[bones_header.DataCount];
-		for(int i = 0; i < bones_header.DataCount; i++)
+		for(int i = 0; i < bones_header.DataCount; ++i)
 			file.read((char*)&bones[i], bones_header.DataSize);
 
 		VChunkHeader anims_header;
 		file.read((char*)&anims_header, sizeof(VChunkHeader));
 		AnimInfoBinary* anims = new AnimInfoBinary[anims_header.DataCount];
-		for(int i = 0; i < anims_header.DataCount; i++)
+		for(int i = 0; i < anims_header.DataCount; ++i)
 			file.read((char*)&anims[i], anims_header.DataSize);
 
 		VChunkHeader raw_keys_header;
 		file.read((char*)&raw_keys_header, sizeof(VChunkHeader));
 		VQuatAnimKey* raw_keys = new VQuatAnimKey[raw_keys_header.DataCount];
-		for(int i = 0; i < raw_keys_header.DataCount; i++)
+		for(int i = 0; i < raw_keys_header.DataCount; ++i)
 			file.read((char*)&raw_keys[i], raw_keys_header.DataSize);
 
 		VChunkHeader scale_keys_header;
 		file.read((char*)&scale_keys_header, sizeof(VChunkHeader));
 		VScaleAnimKey* scale_keys = new VScaleAnimKey[scale_keys_header.DataCount];
-		for(int i = 0; i < scale_keys_header.DataCount; i++)
+		for(int i = 0; i < scale_keys_header.DataCount; ++i)
 			file.read((char*)&scale_keys[i], scale_keys_header.DataSize);
 
 		// ignoring curve keys because i have no idea wtf those are
 
 		VQuatAnimKey* key_pointer = &raw_keys[0];
-		for(int i = 0; i < anims_header.DataCount; i++)
+		for(int i = 0; i < anims_header.DataCount; ++i)
 		{
 			AnimInfoBinary& anim = anims[i];
 
@@ -283,7 +283,7 @@ namespace ConverterUtil
 			anim_name.erase(anim_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
 
 			KeyframeAnimation keyframe_animation = KeyframeAnimation(anim_name);
-			for(int j = 0; j < frame_count; j++)
+			for(int j = 0; j < frame_count; ++j)
 			{
 				Keyframe frame = Keyframe(frame_length);
 
@@ -294,8 +294,8 @@ namespace ConverterUtil
 				keyframe_animation.frames.push_back(frame);
 			}
 
-			for(int j = 0; j < total_bones; j++)
-				for(int k = 0; k < frame_count; k++)
+			for(int j = 0; j < total_bones; ++j)
+				for(int k = 0; k < frame_count; ++k)
 				{
 					VQuatAnimKey key = *key_pointer;
 
@@ -308,7 +308,7 @@ namespace ConverterUtil
 
 					keyframe_animation.frames[k].values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos, 1.0f);
 
-					key_pointer++;
+					++key_pointer;
 				}
 
 			animations.push_back(keyframe_animation);

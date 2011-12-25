@@ -50,7 +50,7 @@ namespace Test
 		struct : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } qualifier;
 
 		EntityList elist = game_state->GetQualifyingEntities(qualifier);
-		for(unsigned int i = 0; i < elist.Count(); i++)
+		for(unsigned int i = 0; i < elist.Count(); ++i)
 		{
 			Entity* ent = elist[i];
 			Dood* dood = (Dood*)ent;

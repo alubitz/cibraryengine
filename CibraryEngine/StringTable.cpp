@@ -1,8 +1,6 @@
 #include "StdAfx.h"
 #include "StringTable.h"
 
-#include <boost/unordered/unordered_map.hpp>
-
 namespace CibraryEngine
 {
 	using namespace std;

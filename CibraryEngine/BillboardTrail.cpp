@@ -50,7 +50,7 @@ namespace CibraryEngine
 
 		// collapse unused stuff
 		unsigned int next = 0;
-		for(unsigned int i = 0; i < node_count; i++)
+		for(unsigned int i = 0; i < node_count; ++i)
 		{
 			TrailNode& node = trail[i];
 			if(node.age <= node.max_age)
@@ -61,11 +61,11 @@ namespace CibraryEngine
 			InvalidateBoundingSphere();
 			node_count = next;
 		}
-		for(unsigned int i = 0; i < node_count; i++)
+		for(unsigned int i = 0; i < node_count; ++i)
 			trail[i] = trail[nu_trail[i]];
 
 		// age the nodes
-		for(vector<TrailNode>::iterator iter = trail.begin(); iter != trail.end(); iter++)
+		for(vector<TrailNode>::iterator iter = trail.begin(); iter != trail.end(); ++iter)
 			iter->age += timestep;
 
 		// add new nodes / kill the chain
@@ -84,7 +84,7 @@ namespace CibraryEngine
 		{
 			bs = Sphere(trail[0].pos, width);
 
-			for (unsigned int i = 1; i < trail.size(); i++)
+			for (unsigned int i = 1; i < trail.size(); ++i)
 				bs = Sphere::Expand(bs, Sphere(trail[i].pos, width));
 		}
 		return bs;
@@ -94,7 +94,7 @@ namespace CibraryEngine
 	{
 		//if (renderer->camera->CheckSphereVisibility(GetBoundingSphere()))
 		{
-			for (unsigned int i = 0; i + 1 < node_count; i++)
+			for (unsigned int i = 0; i + 1 < node_count; ++i)
 			{
 				TrailNode& a = trail[i + 1];
 				TrailNode& b = trail[i];

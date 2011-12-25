@@ -26,7 +26,7 @@ namespace CibraryEngine
 
 		if(byte_data != NULL)
 		{
-			for(int i = 0; i < 6; i++)
+			for(int i = 0; i < 6; ++i)
 				delete[] byte_data[i];
 			delete[] byte_data;
 			byte_data = NULL;
@@ -43,7 +43,7 @@ namespace CibraryEngine
 			glEnable(GL_TEXTURE_CUBE_MAP);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, gl_name);
 
-			for (int i = 0; i < 6; i++)
+			for (int i = 0; i < 6; ++i)
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data[i]);
 
 			if (mipmaps)

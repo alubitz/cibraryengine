@@ -9,8 +9,6 @@
 #include "Physics.h"
 #include "VisionBlocker.h"
 
-#include <boost/unordered/unordered_map.hpp>
-
 namespace CibraryEngine
 {
 	using boost::unordered_map;
@@ -52,7 +50,7 @@ namespace CibraryEngine
 
 	NavNode::~NavNode()
 	{ 
-		for(map<unsigned int, NavEdge*>::iterator iter = edges.begin(); iter != edges.end(); iter++)
+		for(map<unsigned int, NavEdge*>::iterator iter = edges.begin(); iter != edges.end(); ++iter)
 			delete iter->second;
 		edges.clear();
 	};
@@ -130,7 +128,7 @@ namespace CibraryEngine
 
 			void InnerDispose()
 			{
-				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 					delete iter->second;
 				nodes.clear();
 
@@ -184,7 +182,7 @@ namespace CibraryEngine
 					nodes.erase(found);
 
 					// ...but we also need to delete edges from other nodes to this node
-					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 						iter->second->DeleteEdge(id);
 				}
 			}
@@ -192,7 +190,7 @@ namespace CibraryEngine
 			vector<unsigned int> GetAllNodes()
 			{
 				vector<unsigned int> results;
-				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 					results.push_back(iter->first);
 				return results;
 			}
@@ -200,7 +198,7 @@ namespace CibraryEngine
 			vector<unsigned int> GetVisibleNodes(Vec3 pos)
 			{
 				vector<unsigned int> results;
-				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 				{
 					if(VisionBlocker::CheckLineOfSight(game_state->physics_world, pos, iter->second->pos))
 						results.push_back(iter->first);
@@ -214,7 +212,7 @@ namespace CibraryEngine
 				unsigned int result = 0;
 				float closest = 0;
 
-				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 				{
 					Vec3 node_pos = iter->second->pos;
 					float dist_sq = (pos - node_pos).ComputeMagnitudeSquared();
@@ -246,11 +244,11 @@ namespace CibraryEngine
 				}
 
 				if(dir & NavGraph::PD_OUT)
-					for(map<unsigned int, NavEdge*>::iterator iter = node->edges.begin(); iter != node->edges.end(); iter++)
+					for(map<unsigned int, NavEdge*>::iterator iter = node->edges.begin(); iter != node->edges.end(); ++iter)
 						results.push_back(iter->first);
 
 				if(dir & NavGraph::PD_IN)
-					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); iter++)
+					for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 						if(iter->second->GetEdgeByID(node_id))
 							results.push_back(iter->first);
 
@@ -528,7 +526,7 @@ namespace CibraryEngine
 				lua_newtable(L);
 
 				vector<unsigned int> neighbors = NavGraph::GetNodeEdges(node->graph, node->node, NavGraph::PD_OUT);
-				for(vector<unsigned int>::iterator iter = neighbors.begin(); iter != neighbors.end(); iter++)
+				for(vector<unsigned int>::iterator iter = neighbors.begin(); iter != neighbors.end(); ++iter)
 				{
 					PushNavNodeHandle(L, node->graph, *iter);
 					lua_pushnumber(L, NavGraph::GetEdgeCost(node->graph, node->node, *iter));
@@ -602,7 +600,7 @@ namespace CibraryEngine
 		vector<unsigned int> nodes = NavGraph::GetAllNodes(graph);
 		WriteUInt32(nodes.size(), file);
 
-		for(unsigned int i = 0; i < nodes.size(); i++)
+		for(unsigned int i = 0; i < nodes.size(); ++i)
 		{
 			unsigned int node = nodes[i];
 			Vec3 pos = NavGraph::GetNodePosition(graph, node);
@@ -610,7 +608,7 @@ namespace CibraryEngine
 			WriteUInt32(node, file);
 			WriteVec3(pos, file);
 		}
-		for(unsigned int i = 0; i < nodes.size(); i++)
+		for(unsigned int i = 0; i < nodes.size(); ++i)
 		{
 			unsigned int node = nodes[i];
 			WriteUInt32(node, file);
@@ -619,7 +617,7 @@ namespace CibraryEngine
 
 			WriteUInt32(edges.size(), file);
 
-			for(unsigned int j = 0; j < edges.size(); j++)
+			for(unsigned int j = 0; j < edges.size(); ++j)
 			{
 				unsigned int edge = edges[j];
 				float cost = NavGraph::GetEdgeCost(graph, node, edge);
@@ -640,18 +638,18 @@ namespace CibraryEngine
 
 		unsigned int n_nodes = ReadUInt32(file);
 		unordered_map<unsigned int, unsigned int> nodes;
-		for(unsigned int i = 0; i < n_nodes; i++)
+		for(unsigned int i = 0; i < n_nodes; ++i)
 		{
 			unsigned int node = ReadUInt32(file);
 			Vec3 pos = ReadVec3(file);
 			nodes[node] = NavGraph::NewNode(graph, pos);
 		}
-		for(unsigned int i = 0; i < n_nodes; i++)
+		for(unsigned int i = 0; i < n_nodes; ++i)
 		{
 			unsigned int node = ReadUInt32(file);
 			unsigned int n_edges = ReadUInt32(file);
 
-			for(unsigned int j = 0; j < n_edges; j++)
+			for(unsigned int j = 0; j < n_edges; ++j)
 			{
 				unsigned int edge = ReadUInt32(file);
 				float cost = ReadSingle(file);

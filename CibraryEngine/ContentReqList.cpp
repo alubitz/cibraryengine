@@ -39,7 +39,7 @@ namespace CibraryEngine
 
 	void ContentReqList::LoadContent(string* status)
 	{
-		for(list<ContentHandle<UberModel> >::iterator iter = imp->models.begin(); iter != imp->models.end(); iter++)
+		for(list<ContentHandle<UberModel> >::iterator iter = imp->models.begin(); iter != imp->models.end(); ++iter)
 		{
 			ContentHandle<UberModel> handle = *iter;
 			*status = "Models... " + handle.GetMetadata().name + ".zzz";

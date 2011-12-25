@@ -14,7 +14,7 @@ namespace CibraryEngine
 	void BinaryChunk::Read(istream& stream)
 	{
 		name = "";
-		for(int i = 0; i < 8; i++)
+		for(int i = 0; i < 8; ++i)
 			name += ReadByte(stream);
 
 		unsigned int size = ReadUInt32(stream);
@@ -25,7 +25,7 @@ namespace CibraryEngine
 
 	void BinaryChunk::Write(ostream& stream)
 	{
-		for(int i = 0; i < 8; i++)
+		for(int i = 0; i < 8; ++i)
 			WriteByte(name[i], stream);
 
 		WriteUInt32(data.length(), stream);

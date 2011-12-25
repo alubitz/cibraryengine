@@ -46,7 +46,7 @@ namespace CibraryEngine
 			return 0;
 		}
 
-		int DoString(string str) { return luaL_loadstring(state, str.c_str()) || DoFunction(0, LUA_MULTRET); }
+		int DoString(string& str) { return luaL_loadstring(state, str.c_str()) || DoFunction(0, LUA_MULTRET); }
 
 		int DoFile(string filename)
 		{
@@ -88,7 +88,7 @@ namespace CibraryEngine
 	lua_State* ScriptingState::GetLuaState() { return imp->state; }
 
 	int ScriptingState::DoFunction(int args, int results) { return imp->DoFunction(args, results); }
-	int ScriptingState::DoString(string str) { return imp->DoString(str); }
+	int ScriptingState::DoString(string& str) { return imp->DoString(str); }
 	int ScriptingState::DoFile(string filename) { return imp->DoFile(filename); }
 
 	bool ScriptingState::IsValid() { return imp != NULL && imp->state != NULL; }

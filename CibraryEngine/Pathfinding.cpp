@@ -38,7 +38,7 @@ namespace CibraryEngine
 		{
 			float priority = (*priorities)[node];
 			list<unsigned int>::iterator iter;
-			for(iter = queue.begin(); iter != queue.end(); iter++)
+			for(iter = queue.begin(); iter != queue.end(); ++iter)
 				if((*priorities)[*iter] > priority)
 				{
 					queue.insert(iter, node);
@@ -52,7 +52,7 @@ namespace CibraryEngine
 
 		void ChangePriority(unsigned int node)
 		{
-			for(list<unsigned int>::iterator iter = queue.begin(); iter != queue.end(); iter++)
+			for(list<unsigned int>::iterator iter = queue.begin(); iter != queue.end(); ++iter)
 				if(*iter == node)
 				{
 					queue.erase(iter);
@@ -101,7 +101,7 @@ namespace CibraryEngine
 			pq(&f_costs)
 		{
 
-			for(unsigned int i = 0; i < nodes.size(); i++)
+			for(unsigned int i = 0; i < nodes.size(); ++i)
 				node_to_index[nodes[i]] = i;
 
 			pq.Insert(node_to_index[source]);
@@ -131,7 +131,7 @@ namespace CibraryEngine
 				Vec3 pos_a = NavGraph::GetNodePosition(graph, nodes[closest]);
 
 				vector<unsigned int> edges = NavGraph::GetNodeEdges(graph, nodes[closest], NavGraph::PD_OUT);
-				for(vector<unsigned int>::iterator iter = edges.begin(); iter != edges.end(); iter++)
+				for(vector<unsigned int>::iterator iter = edges.begin(); iter != edges.end(); ++iter)
 				{
 					Vec3 pos_b = NavGraph::GetNodePosition(graph, *iter);
 					float edge_cost = NavGraph::GetEdgeCost(graph, nodes[closest], *iter);
@@ -186,7 +186,7 @@ namespace CibraryEngine
 				results.reverse();
 
 				// delete new'd stuffs
-				for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); iter++)
+				for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); ++iter)
 					delete *iter;
 
 				// store the path we computed
@@ -225,7 +225,7 @@ namespace CibraryEngine
 	list<unsigned int> PathSearch::GetSolution()
 	{
 		list<unsigned int> result;
-		for(list<unsigned int>::iterator iter = imp->solution.begin(); iter != imp->solution.end(); iter++)
+		for(list<unsigned int>::iterator iter = imp->solution.begin(); iter != imp->solution.end(); ++iter)
 			result.push_back(*iter);
 		return result;
 	}
@@ -316,7 +316,7 @@ namespace CibraryEngine
 					int i = 1;
 
 					lua_newtable(L);
-					for(list<unsigned int>::iterator iter = solution.begin(); iter != solution.end(); iter++)
+					for(list<unsigned int>::iterator iter = solution.begin(); iter != solution.end(); ++iter)
 					{
 						lua_pushnumber(L, i++);
 						PushNavNodeHandle(L, path_search->GetGraph(), *iter);
