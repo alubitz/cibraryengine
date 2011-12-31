@@ -10,8 +10,6 @@
 #include "Weapon.h"
 
 #include "ConverterWhiz.h"
-#include "SoldierConverter.h"
-#include "CrabBugConverter.h"
 
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
@@ -122,12 +120,14 @@ namespace Test
 
 		ScriptSystem::SetGS(this);
 
+		/*
 		ContentReqList content_req_list(content);
 
 		ScriptSystem::SetContentReqList(&content_req_list);
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/load.lua");
 		ScriptSystem::SetContentReqList(NULL);
 		content_req_list.LoadContent(&load_status.task);
+		*/
 
 		if(ubermodel_cache->Load("nbridge") == NULL)
 		{
@@ -213,49 +213,6 @@ namespace Test
 		// Dood's model
 		model = ubermodel_cache->Load("soldier");
 
-		if(model == NULL)
-		{
-			ConvertSoldier(content);
-
-			UberModel* uber_model = UberModelLoader::CopySkinnedModel(content->GetCache<SkinnedModel>()->Load("soldier"));
-
-			UberModel::Bone eye_bone;
-			eye_bone.name = "eye";
-			eye_bone.parent = 5;
-			eye_bone.pos = Vec3(0, 1.88f, 0.1f);
-			uber_model->bones.push_back(eye_bone);
-
-			UberModel::Bone lgrip_bone;
-			lgrip_bone.name = "l grip";
-			lgrip_bone.parent = 9;
-			lgrip_bone.pos = Vec3(0.546f, 1.059f, 0.016f);
-			lgrip_bone.ori = Quaternion::FromPYR(0, 0, 0.5f) * Quaternion::FromPYR(M_PI * 0.5f, 0, 0) * Quaternion::FromPYR(0, 0.1f, 0);
-			uber_model->bones.push_back(lgrip_bone);
-
-			UberModel::Bone rgrip_bone;
-			rgrip_bone.name = "r grip";
-			rgrip_bone.parent = 16;
-			rgrip_bone.pos = Vec3(-0.546f, 1.059f, 0.016f);
-			rgrip_bone.ori = Quaternion::FromPYR(0, 0, -0.5f) * Quaternion::FromPYR(M_PI * 0.5f, 0, 0) * Quaternion::FromPYR(0, -0.1f, 0);
-			uber_model->bones.push_back(rgrip_bone);
-
-			for(unsigned int i = 0; i < uber_model->bones.size(); ++i)
-			{
-				UberModel::BonePhysics phys;
-				phys.pos = uber_model->bones[i].pos;
-				phys.mass = 1.0f;
-				float radii[] = {0.2f};
-				btVector3 centers[] = {btVector3(phys.pos.x, phys.pos.y, phys.pos.z)};
-				phys.shape = new btMultiSphereShape(centers, radii, 1);
-				uber_model->bone_physics.push_back(phys);
-			}
-
-			UberModelLoader::SaveZZZ(uber_model, "Files/Models/soldier.zzz");
-
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("soldier").id).fail = false;
-			model = ubermodel_cache->Load("soldier");
-		}
-
 		mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		shot_material = (BillboardMaterial*)mat_cache->Load("shot");
 		gun_model = ubermodel_cache->Load("gun");
@@ -271,14 +228,6 @@ namespace Test
 		load_status.task = "crab bug";
 
 		enemy = ubermodel_cache->Load("crab_bug");
-		if(enemy == NULL)
-		{
-			// if you want to re-convert the crab bug, simply delete the .zzz file to force conversion
-			ConvertCrabBug(content);
-
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("crab_bug").id).fail = false;
-			enemy = ubermodel_cache->Load("crab_bug");
-		}
 
 		if(load_status.abort)
 		{
@@ -354,6 +303,8 @@ namespace Test
 
 		player_controller = new PlayerController(this);
 		player_controller->Possess(player_pawn);
+		player_pawn->ai_update_interval = 0;
+
 		Spawn(player_controller);
 
 		return player_pawn;

@@ -61,6 +61,9 @@ namespace Test
 			float jump_start_timer;
 			float jump_fuel;
 
+			float ai_update_interval;
+			float ai_timer;
+
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 

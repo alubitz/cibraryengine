@@ -16,7 +16,11 @@ namespace CibraryEngine
 
 		unsigned int next_id;
 
-		Imp() : str_to_i(), i_to_str(), next_id(1) { }
+		Imp() : str_to_i(), i_to_str(), next_id(1)
+		{
+			str_to_i[""] = NULL;
+			i_to_str[NULL] = "";
+		}
 		~Imp() { }
 	};
 

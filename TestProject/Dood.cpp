@@ -125,7 +125,7 @@ namespace Test
 		yaw(0),
 		pitch(0),
 		angular_vel(),
-		hp(1.0),
+		hp(1.0f),
 		eye_bone(NULL),
 		gun_hand_bone(NULL),
 		model(model),
@@ -135,7 +135,9 @@ namespace Test
 		physics(NULL),
 		standing(0),
 		jump_start_timer(0),
-		jump_fuel(1.0),
+		jump_fuel(1.0f),
+		ai_update_interval(0.2f),
+		ai_timer(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
 		OnAmmoFailure(),
@@ -224,7 +226,13 @@ namespace Test
 
 		Pawn::Update(time);
 
-		MaybeDoScriptedAI(this);
+		ai_timer -= time.elapsed;
+		if(ai_timer <= 0)
+		{
+			// TODO: make this stuff a property of the Controller, rather than the Dood
+			MaybeDoScriptedAI(this);
+			ai_timer += ai_update_interval * Random3D::Rand(0.5f, 1.5f);
+		}
 
 		rigid_body->body->activate();
 		rigid_body->body->clearForces();

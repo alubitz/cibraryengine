@@ -35,19 +35,22 @@ namespace CibraryEngine
 		if(result_valid)
 		{
 			// copy result to skeleton
+			unordered_map<unsigned int, Bone*> result_bones;
 			for(vector<Bone*>::iterator iter = result.bones.begin(); iter != result.bones.end(); ++iter)
+				result_bones[(*iter)->name] = *iter;
+
+			vector<Bone*>& skeleton_bones =  skeleton->bones;
+			for(vector<Bone*>::iterator iter = skeleton_bones.begin(); iter != skeleton_bones.end(); ++iter)
 			{
 				Bone* bone_i = *iter;
-				unsigned int bone_name = (*iter)->name;
-				for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); ++jter)
+				
+				unordered_map<unsigned int, Bone*>::iterator found = result_bones.find(bone_i->name);
+				if(found != result_bones.end())
 				{
-					Bone* bone_j = *jter;
-					if(bone_name == bone_j->name)
-					{
-						bone_j->pos = bone_i->pos;
-						bone_j->ori = bone_i->ori;
-						break;
-					}
+					Bone* bone_f = found->second;
+
+					bone_i->pos = bone_f->pos;
+					bone_i->ori = bone_f->ori;
 				}
 			}
 
