@@ -44,14 +44,4 @@ namespace Test
 
 	bool Weapon::GetAmmoFraction(float& result) { return false; }
 	bool Weapon::GetAmmoCount(int& result) { return false; }
-
-
-
-
-	/*
-	 * Weapon control channels
-	 */
-	BoolControlChannel Weapon::PrimaryFire = BoolControlChannel("PFire", false);
-	BoolControlChannel Weapon::AltFire = BoolControlChannel("AFire", false);
-	BoolControlChannel Weapon::Reload = BoolControlChannel("Reload", false);
 }

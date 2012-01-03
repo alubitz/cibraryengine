@@ -136,7 +136,7 @@ namespace Test
 		standing(0),
 		jump_start_timer(0),
 		jump_fuel(1.0f),
-		ai_update_interval(0.2f),
+		ai_update_interval(0.1f),
 		ai_timer(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),

@@ -6,32 +6,9 @@ namespace CibraryEngine
 	/*
 	 * ControlState methods
 	 */
-	ControlState::ControlState() : float_controls(), bool_controls() { }
+	ControlState::ControlState() { }
 
-	ControlState::~ControlState()
-	{
-		for(map<FloatControlChannel*, Control<float>*, ControlChannelComp>::iterator iter = float_controls.begin(); iter != float_controls.end(); ++iter)
-			delete iter->second;
-		for(map<BoolControlChannel*, Control<bool>*, ControlChannelComp>::iterator iter = bool_controls.begin(); iter != bool_controls.end(); ++iter)
-			delete iter->second;
-	}
-
-	Control<float>& ControlState::operator [](FloatControlChannel& channel)
-	{
-		map<FloatControlChannel*, Control<float>*, ControlChannelComp>::iterator iter = float_controls.find(&channel);
-		return *iter->second;
-	}
-
-	Control<bool>& ControlState::operator [](BoolControlChannel& channel)
-	{
-		map<BoolControlChannel*, Control<bool>*, ControlChannelComp>::iterator iter = bool_controls.find(&channel);
-		return *iter->second;
-	}
-
-	void ControlState::AddFloatControl(FloatControlChannel& channel) { float_controls.insert(pair<FloatControlChannel*, Control<float>* >(&channel, new Control<float>(&channel))); }
-
-	void ControlState::AddBoolControl(BoolControlChannel& channel) { bool_controls.insert(pair<BoolControlChannel*, Control<bool>* >(&channel, new Control<bool>(&channel))); }
-
+	ControlState::~ControlState() { }
 
 
 

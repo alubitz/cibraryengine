@@ -54,9 +54,5 @@ namespace Test
 
 			virtual bool GetAmmoFraction(float& result);
 			virtual bool GetAmmoCount(int& result);
-
-			static BoolControlChannel PrimaryFire;
-			static BoolControlChannel AltFire;
-			static BoolControlChannel Reload;
 	};
 }
