@@ -45,6 +45,7 @@ namespace Test
 
 
 	// some lua-related dood functions
+	// TODO: reimplement this stuff in ControlState
 	bool GetBoolControl(Dood* dood, string control_name);
 	float GetFloatControl(Dood* dood, string control_name);
 	void SetBoolControl(Dood* dood, string control_name, bool value);
@@ -229,7 +230,7 @@ namespace Test
 		ai_timer -= time.elapsed;
 		if(ai_timer <= 0)
 		{
-			// TODO: make this stuff a property of the Controller, rather than the Dood
+			// TODO: move this stuff to Controller, rather than the Dood
 			MaybeDoScriptedAI(this);
 			ai_timer += ai_update_interval * Random3D::Rand(0.5f, 1.5f);
 		}

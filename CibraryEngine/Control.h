@@ -17,6 +17,11 @@ namespace CibraryEngine
 			/** Initializes a control state */
 			ControlState();
 			~ControlState();
+
+			bool GetBoolControl(string control_name);
+			float GetFloatControl(string control_name);
+			void SetBoolControl(string control_name, bool value);
+			void SetFloatControl(string control_name, float value);
 	};
 
 	/** An entity which is being controlled */
@@ -43,6 +48,9 @@ namespace CibraryEngine
 
 		public:
 
+			float last_ctrl_update, next_ctrl_update;
+			float ctrl_update_interval;
+
 			/** Initializes a Controller for the specified GameState */
 			Controller(GameState* gs);
 			virtual ~Controller();
@@ -59,12 +67,20 @@ namespace CibraryEngine
 
 			/** Gets the ControlState of the controlled Pawn, if there is one */
 			virtual ControlState* GetControlState();
+
+			/** Causes UpdateController to be caused when sufficient time has elapsed */
+			void Update(TimingInfo time);
+			/** Abstract function to let a controller update the control state */
+			virtual void UpdateController(TimingInfo time) = 0;
 	};
 
 	/** Class representing a player's control over the player's Pawn */
 	class PlayerController : public Controller
 	{
 		public:
+
 			PlayerController(GameState* gs);
+
+			void UpdateController(TimingInfo time);
 	};
 }
