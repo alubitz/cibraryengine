@@ -3,6 +3,8 @@
 
 #include "GameState.h"
 
+#include "Scripting.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -16,6 +18,7 @@ namespace CibraryEngine
 	float ControlState::GetFloatControl(string control_name) { return 0.0f; }
 	void ControlState::SetBoolControl(string control_name, bool value) { }
 	void ControlState::SetFloatControl(string control_name, float value) { }
+
 
 
 
@@ -69,6 +72,25 @@ namespace CibraryEngine
 			last_ctrl_update = now;
 			next_ctrl_update = now + ctrl_update_interval;
 		}
+	}
+
+
+
+
+	/*
+	 * ScriptedController methods
+	 */
+	ScriptedController::ScriptedController(GameState* gs, string script) : Controller(gs), script(script) { }
+
+	void ScriptedController::UpdateController(TimingInfo time)
+	{
+		stringstream ss;
+		ss << "Files/Scripts/" << script << ".lua";
+		string filename = ss.str();
+
+		ScriptSystem::GetGlobalState().DoFile(filename);
+
+		// TODO: plug data produced by the script into the control state
 	}
 
 

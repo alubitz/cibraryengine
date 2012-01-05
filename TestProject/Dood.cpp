@@ -531,9 +531,9 @@ namespace Test
 		physics->RemoveRigidBody(rigid_body);
 
 		if(equipped_weapon != NULL)
-			equipped_weapon->is_valid = NULL;
+			equipped_weapon->is_valid = false;
 		if(intrinsic_weapon != NULL)
-			intrinsic_weapon->is_valid = NULL;
+			intrinsic_weapon->is_valid = false;
 	}
 
 	bool Dood::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
@@ -739,16 +739,16 @@ namespace Test
 
 			lua_settop(L, 0);
 
-			if		(key == "is_valid")					{ lua_pushboolean(L,  *dood_ptr != NULL); return 1; }
+			if(key == "is_valid")						{ lua_pushboolean(L,  *dood_ptr != NULL); return 1; }
 			else
 			{
 				Dood* dood = *dood_ptr;
 				if(dood != NULL)
 				{
 					if		(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
-					else if	(key == "is_player")			{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
+					else if	(key == "is_player")		{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
 					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }			
-					else if	(key == "control_state")		{ GetDoodControlState(L, dood); return 1; }
+					else if	(key == "control_state")	{ GetDoodControlState(L, dood); return 1; }
 					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
 					else if	(key == "pitch")			{ lua_pushnumber(L, dood->pitch); return 1; }
 					else

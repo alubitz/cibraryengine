@@ -74,6 +74,20 @@ namespace CibraryEngine
 			virtual void UpdateController(TimingInfo time) = 0;
 	};
 
+	/** Class which executes a lua script to determine the ControlState for a Pawn */
+	class ScriptedController : public Controller
+	{
+		public:
+
+			/** The filename of the script to be executed */
+			string script;
+
+			/** Creates a Controller which will execute the script with the given filename */
+			ScriptedController(GameState* gs, string script);
+
+			void UpdateController(TimingInfo time);
+	};
+
 	/** Class representing a player's control over the player's Pawn */
 	class PlayerController : public Controller
 	{
