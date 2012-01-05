@@ -2,22 +2,37 @@
 #include "Control.h"
 
 #include "GameState.h"
+#include "DebugLog.h"
 
 #include "Scripting.h"
+#include "Random3D.h"
 
 namespace CibraryEngine
 {
+	using boost::unordered_map;
+
 	/*
 	 * ControlState methods
 	 */
-	ControlState::ControlState() { }
+	ControlState::ControlState() : control_values() { }
 	ControlState::~ControlState() { }
 
-	// TODO: implement these
-	bool ControlState::GetBoolControl(string control_name) { return false; }
-	float ControlState::GetFloatControl(string control_name) { return 0.0f; }
-	void ControlState::SetBoolControl(string control_name, bool value) { }
-	void ControlState::SetFloatControl(string control_name, float value) { }
+	bool ControlState::GetBoolControl(string control_name) { return GetFloatControl(control_name) != 0.0f; }
+
+	float ControlState::GetFloatControl(string control_name)
+	{ 
+		unordered_map<string, float>::iterator found = control_values.find(control_name);
+		return found != control_values.end() ? found->second : 0.0f;
+	}
+
+	void ControlState::SetBoolControl(string control_name, bool value)
+	{
+		// only change the float value if the bool value has changed
+		if(value != GetBoolControl(control_name))
+			control_values[control_name] = value ? 1.0f : 0.0f;
+	}
+
+	void ControlState::SetFloatControl(string control_name, float value) { control_values[control_name] = value; }
 
 
 
@@ -25,8 +40,15 @@ namespace CibraryEngine
 	/*
 	 Pawn methods
 	 */
-	Pawn::Pawn(GameState* gs) : Entity(gs), controller(NULL), control_state(NULL) { }
-	Pawn::~Pawn() { }
+	Pawn::Pawn(GameState* gs) : Entity(gs), controller(NULL), control_state(new ControlState()) { }
+	Pawn::~Pawn() 
+	{
+		if(control_state != NULL)
+		{
+			delete control_state;
+			control_state = NULL;
+		}
+	}
 
 
 
@@ -70,7 +92,7 @@ namespace CibraryEngine
 			UpdateController(TimingInfo(now - last_ctrl_update, now));
 
 			last_ctrl_update = now;
-			next_ctrl_update = now + ctrl_update_interval;
+			next_ctrl_update = now + ctrl_update_interval * Random3D::Rand(0.5f, 1.5f);
 		}
 	}
 
@@ -82,15 +104,88 @@ namespace CibraryEngine
 	 */
 	ScriptedController::ScriptedController(GameState* gs, string script) : Controller(gs), script(script) { }
 
+	int cs_newindex(lua_State* L);
+	int cs_index(lua_State* L);
+
 	void ScriptedController::UpdateController(TimingInfo time)
 	{
 		stringstream ss;
 		ss << "Files/Scripts/" << script << ".lua";
 		string filename = ss.str();
 
-		ScriptSystem::GetGlobalState().DoFile(filename);
+		ScriptingState script = ScriptSystem::GetGlobalState();
+		lua_State* L = script.GetLuaState();
 
-		// TODO: plug data produced by the script into the control state
+		// hook variables (hv)
+		lua_newtable(L);
+
+		// hv.control_state
+		ControlState* cs = GetControlState();
+		lua_newtable(L);
+
+		lua_newtable(L);
+		lua_pushlightuserdata(L, cs);
+		lua_pushcclosure(L, cs_newindex, 1);
+		lua_setfield(L, -2, "__newindex");
+		lua_pushlightuserdata(L, cs);
+		lua_pushcclosure(L, cs_index, 1);
+		lua_setfield(L, -2, "__index");
+		lua_setmetatable(L, -2);
+
+		lua_setfield(L, -2, "control_state");
+
+		// hv.time
+		lua_newtable(L);
+		lua_pushnumber(L, time.total);
+		lua_setfield(L, -2, "total");
+		lua_pushnumber(L, time.elapsed);
+		lua_setfield(L, -2, "elapsed");
+		lua_setfield(L, -2, "time");
+
+		// hv.pawn
+		lua_pushlightuserdata(L, GetControlledPawn()->GetScriptingHandle());
+		lua_setfield(L, -2, "pawn");
+
+		lua_setglobal(L, "hv");
+
+		script.DoFile(filename);
+
+		lua_pushnil(L);
+		lua_setglobal(L, "hv");
+	}
+
+	int cs_newindex(lua_State* L)
+	{
+		ControlState* control_state = (ControlState*)lua_touserdata(L, lua_upvalueindex(1));
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			if(lua_isnumber(L, 3))
+				control_state->SetFloatControl(key, (float)lua_tonumber(L, 3));
+			else if(lua_isboolean(L, 3))
+				control_state->SetBoolControl(key, (bool)lua_toboolean(L, 3));
+		}
+
+		return 0;
+	}
+
+	int cs_index(lua_State* L)
+	{
+		ControlState* control_state = (ControlState*)lua_touserdata(L, lua_upvalueindex(1));
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			lua_settop(L, 0);
+			lua_pushnumber(L, control_state->GetFloatControl(key));
+
+			return 1;
+		}
+
+		return 0;
 	}
 
 

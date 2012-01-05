@@ -15,7 +15,6 @@ namespace Test
 {
 	bool enable_ragdolls = true;
 
-	bool MaybeDoScriptedAI(Dood* dood);
 	bool MaybeDoScriptedUpdate(Dood* dood);
 	bool MaybeDoScriptedDeath(Dood* dood);
 
@@ -44,12 +43,10 @@ namespace Test
 	float flying_accel = 8.0f;
 
 
-	// some lua-related dood functions
-	// TODO: reimplement this stuff in ControlState
-	bool GetBoolControl(Dood* dood, string control_name);
-	float GetFloatControl(Dood* dood, string control_name);
-	void SetBoolControl(Dood* dood, string control_name, bool value);
-	void SetFloatControl(Dood* dood, string control_name, float value);
+	bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
+	float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
+	void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
+	void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
 
 	void GenerateHardCodedWalkAnimation(IKPose* ik_pose)
 	{
@@ -137,8 +134,6 @@ namespace Test
 		standing(0),
 		jump_start_timer(0),
 		jump_fuel(1.0f),
-		ai_update_interval(0.1f),
-		ai_timer(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
 		OnAmmoFailure(),
@@ -147,8 +142,6 @@ namespace Test
 		OnDeath(),
 		contact_callback(NULL)
 	{
-		control_state = new ControlState();
-
 		contact_callback = new MyContactResultCallback(this);
 
 		// creating character
@@ -200,9 +193,6 @@ namespace Test
 
 	void Dood::InnerDispose()
 	{
-		delete control_state;
-		control_state = NULL;
-
 		VisCleanup();
 
 		rigid_body->Dispose();
@@ -226,14 +216,6 @@ namespace Test
 		pitch = ik_pose->pitch;
 
 		Pawn::Update(time);
-
-		ai_timer -= time.elapsed;
-		if(ai_timer <= 0)
-		{
-			// TODO: move this stuff to Controller, rather than the Dood
-			MaybeDoScriptedAI(this);
-			ai_timer += ai_update_interval * Random3D::Rand(0.5f, 1.5f);
-		}
 
 		rigid_body->body->activate();
 		rigid_body->body->clearForces();
@@ -668,67 +650,6 @@ namespace Test
 	/*
 	 * Dood scripting stuff
 	 */
-	void GetDoodControlState(lua_State* L, Dood* dood)
-	{
-		PushDoodHandle(L, dood);
-
-		lua_getmetatable(L, -1);							// push; top = 2
-
-		// control_state is a field of the dood metatable; control_state[dood] = the control state for a particular dood
-		lua_getfield(L, -1, "control_state");				// push; top = 3
-
-		if(lua_istable(L, -1))
-		{
-			lua_pushvalue(L, -3);
-			lua_gettable(L, -2);								// pop, push; top = 4
-
-			// is there a control state yet? if not, create one
-			if(lua_isnil(L, -1))
-			{
-				lua_pop(L, 1);									// pop; top = 3
-
-				lua_pushvalue(L, -3);
-				lua_newtable(L);								// push; top = 5
-
-					// begin contents of control state table
-					lua_pushnumber(L, 0);
-					lua_setfield(L, -2, "forward");
-
-					lua_pushnumber(L, 0);
-					lua_setfield(L, -2, "sidestep");
-
-					lua_pushnumber(L, 0);
-					lua_setfield(L, -2, "yaw");
-
-					lua_pushnumber(L, 0);
-					lua_setfield(L, -2, "pitch");
-
-					lua_pushboolean(L, false);
-					lua_setfield(L, -2, "jump");
-
-					lua_pushboolean(L, false);
-					lua_setfield(L, -2, "primary_fire");
-
-					lua_pushboolean(L, false);
-					lua_setfield(L, -2, "reload");
-					// end contents of control state table
-
-				lua_settable(L, -3);			// pop x2; top = 3
-
-				lua_pushvalue(L, -3);
-				lua_gettable(L, -2);
-			}
-
-			lua_replace(L, -4);
-			lua_settop(L, -3);
-		}
-		else
-		{
-			lua_settop(L, -3);
-			lua_pushnil(L);
-		}
-	}
-
 	int dood_index(lua_State* L)
 	{
 		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
@@ -748,7 +669,6 @@ namespace Test
 					if		(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
 					else if	(key == "is_player")		{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
 					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }			
-					else if	(key == "control_state")	{ GetDoodControlState(L, dood); return 1; }
 					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
 					else if	(key == "pitch")			{ lua_pushnumber(L, dood->pitch); return 1; }
 					else
@@ -775,26 +695,12 @@ namespace Test
 			if(lua_isstring(L, 2))
 			{
 				string key = lua_tostring(L, 2);
-				if (key == "ai_callback")
+				if (key == "update_callback")
 				{
 					if(lua_isfunction(L, 3))
 					{
 						lua_getmetatable(L, 1);								// push; top = 4
-						lua_getfield(L, 4, "ai_callback");					// push the ai_callback table; top = 5
-						lua_pushvalue(L, 1);								// push the dood; top = 6
-						lua_pushvalue(L, 3);								// push the function; top = 7
-						lua_settable(L, 5);									// pop x2; top = 5
-
-						lua_settop(L, 0);
-						return 0;
-					}
-				}
-				else if (key == "update_callback")
-				{
-					if(lua_isfunction(L, 3))
-					{
-						lua_getmetatable(L, 1);								// push; top = 4
-						lua_getfield(L, 4, "update_callback");				// push the ai_callback table; top = 5
+						lua_getfield(L, 4, "update_callback");				// push the update_callback table; top = 5
 						lua_pushvalue(L, 1);								// push the dood; top = 6
 						lua_pushvalue(L, 3);								// push the function; top = 7
 						lua_settable(L, 5);									// pop x2; top = 5
@@ -808,7 +714,7 @@ namespace Test
 					if(lua_isfunction(L, 3))
 					{
 						lua_getmetatable(L, 1);								// push; top = 4
-						lua_getfield(L, 4, "death_callback");				// push the ai_callback table; top = 5
+						lua_getfield(L, 4, "death_callback");				// push the death_callback table; top = 5
 						lua_pushvalue(L, 1);								// push the dood; top = 6
 						lua_pushvalue(L, 3);								// push the function; top = 7
 						lua_settable(L, 5);									// pop x2; top = 5
@@ -868,16 +774,10 @@ namespace Test
 			lua_setfield(L, -2, "__eq");
 
 			lua_newtable(L);
-			lua_setfield(L, -2, "ai_callback");
-
-			lua_newtable(L);
 			lua_setfield(L, -2, "update_callback");
 			
 			lua_newtable(L);
 			lua_setfield(L, -2, "death_callback");
-
-			lua_newtable(L);
-			lua_setfield(L, -2, "control_state");
 
 			lua_setglobal(L, "DoodMeta");
 			lua_getglobal(L, "DoodMeta");
@@ -919,120 +819,8 @@ namespace Test
 		return false;
 	}
 
-	// return value = success or failure; success pushes 1 onto stack; failure doesn't affect stack
-	bool PushControl(lua_State* L, Dood* dood, string control_name)
-	{
-		GetDoodControlState(L, dood);						// top = 1
-
-		if(lua_istable(L, -1))
-		{
-			lua_getfield(L, -1, control_name.c_str());		// top = 2
-			if(lua_isnil(L, -1))
-			{
-				lua_settop(L, -2);							// top = 0
-				return false;
-			}
-			else
-			{
-				lua_replace(L, -2);							// top = 1
-				return true;
-			}
-		}
-		else
-			return false;
-	}
-
-	bool GetBoolControl(Dood* dood, string control_name)
-	{
-		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
-		lua_settop(L, 0);
-
-		if(PushControl(L, dood, control_name))
-			if(lua_isboolean(L, 1))
-				return lua_toboolean(L, 1) != 0;
-
-		return false;
-	}
-
-	float GetFloatControl(Dood* dood, string control_name)
-	{
-		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
-		lua_settop(L, 0);
-
-		if(PushControl(L, dood, control_name))
-			if(lua_isnumber(L, 1))
-				return (float)lua_tonumber(L, 1);
-
-		return 0.0f;
-	}
-
-	void SetBoolControl(Dood* dood, string control_name, bool value)
-	{
-		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
-		lua_settop(L, 0);
-
-		GetDoodControlState(L, dood);
-
-		if(lua_istable(L, -1))
-		{
-			lua_pushboolean(L, value);
-			lua_setfield(L, -2, control_name.c_str());
-		}
-	}
-
-	void SetFloatControl(Dood* dood, string control_name, float value)
-	{
-		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
-		lua_settop(L, 0);
-
-		GetDoodControlState(L, dood);
-
-		if(lua_istable(L, -1))
-		{
-			lua_pushnumber(L, value);
-			lua_setfield(L, -2, control_name.c_str());
-		}
-	}
 
 
-
-
-	/*
-	 * If this Dood has an AI callback associated with it via Lua-scripting, call that callback
-	 */
-	bool MaybeDoScriptedAI(Dood* dood)
-	{
-		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
-
-		lua_settop(L, 0);
-		PushDoodHandle(L, dood);
-
-		lua_getmetatable(L, 1);					// push; top = 2
-		if(!lua_isnil(L, 2))
-		{
-			lua_getfield(L, 2, "ai_callback");	// pop+push; top = 3
-			if(lua_istable(L, 3))
-			{
-				lua_pushvalue(L, 1);			// push dood; top = 4
-				lua_gettable(L, 3);				// pop+push; top = 4
-
-				if(lua_isfunction(L, 4))
-				{
-					lua_pushvalue(L, 1);		// push dood; top = 5
-					ScriptSystem::GetGlobalState().DoFunction(1, 0);		// pop
-
-					lua_settop(L, 0);
-					return true;
-				}
-
-				lua_settop(L, 0);
-				return false;
-			}
-		}
-
-		lua_settop(L, 0);
-		return false;
-	}
 
 	/*
 	 * If this Dood has a death callback associated with it via Lua-scripting, call that callback

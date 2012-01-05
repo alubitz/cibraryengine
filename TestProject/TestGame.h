@@ -93,7 +93,7 @@ namespace Test
 			HUD* hud;
 			Sun* sun;
 
-			PlayerController* player_controller;
+			ScriptedController* player_controller;
 			Dood* player_pawn;
 
 			string debug_text;

@@ -301,9 +301,9 @@ namespace Test
 		player_pawn->OnDeath += &player_death_handler;
 		player_pawn->OnDamageTaken += &player_damage_handler;
 
-		player_controller = new PlayerController(this);
+		player_controller = new ScriptedController(this, "player_ai");
 		player_controller->Possess(player_pawn);
-		player_pawn->ai_update_interval = 0;
+		player_controller->ctrl_update_interval = 0;
 
 		Spawn(player_controller);
 
@@ -315,6 +315,11 @@ namespace Test
 		Dood* dood = SpawnDood(pos, enemy, bug_team);
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
 		dood->hp *= 0.3f;
+
+		ScriptedController* ai_controller = new ScriptedController(this, "crab_bug_ai");
+		ai_controller->Possess(dood);
+
+		Spawn(ai_controller);
 
 		dood->OnDeath += &bot_death_handler;
 

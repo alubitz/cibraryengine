@@ -6,12 +6,17 @@
 namespace CibraryEngine
 {
 	using namespace std;
+	using boost::unordered_map;
 
 	class Controller;
 
 	/** The collection of controls for a Pawn */
 	class ControlState
 	{
+		private:
+
+			unordered_map<string, float> control_values;
+
 		public:
 
 			/** Initializes a control state */

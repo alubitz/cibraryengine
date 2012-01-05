@@ -1,4 +1,5 @@
 if not disable_ai then
+	local dood = hv.pawn
 	local props = dood_properties[dood]
 
 	-- sometimes this will get called after the bug is dead... return here to suppress error messages
@@ -19,7 +20,7 @@ if not disable_ai then
 	end
 
 	-- reset certain parts of the control state...
-	local control_state = dood.control_state
+	local control_state = hv.control_state
 	control_state.primary_fire = false
 	control_state.forward = 0
 	control_state.leap = false

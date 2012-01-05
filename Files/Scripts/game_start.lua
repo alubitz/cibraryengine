@@ -8,7 +8,6 @@ end
 
 -- figure out which dood is the player, and remember that
 player = gs.spawnPlayer(ba.createVector(8.3, 149.2 + 1, 69.5))
-player.ai_callback = player_ai
 player.death_callback = player_death
 
 dood_properties = {}
@@ -37,52 +36,6 @@ gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
 dofile("Files/Scripts/goals.lua")
-
--- the crab bugs' ai
-function crab_bug_ai(dood)
-	if not disable_ai then
-		local props = dood_properties[dood]
-
-		-- sometimes this will get called after the bug is dead... return here to suppress error messages
-		if not props then return end
-
-		-- select a target
-		local my_pos = dood.position
-
-		local dood_list = gs.getDoodsList()
-
-		local target = nil
-		for i, ent in ipairs(dood_list) do
-			if ent.is_player and ent ~= dood then
-				if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
-					target = ent
-				end
-			end
-		end
-
-		-- reset certain parts of the control state...
-		local control_state = dood.control_state
-		control_state.primary_fire = false
-		control_state.forward = 0
-		control_state.leap = false
-
-		-- engage target, if applicable
-		if target then
-			if not props.goal then
-				props.goal = goal_move_attack(dood, target)
-				props.goal.activate()
-			end
-		end
-
-		if props.goal and props.goal.status == GoalStatus.ACTIVE then
-			props.goal.process()
-		else
-			get_steering_behavior(dood).cancel()
-		end
-
-		do_steering_behavior(dood, control_state)
-	end
-end
 
 -- function called every time a bug dies
 function crab_bug_death(dood)
@@ -113,7 +66,6 @@ function spawn_one(gs, player_pos)
 	local bot = spawnBotAtPosition(gs, x, z)
 	bots_spawned = bots_spawned + 1
 
-	bot.ai_callback = crab_bug_ai
 	bot.death_callback = crab_bug_death
 
 	local props = {}

@@ -1,4 +1,3 @@
-
 -- don't try to update player position if the player is dead
 if player.is_valid then
 	player_pos = player.position

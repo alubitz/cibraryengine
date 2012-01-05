@@ -1,7 +1,11 @@
+local function force_bool(v) if v then return v else return false end end
+local function force_float(v) if v then return v else return 0 end end
+local function bool_to_float(b) b = force_bool(b) if b then return 1 else return 0 end end
+
 local function get_key_float(i) local k = key_states[string.byte(i, 1)] if k then return 1 else return 0 end end
 local function get_key_bool(i) local k = key_states[string.byte(i)] if k then return true else return false end end
 
-local control_state = dood.control_state
+local control_state = hv.control_state
 
 control_state.forward = get_key_float("W") - get_key_float("S")
 control_state.sidestep = get_key_float("D") - get_key_float("A")
