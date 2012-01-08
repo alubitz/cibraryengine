@@ -72,7 +72,8 @@ namespace DestructibleTerrain
 
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 
-			bool IsEmpty();		// check if this chunk is completely empty; call Solidify before calling this!
+			bool IsEmpty();				// check if this chunk is completely empty; call Solidify before calling this!
+			bool IsEntirelySolid();		// similar to IsEmpt, but checks for solidity instead
 
 			// Member I/O functions
 			unsigned int Write(ostream& stream);

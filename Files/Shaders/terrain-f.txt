@@ -13,7 +13,9 @@ vec4 sampleTriplanar(sampler2D texture, vec3 sample_xyz)
 	vec4 y_sample = texture2D(texture, sample_xyz.xz);
 	vec4 z_sample = texture2D(texture, sample_xyz.xy);
 
-	return (x_sample * abs(input_normal.x) + y_sample * abs(input_normal.y) + z_sample * abs(input_normal.z)) / (abs(input_normal.x) + abs(input_normal.y) + abs(input_normal.z));
+	vec3 axis_coeffs = input_normal * input_normal;			// not sure if this is more or less efficient than doing abs() of the components
+
+	return (x_sample * axis_coeffs.x + y_sample * axis_coeffs.y + z_sample * axis_coeffs.z) / (axis_coeffs.x + axis_coeffs.y + axis_coeffs.z);
 }
 
 void main()
