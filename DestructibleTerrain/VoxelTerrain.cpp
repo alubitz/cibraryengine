@@ -136,6 +136,8 @@ namespace DestructibleTerrain
 		if(terrain == NULL)
 			return 1;
 
+		terrain->Solidify();			// lets us skip whole chunks if they are empty
+
 		BinaryChunk whole;
 		whole.SetName("VX_TRN__");
 

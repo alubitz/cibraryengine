@@ -38,7 +38,7 @@ namespace CibraryEngine
 	unsigned char ReadByte(istream& stream) { return stream.get(); }
 
 	void WriteBool(bool b, ostream& stream) { stream.put(b ? 1 : 0); }
-	bool WriteBool(istream& stream) { return stream.get() != 0; }
+	bool ReadBool(istream& stream) { return stream.get() != 0; }
 
 	void WriteUInt16(unsigned short int i, ostream& stream)
 	{

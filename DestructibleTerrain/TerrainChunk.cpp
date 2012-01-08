@@ -416,6 +416,15 @@ namespace DestructibleTerrain
 		}
 	}
 
+	bool TerrainChunk::IsEmpty()
+	{
+		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+			if(iter->solidity != 0)
+				return false;
+
+		return true;
+	}
+
 
 
 
@@ -424,17 +433,34 @@ namespace DestructibleTerrain
 	 */
 	unsigned int TerrainChunk::Write(ostream& stream)
 	{
-		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
-			if(unsigned int node_write_error = iter->Write(stream))
-				return node_write_error;
+		bool empty = IsEmpty();
+		WriteBool(empty, stream);
+
+		if(!empty)
+		{
+			for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+				if(unsigned int node_write_error = iter->Write(stream))
+					return node_write_error;
+		}
+
 		return 0;
 	}
 
 	unsigned int TerrainChunk::Read(istream& stream)
 	{
-		for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
-			if(unsigned int node_read_error = iter->Read(stream))
-				return node_read_error;
+		bool empty = ReadBool(stream);
+
+		if(empty)
+		{
+			for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+				iter->solidity = 0;
+		}
+		else
+		{
+			for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+				if(unsigned int node_read_error = iter->Read(stream))
+					return node_read_error;
+		}
 		return 0;
 	}
 }
