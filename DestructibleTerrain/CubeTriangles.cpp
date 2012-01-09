@@ -14,6 +14,7 @@ namespace DestructibleTerrain
 	{
 		float value;
 		Vec3 position;
+		MultiMaterial material;
 
 		GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
 		{
@@ -24,9 +25,10 @@ namespace DestructibleTerrain
 
 			value = node.GetScalarValue();
 			position = Vec3(float(x), float(y), float(z));
+			material = node.material;
 		}
 
-		operator TerrainVertex() { return TerrainVertex(position); }
+		operator TerrainVertex() { return TerrainVertex(position, material); }
 	};
 
 

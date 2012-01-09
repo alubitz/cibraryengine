@@ -1,9 +1,9 @@
-attribute	vec3			material_weights;
+attribute	vec4			material_weights;
 
 varying		vec3			position,			normal;
 varying		vec3			vertex,				input_normal;
 
-varying		vec3			mat_weights;
+varying		vec4			mat_weights;
 
 void main()
 {

@@ -25,6 +25,7 @@ namespace DestructibleTerrain
 			Texture2D* texture_a;
 			Texture2D* texture_b;
 			Texture2D* texture_c;
+			Texture2D* texture_d;
 
 			VoxelMaterial(ContentMan* content);
 

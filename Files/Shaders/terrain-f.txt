@@ -1,11 +1,12 @@
 uniform	sampler2D		texture_a;
 uniform	sampler2D		texture_b;
 uniform	sampler2D		texture_c;
+uniform	sampler2D		texture_d;
 uniform	vec3			chunk_pos;
 
 varying	vec3			normal, position;
 varying	vec3			input_normal, vertex;
-varying	vec3			mat_weights;
+varying	vec4			mat_weights;
 
 vec4 sampleTriplanar(sampler2D texture, vec3 sample_xyz)
 {
@@ -41,7 +42,8 @@ void main()
 
 	vec4 diffuse_sample =	sampleTriplanar(texture_a, sample_xyz) * mat_weights[0] +
 							sampleTriplanar(texture_b, sample_xyz) * mat_weights[1] + 
-							sampleTriplanar(texture_c, sample_xyz) * mat_weights[2];
+							sampleTriplanar(texture_c, sample_xyz) * mat_weights[2] +
+							sampleTriplanar(texture_d, sample_xyz) * mat_weights[3];
 
 	vec3 base_color = diffuse_sample.xyz * light;
 

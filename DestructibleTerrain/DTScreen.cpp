@@ -115,7 +115,8 @@ namespace DestructibleTerrain
 			mouse_motion_handler(&yaw, &pitch),
 			subtract_brush(),
 			add_brush(),
-			smooth_brush()
+			smooth_brush(),
+			sand_brush()
 		{
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
@@ -345,6 +346,8 @@ namespace DestructibleTerrain
 						imp->current_brush = &imp->add_brush;
 					else if(imp->current_brush == &imp->add_brush)
 						imp->current_brush = &imp->smooth_brush;
+					else if(imp->current_brush == &imp->smooth_brush)
+						imp->current_brush = &imp->sand_brush;
 					else
 						imp->current_brush = &imp->subtract_brush;
 				}
@@ -388,6 +391,12 @@ namespace DestructibleTerrain
 			SmoothBrush() : EditorBrush("Smooth Surface") { }
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); }
 		} smooth_brush;
+
+		struct SandBrush : public EditorBrush
+		{
+			SandBrush() : EditorBrush("Make Sand") { }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); }
+		} sand_brush;
 	};
 
 

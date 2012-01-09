@@ -41,6 +41,7 @@ namespace DestructibleTerrain
 		texture_a = content->GetCache<Texture2D>()->Load("rock1");
 		texture_b = content->GetCache<Texture2D>()->Load("rock2");
 		texture_c = content->GetCache<Texture2D>()->Load("rock3");
+		texture_d = content->GetCache<Texture2D>()->Load("sand1");
 
 		Shader* vs = content->GetCache<Shader>()->Load("terrain-v");
 		Shader* fs = content->GetCache<Shader>()->Load("terrain-f");
@@ -49,6 +50,7 @@ namespace DestructibleTerrain
 		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_a", 0));
 		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_b", 1));
 		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_c", 2));
+		shader->AddUniform<Texture2D>(new UniformTexture2D("texture_d", 3));
 		shader->AddUniform<Vec3>(new UniformVector3("chunk_pos"));
 	}
 
@@ -75,6 +77,7 @@ namespace DestructibleTerrain
 		shader->SetUniform<Texture2D>("texture_a", texture_a);
 		shader->SetUniform<Texture2D>("texture_b", texture_b);
 		shader->SetUniform<Texture2D>("texture_c", texture_c);
+		shader->SetUniform<Texture2D>("texture_d", texture_d);
 		shader->SetUniform<Vec3>("chunk_pos", &v);
 		ShaderProgram::SetActiveProgram(shader);
 

@@ -355,7 +355,7 @@ namespace DestructibleTerrain
 
 			model->AddAttribute("gl_Vertex",			Float, 3);
 			model->AddAttribute("gl_Normal",			Float, 3);
-			model->AddAttribute("material_weights",		Float, 3);
+			model->AddAttribute("material_weights",		Float, 4);
 
 			// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 			model->SetNumVerts(num_verts);
@@ -400,9 +400,14 @@ namespace DestructibleTerrain
 							*(normal_ptr++) = normal.z;
 
 							// TODO: deal with materials!
-							*(mat_ptr++) = 1.0f;
+							float stone_amount = (float)vert.material.GetMaterialAmount(1);
+							float sand_amount = (float)vert.material.GetMaterialAmount(2);
+							float tot = stone_amount + sand_amount, inv_tot = 1.0f / tot;
+
+							*(mat_ptr++) = stone_amount * inv_tot;
 							*(mat_ptr++) = 0.0f;
 							*(mat_ptr++) = 0.0f;
+							*(mat_ptr++) = sand_amount * inv_tot;
 						}
 					}
 				}

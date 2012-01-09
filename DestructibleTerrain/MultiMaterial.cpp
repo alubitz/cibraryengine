@@ -58,4 +58,77 @@ namespace DestructibleTerrain
 					weights[i] = amount;
 		}
 	}
+
+	MultiMaterial MultiMaterial::operator *(float amount)
+	{
+		MultiMaterial result;
+
+		for(int i = 0; i < 4; ++i)
+		{
+			result.weights[i] = unsigned char(weights[i] * amount);
+			result.types[i] = types[i];
+		}
+
+		return result;
+	}
+
+	MultiMaterial MultiMaterial::operator +(MultiMaterial b)
+	{
+		unsigned char types[8];
+		unsigned short weights[8];
+
+		// put all the unique types into the arrays
+		int used_types = 0;
+		for(int i = 0; i < 8; ++i)
+		{
+			MultiMaterial& mat = i < 4 ? *this : b;
+			int index = i % 4;
+
+			if(unsigned short weight = (unsigned short)mat.weights[index])
+			{
+				unsigned char type = mat.types[index];
+
+				// see if this type is already in the list...
+				int j;
+				for(j = 0; j < used_types; ++j)
+					if(types[j] == type)
+					{
+						weights[j] += weight;
+						break;
+					}
+
+				// type is not already in the list, add it
+				if(j == used_types)
+				{
+					types[used_types] = type;
+					weights[used_types] = weight;
+
+					++used_types;
+				}
+			}
+		}
+
+		int use_max = min(used_types, 4);
+
+		// pick the top 4 (or less)
+		for(int i = 0; i < use_max; ++i)
+		{
+			unsigned short best = weights[i];
+			for(int j = i + 1; j < used_types; ++j)
+				if(weights[j] > weights[i])
+				{
+					swap(weights[i], weights[j]);
+					swap(types[i], types[j]);
+				}
+		}
+
+
+		MultiMaterial result;
+		for(int i = 0; i < use_max; ++i)
+		{
+			result.types[i] = types[i];
+			result.weights[i] = weights[i] / 2;			// average
+		}
+		return result;
+	}
 }
