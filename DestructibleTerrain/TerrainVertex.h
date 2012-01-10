@@ -14,8 +14,5 @@ namespace DestructibleTerrain
 
 		TerrainVertex();
 		TerrainVertex(Vec3 pos, MultiMaterial material);
-		
-		TerrainVertex operator *(float amount);
-		TerrainVertex operator +(TerrainVertex a);
 	};
 }

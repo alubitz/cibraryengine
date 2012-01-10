@@ -11,8 +11,7 @@ namespace DestructibleTerrain
 	void MultiMaterial::Clear()
 	{ 
 		types[0] = types[1] = types[2] = types[3] = 0;
-		weights[0] = 255;
-		weights[1] = weights[2] = weights[3] = 0; 
+		weights[0] = weights[1] = weights[2] = weights[3] = 0; 
 	}
 
 	unsigned char MultiMaterial::GetMaterialAmount(unsigned char mat)
@@ -59,34 +58,26 @@ namespace DestructibleTerrain
 		}
 	}
 
-	MultiMaterial MultiMaterial::operator *(float amount)
-	{
-		MultiMaterial result;
-
-		for(int i = 0; i < 4; ++i)
-		{
-			result.weights[i] = unsigned char(weights[i] * amount);
-			result.types[i] = types[i];
-		}
-
-		return result;
-	}
-
-	MultiMaterial MultiMaterial::operator +(MultiMaterial b)
+	MultiMaterial MultiMaterial::Lerp(MultiMaterial& a, MultiMaterial& b, float mu)
 	{
 		unsigned char types[8];
 		unsigned short weights[8];
+
+		unsigned char mu_char = unsigned char(255.0f * min(1.0f, max(0.0f, mu)));
+		unsigned char anti = 255 - mu_char;
 
 		// put all the unique types into the arrays
 		int used_types = 0;
 		for(int i = 0; i < 8; ++i)
 		{
-			MultiMaterial& mat = i < 4 ? *this : b;
+			MultiMaterial& mat = i < 4 ? a : b;
 			int index = i % 4;
 
 			if(unsigned short weight = (unsigned short)mat.weights[index])
 			{
 				unsigned char type = mat.types[index];
+
+				weight *= i < 4 ? anti : mu_char;
 
 				// see if this type is already in the list...
 				int j;
@@ -113,7 +104,6 @@ namespace DestructibleTerrain
 		// pick the top 4 (or less)
 		for(int i = 0; i < use_max; ++i)
 		{
-			unsigned short best = weights[i];
 			for(int j = i + 1; j < used_types; ++j)
 				if(weights[j] > weights[i])
 				{
@@ -122,13 +112,15 @@ namespace DestructibleTerrain
 				}
 		}
 
+		unsigned short highest_weight = weights[0];
 
 		MultiMaterial result;
 		for(int i = 0; i < use_max; ++i)
 		{
 			result.types[i] = types[i];
-			result.weights[i] = weights[i] / 2;			// average
+			result.weights[i] = weights[i] * 255 / highest_weight;
 		}
+
 		return result;
 	}
 }

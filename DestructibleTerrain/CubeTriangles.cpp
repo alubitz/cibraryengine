@@ -28,7 +28,8 @@ namespace DestructibleTerrain
 			material = node.material;
 		}
 
-		operator TerrainVertex() { return TerrainVertex(position, material); }
+		static TerrainVertex Convert(GridStruct& a) { return TerrainVertex(a.position, a.material); }
+		static TerrainVertex Lerp(GridStruct& a, GridStruct& b, float mu) {  return TerrainVertex(a.position * (1.0f - mu) + b.position * mu, MultiMaterial::Lerp(a.material, b.material, mu)); }
 	};
 
 

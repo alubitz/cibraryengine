@@ -19,7 +19,7 @@ namespace DestructibleTerrain
 	/*
 	 * Due to the nature of template functions, the definitions have to be in the same
 	 * compilation unit as the declarations!
-     *
+	 *
 	 * At least I didn't have to put the tables in the same file...
 	 *
 	 */
@@ -81,13 +81,13 @@ namespace DestructibleTerrain
 		float v1 = p1.value, v2 = p2.value;
 
 		if (fabs(isolevel - v1) < 0.00001f)
-			return(O(p1));
+			return(I::Convert(p1));
 		if (fabs(isolevel - v2) < 0.00001f)
-			return(O(p2));
+			return(I::Convert(p2));
 		if (fabs(v1 - v2) < 0.00001f)
-			return(O(p1));
+			return(I::Convert(p1));
 
 		float mu = (isolevel - v1) / (v2 - v1);
-		return O(p1) * (1.0f - mu) + O(p2) * mu;
+		return I::Lerp(p1, p2, mu);
 	}
 }
