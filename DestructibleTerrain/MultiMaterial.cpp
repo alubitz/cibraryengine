@@ -14,6 +14,18 @@ namespace DestructibleTerrain
 		weights[0] = weights[1] = weights[2] = weights[3] = 0; 
 	}
 
+	void MultiMaterial::Normalize()
+	{
+		int total = 0;
+
+		for(int i = 0; i < 4; ++i)
+			total += weights[i];
+
+		if(total > 0)
+			for(int i = 0; i < 4; ++i)
+				weights[i] = weights[i] * 255 / total;
+	}
+
 	unsigned char MultiMaterial::GetMaterialAmount(unsigned char mat)
 	{
 		int total = 0;
@@ -60,6 +72,9 @@ namespace DestructibleTerrain
 
 	MultiMaterial MultiMaterial::Lerp(MultiMaterial& a, MultiMaterial& b, float mu)
 	{
+		a.Normalize();
+		b.Normalize();
+
 		unsigned char types[8];
 		unsigned short weights[8];
 

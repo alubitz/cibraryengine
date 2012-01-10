@@ -56,7 +56,13 @@ namespace DestructibleTerrain
 				node.solidity = amount;
 
 				if(material != 0)
-					node.material.SetMaterialAmount(material, amount);
+				{
+					MultiMaterial mat;
+					mat.types[0] = material;
+					mat.weights[0] = 255;
+
+					node.material = MultiMaterial::Lerp(node.material, mat, amount / 255.0f);
+				}
 
 				chunk->InvalidateNode(x, y, z);
 			}

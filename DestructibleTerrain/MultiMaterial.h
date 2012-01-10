@@ -12,6 +12,8 @@ namespace DestructibleTerrain
 		MultiMaterial();
 
 		void Clear();
+		void Normalize();
+
 		unsigned char GetMaterialAmount(unsigned char mat);
 		void SetMaterialAmount(unsigned char mat, unsigned char amount);
 
