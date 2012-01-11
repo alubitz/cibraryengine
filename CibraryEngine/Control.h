@@ -92,14 +92,4 @@ namespace CibraryEngine
 
 			void UpdateController(TimingInfo time);
 	};
-
-	/** Class representing a player's control over the player's Pawn */
-	class PlayerController : public Controller
-	{
-		public:
-
-			PlayerController(GameState* gs);
-
-			void UpdateController(TimingInfo time);
-	};
 }

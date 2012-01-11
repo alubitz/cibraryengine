@@ -187,14 +187,4 @@ namespace CibraryEngine
 
 		return 0;
 	}
-
-
-
-
-	/*
-	 * PlayerController methods
-	 */
-	PlayerController::PlayerController(GameState* gs) : Controller(gs) { ctrl_update_interval = 0.0f; }
-
-	void PlayerController::UpdateController(TimingInfo time) { }
 }
