@@ -224,6 +224,7 @@ namespace DestructibleTerrain
 	{
 		int num_verts = 0;
 
+		// dimensions including neighboring chunks (in order to compute normal vectors)
 		int max_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize - 1 : ChunkSize + 1;
 		int max_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize - 1 : ChunkSize + 1;
 		int max_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize - 1 : ChunkSize + 1;
@@ -232,6 +233,11 @@ namespace DestructibleTerrain
 
 		vector<TerrainVertex> unique_vertices;
 		vector<unsigned int>* vertex_indices = new vector<unsigned int>[vbo_x_span * max_x];
+
+		// dimensions of the chunk itself
+		int cmax_x = min(max_x, ChunkSize);
+		int cmax_y = min(max_y, ChunkSize);
+		int cmax_z = min(max_z, ChunkSize);
 
 		for(int x = 0; x < max_x; ++x)
 		{
@@ -250,7 +256,8 @@ namespace DestructibleTerrain
 						if(cube_vert_count == 0)
 							continue;
 
-						num_verts += cube_vert_count;
+						if(x < cmax_x && y < cmax_y && z < cmax_z)
+							num_verts += cube_vert_count;
 
 						char* cube_indices = &cube->cache->indices[0];
 						TerrainVertex* cube_verts = &cube->cache->verts[0];
@@ -357,17 +364,11 @@ namespace DestructibleTerrain
 			model->AddAttribute("gl_Normal",			Float, 3);
 			model->AddAttribute("material_weights",		Float, 4);
 
-			// TODO: fix it so verts from other cubes (included for normal vector calculation) don't get included in this
 			model->SetNumVerts(num_verts);
 
 			float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
 			float* normal_ptr = model->GetFloatPointer("gl_Normal");
 			float* mat_ptr = model->GetFloatPointer("material_weights");
-
-			// we extended to ChunkSize + 2 to make the normal vectors compute correctly, but now we only want the ones within this chunk
-			int cmax_x = min(max_x, ChunkSize);
-			int cmax_y = min(max_y, ChunkSize);
-			int cmax_z = min(max_z, ChunkSize);
 
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
