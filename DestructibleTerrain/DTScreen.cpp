@@ -48,23 +48,38 @@ namespace DestructibleTerrain
 
 		void AffectNode(TerrainChunk* chunk, TerrainNode& node, int x, int y, int z, unsigned char amount)
 		{
-			if(material == 0)
+			if(material == 0)						// subtract mode
+			{	
 				amount = 255 - amount;
 
-			if(material == 0 ? amount < node.solidity : amount > node.solidity)
+				if(amount < node.solidity)
+				{
+					node.solidity = amount;
+					chunk->InvalidateNode(x, y, z);
+				}
+			}
+			else									// add/change material mode
 			{
-				node.solidity = amount;
+				bool changed = false;				// only invalidate the node if it is changed by one (or more) of these two blocks of code...
 
-				if(material != 0)
+				if(amount > node.solidity)
+				{
+					node.solidity = amount;			// should this affect the node's material somehow?
+					changed = true;
+				}
+
+				if(amount >= 128 && node.IsSolid())
 				{
 					MultiMaterial mat;
 					mat.types[0] = material;
 					mat.weights[0] = 255;
+					node.material = mat;
 
-					node.material = MultiMaterial::Lerp(node.material, mat, amount / 255.0f);
+					changed = true;
 				}
 
-				chunk->InvalidateNode(x, y, z);
+				if(changed)
+					chunk->InvalidateNode(x, y, z);
 			}
 		}
 	};
@@ -120,7 +135,7 @@ namespace DestructibleTerrain
 			mouse_button_handler(this), 
 			mouse_motion_handler(&yaw, &pitch),
 			subtract_brush(),
-			add_brush(),
+			stone_brush(),
 			smooth_brush(),
 			sand_brush()
 		{
@@ -349,11 +364,11 @@ namespace DestructibleTerrain
 				if(mbse->button == 2 && mbse->state)
 				{
 					if(imp->current_brush == &imp->subtract_brush)
-						imp->current_brush = &imp->add_brush;
-					else if(imp->current_brush == &imp->add_brush)
-						imp->current_brush = &imp->smooth_brush;
-					else if(imp->current_brush == &imp->smooth_brush)
+						imp->current_brush = &imp->stone_brush;
+					else if(imp->current_brush == &imp->stone_brush)
 						imp->current_brush = &imp->sand_brush;
+					else if(imp->current_brush == &imp->sand_brush)
+						imp->current_brush = &imp->smooth_brush;
 					else
 						imp->current_brush = &imp->subtract_brush;
 				}
@@ -386,11 +401,11 @@ namespace DestructibleTerrain
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(0)); }
 		} subtract_brush;
 
-		struct AddBrush : public EditorBrush
+		struct StoneBrush : public EditorBrush
 		{
-			AddBrush() : EditorBrush("Add") { }
+			StoneBrush() : EditorBrush("Add Stone") { }
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); }
-		} add_brush;
+		} stone_brush;
 
 		struct SmoothBrush : public EditorBrush
 		{
@@ -400,7 +415,7 @@ namespace DestructibleTerrain
 
 		struct SandBrush : public EditorBrush
 		{
-			SandBrush() : EditorBrush("Make Sand") { }
+			SandBrush() : EditorBrush("Add Sand") { }
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); }
 		} sand_brush;
 	};
