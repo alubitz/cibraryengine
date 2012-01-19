@@ -2,6 +2,8 @@
 #include "Dood.h"
 #include "TestGame.h"
 
+#include "Soldier.h"
+
 #include "PoseAimingGun.h"
 #include "WeaponEquip.h"
 #include "WeaponIntrinsic.h"
@@ -24,13 +26,6 @@ namespace Test
 	float ground_traction = 20.0f, air_traction = 0.1f;
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
-	float jump_speed = 4.0f;
-	float jump_pack_accel = 15.0f;
-
-	float bug_leap_duration = 0.5f;
-	float bug_leap_speed = 8.0f;
-
-	float jump_to_fly_delay = 0.3f;
 
 	float gravity = 9.8f;
 	float movement_damp = 0.2f;
@@ -39,14 +34,13 @@ namespace Test
 
 	float yaw_rate = 10.0f, pitch_rate = 10.0f;
 
-	float jump_fuel_spend_rate = 0.5f, jump_fuel_refill_rate = 0.4f;
-	float flying_accel = 8.0f;
 
 
-	bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
-	float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
-	void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
-	void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
+
+	static bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
+	static float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
+	static void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
+	static void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
 
 	void GenerateHardCodedWalkAnimation(IKPose* ik_pose)
 	{
@@ -123,20 +117,14 @@ namespace Test
 		yaw(0),
 		pitch(0),
 		angular_vel(),
+		jump_start_timer(0),
 		hp(1.0f),
 		eye_bone(NULL),
-		gun_hand_bone(NULL),
 		model(model),
 		character(NULL),
-		p_adp(NULL),
 		rigid_body(NULL),
 		physics(NULL),
 		standing(0),
-		jump_start_timer(0),
-		jump_fuel(1.0f),
-		jet_start_sound(NULL),
-		jet_loop_sound(NULL),
-		jet_loop(NULL),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
 		OnAmmoFailure(),
@@ -163,17 +151,10 @@ namespace Test
 
 		character->active_poses.push_back(ik_pose);
 
-		p_adp = new PoseAimingGun();
-		character->active_poses.push_back(p_adp);
-
 		// figure out which bones are the eye and gun-holding bones
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
-		{
 			if((*iter)->name == Bone::string_table["eye"])
 				eye_bone = *iter;
-			else if((*iter)->name == Bone::string_table["r grip"])
-				gun_hand_bone = *iter;
-		}
 
 		// too bad this isn't saved somewhere?
 		MassInfo mass_info = MassInfo();
@@ -192,10 +173,6 @@ namespace Test
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
-
-		Cache<SoundBuffer>* sound_cache = gs->content->GetCache<SoundBuffer>();
-		jet_start_sound = sound_cache->Load("jet_start");
-		jet_loop_sound = sound_cache->Load("jet_loop");
 	}
 
 	void Dood::InnerDispose()
@@ -207,13 +184,58 @@ namespace Test
 
 		delete contact_callback;
 
-		delete p_adp;
-		p_adp = NULL;
-
 		delete ik_pose;
 		ik_pose = NULL;
 
 		Pawn::InnerDispose();
+	}
+
+	// overridden by subclasses
+	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward) { }
+
+	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
+	{
+		float timestep = time.elapsed;
+		float traction = standing * ground_traction + (1 - standing) * air_traction;
+
+		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep"))));
+
+		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
+		{
+			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
+
+			Vec3 force = (desired_vel - vel) * mass / timestep;
+			rigid_body->body->applyCentralForce(btVector3(force.x, force.y, force.z));
+		}
+	}
+
+	void Dood::DoWeaponControls(TimingInfo time)
+	{
+		if(GetBoolControl(this, "reload"))
+		{
+			if(dynamic_cast<WeaponEquip*>(equipped_weapon) != NULL)
+				((WeaponEquip*)equipped_weapon)->BeginReload();
+
+			SetBoolControl(this, "reload", false);
+		}
+
+		if(character != NULL)
+		{
+			PoseCharacter(time);
+
+			if(equipped_weapon != NULL)
+			{
+				equipped_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
+				equipped_weapon->OwnerUpdate(time);
+			}
+			if(intrinsic_weapon != NULL)
+			{
+				intrinsic_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
+				intrinsic_weapon->OwnerUpdate(time);
+			}
+
+			character->UpdatePoses(time);
+		}
 	}
 
 	void Dood::Update(TimingInfo time)
@@ -227,6 +249,7 @@ namespace Test
 		rigid_body->body->activate();
 		rigid_body->body->clearForces();
 
+		// figure out if you're standing on the ground or not
 		standing = 0;
 		physics->dynamics_world->contactTest(rigid_body->body, *contact_callback);
 
@@ -256,95 +279,10 @@ namespace Test
 			rigid_body->body->applyCentralForce(btVector3(damp_force.x, damp_force.y, damp_force.z));
 		}
 
-		float traction = standing * ground_traction + (1 - standing) * air_traction;
+		DoMovementControls(time, forward, rightward);
+		DoJumpControls(time, forward, rightward);
 
-		bool can_recharge = true;
-		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep"))));
-
-		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
-		{
-			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
-
-			Vec3 force = (desired_vel - vel) * mass / timestep;
-			rigid_body->body->applyCentralForce(btVector3(force.x, force.y, force.z));
-		}
-
-		bool jetted = false;
-		bool jumped = false;
-		if (standing > 0)
-		{
-			if (GetBoolControl(this, "jump"))
-			{
-				//jump off the ground
-				rigid_body->body->applyCentralImpulse(btVector3(0, jump_speed * mass, 0));
-				jump_start_timer = time.total + jump_to_fly_delay;
-
-				jumped = true;
-			}
-			else if(GetBoolControl(this, "leap") && time.total > jump_start_timer)
-			{
-				// crab bug leaps forward
-				float leap_angle = 0.4f;
-				Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0)) * (mass * bug_leap_speed);
-				rigid_body->body->applyCentralImpulse(btVector3(leap_vector.x, leap_vector.y, leap_vector.z));
-
-				jump_start_timer = time.total + bug_leap_duration;
-
-				jumped = true;
-			}
-		}
-		else if (GetBoolControl(this, "jump"))
-		{
-			can_recharge = false;
-
-			if (jump_fuel > 0)
-			{
-				// jetpacking
-				if (time.total > jump_start_timer)
-				{
-					jetted = true;
-
-					if(jet_loop == NULL)
-					{
-						PlayDoodSound(jet_start_sound, 5.0f, false);
-						jet_loop = PlayDoodSound(jet_loop_sound, 1.0f, true);
-					}
-					else
-					{
-						jet_loop->pos = pos;
-						jet_loop->vel = vel;
-					}
-
-					jump_fuel -= timestep * (jump_fuel_spend_rate);
-
-					Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
-					Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward"))) + rightward * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep")));
-					jump_accel_vec += lateral_accel * (flying_accel);
-
-					Vec3 jump_force = jump_accel_vec * mass;
-
-					rigid_body->body->applyCentralForce(btVector3(jump_force.x, jump_force.y, jump_force.z));
-				}
-			}
-			else
-			{
-				// out of fuel! flash hud gauge if it's relevant
-				JumpFailureEvent evt = JumpFailureEvent(this);
-				OnJumpFailure(&evt);
-			}
-		}
-		
-		if(!jetted && jet_loop != NULL)
-		{
-			jet_loop->StopLooping();
-			jet_loop->SetLoudness(0.0f);
-			jet_loop = NULL;
-		}
-
-		if (can_recharge)
-			jump_fuel = min(jump_fuel + jump_fuel_refill_rate * timestep, 1.0f);
-
-		DoPitchAndYawControls(timestep);
+		DoPitchAndYawControls(time);
 
 		// uncontrolled spinning!
 		angular_vel *= exp(-(standing) * 200 * timestep);
@@ -358,43 +296,17 @@ namespace Test
 			yaw += angular_vel.y * timestep;
 		}
 
-		p_adp->pos = pos;
-		p_adp->yaw = yaw;
-		p_adp->pitch = pitch;
-
-		if(GetBoolControl(this, "reload"))
-		{
-			if(dynamic_cast<WeaponEquip*>(equipped_weapon) != NULL)
-				((WeaponEquip*)equipped_weapon)->BeginReload();
-
-			SetBoolControl(this, "reload", false);
-		}
-
 		MaybeDoScriptedUpdate(this);
 
-		if(character != NULL)
-		{
-			PoseCharacter(time);
-
-			if(equipped_weapon != NULL)
-			{
-				equipped_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
-				equipped_weapon->OwnerUpdate(time);
-			}
-			if(intrinsic_weapon != NULL)
-			{
-				intrinsic_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
-				intrinsic_weapon->OwnerUpdate(time);
-			}
-
-			character->UpdatePoses(time);
-		}
+		DoWeaponControls(time);
 
 		ik_pose->SetDesiredState(game_state->ik_solver, pos, pitch, yaw);
 	}
 
-	void Dood::DoPitchAndYawControls(float timestep)
+	void Dood::DoPitchAndYawControls(TimingInfo time)
 	{
+		float timestep = time.elapsed;
+
 		float desired_yaw = max(-1.0f, min(1.0f, GetFloatControl(this, "yaw")));
 		float desired_pitch = max(-1.0f, min(1.0f, GetFloatControl(this, "pitch")));
 
@@ -500,6 +412,10 @@ namespace Test
 			return game_state->sound_system->PlayEffect(buffer, pos, vel, vol, looping);
 	}
 
+	// overridden by subclasses
+	void Dood::PreUpdatePoses(TimingInfo time) { }
+	void Dood::PostUpdatePoses(TimingInfo time) { }
+
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
 	{
@@ -508,18 +424,9 @@ namespace Test
 
 		if (time.total > character_pose_time)
 		{
-			p_adp->pos = pos;
-			p_adp->yaw = yaw;
-			p_adp->pitch = pitch;
-
+			PreUpdatePoses(time);
 			character->UpdatePoses(time);
-
-			if(equipped_weapon != NULL && gun_hand_bone != NULL)
-			{
-				equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos) /* * Mat4::Translation(-0.3, 1.3, 0.08) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -0.75) * Quaternion::FromPYR(1.5, 0.0, 0.0) * Quaternion::FromPYR(0, 0.1, 0) * Quaternion::FromPYR(0.1, 0, 0)) * Mat4::Translation(0, 0.05, 0.35) */;
-				equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3(0, 0, 0, 1);
-				equipped_weapon->sound_vel = equipped_weapon->vel = vel;
-			}
+			PostUpdatePoses(time);
 
 			character_pose_time = time.total;
 		}

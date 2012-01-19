@@ -26,9 +26,15 @@ namespace Test
 			float character_pose_time;
 
 		protected:
-			void InnerDispose();
 
-			void DoPitchAndYawControls(float timestep);
+			virtual void InnerDispose();
+
+			void DoPitchAndYawControls(TimingInfo time);
+			virtual void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
+			virtual void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
+			virtual void DoWeaponControls(TimingInfo time);
+			virtual void PreUpdatePoses(TimingInfo time);
+			virtual void PostUpdatePoses(TimingInfo time);
 
 		public:
 
@@ -41,15 +47,15 @@ namespace Test
 			float yaw, pitch;
 			Vec3 angular_vel;
 
+			float jump_start_timer;
+
 			float hp;
 
 			Bone* eye_bone;
-			Bone* gun_hand_bone;
 
 			UberModel* model;
 			SkinnedCharacter* character;
 
-			PoseAimingGun* p_adp;
 			IKPose* ik_pose;
 
 			RigidBodyInfo* rigid_body;
@@ -58,12 +64,6 @@ namespace Test
 			float mass;
 			Mat3 inverse_moi;
 			float standing;
-			float jump_start_timer;
-			float jump_fuel;
-
-			SoundBuffer* jet_start_sound;
-			SoundBuffer* jet_loop_sound;
-			SoundSource* jet_loop;
 
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
@@ -82,7 +82,7 @@ namespace Test
 			void PoseCharacter();
 			void PoseCharacter(TimingInfo time);
 
-			void Update(TimingInfo time);
+			virtual void Update(TimingInfo time);
 
 			void Spawned();
 			void DeSpawned();

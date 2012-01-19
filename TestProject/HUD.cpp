@@ -2,6 +2,7 @@
 #include "HUD.h"
 
 #include "Dood.h"
+#include "Soldier.h"
 #include "WeaponEquip.h"
 
 #include "TestGame.h"
@@ -229,7 +230,7 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, jumpbar_tex->GetGLName());
 
-		float jump_frac = player->jump_fuel;
+		float jump_frac = ((Soldier*)player)->jump_fuel;
 		float unjump = 1.0f - jump_frac;
 
 		float red = min(2.0f - 2.0f * jump_frac, 1.0f);
@@ -246,7 +247,7 @@ namespace Test
 
 		glBegin(GL_QUADS);
 
-		if (player->jump_fuel > 0)
+		if (jump_frac > 0)
 		{
 			no_jump_dim = false;
 			no_jump_flash_timer = 0.0f;
@@ -586,7 +587,7 @@ namespace Test
 			else
 				low_ammo_dim = false;
 
-			if (player->jump_fuel < 0.25f)
+			if (((Soldier*)player)->jump_fuel < 0.25f)
 				low_jump_dim = !low_jump_dim;
 			else
 				low_jump_dim = false;

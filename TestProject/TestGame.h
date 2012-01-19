@@ -11,6 +11,7 @@ namespace Test
 	class TestScreen;
 	class HUD;
 	class Dood;
+	class Soldier;
 	class DSNMaterial;
 	class GlowyModelMaterial;
 	class Sun;
@@ -94,7 +95,7 @@ namespace Test
 			Sun* sun;
 
 			ScriptedController* player_controller;
-			Dood* player_pawn;
+			Soldier* player_pawn;
 
 			string debug_text;
 
@@ -127,7 +128,7 @@ namespace Test
 
 			void Load();
 
-			Dood* SpawnPlayer(Vec3 pos);
+			Soldier* SpawnPlayer(Vec3 pos);
 			Dood* SpawnBot(Vec3 pos);
 			unsigned int GetNumberOfBugs();
 

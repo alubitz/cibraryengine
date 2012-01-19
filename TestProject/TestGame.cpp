@@ -4,6 +4,7 @@
 #include "TestScreen.h"
 #include "HUD.h"
 #include "Dood.h"
+#include "Soldier.h"
 #include "DSNMaterial.h"
 #include "GlowyModelMaterial.h"
 #include "Sun.h"
@@ -281,21 +282,22 @@ namespace Test
 	Dood* TestGame::SpawnDood(Vec3 pos, UberModel* model, Team& team)
 	{
 		Dood* dood = new Dood(this, model, pos, team);
-		dood->yaw = Random3D::Rand(2.0 * M_PI);
 
 		Spawn(dood);
 
 		return dood;
 	}
 
-	Dood* TestGame::SpawnPlayer(Vec3 pos)
+	Soldier* TestGame::SpawnPlayer(Vec3 pos)
 	{
 		if(player_pawn != NULL)
 			player_pawn->is_valid = false;
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
-		player_pawn = SpawnDood(pos, model, human_team);
+		player_pawn = new Soldier(this, model, pos, human_team);
+		Spawn(player_pawn);
+
 		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, gun_model, mflash_model, shot_model, mflash_material, shot_material, fire_sound, chamber_click_sound, reload_sound));
 
 		player_pawn->OnDeath += &player_death_handler;

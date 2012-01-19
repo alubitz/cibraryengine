@@ -7,6 +7,8 @@
 #include "TestGame.h"
 #include "Shot.h"
 
+#include "Soldier.h"
+
 namespace Test
 {
 	/*
