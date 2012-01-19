@@ -61,6 +61,10 @@ namespace Test
 			float jump_start_timer;
 			float jump_fuel;
 
+			SoundBuffer* jet_start_sound;
+			SoundBuffer* jet_loop_sound;
+			SoundSource* jet_loop;
+
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
@@ -72,6 +76,8 @@ namespace Test
 			void Vis(SceneRenderer* renderer);
 			void VisCleanup();
 			Mat4 GetViewMatrix();
+
+			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 
 			void PoseCharacter();
 			void PoseCharacter(TimingInfo time);

@@ -134,6 +134,9 @@ namespace Test
 		standing(0),
 		jump_start_timer(0),
 		jump_fuel(1.0f),
+		jet_start_sound(NULL),
+		jet_loop_sound(NULL),
+		jet_loop(NULL),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
 		OnAmmoFailure(),
@@ -189,6 +192,10 @@ namespace Test
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
+
+		Cache<SoundBuffer>* sound_cache = gs->content->GetCache<SoundBuffer>();
+		jet_start_sound = sound_cache->Load("jet_start");
+		jet_loop_sound = sound_cache->Load("jet_loop");
 	}
 
 	void Dood::InnerDispose()
@@ -262,6 +269,7 @@ namespace Test
 			rigid_body->body->applyCentralForce(btVector3(force.x, force.y, force.z));
 		}
 
+		bool jetted = false;
 		bool jumped = false;
 		if (standing > 0)
 		{
@@ -294,6 +302,19 @@ namespace Test
 				// jetpacking
 				if (time.total > jump_start_timer)
 				{
+					jetted = true;
+
+					if(jet_loop == NULL)
+					{
+						PlayDoodSound(jet_start_sound, 5.0f, false);
+						jet_loop = PlayDoodSound(jet_loop_sound, 1.0f, true);
+					}
+					else
+					{
+						jet_loop->pos = pos;
+						jet_loop->vel = vel;
+					}
+
 					jump_fuel -= timestep * (jump_fuel_spend_rate);
 
 					Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
@@ -311,6 +332,13 @@ namespace Test
 				JumpFailureEvent evt = JumpFailureEvent(this);
 				OnJumpFailure(&evt);
 			}
+		}
+		
+		if(!jetted && jet_loop != NULL)
+		{
+			jet_loop->StopLooping();
+			jet_loop->SetLoudness(0.0f);
+			jet_loop = NULL;
 		}
 
 		if (can_recharge)
@@ -461,6 +489,17 @@ namespace Test
 
 			float rm_values[] = { left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z };
 			return flip * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-(pos + pos_vec));
+		}
+	}
+
+	SoundSource* Dood::PlayDoodSound(SoundBuffer* buffer, float vol, bool looping)
+	{
+		if(buffer != NULL)
+		{
+			if(this == ((TestGame*)game_state)->player_pawn)
+				return game_state->sound_system->PlayEffect(buffer, vol, looping);
+			else
+				return game_state->sound_system->PlayEffect(buffer, pos, vel, vol, looping);
 		}
 	}
 
