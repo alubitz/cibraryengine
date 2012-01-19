@@ -33,13 +33,10 @@ namespace Test
 
 	void Weapon::PlayWeaponSound(SoundBuffer* buffer, float vol, bool looping)
 	{
-		if(buffer != NULL)
-		{
-			if(sound_owner != NULL && sound_owner == ((TestGame*)game_state)->player_pawn)
-				game_state->sound_system->PlayEffect(buffer, vol, looping);
-			else
-				game_state->sound_system->PlayEffect(buffer, sound_pos, sound_vel, vol, looping);
-		}
+		if(sound_owner != NULL && sound_owner == ((TestGame*)game_state)->player_pawn)
+			game_state->sound_system->PlayEffect(buffer, vol, looping);
+		else
+			game_state->sound_system->PlayEffect(buffer, sound_pos, sound_vel, vol, looping);
 	}
 
 	bool Weapon::GetAmmoFraction(float& result) { return false; }

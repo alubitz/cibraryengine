@@ -126,6 +126,8 @@ namespace CibraryEngine
 	{
 		if (!master_enable)
 			return NULL;
+		if (buffer == NULL)
+			return NULL;
 
 		SoundSource* source = new SoundSource(Effects, pos, vel, buffer, loudness, looping, this);
 		sources.push_back(source);

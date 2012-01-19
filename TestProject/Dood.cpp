@@ -494,13 +494,10 @@ namespace Test
 
 	SoundSource* Dood::PlayDoodSound(SoundBuffer* buffer, float vol, bool looping)
 	{
-		if(buffer != NULL)
-		{
-			if(this == ((TestGame*)game_state)->player_pawn)
-				return game_state->sound_system->PlayEffect(buffer, vol, looping);
-			else
-				return game_state->sound_system->PlayEffect(buffer, pos, vel, vol, looping);
-		}
+		if(this == ((TestGame*)game_state)->player_pawn)
+			return game_state->sound_system->PlayEffect(buffer, vol, looping);
+		else
+			return game_state->sound_system->PlayEffect(buffer, pos, vel, vol, looping);
 	}
 
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
