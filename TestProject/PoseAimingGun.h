@@ -20,7 +20,6 @@ namespace Test
 		{
 			// whichever it has, we use...
 			SetBonePose(Bone::string_table["pelvis"],		Vec3(0, -yaw, 0),			Vec3(),	1.0f);
-			SetBonePose(Bone::string_table["carapace"],		Vec3(0, -yaw, 0),			Vec3(),	1.0f);
 
 			SetBonePose(Bone::string_table["torso 2"],		Vec3(pitch * 0.4f, 0, 0),	Vec3(),	1.0f);
 			SetBonePose(Bone::string_table["torso 3"],		Vec3(pitch * 0.4f, 0, 0),	Vec3(),	1.0f);

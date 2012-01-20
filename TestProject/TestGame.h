@@ -22,8 +22,6 @@ namespace Test
 
 			TestScreen* screen;
 
-			Dood* SpawnDood(Vec3 pos, UberModel* model, Team& team);
-
 			class DoodDeathHandler : public EventHandler
 			{
 				public:

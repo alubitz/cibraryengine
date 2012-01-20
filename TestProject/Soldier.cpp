@@ -17,9 +17,6 @@ namespace Test
 	float jump_fuel_spend_rate = 0.5f, jump_fuel_refill_rate = 0.4f;
 	float flying_accel = 8.0f;
 
-	float bug_leap_duration = 0.5f;
-	float bug_leap_speed = 8.0f;
-
 
 
 
@@ -67,66 +64,53 @@ namespace Test
 
 		bool can_recharge = true;
 		bool jetted = false;
-		bool jumped = false;
-		if (standing > 0)
+		if (GetBoolControl(this, "jump"))
 		{
-			if (GetBoolControl(this, "jump"))
+			if (standing > 0)
 			{
 				//jump off the ground
 				rigid_body->body->applyCentralImpulse(btVector3(0, jump_speed * mass, 0));
 				jump_start_timer = time.total + jump_to_fly_delay;
-				jumped = true;
-			}
-			else if(GetBoolControl(this, "leap") && time.total > jump_start_timer)
-			{
-				// crab bug leaps forward
-				float leap_angle = 0.4f;
-				Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0)) * (mass * bug_leap_speed);
-				rigid_body->body->applyCentralImpulse(btVector3(leap_vector.x, leap_vector.y, leap_vector.z));
-
-				jump_start_timer = time.total + bug_leap_duration;
-
-				jumped = true;
-			}
-		}
-		else if (GetBoolControl(this, "jump"))
-		{
-			can_recharge = false;
-
-			if (jump_fuel > 0)
-			{
-				// jetpacking
-				if (time.total > jump_start_timer)
-				{
-					jetted = true;
-
-					if(jet_loop == NULL)
-					{
-						PlayDoodSound(jet_start_sound, 5.0f, false);
-						jet_loop = PlayDoodSound(jet_loop_sound, 1.0f, true);
-					}
-					else
-					{
-						jet_loop->pos = pos;
-						jet_loop->vel = vel;
-					}
-
-					jump_fuel -= timestep * (jump_fuel_spend_rate);
-
-					Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
-					Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward"))) + rightward * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep")));
-					jump_accel_vec += lateral_accel * (flying_accel);
-
-					Vec3 jump_force = jump_accel_vec * mass;
-
-					rigid_body->body->applyCentralForce(btVector3(jump_force.x, jump_force.y, jump_force.z));
-				}
 			}
 			else
 			{
-				// out of fuel! flash hud gauge if it's relevant
-				JumpFailureEvent evt = JumpFailureEvent(this);
-				OnJumpFailure(&evt);
+				can_recharge = false;
+
+				if (jump_fuel > 0)
+				{
+					// jetpacking
+					if (time.total > jump_start_timer)
+					{
+						jetted = true;
+
+						if(jet_loop == NULL)
+						{
+							PlayDoodSound(jet_start_sound, 5.0f, false);
+							jet_loop = PlayDoodSound(jet_loop_sound, 1.0f, true);
+						}
+						else
+						{
+							jet_loop->pos = pos;
+							jet_loop->vel = vel;
+						}
+
+						jump_fuel -= timestep * (jump_fuel_spend_rate);
+
+						Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
+						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward"))) + rightward * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep")));
+						jump_accel_vec += lateral_accel * (flying_accel);
+
+						Vec3 jump_force = jump_accel_vec * mass;
+
+						rigid_body->body->applyCentralForce(btVector3(jump_force.x, jump_force.y, jump_force.z));
+					}
+				}
+				else
+				{
+					// out of fuel! flash hud gauge if it's relevant
+					JumpFailureEvent evt = JumpFailureEvent(this);
+					OnJumpFailure(&evt);
+				}
 			}
 		}
 		

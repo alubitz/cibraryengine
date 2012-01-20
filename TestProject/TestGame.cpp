@@ -5,6 +5,7 @@
 #include "HUD.h"
 #include "Dood.h"
 #include "Soldier.h"
+#include "CrabBug.h"
 #include "DSNMaterial.h"
 #include "GlowyModelMaterial.h"
 #include "Sun.h"
@@ -279,15 +280,6 @@ namespace Test
 		load_status.stopped = true;
 	}
 
-	Dood* TestGame::SpawnDood(Vec3 pos, UberModel* model, Team& team)
-	{
-		Dood* dood = new Dood(this, model, pos, team);
-
-		Spawn(dood);
-
-		return dood;
-	}
-
 	Soldier* TestGame::SpawnPlayer(Vec3 pos)
 	{
 		if(player_pawn != NULL)
@@ -314,9 +306,10 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
-		Dood* dood = SpawnDood(pos, enemy, bug_team);
+		Dood* dood = new CrabBug(this, enemy, pos, bug_team);
+		Spawn(dood);
+
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
-		dood->hp *= 0.3f;
 
 		ScriptedController* ai_controller = new ScriptedController(this, "crab_bug_ai");
 		ai_controller->Possess(dood);
