@@ -478,17 +478,17 @@ namespace DestructibleTerrain
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); }
 		} stone_brush;
 
-		struct SmoothBrush : public EditorBrush
-		{
-			SmoothBrush() : EditorBrush("Smooth Surface") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); }
-		} smooth_brush;
-
 		struct SandBrush : public EditorBrush
 		{
 			SandBrush() : EditorBrush("Add Sand") { }
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); }
 		} sand_brush;
+
+		struct SmoothBrush : public EditorBrush
+		{
+			SmoothBrush() : EditorBrush("Smooth") { }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); }
+		} smooth_brush;
 	};
 
 

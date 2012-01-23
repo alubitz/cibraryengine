@@ -217,9 +217,15 @@ namespace DestructibleTerrain
 
 
 
-	/* 
-	 * CreateVBO function is quite long...
+	/*
+	 * CreateVBO is long...
 	 */
+
+	// forward declarations for a couple of utility functions (to break the function into more readable pieces)
+	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
+	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
+
+	// the function itself...
 	VertexBuffer* TerrainChunk::CreateVBO()
 	{
 		int num_verts = 0;
@@ -240,9 +246,7 @@ namespace DestructibleTerrain
 		int cmax_z = min(max_z, ChunkSize);
 
 		for(int x = 0; x < max_x; ++x)
-		{
 			for(int y = 0; y < max_y; ++y)
-			{
 				for(int z = 0; z < max_z; ++z)
 				{
 					// find the verts for this one cube
@@ -313,8 +317,6 @@ namespace DestructibleTerrain
 						vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
 					}
 				}
-			}
-		}
 
 		Vec3* normal_vectors = new Vec3[unique_vertices.size()];
 		for(unsigned int i = 0; i < unique_vertices.size(); ++i)
@@ -322,9 +324,7 @@ namespace DestructibleTerrain
 
 		// go back through them and find the normal vectors (faster than it used to be!)
 		for(int x = 0; x < max_x; ++x)
-		{
 			for(int y = 0; y < max_y; ++y)
-			{
 				for(int z = 0; z < max_z; ++z)
 				{
 					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
@@ -351,8 +351,6 @@ namespace DestructibleTerrain
 						}
 					}
 				}
-			}
-		}
 
 		if(num_verts == 0)
 			return NULL;
@@ -372,9 +370,7 @@ namespace DestructibleTerrain
 
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
-			{
 				for(int y = 0; y < cmax_y; ++y)
-				{
 					for(int z = 0; z < cmax_z; ++z)
 					{
 						vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
@@ -383,36 +379,9 @@ namespace DestructibleTerrain
 							continue;
 
 						// iterate through all of the verts in this cube
-						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); ++iter)
-						{
-							TerrainVertex& vert = unique_vertices[*iter];
-
-							Vec3 pos = vert.pos;
-
-							Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
-
-							// put the data for this vertex into the VBO
-							*(vertex_ptr++) = pos.x;
-							*(vertex_ptr++) = pos.y;
-							*(vertex_ptr++) = pos.z;
-
-							*(normal_ptr++) = normal.x;
-							*(normal_ptr++) = normal.y;
-							*(normal_ptr++) = normal.z;
-
-							// TODO: deal with materials!
-							float stone_amount = (float)vert.material.GetMaterialAmount(1);
-							float sand_amount = (float)vert.material.GetMaterialAmount(2);
-							float tot = stone_amount + sand_amount, inv_tot = 1.0f / tot;
-
-							*(mat_ptr++) = stone_amount * inv_tot;
-							*(mat_ptr++) = 0.0f;
-							*(mat_ptr++) = 0.0f;
-							*(mat_ptr++) = sand_amount * inv_tot;
-						}
+						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end();)
+							ProcessTriangle(iter, unique_vertices, normal_vectors, vertex_ptr, normal_ptr, mat_ptr);
 					}
-				}
-			}
 
 			delete[] normal_vectors;
 			delete[] vertex_indices;
@@ -421,6 +390,43 @@ namespace DestructibleTerrain
 			return model;
 		}
 	}
+
+	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	{
+		// TODO: rewrite this and ProcessVert so that they take the materials into account
+		for(unsigned char i = 0; i < 3; ++i)
+			ProcessVert(iter++, unique_vertices, normal_vectors, vertex_ptr, normal_ptr, mat_ptr);
+	}
+
+	void ProcessVert(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	{
+		TerrainVertex& vert = unique_vertices[*iter];
+
+		Vec3 pos = vert.pos;
+
+		Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
+
+		// put the data for this vertex into the VBO
+		*(vertex_ptr++) = pos.x;
+		*(vertex_ptr++) = pos.y;
+		*(vertex_ptr++) = pos.z;
+
+		*(normal_ptr++) = normal.x;
+		*(normal_ptr++) = normal.y;
+		*(normal_ptr++) = normal.z;
+
+		float stone_amount = (float)vert.material.GetMaterialAmount(1);
+		float sand_amount = (float)vert.material.GetMaterialAmount(2);
+		float tot = stone_amount + sand_amount, inv_tot = 1.0f / tot;
+
+		*(mat_ptr++) = stone_amount * inv_tot;
+		*(mat_ptr++) = 0.0f;
+		*(mat_ptr++) = 0.0f;
+		*(mat_ptr++) = sand_amount * inv_tot;
+	}
+
+
+	
 
 	bool TerrainChunk::IsEmpty()
 	{
