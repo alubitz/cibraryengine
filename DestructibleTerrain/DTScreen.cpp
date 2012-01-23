@@ -207,8 +207,8 @@ namespace DestructibleTerrain
 			mouse_motion_handler(&yaw, &pitch),
 			subtract_brush(),
 			stone_brush(),
-			smooth_brush(),
-			sand_brush()
+			sand_brush(),
+			smooth_brush()
 		{
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
