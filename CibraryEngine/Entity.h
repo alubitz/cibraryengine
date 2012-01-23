@@ -11,6 +11,7 @@ namespace CibraryEngine
 
 	class GameState;
 	class SceneRenderer;
+	class Component;
 
 	/** Class representing an entity within the simulation */
 	class Entity : public Disposable
@@ -30,8 +31,13 @@ namespace CibraryEngine
 			/** The game state which this entity belongs to */
 			GameState* game_state;
 
+	
+			vector<Component*> components;
+
 			/** Whether this entity is valid; if not, it may be removed from the GameState */
 			bool is_valid;
+
+
 
 
 			/** Initializes an Entity with the specified GameState */

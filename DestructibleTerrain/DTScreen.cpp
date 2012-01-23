@@ -17,8 +17,23 @@ namespace DestructibleTerrain
 			if(amount < 128)
 				return;
 
-			int total_solidity = node.solidity * 255;
-			int total_weight = 255;
+			unsigned int total_solidity = node.solidity * 255;
+			unsigned int total_weight = 255;
+
+			unordered_map<unsigned char, unsigned int> total_materials;
+
+			// copy this node's materials
+			for(unsigned char i = 0; i < 4; ++i)
+				if(unsigned char material = node.material.types[i])
+					if(unsigned char mat_weight = node.material.weights[i])
+					{
+						unordered_map<unsigned char, unsigned int>::iterator found = total_materials.find(material);
+
+						if(found == total_materials.end())
+							total_materials[material] = mat_weight;
+						else
+							total_materials[material] += mat_weight;
+					}
 
 			for(int xx = x - 1; xx <= x + 1; ++xx)
 				for(int yy = y - 1; yy <= y + 1; ++yy)
@@ -30,14 +45,70 @@ namespace DestructibleTerrain
 
 								total_weight += weight;
 								total_solidity += int(neighbor_node->solidity) * weight;
+
+								if(neighbor_node->solidity >= 128)
+								{
+									// add neighboring node's materials
+									for(int i = 0; i < 4; ++i)
+										if(unsigned char material = neighbor_node->material.types[i])
+											if(unsigned char mat_weight = neighbor_node->material.weights[i])
+											{
+												unordered_map<unsigned char, unsigned int>::iterator found = total_materials.find(material);
+
+												if(found == total_materials.end())
+													total_materials[material] = mat_weight;
+												else
+													total_materials[material] += mat_weight;
+											}
+								}
 							}
+
+			bool changed = false;					// only invalidate the node if it is changed by one (or more) of these two blocks of code...
 
 			unsigned char nu_value = (unsigned char)floor(max(0.0f, min(255.0f, float(total_solidity) / total_weight + 0.5f)));
 			if(nu_value != node.solidity)
 			{
 				node.solidity = nu_value;
-				chunk->InvalidateNode(x, y, z);
+				changed = true;
 			}
+
+			// if there are somehow no materials in or around this node, don't bother with these steps
+			if(unsigned int count = min(4, total_materials.size()))
+			{
+				unsigned char mat_types[4];
+				unsigned int mat_weights[4];
+				for(unsigned char i = 0; i < count; ++i)
+				{
+					unordered_map<unsigned char, unsigned int>::iterator iter = total_materials.begin();
+					unordered_map<unsigned char, unsigned int>::iterator best = iter++;
+
+					for(; iter != total_materials.end(); ++iter)
+						if(iter->second > best->second)
+							best = iter;
+
+					mat_types[i] = best->first;
+					mat_weights[i] = best->second;
+
+					total_materials.erase(best);
+				}
+
+				for(unsigned char i = 0; i < 4; ++i)
+				{
+					if(i < count)
+					{
+						node.material.types[i] = mat_types[i];
+						node.material.weights[i] = mat_weights[i] * 255 / mat_weights[0];
+					}
+					else
+						node.material.weights[i] = 0;
+				}
+
+				// TODO: make a MultiMaterial::operator== or something comparable, and only set this if it's not equal
+				changed = true;
+			}
+
+			if(changed)
+				chunk->InvalidateNode(x, y, z);
 		};
 	};
 
