@@ -19,11 +19,6 @@ namespace Test
 
 
 
-
-	static bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
-	static float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
-	static void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
-	static void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
 	
 	/*
 	 * Soldier methods
@@ -64,7 +59,7 @@ namespace Test
 
 		bool can_recharge = true;
 		bool jetted = false;
-		if (GetBoolControl(this, "jump"))
+		if (control_state->GetBoolControl("jump"))
 		{
 			if (standing > 0)
 			{
@@ -97,7 +92,7 @@ namespace Test
 						jump_fuel -= timestep * (jump_fuel_spend_rate);
 
 						Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
-						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward"))) + rightward * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep")));
+						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
 						jump_accel_vec += lateral_accel * (flying_accel);
 
 						Vec3 jump_force = jump_accel_vec * mass;

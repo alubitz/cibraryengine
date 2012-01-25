@@ -14,11 +14,6 @@ namespace Test
 
 
 
-	static bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
-	static float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
-	static void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
-	static void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
-
 	/*
 	 * CrabBug methods
 	 */
@@ -33,7 +28,7 @@ namespace Test
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		if (standing > 0 && GetBoolControl(this, "leap") && time.total > jump_start_timer)
+		if (standing > 0 && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
 		{
 			// crab bug leaps forward
 			float leap_angle = 0.4f;

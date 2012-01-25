@@ -37,11 +37,6 @@ namespace Test
 
 
 
-	static bool GetBoolControl(Dood* dood, string control_name) { return dood->control_state->GetBoolControl(control_name); }
-	static float GetFloatControl(Dood* dood, string control_name) { return dood->control_state->GetFloatControl(control_name); }
-	static void SetBoolControl(Dood* dood, string control_name, bool value) { dood->control_state->SetBoolControl(control_name, value); }
-	static void SetFloatControl(Dood* dood, string control_name, float value) { dood->control_state->SetFloatControl(control_name, value); }
-
 	void GenerateHardCodedWalkAnimation(IKPose* ik_pose)
 	{
 		KeyframeAnimation* ka = ik_pose->keyframe_animation;
@@ -198,7 +193,7 @@ namespace Test
 		float timestep = time.elapsed;
 		float traction = standing * ground_traction + (1 - standing) * air_traction;
 
-		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, GetFloatControl(this, "forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, GetFloatControl(this, "sidestep"))));
+		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep"))));
 
 		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
@@ -211,12 +206,12 @@ namespace Test
 
 	void Dood::DoWeaponControls(TimingInfo time)
 	{
-		if(GetBoolControl(this, "reload"))
+		if(control_state->GetBoolControl("reload"))
 		{
 			if(dynamic_cast<WeaponEquip*>(equipped_weapon) != NULL)
 				((WeaponEquip*)equipped_weapon)->BeginReload();
 
-			SetBoolControl(this, "reload", false);
+			control_state->SetBoolControl("reload", false);
 		}
 
 		if(character != NULL)
@@ -225,12 +220,12 @@ namespace Test
 
 			if(equipped_weapon != NULL)
 			{
-				equipped_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
+				equipped_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 				equipped_weapon->OwnerUpdate(time);
 			}
 			if(intrinsic_weapon != NULL)
 			{
-				intrinsic_weapon->SetFiring(1, true, GetBoolControl(this, "primary_fire"));
+				intrinsic_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 				intrinsic_weapon->OwnerUpdate(time);
 			}
 
@@ -307,39 +302,39 @@ namespace Test
 	{
 		float timestep = time.elapsed;
 
-		float desired_yaw = max(-1.0f, min(1.0f, GetFloatControl(this, "yaw")));
-		float desired_pitch = max(-1.0f, min(1.0f, GetFloatControl(this, "pitch")));
+		float desired_yaw = max(-1.0f, min(1.0f, control_state->GetFloatControl("yaw")));
+		float desired_pitch = max(-1.0f, min(1.0f, control_state->GetFloatControl("pitch")));
 
 		if (abs(desired_yaw) <= timestep * yaw_rate)
 		{
 			yaw += desired_yaw;
-			SetFloatControl(this, "yaw", 0.0f);
+			control_state->SetFloatControl("yaw", 0.0f);
 		}
 		else if (desired_yaw < 0)
 		{
 			yaw -= timestep * yaw_rate;
-			SetFloatControl(this, "yaw", desired_yaw + timestep * yaw_rate);
+			control_state->SetFloatControl("yaw", desired_yaw + timestep * yaw_rate);
 		}
 		else
 		{
 			yaw += timestep * yaw_rate;
-			SetFloatControl(this, "yaw", desired_yaw - timestep * yaw_rate);
+			control_state->SetFloatControl("yaw", desired_yaw - timestep * yaw_rate);
 		}
 
 		if (abs(desired_pitch) <= timestep * pitch_rate)
 		{
 			pitch += desired_pitch;
-			SetFloatControl(this, "pitch", 0.0f);
+			control_state->SetFloatControl("pitch", 0.0f);
 		}
 		else if (desired_pitch < 0)
 		{
 			pitch -= timestep * pitch_rate;
-			SetFloatControl(this, "pitch", desired_pitch + timestep * pitch_rate);
+			control_state->SetFloatControl("pitch", desired_pitch + timestep * pitch_rate);
 		}
 		else
 		{
 			pitch += timestep * pitch_rate;
-			SetFloatControl(this, "pitch", desired_pitch - timestep * pitch_rate);
+			control_state->SetFloatControl("pitch", desired_pitch - timestep * pitch_rate);
 		}
 
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
