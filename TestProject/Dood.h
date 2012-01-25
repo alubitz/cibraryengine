@@ -56,8 +56,6 @@ namespace Test
 			UberModel* model;
 			SkinnedCharacter* character;
 
-			IKPose* ik_pose;
-
 			RigidBodyInfo* rigid_body;
 			PhysicsWorld* physics;
 

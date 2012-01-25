@@ -24,12 +24,18 @@ namespace Test
 
 		protected:
 
+			void InnerDispose();
+
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 
 			void PreUpdatePoses(TimingInfo time);
 
 		public:
 
+			IKPose* ik_pose;
+
 			CrabBug(GameState* game_state, UberModel* model, Vec3 pos, Team& team);
+
+			void Update(TimingInfo time);
 	};
 }
