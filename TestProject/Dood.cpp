@@ -99,10 +99,14 @@ namespace Test
 	{
 		VisCleanup();
 
-		rigid_body->Dispose();
-		delete rigid_body;
+		if(rigid_body != NULL)
+		{
+			rigid_body->Dispose();
+			delete rigid_body;
+		}
 
 		delete contact_callback;
+		contact_callback = NULL;
 
 		Pawn::InnerDispose();
 	}

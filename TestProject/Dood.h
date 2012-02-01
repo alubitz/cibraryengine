@@ -82,8 +82,8 @@ namespace Test
 
 			virtual void Update(TimingInfo time);
 
-			void Spawned();
-			void DeSpawned();
+			virtual void Spawned();
+			virtual void DeSpawned();
 
 			bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
 			void TakeDamage(Damage damage, Vec3 from_dir);

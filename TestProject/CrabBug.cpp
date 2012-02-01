@@ -86,7 +86,7 @@ namespace Test
 		Dood(game_state, model, pos, team),
 		walk_pose()
 	{
-		hp *= 0.3f;
+		hp *= 0.5f;
 
 		// character animation stuff
 		character->active_poses.push_back(&walk_pose);
