@@ -56,6 +56,10 @@ namespace CibraryEngine
 		if(model->GetFloatPointer("gl_MultiTexCoord4") == NULL)
 			model->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
+		float* weights = model->GetFloatPointer("gl_MultiTexCoord4");
+		for(unsigned int i = 0; i < model->GetNumVerts(); ++i)
+			weights[i * 4] = 255;
+
 		material_model_pairs.push_back(mmp);
 
 		Skeleton* skeleton = new Skeleton();

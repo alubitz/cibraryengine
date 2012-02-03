@@ -983,7 +983,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < bones.size(); ++i)
 		{
 			UberModel::Bone bone;
-			bone.name = bones[i]->name;
+			bone.name = Bone::string_table[bones[i]->name];
 			bone.pos = bones[i]->rest_pos;
 			bone.ori = bones[i]->rest_ori;
 			bone.parent = 0;
