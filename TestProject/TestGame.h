@@ -128,6 +128,7 @@ namespace Test
 
 			Soldier* SpawnPlayer(Vec3 pos);
 			Dood* SpawnBot(Vec3 pos);
+			Dood* SpawnArtilleryBug(Vec3 pos);
 			unsigned int GetNumberOfBugs();
 
 			void Update(TimingInfo time);

@@ -6,6 +6,7 @@
 #include "Dood.h"
 #include "Soldier.h"
 #include "CrabBug.h"
+#include "ArtilleryBug.h"
 #include "DSNMaterial.h"
 #include "GlowyModelMaterial.h"
 #include "Sun.h"
@@ -231,6 +232,20 @@ namespace Test
 
 		enemy = ubermodel_cache->Load("crab_bug");
 
+		if(ubermodel_cache->Load("flea") == NULL)
+		{
+			load_status.task = "artillery bug";
+
+			SkinnedModel* flea_skinny = SkinnedModel::WrapVertexBuffer(vtn_cache->Load("flea"), "flea");
+			flea_skinny->skeleton->bones[0]->name = Bone::string_table["carapace"];
+
+			UberModel* flea_model = UberModelLoader::CopySkinnedModel(flea_skinny);
+
+			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
+
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
+		}
+
 		if(load_status.abort)
 		{
 			load_status.stopped = true;
@@ -307,6 +322,23 @@ namespace Test
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
 		Dood* dood = new CrabBug(this, enemy, pos, bug_team);
+		Spawn(dood);
+
+		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
+
+		ScriptedController* ai_controller = new ScriptedController(this, "crab_bug_ai");
+		ai_controller->Possess(dood);
+
+		Spawn(ai_controller);
+
+		dood->OnDeath += &bot_death_handler;
+
+		return dood;
+	}
+
+	Dood* TestGame::SpawnArtilleryBug(Vec3 pos)
+	{
+		Dood* dood = new ArtilleryBug(this, ubermodel_cache->Load("flea"), pos, bug_team);
 		Spawn(dood);
 
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
@@ -855,6 +887,7 @@ namespace Test
 	}
 
 	int gs_spawnBot(lua_State* L);
+	int gs_spawnArtilleryBug(lua_State* L);
 	int gs_spawnPlayer(lua_State* L);
 	int gs_getTerrainHeight(lua_State* L);
 	int gs_getNumberOfBugs(lua_State* L);
@@ -876,6 +909,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_spawnBot, 1);
 		lua_setfield(L, 1, "spawnBot");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_spawnArtilleryBug, 1);
+		lua_setfield(L, 1, "spawnArtilleryBug");
 
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_spawnPlayer, 1);
@@ -977,6 +1014,33 @@ namespace Test
 		}
 
 		Debug("gs.spawnBot takes exactly 1 argument, a position vector; returning nil\n");
+		return 0;
+	}
+
+	int gs_spawnArtilleryBug(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isuserdata(L, 1))
+		{
+			void* ptr = lua_touserdata(L, 1);
+			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+			lua_settop(L, 0);
+
+			if(vec != NULL)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				TestGame* gs = (TestGame*)lua_touserdata(L, 1);
+				Dood* dood = gs->SpawnArtilleryBug(*vec);
+				lua_pop(L, 1);
+
+				PushDoodHandle(L, dood);
+
+				return 1;
+			}
+		}
+
+		Debug("gs.spawnArtilleryBug takes exactly 1 argument, a position vector; returning nil\n");
 		return 0;
 	}
 

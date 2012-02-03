@@ -53,7 +53,7 @@ function levelStartMessage()
 end
 
 -- a specific manner of spawning bots
-function spawn_one(gs, player_pos)
+function spawn_one(gs, player_pos, artillery)
 	local theta, radius = math.random() * math.pi * 2.0, math.random() * 70 + 50
 	local x = radius * math.cos(theta) + player_pos.x
 	local z = radius * math.sin(theta) + player_pos.z
@@ -63,7 +63,7 @@ function spawn_one(gs, player_pos)
 	if z > 98 then z = 98 end
 	if z < -98 then z = -98 end
 
-	local bot = spawnBotAtPosition(gs, x, z)
+	local bot = spawnBotAtPosition(gs, x, z, artillery)
 	bots_spawned = bots_spawned + 1
 
 	bot.death_callback = crab_bug_death
@@ -79,8 +79,9 @@ function begin_level(gs, player_pos, level)
 	if not disable_enemies then
 		local bugs_this_level = 100 --1 + 2 * level + math.floor(math.random() * 3.0)
 		for i = 1, bugs_this_level do
-			spawn_one(gs, player_pos)
+			spawn_one(gs, player_pos, i == 1)
 		end
+		
 		levelStartMessage()
 	end
 end
