@@ -4,7 +4,9 @@
 #include "ModelLoader.h"
 #include "SkeletalAnimation.h"
 #include "VertexBuffer.h"
+
 #include "Octree.h"
+#include "UnclampedVertexBoneWeightInfo.h"
 
 #include "DebugLog.h"
 
@@ -122,15 +124,25 @@ namespace CibraryEngine
 		if(!any_verts)				// lolwut?
 			return;
 		
-		struct MyOctreeNode 
+		struct SubmodelVert
 		{
-			// TODO: add data members here
+			Vec3 vert;
+			unsigned int owner_id;
+
+			SubmodelVert(Vec3 vert, unsigned int owner_id) : vert(vert), owner_id(owner_id) { }
 		};
 
+		struct MyOctreeNode { vector<SubmodelVert> verts; };
+
+		static const float vert_radius = 0.1f;								// add this much leeway when processing verts
+		static const float vert_rsquared = vert_radius * vert_radius;
+
 		Octree<MyOctreeNode> octree(oct_min, oct_max);
+		octree.Split(5);
 
 		// add the submodels' data to the octree
-		for(vector<VertexBuffer*>::iterator iter = submodels.begin(); iter != submodels.end(); ++iter)
+		unsigned int submodel_num = 0;
+		for(vector<VertexBuffer*>::iterator iter = submodels.begin(); iter != submodels.end(); ++iter, ++submodel_num)
 		{
 			VertexBuffer* vbo = *iter;
 			assert(vbo != NULL);
@@ -153,7 +165,34 @@ namespace CibraryEngine
 					if(items_per == 4)
 						++vertex_ptr;
 
-					// TODO: put this vertex into the octree
+					// functor(?) to recursively add this vert to octree elements
+					struct InsertAction
+					{
+						Vec3 vert, vert_min, vert_max;
+						unsigned int submodel_num;
+
+						void operator() (Octree<MyOctreeNode>* node)
+						{
+							Vec3 node_min = node->min_xyz, node_max = node->max_xyz;
+
+							if(	node_min.x >= vert_max.x && node_max.x <= vert_min.x &&
+								node_min.y >= vert_max.y && node_max.z <= vert_min.z &&
+								node_min.z >= vert_max.y && node_max.z <= vert_min.z)
+							{
+								if(node->IsLeaf())
+									node->contents.verts.push_back(SubmodelVert(vert, submodel_num));
+								else
+									node->ForEach(*this);
+							}
+						}
+					} action;
+
+					action.vert = Vec3(x, y, z);
+					action.vert_min = Vec3(x - vert_radius, y - vert_radius, z - vert_radius);
+					action.vert_max = Vec3(x + vert_radius, y + vert_radius, z + vert_radius);
+					action.submodel_num = submodel_num;
+
+					action(&octree);								// let the recursion begin!
 				}
 			}
 		}
@@ -185,12 +224,44 @@ namespace CibraryEngine
 					if(items_per == 4)
 						++vertex_ptr;
 
-					float indices[4];
-					float weights[4];
+					// functor(?) to compute new values for the skinning info by recursing throught the octree
+					struct LookupAction
+					{
+						Vec3 vert;
+						VertexBoneWeightInfo vbwi;
 
-					// TODO: compute new values for the skinning info (consult the octree!)
+						void operator() (Octree<MyOctreeNode>* node)
+						{
+							Vec3 node_min = node->min_xyz, node_max = node->max_xyz;
 
-					for(unsigned char j = 0; j < 4; ++j)			// copy data from temporary array back to VBO
+							if(	vert.x >= node_min.x && vert.x <= node_max.x &&
+								vert.y >= node_min.y && vert.y <= node_max.y &&
+								vert.z >= node_min.z && vert.z <= node_max.z)
+							{
+								if(node->IsLeaf())
+								{
+									for(vector<SubmodelVert>::iterator jter = node->contents.verts.begin(); jter != node->contents.verts.end(); ++jter)
+									{
+										Vec3 dx = jter->vert - vert;
+										float mag_sq = dx.ComputeMagnitudeSquared();
+
+										if(mag_sq < vert_rsquared)
+											vbwi.AddValue(jter->owner_id, 1.0f / (mag_sq + 0.01f));
+									}
+								}
+								else
+									node->ForEach(*this);
+							}
+						}
+					} action;
+
+					action.vert = Vec3(x, y, z);
+					action(&octree);								// let the recursion begin!
+
+					unsigned char indices[4], weights[4];
+					action.vbwi.GetByteValues(indices, weights);
+
+					for(unsigned char j = 0; j < 4; ++j)
 					{
 						*(indices_ptr++) = indices[j];
 						*(weights_ptr++) = weights[j];
