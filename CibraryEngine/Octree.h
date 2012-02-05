@@ -14,13 +14,12 @@ namespace CibraryEngine
 		Octree* children[8];
 		T contents;					// if the node has children, this variable is ignored
 
-		Vec3 min_xyz, max_xyz;
+		AABB bounds;
 
 		Octree(Vec3 min, Vec3 max) : 
 			parent(NULL), 
 			contents(), 
-			min_xyz(min), 
-			max_xyz(max) 
+			bounds(min, max) 
 		{ 
 			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
@@ -29,8 +28,7 @@ namespace CibraryEngine
 		Octree(Octree& parent, Vec3 min, Vec3 max) : 
 			parent(&parent), 
 			contents(parent.contents), 
-			min_xyz(min), 
-			max_xyz(max) 
+			bounds(min, max) 
 		{
 			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
@@ -39,8 +37,7 @@ namespace CibraryEngine
 		Octree(Octree& parent, T contents, Vec3 min, Vec3 max) : 
 			parent(&parent), 
 			contents(contents), 
-			min_xyz(min), 
-			max_xyz(max) 
+			bounds(min, max) 
 		{
 			for(int i = 0; i < 8; ++i)
 				children[i] = NULL;
@@ -49,11 +46,11 @@ namespace CibraryEngine
 		~Octree()
 		{
 			for(int i = 0; i < 8; ++i)
-			if(children[i] != NULL)
-			{
-				delete children[i];
-				children[i] = NULL;
-			}
+				if(children[i] != NULL)
+				{
+					delete children[i];
+					children[i] = NULL;
+				}
 		}
 
 		/** Determine whether this node is a leaf node (i.e. it has no children) */
@@ -76,7 +73,9 @@ namespace CibraryEngine
 			if(!IsLeaf())
 				return false;
 			
-			Vec3 cen_xyz = (min_xyz + max_xyz) * 0.5f;
+			Vec3 min_xyz = bounds.min;
+			Vec3 max_xyz = bounds.max;
+			Vec3 cen_xyz = bounds.GetCenterPoint();
 
 			children[0] = new Octree(*this, Vec3(min_xyz.x, min_xyz.y, min_xyz.z), Vec3(cen_xyz.x, cen_xyz.y, cen_xyz.z));
 			children[1] = new Octree(*this, Vec3(min_xyz.x, min_xyz.y, cen_xyz.z), Vec3(cen_xyz.x, cen_xyz.y, max_xyz.z));

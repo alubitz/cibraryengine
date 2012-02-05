@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * Particle methods
 	 */
-	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(2 * M_PI)), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
+	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
 
 	void Particle::Spawned()
 	{

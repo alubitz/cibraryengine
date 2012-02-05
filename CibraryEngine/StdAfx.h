@@ -5,13 +5,15 @@
 	#define WIN32_LEAN_AND_MEAN
 	#endif
 
+	#define _USE_MATH_DEFINES				// math constants like M_PI
+	#define NOMINMAX						// no silly macros "min" and "max"
+
 	#include <windows.h>
 #endif
 
 #include "GLee.h"
 #include <GL/gl.h>
 #include <GL/gl3.h>
-//#include <GL/glext.h>
 #include <GL/glu.h>
 
 #include <AL/al.h>
@@ -39,10 +41,6 @@
 #include <set>
 #include <cmath>
 #include <stack>
-#ifndef M_PI
-	// gotta manually define M_PI :(
-	#define M_PI		3.14159265358979323846f
-#endif
 #include <cassert>
 #include <string>
 

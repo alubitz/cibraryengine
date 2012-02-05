@@ -78,7 +78,7 @@ namespace CibraryEngine
 		bool any_verts = false;					// if it turns out this model hasn't got any verts, we'll skip it
 
 		// find min and max dimensions for octree
-		Vec3 oct_min, oct_max;
+		AABB oct_bounds;
 		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); ++iter)
 		{
 			VertexBuffer* vbo = iter->vbo;
@@ -102,19 +102,13 @@ namespace CibraryEngine
 					if(items_per == 4)
 						++vertex_ptr;
 
-					if(any_verts)
-					{
-						oct_min.x = min(oct_min.x, x);
-						oct_min.y = min(oct_min.y, y);
-						oct_min.z = min(oct_min.z, z);
+					Vec3 xyz(x, y, z);
 
-						oct_max.x = max(oct_max.x, x);
-						oct_max.y = max(oct_max.y, y);
-						oct_max.z = max(oct_max.z, z);
-					}
+					if(any_verts)
+						oct_bounds.Expand(xyz);
 					else
 					{
-						oct_min = oct_max = Vec3(x, y, z);
+						oct_bounds = AABB(xyz);
 						any_verts = true;
 					}
 				}
@@ -137,7 +131,7 @@ namespace CibraryEngine
 		static const float vert_radius = 0.1f;								// add this much leeway when processing verts
 		static const float vert_rsquared = vert_radius * vert_radius;
 
-		Octree<MyOctreeNode> octree(oct_min, oct_max);
+		Octree<MyOctreeNode> octree(oct_bounds.min, oct_bounds.max);
 		octree.Split(5);
 
 		// add the submodels' data to the octree
@@ -168,16 +162,13 @@ namespace CibraryEngine
 					// functor(?) to recursively add this vert to octree elements
 					struct InsertAction
 					{
-						Vec3 vert, vert_min, vert_max;
+						Vec3 vert;
+						AABB vert_bounds;
 						unsigned int submodel_num;
 
 						void operator() (Octree<MyOctreeNode>* node)
 						{
-							Vec3 node_min = node->min_xyz, node_max = node->max_xyz;
-
-							if(	node_min.x >= vert_max.x && node_max.x <= vert_min.x &&
-								node_min.y >= vert_max.y && node_max.z <= vert_min.z &&
-								node_min.z >= vert_max.y && node_max.z <= vert_min.z)
+							if(AABB::IntersectTest(node->bounds, vert_bounds))
 							{
 								if(node->IsLeaf())
 									node->contents.verts.push_back(SubmodelVert(vert, submodel_num));
@@ -188,8 +179,7 @@ namespace CibraryEngine
 					} action;
 
 					action.vert = Vec3(x, y, z);
-					action.vert_min = Vec3(x - vert_radius, y - vert_radius, z - vert_radius);
-					action.vert_max = Vec3(x + vert_radius, y + vert_radius, z + vert_radius);
+					action.vert_bounds = AABB(Vec3(x - vert_radius, y - vert_radius, z - vert_radius), Vec3(x + vert_radius, y + vert_radius, z + vert_radius));
 					action.submodel_num = submodel_num;
 
 					action(&octree);								// let the recursion begin!
@@ -232,11 +222,7 @@ namespace CibraryEngine
 
 						void operator() (Octree<MyOctreeNode>* node)
 						{
-							Vec3 node_min = node->min_xyz, node_max = node->max_xyz;
-
-							if(	vert.x >= node_min.x && vert.x <= node_max.x &&
-								vert.y >= node_min.y && vert.y <= node_max.y &&
-								vert.z >= node_min.z && vert.z <= node_max.z)
+							if(node->bounds.ContainsPoint(vert))
 							{
 								if(node->IsLeaf())
 								{

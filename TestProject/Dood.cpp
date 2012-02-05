@@ -296,7 +296,7 @@ namespace Test
 
 	Mat4 Dood::GetViewMatrix()
 	{
-		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, M_PI, 0));
+		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
 
 		if(eye_bone == NULL)
 		{	

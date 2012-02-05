@@ -24,7 +24,7 @@ namespace CibraryEngine
 	string Packet::GetContentBytes()
 	{
 		string result;
-		unsigned int len = max(data.length() - 4, 0);
+		unsigned int len = max(data.length() - 4, 0u);
 		for(unsigned int i = 0; i < len; ++i)
 			result += data[i + 4];
 

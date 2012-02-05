@@ -154,7 +154,7 @@ namespace Test
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{
-				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.5f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -M_PI * 0.5f)) * Mat4::UniformScale(mflash_size);
+				Mat4 mflash_xform = gun_xform * Mat4::Translation(0, 0.03f, 0.5f) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -float(M_PI) * 0.5f)) * Mat4::UniformScale(mflash_size);
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetPosition(), bs.center)));
 			}
 		}

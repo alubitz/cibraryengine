@@ -12,4 +12,5 @@
 
 #include "Random3D.h"
 
-#include "Octree.h"			// best place i could think of to put this
+#include "AABB.h"
+#include "Octree.h"
