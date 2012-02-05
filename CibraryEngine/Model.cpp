@@ -3,8 +3,8 @@
 
 #include "ModelLoader.h"
 #include "SkeletalAnimation.h"
-
 #include "VertexBuffer.h"
+#include "Octree.h"
 
 #include "DebugLog.h"
 
@@ -66,6 +66,140 @@ namespace CibraryEngine
 		skeleton->AddBone(Bone::string_table["root"], Quaternion::Identity(), Vec3());
 
 		return new SkinnedModel(material_model_pairs, material_names, skeleton);
+	}
+
+	void SkinnedModel::AutoSkinModel(SkinnedModel* model, vector<VertexBuffer*>& submodels)
+	{
+		if(model->material_model_pairs.empty() || submodels.empty())
+			return;
+
+		bool any_verts = false;					// if it turns out this model hasn't got any verts, we'll skip it
+
+		// find min and max dimensions for octree
+		Vec3 oct_min, oct_max;
+		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); ++iter)
+		{
+			VertexBuffer* vbo = iter->vbo;
+			assert(vbo != NULL);
+
+			if(unsigned int num_verts = vbo->GetNumVerts())
+			{
+				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
+				assert(vertex_ptr != NULL);
+		
+				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+
+				assert(items_per == 3 || items_per == 4);
+
+				for(unsigned int i = 0; i < num_verts; ++i)
+				{
+					float x = *(vertex_ptr++);
+					float y = *(vertex_ptr++);
+					float z = *(vertex_ptr++);
+
+					if(items_per == 4)
+						++vertex_ptr;
+
+					if(any_verts)
+					{
+						oct_min.x = min(oct_min.x, x);
+						oct_min.y = min(oct_min.y, y);
+						oct_min.z = min(oct_min.z, z);
+
+						oct_max.x = max(oct_max.x, x);
+						oct_max.y = max(oct_max.y, y);
+						oct_max.z = max(oct_max.z, z);
+					}
+					else
+					{
+						oct_min = oct_max = Vec3(x, y, z);
+						any_verts = true;
+					}
+				}
+			}
+		}
+
+		if(!any_verts)				// lolwut?
+			return;
+		
+		struct MyOctreeNode 
+		{
+			// TODO: add data members here
+		};
+
+		Octree<MyOctreeNode> octree(oct_min, oct_max);
+
+		// add the submodels' data to the octree
+		for(vector<VertexBuffer*>::iterator iter = submodels.begin(); iter != submodels.end(); ++iter)
+		{
+			VertexBuffer* vbo = *iter;
+			assert(vbo != NULL);
+
+			if(unsigned int num_verts = vbo->GetNumVerts())
+			{
+				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
+				assert(vertex_ptr != NULL);
+		
+				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+
+				assert(items_per == 3 || items_per == 4);
+
+				for(unsigned int i = 0; i < num_verts; ++i)
+				{
+					float x = *(vertex_ptr++);
+					float y = *(vertex_ptr++);
+					float z = *(vertex_ptr++);
+
+					if(items_per == 4)
+						++vertex_ptr;
+
+					// TODO: put this vertex into the octree
+				}
+			}
+		}
+
+		// go through all the vertices of the SkinnedModel and figure out to which submodel(s) they belong
+		for(vector<MaterialModelPair>::iterator iter = model->material_model_pairs.begin(); iter != model->material_model_pairs.end(); ++iter)
+		{
+			VertexBuffer* vbo = iter->vbo;
+			assert(vbo != NULL);
+		
+			if(unsigned int num_verts = vbo->GetNumVerts())
+			{
+				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");				
+				float* indices_ptr = vbo->GetFloatPointer("gl_MultiTexCoord3");
+				float* weights_ptr = vbo->GetFloatPointer("gl_MultiTexCoord4");
+
+				assert(vertex_ptr != NULL && indices_ptr != NULL && weights_ptr != NULL);
+
+				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+
+				assert(items_per == 3 || items_per == 4);
+
+				for(unsigned int i = 0; i < num_verts; ++i)
+				{
+					float x = *(vertex_ptr++);
+					float y = *(vertex_ptr++);
+					float z = *(vertex_ptr++);
+
+					if(items_per == 4)
+						++vertex_ptr;
+
+					float indices[4];
+					float weights[4];
+
+					// TODO: compute new values for the skinning info (consult the octree!)
+
+					for(unsigned char j = 0; j < 4; ++j)			// copy data from temporary array back to VBO
+					{
+						*(indices_ptr++) = indices[j];
+						*(weights_ptr++) = weights[j];
+					}
+				}
+
+				vbo->InvalidateVBO();								// we have modified this VBO; make sure anything that wants to draw it knows about it
+			}
+		}
 	}
 
 	void SetVertexInfo(VertexBuffer* vbo, int index, VTNTT info)

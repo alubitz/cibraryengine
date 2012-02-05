@@ -42,6 +42,8 @@ namespace CibraryEngine
 			SkinnedModel(vector<MaterialModelPair> material_model_pairs, vector<string> material_names, Skeleton* skeleton);
 
 			static SkinnedModel* WrapVertexBuffer(VertexBuffer* model, string material_name);
+
+			static void AutoSkinModel(SkinnedModel* model, vector<VertexBuffer*>& submodels);
 	};
 
 	struct VTNTT

@@ -2,10 +2,8 @@
 
 #include "StdAfx.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
-
 	/**
 	 * Octrees
 	 * 3-dimensional space partitioning tree data structure
