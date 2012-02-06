@@ -36,9 +36,27 @@ namespace Test
 	/*
 	 * TestGame::Loader methods
 	 */
-	void TestGame::Loader::operator ()()
+	void TestGame::Loader::operator ()() { game->Load(); }
+
+	bool TestGame::Loader::HasStopped()
 	{
-		game->Load();
+		//boost::mutex::scoped_lock lock(*mutex);
+		return stopped;
+	}
+	bool TestGame::Loader::HasAborted()
+	{
+		//boost::mutex::scoped_lock lock(*mutex);
+		return abort;
+	}
+	void TestGame::Loader::Stop()
+	{
+		//boost::mutex::scoped_lock lock(*mutex);
+		stopped = true;
+	}
+	void TestGame::Loader::Abort()
+	{
+		//boost::mutex::scoped_lock lock(*mutex);
+		abort = true;
 	}
 
 
@@ -109,9 +127,9 @@ namespace Test
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "dsn shader";
@@ -168,9 +186,9 @@ namespace Test
 		sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
 		sky_sphere = vtn_cache->Load("sky_sphere");
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "deferred lighting shader";
@@ -206,9 +224,9 @@ namespace Test
 		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "soldier";
@@ -223,9 +241,9 @@ namespace Test
 		shot_model = vtn_cache->Load("shot");
 		blood_billboard = (BillboardMaterial*)mat_cache->Load("blood");
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "crab bug";
@@ -249,9 +267,9 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
 		}
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "misc";
@@ -264,9 +282,9 @@ namespace Test
 		// loading particle materials...
 		dirt_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("dirt_impact"), 32, 32, 2, 2, 4), Alpha);
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "level";
@@ -280,9 +298,9 @@ namespace Test
 			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
 		}
 
-		if(load_status.abort)
+		if(load_status.HasAborted())
 		{
-			load_status.stopped = true;
+			load_status.Stop();
 			return;
 		}
 		load_status.task = "starting game";
@@ -295,7 +313,7 @@ namespace Test
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
 
-		load_status.stopped = true;
+		load_status.Stop();
 	}
 
 	Soldier* TestGame::SpawnPlayer(Vec3 pos)

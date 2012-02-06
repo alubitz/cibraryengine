@@ -101,9 +101,9 @@ namespace Test
 
 		ProgramScreen* Update(TimingInfo time) 
 		{
-			if(test_game->load_status.stopped)
+			if(test_game->load_status.HasStopped())
 			{
-				if(test_game->load_status.abort)
+				if(test_game->load_status.HasAborted())
 				{
 					delete test_game;
 					delete test_screen;
@@ -140,7 +140,7 @@ namespace Test
 			{
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
 				if(kse->state && kse->key == VK_ESCAPE)
-					imp->test_game->load_status.abort = true;
+					imp->test_game->load_status.Abort();
 			}
 		} key_handler;
 	};

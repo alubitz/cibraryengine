@@ -202,6 +202,8 @@ namespace Test
 
 		parser.ParseTable();
 
+		file.close();
+
 		return 0;
 	}
 }

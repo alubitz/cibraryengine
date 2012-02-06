@@ -106,19 +106,28 @@ namespace Test
 
 			struct Loader
 			{
-				TestGame* game;
+				private:
 
-				unsigned int task_id;
+					bool abort;
+					bool stopped;
 
-				bool abort;
-				bool stopped;
+					boost::mutex* mutex;
 
-				string task;
-				float progress;
+				public:
 
-				Loader(TestGame* game) : game(game), task_id(0), abort(false), stopped(false), task(), progress(0) { }
+					TestGame* game;
 
-				void operator ()();
+					string task;
+
+					Loader(TestGame* game) : abort(false), stopped(false), mutex(new boost::mutex()), game(game), task() { }
+					~Loader() { delete mutex; mutex = NULL; }
+
+					void operator ()();
+
+					bool HasStopped();
+					bool HasAborted();
+					void Stop();
+					void Abort();
 			} load_status;
 
 			TestGame(TestScreen* screen, SoundSystem* sound_system);
