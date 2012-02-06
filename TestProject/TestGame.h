@@ -104,14 +104,16 @@ namespace Test
 			Cache<UberModel>* ubermodel_cache;
 			Cache<Material>* mat_cache;
 
-			struct Loader
+			struct Loader : public Disposable
 			{
 				private:
 
-					bool abort;
-					bool stopped;
+					struct Imp;
+					Imp* imp;
 
-					boost::mutex* mutex;
+				protected:
+
+					void InnerDispose();
 
 				public:
 
@@ -119,8 +121,7 @@ namespace Test
 
 					string task;
 
-					Loader(TestGame* game) : abort(false), stopped(false), mutex(new boost::mutex()), game(game), task() { }
-					~Loader() { delete mutex; mutex = NULL; }
+					Loader(TestGame* game);
 
 					void operator ()();
 

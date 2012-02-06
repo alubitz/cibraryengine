@@ -34,30 +34,38 @@ using namespace std;
 namespace Test
 {
 	/*
+	 * TestGame::Loader private implementation struct
+	 */
+	struct TestGame::Loader::Imp
+	{
+		boost::mutex mutex;
+		
+		bool stopped;
+		bool abort;
+
+		Imp() : mutex(), stopped(false), abort(false) { }
+
+		bool HasStopped()	{ boost::mutex::scoped_lock lock(mutex); return stopped;	}
+		bool HasAborted()	{ boost::mutex::scoped_lock lock(mutex); return abort;		}
+		void Stop()			{ boost::mutex::scoped_lock lock(mutex); stopped = true;	}
+		void Abort()		{ boost::mutex::scoped_lock lock(mutex); abort = true;		}
+	};
+
+
+
+
+	/*
 	 * TestGame::Loader methods
 	 */
+	TestGame::Loader::Loader(TestGame* game) : imp(new Imp()), game(game), task("") { }
+	void TestGame::Loader::InnerDispose() { delete imp; imp = NULL; }
+
 	void TestGame::Loader::operator ()() { game->Load(); }
 
-	bool TestGame::Loader::HasStopped()
-	{
-		//boost::mutex::scoped_lock lock(*mutex);
-		return stopped;
-	}
-	bool TestGame::Loader::HasAborted()
-	{
-		//boost::mutex::scoped_lock lock(*mutex);
-		return abort;
-	}
-	void TestGame::Loader::Stop()
-	{
-		//boost::mutex::scoped_lock lock(*mutex);
-		stopped = true;
-	}
-	void TestGame::Loader::Abort()
-	{
-		//boost::mutex::scoped_lock lock(*mutex);
-		abort = true;
-	}
+	bool TestGame::Loader::HasStopped() { return imp->HasStopped(); }
+	bool TestGame::Loader::HasAborted() { return imp->HasAborted(); }
+	void TestGame::Loader::Stop() { imp->Stop(); }
+	void TestGame::Loader::Abort() { imp->Abort(); }
 
 
 
@@ -827,6 +835,8 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
+		load_status.Dispose();
+
 		if(hud != NULL)
 		{
 			delete hud;

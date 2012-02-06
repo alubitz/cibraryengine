@@ -863,6 +863,8 @@ namespace CibraryEngine
 
 		indexer.HandleChunk(whole);
 
+		file.close();
+
 		return 0;
 	}
 
