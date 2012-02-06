@@ -78,8 +78,9 @@ end
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
 		local bugs_this_level = 100 --1 + 2 * level + math.floor(math.random() * 3.0)
+		local num_artillery = 6
 		for i = 1, bugs_this_level do
-			spawn_one(gs, player_pos, i == 1)
+			spawn_one(gs, player_pos, i <= num_artillery)
 		end
 
 		levelStartMessage()

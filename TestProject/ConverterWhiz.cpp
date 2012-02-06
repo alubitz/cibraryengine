@@ -137,8 +137,9 @@ namespace Test
 
 			phys.bone_name = iter->name;
 			phys.mass = iter->mass;
-			phys.pos = iter->pos;
 
+			// BonePhysics position is relative to the parent bone's point of attachment
+			phys.pos = iter->pos;
 			if(!iter->parent.empty())
 			{
 				unordered_map<string, unsigned int>::iterator found = bone_indices.find(iter->parent);
@@ -153,7 +154,8 @@ namespace Test
 
 				for(unsigned int i = 0; i < n_spheres; ++i)
 				{
-					Vec3 center_vec = iter->spheres[i].center;
+					// Collision shape coordinates are relative to this bone's point of attachment
+					Vec3 center_vec = iter->spheres[i].center - iter->pos;
 					centers[i] = btVector3(center_vec.x, center_vec.y, center_vec.z);
 
 					radii[i] = iter->spheres[i].radius;
