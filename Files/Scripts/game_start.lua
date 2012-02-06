@@ -81,7 +81,7 @@ function begin_level(gs, player_pos, level)
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i == 1)
 		end
-		
+
 		levelStartMessage()
 	end
 end

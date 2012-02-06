@@ -236,10 +236,13 @@ namespace Test
 		{
 			load_status.task = "artillery bug";
 
-			SkinnedModel* flea_skinny = SkinnedModel::WrapVertexBuffer(vtn_cache->Load("flea"), "flea");
-			flea_skinny->skeleton->bones[0]->name = Bone::string_table["carapace"];
+			vector<BoneEntry> bone_entries;
+			ArtilleryBug::GetBoneEntries(bone_entries);
 
-			UberModel* flea_model = UberModelLoader::CopySkinnedModel(flea_skinny);
+			UberModel* flea_model = AutoSkinUberModel(content, "flea", "flea", bone_entries);
+
+			SetUberModelSkeleton(flea_model, bone_entries);
+			SetUberModelBonePhysics(flea_model, bone_entries);
 
 			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
 
