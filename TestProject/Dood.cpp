@@ -259,20 +259,8 @@ namespace Test
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
-	Vec3 Dood::GetPosition()
-	{
-		//if(rigid_body->body == NULL)
-		//	return pos;
-		//else
-			return rigid_body->GetPosition();
-	}
-	void Dood::SetPosition(Vec3 pos)
-	{
-		//if(rigid_body->body == NULL)
-		//	this->pos = pos;
-		//else
-			rigid_body->SetPosition(pos);
-	}
+	Vec3 Dood::GetPosition() { return rigid_body->GetPosition(); }
+	void Dood::SetPosition(Vec3 pos) { rigid_body->SetPosition(pos); }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
@@ -299,19 +287,20 @@ namespace Test
 
 		if(eye_bone == NULL)
 		{	
-			Mat4 pitch_mat = Mat4::FromQuaternion(Quaternion::FromPYR(-pitch, 0, 0));
-			Mat4 yaw_mat = Mat4::FromQuaternion(Quaternion::FromPYR(0, yaw, 0));
-			Mat4 loc = Mat4::Translation(-pos);
+			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	-pitch,	0,		0 ));
+			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	0,		yaw,	0 ));
+			Mat4 loc		= Mat4::Translation(-pos);
 
 			return flip * pitch_mat * yaw_mat * loc;
 		}
 		else
 		{
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
-			Vec3 pos_vec = eye_xform.TransformVec3(eye_bone->rest_pos, 1.0);
-			Vec3 left = eye_xform.TransformVec3(Vec3(1, 0, 0), 0.0);
-			Vec3 up = eye_xform.TransformVec3(Vec3(0, 1, 0), 0.0);
-			Vec3 forward = eye_xform.TransformVec3(Vec3(0, 0, 1), 0.0);
+
+			Vec3 pos_vec	= eye_xform.TransformVec3(eye_bone->rest_pos,	1);
+			Vec3 left		= eye_xform.TransformVec3(1, 0, 0,				0);
+			Vec3 up			= eye_xform.TransformVec3(0, 1, 0,				0);
+			Vec3 forward	= eye_xform.TransformVec3(0, 0, 1,				0);
 
 			float rm_values[] = { left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z };
 			return flip * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-(pos + pos_vec));

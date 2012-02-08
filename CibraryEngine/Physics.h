@@ -67,6 +67,9 @@ namespace CibraryEngine
 	/** Class representing a rigid body */
 	class RigidBodyInfo : public Disposable
 	{
+		friend class PhysicsWorld;
+		friend class ConeTwistConstraint;
+
 		private:
 
 			struct Imp;
@@ -147,21 +150,23 @@ namespace CibraryEngine
 
 	class ConeTwistConstraint : public Disposable
 	{
-	private:
+		friend class PhysicsWorld;
 
-		struct Imp;
-		Imp* imp;
+		private:
 
-	protected:
+			struct Imp;
+			Imp* imp;
 
-		void InnerDispose();
+		protected:
 
-	public:
+			void InnerDispose();
 
-		ConeTwistConstraint(RigidBodyInfo* body_a, RigidBodyInfo* body_b, Quaternion a_ori, Vec3 a_pos, Quaternion b_ori, Vec3 b_pos);
+		public:
 
-		void SetLimit(Vec3 limits);
-		void SetDamping(float damp);
+			ConeTwistConstraint(RigidBodyInfo* body_a, RigidBodyInfo* body_b, Quaternion a_ori, Vec3 a_pos, Quaternion b_ori, Vec3 b_pos);
+
+			void SetLimit(Vec3 limits);
+			void SetDamping(float damp);
 
 	};
 

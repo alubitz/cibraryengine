@@ -11,30 +11,6 @@
 
 namespace CibraryEngine
 {
-	// ewww
-	static boost::unordered_map<RigidBodyInfo*, btRigidBody*> rigid_body_wraptable;
-	static btRigidBody* GetRigidBody(RigidBodyInfo* rbi)
-	{
-		boost::unordered_map<RigidBodyInfo*, btRigidBody*>::iterator found = rigid_body_wraptable.find(rbi);
-		if(found != rigid_body_wraptable.end())
-			return found->second;
-		else
-			return NULL;
-	}
-
-	static boost::unordered_map<ConeTwistConstraint*, btConeTwistConstraint*> cone_constraint_wraptable;
-	static btConeTwistConstraint* GetConeConstraint(ConeTwistConstraint* ctc)
-	{
-		boost::unordered_map<ConeTwistConstraint*, btConeTwistConstraint*>::iterator found = cone_constraint_wraptable.find(ctc);
-		if(found != cone_constraint_wraptable.end())
-			return found->second;
-		else
-			return NULL;
-	}
-
-
-
-
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
@@ -48,97 +24,16 @@ namespace CibraryEngine
 
 		list<RigidBodyInfo*> rigid_bodies;			// List of all of the rigid bodies in the physical simulation
 
-		Imp() :
-			broadphase(new btDbvtBroadphase()),
-			collision_configuration(new btDefaultCollisionConfiguration()),
-			dispatcher(new btCollisionDispatcher(collision_configuration)),
-			solver(new btSequentialImpulseConstraintSolver()),
-			dynamics_world(new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collision_configuration)),
-			rigid_bodies()
-		{
-			dynamics_world->setGravity(btVector3(0, -9.8f, 0));
-		}
+		Imp();
+		~Imp();
 
-		~Imp()
-		{
-			for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			{
-				dynamics_world->removeRigidBody(GetRigidBody(*iter));
-				(*iter)->Dispose();
-			}
-			rigid_bodies.clear();
-
-			delete dynamics_world;
-			delete solver;
-			delete dispatcher;
-			delete collision_configuration;
-			delete broadphase;
-		}
-
-		void AddRigidBody(RigidBodyInfo* r)
-		{
-			if(r == NULL)
-				return;
-
-			for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-				if(*iter == r)
-					return;
-
-			dynamics_world->addRigidBody(GetRigidBody(r));
-			rigid_bodies.push_back(r);
-		}
-			
-		bool RemoveRigidBody(RigidBodyInfo* r)
-		{
-			if(r == NULL)
-				return false;
-
-			for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-				if(*iter == r)
-				{
-					rigid_bodies.erase(iter);
-					dynamics_world->removeRigidBody(GetRigidBody(r));
-					return true;
-				}
-
-			return false;
-		}
+		void AddRigidBody(RigidBodyInfo* body);
+		bool RemoveRigidBody(RigidBodyInfo* body);
 	};
 
 
 
 
-	/*
-	 * PhysicsWorld methods
-	 */
-	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
-
-	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
-
-	void PhysicsWorld::AddRigidBody(RigidBodyInfo* r) { imp->AddRigidBody(r); }
-	bool PhysicsWorld::RemoveRigidBody(RigidBodyInfo* r) { return imp->RemoveRigidBody(r); }
-
-	void PhysicsWorld::AddConstraint(ConeTwistConstraint* constraint, bool disable_collision) { imp->dynamics_world->addConstraint(GetConeConstraint(constraint), disable_collision); }
-	void PhysicsWorld::RemoveConstraint(ConeTwistConstraint* constraint) { imp->dynamics_world->removeConstraint(GetConeConstraint(constraint)); }
-
-	void PhysicsWorld::Update(TimingInfo time) { imp->dynamics_world->stepSimulation(time.elapsed, 20); }
-
-	void PhysicsWorld::SetDebugDrawer(btIDebugDraw* d) { imp->dynamics_world->setDebugDrawer(d); }
-	void PhysicsWorld::DebugDrawWorld() { imp->dynamics_world->debugDrawWorld(); }
-
-	void PhysicsWorld::RayTest(Vec3 from, Vec3 to, btCollisionWorld::RayResultCallback& callback) { imp->dynamics_world->rayTest(btVector3(from.x, from.y, from.z), btVector3(to.x, to.y, to.z), callback); }
-	void PhysicsWorld::ContactTest(RigidBodyInfo* object, btCollisionWorld::ContactResultCallback& callback) { imp->dynamics_world->contactTest(GetRigidBody(object), callback); }
-
-	Vec3 PhysicsWorld::GetGravity()
-	{	
-		btVector3 gravity_vector = imp->dynamics_world->getGravity();
-		return Vec3(gravity_vector.getX(), gravity_vector.getY(), gravity_vector.getZ());
-	}
-	void PhysicsWorld::SetGravity(const Vec3& gravity) { imp->dynamics_world->setGravity(btVector3(gravity.x, gravity.y, gravity.z)); }
-
-
-
-	
 	/*
 	 * RigidBodyInfo private implementation struct
 	 */
@@ -225,19 +120,116 @@ namespace CibraryEngine
 
 
 	/*
+	 * ConeTwistConstraint private implementation struct
+	 */
+	struct ConeTwistConstraint::Imp
+	{
+		btConeTwistConstraint* constraint;
+
+		Imp(btConeTwistConstraint* constraint) : constraint(constraint) { }
+	};
+
+
+
+
+	/*
+	 * PhysicsWorld and PhysicsWorld::Imp methods
+	 */
+	PhysicsWorld::Imp::Imp() :
+		broadphase(new btDbvtBroadphase()),
+		collision_configuration(new btDefaultCollisionConfiguration()),
+		dispatcher(new btCollisionDispatcher(collision_configuration)),
+		solver(new btSequentialImpulseConstraintSolver()),
+		dynamics_world(new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collision_configuration)),
+		rigid_bodies()
+	{
+		dynamics_world->setGravity(btVector3(0, -9.8f, 0));
+	}
+
+	PhysicsWorld::Imp::~Imp()
+	{
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+		{
+			dynamics_world->removeRigidBody((*iter)->imp->body);
+			(*iter)->Dispose();
+		}
+		rigid_bodies.clear();
+
+		delete dynamics_world;
+		delete solver;
+		delete dispatcher;
+		delete collision_configuration;
+		delete broadphase;
+	}
+
+	void PhysicsWorld::Imp::AddRigidBody(RigidBodyInfo* r)
+	{
+		if(r == NULL)
+			return;
+
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			if(*iter == r)
+				return;
+
+		dynamics_world->addRigidBody(r->imp->body);
+		rigid_bodies.push_back(r);
+	}
+			
+	bool PhysicsWorld::Imp::RemoveRigidBody(RigidBodyInfo* r)
+	{
+		if(r == NULL)
+			return false;
+
+		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			if(*iter == r)
+			{
+				rigid_bodies.erase(iter);
+				dynamics_world->removeRigidBody(r->imp->body);
+				return true;
+			}
+
+		return false;
+	}
+
+
+
+
+	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
+
+	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
+
+	void PhysicsWorld::AddRigidBody(RigidBodyInfo* r) { imp->AddRigidBody(r); }
+	bool PhysicsWorld::RemoveRigidBody(RigidBodyInfo* r) { return imp->RemoveRigidBody(r); }
+
+	void PhysicsWorld::AddConstraint(ConeTwistConstraint* constraint, bool disable_collision) { imp->dynamics_world->addConstraint(constraint->imp->constraint, disable_collision); }
+	void PhysicsWorld::RemoveConstraint(ConeTwistConstraint* constraint) { imp->dynamics_world->removeConstraint(constraint->imp->constraint); }
+
+	void PhysicsWorld::Update(TimingInfo time) { imp->dynamics_world->stepSimulation(time.elapsed, 20); }
+
+	void PhysicsWorld::SetDebugDrawer(btIDebugDraw* d) { imp->dynamics_world->setDebugDrawer(d); }
+	void PhysicsWorld::DebugDrawWorld() { imp->dynamics_world->debugDrawWorld(); }
+
+	void PhysicsWorld::RayTest(Vec3 from, Vec3 to, btCollisionWorld::RayResultCallback& callback) { imp->dynamics_world->rayTest(btVector3(from.x, from.y, from.z), btVector3(to.x, to.y, to.z), callback); }
+	void PhysicsWorld::ContactTest(RigidBodyInfo* object, btCollisionWorld::ContactResultCallback& callback) { imp->dynamics_world->contactTest(object->imp->body, callback); }
+
+	Vec3 PhysicsWorld::GetGravity()
+	{	
+		btVector3 gravity_vector = imp->dynamics_world->getGravity();
+		return Vec3(gravity_vector.getX(), gravity_vector.getY(), gravity_vector.getZ());
+	}
+	void PhysicsWorld::SetGravity(const Vec3& gravity) { imp->dynamics_world->setGravity(btVector3(gravity.x, gravity.y, gravity.z)); }
+
+
+
+	
+	/*
 	 * RigidBodyInfo methods
 	 */
 	RigidBodyInfo::RigidBodyInfo() : imp(new Imp()) { }
-	RigidBodyInfo::RigidBodyInfo(btCollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) : 
-		imp(new Imp(shape, mass_info, pos, ori)) 
-	{
-		rigid_body_wraptable[this] = imp->body;
-	}
+	RigidBodyInfo::RigidBodyInfo(btCollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) : imp(new Imp(shape, mass_info, pos, ori)) { }
 	
 	void RigidBodyInfo::InnerDispose()
 	{
-		rigid_body_wraptable.erase(this);
-
 		if(imp != NULL)
 		{
 			delete imp; 
@@ -323,20 +315,6 @@ namespace CibraryEngine
 
 
 
-	
-	/*
-	 * ConeTwistConstraint private implementation struct
-	 */
-	struct ConeTwistConstraint::Imp
-	{
-		btConeTwistConstraint* constraint;
-
-		Imp(btConeTwistConstraint* constraint) : constraint(constraint) { }
-	};
-
-
-
-
 
 	/*
 	 * ConeTwistConstraint methods
@@ -346,8 +324,7 @@ namespace CibraryEngine
 		const btTransform a_frame = btTransform(btQuaternion(a_ori.x, a_ori.y, a_ori.z, a_ori.w), btVector3(a_pos.x, a_pos.y, a_pos.z));
 		const btTransform b_frame = btTransform(btQuaternion(b_ori.x, b_ori.y, b_ori.z, b_ori.w), btVector3(b_pos.x, b_pos.y, b_pos.z));
 		
-		imp = new Imp(new btConeTwistConstraint(*GetRigidBody(a_body), *GetRigidBody(b_body), a_frame, b_frame));
-		cone_constraint_wraptable[this] = imp->constraint;
+		imp = new Imp(new btConeTwistConstraint(*a_body->imp->body, *b_body->imp->body, a_frame, b_frame));
 	}
 
 	void ConeTwistConstraint::InnerDispose() { delete imp; imp = NULL; }
