@@ -52,8 +52,8 @@ namespace Test
 			local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
 			local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
 
-			rbi->body->activate();
-			rbi->body->applyImpulse(btVector3(momentum.x, momentum.y, momentum.z), btVector3(local_poi.x, local_poi.y, local_poi.z));
+			rbi->Activate();
+			rbi->ApplyImpulse(momentum, local_poi);
 			return true;
 		}
 	};
@@ -86,7 +86,7 @@ namespace Test
 		vector<RigidBodyInfo*> rigid_bodies;
 		vector<CorpseBoneShootable*> shootables;
 		vector<Vec3> bone_offsets;
-		vector<btTypedConstraint*> constraints;
+		vector<ConeTwistConstraint*> constraints;
 
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood) : 
@@ -218,19 +218,19 @@ namespace Test
 						mass_info.moi[8] = local_inertia.getZ();
 
 						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, bone_pos, bone->ori);
-						rigid_body->body->setLinearVelocity(btVector3(initial_vel.x, initial_vel.y, initial_vel.z));
+						rigid_body->SetLinearVelocity(initial_vel);
 						
 						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body);
 						shootables.push_back(shootable);
-						rigid_body->body->setUserPointer(shootable);
+						rigid_body->SetCustomCollisionEnabled(shootable);
 
 						// these constants taken from the ragdoll demo
-						rigid_body->body->setDamping(0.05f, 0.85f);
-						rigid_body->body->setDeactivationTime(0.8f);
-						rigid_body->body->setSleepingThresholds(1.6f, 2.5f);
+						rigid_body->SetDamping(0.05f, 0.85f);
+						rigid_body->SetDeactivationTime(0.8f);
+						rigid_body->SetSleepingThresholds(1.6f, 2.5f);
 
-						rigid_body->body->setFriction(1.0f);
-						rigid_body->body->setRestitution(0.01f);
+						rigid_body->SetFriction(1.0f);
+						rigid_body->SetRestitution(0.01f);
 
 						physics->AddRigidBody(rigid_body);
 						rigid_bodies.push_back(rigid_body);
@@ -257,15 +257,12 @@ namespace Test
 								RigidBodyInfo* my_body = rigid_bodies[i];
 								RigidBodyInfo* parent_body = rigid_bodies[j];
 
-								const btTransform a_frame = btTransform(btQuaternion::getIdentity(), btVector3(0, 0, 0));
-								const btTransform b_frame = btTransform(btQuaternion(phys->ori.x, phys->ori.y, phys->ori.z, phys->ori.w), btVector3(phys->pos.x, phys->pos.y, phys->pos.z));
-
-								btConeTwistConstraint* c = new btConeTwistConstraint(*my_body->body, *parent_body->body, a_frame, b_frame);
-								c->setLimit(phys->span.x, phys->span.y, phys->span.z);
-								c->setDamping(0.1f);			// default is 0.01
+								ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
+								c->SetLimit(phys->span);
+								c->SetDamping(0.1f);							// default is 0.01
 								constraints.push_back(c);
 
-								physics->dynamics_world->addConstraint(c, true);			// true = prevent them from colliding normally
+								physics->AddConstraint(c, true);				// true = prevent them from colliding normally
 
 								break;
 							}
@@ -292,9 +289,10 @@ namespace Test
 			// clear constraints
 			for(unsigned int i = 0; i < constraints.size(); ++i)
 			{
-				btTypedConstraint* c = constraints[i];
-				physics->dynamics_world->removeConstraint(c);
+				ConeTwistConstraint* c = constraints[i];
+				physics->RemoveConstraint(c);
 
+				c->Dispose();
 				delete c;
 			}
 			constraints.clear();
@@ -318,6 +316,7 @@ namespace Test
 				return;
 			else if(time.total > fizzle_time)
 				corpse->is_valid = false;
+			/*
 			else if(allow_become_permanent)
 			{
 				unsigned int i;
@@ -336,7 +335,7 @@ namespace Test
 					for(i = 0; i < constraints.size(); ++i)
 					{
 						btTypedConstraint* c = constraints[i];
-						physics->dynamics_world->removeConstraint(c);
+						physics->RemoveConstraint(c);
 
 						delete c;
 					}
@@ -345,6 +344,7 @@ namespace Test
 					immortal = true;
 				}
 			}
+			*/
 		}
 
 		void Vis(SceneRenderer* renderer)

@@ -34,11 +34,7 @@ namespace CibraryEngine
 		} ray_callback;
 
 		ray_callback.result = 0.0f;
-
-		// run that function for anything on this ray...
-		physics->dynamics_world->rayTest(btVector3(from.x, from.y, from.z), btVector3(to.x, to.y, to.z), ray_callback);
-
-		// if it's still zero, that means nothing is between those two points
-		return ray_callback.result == 0.0f;
+		physics->RayTest(from, to, ray_callback);				// run that function for anything on this ray...
+		return ray_callback.result == 0.0f;						// if it's still zero, that means nothing is between those two points
 	}
 }

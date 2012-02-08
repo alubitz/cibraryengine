@@ -125,7 +125,7 @@ namespace Test
 		this->sound_system = sound_system;
 		content = screen->window->content;
 
-		physics_world->dynamics_world->setDebugDrawer(&debug_renderer);
+		physics_world->SetDebugDrawer(&debug_renderer);
 		debug_renderer.setDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawConstraints);
 	}
 
@@ -696,10 +696,7 @@ namespace Test
 	}
 #endif
 
-	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer)
-	{
-		physics_world->dynamics_world->debugDrawWorld();
-	}
+	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer) { physics_world->DebugDrawWorld(); }
 
 	void TestGame::DrawNavEditorInfo(SceneRenderer* renderer)
 	{
@@ -825,7 +822,7 @@ namespace Test
 
 		// run that function for anything on this ray...
 		float top = 1000;
-		physics_world->dynamics_world->rayTest(btVector3(x, 0, z), btVector3(x, top, z), ray_callback);
+		physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
 
 		if(ray_callback.result >= 0)
 			return ray_callback.result * top;
@@ -1357,7 +1354,7 @@ namespace Test
 
 		// run that function for anything on this ray...
 		float top = 1000;
-		game->physics_world->dynamics_world->rayTest(btVector3(x, 0, z), btVector3(x, top, z), ray_callback);
+		game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
 
 		results.sort();
 		results.reverse();

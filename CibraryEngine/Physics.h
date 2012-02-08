@@ -15,6 +15,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class RigidBodyInfo;
+	class ConeTwistConstraint;
 
 	struct Mat4;
 	struct Quaternion;
@@ -23,6 +24,9 @@ namespace CibraryEngine
 	class PhysicsWorld : public Disposable
 	{
 		private:
+
+			struct Imp;
+			Imp* imp;
 
 			// no copying!
 			void operator=(PhysicsWorld& other) { }
@@ -34,30 +38,28 @@ namespace CibraryEngine
 
 		public:
 
-			/** Bullet Physics Library stuff */
-			btBroadphaseInterface* broadphase;
-			/** Bullet Physics Library stuff */
-			btDefaultCollisionConfiguration* collision_configuration;
-			/** Bullet Physics Library stuff */
-			btCollisionDispatcher* dispatcher;
-			/** Bullet Physics Library stuff */
-			btSequentialImpulseConstraintSolver* solver;
-			/** Bullet Physics Library stuff */
-			btDynamicsWorld* dynamics_world;
-
-			/** List of all of the rigid bodies in the physical simulation */
-			list<RigidBodyInfo*> rigid_bodies;
-
 			/** Initializes a PhysicsWorld */
-			PhysicsWorld(); 
+			PhysicsWorld();
 
 			/** Adds a rigid body to the simulation */
 			void AddRigidBody(RigidBodyInfo* r);
 			/** Removes a rigid body from the simulation */
 			bool RemoveRigidBody(RigidBodyInfo* r);
 
+			void AddConstraint(ConeTwistConstraint* constraint, bool disable_collision = false);
+			void RemoveConstraint(ConeTwistConstraint* constraint);
+
 			/** Steps the simulation */
 			void Update(TimingInfo time);
+
+			void SetDebugDrawer(btIDebugDraw* d);
+			void DebugDrawWorld();
+
+			Vec3 GetGravity();
+			void SetGravity(const Vec3& gravity);
+
+			void RayTest(Vec3 from, Vec3 to, btCollisionWorld::RayResultCallback& callback);
+			void ContactTest(RigidBodyInfo* object, btCollisionWorld::ContactResultCallback& callback);
 	};
 
 	struct MassInfo;
@@ -65,22 +67,19 @@ namespace CibraryEngine
 	/** Class representing a rigid body */
 	class RigidBodyInfo : public Disposable
 	{
+		private:
+
+			struct Imp;
+			Imp* imp;
+
 		protected:
 
 			void InnerDispose();
 
 		public:
 
-			/** The shape of the object */
-			btCollisionShape* shape;
-			/** Bullet Physics Library's rigid body */
-			btRigidBody* body;
-
-			/** The position and orientation of this object */
-			btMotionState* motion_state;
-
 			/** Default constructor for a RigidBodyInfo; the constructed RigidBodyInfo will not work without setting the fields manually */
-			RigidBodyInfo() : shape(NULL), body(NULL), motion_state(NULL) { }
+			RigidBodyInfo();
 			/** Initializes a rigid body with the specified collision shape, mass properties, and optional position and orientation */
 			RigidBodyInfo(btCollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity());
 
@@ -94,8 +93,27 @@ namespace CibraryEngine
 			/** Sets the orientation of this rigid body */
 			void SetOrientation(Quaternion ori);
 
+			Vec3 GetLinearVelocity();
+			void SetLinearVelocity(const Vec3& vel);
+
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();
+
+			void Activate();
+			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);
+			void ApplyCentralImpulse(const Vec3& impulse);
+			void ApplyCentralForce(const Vec3& force);
+
+			void ClearForces();
+
+			void SetFriction(float friction);
+			void SetDamping(float linear, float angular);
+			void SetRestitution(float restitution);
+
+			void SetDeactivationTime(float time);
+			void SetSleepingThresholds(float linear, float angular);
+
+			void SetCustomCollisionEnabled(void* user_object);
 	};
 
 	/** Class representing the mass properties of an object */
@@ -125,6 +143,26 @@ namespace CibraryEngine
 
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
 		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
+	};
+
+	class ConeTwistConstraint : public Disposable
+	{
+	private:
+
+		struct Imp;
+		Imp* imp;
+
+	protected:
+
+		void InnerDispose();
+
+	public:
+
+		ConeTwistConstraint(RigidBodyInfo* body_a, RigidBodyInfo* body_b, Quaternion a_ori, Vec3 a_pos, Quaternion b_ori, Vec3 b_pos);
+
+		void SetLimit(Vec3 limits);
+		void SetDamping(float damp);
+
 	};
 
 	void WriteCollisionShape(btCollisionShape* shape, ostream& stream);

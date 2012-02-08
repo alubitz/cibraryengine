@@ -119,7 +119,7 @@ namespace Test
 			// crab bug leaps forward
 			float leap_angle = 0.4f;
 			Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0)) * (mass * bug_leap_speed);
-			rigid_body->body->applyCentralImpulse(btVector3(leap_vector.x, leap_vector.y, leap_vector.z));
+			rigid_body->ApplyCentralImpulse(leap_vector);
 
 			jump_start_timer = time.total + bug_leap_duration;
 		}

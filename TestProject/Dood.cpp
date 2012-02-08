@@ -126,7 +126,7 @@ namespace Test
 			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
 
 			Vec3 force = (desired_vel - vel) * mass / timestep;
-			rigid_body->body->applyCentralForce(btVector3(force.x, force.y, force.z));
+			rigid_body->ApplyCentralForce(force);
 		}
 	}
 
@@ -163,12 +163,12 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		rigid_body->body->activate();
-		rigid_body->body->clearForces();
+		rigid_body->Activate();
+		rigid_body->ClearForces();
 
 		// figure out if you're standing on the ground or not
 		standing = 0;
-		physics->dynamics_world->contactTest(rigid_body->body, *contact_callback);
+		physics->ContactTest(rigid_body, *contact_callback);
 
 		pos = GetPosition();
 
@@ -177,8 +177,7 @@ namespace Test
 		Vec3 forward = Vec3(-sin(yaw), 0, cos(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-		btVector3 bt_vel = rigid_body->body->getLinearVelocity();
-		Vec3 vel = Vec3((float)bt_vel.getX(), (float)bt_vel.getY(), (float)bt_vel.getZ());		// velocity prior to forces being applied
+		Vec3 vel = rigid_body->GetLinearVelocity();												// velocity prior to forces being applied
 
 		Vec3 delta_v = vel - this->vel;
 		// collision damage!
@@ -193,7 +192,7 @@ namespace Test
 			Vec3 post_damp_vel = vel * exp(-timestep * movement_damp);
 			Vec3 damp_force = (post_damp_vel - vel) * mass / timestep;
 
-			rigid_body->body->applyCentralForce(btVector3(damp_force.x, damp_force.y, damp_force.z));
+			rigid_body->ApplyCentralForce(damp_force);
 		}
 
 		DoMovementControls(time, forward, rightward);
@@ -262,16 +261,16 @@ namespace Test
 
 	Vec3 Dood::GetPosition()
 	{
-		if(rigid_body->body == NULL)
-			return pos;
-		else
+		//if(rigid_body->body == NULL)
+		//	return pos;
+		//else
 			return rigid_body->GetPosition();
 	}
 	void Dood::SetPosition(Vec3 pos)
 	{
-		if(rigid_body->body == NULL)
-			this->pos = pos;
-		else
+		//if(rigid_body->body == NULL)
+		//	this->pos = pos;
+		//else
 			rigid_body->SetPosition(pos);
 	}
 
@@ -358,9 +357,7 @@ namespace Test
 		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
 
 		RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, pos);
-		rigid_body->body->setUserPointer(this);
-
-		rigid_body->body->setCollisionFlags(rigid_body->body->getCollisionFlags() | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
+		rigid_body->SetCustomCollisionEnabled(this);
 
 		physics->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
@@ -384,7 +381,7 @@ namespace Test
 		// let's transfer us some momentum!
 
 		// character controllers are special cases where angular momentum doesn't get applied the same way...
-		rigid_body->body->applyCentralForce(btVector3(momentum.x, momentum.y, momentum.z));
+		rigid_body->ApplyCentralForce(momentum);
 
 		Vec3 radius_vec = poi - pos;						// now for the angular part...
 		double radius = radius_vec.ComputeMagnitude();
@@ -477,12 +474,8 @@ namespace Test
 		// player can only stand on an upward-facing surface
 		if(normal.y > 0.1)
 		{
-			btRigidBody* self = dood->rigid_body->body;
 			// player only counts as standing when they aren't moving away from the surface
-
-			btVector3 bt_vel_0 = self->getLinearVelocity();
-			Vec3 vel_0 = Vec3(bt_vel_0.getX(), bt_vel_0.getY(), bt_vel_0.getZ());
-
+			Vec3 vel_0 = dood->rigid_body->GetLinearVelocity();
 			Vec3 vel_1;
 
 			if(colObj1->getInternalType() == btCollisionObject::CO_RIGID_BODY)

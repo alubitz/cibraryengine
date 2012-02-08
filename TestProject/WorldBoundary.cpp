@@ -15,10 +15,9 @@ namespace Test
 		btStaticPlaneShape* shape = new btStaticPlaneShape(btVector3(plane.normal.x, plane.normal.y, plane.normal.z), 0);
 
 		RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo(), Vec3(plane.normal * plane.offset));
-		rigid_body->body->setUserPointer(this);
+		rigid_body->SetCustomCollisionEnabled(this);
 
-		rigid_body->body->setCollisionFlags(rigid_body->body->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
-		rigid_body->body->setFriction(0);
+		rigid_body->SetFriction(0);
 
 		game_state->physics_world->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;

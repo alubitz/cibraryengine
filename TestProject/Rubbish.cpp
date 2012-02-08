@@ -71,15 +71,15 @@ namespace Test
 			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
 
 			rigid_body = new RigidBodyInfo(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
-			rigid_body->body->setUserPointer(this);
+			rigid_body->SetCustomCollisionEnabled(this);
 
-			//rigid_body->body->setDamping(0.05f, 0.85f);
-			//rigid_body->body->setDeactivationTime(0.8f);
-			//rigid_body->body->setSleepingThresholds(1.6f, 2.5f);
+			//rigid_body->SetDamping(0.05f, 0.85f);
+			//rigid_body->SetDeactivationTime(0.8f);
+			//rigid_body->SetSleepingThresholds(1.6f, 2.5f);
 
-			//rigid_body->body->setFriction(1.0f);
-			//rigid_body->body->setFriction(0.5f);
-			//rigid_body->body->setRestitution(0.01f);
+			//rigid_body->SetFriction(1.0f);
+			//rigid_body->SetFriction(0.5f);
+			//rigid_body->SetRestitution(0.01f);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;
@@ -115,8 +115,8 @@ namespace Test
 		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
 		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
 
-		rigid_body->body->activate();
-		rigid_body->body->applyImpulse(btVector3(momentum.x, momentum.y, momentum.z), btVector3(local_poi.x, local_poi.y, local_poi.z));
+		rigid_body->Activate();
+		rigid_body->ApplyImpulse(momentum, local_poi);
 
 		return true;
 	}

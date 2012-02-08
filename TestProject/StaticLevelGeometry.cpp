@@ -63,9 +63,9 @@ namespace Test
 			btCollisionShape* shape = model->bone_physics[0].shape;
 
 			RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo(), pos, ori);
-			rigid_body->body->setUserPointer(this);
+			rigid_body->SetCustomCollisionEnabled(this);
 
-			rigid_body->body->setFriction(1.0f);
+			rigid_body->SetFriction(1.0f);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;

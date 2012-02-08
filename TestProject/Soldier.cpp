@@ -64,7 +64,7 @@ namespace Test
 			if (standing > 0)
 			{
 				//jump off the ground
-				rigid_body->body->applyCentralImpulse(btVector3(0, jump_speed * mass, 0));
+				rigid_body->ApplyCentralImpulse(Vec3(0, jump_speed * mass, 0));
 				jump_start_timer = time.total + jump_to_fly_delay;
 			}
 			else
@@ -97,7 +97,7 @@ namespace Test
 
 						Vec3 jump_force = jump_accel_vec * mass;
 
-						rigid_body->body->applyCentralForce(btVector3(jump_force.x, jump_force.y, jump_force.z));
+						rigid_body->ApplyCentralForce(jump_force);
 					}
 				}
 				else

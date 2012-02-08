@@ -51,7 +51,7 @@ namespace Test
 		Vec3 end_pos = pos + vel * time.elapsed;
 
 		MyRayResultCallback callback = MyRayResultCallback(this);
-		physics->dynamics_world->rayTest(btVector3(pos.x, pos.y, pos.z), btVector3(end_pos.x, end_pos.y, end_pos.z), callback);
+		physics->RayTest(pos, end_pos, callback);
 
 		// sort hit objects from front to back (bubble sort... hopefully not too many objects need sorting)
 		unsigned int hits_count = callback.hits.size(); 
@@ -88,8 +88,7 @@ namespace Test
 
 		pos = end_pos;
 
-		btVector3 gravity_vector = physics->dynamics_world->getGravity();
-		vel += Vec3(gravity_vector.getX(), gravity_vector.getY(), gravity_vector.getZ()) * time.elapsed;
+		vel += physics->GetGravity() * time.elapsed;
 
 		draw_xform = Mat4::FromPositionAndOrientation(pos, ori);
 		bs = Sphere(pos, 10.0);
