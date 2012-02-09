@@ -403,16 +403,15 @@ namespace Test
 
 	void Dood::Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		BillboardMaterial* b_mat = ((TestGame*)game_state)->blood_billboard;
+		if(blood_material != NULL)
+			for (int i = 0; i < 8; ++i)
+			{
+				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
+				p->gravity = 9.8f;
+				p->damp = 0.05f;
 
-		for (int i = 0; i < 8; ++i)
-		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, b_mat, Random3D::Rand(0.05f, 0.15f), 0.25f);
-			p->gravity = 9.8f;
-			p->damp = 0.05f;
-
-			game_state->Spawn(p);
-		}
+				game_state->Spawn(p);
+			}
 	}
 
 	void Dood::Die(Damage cause)

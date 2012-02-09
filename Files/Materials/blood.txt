@@ -1,1 +1,1 @@
-: billboard_alpha "blood_spurt"
+: billboard_alpha "blood_red"

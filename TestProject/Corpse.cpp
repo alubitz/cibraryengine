@@ -8,9 +8,9 @@ namespace Test
 {
 	float active_lifetime = 5.0f;
 	bool allow_become_permanent = false;
-	
-	
-	
+
+
+
 
 	// Each bone is a separate shootable object
 	struct CorpseBoneShootable : Entity, Shootable
@@ -18,20 +18,21 @@ namespace Test
 		Corpse* corpse;
 		RigidBodyInfo* rbi;
 
-		CorpseBoneShootable(GameState* gs, Corpse* corpse, RigidBodyInfo* rbi) : Entity(gs), corpse(corpse), rbi(rbi) { }
+		BillboardMaterial* blood_material;
+
+		CorpseBoneShootable(GameState* gs, Corpse* corpse, RigidBodyInfo* rbi, BillboardMaterial* blood_material) : Entity(gs), corpse(corpse), rbi(rbi), blood_material(blood_material) { }
 
 		bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 		{
-			BillboardMaterial* b_mat = ((TestGame*)corpse->game_state)->blood_billboard;
+			if(blood_material != NULL)
+				for (int i = 0; i < 8; ++i)
+				{
+					Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
+					p->gravity = 9.8f;
+					p->damp = 0.05f;
 
-			for (int i = 0; i < 8; ++i)
-			{
-				Particle* p = new Particle(corpse->game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, b_mat, Random3D::Rand(0.05f, 0.15f), 0.25f);
-				p->gravity = 9.8f;
-				p->damp = 0.05f;
-
-				corpse->game_state->Spawn(p);
-			}
+					corpse->game_state->Spawn(p);
+				}
 
 			Mat4 xform;
 			{
@@ -72,6 +73,8 @@ namespace Test
 		SkinnedCharacter* character;
 		UberModel* model;
 
+		BillboardMaterial* blood_material;
+
 		Mat4 whole_xform;
 		Vec3 origin;
 
@@ -88,11 +91,14 @@ namespace Test
 		vector<Vec3> bone_offsets;
 		vector<ConeTwistConstraint*> constraints;
 
+		// TODO: deal with rigid_bodies[i]/shootables[i] corresponding directly to character->skeleton->bones[i]
+
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood) : 
 			corpse(corpse),
 			character(dood->character),
 			model(dood->model),
+			blood_material(dood->blood_material),
 			whole_xform(Mat4::Translation(dood->pos)),
 			origin(dood->pos),
 			initial_vel(dood->vel),
@@ -171,7 +177,7 @@ namespace Test
 			// get bone pos/ori info
 			vector<Mat4> mats = vector<Mat4>();
 			unsigned int count = character->skeleton->bones.size();
-			for(unsigned int i = 0; i < count; ++i)	
+			for(unsigned int i = 0; i < count; ++i)
 			{
 				Bone* bone = character->skeleton->bones[i];
 
@@ -219,8 +225,8 @@ namespace Test
 
 						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, bone_pos, bone->ori);
 						rigid_body->SetLinearVelocity(initial_vel);
-						
-						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body);
+
+						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
 						shootables.push_back(shootable);
 						rigid_body->SetCustomCollisionEnabled(shootable);
 

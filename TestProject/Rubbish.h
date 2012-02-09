@@ -16,6 +16,7 @@ namespace Test
 
 			UberModel* model;
 			vector<Material*> materials;
+			ParticleMaterial* dirt_particle;
 
 			Mat4 xform;
 
@@ -24,7 +25,7 @@ namespace Test
 			RigidBodyInfo* rigid_body;
 			PhysicsWorld* physics;
 
-			Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori);
+			Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);
 
 			void Vis(SceneRenderer* renderer);
 			void VisCleanup();

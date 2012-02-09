@@ -1,0 +1,6 @@
+: particle_alpha "dirt_impact"
+:: col_size 32
+:: row_size 32
+:: cols 2
+:: rows 2
+:: frames 4

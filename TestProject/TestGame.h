@@ -20,25 +20,10 @@ namespace Test
 	{
 		private:
 
+			struct Imp;
+			Imp* imp;
+
 			TestScreen* screen;
-
-			class DoodDeathHandler : public EventHandler
-			{
-				public:
-					TestGame* game;
-					DoodDeathHandler(TestGame* game);
-
-					void HandleEvent(Event* evt);
-			} bot_death_handler, player_death_handler;
-
-			class PlayerDamageHandler : public EventHandler
-			{
-				public:
-					TestGame* game;
-					PlayerDamageHandler(TestGame* game);
-
-					void HandleEvent(Event* evt);
-			} player_damage_handler;
 
 		protected:
 
@@ -49,53 +34,23 @@ namespace Test
 			static Team human_team;
 			static Team bug_team;
 
-			float total_game_time;
-
-			float chapter_text_start, chapter_text_end;
-			string chapter_text, chapter_sub_text;
-
 			bool nav_editor;
 			bool god_mode;
 			bool debug_draw;
-			bool alive;
 
 			BitmapFont* font;
-			UberModel* model;
-			UberModel* enemy;
-
-			UberModel* gun_model;
-			VertexBuffer* mflash_model;
-			VertexBuffer* shot_model;
-			GlowyModelMaterial* mflash_material;
-			BillboardMaterial* shot_material;
-			BillboardMaterial* blood_billboard;
-
-			ParticleMaterial* dirt_particle;
-
-			VertexBuffer* sky_sphere;
-			TextureCube* sky_texture;
-			ShaderProgram* sky_shader;
-
-			TextureCube* ambient_cubemap;
-			RenderTarget* render_target;
-			RenderTarget* shadow_render_target;
-
-			ShaderProgram* deferred_ambient;
-			ShaderProgram* deferred_lighting;
-
-			SoundBuffer* fire_sound;
-			SoundBuffer* chamber_click_sound;
-			SoundBuffer* reload_sound;
 
 			int width, height;
 
 			HUD* hud;
-			Sun* sun;
 
 			ScriptedController* player_controller;
 			Soldier* player_pawn;
 
 			string debug_text;
+
+			float chapter_text_start, chapter_text_end;
+			string chapter_text, chapter_sub_text;
 
 			unsigned int nav_graph;
 
@@ -145,7 +100,6 @@ namespace Test
 
 			// Drawing-related functions...
 			void Draw(int width, int height);
-			void DrawBackground(Mat4 view_matrix);
 			// Functions for drawing alternate display modes
 			void DrawPhysicsDebuggingInfo(SceneRenderer* renderer);
 			void DrawNavEditorInfo(SceneRenderer* renderer);

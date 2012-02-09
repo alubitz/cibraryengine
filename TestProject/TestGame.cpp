@@ -88,6 +88,128 @@ namespace Test
 
 
 
+	/*
+	 * TestGame private implementation struct
+	 */
+	struct TestGame::Imp
+	{
+		class DoodDeathHandler : public EventHandler
+		{
+			public:
+				TestGame* game;
+				DoodDeathHandler() : game(NULL) { }
+
+				void HandleEvent(Event* evt) { Dood::DeathEvent* de = (Dood::DeathEvent*)evt; if(de->dood == game->player_pawn) { game->imp->alive = false; } }
+		} bot_death_handler, player_death_handler;
+
+		class PlayerDamageHandler : public EventHandler
+		{
+			public:
+				TestGame* game;
+				PlayerDamageHandler() : game(NULL) { }
+
+				void HandleEvent(Event* evt)
+				{
+					Dood::DamageTakenEvent* d_evt = (Dood::DamageTakenEvent*)evt;
+					if(game->god_mode)
+						d_evt->cancel = true;
+				}
+		} player_damage_handler;
+
+		bool alive;
+
+		UberModel* model;
+		UberModel* enemy;
+
+		UberModel* gun_model;
+		VertexBuffer* mflash_model;
+		VertexBuffer* shot_model;
+		GlowyModelMaterial* mflash_material;
+		BillboardMaterial* shot_material;
+		
+		BillboardMaterial* blood_red;
+		BillboardMaterial* blood_blue;
+
+		ParticleMaterial* dirt_particle;
+
+		VertexBuffer* sky_sphere;
+		TextureCube* sky_texture;
+		ShaderProgram* sky_shader;
+
+		Sun* sun;
+
+		TextureCube* ambient_cubemap;
+		RenderTarget* render_target;
+		RenderTarget* shadow_render_target;
+
+		ShaderProgram* deferred_ambient;
+		ShaderProgram* deferred_lighting;
+
+		SoundBuffer* fire_sound;
+		SoundBuffer* chamber_click_sound;
+		SoundBuffer* reload_sound;
+
+		Imp() :
+			bot_death_handler(),
+			player_death_handler(),
+			player_damage_handler(),
+			alive(true),
+			render_target(NULL),
+			shadow_render_target(NULL)
+		{
+		}
+
+		~Imp()
+		{
+			if(render_target != NULL)
+			{
+				render_target->Dispose();
+				delete render_target;
+				render_target = NULL;
+			}
+
+			if(shadow_render_target != NULL)
+			{
+				shadow_render_target->Dispose();
+				delete shadow_render_target;
+				shadow_render_target = NULL;
+			}
+		}
+
+		void DrawBackground(Mat4 view_matrix)
+		{
+			glDisable(GL_BLEND);
+			glDisable(GL_DEPTH_TEST);
+			glDisable(GL_CULL_FACE);
+			glDepthMask(false);
+
+			GLDEBUG();
+
+			sky_shader->SetUniform<TextureCube>	(	"sky_texture", sky_texture		);
+			sky_shader->SetUniform<Mat4>		(	"view_matrix",	&view_matrix	);
+			ShaderProgram::SetActiveProgram(sky_shader);
+
+			GLDEBUG();
+
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+
+			sky_sphere->Draw();
+
+			glPopMatrix();
+
+			ShaderProgram::SetActiveProgram(NULL);
+
+			sun->Draw();
+
+			glDepthMask(true);			// otherwise depth testing breaks
+		}
+	};
+
+
+
+
 	Team TestGame::human_team = Team(1);
 	Team TestGame::bug_team = Team(2);
 
@@ -97,24 +219,19 @@ namespace Test
 	 * TestGame methods
 	 */
 	TestGame::TestGame(TestScreen* screen, SoundSystem* sound_system) :
+		imp(new Imp()),
 		screen(screen),
-		bot_death_handler(this),
-		player_death_handler(this),
-		player_damage_handler(this),
-		total_game_time(0),
-		chapter_text_start(0),
-		chapter_text_end(0),
-		chapter_text(),
 		nav_editor(false),
 		god_mode(false),
 		debug_draw(false),
-		alive(true),
-		render_target(NULL),
-		shadow_render_target(NULL),
 		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
 		debug_text(""),
+		chapter_text_start(0),
+		chapter_text_end(0),
+		chapter_text(),
+		chapter_sub_text(),
 		nav_graph(0),
 		tex2d_cache(screen->window->content->GetCache<Texture2D>()),
 		vtn_cache(screen->window->content->GetCache<VertexBuffer>()),
@@ -122,6 +239,10 @@ namespace Test
 		mat_cache(NULL),
 		load_status(this)
 	{
+		imp->bot_death_handler.game = this;
+		imp->player_death_handler.game = this;
+		imp->player_damage_handler.game = this;
+
 		this->sound_system = sound_system;
 		content = screen->window->content;
 
@@ -149,14 +270,12 @@ namespace Test
 
 		ScriptSystem::SetGS(this);
 
-		/*
 		ContentReqList content_req_list(content);
 
 		ScriptSystem::SetContentReqList(&content_req_list);
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/load.lua");
 		ScriptSystem::SetContentReqList(NULL);
 		content_req_list.LoadContent(&load_status.task);
-		*/
 
 		if(ubermodel_cache->Load("nbridge") == NULL)
 		{
@@ -188,11 +307,13 @@ namespace Test
 		Cache<Shader>* shader_cache = content->GetCache<Shader>();
 		Shader* sky_vertex_shader = shader_cache->Load("sky-v");
 		Shader* sky_fragment_shader = shader_cache->Load("sky-f");
-		sky_shader = new ShaderProgram(sky_vertex_shader, sky_fragment_shader);
+
+		ShaderProgram* sky_shader = imp->sky_shader = new ShaderProgram(sky_vertex_shader, sky_fragment_shader);
 		sky_shader->AddUniform<TextureCube>(new UniformTextureCube("sky_texture", 0));
 		sky_shader->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
-		sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
-		sky_sphere = vtn_cache->Load("sky_sphere");
+
+		imp->sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
+		imp->sky_sphere = vtn_cache->Load("sky_sphere");
 
 		if(load_status.HasAborted())
 		{
@@ -201,13 +322,13 @@ namespace Test
 		}
 		load_status.task = "deferred lighting shader";
 
-		ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
+		imp->ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
 
 		Shader* ds_vertex = shader_cache->Load("ds-v");
 		Shader* ds_lighting = shader_cache->Load("ds_light-f");
 		Shader* ds_ambient = shader_cache->Load("ds_ambient-f");
 
-		deferred_lighting = new ShaderProgram(ds_vertex, ds_lighting);
+		ShaderProgram* deferred_lighting = imp->deferred_lighting = new ShaderProgram(ds_vertex, ds_lighting);
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
@@ -221,7 +342,7 @@ namespace Test
 		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
 
-		deferred_ambient = new ShaderProgram(ds_vertex, ds_ambient);
+		ShaderProgram* deferred_ambient = imp->deferred_ambient = new ShaderProgram(ds_vertex, ds_ambient);
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
@@ -240,14 +361,15 @@ namespace Test
 		load_status.task = "soldier";
 
 		// Dood's model
-		model = ubermodel_cache->Load("soldier");
+		imp->model = ubermodel_cache->Load("soldier");
 
-		mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
-		shot_material = (BillboardMaterial*)mat_cache->Load("shot");
-		gun_model = ubermodel_cache->Load("gun");
-		mflash_model = vtn_cache->Load("mflash");
-		shot_model = vtn_cache->Load("shot");
-		blood_billboard = (BillboardMaterial*)mat_cache->Load("blood");
+		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
+		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
+		imp->gun_model = ubermodel_cache->Load("gun");
+		imp->mflash_model = vtn_cache->Load("mflash");
+		imp->shot_model = vtn_cache->Load("shot");
+		imp->blood_red = (BillboardMaterial*)mat_cache->Load("blood");
+		imp->blood_blue = (BillboardMaterial*)mat_cache->Load("bug_blood");
 
 		if(load_status.HasAborted())
 		{
@@ -256,7 +378,7 @@ namespace Test
 		}
 		load_status.task = "crab bug";
 
-		enemy = ubermodel_cache->Load("crab_bug");
+		imp->enemy = ubermodel_cache->Load("crab_bug");
 
 		if(ubermodel_cache->Load("flea") == NULL)
 		{
@@ -283,12 +405,9 @@ namespace Test
 		load_status.task = "misc";
 
 		// loading weapon sounds
-		fire_sound = content->GetCache<SoundBuffer>()->Load("shot");
-		chamber_click_sound = NULL;
-		reload_sound = NULL;
-
-		// loading particle materials...
-		dirt_particle = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(tex2d_cache->Load("dirt_impact"), 32, 32, 2, 2, 4), Alpha);
+		imp->fire_sound = content->GetCache<SoundBuffer>()->Load("shot");
+		imp->chamber_click_sound = NULL;
+		imp->reload_sound = NULL;
 
 		if(load_status.HasAborted())
 		{
@@ -313,7 +432,7 @@ namespace Test
 		}
 		load_status.task = "starting game";
 
-		sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
+		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
 
@@ -331,13 +450,15 @@ namespace Test
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
-		player_pawn = new Soldier(this, model, pos, human_team);
+		player_pawn = new Soldier(this, imp->model, pos, human_team);
 		Spawn(player_pawn);
 
-		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, gun_model, mflash_model, shot_model, mflash_material, shot_material, fire_sound, chamber_click_sound, reload_sound));
+		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound));
 
-		player_pawn->OnDeath += &player_death_handler;
-		player_pawn->OnDamageTaken += &player_damage_handler;
+		player_pawn->blood_material = imp->blood_red;
+
+		player_pawn->OnDeath += &imp->player_death_handler;
+		player_pawn->OnDamageTaken += &imp->player_damage_handler;
 
 		player_controller = new ScriptedController(this, "player_ai");
 		player_controller->Possess(player_pawn);
@@ -350,8 +471,10 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
-		Dood* dood = new CrabBug(this, enemy, pos, bug_team);
+		Dood* dood = new CrabBug(this, imp->enemy, pos, bug_team);
 		Spawn(dood);
+
+		dood->blood_material = imp->blood_blue;
 
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
 
@@ -360,7 +483,7 @@ namespace Test
 
 		Spawn(ai_controller);
 
-		dood->OnDeath += &bot_death_handler;
+		dood->OnDeath += &imp->bot_death_handler;
 
 		return dood;
 	}
@@ -370,6 +493,8 @@ namespace Test
 		Dood* dood = new ArtilleryBug(this, ubermodel_cache->Load("flea"), pos, bug_team);
 		Spawn(dood);
 
+		dood->blood_material = imp->blood_blue;
+
 		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
 
 		ScriptedController* ai_controller = new ScriptedController(this, "crab_bug_ai");
@@ -377,7 +502,7 @@ namespace Test
 
 		Spawn(ai_controller);
 
-		dood->OnDeath += &bot_death_handler;
+		dood->OnDeath += &imp->bot_death_handler;
 
 		return dood;
 	}
@@ -434,9 +559,8 @@ namespace Test
 		NGDEBUG();
 	}
 
-	// forward declare this...
+	// forward-declare a few functions which we'll be using in TestGame::Draw
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
-
 	void ClearDepthAndColor();
 #if ENABLE_SHADOWS
 	Texture2D* RenderShadowTexture(RenderTarget* target, Mat4& shadow_matrix, Sun* sun, SceneRenderer& renderer);
@@ -455,7 +579,7 @@ namespace Test
 		float aspect_ratio = (float)width / height;
 
 		static CameraView camera(Mat4::Identity(), 1.0f, 1.0f);
-		if(alive)
+		if(imp->alive)
 			camera = CameraView(((Dood*)player_controller->GetControlledPawn())->GetViewMatrix(), zoom, aspect_ratio);
 		Mat4 proj_t = camera.GetProjectionMatrix().Transpose();
 		Mat4 view_t = camera.GetViewMatrix().Transpose();
@@ -489,39 +613,35 @@ namespace Test
 		}
 		else
 		{
-			if(render_target == NULL || render_target->GetWidth() != width || render_target->GetHeight() != height)
+			if(imp->render_target == NULL || imp->render_target->GetWidth() != width || imp->render_target->GetHeight() != height)
 			{
-				if(render_target != NULL)
+				if(imp->render_target != NULL)
 				{
-					render_target->Dispose();
-					delete render_target;
+					imp->render_target->Dispose();
+					delete imp->render_target;
 				}
-				render_target = new RenderTarget(width, height, 0, 4);
+				imp->render_target = new RenderTarget(width, height, 0, 4);
 			}
 
 #ifdef ENABLE_SHADOWS
-			if(shadow_render_target == NULL)
-				shadow_render_target = new RenderTarget(4096, 4096, 0, 1);
+			if(imp->shadow_render_target == NULL)
+				imp->shadow_render_target = new RenderTarget(4096, 4096, 0, 1);
 #endif
 
-			RenderTarget::Bind(render_target);
+			RenderTarget::Bind(imp->render_target);
 
 			ClearDepthAndColor();
 
 			glViewport(0, 0, width, height);
 
-			sun->view_matrix = camera.GetViewMatrix();
-			DrawBackground(camera.GetViewMatrix().Transpose());
+			imp->sun->view_matrix = camera.GetViewMatrix();
+			imp->DrawBackground(camera.GetViewMatrix().Transpose());
 
 			SceneRenderer renderer(&camera);
 
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
 				(*iter)->Vis(&renderer);
-
-
-			float camera_dot = Vec3::Dot(camera.GetForward(), camera.GetPosition());
-
-			renderer.lights.push_back(sun);
+			renderer.lights.push_back(imp->sun);
 
 			renderer.BeginRender();
 
@@ -544,21 +664,24 @@ namespace Test
 
 			Mat4 inv_view_matrix = Mat4::Invert(renderer.camera->GetViewMatrix());
 
-			deferred_ambient->SetUniform<Texture2D>("diffuse", render_target->GetColorBufferTex(0));
-			deferred_ambient->SetUniform<Texture2D>("normal", render_target->GetColorBufferTex(1));
-			deferred_ambient->SetUniform<Texture2D>("specular", render_target->GetColorBufferTex(2));
-			deferred_ambient->SetUniform<Texture2D>("depth", render_target->GetColorBufferTex(3));
-			deferred_ambient->SetUniform<TextureCube>("ambient_cubemap", ambient_cubemap);
-			deferred_ambient->SetUniform<TextureCube>("env_cubemap", sky_texture);
-			deferred_ambient->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
-			deferred_ambient->SetUniform<float>("aspect_ratio", &aspect_ratio);
-			deferred_ambient->SetUniform<float>("zoom", &zoom);
+			ShaderProgram* deferred_ambient = imp->deferred_ambient;
+			RenderTarget* render_target = imp->render_target;
+
+			deferred_ambient->SetUniform<Texture2D>		(	"diffuse",			render_target->GetColorBufferTex(0)	);
+			deferred_ambient->SetUniform<Texture2D>		(	"normal",			render_target->GetColorBufferTex(1)	);
+			deferred_ambient->SetUniform<Texture2D>		(	"specular",			render_target->GetColorBufferTex(2)	);
+			deferred_ambient->SetUniform<Texture2D>		(	"depth",			render_target->GetColorBufferTex(3)	);
+			deferred_ambient->SetUniform<TextureCube>	(	"ambient_cubemap",	imp->ambient_cubemap		);
+			deferred_ambient->SetUniform<TextureCube>	(	"env_cubemap",		imp->sky_texture			);
+			deferred_ambient->SetUniform<Mat4>			(	"inv_view_matrix",	&inv_view_matrix	);
+			deferred_ambient->SetUniform<float>			(	"aspect_ratio",		&aspect_ratio		);
+			deferred_ambient->SetUniform<float>			(	"zoom",				&zoom				);
 
 			DrawScreenQuad(deferred_ambient, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 #if ENABLE_SHADOWS
-			Mat4 shadow_matrix;
-			Texture2D* shadow_texture = RenderShadowTexture(shadow_render_target, shadow_matrix, sun, renderer);
+			Mat4 shadow_matrix;				// passed by reference to RenderShadowTexture to give this a value
+			Texture2D* shadow_texture = RenderShadowTexture(imp->shadow_render_target, shadow_matrix, imp->sun, renderer);
 
 			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -573,6 +696,7 @@ namespace Test
 			glViewport(0, 0, width, height);
 			glColorMask(true, true, true, false);
 
+			ShaderProgram* deferred_lighting = imp->deferred_lighting;
 			deferred_lighting->SetUniform<Texture2D>("diffuse", render_target->GetColorBufferTex(0));
 			deferred_lighting->SetUniform<Texture2D>("normal", render_target->GetColorBufferTex(1));
 			deferred_lighting->SetUniform<Texture2D>("specular", render_target->GetColorBufferTex(2));
@@ -756,35 +880,6 @@ namespace Test
 		glEnd();
 	}
 
-	void TestGame::DrawBackground(Mat4 view_matrix)
-	{
-		glDisable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
-		glDepthMask(false);
-
-		GLDEBUG();
-
-		sky_shader->SetUniform<TextureCube>("sky_texture", sky_texture);
-		sky_shader->SetUniform<Mat4>("view_matrix", &view_matrix);
-		ShaderProgram::SetActiveProgram(sky_shader);
-
-		GLDEBUG();
-
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
-
-		sky_sphere->Draw();
-
-		glPopMatrix();
-
-		ShaderProgram::SetActiveProgram(NULL);
-
-		sun->Draw();
-
-		glDepthMask(true);			// otherwise depth testing breaks
-	}
 
 	void TestGame::ShowChapterText(string text, string subtitle, float fade_time)
 	{
@@ -834,6 +929,12 @@ namespace Test
 	{
 		load_status.Dispose();
 
+		if(imp != NULL)
+		{
+			delete imp;
+			imp = NULL;
+		}
+
 		if(hud != NULL)
 		{
 			delete hud;
@@ -844,21 +945,7 @@ namespace Test
 		{
 			NavGraph::DeleteNavGraph(nav_graph);
 			nav_graph = 0;
-		}
-
-		if(render_target != NULL)
-		{
-			render_target->Dispose();
-			delete render_target;
-			render_target = NULL;
-		}
-
-		if(shadow_render_target != NULL)
-		{
-			shadow_render_target->Dispose();
-			delete shadow_render_target;
-			shadow_render_target = NULL;
-		}
+		}		
 
 		GameState::InnerDispose();
 
@@ -985,31 +1072,6 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_checkLineOfSight, 1);
 		lua_setfield(L, 1, "checkLineOfSight");
-	}
-
-
-
-
-	/*
-	 * TestGame::DoodDeathHandler methods
-	 */
-	TestGame::DoodDeathHandler::DoodDeathHandler(TestGame* game) : game(game) { }
-
-	void TestGame::DoodDeathHandler::HandleEvent(Event* evt) { Dood::DeathEvent* de = (Dood::DeathEvent*)evt; if(de->dood == game->player_pawn) { game->alive = false; } }
-
-
-
-
-	/*
-	 * TestGame::PlayerDamageHandler methods
-	 */
-	TestGame::PlayerDamageHandler::PlayerDamageHandler(TestGame* game) : game(game) { }
-
-	void TestGame::PlayerDamageHandler::HandleEvent(Event* evt)
-	{
-		Dood::DamageTakenEvent* d_evt = (Dood::DamageTakenEvent*)evt;
-		if(game->god_mode)
-			d_evt->cancel = true;
 	}
 
 

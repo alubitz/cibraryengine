@@ -31,6 +31,8 @@ namespace Test
 			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
 			materials.push_back(mat);
 		}
+
+		dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 	}
 
 	void StaticLevelGeometry::InnerDispose()
@@ -80,7 +82,6 @@ namespace Test
 
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		ParticleMaterial* dirt_particle = ((TestGame*)game_state)->dirt_particle;
 		for (int i = 0; i < 6; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1);
@@ -91,7 +92,7 @@ namespace Test
 			game_state->Spawn(p);
 		}
 
-//		game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromPYR(0, Random3D::Rand(2.0 * M_PI), 0)));
+//		game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromPYR(0, Random3D::Rand(2.0 * M_PI), 0), dirt_particle));
 
 		return true;
 	}

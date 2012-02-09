@@ -157,6 +157,68 @@ namespace Test
 
 
 
+	struct ParticleMaterialField : public NamedItemDictionaryTableParser
+	{
+		ContentMan* content;
+		Material** result_out;
+		string name;
+
+		BlendStyle blend;
+
+		struct SpriteSheetInfo { int col_size; int row_size; int cols; int rows; int frames; SpriteSheetInfo() : frames(-1) { } } spritesheet;
+
+		IntSetter col_size;
+		IntSetter row_size;
+		IntSetter cols;
+		IntSetter rows;
+		IntSetter frames;
+
+		ParticleMaterialField(istream* stream, string name, ContentMan* content, BlendStyle blend, Material** result_out) :
+			NamedItemDictionaryTableParser(stream),
+			content(content),
+			result_out(result_out),
+			name(name),
+			blend(blend),
+			spritesheet(),
+			col_size(&spritesheet.col_size),
+			row_size(&spritesheet.row_size),
+			cols(&spritesheet.cols),
+			rows(&spritesheet.rows),
+			frames(&spritesheet.frames)
+		{
+			field_setters["col_size"] = &col_size;
+			field_setters["row_size"] = &row_size;
+			field_setters["cols"] = &cols;
+			field_setters["rows"] = &rows;
+			field_setters["frames"] = &frames;
+		}
+
+		void End()
+		{
+			if(spritesheet.frames > 0)
+				*result_out = new ParticleMaterial(Texture3D::FromSpriteSheetAnimation(content->GetCache<Texture2D>()->Load(name), spritesheet.col_size, spritesheet.row_size, spritesheet.cols, spritesheet.rows, spritesheet.frames), blend);
+			else
+				*result_out = new ParticleMaterial(content->GetCache<Texture2D>()->Load(name), blend);
+		}
+	};
+
+	struct ParticleMaterialSetter : public NamedItemDictionaryTableParser::FieldSetter
+	{
+		istream* stream;
+		ContentMan* content;
+
+		Material** result_out;
+
+		BlendStyle blend;
+
+		ParticleMaterialSetter(istream* stream, ContentMan* content, BlendStyle blend, Material** result_out) : stream(stream), content(content), result_out(result_out), blend(blend) { }
+
+		TableParseable* Set(string val) { return new ParticleMaterialField(stream, val.substr(1, val.length() - 2), content, blend, result_out); }
+	};
+
+
+
+
 	struct BillboardMaterialSetter : public NamedItemDictionaryTableParser::FieldSetter
 	{
 		istream* stream;
@@ -186,6 +248,8 @@ namespace Test
 		DSNMaterialSetter dsn_additive_setter(&file, dsn_additive_loader, result_out);
 		DSNMaterialSetter dsn_alpha_setter(&file, dsn_alpha_loader, result_out);
 		GlowyMaterialSetter glowy_setter(&file, man, glowy2d_shader, glowy3d_shader, result_out);
+		ParticleMaterialSetter particle_alpha_setter(&file, man, Alpha, result_out);
+		ParticleMaterialSetter particle_glowy_setter(&file, man, Additive, result_out);
 		BillboardMaterialSetter billboard_setter(&file, man, Additive, glowy2d_shader, result_out);
 		BillboardMaterialSetter billboard_alpha_setter(&file, man, Alpha, glowy2d_shader, result_out);
 
@@ -196,6 +260,9 @@ namespace Test
 		parser.field_setters["dsn_alpha"] = &dsn_alpha_setter;
 
 		parser.field_setters["glowy"] = &glowy_setter;
+
+		parser.field_setters["particle"] = &particle_glowy_setter;
+		parser.field_setters["particle_alpha"] = &particle_alpha_setter;
 
 		parser.field_setters["billboard"] = &billboard_setter;
 		parser.field_setters["billboard_alpha"] = &billboard_alpha_setter;

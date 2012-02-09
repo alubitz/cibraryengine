@@ -448,19 +448,6 @@ namespace Test
 
 	void HUD::Draw(float w, float h)
 	{
-		/*
-		if(render_target != NULL && (render_target->GetWidth() != w || render_target->GetHeight() != h))
-		{
-			render_target->Dispose();
-			delete render_target;
-			render_target = NULL;
-		}
-		if(render_target == NULL)
-			render_target = new RenderTarget(w, h, 0);
-
-		RenderTarget::Bind(render_target);
-		*/
-
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 		glDisable(GL_LIGHTING);
 		glDisable(GL_DEPTH_TEST);
@@ -534,8 +521,6 @@ namespace Test
 				row++;
 			};
 		}
-
-		RenderTarget::Bind(NULL);
 	}
 
 	void HUD::SetPlayer(Dood* dood)

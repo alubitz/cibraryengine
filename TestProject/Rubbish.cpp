@@ -7,10 +7,11 @@
 
 namespace Test
 {
-	Rubbish::Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori) :
+	Rubbish::Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle) :
 		Entity(gs),
 		model(model),
 		materials(),
+		dirt_particle(dirt_particle),
 		xform(Mat4::FromPositionAndOrientation(pos, ori)),
 		bs(model->GetBoundingSphere()),
 		rigid_body(NULL),
@@ -94,7 +95,6 @@ namespace Test
 
 	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		ParticleMaterial* dirt_particle = ((TestGame*)game_state)->dirt_particle;
 		for (int i = 0; i < 6; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1);

@@ -22,7 +22,7 @@ namespace CibraryEngine
 		btSequentialImpulseConstraintSolver* solver;
 		btDynamicsWorld* dynamics_world;
 
-		list<RigidBodyInfo*> rigid_bodies;			// List of all of the rigid bodies in the physical simulation
+		boost::unordered_set<RigidBodyInfo*> rigid_bodies;			// List of all of the rigid bodies in the physical simulation
 
 		Imp();
 		~Imp();
@@ -148,7 +148,7 @@ namespace CibraryEngine
 
 	PhysicsWorld::Imp::~Imp()
 	{
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+		for(boost::unordered_set<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 		{
 			dynamics_world->removeRigidBody((*iter)->imp->body);
 			(*iter)->Dispose();
@@ -167,12 +167,11 @@ namespace CibraryEngine
 		if(r == NULL)
 			return;
 
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			if(*iter == r)
-				return;
+		if(rigid_bodies.find(r) != rigid_bodies.end())
+			return;
 
 		dynamics_world->addRigidBody(r->imp->body);
-		rigid_bodies.push_back(r);
+		rigid_bodies.insert(r);
 	}
 			
 	bool PhysicsWorld::Imp::RemoveRigidBody(RigidBodyInfo* r)
@@ -180,19 +179,16 @@ namespace CibraryEngine
 		if(r == NULL)
 			return false;
 
-		for(list<RigidBodyInfo*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			if(*iter == r)
-			{
-				rigid_bodies.erase(iter);
-				dynamics_world->removeRigidBody(r->imp->body);
-				return true;
-			}
-
-		return false;
+		boost::unordered_set<RigidBodyInfo*>::iterator found = rigid_bodies.find(r);
+		if(found != rigid_bodies.end())
+		{
+			rigid_bodies.erase(found);
+			dynamics_world->removeRigidBody(r->imp->body);
+			return true;
+		}
+		else
+			return false;
 	}
-
-
-
 
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
 

@@ -16,6 +16,7 @@ namespace Test
 
 			UberModel* model;
 			vector<Material*> materials;
+			ParticleMaterial* dirt_particle;
 
 			Vec3 pos;
 			Quaternion ori;
