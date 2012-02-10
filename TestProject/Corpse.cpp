@@ -6,12 +6,6 @@
 
 namespace Test
 {
-	float active_lifetime = 5.0f;
-	bool allow_become_permanent = false;
-
-
-
-
 	// Each bone is a separate shootable object
 	struct CorpseBoneShootable : Entity, Shootable
 	{
@@ -83,7 +77,6 @@ namespace Test
 		float character_pose_time;
 
 		float fizzle_time;
-		bool immortal;
 
 		PhysicsWorld* physics;
 		vector<RigidBodyInfo*> rigid_bodies;
@@ -94,7 +87,7 @@ namespace Test
 		// TODO: deal with rigid_bodies[i]/shootables[i] corresponding directly to character->skeleton->bones[i]
 
 		// constructor with big long initializer list
-		Imp(Corpse* corpse, GameState* gs, Dood* dood) : 
+		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
 			corpse(corpse),
 			character(dood->character),
 			model(dood->model),
@@ -103,8 +96,7 @@ namespace Test
 			origin(dood->pos),
 			initial_vel(dood->vel),
 			character_pose_time(-1),
-			fizzle_time(gs->total_game_time + active_lifetime),
-			immortal(false),
+			fizzle_time(gs->total_game_time + ttl),
 			physics(NULL),
 			rigid_bodies(),
 			bone_offsets(),
@@ -138,7 +130,7 @@ namespace Test
 		void PoseCharacter() { float now = corpse->game_state->total_game_time; PoseCharacter(TimingInfo(now - character_pose_time, now)); }
 		void PoseCharacter(TimingInfo time)
 		{
-			if(immortal || !corpse->is_valid)
+			if(!corpse->is_valid)
 				return;
 			float now = time.total;
 			if (now > character_pose_time)
@@ -318,39 +310,10 @@ namespace Test
 
 		void Update(TimingInfo time)
 		{
-			if(immortal)
-				return;
-			else if(time.total > fizzle_time)
+			if(time.total > fizzle_time)
 				corpse->is_valid = false;
-			/*
-			else if(allow_become_permanent)
-			{
-				unsigned int i;
-				unsigned int n = rigid_bodies.size();
-				for(i = 0; i < n; ++i)
-				{
-					RigidBodyInfo* r = rigid_bodies[i];
-					if(r->body->getActivationState() != ISLAND_SLEEPING)
-						break;
-				}
-				if(i == n)
-				{
-					for(i = 0; i < n; ++i)
-						rigid_bodies[i]->body->setCollisionFlags(btCollisionObject::CF_STATIC_OBJECT | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
-					// clear constraints
-					for(i = 0; i < constraints.size(); ++i)
-					{
-						btTypedConstraint* c = constraints[i];
-						physics->RemoveConstraint(c);
 
-						delete c;
-					}
-					constraints.clear();
-
-					immortal = true;
-				}
-			}
-			*/
+			// TODO: reanimate the dead
 		}
 
 		void Vis(SceneRenderer* renderer)
@@ -371,7 +334,7 @@ namespace Test
 	/*
 	 * Corpse methods
 	 */
-	Corpse::Corpse(GameState* gs, Dood* dood) : Entity(gs), imp(new Imp(this, gs, dood)) { }
+	Corpse::Corpse(GameState* gs, Dood* dood, float ttl) : Entity(gs), imp(new Imp(this, gs, dood, ttl)) { }
 	void Corpse::InnerDispose() { imp->Dispose(); delete imp; imp = NULL; Entity::InnerDispose(); }
 	void Corpse::Spawned() { imp->Spawned(); }
 	void Corpse::DeSpawned() { imp->DeSpawned(); }

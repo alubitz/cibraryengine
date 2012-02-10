@@ -21,7 +21,7 @@ namespace Test
 
 		public:
 
-			Corpse(GameState* gs, Dood* dood);
+			Corpse(GameState* gs, Dood* dood, float ttl);
 
 			void Update(TimingInfo time);
 

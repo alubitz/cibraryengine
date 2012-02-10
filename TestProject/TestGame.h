@@ -100,9 +100,6 @@ namespace Test
 
 			// Drawing-related functions...
 			void Draw(int width, int height);
-			// Functions for drawing alternate display modes
-			void DrawPhysicsDebuggingInfo(SceneRenderer* renderer);
-			void DrawNavEditorInfo(SceneRenderer* renderer);
 			// Call this from within an object's Vis function to draw an UberModel
 			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character = NULL,  vector<Material*>* materials = NULL);
 

@@ -205,6 +205,64 @@ namespace Test
 
 			glDepthMask(true);			// otherwise depth testing breaks
 		}
+
+		void DrawNavEditorInfo(SceneRenderer* renderer, unsigned int nav_graph)
+		{
+			vector<unsigned int> nodes = NavGraph::GetAllNodes(nav_graph);
+			vector<unsigned int> nu_nodes;
+
+			glColor4f(1, 1, 1, 1);
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			glEnable(GL_DEPTH_TEST);
+			glDepthMask(true);
+			glDisable(GL_TEXTURE_2D);
+			glDisable(GL_LIGHTING);
+
+			glPointSize(4.0f);
+
+			glBegin(GL_POINTS);
+
+			Vec3 camera_fwd = renderer->camera->GetForward();
+			float camera_dot = Vec3::Dot(camera_fwd, renderer->camera->GetPosition());
+			// skip nodes behind the camera
+			for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
+			{
+				unsigned int node = *iter;
+				Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
+				if(Vec3::Dot(pos, camera_fwd) > camera_dot)
+				{
+					glVertex3f(pos.x, pos.y, pos.z);
+					nu_nodes.push_back(*iter);
+				}
+			}
+			nodes = nu_nodes;
+
+			glEnd();
+
+			glPointSize(1.0f);
+			glLineWidth(1.0f);
+
+			glBegin(GL_LINES);
+			for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
+			{
+				unsigned int node = *iter;
+				Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
+				vector<unsigned int> edges = NavGraph::GetNodeEdges(nav_graph, node, NavGraph::PD_OUT);
+
+				for(vector<unsigned int>::iterator jter = edges.begin(); jter != edges.end(); ++jter)
+				{
+					Vec3 other = NavGraph::GetNodePosition(nav_graph, *jter);
+
+					glColor4f(1, 0, 0, 1);
+					glVertex3f(pos.x, pos.y, pos.z);
+					glColor4f(1, 0, 0, 0);
+					glVertex3f(other.x, other.y, other.z);
+				}
+			}
+			glEnd();
+		}
 	};
 
 
@@ -602,14 +660,14 @@ namespace Test
 			ClearDepthAndColor();
 
 			SceneRenderer renderer(&camera);
-			DrawPhysicsDebuggingInfo(&renderer);
+			physics_world->DebugDrawWorld();
 		}
 		else if(nav_editor)
 		{
 			ClearDepthAndColor();
 
 			SceneRenderer renderer(&camera);
-			DrawNavEditorInfo(&renderer);
+			imp->DrawNavEditorInfo(&renderer, nav_graph);
 		}
 		else
 		{
@@ -819,67 +877,6 @@ namespace Test
 		return target->GetColorBufferTex(0);
 	}
 #endif
-
-	void TestGame::DrawPhysicsDebuggingInfo(SceneRenderer* renderer) { physics_world->DebugDrawWorld(); }
-
-	void TestGame::DrawNavEditorInfo(SceneRenderer* renderer)
-	{
-		vector<unsigned int> nodes = NavGraph::GetAllNodes(nav_graph);
-		vector<unsigned int> nu_nodes;
-
-		glColor4f(1, 1, 1, 1);
-
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(true);
-		glDisable(GL_TEXTURE_2D);
-		glDisable(GL_LIGHTING);
-
-		glPointSize(4.0f);
-
-		glBegin(GL_POINTS);
-
-		Vec3 camera_fwd = renderer->camera->GetForward();
-		float camera_dot = Vec3::Dot(camera_fwd, renderer->camera->GetPosition());
-		// skip nodes behind the camera
-		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
-		{
-			unsigned int node = *iter;
-			Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
-			if(Vec3::Dot(pos, camera_fwd) > camera_dot)
-			{
-				glVertex3f(pos.x, pos.y, pos.z);
-				nu_nodes.push_back(*iter);
-			}
-		}
-		nodes = nu_nodes;
-
-		glEnd();
-
-		glPointSize(1.0f);
-		glLineWidth(1.0f);
-
-		glBegin(GL_LINES);
-		for(vector<unsigned int>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
-		{
-			unsigned int node = *iter;
-			Vec3 pos = NavGraph::GetNodePosition(nav_graph, node);
-			vector<unsigned int> edges = NavGraph::GetNodeEdges(nav_graph, node, NavGraph::PD_OUT);
-
-			for(vector<unsigned int>::iterator jter = edges.begin(); jter != edges.end(); ++jter)
-			{
-				Vec3 other = NavGraph::GetNodePosition(nav_graph, *jter);
-
-				glColor4f(1, 0, 0, 1);
-				glVertex3f(pos.x, pos.y, pos.z);
-				glColor4f(1, 0, 0, 0);
-				glVertex3f(other.x, other.y, other.z);
-			}
-		}
-		glEnd();
-	}
-
 
 	void TestGame::ShowChapterText(string text, string subtitle, float fade_time)
 	{
