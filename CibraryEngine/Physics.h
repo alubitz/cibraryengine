@@ -93,6 +93,9 @@ namespace CibraryEngine
 			Vec3 GetPosition();
 			/** Sets the position of this rigid body */
 			void SetPosition(Vec3 pos);
+
+			/** Gets the orientation of this rigid body */
+			Quaternion GetOrientation();
 			/** Sets the orientation of this rigid body */
 			void SetOrientation(Quaternion ori);
 
@@ -146,6 +149,8 @@ namespace CibraryEngine
 
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
 		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
+
+		static MassInfo FromCollisionShape(btCollisionShape* shape, float mass);
 	};
 
 	class ConeTwistConstraint : public Disposable
@@ -165,9 +170,13 @@ namespace CibraryEngine
 
 			ConeTwistConstraint(RigidBodyInfo* body_a, RigidBodyInfo* body_b, Quaternion a_ori, Vec3 a_pos, Quaternion b_ori, Vec3 b_pos);
 
-			void SetLimit(Vec3 limits);
+			void SetLimit(const Vec3& limits);
 			void SetDamping(float damp);
 
+			void SetDesiredOrientation(const Vec3& vec);
+
+			// because motors aren't working
+			void Update(TimingInfo time);
 	};
 
 	void WriteCollisionShape(btCollisionShape* shape, ostream& stream);

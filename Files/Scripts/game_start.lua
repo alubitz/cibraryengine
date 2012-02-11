@@ -23,7 +23,7 @@ bot_spawn_timer = 0
 bots_spawned = 0
 
 disable_enemies = false
-disable_ai = false
+disable_ai = true
 
 god_toggle = false
 nav_edit_toggle = false
@@ -77,7 +77,7 @@ end
 
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
-		local bugs_this_level = 100 --1 + 2 * level + math.floor(math.random() * 3.0)
+		local bugs_this_level = 6 --1 + 2 * level + math.floor(math.random() * 3.0)
 		local num_artillery = 6
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)

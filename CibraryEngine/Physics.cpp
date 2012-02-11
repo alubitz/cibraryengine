@@ -85,6 +85,15 @@ namespace CibraryEngine
 			body->setMotionState(motion_state);
 		}
 
+		Quaternion GetOrientation()
+		{
+			btTransform transform;
+			motion_state->getWorldTransform(transform);
+
+			btQuaternion rotation = transform.getRotation();
+			return Quaternion(rotation.getW(), rotation.getX(), rotation.getY(), rotation.getZ());
+		}
+
 		void SetOrientation(Quaternion ori)
 		{
 			btTransform transform;
@@ -125,8 +134,13 @@ namespace CibraryEngine
 	struct ConeTwistConstraint::Imp
 	{
 		btConeTwistConstraint* constraint;
+		RigidBodyInfo* rb_a;
+		RigidBodyInfo* rb_b;
+		
+		Vec3 desired_ori;
+		float max_force;
 
-		Imp(btConeTwistConstraint* constraint) : constraint(constraint) { }
+		Imp(btConeTwistConstraint* constraint, RigidBodyInfo* rb_a, RigidBodyInfo* rb_b) : constraint(constraint), rb_a(rb_a), rb_b(rb_b), desired_ori(), max_force(50.0f) { }
 	};
 
 
@@ -237,6 +251,7 @@ namespace CibraryEngine
 	Vec3 RigidBodyInfo::GetPosition() { return imp->GetPosition(); }
 	void RigidBodyInfo::SetPosition(Vec3 pos) { imp->SetPosition(pos); }
 
+	Quaternion RigidBodyInfo::GetOrientation() { return imp->GetOrientation(); }
 	void RigidBodyInfo::SetOrientation(Quaternion ori) { imp->SetOrientation(ori); }
 
 	Mat4 RigidBodyInfo::GetTransformationMatrix() { return imp->GetTransformationMatrix(); }
@@ -309,6 +324,21 @@ namespace CibraryEngine
 		result[8] = I[8] + m * (a_squared * 1 - a.z * a.z);
 	}
 
+	MassInfo MassInfo::FromCollisionShape(btCollisionShape* shape, float mass)
+	{
+		btVector3 local_inertia;
+		shape->calculateLocalInertia(mass, local_inertia);
+
+		MassInfo mass_info;
+		mass_info.mass = mass;
+
+		mass_info.moi[0] = local_inertia.getX();
+		mass_info.moi[4] = local_inertia.getY();
+		mass_info.moi[8] = local_inertia.getZ();
+
+		return mass_info;
+	}
+
 
 
 
@@ -320,12 +350,47 @@ namespace CibraryEngine
 		const btTransform a_frame = btTransform(btQuaternion(a_ori.x, a_ori.y, a_ori.z, a_ori.w), btVector3(a_pos.x, a_pos.y, a_pos.z));
 		const btTransform b_frame = btTransform(btQuaternion(b_ori.x, b_ori.y, b_ori.z, b_ori.w), btVector3(b_pos.x, b_pos.y, b_pos.z));
 		
-		imp = new Imp(new btConeTwistConstraint(*a_body->imp->body, *b_body->imp->body, a_frame, b_frame));
+		imp = new Imp(new btConeTwistConstraint(*a_body->imp->body, *b_body->imp->body, a_frame, b_frame), a_body, b_body);
 	}
 
 	void ConeTwistConstraint::InnerDispose() { delete imp; imp = NULL; }
-	void ConeTwistConstraint::SetLimit(Vec3 limits) { imp->constraint->setLimit(limits.x, limits.y, limits.z); }
+
+	void ConeTwistConstraint::SetLimit(const Vec3& limits) { imp->constraint->setLimit(limits.x, limits.y, limits.z); }
 	void ConeTwistConstraint::SetDamping(float damp) { imp->constraint->setDamping(damp); }
+
+	void ConeTwistConstraint::SetDesiredOrientation(const Vec3& vec) { imp->desired_ori = vec; }
+
+	void ConeTwistConstraint::Update(TimingInfo time)
+	{
+		Quaternion a_ori = imp->rb_a->GetOrientation();
+		Quaternion b_ori = imp->rb_b->GetOrientation();
+		
+		Quaternion desired_quat = Quaternion::FromPYR(imp->desired_ori);
+
+		Quaternion rot_quat = Quaternion::FromRotationMatrix(b_ori.ToMat3() * Mat3::Invert(a_ori.ToMat3()));
+		Quaternion dif_quat = Quaternion::FromRotationMatrix(rot_quat.ToMat3() * Mat3::Invert(desired_quat.ToMat3()));
+		
+		Vec3 vec = dif_quat.ToPYR();
+
+		float mag = vec.ComputeMagnitudeSquared();
+		if(mag > 0.05f)
+		{
+			if(mag > 1.0f)
+				vec *= imp->max_force * time.elapsed / sqrtf(mag);
+			else
+				vec *= imp->max_force * time.elapsed;
+
+			/*
+			imp->rb_a->Activate();
+			imp->rb_b->Activate();
+			*/
+
+			btVector3 bullet_vec(vec.x, vec.y, vec.z);
+
+			imp->rb_a->imp->body->applyTorqueImpulse(bullet_vec);
+			imp->rb_b->imp->body->applyTorqueImpulse(-bullet_vec);
+		}
+	}
 
 
 

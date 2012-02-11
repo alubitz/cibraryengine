@@ -84,7 +84,7 @@ namespace Test
 		vector<Vec3> bone_offsets;
 		vector<ConeTwistConstraint*> constraints;
 
-		// TODO: deal with rigid_bodies[i]/shootables[i] corresponding directly to character->skeleton->bones[i]
+		// TODO: deal with rigid_bodies[i] and shootables[i] corresponding directly to character->skeleton->bones[i]
 
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
@@ -204,16 +204,8 @@ namespace Test
 					btCollisionShape* shape = phys->shape;
 					if(shape != NULL)
 					{
-						btVector3 local_inertia;
-						shape->calculateLocalInertia(phys->mass, local_inertia);
-
-						MassInfo mass_info;
-						mass_info.mass = phys->mass;
-						total_mass += mass_info.mass;
-
-						mass_info.moi[0] = local_inertia.getX();
-						mass_info.moi[4] = local_inertia.getY();
-						mass_info.moi[8] = local_inertia.getZ();
+						MassInfo mass_info = MassInfo::FromCollisionShape(shape, phys->mass);
+						total_mass += phys->mass;
 
 						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, bone_pos, bone->ori);
 						rigid_body->SetLinearVelocity(initial_vel);
@@ -260,7 +252,11 @@ namespace Test
 								c->SetDamping(0.1f);							// default is 0.01
 								constraints.push_back(c);
 
+								c->SetDesiredOrientation(Vec3(0, 0, 0));
+
 								physics->AddConstraint(c, true);				// true = prevent them from colliding normally
+
+								c->SetLimit(Vec3(3, 3, 3));
 
 								break;
 							}
@@ -314,6 +310,8 @@ namespace Test
 				corpse->is_valid = false;
 
 			// TODO: reanimate the dead
+			// for(vector<ConeTwistConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			//	(*iter)->Update(time);
 		}
 
 		void Vis(SceneRenderer* renderer)

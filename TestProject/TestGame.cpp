@@ -118,8 +118,9 @@ namespace Test
 
 		bool alive;
 
-		UberModel* model;
-		UberModel* enemy;
+		UberModel* soldier_model;
+		UberModel* crab_bug_model;
+		UberModel* artillery_bug_model;
 
 		UberModel* gun_model;
 		VertexBuffer* mflash_model;
@@ -419,7 +420,7 @@ namespace Test
 		load_status.task = "soldier";
 
 		// Dood's model
-		imp->model = ubermodel_cache->Load("soldier");
+		imp->soldier_model = ubermodel_cache->Load("soldier");
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
@@ -436,9 +437,10 @@ namespace Test
 		}
 		load_status.task = "crab bug";
 
-		imp->enemy = ubermodel_cache->Load("crab_bug");
+		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
 
-		if(ubermodel_cache->Load("flea") == NULL)
+		imp->artillery_bug_model = ubermodel_cache->Load("flea");
+		if(imp->artillery_bug_model == NULL)
 		{
 			load_status.task = "artillery bug";
 
@@ -508,7 +510,7 @@ namespace Test
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
-		player_pawn = new Soldier(this, imp->model, pos, human_team);
+		player_pawn = new Soldier(this, imp->soldier_model, pos, human_team);
 		Spawn(player_pawn);
 
 		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound));
@@ -529,7 +531,7 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
-		Dood* dood = new CrabBug(this, imp->enemy, pos, bug_team);
+		Dood* dood = new CrabBug(this, imp->crab_bug_model, pos, bug_team);
 		Spawn(dood);
 
 		dood->blood_material = imp->blood_blue;
@@ -548,7 +550,7 @@ namespace Test
 
 	Dood* TestGame::SpawnArtilleryBug(Vec3 pos)
 	{
-		Dood* dood = new ArtilleryBug(this, ubermodel_cache->Load("flea"), pos, bug_team);
+		Dood* dood = new ArtilleryBug(this, imp->artillery_bug_model, pos, bug_team);
 		Spawn(dood);
 
 		dood->blood_material = imp->blood_blue;
