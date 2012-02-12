@@ -79,6 +79,15 @@ namespace CibraryEngine
 		return bone;
 	}
 
+	Bone* Skeleton::GetNamedBone(string bone_name) { return GetNamedBone(Bone::string_table[bone_name]); }
+	Bone* Skeleton::GetNamedBone(unsigned int bone_name)
+	{
+		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); iter++)
+			if((*iter)->name == bone_name)
+				return *iter;
+		return NULL;
+	}
+
 	vector<Mat4> Skeleton::GetBoneMatrices()
 	{
 		vector<Mat4> matrices = vector<Mat4>();

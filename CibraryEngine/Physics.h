@@ -174,6 +174,7 @@ namespace CibraryEngine
 			void SetDamping(float damp);
 
 			void SetDesiredOrientation(const Vec3& vec);
+			void SetMaxForce(float max_force);
 
 			// because motors aren't working
 			void Update(TimingInfo time);

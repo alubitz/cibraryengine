@@ -121,6 +121,8 @@ namespace Test
 
 	void SetUberModelBonePhysics(UberModel* uber, vector<BoneEntry>& bone_entries)
 	{
+		// TODO: there's something wrong with this (graphics and physics not matching up); fix it
+
 		unsigned int num_bones = bone_entries.size();
 
 		// create a lookup table, name of bone --> index in array

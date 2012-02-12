@@ -71,10 +71,7 @@ namespace Test
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
 
-		// figure out which bones are the eye and gun-holding bones
-		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
-			if((*iter)->name == Bone::string_table["eye"])
-				eye_bone = *iter;
+		eye_bone = character->skeleton->GetNamedBone("eye");
 
 		// too bad this isn't saved somewhere?
 		MassInfo mass_info = MassInfo();

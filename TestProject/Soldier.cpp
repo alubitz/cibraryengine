@@ -34,11 +34,7 @@ namespace Test
 	{
 		p_ag = new PoseAimingGun();
 		character->active_poses.push_back(p_ag);
-
-		// figure out which bones is the gun-holding bone
-		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
-			if((*iter)->name == Bone::string_table["r grip"])
-				gun_hand_bone = *iter;
+		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");

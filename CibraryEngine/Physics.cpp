@@ -140,7 +140,14 @@ namespace CibraryEngine
 		Vec3 desired_ori;
 		float max_force;
 
-		Imp(btConeTwistConstraint* constraint, RigidBodyInfo* rb_a, RigidBodyInfo* rb_b) : constraint(constraint), rb_a(rb_a), rb_b(rb_b), desired_ori(), max_force(50.0f) { }
+		Imp(btConeTwistConstraint* constraint, RigidBodyInfo* rb_a, RigidBodyInfo* rb_b) :
+			constraint(constraint), 
+			rb_a(rb_a),
+			rb_b(rb_b),
+			desired_ori(),
+			max_force(0.0f)
+		{
+		}
 	};
 
 
@@ -359,18 +366,31 @@ namespace CibraryEngine
 	void ConeTwistConstraint::SetDamping(float damp) { imp->constraint->setDamping(damp); }
 
 	void ConeTwistConstraint::SetDesiredOrientation(const Vec3& vec) { imp->desired_ori = vec; }
+	void ConeTwistConstraint::SetMaxForce(float max_force) { imp->max_force = max_force; }
 
 	void ConeTwistConstraint::Update(TimingInfo time)
 	{
+		if(imp->max_force == 0.0f)
+			return;
+
 		Quaternion a_ori = imp->rb_a->GetOrientation();
 		Quaternion b_ori = imp->rb_b->GetOrientation();
 		
-		Quaternion desired_quat = Quaternion::FromPYR(imp->desired_ori);
+		Mat3 desired_rm = Mat3::FromScaledAxis(imp->desired_ori);
 
-		Quaternion rot_quat = Quaternion::FromRotationMatrix(b_ori.ToMat3() * Mat3::Invert(a_ori.ToMat3()));
-		Quaternion dif_quat = Quaternion::FromRotationMatrix(rot_quat.ToMat3() * Mat3::Invert(desired_quat.ToMat3()));
+		Mat3 rot_rm = b_ori.ToMat3() * Mat3::Invert(a_ori.ToMat3());
+		Quaternion dif_quat = Quaternion::FromRotationMatrix(rot_rm * Mat3::Invert(desired_rm));
 		
 		Vec3 vec = dif_quat.ToPYR();
+
+		btRigidBody* rb_a = imp->rb_a->imp->body;
+		btRigidBody* rb_b = imp->rb_b->imp->body;
+
+		btVector3 a_avel = rb_a->getAngularVelocity();
+		btVector3 b_avel = rb_b->getAngularVelocity();
+		btVector3 delta_v = rb_b->getLinearVelocity() - rb_a->getLinearVelocity();
+
+		// TODO: use the velocities somehow
 
 		float mag = vec.ComputeMagnitudeSquared();
 		if(mag > 0.05f)

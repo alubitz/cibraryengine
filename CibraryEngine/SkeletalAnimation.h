@@ -70,9 +70,12 @@ namespace CibraryEngine
 			Skeleton(Skeleton* prototype);
 
 			/** Adds a bone with the specified name, default orientation, and default point of attachment */
-			Bone* AddBone(unsigned int, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int bone_name, Quaternion ori, Vec3 attach);
 			/** Adds a bone with the specified name, parent bone, default orientation, and default point of attachment */
-			Bone* AddBone(unsigned int, Bone* parent, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int bone_name, Bone* parent, Quaternion ori, Vec3 attach);
+
+			Bone* GetNamedBone(string bone_name);
+			Bone* GetNamedBone(unsigned int bone_name);
 
 			/** Reads a skeleton from a stream, and returns 0 if ok or an int error code */
 			static int ReadSkeleton(ifstream& file, Skeleton** skeleton);

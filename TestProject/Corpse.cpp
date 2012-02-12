@@ -252,12 +252,7 @@ namespace Test
 								c->SetDamping(0.1f);							// default is 0.01
 								constraints.push_back(c);
 
-								c->SetDesiredOrientation(Vec3(0, 0, 0));
-
 								physics->AddConstraint(c, true);				// true = prevent them from colliding normally
-
-								c->SetLimit(Vec3(3, 3, 3));
-
 								break;
 							}
 						}
@@ -309,9 +304,8 @@ namespace Test
 			if(time.total > fizzle_time)
 				corpse->is_valid = false;
 
-			// TODO: reanimate the dead
-			// for(vector<ConeTwistConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-			//	(*iter)->Update(time);
+			for(vector<ConeTwistConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				(*iter)->Update(time);
 		}
 
 		void Vis(SceneRenderer* renderer)
