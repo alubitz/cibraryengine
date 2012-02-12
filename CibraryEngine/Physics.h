@@ -172,12 +172,6 @@ namespace CibraryEngine
 
 			void SetLimit(const Vec3& limits);
 			void SetDamping(float damp);
-
-			void SetDesiredOrientation(const Vec3& vec);
-			void SetMaxForce(float max_force);
-
-			// because motors aren't working
-			void Update(TimingInfo time);
 	};
 
 	void WriteCollisionShape(btCollisionShape* shape, ostream& stream);

@@ -83,8 +83,7 @@ namespace Test
 		vector<CorpseBoneShootable*> shootables;
 		vector<Vec3> bone_offsets;
 		vector<ConeTwistConstraint*> constraints;
-
-		// TODO: deal with rigid_bodies[i] and shootables[i] corresponding directly to character->skeleton->bones[i]
+		vector<unsigned int> bone_indices;
 
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
@@ -135,24 +134,24 @@ namespace Test
 			float now = time.total;
 			if (now > character_pose_time)
 			{
-				origin = rigid_bodies[0]->GetTransformationMatrix().TransformVec3(0, 0, 0, 1);
+				origin = rigid_bodies[0]->GetPosition();
+
+				// TODO: Fix this:
+				// Sometimes a bone will appear to "slip" from the joint, but in the physics debug view it shows as being in the correct place
 
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
 					RigidBodyInfo* body = rigid_bodies[i];
-					Bone* bone = character->skeleton->bones[i];
+					unsigned int bone_index = bone_indices[i];
+					Bone* bone = character->skeleton->bones[bone_index];
 
-					Mat4 mat = body->GetTransformationMatrix();
-
-					float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
-					Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
-
-					Vec3 rigid_body_pos = mat.TransformVec3(0, 0, 0, 1);
+					Quaternion rigid_body_ori = body->GetOrientation();
+					Vec3 rigid_body_pos = body->GetPosition();
 
 					bone->ori = rigid_body_ori;
 
 					// model origin = rigid body pos - model rot * rest pos
-					Vec3 offset = Mat4::FromQuaternion(rigid_body_ori).TransformVec3(bone_offsets[i], 1);
+					Vec3 offset = Mat4::FromQuaternion(rigid_body_ori).TransformVec3(bone_offsets[bone_index], 1);
 					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 				}
 
@@ -179,8 +178,6 @@ namespace Test
 
 			UberModel::BonePhysics** bone_physes = new UberModel::BonePhysics* [count];
 
-			float total_mass = 0;
-
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; ++i)
 			{
@@ -204,15 +201,9 @@ namespace Test
 					btCollisionShape* shape = phys->shape;
 					if(shape != NULL)
 					{
-						MassInfo mass_info = MassInfo::FromCollisionShape(shape, phys->mass);
-						total_mass += phys->mass;
+						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo::FromCollisionShape(shape, phys->mass), bone_pos, bone->ori);
 
-						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, bone_pos, bone->ori);
 						rigid_body->SetLinearVelocity(initial_vel);
-
-						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
-						shootables.push_back(shootable);
-						rigid_body->SetCustomCollisionEnabled(shootable);
 
 						// these constants taken from the ragdoll demo
 						rigid_body->SetDamping(0.05f, 0.85f);
@@ -224,36 +215,50 @@ namespace Test
 
 						physics->AddRigidBody(rigid_body);
 						rigid_bodies.push_back(rigid_body);
+
+						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
+						shootables.push_back(shootable);
+						rigid_body->SetCustomCollisionEnabled(shootable);
+
+						bone_indices.push_back(i);
 					}
 				}
 			}
 
 			// create constraints between bones
-			for(unsigned int i = 0; i < count; ++i)
+			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 			{
-				UberModel::BonePhysics* phys = bone_physes[i];
+				unsigned int bone_index = bone_indices[i];
+				UberModel::BonePhysics* phys = bone_physes[bone_index];
+
 				if(phys != NULL)
 				{
-					Bone* bone = character->skeleton->bones[i];
+					Bone* bone = character->skeleton->bones[bone_index];
 					Bone* parent = bone->parent;
 
 					if(parent != NULL)
 					{
 						// find index of parent (bone's index is the same as rigid body info's index)
-						for(unsigned int j = 0; j < count; ++j)
+						for(unsigned int j = 0; j < rigid_bodies.size(); ++j)
 						{
-							if(character->skeleton->bones[j] == parent)
+							unsigned int j_index = bone_indices[j];
+
+							if(character->skeleton->bones[j_index] == parent)
 							{
-								RigidBodyInfo* my_body = rigid_bodies[i];
-								RigidBodyInfo* parent_body = rigid_bodies[j];
+								if(bone_physes[j_index] != NULL)
+								{
+									RigidBodyInfo* my_body = rigid_bodies[i];
+									RigidBodyInfo* parent_body = rigid_bodies[j];
 
-								ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
-								c->SetLimit(phys->span);
-								c->SetDamping(0.1f);							// default is 0.01
-								constraints.push_back(c);
+									ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
+									c->SetLimit(phys->span);
+									c->SetDamping(0.1f);							// default is 0.01
 
-								physics->AddConstraint(c, true);				// true = prevent them from colliding normally
-								break;
+									constraints.push_back(c);
+									physics->AddConstraint(c, true);				// true = prevent them from colliding normally
+
+									break;
+								}
 							}
 						}
 					}
@@ -303,9 +308,6 @@ namespace Test
 		{
 			if(time.total > fizzle_time)
 				corpse->is_valid = false;
-
-			for(vector<ConeTwistConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				(*iter)->Update(time);
 		}
 
 		void Vis(SceneRenderer* renderer)

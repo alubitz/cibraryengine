@@ -47,8 +47,10 @@ namespace CibraryEngine
 		/** The position and orientation of this object */
 		btMotionState* motion_state;
 
-		Imp() : shape(NULL), body(NULL), motion_state(NULL) { }
-		Imp(btCollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) : shape(shape), body(NULL), motion_state(NULL)
+		MassInfo mass_info;
+
+		Imp() : shape(NULL), body(NULL), motion_state(NULL), mass_info() { }
+		Imp(btCollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) : shape(shape), body(NULL), motion_state(NULL), mass_info(mass_info)
 		{
 			float mass = mass_info.mass;
 			Vec3 inertia = mass_info.GetDiagonalMoI();
@@ -137,15 +139,10 @@ namespace CibraryEngine
 		RigidBodyInfo* rb_a;
 		RigidBodyInfo* rb_b;
 		
-		Vec3 desired_ori;
-		float max_force;
-
 		Imp(btConeTwistConstraint* constraint, RigidBodyInfo* rb_a, RigidBodyInfo* rb_b) :
 			constraint(constraint), 
 			rb_a(rb_a),
-			rb_b(rb_b),
-			desired_ori(),
-			max_force(0.0f)
+			rb_b(rb_b)
 		{
 		}
 	};
@@ -364,53 +361,6 @@ namespace CibraryEngine
 
 	void ConeTwistConstraint::SetLimit(const Vec3& limits) { imp->constraint->setLimit(limits.x, limits.y, limits.z); }
 	void ConeTwistConstraint::SetDamping(float damp) { imp->constraint->setDamping(damp); }
-
-	void ConeTwistConstraint::SetDesiredOrientation(const Vec3& vec) { imp->desired_ori = vec; }
-	void ConeTwistConstraint::SetMaxForce(float max_force) { imp->max_force = max_force; }
-
-	void ConeTwistConstraint::Update(TimingInfo time)
-	{
-		if(imp->max_force == 0.0f)
-			return;
-
-		Quaternion a_ori = imp->rb_a->GetOrientation();
-		Quaternion b_ori = imp->rb_b->GetOrientation();
-		
-		Mat3 desired_rm = Mat3::FromScaledAxis(imp->desired_ori);
-
-		Mat3 rot_rm = b_ori.ToMat3() * Mat3::Invert(a_ori.ToMat3());
-		Quaternion dif_quat = Quaternion::FromRotationMatrix(rot_rm * Mat3::Invert(desired_rm));
-		
-		Vec3 vec = dif_quat.ToPYR();
-
-		btRigidBody* rb_a = imp->rb_a->imp->body;
-		btRigidBody* rb_b = imp->rb_b->imp->body;
-
-		btVector3 a_avel = rb_a->getAngularVelocity();
-		btVector3 b_avel = rb_b->getAngularVelocity();
-		btVector3 delta_v = rb_b->getLinearVelocity() - rb_a->getLinearVelocity();
-
-		// TODO: use the velocities somehow
-
-		float mag = vec.ComputeMagnitudeSquared();
-		if(mag > 0.05f)
-		{
-			if(mag > 1.0f)
-				vec *= imp->max_force * time.elapsed / sqrtf(mag);
-			else
-				vec *= imp->max_force * time.elapsed;
-
-			/*
-			imp->rb_a->Activate();
-			imp->rb_b->Activate();
-			*/
-
-			btVector3 bullet_vec(vec.x, vec.y, vec.z);
-
-			imp->rb_a->imp->body->applyTorqueImpulse(bullet_vec);
-			imp->rb_b->imp->body->applyTorqueImpulse(-bullet_vec);
-		}
-	}
 
 
 
