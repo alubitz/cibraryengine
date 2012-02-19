@@ -6,10 +6,10 @@
 
 namespace CibraryEngine
 {
-	class Line;
+	struct Line;
 
 	/** Class representing a plane in 3D space */
-	class Plane
+	struct Plane
 	{
 		public:
 

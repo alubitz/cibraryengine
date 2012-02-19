@@ -16,7 +16,7 @@ namespace CibraryEngine
 		Vec3 left = Vec3::Normalize(rm * Vec3(1, 0, 0));
 
 		pitch = asin(-fwd.y);
-		yaw = atan2(left.x, left.z) - 0.5f * M_PI;
+		yaw = atan2(left.x, left.z) - 0.5f * float(M_PI);
 	}
 
 

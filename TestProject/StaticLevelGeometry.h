@@ -23,7 +23,7 @@ namespace Test
 
 			Sphere bs;
 
-			RigidBodyInfo* rigid_body;
+			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
 			StaticLevelGeometry(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori);

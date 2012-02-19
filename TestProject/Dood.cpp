@@ -15,7 +15,7 @@
 
 namespace Test
 {
-	bool enable_ragdolls = true;
+	bool enable_ragdolls = false;
 
 	bool MaybeDoScriptedUpdate(Dood* dood);
 	bool MaybeDoScriptedDeath(Dood* dood);
@@ -63,11 +63,8 @@ namespace Test
 		OnAmmoFailure(),
 		OnDamageTaken(),
 		OnJumpFailure(),
-		OnDeath(),
-		contact_callback(NULL)
+		OnDeath()
 	{
-		contact_callback = new MyContactResultCallback(this);
-
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
 
@@ -101,9 +98,6 @@ namespace Test
 			rigid_body->Dispose();
 			delete rigid_body;
 		}
-
-		delete contact_callback;
-		contact_callback = NULL;
 
 		Pawn::InnerDispose();
 	}
@@ -160,12 +154,9 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		rigid_body->Activate();
-		rigid_body->ClearForces();
-
 		// figure out if you're standing on the ground or not
 		standing = 0;
-		physics->ContactTest(rigid_body, *contact_callback);
+		//physics->ContactTest(rigid_body, *contact_callback);
 
 		pos = GetPosition();
 
@@ -336,14 +327,16 @@ namespace Test
 	{
 		physics = game_state->physics_world;
 
+		/*
 		btVector3 spheres[] = { btVector3(0, 0.5f, 0), btVector3(0, 1.5f, 0) };
 		float radii[] = { 0.5f, 0.5f };
 		btConvexShape* shape = new btMultiSphereShape(spheres, radii, 2);
+		*/
+		CollisionShape* shape = NULL;
 
 		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
 
-		RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, mass_info, pos);
-		rigid_body->SetCustomCollisionEnabled(this);
+		RigidBody* rigid_body = new RigidBody(shape, mass_info, pos);
 
 		physics->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
@@ -420,7 +413,7 @@ namespace Test
 
 		if(enable_ragdolls)
 		{
-			Corpse* corpse = new Corpse(game_state, this, 5.0f);
+			Corpse* corpse = new Corpse(game_state, this, 50.0f);
 			game_state->Spawn(corpse);
 		}
 
@@ -451,6 +444,7 @@ namespace Test
 	/*
 	 * Dood::MyContactResultCallback methods
 	 */
+	/*
 	Dood::MyContactResultCallback::MyContactResultCallback(Dood* dood) : btCollisionWorld::ContactResultCallback(), dood(dood) { }
 	btScalar Dood::MyContactResultCallback::addSingleResult(btManifoldPoint& cp, const btCollisionObject* colObj0, int partId0, int index0, const btCollisionObject* colObj1, int partId1, int index1)
 	{
@@ -479,6 +473,7 @@ namespace Test
 
 		return 0;
 	}
+	*/
 
 
 

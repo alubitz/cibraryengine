@@ -11,6 +11,7 @@ namespace CibraryEngine
 {
 	bool VisionBlocker::CheckLineOfSight(PhysicsWorld* physics, Vec3 from, Vec3 to)
 	{
+		/*
 		// define a callback for when a ray intersects an object
 		struct : btCollisionWorld::RayResultCallback
 		{
@@ -36,5 +37,8 @@ namespace CibraryEngine
 		ray_callback.result = 0.0f;
 		physics->RayTest(from, to, ray_callback);				// run that function for anything on this ray...
 		return ray_callback.result == 0.0f;						// if it's still zero, that means nothing is between those two points
+		*/
+
+		return false;
 	}
 }

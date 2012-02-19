@@ -62,12 +62,9 @@ namespace Test
 		physics = game_state->physics_world;
 		if(model->bone_physics.size() > 0)
 		{
-			btCollisionShape* shape = model->bone_physics[0].shape;
+			CollisionShape* shape = NULL;//model->bone_physics[0].shape;
 
-			RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo(), pos, ori);
-			rigid_body->SetCustomCollisionEnabled(this);
-
-			rigid_body->SetFriction(1.0f);
+			RigidBody* rigid_body = new RigidBody(shape, MassInfo(), pos, ori);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;

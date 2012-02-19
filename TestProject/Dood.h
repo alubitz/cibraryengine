@@ -57,7 +57,7 @@ namespace Test
 			UberModel* model;
 			SkinnedCharacter* character;
 
-			RigidBodyInfo* rigid_body;
+			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
 			float mass;
@@ -127,16 +127,6 @@ namespace Test
 				DeathEvent(Dood* dood, Damage cause) : dood(dood), cause(cause) { }
 			};
 			EventDispatcher OnDeath;
-
-			struct MyContactResultCallback : public btCollisionWorld::ContactResultCallback
-			{
-				Dood* dood;
-
-				MyContactResultCallback(Dood* dood);
-				btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObject* colObj0, int partId0, int index0, const btCollisionObject* colObj1, int partId1, int index1);
-			};
-
-			MyContactResultCallback* contact_callback;
 	};
 
 	void PushDoodHandle(lua_State* L, Dood* dood);

@@ -6,15 +6,16 @@
 
 namespace Test
 {
-	// Each bone is a separate shootable object
+	// Each bone is a separate shootable object (and also an Entity for technical reasons, but it's never spawned)
 	struct CorpseBoneShootable : Entity, Shootable
 	{
 		Corpse* corpse;
-		RigidBodyInfo* rbi;
+		RigidBody* rbi;
 
 		BillboardMaterial* blood_material;
 
-		CorpseBoneShootable(GameState* gs, Corpse* corpse, RigidBodyInfo* rbi, BillboardMaterial* blood_material) : Entity(gs), corpse(corpse), rbi(rbi), blood_material(blood_material) { }
+		CorpseBoneShootable(GameState* gs, Corpse* corpse, RigidBody* rbi, BillboardMaterial* blood_material) : Entity(gs), corpse(corpse), rbi(rbi), blood_material(blood_material) { }
+		~CorpseBoneShootable() { }
 
 		bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 		{
@@ -47,7 +48,6 @@ namespace Test
 			local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
 			local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
 
-			rbi->Activate();
 			rbi->ApplyImpulse(momentum, local_poi);
 			return true;
 		}
@@ -79,10 +79,9 @@ namespace Test
 		float fizzle_time;
 
 		PhysicsWorld* physics;
-		vector<RigidBodyInfo*> rigid_bodies;
+		vector<RigidBody*> rigid_bodies;
 		vector<CorpseBoneShootable*> shootables;
 		vector<Vec3> bone_offsets;
-		vector<ConeTwistConstraint*> constraints;
 		vector<unsigned int> bone_indices;
 
 		// constructor with big long initializer list
@@ -98,8 +97,7 @@ namespace Test
 			fizzle_time(gs->total_game_time + ttl),
 			physics(NULL),
 			rigid_bodies(),
-			bone_offsets(),
-			constraints()
+			bone_offsets()
 		{
 			character->active_poses.clear();
 			dood->character = NULL;
@@ -115,10 +113,6 @@ namespace Test
 		void Dispose()
 		{
 			DeSpawned();
-
-			for(unsigned int i = 0; i < shootables.size(); ++i)
-				delete shootables[i];
-			shootables.clear();
 
 			character->Dispose();
 			delete character;
@@ -141,7 +135,7 @@ namespace Test
 
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
-					RigidBodyInfo* body = rigid_bodies[i];
+					RigidBody* body = rigid_bodies[i];
 					unsigned int bone_index = bone_indices[i];
 					Bone* bone = character->skeleton->bones[bone_index];
 
@@ -198,10 +192,11 @@ namespace Test
 
 				if(phys != NULL)
 				{
+					/*
 					btCollisionShape* shape = phys->shape;
 					if(shape != NULL)
 					{
-						RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo::FromCollisionShape(shape, phys->mass), bone_pos, bone->ori);
+						RigidBody* rigid_body = new RigidBody(shape, MassInfo::FromCollisionShape(shape, phys->mass), bone_pos, bone->ori);
 
 						rigid_body->SetLinearVelocity(initial_vel);
 
@@ -222,6 +217,7 @@ namespace Test
 
 						bone_indices.push_back(i);
 					}
+					*/
 				}
 			}
 
@@ -247,15 +243,17 @@ namespace Test
 							{
 								if(bone_physes[j_index] != NULL)
 								{
-									RigidBodyInfo* my_body = rigid_bodies[i];
-									RigidBodyInfo* parent_body = rigid_bodies[j];
+									RigidBody* my_body = rigid_bodies[i];
+									RigidBody* parent_body = rigid_bodies[j];
 
+									/*
 									ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
 									c->SetLimit(phys->span);
 									c->SetDamping(0.1f);							// default is 0.01
 
 									constraints.push_back(c);
 									physics->AddConstraint(c, true);				// true = prevent them from colliding normally
+									*/
 
 									break;
 								}
@@ -280,6 +278,11 @@ namespace Test
 
 		void DeSpawned()
 		{
+			for(unsigned int i = 0; i < shootables.size(); ++i)
+				delete shootables[i];
+			shootables.clear();
+
+			/*
 			// clear constraints
 			for(unsigned int i = 0; i < constraints.size(); ++i)
 			{
@@ -290,11 +293,12 @@ namespace Test
 				delete c;
 			}
 			constraints.clear();
+			*/
 
 			// clear rigid bodies
 			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 			{
-				RigidBodyInfo* body = rigid_bodies[i];
+				RigidBody* body = rigid_bodies[i];
 				if(physics != NULL)
 					physics->RemoveRigidBody(body);
 

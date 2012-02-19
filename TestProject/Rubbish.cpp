@@ -55,12 +55,11 @@ namespace Test
 		if(model->bone_physics.size() > 0)
 		{
 			DEBUG();
-			btCollisionShape* shape = model->bone_physics[0].shape;
+			//btCollisionShape* shape = model->bone_physics[0].shape;
+			CollisionShape* shape = NULL;
 
 			if(shape != NULL)
 				DEBUG();
-
-			btVector3 local_inertia;
 			
 			MassInfo mass_info(Vec3(), 20);
 			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = 10;
@@ -71,16 +70,7 @@ namespace Test
 			Vec3 c = xform.TransformVec3(0, 0, 1, 0);
 			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
 
-			rigid_body = new RigidBodyInfo(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
-			rigid_body->SetCustomCollisionEnabled(this);
-
-			//rigid_body->SetDamping(0.05f, 0.85f);
-			//rigid_body->SetDeactivationTime(0.8f);
-			//rigid_body->SetSleepingThresholds(1.6f, 2.5f);
-
-			//rigid_body->SetFriction(1.0f);
-			//rigid_body->SetFriction(0.5f);
-			//rigid_body->SetRestitution(0.01f);
+			rigid_body = new RigidBody(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;
@@ -115,7 +105,6 @@ namespace Test
 		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
 		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
 
-		rigid_body->Activate();
 		rigid_body->ApplyImpulse(momentum, local_poi);
 
 		return true;

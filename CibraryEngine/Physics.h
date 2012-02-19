@@ -8,14 +8,11 @@
 #include "TimingInfo.h"
 #include "Events.h"
 
-#include "btBulletDynamicsCommon.h"
-
 namespace CibraryEngine
 {
 	using namespace std;
 
-	class RigidBodyInfo;
-	class ConeTwistConstraint;
+	class RigidBody;
 
 	struct Mat4;
 	struct Quaternion;
@@ -42,33 +39,26 @@ namespace CibraryEngine
 			PhysicsWorld();
 
 			/** Adds a rigid body to the simulation */
-			void AddRigidBody(RigidBodyInfo* r);
+			void AddRigidBody(RigidBody* r);
 			/** Removes a rigid body from the simulation */
-			bool RemoveRigidBody(RigidBodyInfo* r);
-
-			void AddConstraint(ConeTwistConstraint* constraint, bool disable_collision = false);
-			void RemoveConstraint(ConeTwistConstraint* constraint);
+			bool RemoveRigidBody(RigidBody* r);
 
 			/** Steps the simulation */
 			void Update(TimingInfo time);
 
-			void SetDebugDrawer(btIDebugDraw* d);
 			void DebugDrawWorld();
 
 			Vec3 GetGravity();
 			void SetGravity(const Vec3& gravity);
-
-			void RayTest(Vec3 from, Vec3 to, btCollisionWorld::RayResultCallback& callback);
-			void ContactTest(RigidBodyInfo* object, btCollisionWorld::ContactResultCallback& callback);
 	};
 
 	struct MassInfo;
+	class CollisionShape;
 
 	/** Class representing a rigid body */
-	class RigidBodyInfo : public Disposable
+	class RigidBody : public Disposable
 	{
 		friend class PhysicsWorld;
-		friend class ConeTwistConstraint;
 
 		private:
 
@@ -81,12 +71,12 @@ namespace CibraryEngine
 
 		public:
 
-			/** Default constructor for a RigidBodyInfo; the constructed RigidBodyInfo will not work without setting the fields manually */
-			RigidBodyInfo();
+			/** Default constructor for a RigidBody; the constructed RigidBody will not work without setting the fields manually */
+			RigidBody();
 			/** Initializes a rigid body with the specified collision shape, mass properties, and optional position and orientation */
-			RigidBodyInfo(btCollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity());
+			RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity());
 
-			/** Disposes of this rigid body without disposing of and deleting the collision shape; by default RigidBodyInfo::Dispose will dispose of and delete the collision shape! */
+			/** Disposes of this rigid body without disposing of and deleting the collision shape; by default RigidBody::Dispose will dispose of and delete the collision shape! */
 			void DisposePreservingCollisionShape();
 
 			/** Gets the position of this rigid body */
@@ -103,23 +93,16 @@ namespace CibraryEngine
 			void SetLinearVelocity(const Vec3& vel);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
-			Mat4 GetTransformationMatrix();
+			Mat4 GetTransformationMatrix();			
 
-			void Activate();
+			void ApplyForce(const Vec3& force, const Vec3& local_poi);
 			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);
-			void ApplyCentralImpulse(const Vec3& impulse);
 			void ApplyCentralForce(const Vec3& force);
+			void ApplyCentralImpulse(const Vec3& impulse);
 
-			void ClearForces();
+			void ResetForces();
 
-			void SetFriction(float friction);
-			void SetDamping(float linear, float angular);
-			void SetRestitution(float restitution);
-
-			void SetDeactivationTime(float time);
-			void SetSleepingThresholds(float linear, float angular);
-
-			void SetCustomCollisionEnabled(void* user_object);
+			void Update(TimingInfo time);			// to be called by the PhysicsWorld
 	};
 
 	/** Class representing the mass properties of an object */
@@ -139,9 +122,6 @@ namespace CibraryEngine
 		/** Initializes a MassInfo representing a point mass, at the specified location */
 		MassInfo(Vec3 pos, float mass);
 
-		/** Gets the 3-component vector format of MoI used by Bullet */
-		Vec3 GetDiagonalMoI();
-
 		/** Adds two MassInfo objects */
 		void operator +=(MassInfo other);
 		/** Adds two MassInfo objects */
@@ -150,31 +130,14 @@ namespace CibraryEngine
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
 		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
 
-		static MassInfo FromCollisionShape(btCollisionShape* shape, float mass);
+		static MassInfo FromCollisionShape(CollisionShape* shape, float mass);
 	};
 
-	class ConeTwistConstraint : public Disposable
+	class CollisionShape
 	{
-		friend class PhysicsWorld;
-
-		private:
-
-			struct Imp;
-			Imp* imp;
-
-		protected:
-
-			void InnerDispose();
-
 		public:
 
-			ConeTwistConstraint(RigidBodyInfo* body_a, RigidBodyInfo* body_b, Quaternion a_ori, Vec3 a_pos, Quaternion b_ori, Vec3 b_pos);
-
-			void SetLimit(const Vec3& limits);
-			void SetDamping(float damp);
+			static CollisionShape* ReadCollisionShape(istream& stream);
+			static void WriteCollisionShape(CollisionShape* shape, ostream& stream);
 	};
-
-	void WriteCollisionShape(btCollisionShape* shape, ostream& stream);
-	btCollisionShape* ReadCollisionShape(istream& stream);
-
 }

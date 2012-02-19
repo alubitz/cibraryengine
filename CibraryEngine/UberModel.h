@@ -9,8 +9,6 @@
 
 #include "Disposable.h"
 
-class btCollisionShape;
-
 namespace CibraryEngine
 {
 	using namespace std;
@@ -20,6 +18,8 @@ namespace CibraryEngine
 
 	class SkinnedModel;
 	class Skeleton;
+
+	class CollisionShape;
 
 	/** A really awesome model format I came up with */
 	class UberModel : public Disposable
@@ -91,7 +91,7 @@ namespace CibraryEngine
 			{
 				string bone_name;
 
-				btCollisionShape* shape;
+				CollisionShape* shape;
 				float mass;
 
 				// joint properties

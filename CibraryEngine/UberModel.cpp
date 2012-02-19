@@ -713,7 +713,7 @@ namespace CibraryEngine
 				for(unsigned int j = 0; j < bone_name_len; ++j)
 					phys.bone_name += ReadByte(ss);
 
-				phys.shape = ReadCollisionShape(ss);
+				phys.shape = CollisionShape::ReadCollisionShape(ss);
 
 				// deserializing everything that's left
 				phys.mass = ReadSingle(ss);
@@ -930,7 +930,7 @@ namespace CibraryEngine
 			{
 				UberModel::BonePhysics& phys = model->bone_physics[i];
 				WriteString4(phys.bone_name, phys_ss);
-				WriteCollisionShape(phys.shape, phys_ss);
+				CollisionShape::WriteCollisionShape(phys.shape, phys_ss);
 				WriteSingle(phys.mass, phys_ss);
 				WriteVec3(phys.pos, phys_ss);
 				WriteQuaternion(phys.ori, phys_ss);

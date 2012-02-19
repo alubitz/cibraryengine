@@ -9,6 +9,7 @@ namespace CibraryEngine
 	 * IKSolver::IKObject methods
 	 */
 	IKSolver::IKObject::IKObject(Skeleton* skeleton, Vec3 pos, Quaternion ori) :
+		result(),
 		result_valid(false),
 		skeleton(skeleton),
 		desired_pos(pos),
@@ -20,6 +21,7 @@ namespace CibraryEngine
 
 	void IKSolver::IKObject::ComputeNextState(PhysicsWorld* physics, TimingInfo time)
 	{
+		result.Dispose();
 		result = Skeleton(skeleton);
 		result_valid = true;
 
@@ -89,7 +91,10 @@ namespace CibraryEngine
 	{
 		unordered_map<void*, IKObject*>::iterator found = ik_objects.find(user_ptr);
 		if(found != ik_objects.end())
+		{
+			delete found->second;
 			ik_objects.erase(found);
+		}
 	}
 
 	Skeleton* IKSolver::GetObjectSkeleton(void* user_ptr)

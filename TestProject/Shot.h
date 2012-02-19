@@ -68,14 +68,5 @@ namespace Test
 
 				HitObject(Shootable* obj, float time) : obj(obj), time(time) { }
 			};
-
-			struct MyRayResultCallback : public btCollisionWorld::RayResultCallback
-			{
-				Shot* shot;
-				vector<HitObject> hits;
-
-				MyRayResultCallback(Shot* shot);
-				btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace);
-			};
 	};
 }

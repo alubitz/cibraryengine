@@ -25,8 +25,6 @@
 #include "Corpse.h"
 #include "StaticLevelGeometry.h"
 
-#include "../CibraryEngine/DebugRenderer.h"
-
 using namespace std;
 
 #define ENABLE_SHADOWS 1
@@ -186,7 +184,7 @@ namespace Test
 
 			GLDEBUG();
 
-			sky_shader->SetUniform<TextureCube>	(	"sky_texture", sky_texture		);
+			sky_shader->SetUniform<TextureCube>	(	"sky_texture",	sky_texture		);
 			sky_shader->SetUniform<Mat4>		(	"view_matrix",	&view_matrix	);
 			ShaderProgram::SetActiveProgram(sky_shader);
 
@@ -273,7 +271,6 @@ namespace Test
 	Team TestGame::bug_team = Team(2);
 
 	unsigned int BuildNavGraph(TestGame* test_game);
-	DebugRenderer debug_renderer = DebugRenderer();
 	/*
 	 * TestGame methods
 	 */
@@ -304,9 +301,6 @@ namespace Test
 
 		this->sound_system = sound_system;
 		content = screen->window->content;
-
-		physics_world->SetDebugDrawer(&debug_renderer);
-		debug_renderer.setDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawConstraints);
 	}
 
 	void TestGame::Load()
@@ -353,7 +347,7 @@ namespace Test
 			SkinnedModel* terrain_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
 			UberModel* terrain_model = UberModelLoader::CopySkinnedModel(terrain_skinny);
 			terrain_model->bone_physics.push_back(UberModel::BonePhysics());
-			terrain_model->bone_physics[0].shape = ShapeFromSkinnedModel(terrain_skinny);
+//			terrain_model->bone_physics[0].shape = ShapeFromSkinnedModel(terrain_skinny);
 
 			UberModelLoader::SaveZZZ(terrain_model, "Files/Models/nbridge.zzz");
 
@@ -890,6 +884,7 @@ namespace Test
 
 	float TestGame::GetTerrainHeight(float x, float z)
 	{
+		/*
 		// define a callback for when a ray intersects an object
 		struct : btCollisionWorld::RayResultCallback
 		{
@@ -922,6 +917,8 @@ namespace Test
 			return ray_callback.result * top;
 		else
 			return 0;
+		*/
+		return 0;
 	}
 
 	void TestGame::InnerDispose()
@@ -1394,6 +1391,7 @@ namespace Test
 	{
 		// define a callback for when a ray intersects an object
 		list<float> results;
+		/*
 		struct : btCollisionWorld::RayResultCallback
 		{
 			list<float>* results;
@@ -1412,10 +1410,12 @@ namespace Test
 		} ray_callback;
 
 		ray_callback.results = &results;
+		*/
 
 		// run that function for anything on this ray...
 		float top = 1000;
-		game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
+		//game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
+		
 
 		results.sort();
 		results.reverse();

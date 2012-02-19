@@ -22,7 +22,7 @@ namespace Test
 
 			Sphere bs;
 
-			RigidBodyInfo* rigid_body;
+			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
 			Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);

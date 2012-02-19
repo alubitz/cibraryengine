@@ -12,13 +12,11 @@ namespace Test
 
 	void WorldBoundary::Spawned()
 	{
-		btStaticPlaneShape* shape = new btStaticPlaneShape(btVector3(plane.normal.x, plane.normal.y, plane.normal.z), 0);
+//		btStaticPlaneShape* shape = new btStaticPlaneShape(btVector3(plane.normal.x, plane.normal.y, plane.normal.z), 0);
+		CollisionShape* shape = NULL;
 
-		RigidBodyInfo* rigid_body = new RigidBodyInfo(shape, MassInfo(), Vec3(plane.normal * plane.offset));
-		rigid_body->SetCustomCollisionEnabled(this);
-
-		rigid_body->SetFriction(0);
-
+		RigidBody* rigid_body = new RigidBody(shape, MassInfo(), Vec3(plane.normal * plane.offset));
+		
 		game_state->physics_world->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
 	}

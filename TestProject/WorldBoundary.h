@@ -14,7 +14,7 @@ namespace Test
 
 			Plane plane;
 
-			RigidBodyInfo* rigid_body;
+			RigidBody* rigid_body;
 
 			WorldBoundary(GameState* gs, Plane plane);
 

@@ -50,6 +50,7 @@ namespace Test
 
 		Vec3 end_pos = pos + vel * time.elapsed;
 
+		/*
 		MyRayResultCallback callback = MyRayResultCallback(this);
 		physics->RayTest(pos, end_pos, callback);
 
@@ -85,6 +86,7 @@ namespace Test
 				}
 			}
 		}
+		*/
 
 		pos = end_pos;
 
@@ -130,6 +132,7 @@ namespace Test
 	/*
 	 * Shot::MyRayResultCallback methods
 	 */
+	/*
 	Shot::MyRayResultCallback::MyRayResultCallback(Shot* shot) : shot(shot), hits() { }
 	btScalar Shot::MyRayResultCallback::addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
 	{
@@ -153,4 +156,5 @@ namespace Test
 		}
 		return 1;
 	}
+	*/
 }

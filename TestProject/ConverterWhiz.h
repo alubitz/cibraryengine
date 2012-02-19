@@ -53,12 +53,6 @@ namespace Test
 		}
 	};
 
-	// For creating collision shapes
-	btCollisionShape* ShapeFromVertexBuffer(VertexBuffer* model);
-	btCollisionShape* ShapeFromSkinnedModel(SkinnedModel* model);
-
-	btCollisionShape* HullFromVertexBuffer(VertexBuffer* model);
-
 	// For creating UberModels
 	UberModel* AutoSkinUberModel(ContentMan* content, string vtn_name, string material, vector<BoneEntry>& bone_entries);
 	void SetUberModelSkeleton(UberModel* uber, vector<BoneEntry>& bone_entries);
