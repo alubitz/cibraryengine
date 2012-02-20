@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "Physics.h"
 
+#include "CollisionShape.h"
+
 #include "Matrix.h"
 
 #include "DebugLog.h"
@@ -45,6 +47,8 @@ namespace CibraryEngine
 		MassInfo mass_info;
 		CollisionShape* shape;
 
+		CollisionCallback* collision_callback;
+
 		Imp() : gravity(), mass_info(), shape() { }
 		Imp(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) :
 			pos(pos),
@@ -53,11 +57,21 @@ namespace CibraryEngine
 			rot(),
 			gravity(),
 			mass_info(mass_info),
-			shape(shape)
+			shape(shape),
+			collision_callback(NULL)
 		{
 		}
 
-		~Imp() { delete shape; }
+		~Imp()
+		{
+			if(shape != NULL)
+			{
+				shape->Dispose();
+				delete shape;
+
+				shape = NULL;
+			}
+		}
 
 		void Update(TimingInfo time)
 		{
@@ -199,6 +213,9 @@ namespace CibraryEngine
 
 	void RigidBody::Update(TimingInfo time) { imp->Update(time); }
 
+	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }
+	CollisionCallback* RigidBody::GetCollisionCallback() { return imp->collision_callback; }
+
 
 
 
@@ -244,23 +261,7 @@ namespace CibraryEngine
 
 	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass)
 	{
-		// TODO: implement thi for real
+		// TODO: implement this for real
 		return MassInfo(Vec3(), mass);
 	}
-
-
-
-
-	/*
-	 * CollisionShape methods
-	 */
-	CollisionShape* CollisionShape::ReadCollisionShape(istream& stream)
-	{
-		unsigned int buffer_size = ReadUInt32(stream);
-		stream.ignore(buffer_size);
-
-		return NULL;
-	}
-
-	void CollisionShape::WriteCollisionShape(CollisionShape* shape, ostream& stream) { }
 }

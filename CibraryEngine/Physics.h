@@ -54,6 +54,7 @@ namespace CibraryEngine
 
 	struct MassInfo;
 	class CollisionShape;
+	class CollisionCallback;
 
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable
@@ -103,6 +104,19 @@ namespace CibraryEngine
 			void ResetForces();
 
 			void Update(TimingInfo time);			// to be called by the PhysicsWorld
+
+			void SetCollisionCallback(CollisionCallback* callback);
+			CollisionCallback* GetCollisionCallback();
+	};
+
+	/** A point of contact between two physics objects */
+	struct ContactPoint
+	{
+		RigidBody* obj_a;
+		RigidBody* obj_b;
+
+		Vec3 pos_a, pos_b;
+		Vec3 norm_a, norm_b;
 	};
 
 	/** Class representing the mass properties of an object */
@@ -133,11 +147,11 @@ namespace CibraryEngine
 		static MassInfo FromCollisionShape(CollisionShape* shape, float mass);
 	};
 
-	class CollisionShape
+	class CollisionCallback
 	{
 		public:
 
-			static CollisionShape* ReadCollisionShape(istream& stream);
-			static void WriteCollisionShape(CollisionShape* shape, ostream& stream);
+			/** A collision has occurred! Return whether or not to do the normal collision response behavior */
+			virtual bool OnCollision(const ContactPoint& collision) = 0;
 	};
 }

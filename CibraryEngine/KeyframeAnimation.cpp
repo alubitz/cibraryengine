@@ -67,7 +67,6 @@ namespace CibraryEngine
 			Keyframe cur = frames[current_index];
 
 			// linearly interpolate (lerp) only if this is not the final frame of the animation
-			// TODO: maybe make it possible to force interpolation off? for certain keyframes only?
 			bool interpolate = cur.next != -1;
 
 			if (interpolate)

@@ -8,6 +8,8 @@
 #include "Scripting.h"
 
 #include "Physics.h"
+#include "CollisionShape.h"
+
 #include "IKSolver.h"
 #include "IKPose.h"
 

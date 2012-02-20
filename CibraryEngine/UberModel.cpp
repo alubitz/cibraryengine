@@ -12,7 +12,7 @@
 
 #include "DebugLog.h"
 
-#include "Physics.h"
+#include "CollisionShape.h"
 
 namespace CibraryEngine
 {
