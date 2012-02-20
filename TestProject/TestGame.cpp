@@ -43,10 +43,10 @@ namespace Test
 
 		Imp() : mutex(), stopped(false), abort(false) { }
 
-		bool HasStopped()	{ boost::mutex::scoped_lock lock(mutex); return stopped;	}
-		bool HasAborted()	{ boost::mutex::scoped_lock lock(mutex); return abort;		}
-		void Stop()			{ boost::mutex::scoped_lock lock(mutex); stopped = true;	}
-		void Abort()		{ boost::mutex::scoped_lock lock(mutex); abort = true;		}
+		bool HasStopped()	{ boost::mutex::scoped_lock lock(mutex); return stopped; }
+		bool HasAborted()	{ boost::mutex::scoped_lock lock(mutex); return abort; }
+		void Stop()			{ boost::mutex::scoped_lock lock(mutex); stopped = true; }
+		void Abort()		{ boost::mutex::scoped_lock lock(mutex); abort = true; }
 	};
 
 
@@ -489,6 +489,9 @@ namespace Test
 		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
+
+		// dofile caused so much trouble D:<
+		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/goals.lua");
 
 		// if your game start script doesn't init the player, there will be trouble
 		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/game_start.lua");

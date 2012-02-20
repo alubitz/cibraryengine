@@ -35,8 +35,6 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
-dofile("Files/Scripts/goals.lua")
-
 -- function called every time a bug dies
 function crab_bug_death(dood)
 	if not game_over then
