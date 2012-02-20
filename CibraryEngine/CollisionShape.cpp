@@ -2,6 +2,7 @@
 #include "CollisionShape.h"
 
 #include "Serialize.h"
+#include "Physics.h"
 
 namespace CibraryEngine
 {
@@ -27,7 +28,7 @@ namespace CibraryEngine
 	CollisionShape::CollisionShape() { }
 	void CollisionShape::InnerDispose() { }
 
-	float CollisionShape::ComputeVolume() { return 0.0f; }
+	MassInfo CollisionShape::ComputeMassInfo() { return MassInfo(); }
 
 
 
@@ -45,10 +46,18 @@ namespace CibraryEngine
 	 */
 	SphereShape::SphereShape(float radius) : CollisionShape(), radius() { }
 
-	float SphereShape::ComputeVolume()
+	MassInfo SphereShape::ComputeMassInfo()
 	{
 		static const float sphere_volume_coeff = 4.0f / 3.0f * float(M_PI);
-		return sphere_volume_coeff * radius * radius * radius;
+		
+		float r_squared = radius * radius;
+		float mass = sphere_volume_coeff * r_squared * radius;
+		float moi = 0.4f * mass * r_squared;
+
+		MassInfo result(Vec3(), mass);
+		result.moi[0] = result.moi[4] = result.moi[8] = moi;
+		
+		return result;
 	}
 
 
@@ -59,5 +68,5 @@ namespace CibraryEngine
 	 */
 	TriangleMeshShape::TriangleMeshShape() : CollisionShape() { }
 
-	float TriangleMeshShape::ComputeVolume() { return 0.0f; }
+	MassInfo TriangleMeshShape::ComputeMassInfo() { return MassInfo(); }
 }

@@ -81,7 +81,7 @@ namespace CibraryEngine
 			ori *= Quaternion::FromPYR(rot);
 
 			vel += (force * timestep + force_impulse) / mass_info.mass;
-			rot += Mat3::Invert(Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);
+			rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);
 
 			ResetForces();	
 		}
@@ -242,6 +242,15 @@ namespace CibraryEngine
 	}
 	MassInfo MassInfo::operator +(MassInfo other) { MassInfo temp = *this; temp += other; return temp; }
 
+	void MassInfo::operator *=(float coeff)
+	{
+		mass *= coeff;
+
+		for(int i = 0; i < 9; ++i)
+			moi[i] *= coeff;
+	}
+	MassInfo MassInfo::operator *(float coeff) { MassInfo temp = *this; temp *= coeff; return temp; }
+
 	void MassInfo::GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result)
 	{
 		float a_squared = a.ComputeMagnitudeSquared();
@@ -259,9 +268,5 @@ namespace CibraryEngine
 		result[8] = I[8] + m * (a_squared * 1 - a.z * a.z);
 	}
 
-	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass)
-	{
-		// TODO: implement this for real
-		return MassInfo(Vec3(), mass);
-	}
+	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass) { return shape->ComputeMassInfo() * mass; }
 }

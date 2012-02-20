@@ -141,6 +141,11 @@ namespace CibraryEngine
 		/** Adds two MassInfo objects */
 		MassInfo operator +(MassInfo other);
 
+		/** Scales the mass and MoI components of a MassInfo, leaving the CoM unchanged */
+		void operator *=(float coeff);
+		/** Scales the mass and MoI components of a MassInfo, leaving the CoM unchanged */
+		MassInfo operator *(float coeff);
+
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
 		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
 

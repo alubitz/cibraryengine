@@ -8,6 +8,8 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	struct MassInfo;
+
 	/** A shape usable for collision detection and/or response */
 	class CollisionShape : public Disposable
 	{
@@ -19,8 +21,8 @@ namespace CibraryEngine
 
 		public:
 
-			/** Compute the volume of this collision shape. Default implementation returns 0 */
-			virtual float ComputeVolume();
+			/** Compute the mass info for this shape, assuming a density of 1 */
+			virtual MassInfo ComputeMassInfo();
 
 
 			// static i/o functions
@@ -45,7 +47,7 @@ namespace CibraryEngine
 
 			SphereShape(float radius);
 
-			float ComputeVolume();
+			MassInfo ComputeMassInfo();
 	};
 
 	class TriangleMeshShape : public CollisionShape
@@ -54,6 +56,6 @@ namespace CibraryEngine
 
 		TriangleMeshShape();
 
-		float ComputeVolume();
+		MassInfo ComputeMassInfo();
 	};
 }
