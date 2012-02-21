@@ -332,7 +332,7 @@ namespace Test
 		float radii[] = { 0.5f, 0.5f };
 		btConvexShape* shape = new btMultiSphereShape(spheres, radii, 2);
 		*/
-		CollisionShape* shape = NULL;
+		CollisionShape* shape = new SphereShape(0.5f);
 
 		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
 

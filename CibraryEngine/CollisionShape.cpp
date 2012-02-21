@@ -25,10 +25,12 @@ namespace CibraryEngine
 	/*
 	 * CollisionShape methods
 	 */
-	CollisionShape::CollisionShape() { }
+	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
 	void CollisionShape::InnerDispose() { }
 
 	MassInfo CollisionShape::ComputeMassInfo() { return MassInfo(); }
+
+	ShapeType CollisionShape::GetShapeType() { return type; }
 
 
 
@@ -36,7 +38,7 @@ namespace CibraryEngine
 	/*
 	 * RayShape method
 	 */
-	RayShape::RayShape() : CollisionShape() { }
+	RayShape::RayShape() : CollisionShape(ST_Ray) { }
 
 
 
@@ -44,7 +46,7 @@ namespace CibraryEngine
 	/*
 	 * SphereShape methods
 	 */
-	SphereShape::SphereShape(float radius) : CollisionShape(), radius() { }
+	SphereShape::SphereShape(float radius) : CollisionShape(ST_Sphere), radius() { }
 
 	MassInfo SphereShape::ComputeMassInfo()
 	{
@@ -66,7 +68,17 @@ namespace CibraryEngine
 	/*
 	 * TriangleMeshShape methods
 	 */
-	TriangleMeshShape::TriangleMeshShape() : CollisionShape() { }
+	TriangleMeshShape::TriangleMeshShape() : CollisionShape(ST_TriangleMesh) { }
 
 	MassInfo TriangleMeshShape::ComputeMassInfo() { return MassInfo(); }
+
+
+
+
+	/*
+	 * InfinitePlaneShape methods
+	 */
+	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }
+
+	MassInfo InfinitePlaneShape::ComputeMassInfo() { return MassInfo(); }
 }

@@ -17,6 +17,8 @@ namespace CibraryEngine
 	{
 		boost::unordered_set<RigidBody*> rigid_bodies;			// List of all of the rigid bodies in the physical simulation
 
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> > shape_bodies;		// lists of rigid bodies by shape type
+
 		Vec3 gravity;
 
 		Imp();
@@ -118,9 +120,16 @@ namespace CibraryEngine
 			return;
 
 		rigid_bodies.insert(r);
+		if(r->GetCollisionShape() == NULL)
+			Debug("RigidBody has a NULL collision shape!\n");
+
+		ShapeType shape_type = r->GetCollisionShape()->GetShapeType();
+		if(shape_bodies.find(shape_type) == shape_bodies.end())
+			shape_bodies[shape_type] = boost::unordered_set<RigidBody*>();
+		shape_bodies[shape_type].insert(r);
 
 		// set gravity upon adding to world
-		r->imp->gravity = gravity; 
+		r->imp->gravity = gravity;
 	}
 			
 	bool PhysicsWorld::Imp::RemoveRigidBody(RigidBody* r)
@@ -132,6 +141,11 @@ namespace CibraryEngine
 		if(found != rigid_bodies.end())
 		{
 			rigid_bodies.erase(found);
+
+			ShapeType shape_type = r->GetCollisionShape()->GetShapeType();
+			if(shape_bodies.find(shape_type) != shape_bodies.end())
+				shape_bodies[shape_type].erase(r);
+
 			return true;
 		}
 		else
@@ -147,8 +161,19 @@ namespace CibraryEngine
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
-		// find collisions, compute forces
+		// collision detection:
+		
+		//		start storing broadphase info
+		//		rigid bodies: tell the broadphase what it needs to know about you
 
+		//		start collection of batched operations
+		//		rigid bodies: based on broadphase info, add appropriate batch ops (somehow make sure not to do any pairs doubly)
+
+		//		do the batched operations
+
+		// friction goes here
+
+		// update positions and apply forces
 		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
 			(*iter)->Update(time);
 	}
@@ -215,6 +240,8 @@ namespace CibraryEngine
 
 	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }
 	CollisionCallback* RigidBody::GetCollisionCallback() { return imp->collision_callback; }
+
+	CollisionShape* RigidBody::GetCollisionShape() { return imp->shape; }
 
 
 

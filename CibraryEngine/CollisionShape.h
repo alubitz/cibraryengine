@@ -1,21 +1,35 @@
 #pragma once
 
 #include "StdAfx.h"
-
 #include "Disposable.h"
+
+#include "Plane.h"
 
 namespace CibraryEngine
 {
 	using namespace std;
 
 	struct MassInfo;
+	class RigidBody;
+
+	enum ShapeType
+	{
+		ST_Ray,
+		ST_Sphere,
+		ST_TriangleMesh,
+		ST_InfinitePlane
+	};
 
 	/** A shape usable for collision detection and/or response */
 	class CollisionShape : public Disposable
 	{
+		private:
+
+			ShapeType type;
+
 		protected:
 
-			CollisionShape();
+			CollisionShape(ShapeType type);
 
 			virtual void InnerDispose();
 
@@ -23,6 +37,8 @@ namespace CibraryEngine
 
 			/** Compute the mass info for this shape, assuming a density of 1 */
 			virtual MassInfo ComputeMassInfo();
+
+			ShapeType GetShapeType();
 
 
 			// static i/o functions
@@ -54,8 +70,21 @@ namespace CibraryEngine
 	{
 		// TODO: implement this
 
-		TriangleMeshShape();
+		public:
 
-		MassInfo ComputeMassInfo();
+			TriangleMeshShape();
+
+			MassInfo ComputeMassInfo();
+	};
+
+	class InfinitePlaneShape : public CollisionShape
+	{
+		public:
+
+			Plane plane;
+
+			InfinitePlaneShape(const Plane& plane);
+
+			MassInfo ComputeMassInfo();
 	};
 }

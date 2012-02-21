@@ -43,7 +43,8 @@ namespace Test
 
 		if(rigid_body != NULL)
 		{
-			rigid_body->DisposePreservingCollisionShape();
+			//rigid_body->DisposePreservingCollisionShape();
+			rigid_body->Dispose();
 			delete rigid_body;
 		}
 	}
@@ -62,7 +63,7 @@ namespace Test
 		physics = game_state->physics_world;
 		if(model->bone_physics.size() > 0)
 		{
-			CollisionShape* shape = NULL;//model->bone_physics[0].shape;
+			CollisionShape* shape = new TriangleMeshShape();//model->bone_physics[0].shape;
 
 			RigidBody* rigid_body = new RigidBody(shape, MassInfo(), pos, ori);
 

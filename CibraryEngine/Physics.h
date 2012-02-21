@@ -107,6 +107,8 @@ namespace CibraryEngine
 
 			void SetCollisionCallback(CollisionCallback* callback);
 			CollisionCallback* GetCollisionCallback();
+
+			CollisionShape* GetCollisionShape();
 	};
 
 	/** A point of contact between two physics objects */

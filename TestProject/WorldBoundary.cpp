@@ -13,14 +13,23 @@ namespace Test
 	void WorldBoundary::Spawned()
 	{
 //		btStaticPlaneShape* shape = new btStaticPlaneShape(btVector3(plane.normal.x, plane.normal.y, plane.normal.z), 0);
-		CollisionShape* shape = NULL;
+		CollisionShape* shape = new InfinitePlaneShape(plane);
 
 		RigidBody* rigid_body = new RigidBody(shape, MassInfo(), Vec3(plane.normal * plane.offset));
 		
 		game_state->physics_world->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
 	}
-	void WorldBoundary::DeSpawned() { }
+
+	void WorldBoundary::DeSpawned()
+	{
+		if(rigid_body != NULL)
+		{
+			rigid_body->Dispose();
+			delete rigid_body;
+			rigid_body = NULL;
+		}
+	}
 
 
 
