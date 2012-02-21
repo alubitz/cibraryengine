@@ -323,10 +323,12 @@ namespace Test
 
 		ScriptSystem::SetGS(this);
 
+		ScriptingState thread_script = ScriptSystem::GetGlobalState().NewThread();
+
 		ContentReqList content_req_list(content);
 
 		ScriptSystem::SetContentReqList(&content_req_list);
-		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/load.lua");
+		thread_script.DoFile("Files/Scripts/load.lua");
 		ScriptSystem::SetContentReqList(NULL);
 		content_req_list.LoadContent(&load_status.task);
 
@@ -491,11 +493,13 @@ namespace Test
 		hud = new HUD(this, screen->content);
 
 		// dofile caused so much trouble D:<
-		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/goals.lua");
+		thread_script.DoFile("Files/Scripts/goals.lua");
 
 		// if your game start script doesn't init the player, there will be trouble
-		ScriptSystem::GetGlobalState().DoFile("Files/Scripts/game_start.lua");
+		thread_script.DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
+
+		thread_script.Dispose();
 
 		load_status.Stop();
 	}
@@ -944,7 +948,9 @@ namespace Test
 		{
 			NavGraph::DeleteNavGraph(nav_graph);
 			nav_graph = 0;
-		}		
+		}
+
+		sound_system->StopAll();
 
 		GameState::InnerDispose();
 

@@ -29,6 +29,9 @@ namespace CibraryEngine
 
 			lua_State* GetLuaState();
 
+			/** Creates a new state with access to the same globals, for use in a new thread. A ScriptingState created this way is Disposed differently. */
+			ScriptingState NewThread();
+
 			int DoFunction(int args, int results);
 			int DoString(string& str);
 			int DoFile(string filename);

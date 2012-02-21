@@ -17,9 +17,11 @@ namespace CibraryEngine
 	struct ScriptingState::Imp
 	{
 		lua_State* state;
+		bool is_thread;
 
-		Imp() : state(lua_open()) { LoadDefaultLibs(); }
-		Imp(lua_State* L) : state(L) { if(L != NULL) { LoadDefaultLibs(); } }
+		Imp() : state(lua_open()), is_thread(false) { LoadDefaultLibs(); }
+		Imp(lua_State* L) : state(L), is_thread(false) { if(L != NULL) { LoadDefaultLibs(); } }
+		Imp(lua_State* L, bool is_thread) : state(L), is_thread(is_thread) { if(L != NULL) { LoadDefaultLibs(); } }
 
 		void LoadDefaultLibs()
 		{
@@ -31,7 +33,15 @@ namespace CibraryEngine
 //			luaopen_io(state);
 		}
 
-		void Dispose() { lua_close(state); state = NULL; }
+		void Dispose()
+		{
+			if(is_thread)
+				lua_pop(state, 1);
+			else
+				lua_close(state);
+
+			state = NULL;
+		}
 
 		int DoFunction(int args, int results)
 		{
@@ -86,6 +96,8 @@ namespace CibraryEngine
 	void ScriptingState::InnerDispose() { imp->Dispose(); delete imp; imp = NULL; }
 
 	lua_State* ScriptingState::GetLuaState() { return imp->state; }
+
+	ScriptingState ScriptingState::NewThread() { ScriptingState result(lua_newthread(imp->state)); result.imp->is_thread = true; return result; }
 
 	int ScriptingState::DoFunction(int args, int results) { return imp->DoFunction(args, results); }
 	int ScriptingState::DoString(string& str) { return imp->DoString(str); }
