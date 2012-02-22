@@ -49,8 +49,6 @@ namespace Test
 				}
 	}
 
-	void Particle::VisCleanup(SceneRenderer* scene) { }
-
 
 
 

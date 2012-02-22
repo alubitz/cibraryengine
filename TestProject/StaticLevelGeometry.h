@@ -29,7 +29,6 @@ namespace Test
 			StaticLevelGeometry(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori);
 
 			void Vis(SceneRenderer* renderer);
-			void VisCleanup();
 
 			void Spawned();
 			void DeSpawned();

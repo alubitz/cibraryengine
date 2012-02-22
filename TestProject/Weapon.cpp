@@ -31,7 +31,6 @@ namespace Test
 	void Weapon::FireOnce(int mode) { fire_once[mode] = false; }
 
 	void Weapon::Vis(SceneRenderer* renderer) { }
-	void Weapon::VisCleanup() { }
 
 	void Weapon::PlayWeaponSound(SoundBuffer* buffer, float vol, bool looping)
 	{

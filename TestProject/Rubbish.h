@@ -28,7 +28,6 @@ namespace Test
 			Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);
 
 			void Vis(SceneRenderer* renderer);
-			void VisCleanup();
 
 			void Spawned();
 			void DeSpawned();

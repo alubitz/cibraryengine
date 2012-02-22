@@ -28,8 +28,6 @@ namespace Test
 
 	void Rubbish::InnerDispose()
 	{
-		VisCleanup();
-
 		Entity::InnerDispose();
 
 		if(rigid_body != NULL)
@@ -41,13 +39,9 @@ namespace Test
 
 	void Rubbish::Vis(SceneRenderer* renderer)
 	{
-		VisCleanup();				// just in case
-
 		if(renderer->camera->CheckSphereVisibility(Sphere(xform.TransformVec3(bs.center, 1.0), bs.radius)))
 			((TestGame*)game_state)->VisUberModel(renderer, model, 0, xform, NULL, &materials);
 	}
-
-	void Rubbish::VisCleanup() { }
 
 	void Rubbish::Spawned()
 	{

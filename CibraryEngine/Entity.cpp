@@ -30,8 +30,6 @@ namespace CibraryEngine
 			(*iter)->Vis(renderer);
 	}
 
-	void Entity::VisCleanup() { }
-
 	void Entity::InnerDispose()
 	{
 		all_entities[id] = NULL;

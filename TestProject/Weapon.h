@@ -48,7 +48,6 @@ namespace Test
 			void FireOnce(int mode);				// call this when your weapon fires in response to a fire-once input
 
 			virtual void Vis(SceneRenderer* renderer);
-			virtual void VisCleanup();
 
 			virtual void PlayWeaponSound(SoundBuffer* buffer, float vol, bool looping);
 

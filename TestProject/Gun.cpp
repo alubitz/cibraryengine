@@ -144,8 +144,6 @@ namespace Test
 
 	void Gun::Vis(SceneRenderer* renderer)
 	{
-		VisCleanup();				// just in case
-
 		Sphere bs = Sphere(pos, 3);
 		if (renderer->camera->CheckSphereVisibility(bs))
 		{
@@ -159,6 +157,4 @@ namespace Test
 			}
 		}
 	}
-
-	void Gun::VisCleanup() { }
 }

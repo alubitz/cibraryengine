@@ -32,7 +32,6 @@ namespace Test
 			virtual void OwnerUpdate(TimingInfo time);
 
 			virtual void Vis(SceneRenderer* renderer);
-			virtual void VisCleanup();
 
 			virtual Shot* CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction) = 0;
 			virtual void Fire(float total_inaccuracy, float now);

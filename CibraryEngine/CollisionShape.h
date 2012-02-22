@@ -41,6 +41,8 @@ namespace CibraryEngine
 			ShapeType GetShapeType();
 
 
+			bool CanMove();
+
 			// static i/o functions
 			static CollisionShape* ReadCollisionShape(istream& stream);
 			static void WriteCollisionShape(CollisionShape* shape, ostream& stream);

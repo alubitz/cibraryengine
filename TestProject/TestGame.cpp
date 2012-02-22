@@ -316,10 +316,10 @@ namespace Test
 		}
 		load_status.task = "dsn shader";
 
-		// setting the content loader for materials...
-		// TODO: delete this somewhere?
-		content->CreateCache<Material>(new MaterialLoader(content));
+		// setting the content loader for materials if it hasn't been set already
 		mat_cache = content->GetCache<Material>();
+		if(mat_cache == NULL)
+			mat_cache = content->CreateCache<Material>(new MaterialLoader(content));
 
 		ScriptSystem::SetGS(this);
 
@@ -783,9 +783,6 @@ namespace Test
 			glColorMask(true, true, true, false);
 			renderer.RenderTranslucent();
 			GLDEBUG();
-
-			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
-				(*iter)->VisCleanup();
 
 			renderer.Cleanup();
 		}

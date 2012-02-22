@@ -25,7 +25,6 @@ namespace Test
 			void Spawned();
 
 			void Vis(SceneRenderer* scene);
-			void VisCleanup(SceneRenderer* scene);
 
 			struct TrailHead : public BillboardTrail::TrailHead
 			{

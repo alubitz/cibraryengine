@@ -32,6 +32,21 @@ namespace CibraryEngine
 
 	ShapeType CollisionShape::GetShapeType() { return type; }
 
+	bool CollisionShape::CanMove()
+	{
+		switch(type)
+		{
+			case ST_Ray:
+			case ST_Sphere:
+				return true;
+
+			case ST_TriangleMesh:
+			case ST_InfinitePlane:
+			default:
+				return false;
+		}
+	}
+
 
 
 

@@ -91,8 +91,6 @@ namespace Test
 
 	void Dood::InnerDispose()
 	{
-		VisCleanup();
-
 		if(rigid_body != NULL)
 		{
 			rigid_body->Dispose();
@@ -252,8 +250,6 @@ namespace Test
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		VisCleanup();				// just in case
-
 		if(character != NULL)		// character will be null right when it becomes dead
 		{
 			Sphere bs = Sphere(pos, 2.5);
@@ -266,8 +262,6 @@ namespace Test
 			}
 		}
 	}
-
-	void Dood::VisCleanup() { }
 
 	Mat4 Dood::GetViewMatrix()
 	{

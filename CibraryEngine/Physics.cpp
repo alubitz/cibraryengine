@@ -49,6 +49,9 @@ namespace CibraryEngine
 		MassInfo mass_info;
 		CollisionShape* shape;
 
+		bool can_move;
+		bool active;						// TODO: support deactivation and related stuffs
+
 		CollisionCallback* collision_callback;
 
 		Imp() : gravity(), mass_info(), shape() { }
@@ -60,6 +63,8 @@ namespace CibraryEngine
 			gravity(),
 			mass_info(mass_info),
 			shape(shape),
+			can_move(shape->CanMove()),
+			active(can_move),
 			collision_callback(NULL)
 		{
 		}
@@ -77,13 +82,16 @@ namespace CibraryEngine
 
 		void Update(TimingInfo time)
 		{
-			float timestep = time.elapsed;
+			if(active)
+			{
+				float timestep = time.elapsed;
 
-			pos += vel * timestep;
-			ori *= Quaternion::FromPYR(rot);
+				pos += vel * timestep;
+				ori *= Quaternion::FromPYR(rot);
 
-			vel += (force * timestep + force_impulse) / mass_info.mass;
-			rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);
+				vel += (force * timestep + force_impulse) / mass_info.mass;
+				rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);		// TODO: account for non-rotating objects
+			}
 
 			ResetForces();	
 		}
@@ -161,7 +169,7 @@ namespace CibraryEngine
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
-		// collision detection:
+		// TODO: collision detection:
 		
 		//		start storing broadphase info
 		//		rigid bodies: tell the broadphase what it needs to know about you

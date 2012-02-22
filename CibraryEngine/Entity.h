@@ -50,8 +50,6 @@ namespace CibraryEngine
 
 			/** Lets this entity tell the renderer how to draw it */
 			virtual void Vis(SceneRenderer* renderer);
-			/** Allows the entity to clean up anything it created in a call to Vis */
-			virtual void VisCleanup();
 
 			/** Called when the Entity is spawned into the GameState */
 			virtual void Spawned();

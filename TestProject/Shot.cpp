@@ -31,8 +31,6 @@ namespace Test
 
 	void Shot::InnerDispose()
 	{
-		VisCleanup();
-
 		Entity::InnerDispose();
 	}
 

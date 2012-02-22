@@ -37,8 +37,6 @@ namespace Test
 
 	void StaticLevelGeometry::InnerDispose()
 	{
-		VisCleanup();
-
 		Entity::InnerDispose();
 
 		if(rigid_body != NULL)
@@ -51,12 +49,9 @@ namespace Test
 
 	void StaticLevelGeometry::Vis(SceneRenderer* renderer)
 	{
-		VisCleanup();				// just in case
-
 		if(renderer->camera->CheckSphereVisibility(bs))
 			((TestGame*)game_state)->VisUberModel(renderer, model, 0, Mat4::FromPositionAndOrientation(pos, ori), NULL, &materials);
 	}
-	void StaticLevelGeometry::VisCleanup() { }
 
 	void StaticLevelGeometry::Spawned() 
 	{

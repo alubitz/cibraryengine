@@ -73,7 +73,6 @@ namespace Test
 			void SetPosition(Vec3 pos);
 
 			void Vis(SceneRenderer* renderer);
-			void VisCleanup();
 			Mat4 GetViewMatrix();
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
