@@ -175,6 +175,8 @@ namespace DestructibleTerrain
 
 		ProgramWindow* window;
 
+		SceneRenderer renderer;
+
 		VoxelMaterial* material;
 		VoxelTerrain* terrain;
 
@@ -193,6 +195,7 @@ namespace DestructibleTerrain
 
 		Imp(ProgramWindow* window) :
 			window(window),
+			renderer(NULL),
 			material(NULL), 
 			terrain(NULL), 
 			font(NULL),
@@ -280,7 +283,7 @@ namespace DestructibleTerrain
 
 			GLDEBUG();
 
-			SceneRenderer renderer(&camera);
+			renderer.camera = &camera;
 			
 			terrain->Vis(&renderer);
 

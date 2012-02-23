@@ -149,5 +149,8 @@ namespace CibraryEngine
 		opaque_items.clear();
 		translucent_items.clear();
 		sorted_translucent_items.clear();
+		
+		objects.clear();
+		lights.clear();
 	}
 }

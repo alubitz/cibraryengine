@@ -135,6 +135,8 @@ namespace Test
 		TextureCube* sky_texture;
 		ShaderProgram* sky_shader;
 
+		SceneRenderer renderer;
+
 		Sun* sun;
 
 		TextureCube* ambient_cubemap;
@@ -153,6 +155,7 @@ namespace Test
 			player_death_handler(),
 			player_damage_handler(),
 			alive(true),
+			renderer(NULL),
 			render_target(NULL),
 			shadow_render_target(NULL)
 		{
@@ -662,15 +665,15 @@ namespace Test
 		{
 			ClearDepthAndColor();
 
-			SceneRenderer renderer(&camera);
+			imp->renderer.camera = &camera;
 			physics_world->DebugDrawWorld();
 		}
 		else if(nav_editor)
 		{
 			ClearDepthAndColor();
 
-			SceneRenderer renderer(&camera);
-			imp->DrawNavEditorInfo(&renderer, nav_graph);
+			imp->renderer.camera = &camera;
+			imp->DrawNavEditorInfo(&imp->renderer, nav_graph);
 		}
 		else
 		{
@@ -698,16 +701,16 @@ namespace Test
 			imp->sun->view_matrix = camera.GetViewMatrix();
 			imp->DrawBackground(camera.GetViewMatrix().Transpose());
 
-			SceneRenderer renderer(&camera);
+			imp->renderer.camera = &camera;
 
 			for(list<Entity*>::iterator iter = entities.begin(); iter != entities.end(); ++iter)
-				(*iter)->Vis(&renderer);
-			renderer.lights.push_back(imp->sun);
+				(*iter)->Vis(&imp->renderer);
+			imp->renderer.lights.push_back(imp->sun);
 
-			renderer.BeginRender();
+			imp->renderer.BeginRender();
 
 			GLDEBUG();
-			renderer.RenderOpaque();
+			imp->renderer.RenderOpaque();
 			GLDEBUG();
 
 			glDepthMask(false);
@@ -723,7 +726,7 @@ namespace Test
 			glDisable(GL_CULL_FACE);
 			glDisable(GL_BLEND);
 
-			Mat4 inv_view_matrix = Mat4::Invert(renderer.camera->GetViewMatrix());
+			Mat4 inv_view_matrix = Mat4::Invert(imp->renderer.camera->GetViewMatrix());
 
 			ShaderProgram* deferred_ambient = imp->deferred_ambient;
 			RenderTarget* render_target = imp->render_target;
@@ -742,7 +745,7 @@ namespace Test
 
 #if ENABLE_SHADOWS
 			Mat4 shadow_matrix;				// passed by reference to RenderShadowTexture to give this a value
-			Texture2D* shadow_texture = RenderShadowTexture(imp->shadow_render_target, shadow_matrix, imp->sun, renderer);
+			Texture2D* shadow_texture = RenderShadowTexture(imp->shadow_render_target, shadow_matrix, imp->sun, imp->renderer);
 
 			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -777,14 +780,14 @@ namespace Test
 			glDepthMask(true);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			renderer.RenderDepth(false);
+			imp->renderer.RenderDepth(false);
 
 			GLDEBUG();
 			glColorMask(true, true, true, false);
-			renderer.RenderTranslucent();
+			imp->renderer.RenderTranslucent();
 			GLDEBUG();
 
-			renderer.Cleanup();
+			imp->renderer.Cleanup();
 		}
 
 		hud->Draw((float)width, (float)height);
