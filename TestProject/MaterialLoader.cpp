@@ -236,7 +236,7 @@ namespace Test
 
 
 
-	int MaterialLoader::LoadMaterial(string filename, Material** result_out)
+	unsigned int MaterialLoader::LoadMaterial(string filename, Material** result_out)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)

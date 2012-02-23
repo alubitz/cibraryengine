@@ -29,7 +29,7 @@ namespace Test
 			Material* Load(ContentMetadata& what);
 			void Unload(Material* content, ContentMetadata& meta);
 
-			int LoadMaterial(string filename, Material** result_out);
+			unsigned int LoadMaterial(string filename, Material** result_out);
 
 	};
 }

@@ -11,6 +11,8 @@ namespace CibraryEngine
 {
 	using boost::unordered_map;
 
+	vector<Bone*> bone_recycle_bin;
+
 	/*
 	 * Bone methods
 	 */
@@ -65,7 +67,7 @@ namespace CibraryEngine
 	void Skeleton::InnerDispose()
 	{
 		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
-			delete *iter;
+			bone_recycle_bin.push_back(*iter);
 
 		bones.clear();
 	}
@@ -74,7 +76,17 @@ namespace CibraryEngine
 
 	Bone* Skeleton::AddBone(unsigned int bone_name, Bone* parent, Quaternion ori, Vec3 attach)
 	{
-		Bone* bone = new Bone(bone_name, parent, ori, attach);
+		Bone* bone;
+		if(bone_recycle_bin.empty())
+			bone = new Bone(bone_name, parent, ori, attach);
+		else
+		{
+			bone = bone_recycle_bin[bone_recycle_bin.size() - 1];
+			bone_recycle_bin.pop_back();
+
+			*bone = Bone(bone_name, parent, ori, attach);
+		}
+
 		bones.push_back(bone);
 		return bone;
 	}

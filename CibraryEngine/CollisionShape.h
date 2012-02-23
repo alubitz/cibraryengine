@@ -3,7 +3,10 @@
 #include "StdAfx.h"
 #include "Disposable.h"
 
+#include "Vector.h"
 #include "Plane.h"
+
+#include "ContentTypeHandler.h"
 
 namespace CibraryEngine
 {
@@ -11,6 +14,8 @@ namespace CibraryEngine
 
 	struct MassInfo;
 	class RigidBody;
+
+	struct VertexBuffer;
 
 	enum ShapeType
 	{
@@ -30,8 +35,6 @@ namespace CibraryEngine
 		protected:
 
 			CollisionShape(ShapeType type);
-
-			virtual void InnerDispose();
 
 		public:
 
@@ -70,13 +73,15 @@ namespace CibraryEngine
 
 	class TriangleMeshShape : public CollisionShape
 	{
-		// TODO: implement this
-
 		public:
 
-			TriangleMeshShape();
+			vector<Vec3> vertices;
 
-			MassInfo ComputeMassInfo();
+			struct Tri { unsigned int indices[3]; };
+			vector<Tri> triangles;
+
+			TriangleMeshShape();
+			TriangleMeshShape(VertexBuffer* vbo);
 	};
 
 	class InfinitePlaneShape : public CollisionShape
@@ -86,7 +91,19 @@ namespace CibraryEngine
 			Plane plane;
 
 			InfinitePlaneShape(const Plane& plane);
+	};
 
-			MassInfo ComputeMassInfo();
+
+
+	/** Struct for CollisionShape I/O and Content load stuffs */
+	struct CollisionShapeLoader : public ContentTypeHandler<CollisionShape>
+	{
+		CollisionShapeLoader(ContentMan* man);
+
+		CollisionShape* Load(ContentMetadata& what);
+		void Unload(CollisionShape* content, ContentMetadata& what);
+
+		static unsigned int LoadCSH(CollisionShape*& shape, string filename);
+		static unsigned int SaveCSH(CollisionShape* shape, string filename);
 	};
 }
