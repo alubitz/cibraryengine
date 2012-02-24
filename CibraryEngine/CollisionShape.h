@@ -45,10 +45,6 @@ namespace CibraryEngine
 
 
 			bool CanMove();
-
-			// static i/o functions
-			static CollisionShape* ReadCollisionShape(istream& stream);
-			static void WriteCollisionShape(CollisionShape* shape, ostream& stream);
 	};
 
 	/** The simplest of all collision shapes */

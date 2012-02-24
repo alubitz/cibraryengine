@@ -10,22 +10,6 @@
 namespace CibraryEngine
 {
 	/*
-	 * CollisionShape I/O methods
-	 */
-	CollisionShape* CollisionShape::ReadCollisionShape(istream& stream)
-	{
-		unsigned int buffer_size = ReadUInt32(stream);
-		stream.ignore(buffer_size);
-
-		return NULL;
-	}
-
-	void CollisionShape::WriteCollisionShape(CollisionShape* shape, ostream& stream) { WriteUInt32(0, stream); }
-
-
-
-
-	/*
 	 * CollisionShape methods
 	 */
 	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
@@ -93,9 +77,9 @@ namespace CibraryEngine
 		{
 			if(unsigned int num_verts = vbo->GetNumVerts())
 			{
-				if(float* pos_ptr = vbo->GetFloatPointer("gl_Position"))
+				if(float* pos_ptr = vbo->GetFloatPointer("gl_Vertex"))
 				{
-					bool skip_fourth = vbo->GetAttribute("gl_Position").n_per_vertex == 4;
+					bool skip_fourth = vbo->GetAttribute("gl_Vertex").n_per_vertex == 4;
 
 					for(unsigned int i = 0; i < num_verts;)
 					{

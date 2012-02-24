@@ -391,7 +391,7 @@ namespace CibraryEngine
 
 		ShaderProgram::SetActiveProgram(shader_program);
 
-		GLchar const* strings[] = { "gl_Position" };
+		GLchar const* strings[] = { "gl_Vertex" };
 //		glTransformFeedbackVaryings(shader_program->program_id, 1, strings, GL_SEPARATE_ATTRIBS);
 
 		// we must re-link the program to force some things to update (i think?)

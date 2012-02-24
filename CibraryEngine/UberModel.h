@@ -91,7 +91,7 @@ namespace CibraryEngine
 			{
 				string bone_name;
 
-				CollisionShape* shape;
+				string collision_shape;
 				float mass;
 
 				// joint properties

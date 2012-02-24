@@ -55,11 +55,26 @@ namespace CibraryEngine
 	{
 		if(vbos == NULL)
 		{
-			vector<MaterialModelPair> temp_vbos;
+			unordered_map<unsigned int, MaterialModelPair> temp_vbos;
 
 			// TODO: Put point and edge VBOs into the list too, once support for those is added
 
 			unsigned int num_triangles = triangles.size();
+
+			// find out how many triangles there are going to be in each material's vbo
+			unordered_map<unsigned int, unsigned int> material_triangles;
+			for(unsigned int i = 0; i < num_triangles; ++i)
+			{
+				unsigned int mat = triangles[i].material;
+
+				unordered_map<unsigned int, unsigned int>::iterator found = material_triangles.find(mat);
+				if(found == material_triangles.end())
+					material_triangles[mat] = 1;
+				else
+					++found->second;
+			}
+
+			// now put the triangles in the appropriate vertex buffers
 			for(unsigned int i = 0; i < num_triangles; ++i)
 			{
 				Triangle& tri = triangles[i];
@@ -67,18 +82,10 @@ namespace CibraryEngine
 
 				VertexBuffer* vbo = NULL;
 
-				// see if there is a VBO with this material already...
-				for(vector<MaterialModelPair>::iterator iter = temp_vbos.begin(); iter != temp_vbos.end(); ++iter)
-				{
-					if(iter->material_index == mat)
-					{
-						vbo = iter->vbo;
-						break;
-					}
-				}
+				unordered_map<unsigned int, MaterialModelPair>::iterator found = temp_vbos.find(mat);
 
 				// didn't find an existing VBO with this material?
-				if(vbo == NULL)
+				if(found == temp_vbos.end())
 				{
 					vbo = new VertexBuffer(Triangles);
 					vbo->AddAttribute("gl_Vertex", Float, 3);
@@ -89,15 +96,19 @@ namespace CibraryEngine
 					vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
 					vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
+					vbo->SetAllocatedSize(material_triangles[mat] * 3);
+
 					MaterialModelPair mmp;
 					mmp.vbo = vbo;
 					mmp.material_index = mat;
 
-					temp_vbos.push_back(mmp);
+					temp_vbos[mat] = mmp;
 				}
+				else
+					vbo = found->second.vbo;
 
 				// found or created a VBO; now lets add our triangle to it!
-				if(bone_influences.size() > 0)
+				if(!bone_influences.empty())
 				{
 					SkinVInfo a = SkinVInfo(vertices[tri.a.v], texcoords[tri.a.t], normals[tri.a.n], bone_influences[tri.a.v].indices, bone_influences[tri.a.v].weights);
 					SkinVInfo b = SkinVInfo(vertices[tri.b.v], texcoords[tri.b.t], normals[tri.b.n], bone_influences[tri.b.v].indices, bone_influences[tri.b.v].weights);
@@ -118,7 +129,10 @@ namespace CibraryEngine
 				}
 			}
 
-			vbos = new vector<MaterialModelPair>(temp_vbos);
+			// now put those vbos into the vector
+			vbos = new vector<MaterialModelPair>();
+			for(unordered_map<unsigned int, MaterialModelPair>::iterator iter = temp_vbos.begin(); iter != temp_vbos.end(); ++iter)
+				vbos->push_back(iter->second);
 		}
 
 		return vbos;
@@ -147,7 +161,7 @@ namespace CibraryEngine
 	 */
 	UberModel::BonePhysics::BonePhysics() :
 		bone_name(),
-		shape(NULL),
+		collision_shape(""),
 		pos(),
 		ori(Quaternion::Identity()),
 		span(1.0, 1.0, 0.75)
@@ -713,7 +727,10 @@ namespace CibraryEngine
 				for(unsigned int j = 0; j < bone_name_len; ++j)
 					phys.bone_name += ReadByte(ss);
 
-				phys.shape = CollisionShape::ReadCollisionShape(ss);
+				// TODO: update the existing ubermodels, then read name of collision shape model
+				unsigned int buffer_size = ReadUInt32(ss);
+				ss.ignore(buffer_size);
+				phys.collision_shape = "";
 
 				// deserializing everything that's left
 				phys.mass = ReadSingle(ss);
@@ -930,7 +947,7 @@ namespace CibraryEngine
 			{
 				UberModel::BonePhysics& phys = model->bone_physics[i];
 				WriteString4(phys.bone_name, phys_ss);
-				CollisionShape::WriteCollisionShape(phys.shape, phys_ss);
+				WriteString4(phys.collision_shape, phys_ss);
 				WriteSingle(phys.mass, phys_ss);
 				WriteVec3(phys.pos, phys_ss);
 				WriteQuaternion(phys.ori, phys_ss);
