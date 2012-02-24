@@ -56,5 +56,5 @@ namespace Test
 	// For creating UberModels
 	UberModel* AutoSkinUberModel(ContentMan* content, string vtn_name, string material, vector<BoneEntry>& bone_entries);
 	void SetUberModelSkeleton(UberModel* uber, vector<BoneEntry>& bone_entries);
-	void SetUberModelBonePhysics(UberModel* uber, vector<BoneEntry>& bone_entries);
+	//void SetUberModelBonePhysics(UberModel* uber, vector<BoneEntry>& bone_entries);
 }

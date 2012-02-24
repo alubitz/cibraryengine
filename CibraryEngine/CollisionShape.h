@@ -88,18 +88,4 @@ namespace CibraryEngine
 
 			InfinitePlaneShape(const Plane& plane);
 	};
-
-
-
-	/** Struct for CollisionShape I/O and Content load stuffs */
-	struct CollisionShapeLoader : public ContentTypeHandler<CollisionShape>
-	{
-		CollisionShapeLoader(ContentMan* man);
-
-		CollisionShape* Load(ContentMetadata& what);
-		void Unload(CollisionShape* content, ContentMetadata& what);
-
-		static unsigned int LoadCSH(CollisionShape*& shape, string filename);
-		static unsigned int SaveCSH(CollisionShape* shape, string filename);
-	};
 }

@@ -113,45 +113,5 @@ namespace CibraryEngine
 	/*
 	 * InfinitePlaneShape method
 	 */
-	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }
-
-
-
-
-	/*
-	 * CollisionShapeLoader methods
-	 */
-	CollisionShapeLoader::CollisionShapeLoader(ContentMan* man) : ContentTypeHandler<CollisionShape>(man) { }
-
-	CollisionShape* CollisionShapeLoader::Load(ContentMetadata& what)
-	{
-		string filename = "Files/Physics/" + what.name + ".csh";
-
-		CollisionShape* shape = NULL;
-		if(unsigned int csh_result = CollisionShapeLoader::LoadCSH(shape, filename))
-		{
-			stringstream csh_msg;
-			csh_msg << "LoadCSH (" << what.name << ") returned with status " << csh_result << "!" << endl;
-			Debug(csh_msg.str());
-		}
-
-		return shape;
-	}
-	void CollisionShapeLoader::Unload(CollisionShape* content, ContentMetadata& what)
-	{
-		content->Dispose();
-		delete content;
-	}
-
-	unsigned int CollisionShapeLoader::LoadCSH(CollisionShape*& shape, string filename)
-	{
-		// TODO: implement this
-		return 1;
-	}
-
-	unsigned int CollisionShapeLoader::SaveCSH(CollisionShape* shape, string filename)
-	{
-		// TODO: implement this
-		return 1;
-	}
+	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }	
 }

@@ -44,6 +44,7 @@ namespace Test
 			//rigid_body->DisposePreservingCollisionShape();
 			rigid_body->Dispose();
 			delete rigid_body;
+			rigid_body = NULL;
 		}
 	}
 
@@ -56,7 +57,8 @@ namespace Test
 	void StaticLevelGeometry::Spawned() 
 	{
 		physics = game_state->physics_world;
-		if(model->bone_physics.size() > 0)
+		//if(model->bone_physics.size() > 0)
+		if(false)
 		{
 			CollisionShape* shape = new TriangleMeshShape();//model->bone_physics[0].shape;
 
@@ -69,7 +71,7 @@ namespace Test
 
 	void StaticLevelGeometry::DeSpawned()
 	{
-		if(model->bone_physics.size() > 0)
+		if(rigid_body != NULL)
 			physics->RemoveRigidBody(rigid_body);
 	}
 

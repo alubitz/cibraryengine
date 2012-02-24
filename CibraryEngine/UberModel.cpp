@@ -156,20 +156,6 @@ namespace CibraryEngine
 
 
 
-	/*
-	 * UberModel::BonePhysics methods
-	 */
-	UberModel::BonePhysics::BonePhysics() :
-		bone_name(),
-		collision_shape(""),
-		pos(),
-		ori(Quaternion::Identity()),
-		span(1.0, 1.0, 0.75)
-	{
-	}
-
-
-
 
 	/*
 	 * UberModel methods
@@ -706,52 +692,7 @@ namespace CibraryEngine
 		}
 	};
 
-	struct BonePhysicsHandler : public ChunkTypeFunction
-	{
-		UberModel* model;
-		BonePhysicsHandler(UberModel* model) : model(model) { }
-
-		void HandleChunk(BinaryChunk& chunk)
-		{
-			istringstream ss(chunk.data);
-
-			unsigned int num_phys = ReadUInt32(ss);
-			model->bone_physics.resize(num_phys);
-
-			for(unsigned int i = 0; i < num_phys; ++i)
-			{
-				UberModel::BonePhysics phys;
-
-				unsigned int bone_name_len = ReadUInt32(ss);
-				phys.bone_name = "";
-				for(unsigned int j = 0; j < bone_name_len; ++j)
-					phys.bone_name += ReadByte(ss);
-
-				// TODO: update the existing ubermodels, then read name of collision shape model
-				unsigned int buffer_size = ReadUInt32(ss);
-				ss.ignore(buffer_size);
-				phys.collision_shape = "";
-
-				// deserializing everything that's left
-				phys.mass = ReadSingle(ss);
-
-				phys.pos.x = ReadSingle(ss);
-				phys.pos.y = ReadSingle(ss);
-				phys.pos.z = ReadSingle(ss);
-
-				phys.ori.w = ReadSingle(ss);
-				phys.ori.x = ReadSingle(ss);
-				phys.ori.y = ReadSingle(ss);
-				phys.ori.z = ReadSingle(ss);
-
-				phys.span.x = ReadSingle(ss);
-				phys.span.y = ReadSingle(ss);
-				phys.span.z = ReadSingle(ss);
-
-				model->bone_physics[i] = phys;
-			}
-		}
-	};
+	struct BonePhysicsHandler : public ChunkTypeFunction { void HandleChunk(BinaryChunk& chunk) { Debug("Found deprecated chunk UberModel::BonePhysics\n"); } };
 
 	struct SpcChunkHandler : public ChunkTypeFunction
 	{
@@ -868,7 +809,7 @@ namespace CibraryEngine
 		LODSChunkHandler lodchunk(model);
 		MatChunkHandler matchunk(model);
 		BoneChunkHandler bonechunk(model);
-		BonePhysicsHandler bphyschunk(model);
+		BonePhysicsHandler bphyschunk;							// deprecated
 		SpcChunkHandler spcchunk(model);
 
 		indexer.SetDefaultHandler(&badchunk);
@@ -935,26 +876,6 @@ namespace CibraryEngine
 			}
 			bones_chunk.data = bone_ss.str();
 			bones_chunk.Write(ss);
-		}
-
-		unsigned int phys_count = model->bone_physics.size();
-		if(phys_count > 0)
-		{
-			BinaryChunk phys_chunk("BPHYS___");
-			stringstream phys_ss;
-			WriteUInt32(phys_count, phys_ss);
-			for(unsigned int i = 0; i < phys_count; ++i)
-			{
-				UberModel::BonePhysics& phys = model->bone_physics[i];
-				WriteString4(phys.bone_name, phys_ss);
-				WriteString4(phys.collision_shape, phys_ss);
-				WriteSingle(phys.mass, phys_ss);
-				WriteVec3(phys.pos, phys_ss);
-				WriteQuaternion(phys.ori, phys_ss);
-				WriteVec3(phys.span, phys_ss);
-			}
-			phys_chunk.data = phys_ss.str();
-			phys_chunk.Write(ss);
 		}
 
 		unsigned int special_count = model->specials.size();

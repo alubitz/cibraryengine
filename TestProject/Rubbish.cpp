@@ -46,7 +46,9 @@ namespace Test
 	void Rubbish::Spawned()
 	{
 		physics = game_state->physics_world;
-		if(model->bone_physics.size() > 0)
+		
+		//if(model->bone_physics.size() > 0)
+		if(false)
 		{
 			DEBUG();
 			//btCollisionShape* shape = model->bone_physics[0].shape;
@@ -73,7 +75,7 @@ namespace Test
 
 	void Rubbish::DeSpawned()
 	{
-		if(model->bone_physics.size() > 0)
+		if(rigid_body != NULL)
 			physics->RemoveRigidBody(rigid_body);
 	}
 
@@ -115,5 +117,4 @@ namespace Test
 
 		xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
 	}
-
 }

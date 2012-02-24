@@ -351,7 +351,7 @@ namespace Test
 
 			SkinnedModel* terrain_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
 			UberModel* terrain_model = UberModelLoader::CopySkinnedModel(terrain_skinny);
-			terrain_model->bone_physics.push_back(UberModel::BonePhysics());
+//			terrain_model->bone_physics.push_back(UberModel::BonePhysics());
 //			terrain_model->bone_physics[0].shape = ShapeFromSkinnedModel(terrain_skinny);
 
 			UberModelLoader::SaveZZZ(terrain_model, "Files/Models/nbridge.zzz");
@@ -449,7 +449,7 @@ namespace Test
 			UberModel* flea_model = AutoSkinUberModel(content, "flea", "flea", bone_entries);
 
 			SetUberModelSkeleton(flea_model, bone_entries);
-			SetUberModelBonePhysics(flea_model, bone_entries);
+//			SetUberModelBonePhysics(flea_model, bone_entries);
 
 			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
 

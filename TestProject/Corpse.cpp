@@ -6,6 +6,9 @@
 
 namespace Test
 {
+
+#if 0
+
 	// Each bone is a separate shootable object (and also an Entity for technical reasons, but it's never spawned)
 	struct CorpseBoneShootable : Entity, Shootable
 	{
@@ -339,4 +342,17 @@ namespace Test
 	void Corpse::Update(TimingInfo time) { imp->Update(time); }
 	void Corpse::Vis(SceneRenderer* renderer) { imp->Vis(renderer); }
 	Vec3 Corpse::GetPosition() { return imp->origin; }
+
+#else
+
+	Corpse::Corpse(GameState* gs, Dood* dood, float ttl) : Entity(gs) { }
+	void Corpse::InnerDispose() { Entity::InnerDispose(); }
+	void Corpse::Spawned() { }
+	void Corpse::DeSpawned() { }
+	void Corpse::Update(TimingInfo time) { }
+	void Corpse::Vis(SceneRenderer* renderer) { }
+	Vec3 Corpse::GetPosition() { return Vec3(); }
+
+#endif
+
 }

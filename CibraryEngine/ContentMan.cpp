@@ -15,7 +15,7 @@
 #include "TextureCube.h"
 #include "SoundBuffer.h"
 #include "UberModel.h"
-#include "CollisionShape.h"
+#include "ModelPhysics.h"
 
 namespace CibraryEngine
 {
@@ -33,6 +33,6 @@ namespace CibraryEngine
 		CreateCache<TextureCube>(new TextureCubeLoader(this));
 		CreateCache<SoundBuffer>(new SoundBufferLoader(this));
 		CreateCache<UberModel>(new UberModelLoader(this));
-		CreateCache<CollisionShape>(new CollisionShapeLoader(this));
+		CreateCache<ModelPhysics>(new ModelPhysicsLoader(this));
 	}
 }

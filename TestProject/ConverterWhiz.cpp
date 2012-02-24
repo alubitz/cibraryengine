@@ -52,6 +52,7 @@ namespace Test
 		}
 	}
 
+#if 0
 	void SetUberModelBonePhysics(UberModel* uber, vector<BoneEntry>& bone_entries)
 	{
 		unsigned int num_bones = bone_entries.size();
@@ -105,4 +106,6 @@ namespace Test
 			uber->bone_physics.push_back(phys);
 		}
 	}
+#endif
+
 }

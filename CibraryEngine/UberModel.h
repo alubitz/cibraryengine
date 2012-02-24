@@ -87,21 +87,6 @@ namespace CibraryEngine
 				string info;
 			};
 
-			struct BonePhysics
-			{
-				string bone_name;
-
-				string collision_shape;
-				float mass;
-
-				// joint properties
-				Vec3 pos;
-				Quaternion ori;
-				Vec3 span;
-
-				BonePhysics();
-			};
-
 
 
 
@@ -140,7 +125,6 @@ namespace CibraryEngine
 			vector<LOD*> lods;
 			vector<string> materials;
 			vector<Bone> bones;
-			vector<BonePhysics> bone_physics;
 			vector<Special> specials;
 
 			Sphere bounding_sphere;
