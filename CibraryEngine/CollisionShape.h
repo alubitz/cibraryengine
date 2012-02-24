@@ -19,10 +19,10 @@ namespace CibraryEngine
 
 	enum ShapeType
 	{
-		ST_Ray,
-		ST_Sphere,
-		ST_TriangleMesh,
-		ST_InfinitePlane
+		ST_Ray = 1,
+		ST_Sphere = 2,
+		ST_TriangleMesh = 3,
+		ST_InfinitePlane = 4
 	};
 
 	/** A shape usable for collision detection and/or response */
@@ -43,8 +43,16 @@ namespace CibraryEngine
 
 			ShapeType GetShapeType();
 
-
 			bool CanMove();
+
+			/** Reads a collision shape of the appropriate type from an input stream */
+			virtual unsigned int Read(istream& stream);
+			/** Write a collision shape to an output stream */
+			virtual void Write(ostream& stream);
+
+			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
+
+			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);
 	};
 
 	/** The simplest of all collision shapes */
@@ -62,9 +70,12 @@ namespace CibraryEngine
 
 			float radius;
 
+			SphereShape();
 			SphereShape(float radius);
 
 			MassInfo ComputeMassInfo();
+			void Write(ostream& stream);
+			unsigned int Read(istream& stream);
 	};
 
 	class TriangleMeshShape : public CollisionShape
@@ -78,6 +89,9 @@ namespace CibraryEngine
 
 			TriangleMeshShape();
 			TriangleMeshShape(VertexBuffer* vbo);
+
+			void Write(ostream& stream);
+			unsigned int Read(istream& stream);
 	};
 
 	class InfinitePlaneShape : public CollisionShape
@@ -86,6 +100,10 @@ namespace CibraryEngine
 
 			Plane plane;
 
+			InfinitePlaneShape();
 			InfinitePlaneShape(const Plane& plane);
+
+			void Write(ostream& stream);
+			unsigned int Read(istream& stream);
 	};
 }

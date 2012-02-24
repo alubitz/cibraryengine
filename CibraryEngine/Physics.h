@@ -152,6 +152,10 @@ namespace CibraryEngine
 		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
 
 		static MassInfo FromCollisionShape(CollisionShape* shape, float mass);
+
+		// serialization and deserialization functions
+		static MassInfo ReadMassInfo(istream& stream);
+		void Write(ostream& stream);
 	};
 
 	class CollisionCallback

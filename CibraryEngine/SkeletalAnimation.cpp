@@ -114,7 +114,7 @@ namespace CibraryEngine
 		return matrices;
 	}
 
-	int Skeleton::ReadSkeleton(ifstream& file, Skeleton** skeleton)
+	int Skeleton::ReadSkeleton(istream& file, Skeleton** skeleton)
 	{
 		Skeleton* temp = new Skeleton();
 
@@ -129,7 +129,6 @@ namespace CibraryEngine
 			if(name_len == 0)
 			{
 				delete temp;
-				file.close();
 				return 2;
 			}
 
@@ -156,7 +155,7 @@ namespace CibraryEngine
 		return 0;
 	}
 
-	int Skeleton::WriteSkeleton(ofstream& file, Skeleton* skeleton)
+	int Skeleton::WriteSkeleton(ostream& file, Skeleton* skeleton)
 	{
 		WriteUInt32(skeleton->bones.size(), file);
 		for(unsigned int i = 0; i < skeleton->bones.size(); ++i)

@@ -797,8 +797,6 @@ namespace CibraryEngine
 		if(whole.GetName() != "UMODEL__")
 			return 2;
 
-		istringstream ss(whole.data);
-
 		ChunkTypeIndexer indexer;
 
 		model = new UberModel();

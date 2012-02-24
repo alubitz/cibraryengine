@@ -304,4 +304,26 @@ namespace CibraryEngine
 	}
 
 	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass) { return shape->ComputeMassInfo() * mass; }
+
+	MassInfo MassInfo::ReadMassInfo(istream& stream)
+	{
+		MassInfo result;
+
+		result.mass = ReadSingle(stream);
+		result.com = ReadVec3(stream);
+
+		for(char i = 0; i < 9; ++i)
+			result.moi[i] = ReadSingle(stream);
+
+		return result;
+	}
+
+	void MassInfo::Write(ostream& stream)
+	{
+		WriteSingle(mass, stream);
+		WriteVec3(com, stream);
+
+		for(char i = 0; i < 9; ++i)
+			WriteSingle(moi[i], stream);
+	}
 }

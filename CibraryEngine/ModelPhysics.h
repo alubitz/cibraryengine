@@ -23,13 +23,16 @@ namespace CibraryEngine
 
 			struct BonePhysics
 			{
-				unsigned int bone_name;
+				unsigned int bone_name;			// uh... how should this work?
 
 				CollisionShape* collision_shape;
 				MassInfo mass_info;
 			};
 
-			struct JointPhysics { };
+			struct JointPhysics
+			{
+				// TODO: add some members to this struct
+			};
 
 			Skeleton* skeleton;
 

@@ -9,6 +9,7 @@
 
 #include "Physics.h"
 #include "CollisionShape.h"
+#include "ModelPhysics.h"
 
 #include "IKSolver.h"
 #include "IKPose.h"

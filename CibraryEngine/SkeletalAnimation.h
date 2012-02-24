@@ -78,9 +78,9 @@ namespace CibraryEngine
 			Bone* GetNamedBone(unsigned int bone_name);
 
 			/** Reads a skeleton from a stream, and returns 0 if ok or an int error code */
-			static int ReadSkeleton(ifstream& file, Skeleton** skeleton);
+			static int ReadSkeleton(istream& file, Skeleton** skeleton);
 			/** Writes a skeleton from a stream, and returns 0 if ok or an int error code */
-			static int WriteSkeleton(ofstream& file, Skeleton* skeleton);
+			static int WriteSkeleton(ostream& file, Skeleton* skeleton);
 
 			vector<Mat4> GetBoneMatrices();
 	};

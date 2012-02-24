@@ -33,6 +33,61 @@ namespace CibraryEngine
 		}
 	}
 
+	unsigned int CollisionShape::Read(istream& stream) { return 1; }
+	void CollisionShape::Write(ostream& stream) { }
+
+	unsigned int CollisionShape::ReadCollisionShape(CollisionShape*& shape, istream& stream)
+	{
+		string data = ReadString4(stream);
+		istringstream ss(data);
+
+		ShapeType type = (ShapeType)ReadUInt16(ss);
+
+		CollisionShape* temp = NULL;
+		switch(type)
+		{
+			case ST_Ray:
+				temp = new RayShape();
+				break;
+			case ST_Sphere:
+				temp = new SphereShape();
+				break;
+			case ST_TriangleMesh:
+				temp = new TriangleMeshShape();
+				break;
+			case ST_InfinitePlane:
+				temp = new InfinitePlaneShape();
+				break;
+			default:
+				return 1;				// error code 1 = invalid shape type
+		}
+
+		if(unsigned int error = temp->Read(ss))
+		{
+			temp->Dispose();
+			delete temp;
+
+			return error + 1;			// error code > 1 = shape load error
+		}
+		else
+		{
+			shape = temp;
+			return 0;					// return 0 = all clear
+		}
+	}
+
+	unsigned int CollisionShape::WriteCollisionShape(CollisionShape* shape, ostream& stream)
+	{
+		stringstream ss;
+
+		WriteUInt16((unsigned short)shape->type, ss);
+		shape->Write(ss);
+
+		WriteString4(ss.str(), stream);
+
+		return stream.fail() ? 1 : 0;
+	}
+
 
 
 
@@ -47,7 +102,8 @@ namespace CibraryEngine
 	/*
 	 * SphereShape methods
 	 */
-	SphereShape::SphereShape(float radius) : CollisionShape(ST_Sphere), radius() { }
+	SphereShape::SphereShape() : CollisionShape(ST_Sphere) { }
+	SphereShape::SphereShape(float radius) : CollisionShape(ST_Sphere), radius(radius) { }
 
 	MassInfo SphereShape::ComputeMassInfo()
 	{
@@ -62,6 +118,9 @@ namespace CibraryEngine
 		
 		return result;
 	}
+
+	void SphereShape::Write(ostream& stream) { WriteSingle(radius, stream); }
+	unsigned int SphereShape::Read(istream& stream) { radius = ReadSingle(stream); return 0; }
 
 
 
@@ -107,11 +166,63 @@ namespace CibraryEngine
 		}
 	}
 
+	void TriangleMeshShape::Write(ostream& stream)
+	{
+		WriteUInt32(vertices.size(), stream);
+		for(vector<Vec3>::iterator iter = vertices.begin(); iter != vertices.end(); ++iter)
+			WriteVec3(*iter, stream);
+
+		WriteUInt32(triangles.size(), stream);
+		for(vector<Tri>::iterator iter = triangles.begin(); iter != triangles.end(); ++iter)
+		{
+			Tri& tri = *iter;
+			WriteUInt32(tri.indices[0], stream);
+			WriteUInt32(tri.indices[1], stream);
+			WriteUInt32(tri.indices[2], stream);
+		}
+	}
+
+	unsigned int TriangleMeshShape::Read(istream& stream)
+	{
+		unsigned int num_vertices = ReadUInt32(stream);
+		vertices.resize(num_vertices);
+		for(unsigned int i = 0; i < num_vertices; ++i)
+			vertices.push_back(ReadVec3(stream));
+
+		unsigned int num_triangles = ReadUInt32(stream);
+		triangles.resize(num_triangles);
+		for(unsigned int i = 0; i < num_triangles; ++i)
+		{
+			Tri tri;
+			tri.indices[0] = ReadUInt32(stream);
+			tri.indices[1] = ReadUInt32(stream);
+			tri.indices[2] = ReadUInt32(stream);
+			triangles.push_back(tri);
+		}
+
+		return stream.fail() ? 1 : 0;
+	}
+
 
 
 
 	/*
 	 * InfinitePlaneShape method
 	 */
-	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }	
+	InfinitePlaneShape::InfinitePlaneShape() : CollisionShape(ST_InfinitePlane) { }
+	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }
+
+	void InfinitePlaneShape::Write(ostream& stream)
+	{
+		WriteVec3(plane.normal, stream);
+		WriteSingle(plane.offset, stream);
+	}
+
+	unsigned int InfinitePlaneShape::Read(istream& stream)
+	{
+		plane.normal = ReadVec3(stream);
+		plane.offset = ReadSingle(stream);
+
+		return 0;
+	}
 }
