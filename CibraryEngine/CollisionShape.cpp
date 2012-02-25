@@ -7,12 +7,22 @@
 #include "VertexBuffer.h"
 #include "Content.h"
 
+#include "SceneRenderer.h"
+#include "RenderNode.h"
+#include "DebugDrawMaterial.h"
+
 namespace CibraryEngine
 {
 	/*
 	 * CollisionShape methods
 	 */
 	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
+
+	Material* CollisionShape::GetDebugDrawMaterial()
+	{
+		static DebugDrawMaterial* mat = new DebugDrawMaterial();
+		return mat;
+	}
 
 	MassInfo CollisionShape::ComputeMassInfo() { return MassInfo(); }
 
@@ -32,6 +42,8 @@ namespace CibraryEngine
 				return false;
 		}
 	}
+
+	void CollisionShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { }
 
 	unsigned int CollisionShape::Read(istream& stream) { return 1; }
 	void CollisionShape::Write(ostream& stream) { }
@@ -92,9 +104,14 @@ namespace CibraryEngine
 
 
 	/*
-	 * RayShape method
+	 * RayShape methods
 	 */
 	RayShape::RayShape() : CollisionShape(ST_Ray) { }
+
+	void RayShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	{
+		renderer->objects.push_back(RenderNode(GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos, pos), 1.0f));
+	}
 
 
 
@@ -117,6 +134,20 @@ namespace CibraryEngine
 		result.moi[0] = result.moi[4] = result.moi[8] = moi;
 		
 		return result;
+	}
+
+	void SphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	{
+		Mat3 rm = Quaternion(ori).ToMat3();
+		Vec3 x = Vec3(rm[0], rm[1], rm[2]) * radius;
+		Vec3 y = Vec3(rm[3], rm[4], rm[5]) * radius;
+		Vec3 z = Vec3(rm[6], rm[7], rm[8]) * radius;
+
+		static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1);
+
+		renderer->objects.push_back(RenderNode(GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - x, pos + x, r), 1.0f));
+		renderer->objects.push_back(RenderNode(GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y, g), 1.0f));
+		renderer->objects.push_back(RenderNode(GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z, b), 1.0f));
 	}
 
 	void SphereShape::Write(ostream& stream) { WriteSingle(radius, stream); }
@@ -166,6 +197,49 @@ namespace CibraryEngine
 		}
 	}
 
+	void TriangleMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	{
+		Mat3 rm(Quaternion(ori).ToMat3());
+
+		vector<Vec3> transformed;
+		for(vector<Vec3>::iterator iter = vertices.begin(); iter != vertices.end(); ++iter)
+			transformed.push_back(rm * *iter + pos);
+
+		Material* mat = GetDebugDrawMaterial();
+
+		for(vector<Tri>::iterator iter = triangles.begin(); iter != triangles.end(); ++iter)
+		{
+			Vec3& a = transformed[iter->indices[0]];
+			Vec3& b = transformed[iter->indices[1]];
+			Vec3& c = transformed[iter->indices[2]];
+
+			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(a, b), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(b, c), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(c, a), 1.0f));
+		}
+	}
+
+	unsigned int TriangleMeshShape::Read(istream& stream)
+	{
+		unsigned int num_vertices = ReadUInt32(stream);
+		vertices.resize(num_vertices);
+		for(unsigned int i = 0; i < num_vertices; ++i)
+			vertices[i] = ReadVec3(stream);
+
+		unsigned int num_triangles = ReadUInt32(stream);
+		triangles.resize(num_triangles);
+		for(unsigned int i = 0; i < num_triangles; ++i)
+		{
+			Tri tri;
+			tri.indices[0] = ReadUInt32(stream);
+			tri.indices[1] = ReadUInt32(stream);
+			tri.indices[2] = ReadUInt32(stream);
+			triangles[i] = tri;
+		}
+
+		return stream.fail() ? 1 : 0;
+	}
+
 	void TriangleMeshShape::Write(ostream& stream)
 	{
 		WriteUInt32(vertices.size(), stream);
@@ -182,32 +256,11 @@ namespace CibraryEngine
 		}
 	}
 
-	unsigned int TriangleMeshShape::Read(istream& stream)
-	{
-		unsigned int num_vertices = ReadUInt32(stream);
-		vertices.resize(num_vertices);
-		for(unsigned int i = 0; i < num_vertices; ++i)
-			vertices.push_back(ReadVec3(stream));
-
-		unsigned int num_triangles = ReadUInt32(stream);
-		triangles.resize(num_triangles);
-		for(unsigned int i = 0; i < num_triangles; ++i)
-		{
-			Tri tri;
-			tri.indices[0] = ReadUInt32(stream);
-			tri.indices[1] = ReadUInt32(stream);
-			tri.indices[2] = ReadUInt32(stream);
-			triangles.push_back(tri);
-		}
-
-		return stream.fail() ? 1 : 0;
-	}
-
 
 
 
 	/*
-	 * InfinitePlaneShape method
+	 * InfinitePlaneShape methods
 	 */
 	InfinitePlaneShape::InfinitePlaneShape() : CollisionShape(ST_InfinitePlane) { }
 	InfinitePlaneShape::InfinitePlaneShape(const Plane& plane) : CollisionShape(ST_InfinitePlane), plane(plane) { }

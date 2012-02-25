@@ -23,10 +23,11 @@ namespace Test
 
 			Sphere bs;
 
+			CollisionShape* collision_shape;
 			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
-			StaticLevelGeometry(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori);
+			StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, Vec3 pos, Quaternion ori);
 
 			void Vis(SceneRenderer* renderer);
 

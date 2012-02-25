@@ -12,10 +12,14 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	struct Quaternion;
+
 	struct MassInfo;
 	class RigidBody;
 
 	struct VertexBuffer;
+	class SceneRenderer;
+	class Material;
 
 	enum ShapeType
 	{
@@ -36,6 +40,8 @@ namespace CibraryEngine
 
 			CollisionShape(ShapeType type);
 
+			static Material* GetDebugDrawMaterial();
+
 		public:
 
 			/** Compute the mass info for this shape, assuming a density of 1 */
@@ -45,13 +51,14 @@ namespace CibraryEngine
 
 			bool CanMove();
 
+			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+
 			/** Reads a collision shape of the appropriate type from an input stream */
 			virtual unsigned int Read(istream& stream);
 			/** Write a collision shape to an output stream */
 			virtual void Write(ostream& stream);
 
 			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
-
 			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);
 	};
 
@@ -61,6 +68,8 @@ namespace CibraryEngine
 		public:
 
 			RayShape();
+
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 	};
 
 	/** Slightly less simple collision shape */
@@ -74,6 +83,9 @@ namespace CibraryEngine
 			SphereShape(float radius);
 
 			MassInfo ComputeMassInfo();
+
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+
 			void Write(ostream& stream);
 			unsigned int Read(istream& stream);
 	};
@@ -92,6 +104,8 @@ namespace CibraryEngine
 
 			void Write(ostream& stream);
 			unsigned int Read(istream& stream);
+
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 	};
 
 	class InfinitePlaneShape : public CollisionShape

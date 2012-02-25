@@ -17,6 +17,8 @@ namespace CibraryEngine
 	struct Mat4;
 	struct Quaternion;
 
+	class SceneRenderer;
+
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
 	{
@@ -46,7 +48,7 @@ namespace CibraryEngine
 			/** Steps the simulation */
 			void Update(TimingInfo time);
 
-			void DebugDrawWorld();
+			void DebugDrawWorld(SceneRenderer* renderer);
 
 			Vec3 GetGravity();
 			void SetGravity(const Vec3& gravity);
@@ -104,6 +106,8 @@ namespace CibraryEngine
 			void ResetForces();
 
 			void Update(TimingInfo time);			// to be called by the PhysicsWorld
+
+			void DebugDraw(SceneRenderer* renderer);
 
 			void SetCollisionCallback(CollisionCallback* callback);
 			CollisionCallback* GetCollisionCallback();

@@ -11,16 +11,16 @@ namespace Test
 	/*
 	 * StaticLevelGeometry methods
 	 */
-	StaticLevelGeometry::StaticLevelGeometry(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori) :
+	StaticLevelGeometry::StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, Vec3 pos, Quaternion ori) :
 		Entity(gs),
 		model(model),
 		materials(),
 		pos(pos),
 		ori(ori),
+		collision_shape(collision_shape),
 		rigid_body(NULL),
 		physics(NULL)
 	{
-
 		bs = model->GetBoundingSphere();
 		bs.center += pos;
 
@@ -41,8 +41,7 @@ namespace Test
 
 		if(rigid_body != NULL)
 		{
-			//rigid_body->DisposePreservingCollisionShape();
-			rigid_body->Dispose();
+			rigid_body->DisposePreservingCollisionShape();
 			delete rigid_body;
 			rigid_body = NULL;
 		}
@@ -57,12 +56,9 @@ namespace Test
 	void StaticLevelGeometry::Spawned() 
 	{
 		physics = game_state->physics_world;
-		//if(model->bone_physics.size() > 0)
-		if(false)
+		if(collision_shape != NULL)
 		{
-			CollisionShape* shape = new TriangleMeshShape();//model->bone_physics[0].shape;
-
-			RigidBody* rigid_body = new RigidBody(shape, MassInfo(), pos, ori);
+			RigidBody* rigid_body = new RigidBody(collision_shape, MassInfo(), pos, ori);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;
@@ -126,7 +122,15 @@ namespace Test
 		{
 			ContentMan* content = game->content;
 
-			StaticLevelGeometry* geom = new StaticLevelGeometry(game, content->GetCache<UberModel>()->Load(model_name), pos, ori);
+			UberModel* uber = content->GetCache<UberModel>()->Load(model_name);
+
+			CollisionShape* shape = NULL;
+
+			ModelPhysics* phys = content->GetCache<ModelPhysics>()->Load(model_name);
+			if(phys != NULL && !phys->bones.empty())
+				shape = phys->bones[0].collision_shape;
+
+			StaticLevelGeometry* geom = new StaticLevelGeometry(game, uber, shape, pos, ori);
 			game->Spawn(geom);
 		}
 	};

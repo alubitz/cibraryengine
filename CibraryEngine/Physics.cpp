@@ -8,6 +8,9 @@
 #include "DebugLog.h"
 #include "Serialize.h"
 
+#include "RenderNode.h"
+#include "SceneRenderer.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -49,7 +52,7 @@ namespace CibraryEngine
 		MassInfo mass_info;
 		CollisionShape* shape;
 
-		bool can_move;
+		bool can_move, can_rotate;
 		bool active;						// TODO: support deactivation and related stuffs
 
 		CollisionCallback* collision_callback;
@@ -64,9 +67,14 @@ namespace CibraryEngine
 			mass_info(mass_info),
 			shape(shape),
 			can_move(shape->CanMove()),
+			can_rotate(false),
 			active(can_move),
 			collision_callback(NULL)
 		{
+			Mat3 moi_rm(mass_info.moi);
+
+			if(moi_rm.Determinant() != 0.0f)
+				can_rotate = true;
 		}
 
 		~Imp()
@@ -90,7 +98,9 @@ namespace CibraryEngine
 				ori *= Quaternion::FromPYR(rot);
 
 				vel += (force * timestep + force_impulse) / mass_info.mass;
-				rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);		// TODO: account for non-rotating objects
+
+				if(can_rotate)
+					rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);
 			}
 
 			ResetForces();	
@@ -186,7 +196,14 @@ namespace CibraryEngine
 			(*iter)->Update(time);
 	}
 
-	void PhysicsWorld::DebugDrawWorld() { }
+	void PhysicsWorld::DebugDrawWorld(SceneRenderer* renderer)
+	{
+		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
+			(*iter)->DebugDraw(renderer);
+
+		renderer->Render();
+		renderer->Cleanup();
+	}
 
 	Vec3 PhysicsWorld::GetGravity() { return imp->gravity; }
 	void PhysicsWorld::SetGravity(const Vec3& gravity)
@@ -245,6 +262,7 @@ namespace CibraryEngine
 	void RigidBody::SetLinearVelocity(const Vec3& vel) { imp->vel = vel; }
 
 	void RigidBody::Update(TimingInfo time) { imp->Update(time); }
+	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }
 
 	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }
 	CollisionCallback* RigidBody::GetCollisionCallback() { return imp->collision_callback; }

@@ -359,6 +359,27 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("nbridge").id).fail = false;
 		}
 
+		Cache<ModelPhysics>* mphys_cache = content->GetCache<ModelPhysics>();
+		if(mphys_cache->Load("nbridge") == NULL)
+		{
+			load_status.task = "terrain mesh";
+
+			ModelPhysics m;
+			ModelPhysics::BonePhysics phys;
+
+			TriangleMeshShape shape((*ubermodel_cache->Load("nbridge")->lods[0]->GetVBOs())[0].vbo);
+
+			phys.bone_name = 0;
+			phys.collision_shape = &shape;
+			phys.mass_info = MassInfo();
+
+			m.bones.push_back(phys);
+
+			ModelPhysicsLoader::SaveZZP(&m, "Files/Physics/nbridge.zzp");
+			
+			mphys_cache->GetMetadata(mphys_cache->GetHandle("nbridge").id).fail = false;
+		}
+
 		load_status.task = "sky";
 
 		// creating sky
@@ -666,7 +687,7 @@ namespace Test
 			ClearDepthAndColor();
 
 			imp->renderer.camera = &camera;
-			physics_world->DebugDrawWorld();
+			physics_world->DebugDrawWorld(&imp->renderer);
 		}
 		else if(nav_editor)
 		{

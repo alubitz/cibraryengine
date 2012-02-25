@@ -159,7 +159,7 @@ namespace CibraryEngine
 		{
 			for(vector<ModelPhysics::BonePhysics>::iterator iter = phys->bones.begin(); iter != phys->bones.end(); ++iter)
 			{
-				BinaryChunk bone_chunk("SKEL____");
+				BinaryChunk bone_chunk("BONE____");
 				stringstream bone_ss;
 
 				ModelPhysics::BonePhysics& bone = *iter;

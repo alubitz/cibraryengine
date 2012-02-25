@@ -666,10 +666,10 @@ namespace CibraryEngine
 		}
 	};
 
-	struct BoneChunkHandler : public ChunkTypeFunction
+	struct BonesChunkHandler : public ChunkTypeFunction
 	{
 		UberModel* model;
-		BoneChunkHandler(UberModel* model) : model(model) { }
+		BonesChunkHandler(UberModel* model) : model(model) { }
 
 		void HandleChunk(BinaryChunk& chunk)
 		{
@@ -806,7 +806,7 @@ namespace CibraryEngine
 		UnrecognizedChunkHandler badchunk;
 		LODSChunkHandler lodchunk(model);
 		MatChunkHandler matchunk(model);
-		BoneChunkHandler bonechunk(model);
+		BonesChunkHandler bonechunk(model);
 		BonePhysicsHandler bphyschunk;							// deprecated
 		SpcChunkHandler spcchunk(model);
 
