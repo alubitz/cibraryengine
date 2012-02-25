@@ -21,8 +21,7 @@ namespace Test
 	Shot* DefaultWeapon::CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction)
 	{
 		Vec3 vel = Vec3::Normalize(direction, 300);
-		Quaternion ori = Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction));
-		return new Shot(game_state, shot_model, shot_material, origin, vel, ori, owner);
+		return new Shot(game_state, shot_model, shot_material, origin, vel, owner);
 	}
 
 	bool DefaultWeapon::GetAmmoCount(int& result)

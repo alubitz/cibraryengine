@@ -11,7 +11,7 @@ namespace Test
 	{
 		float damage;
 
-		CrabShot(GameState* gs, Dood* firer, Vec3 pos, Vec3 forward, float damage) : Shot(gs, NULL, NULL, pos, forward, Quaternion::Identity(), firer), damage(damage) { }
+		CrabShot(GameState* gs, Dood* firer, Vec3 pos, Vec3 forward, float damage) : Shot(gs, NULL, NULL, pos, forward, firer), damage(damage) { }
 
 		Damage GetDamage() { return Damage(firer, damage); }
 	};
