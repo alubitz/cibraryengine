@@ -21,7 +21,6 @@ namespace Test
 
 		public:
 
-			Sphere bs;
 			VertexBuffer* model;
 			BillboardMaterial* material;
 
@@ -58,12 +57,12 @@ namespace Test
 			};
 			TrailHead* trail_head;
 
-			struct HitObject
+			struct MyImpactCallback : public CollisionCallback
 			{
-				Shootable* obj;
-				float time;
+				Shot* shot;
+				MyImpactCallback(Shot* shot);
 
-				HitObject(Shootable* obj, float time) : obj(obj), time(time) { }
-			};
+				bool OnCollision(const ContactPoint& cp);
+			} impact_callback;
 	};
 }

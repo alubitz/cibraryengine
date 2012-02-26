@@ -74,9 +74,9 @@ namespace CibraryEngine
 		Vec3(float x, float y, float z);
 
 		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
-		float ComputeMagnitudeSquared();
+		float ComputeMagnitudeSquared() const;
 		/** Returns the magnitude of the vector */
-		float ComputeMagnitude();
+		float ComputeMagnitude() const;
 
 		
 

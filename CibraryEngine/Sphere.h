@@ -7,7 +7,7 @@
 namespace CibraryEngine
 {
 	/** Class representing a sphere in 3D space */
-	class Sphere
+	struct Sphere
 	{
 		public:
 

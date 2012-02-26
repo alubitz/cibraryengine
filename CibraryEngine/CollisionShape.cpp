@@ -145,7 +145,7 @@ namespace CibraryEngine
 
 	void SphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
 	{
-		Mat3 rm = Quaternion(ori).ToMat3();
+		Mat3 rm = ori.ToMat3();
 		Vec3 x = Vec3(rm[0], rm[1], rm[2]) * radius;
 		Vec3 y = Vec3(rm[3], rm[4], rm[5]) * radius;
 		Vec3 z = Vec3(rm[6], rm[7], rm[8]) * radius;
@@ -206,7 +206,7 @@ namespace CibraryEngine
 
 	void TriangleMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
 	{
-		Mat3 rm(Quaternion(ori).ToMat3());
+		Mat3 rm(ori.ToMat3());
 
 		vector<Vec3> transformed;
 		for(vector<Vec3>::iterator iter = vertices.begin(); iter != vertices.end(); ++iter)

@@ -10,9 +10,9 @@ namespace CibraryEngine
 	Quaternion::Quaternion() { x = y = z = w = 0.0; }
 	Quaternion::Quaternion(float w_, float x_, float y_, float z_) {w = w_;  x = x_; y = y_; z = z_; }
 
-	float Quaternion::Norm() { return sqrt(w * w + x * x + y * y + z * z); }
+	float Quaternion::Norm() const { return sqrtf(w * w + x * x + y * y + z * z); }
 
-	Vec3 Quaternion::ToPYR()
+	Vec3 Quaternion::ToPYR() const
 	{
 		Vec3 axis(x, y, z);
 		float sine = axis.ComputeMagnitude();			// doesn't cover the possibility of a negative sine
@@ -26,19 +26,11 @@ namespace CibraryEngine
 		}
 	}
 
-	Mat3 Quaternion::ToMat3()
+	Mat3 Quaternion::ToMat3() const
 	{
 		Quaternion n = Normalize(*this);				// normalized copy
 
 		float W = n.w, X = n.x, Y = n.y, Z = n.z;
-
-		/*
-		float values[] = {
-			W * W + X * X - Y * Y - Z * Z,		2.0 * (X * Y - W * Z),				2.0 * (X * Z + W * Y),
-			2.0 * (X * Y + W * Z),				W * W - X * X + Y * Y - Z * Z,		2.0 * (Y * Z - W * X),
-			2.0 * (X * Z - W * Y),				2.0 * (Y * Z + W * X),				W * W - X * X - Y * Y + Z * Z
-		};
-		*/
 
 		float values[] = {
 			1.0f - 2.0f * Y * Y - 2.0f * Z * Z,	2.0f * (X * Y - W * Z),				2.0f * (X * Z + W * Y),

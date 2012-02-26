@@ -47,8 +47,8 @@ namespace CibraryEngine
 	Vec3::Vec3() : x(0), y(0), z(0) { }
 	Vec3::Vec3(float x, float y, float z) : x(x), y(y), z(z) { }
 
-	float Vec3::ComputeMagnitudeSquared() { return x * x + y * y + z * z; }
-	float Vec3::ComputeMagnitude() { return sqrt(x * x + y * y + z * z); }
+	float Vec3::ComputeMagnitudeSquared() const { return x * x + y * y + z * z; }
+	float Vec3::ComputeMagnitude() const { return sqrt(x * x + y * y + z * z); }
 
 	float Vec3::Dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 

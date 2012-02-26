@@ -6,6 +6,7 @@ namespace CibraryEngine
 {
 	struct Mat3;
 	struct Plane;
+	struct Sphere;
 
 	using namespace std;
 
@@ -51,5 +52,7 @@ namespace CibraryEngine
 			static float TriangleMinimumDistance(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3& x);
 
 			static float RayPlaneIntersect(const Ray& ray, const Plane& plane);
+
+			static bool RaySphereIntersect(const Ray& ray, const Sphere& sphere, float& first, float& second);
 	};
 }

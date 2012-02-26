@@ -11,6 +11,8 @@
 #include "RenderNode.h"
 #include "SceneRenderer.h"
 
+#include "Util.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -55,9 +57,11 @@ namespace CibraryEngine
 		bool can_move, can_rotate;
 		bool active;						// TODO: support deactivation and related stuffs
 
+		Entity* user_entity;
+
 		CollisionCallback* collision_callback;
 
-		Imp() : gravity(), mass_info(), shape() { }
+		Imp() : gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 		Imp(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) :
 			pos(pos),
 			vel(),
@@ -69,6 +73,7 @@ namespace CibraryEngine
 			can_move(shape->CanMove()),
 			can_rotate(false),
 			active(can_move),
+			user_entity(NULL),
 			collision_callback(NULL)
 		{
 			Mat3 moi_rm(mass_info.moi);
@@ -180,16 +185,172 @@ namespace CibraryEngine
 	void PhysicsWorld::Update(TimingInfo time)
 	{
 		// TODO: collision detection:
-		
+		//
 		//		start storing broadphase info
 		//		rigid bodies: tell the broadphase what it needs to know about you
-
+		//
 		//		start collection of batched operations
 		//		rigid bodies: based on broadphase info, add appropriate batch ops (somehow make sure not to do any pairs doubly)
-
+		//
 		//		do the batched operations
-
+		//
 		// friction goes here
+
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = imp->shape_bodies.find(ST_Ray);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = imp->shape_bodies.find(ST_Sphere);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = imp->shape_bodies.find(ST_TriangleMesh);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = imp->shape_bodies.find(ST_InfinitePlane);
+
+		// handle all the collisions involving rays
+		if(rays != imp->shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator iter = rays->second.begin(); iter != rays->second.end(); ++iter)
+			{
+				RigidBody* ibody = *iter;
+
+				Ray ray;
+				ray.origin = ibody->GetPosition();
+				ray.direction = ibody->GetLinearVelocity();
+
+				struct Hit
+				{
+					float t;
+					ContactPoint p;
+
+					Hit(float t, ContactPoint p) : t(t), p(p) { }
+					bool operator <(Hit& h) { return t < h.t; }
+				};
+				list<Hit> hits;
+
+				if(spheres != imp->shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = spheres->second.begin(); jter != spheres->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+						float first, second;
+
+						if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
+							if(first > 0 && first <= time.elapsed)
+							{
+								ContactPoint p;
+
+								p.obj_a = ibody;
+								p.obj_b = jbody;
+								p.pos_a = ray.origin + first * ray.direction;
+								p.norm_b = Vec3::Normalize(p.pos_a - jbody->GetPosition(), 1.0f);
+
+								hits.push_back(Hit(first, p));
+							}
+					}
+				}
+				
+				if(meshes != imp->shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+
+						TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
+						
+						vector<unsigned int> index_a, index_b, index_c;
+						for(vector<TriangleMeshShape::Tri>::iterator kter = mesh->triangles.begin(); kter != mesh->triangles.end(); ++kter)
+						{
+							index_a.push_back(kter->indices[0]);
+							index_b.push_back(kter->indices[1]);
+							index_c.push_back(kter->indices[2]);
+						}
+
+						vector<Ray> ray_list;
+						ray_list.push_back(ray);			// TODO: transform this to account for the rigid body's orientation and position
+
+						vector<Intersection> mesh_hits = Util::RayTriangleListIntersect(mesh->vertices, index_a, index_b, index_c, ray_list)[0];
+						
+						for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
+						{
+							float t = kter->time;
+							if(t > 0 && t < time.elapsed)
+							{
+								ContactPoint p;
+
+								p.obj_a = ibody;
+								p.obj_b = jbody;
+								p.pos_a = ray.origin + t * ray.direction;
+								p.norm_b = kter->normal;
+
+								hits.push_back(Hit(t, p));
+							}
+						}
+					}
+				}
+
+				if(planes != imp->shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+						InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+						float t = Util::RayPlaneIntersect(ray, plane->plane);
+						if(t > 0 && t <= time.elapsed)
+						{
+							ContactPoint p;
+
+							p.obj_a = ibody;
+							p.obj_b = jbody;
+							p.pos_a = ray.origin + t * ray.direction;
+							p.norm_b = plane->plane.normal;
+
+							hits.push_back(Hit(t, p));
+						}
+					}
+				}
+
+				hits.sort();
+
+				CollisionCallback* callback = ibody->GetCollisionCallback();
+				if(callback != NULL)
+				{
+					for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						if(callback->OnCollision(jter->p))
+							break;
+				}
+				else if(!hits.empty())
+				{
+					// TODO: bounce?
+				}
+			}
+		}
+
+		// handle all the collisions involving spheres
+		if(spheres != imp->shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator iter = spheres->second.begin(); iter != spheres->second.end(); ++iter)
+			{
+				for(boost::unordered_set<RigidBody*>::iterator jter = iter; jter != spheres->second.end(); ++jter)
+				{
+					if(*iter != *jter)
+					{
+						// TODO: sphere-sphere
+					}
+				}
+
+				if(meshes != imp->shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
+					{
+						// TODO: sphere-mesh
+					}
+				}
+
+				if(planes != imp->shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
+					{
+						// TODO: sphere-plane
+					}
+				}
+			}
+		}
 
 		// update positions and apply forces
 		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
@@ -268,6 +429,9 @@ namespace CibraryEngine
 	CollisionCallback* RigidBody::GetCollisionCallback() { return imp->collision_callback; }
 
 	CollisionShape* RigidBody::GetCollisionShape() { return imp->shape; }
+
+	Entity* RigidBody::GetUserEntity() { return imp->user_entity; }
+	void RigidBody::SetUserEntity(Entity* entity) { imp->user_entity = entity; }
 
 
 

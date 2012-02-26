@@ -13,7 +13,6 @@ namespace Test
 	 */
 	Shot::Shot(GameState* gs, VertexBuffer* model, BillboardMaterial* material, Vec3 origin, Vec3 initial_vel, Dood* firer) :
 		Entity(gs),
-		bs(origin, -1),
 		model(model),
 		material(material),
 		physics(NULL),
@@ -23,7 +22,8 @@ namespace Test
 		body(NULL),
 		causer(firer),
 		firer(firer),
-		trail_head(NULL)
+		trail_head(NULL),
+		impact_callback(this)
 	{
 	}
 
@@ -42,6 +42,8 @@ namespace Test
 
 		body = new RigidBody(new RayShape(), MassInfo(Vec3(), mass), origin);
 		body->SetLinearVelocity(initial_vel);
+		body->SetCollisionCallback(&impact_callback);
+		body->SetUserEntity(this);
 		physics->AddRigidBody(body);
 
 		trail_head = new TrailHead(this);
@@ -54,29 +56,7 @@ namespace Test
 			physics->RemoveRigidBody(body);
 	}
 
-	void Shot::Update(TimingInfo time)
-	{
-		Entity::Update(time);
-
-		/*
-		TODO: add this to hit callback function
-
-		Shootable* hit = callback.hits[i].obj;
-		if(hit->GetShot(this, poi, GetMomentum()))
-		{
-			if(trail_head != NULL)
-			{
-				trail_head->end_pos = poi;
-				trail_head->shot = NULL;
-			}
-
-			is_valid = false;
-			return;
-		}
-		*/
-
-		bs = Sphere(body->GetPosition(), 10.0f);
-	}
+	void Shot::Update(TimingInfo time) { Entity::Update(time); }
 
 	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }			// was .03 in C# version, but it took too many shots to do 1 damage
 	Vec3 Shot::GetMomentum() { return body->GetLinearVelocity() * mass; }
@@ -106,5 +86,35 @@ namespace Test
 			node = BillboardTrail::TrailNode(shot->body->GetPosition(), 0.0f, 0.1f);
 			return true;
 		}
+	}
+
+
+
+
+	/*
+	 * Shot::MyImpactCallback methods
+	 */
+	Shot::MyImpactCallback::MyImpactCallback(Shot* shot) : shot(shot) { }
+
+	bool Shot::MyImpactCallback::OnCollision(const ContactPoint& cp)
+	{
+		if(shot->is_valid)
+		{
+			Shootable* hit = dynamic_cast<Shootable*>(cp.obj_b->GetUserEntity());
+			if(hit != NULL && hit->GetShot(shot, cp.pos_a, shot->GetMomentum()))
+			{
+				if(shot->trail_head != NULL)
+				{
+					shot->trail_head->end_pos = cp.pos_a;
+					shot->trail_head->shot = NULL;
+				}
+
+				shot->is_valid = false;
+
+				return false;
+			}
+		}
+
+		return false;
 	}
 }

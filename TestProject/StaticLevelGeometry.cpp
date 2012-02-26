@@ -59,6 +59,7 @@ namespace Test
 		if(collision_shape != NULL)
 		{
 			RigidBody* rigid_body = new RigidBody(collision_shape, MassInfo(), pos, ori);
+			rigid_body->SetUserEntity(this);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;

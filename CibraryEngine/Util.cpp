@@ -6,6 +6,7 @@
 #include "Random3D.h"
 
 #include "Plane.h"
+#include "Sphere.h"
 
 namespace CibraryEngine
 {
@@ -182,5 +183,33 @@ namespace CibraryEngine
 		float dir_dot = Vec3::Dot(ray.direction, plane.normal);
 		float origin_dot = Vec3::Dot(ray.origin, plane.normal);
 		return (plane.offset - origin_dot) / dir_dot;
+	}
+
+	bool Util::RaySphereIntersect(const Ray& ray, const Sphere& sphere, float& first, float& second)
+	{
+		Vec3 dx = ray.origin - sphere.center;
+
+		float vmag_sq = ray.direction.ComputeMagnitudeSquared();
+        float dmag_sq = dx.ComputeMagnitudeSquared();
+
+		// quadratic formula here...
+        float A = vmag_sq;
+		float B = 2.0 * Vec3::Dot(dx, ray.direction);
+		float C = dmag_sq - sphere.radius * sphere.radius;
+        
+		float under_root = B * B - 4.0 * A * C;
+
+		// no solutions
+        if (under_root < 0 || A == 0)
+            return false;
+        
+		// one or two solutions
+		float root = sqrtf(under_root);
+		float inv_a = 0.5f / A;
+        first = (-B - root) * inv_a;
+		second = (-B + root) * inv_a;
+		
+		return true;
+
 	}
 }

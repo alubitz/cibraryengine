@@ -19,6 +19,8 @@ namespace CibraryEngine
 
 	class SceneRenderer;
 
+	class Entity;
+
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
 	{
@@ -113,6 +115,9 @@ namespace CibraryEngine
 			CollisionCallback* GetCollisionCallback();
 
 			CollisionShape* GetCollisionShape();
+
+			Entity* GetUserEntity();
+			void SetUserEntity(Entity* entity);
 	};
 
 	/** A point of contact between two physics objects */

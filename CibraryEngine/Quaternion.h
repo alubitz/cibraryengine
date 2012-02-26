@@ -27,12 +27,12 @@ namespace CibraryEngine
 		Quaternion(float w, float x, float y, float z);
 
 		/** Returns the norm (comparable to magnitude) of this quaternion */
-		float Norm();
+		float Norm() const;
 		/** Returns a 3-component vector parallel to the axis of rotation represented by this quaternion, whose magnitude is the angle of rotation */
-		Vec3 ToPYR();
+		Vec3 ToPYR() const;
 
 		/** Returns a 3x3 rotation matrix representing the same rotation as this quaternion */
-		Mat3 ToMat3();
+		Mat3 ToMat3() const;
 
 		/** Returns the opposite of this quaternion */
 		Quaternion operator -();

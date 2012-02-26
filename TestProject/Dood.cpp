@@ -331,6 +331,7 @@ namespace Test
 		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
 
 		RigidBody* rigid_body = new RigidBody(shape, mass_info, pos);
+		rigid_body->SetUserEntity(this);
 
 		physics->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
