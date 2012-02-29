@@ -178,11 +178,14 @@ namespace CibraryEngine
 				{
 					bool skip_fourth = vbo->GetAttribute("gl_Vertex").n_per_vertex == 4;
 
-					for(unsigned int i = 0; i < num_verts;)
-					{
-						Tri tri;
+					// put all the verts in a vector temporarily (and find the aabb while we're at it)
+					vector<Vec3> verts;
+					verts.resize(num_verts);
 
-						for(char j = 0; j < 3; ++j)
+					AABB aabb;
+					for(unsigned int i = 0; i < num_verts;)
+					{	
+						for(char j = 0; j < 3; ++i, ++j)
 						{
 							float x = *(pos_ptr++);
 							float y = *(pos_ptr++);
@@ -191,12 +194,88 @@ namespace CibraryEngine
 							if(skip_fourth)
 								++pos_ptr;
 
-							// TODO: don't store duplicate vertices
-
 							Vec3 vec(x, y, z);
-							vertices.push_back(vec);
-							tri.indices[j] = i++;
+							verts[i] = vec;
+
+							if(i == 0)
+								aabb = AABB(vec);
+							else
+								aabb.Expand(vec);
 						}
+					}
+
+					// now put that vector's data into a tree
+					struct VertStruct
+					{
+						Vec3 pos;
+						unsigned int index;
+
+						VertStruct(Vec3 pos, unsigned int index) : pos(pos), index(index)  { }
+					};
+
+					Octree<vector<VertStruct> > tree(aabb.min, aabb.max);
+
+					for(vector<Vec3>::iterator iter = verts.begin(); iter != verts.end();)
+					{
+						Tri tri;
+						for(char j = 0; j < 3; ++iter, ++j)
+						{
+							Vec3& vert = *iter;
+
+							struct Action
+							{
+								Vec3 vert;
+								vector<Vec3>& vertices;
+								unsigned int index;
+								bool done;
+
+								Action(Vec3 vert, vector<Vec3>& vertices) : vert(vert), vertices(vertices), done(false) { }
+
+								void operator()(Octree<vector<VertStruct> >* node)
+								{
+									if(!done && node->bounds.ContainsPoint(vert))		// vert relevant to this node?
+									{
+										if(node->IsLeaf())
+										{
+											// look for the node in the leaf's vertex list
+											for(vector<VertStruct>::iterator jter = node->contents.begin(); jter != node->contents.end(); ++jter)
+												if((jter->pos - vert).ComputeMagnitudeSquared() < 0.000000001f)
+												{
+													index = jter->index;
+													done = true;
+													break;
+												}
+
+											if(!done)									// first occurrence of vertex, add it to the node
+											{
+												index = vertices.size();
+
+												vertices.push_back(vert);
+												node->contents.push_back(VertStruct(vert, index));
+
+												if(node->contents.size() >= 20)			// node too big? split into octants
+												{
+													node->Split(1);
+													for(vector<VertStruct>::iterator jter = node->contents.begin(); jter != node->contents.end(); ++jter)
+													{							
+														Action adder(jter->pos, vertices);
+														adder(node);
+													}
+												}
+
+												done = true;
+											}
+										}
+										else
+											node->ForEach(*this);
+									}
+								}
+
+							} action(vert, vertices);
+							action(&tree);
+							tri.indices[j] = action.index;
+						}
+
 						triangles.push_back(tri);
 					}
 				}
