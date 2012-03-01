@@ -25,6 +25,8 @@ namespace Test
 	{
 		if(rigid_body != NULL)
 		{
+			game_state->physics_world->RemoveRigidBody(rigid_body);
+
 			rigid_body->Dispose();
 			delete rigid_body;
 			rigid_body = NULL;

@@ -15,14 +15,18 @@
 
 namespace CibraryEngine
 {
+	static vector<ContactPoint*> cp_recycle_bin;
+
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
 	struct PhysicsWorld::Imp
 	{
-		boost::unordered_set<RigidBody*> rigid_bodies;			// List of all of the rigid bodies in the physical simulation
+		boost::unordered_set<RigidBody*> rigid_bodies;											// List of all of the rigid bodies in the physical simulation
 
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> > shape_bodies;		// lists of rigid bodies by shape type
+
+		boost::unordered_set<ContactPoint*> contact_points;										// list of continuous contact points between objects
 
 		Vec3 gravity;
 
@@ -33,6 +37,9 @@ namespace CibraryEngine
 		bool RemoveRigidBody(RigidBody* body);
 
 		void DoCollisionResponse(const ContactPoint& cp);
+		bool DoContinuousContactUpdate(ContactPoint* cp);										// returns true if the contact point should persist
+
+		ContactPoint* AddContinuousContact(const ContactPoint& cp);
 	};
 
 
@@ -57,11 +64,13 @@ namespace CibraryEngine
 		CollisionShape* shape;
 
 		bool can_move, can_rotate;
-		bool active;						// TODO: support deactivation and related stuffs
+		bool active;								// TODO: support deactivation and related stuffs
 
 		Entity* user_entity;
 
 		CollisionCallback* collision_callback;
+
+		boost::unordered_set<ContactPoint*> contact_points;
 
 		Imp() : gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 		Imp(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) :
@@ -76,7 +85,8 @@ namespace CibraryEngine
 			can_rotate(false),
 			active(can_move),
 			user_entity(NULL),
-			collision_callback(NULL)
+			collision_callback(NULL),
+			contact_points()
 		{
 			Mat3 moi_rm(mass_info.moi);
 
@@ -115,8 +125,20 @@ namespace CibraryEngine
 
 		void ResetForces() 
 		{
-			force = gravity * mass_info.mass;
+			force = can_move ? gravity * mass_info.mass : Vec3();
 			torque = force_impulse = torque_impulse = Vec3();
+		}
+
+		bool NeedsCollision(RigidBody* other)
+		{
+			for(boost::unordered_set<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
+			{
+				ContactPoint* cp = *iter;
+				if(cp->a.obj == other || cp->b.obj == other)
+					return false;
+			}
+
+			return true;
 		}
 	};
 
@@ -130,10 +152,15 @@ namespace CibraryEngine
 
 	PhysicsWorld::Imp::~Imp()
 	{
+		// dispose rigid bodies
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			(*iter)->Dispose();
-
 		rigid_bodies.clear();
+		
+		// put contact points into recycle bin
+		for(boost::unordered_set<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
+			cp_recycle_bin.push_back(*iter);
+		contact_points.clear();
 	}
 
 	void PhysicsWorld::Imp::AddRigidBody(RigidBody* r)
@@ -167,6 +194,19 @@ namespace CibraryEngine
 		{
 			rigid_bodies.erase(found);
 
+			for(boost::unordered_set<ContactPoint*>::iterator iter = r->imp->contact_points.begin(); iter != r->imp->contact_points.end(); ++iter)
+			{
+				ContactPoint* cp = *iter;
+
+				contact_points.erase(cp);
+				cp_recycle_bin.push_back(cp);
+				
+				if(cp->a.obj == r)
+					cp->b.obj->imp->contact_points.erase(cp);
+				else
+					cp->a.obj->imp->contact_points.erase(cp);
+			}
+
 			ShapeType shape_type = r->GetCollisionShape()->GetShapeType();
 			if(shape_bodies.find(shape_type) != shape_bodies.end())
 				shape_bodies[shape_type].erase(r);
@@ -181,8 +221,8 @@ namespace CibraryEngine
 	{
 		// TODO: make it so if A and B were swapped, the outcome would be the same
 
-		RigidBody* ibody = cp.obj_a;
-		RigidBody* jbody = cp.obj_b;
+		RigidBody* ibody = cp.a.obj;
+		RigidBody* jbody = cp.b.obj;
 
 		bool j_can_move = jbody->imp->can_move;
 
@@ -190,11 +230,11 @@ namespace CibraryEngine
 		float m2 = jbody->imp->mass_info.mass;
 		if(m1 + m2 > 0)
 		{
-			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.pos_a, 1.0f);
-			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.pos_b, 1.0f);
+			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.a.pos, 1.0f);
+			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
 					
 			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
-			const Vec3& normal = cp.norm_a;
+			const Vec3& normal = cp.a.norm;
 
 			float nvdot = Vec3::Dot(normal, dv);
 
@@ -209,16 +249,67 @@ namespace CibraryEngine
 						jbody->ApplyImpulse(-impulse, j_poi);
 				}
 			}
-			else if(!j_can_move)
+			
+			AddContinuousContact(cp);
+		}
+	}
+
+	bool PhysicsWorld::Imp::DoContinuousContactUpdate(ContactPoint* cp)
+	{
+		// TODO: update the contact point, and determine if it needs to be severed
+		RigidBody* ibody = cp->a.obj;
+		RigidBody* jbody = cp->b.obj;
+
+		bool j_can_move = jbody->imp->can_move;
+
+		float m1 = ibody->imp->mass_info.mass;
+		float m2 = jbody->imp->mass_info.mass;
+		if(m1 + m2 > 0)
+		{
+			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp->a.pos, 1.0f);
+			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp->b.pos, 1.0f);
+
+			Vec3 df = jbody->imp->force - ibody->imp->force;
+			const Vec3& normal = Vec3::Normalize(cp->a.norm - cp->b.norm);
+
+			// see if there neeeds to be a normal force applied to keep these objects from interpenetrating any further
+			float nfdot = Vec3::Dot(normal, df);
+			if(nfdot <= 0)
 			{
-				// TODO: replace this with continuous contact points!
+				Vec3 force = normal * (nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f));	// TODO: get this formula right
 
-				Vec3 weight = ibody->imp->force;
-				float nwdot = Vec3::Dot(normal, weight);
+				if(force.ComputeMagnitudeSquared() != 0)
+				{
+					ibody->ApplyForce(force, i_poi);
+					if(j_can_move)
+						jbody->ApplyForce(-force, j_poi);
 
-				ibody->ApplyCentralForce(normal * (nwdot * m1));
+					// TODO: apply friction here
+				}
 			}
 		}
+
+		return true;		// TODO: figure out under what conditions a continuous contact point should be removed
+	}
+
+	ContactPoint* PhysicsWorld::Imp::AddContinuousContact(const ContactPoint& cp)
+	{
+		ContactPoint* result;
+		if(cp_recycle_bin.empty())
+			result = new ContactPoint();
+		else
+		{
+			result = cp_recycle_bin[cp_recycle_bin.size() - 1];
+			cp_recycle_bin.pop_back();
+		}
+
+		*result = cp;
+
+		cp.a.obj->imp->contact_points.insert(result);
+		cp.b.obj->imp->contact_points.insert(result);
+		
+		contact_points.insert(result);
+		return result;
 	}
 
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
@@ -230,6 +321,25 @@ namespace CibraryEngine
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
+		// update continuous contact points
+		for(boost::unordered_set<ContactPoint*>::iterator iter = imp->contact_points.begin(); iter != imp->contact_points.end();)
+		{
+			ContactPoint* cp = *iter;
+			if(!imp->DoContinuousContactUpdate(cp))
+			{
+				cp->a.obj->imp->contact_points.erase(cp);
+				cp->b.obj->imp->contact_points.erase(cp);
+
+				cp_recycle_bin.push_back(cp);
+
+				iter = imp->contact_points.erase(iter);
+			}
+			else
+				++iter;
+		}
+
+
+
 		// TODO: collision detection:
 		//
 		//		start storing broadphase info
@@ -240,7 +350,6 @@ namespace CibraryEngine
 		//
 		//		do the batched operations
 		//
-		// friction goes here
 
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = imp->shape_bodies.find(ST_Ray);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = imp->shape_bodies.find(ST_Sphere);
@@ -275,6 +384,9 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = spheres->second.begin(); jter != spheres->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
+
 						float first, second;
 
 						if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
@@ -282,10 +394,10 @@ namespace CibraryEngine
 							{
 								ContactPoint p;
 
-								p.obj_a = ibody;
-								p.obj_b = jbody;
-								p.pos_a = ray.origin + first * ray.direction;
-								p.norm_b = Vec3::Normalize(p.pos_a - jbody->GetPosition(), 1.0f);
+								p.a.obj = ibody;
+								p.b.obj = jbody;
+								p.a.pos = ray.origin + first * ray.direction;
+								p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
 
 								hits.push_back(Hit(first, p));
 							}
@@ -298,6 +410,8 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
 
 						TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
 						
@@ -321,10 +435,10 @@ namespace CibraryEngine
 							{
 								ContactPoint p;
 
-								p.obj_a = ibody;
-								p.obj_b = jbody;
-								p.pos_a = ray.origin + t * ray.direction;
-								p.norm_b = kter->normal;
+								p.a.obj = ibody;
+								p.b.obj = jbody;
+								p.a.pos = ray.origin + t * ray.direction;
+								p.b.norm = kter->normal;
 
 								hits.push_back(Hit(t, p));
 							}
@@ -338,6 +452,9 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
+
 						InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 						float t = Util::RayPlaneIntersect(ray, plane->plane);
@@ -345,10 +462,10 @@ namespace CibraryEngine
 						{
 							ContactPoint p;
 
-							p.obj_a = ibody;
-							p.obj_b = jbody;
-							p.pos_a = ray.origin + t * ray.direction;
-							p.norm_b = plane->plane.normal;
+							p.a.obj = ibody;
+							p.b.obj = jbody;
+							p.a.pos = ray.origin + t * ray.direction;
+							p.b.norm = plane->plane.normal;
 
 							hits.push_back(Hit(t, p));
 						}
@@ -393,6 +510,8 @@ namespace CibraryEngine
 					if(iter != jter)
 					{
 						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
 
 						float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
 
@@ -410,12 +529,12 @@ namespace CibraryEngine
 							{
 								ContactPoint p;
 
-								p.obj_a = ibody;
-								p.obj_b = jbody;
-								p.pos_a = pos + first * vel;
-								p.pos_b = other_pos + first * other_vel;
-								p.norm_b = Vec3::Normalize(p.pos_a - other_pos, 1.0f);
-								p.norm_a = -p.norm_b;
+								p.a.obj = ibody;
+								p.b.obj = jbody;
+								p.a.pos = pos + first * vel;
+								p.b.pos = other_pos + first * other_vel;
+								p.b.norm = Vec3::Normalize(p.a.pos- other_pos, 1.0f);
+								p.a.norm = -p.b.norm;
 
 								hits.push_back(Hit(first, p));
 							}
@@ -426,6 +545,10 @@ namespace CibraryEngine
 				{
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
+						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
+
 						// TODO: sphere-mesh
 					}
 				}
@@ -436,6 +559,9 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
+						if(!ibody->imp->NeedsCollision(jbody))
+							continue;
+
 						InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 						Vec3 plane_norm = shape->plane.normal;
@@ -454,12 +580,12 @@ namespace CibraryEngine
 							{
 								ContactPoint p;
 
-								p.obj_a = ibody;
-								p.obj_b = jbody;
-								p.pos_a = pos + t * vel;
-								p.pos_b = p.pos_a - plane_norm * (Vec3::Dot(p.pos_a, plane_norm) - plane_offset);
-								p.norm_b = plane_norm;
-								p.norm_a = -plane_norm;
+								p.a.obj = ibody;
+								p.b.obj = jbody;
+								p.a.pos = pos + t * vel;
+								p.b.pos = p.a.pos- plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
+								p.b.norm = plane_norm;
+								p.a.norm = -plane_norm;
 
 								hits.push_back(Hit(t, p));
 							}

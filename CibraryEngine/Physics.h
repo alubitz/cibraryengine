@@ -123,11 +123,11 @@ namespace CibraryEngine
 	/** A point of contact between two physics objects */
 	struct ContactPoint
 	{
-		RigidBody* obj_a;
-		RigidBody* obj_b;
-
-		Vec3 pos_a, pos_b;
-		Vec3 norm_a, norm_b;
+		struct Part
+		{
+			RigidBody* obj;
+			Vec3 pos, norm;
+		} a, b;
 	};
 
 	/** Class representing the mass properties of an object */
