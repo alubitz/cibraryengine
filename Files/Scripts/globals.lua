@@ -4,12 +4,13 @@ math.randomseed(start_time)
 
 dood_properties = {}
 
--- function to spawn a bot 1 meter above the terrain at the specified x and z coordinates
+-- function to spawn a bot some number of meters above the terrain at the specified x and z coordinates
 function spawnBotAtPosition(gs, x, z, artillery)
+	local alt_above = 2		--1
 	if artillery then
-		return gs.spawnArtilleryBug(ba.createVector(x, gs.getTerrainHeight(x, z) + 1, z))
+		return gs.spawnArtilleryBug(ba.createVector(x, gs.getTerrainHeight(x, z) + alt_above, z))
 	else
-		return gs.spawnBot(ba.createVector(x, gs.getTerrainHeight(x, z) + 1, z))
+		return gs.spawnBot(ba.createVector(x, gs.getTerrainHeight(x, z) + alt_above, z))
 	end
 end
 

@@ -119,4 +119,10 @@ namespace CibraryEngine
 	void DebugDrawMaterial::Cleanup(RenderNode node) { imp->Cleanup(node); }
 
 	bool DebugDrawMaterial::Equals(Material* other) { return other->mclass_id == mclass_id; }
+
+	Material* DebugDrawMaterial::GetDebugDrawMaterial()
+	{
+		static DebugDrawMaterial* mat = new DebugDrawMaterial();
+		return mat;
+	}
 }

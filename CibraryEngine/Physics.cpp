@@ -2,6 +2,10 @@
 #include "Physics.h"
 
 #include "CollisionShape.h"
+#include "RayShape.h"
+#include "SphereShape.h"
+#include "TriangleMeshShape.h"
+#include "InfinitePlaneShape.h"
 
 #include "Matrix.h"
 
@@ -256,7 +260,8 @@ namespace CibraryEngine
 
 	bool PhysicsWorld::Imp::DoContinuousContactUpdate(ContactPoint* cp)
 	{
-		// TODO: update the contact point, and determine if it needs to be severed
+		// TODO: update the contact point, and determine if it needs to be severed; this will probably depend on the types of collision shapes involved
+
 		RigidBody* ibody = cp->a.obj;
 		RigidBody* jbody = cp->b.obj;
 
@@ -327,11 +332,11 @@ namespace CibraryEngine
 			ContactPoint* cp = *iter;
 			if(!imp->DoContinuousContactUpdate(cp))
 			{
-				cp->a.obj->imp->contact_points.erase(cp);
-				cp->b.obj->imp->contact_points.erase(cp);
-
 				cp_recycle_bin.push_back(cp);
 
+				// erase contact point
+				cp->a.obj->imp->contact_points.erase(cp);
+				cp->b.obj->imp->contact_points.erase(cp);
 				iter = imp->contact_points.erase(iter);
 			}
 			else

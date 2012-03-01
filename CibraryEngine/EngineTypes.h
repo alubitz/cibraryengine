@@ -8,8 +8,13 @@
 #include "Scripting.h"
 
 #include "Physics.h"
-#include "CollisionShape.h"
 #include "ModelPhysics.h"
+
+#include "CollisionShape.h"
+#include "RayShape.h"
+#include "SphereShape.h"
+#include "TriangleMeshShape.h"
+#include "InfinitePlaneShape.h"
 
 #include "IKSolver.h"
 #include "IKPose.h"

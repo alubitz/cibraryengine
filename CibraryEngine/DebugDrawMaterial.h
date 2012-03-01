@@ -29,6 +29,8 @@ namespace CibraryEngine
 			void Cleanup(RenderNode node);
 
 			bool Equals(Material* other);
+
+			static Material* GetDebugDrawMaterial();
 	};
 
 	struct DebugDrawMaterialNodeData

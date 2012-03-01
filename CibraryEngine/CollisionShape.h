@@ -40,8 +40,6 @@ namespace CibraryEngine
 
 			CollisionShape(ShapeType type);
 
-			static Material* GetDebugDrawMaterial();
-
 		public:
 
 			/** Compute the mass info for this shape, assuming a density of 1 */
@@ -60,64 +58,5 @@ namespace CibraryEngine
 
 			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
 			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);
-	};
-
-	/** The simplest of all collision shapes */
-	class RayShape : public CollisionShape
-	{
-		public:
-
-			RayShape();
-
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
-	};
-
-	/** Slightly less simple collision shape */
-	class SphereShape : public CollisionShape
-	{
-		public:
-
-			float radius;
-
-			SphereShape();
-			SphereShape(float radius);
-
-			MassInfo ComputeMassInfo();
-
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
-
-			void Write(ostream& stream);
-			unsigned int Read(istream& stream);
-	};
-
-	class TriangleMeshShape : public CollisionShape
-	{
-		public:
-
-			vector<Vec3> vertices;
-
-			struct Tri { unsigned int indices[3]; };
-			vector<Tri> triangles;
-
-			TriangleMeshShape();
-			TriangleMeshShape(VertexBuffer* vbo);
-
-			void Write(ostream& stream);
-			unsigned int Read(istream& stream);
-
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
-	};
-
-	class InfinitePlaneShape : public CollisionShape
-	{
-		public:
-
-			Plane plane;
-
-			InfinitePlaneShape();
-			InfinitePlaneShape(const Plane& plane);
-
-			void Write(ostream& stream);
-			unsigned int Read(istream& stream);
 	};
 }
