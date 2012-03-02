@@ -21,6 +21,9 @@ namespace CibraryEngine
 {
 	static vector<ContactPoint*> cp_recycle_bin;
 
+
+
+
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
@@ -40,7 +43,7 @@ namespace CibraryEngine
 		void AddRigidBody(RigidBody* body);
 		bool RemoveRigidBody(RigidBody* body);
 
-		void DoCollisionResponse(const ContactPoint& cp);
+		void DoCollisionResponse(ContactPoint& cp);
 		bool DoContinuousContactUpdate(ContactPoint* cp);										// returns true if the contact point should persist
 
 		ContactPoint* AddContinuousContact(const ContactPoint& cp);
@@ -109,7 +112,7 @@ namespace CibraryEngine
 			}
 		}
 
-		void Update(TimingInfo time)
+		void Update(const TimingInfo& time)
 		{
 			if(active)
 			{
@@ -221,7 +224,7 @@ namespace CibraryEngine
 			return false;
 	}
 
-	void PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
+	void PhysicsWorld::Imp::DoCollisionResponse(ContactPoint& cp)
 	{
 		// TODO: make it so if A and B were swapped, the outcome would be the same
 
@@ -254,7 +257,8 @@ namespace CibraryEngine
 				}
 			}
 			
-			AddContinuousContact(cp);
+			//AddContinuousContact(cp);
+			DoContinuousContactUpdate(&cp);
 		}
 	}
 
@@ -277,21 +281,54 @@ namespace CibraryEngine
 			Vec3 df = jbody->imp->force - ibody->imp->force;
 			const Vec3& normal = Vec3::Normalize(cp->a.norm - cp->b.norm);
 
+			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
+
 			// see if there neeeds to be a normal force applied to keep these objects from interpenetrating any further
 			float nfdot = Vec3::Dot(normal, df);
-			if(nfdot <= 0)
+			if(nfdot < 0)
 			{
-				Vec3 force = normal * (nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f));	// TODO: get this formula right
+				float f_mag = nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f);			// TODO: get the other case right
+				Vec3 normal_force = normal * f_mag;
 
-				if(force.ComputeMagnitudeSquared() != 0)
+				ibody->ApplyForce(normal_force, i_poi);
+				if(j_can_move)
+					jbody->ApplyForce(-normal_force, j_poi);
+
+				// apply friction
+				float kfric_coeff = 0.9f;					// TODO: compute this based on properties the objects, maybe?
+				float sfric_coeff = 1.0f;
+
+				Vec3 t_dv = dv - normal * Vec3::Dot(dv, normal);
+				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
+
+				if(t_dv_magsq > 0.000001f)					// object is moving; apply kinetic friction
 				{
-					ibody->ApplyForce(force, i_poi);
-					if(j_can_move)
-						jbody->ApplyForce(-force, j_poi);
+					Vec3 fric_force = t_dv * (-f_mag * kfric_coeff / sqrtf(t_dv_magsq));
 
-					// TODO: apply friction here
+					ibody->ApplyForce(fric_force, i_poi);
+					if(j_can_move)
+						jbody->ApplyForce(-fric_force, j_poi);
+				}
+				else										// object isn't moving; apply static friction
+				{
+					Vec3 t_df = df - normal * nfdot;
+					float t_df_mag = t_df.ComputeMagnitude();
+
+					float fric_f_mag = min(f_mag * sfric_coeff, t_df_mag);
+					if(fric_f_mag > 0)
+					{
+						Vec3 fric_force = t_df * (-fric_f_mag / t_df_mag);
+
+						ibody->ApplyForce(fric_force, i_poi);
+						if(j_can_move)
+							jbody->ApplyForce(-fric_force, j_poi);
+					}
 				}
 			}
+			
+			float nvdot = Vec3::Dot(dv, normal);
+			if(nvdot > 0.0f)
+ 				return false;
 		}
 
 		return true;		// TODO: figure out under what conditions a continuous contact point should be removed
@@ -526,11 +563,10 @@ namespace CibraryEngine
 						Ray ray;
 						ray.origin = pos - other_pos;
 						ray.direction = vel - other_vel;
-						
-						// TODO: account for initial overlap?
-						float first, second;
-						if(Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
-							if(first > 0 && first <= time.elapsed)
+
+						float first = 0, second = 0;
+						if(ray.origin.ComputeMagnitudeSquared() < sr * sr || Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
+							if(first >= 0 && first <= time.elapsed)
 							{
 								ContactPoint p;
 
@@ -554,7 +590,41 @@ namespace CibraryEngine
 						if(!ibody->imp->NeedsCollision(jbody))
 							continue;
 
-						// TODO: sphere-mesh
+						Ray ray;
+						ray.origin = pos;
+						ray.direction = vel;
+
+						TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
+						for(vector<TriangleMeshShape::Tri>::iterator kter = shape->triangles.begin(); kter != shape->triangles.end(); ++kter)
+						{
+							unsigned int* indices = kter->indices;
+							Vec3& a = shape->vertices[indices[0]];
+							Vec3& b = shape->vertices[indices[1]];
+							Vec3& c = shape->vertices[indices[2]];
+
+							Plane plane(Plane::FromTriangleVertices(a, b, c));
+
+							float vndot = Vec3::Dot(vel, plane.normal);
+							if(vndot <= 0.0f)
+							{
+								float dist = Util::TriangleMinimumDistance(a, b, c, pos);
+
+								if(dist < radius)
+								{
+
+									ContactPoint p;
+
+									p.a.obj = ibody;
+									p.b.obj = jbody;
+									p.a.pos = pos;
+									p.b.pos = pos;
+									p.b.norm = -plane.normal;
+									p.a.norm = plane.normal;
+
+									hits.push_back(Hit(0, p));
+								}
+							}
+						}
 					}
 				}
 
@@ -575,20 +645,19 @@ namespace CibraryEngine
 						float center_offset = Vec3::Dot(plane_norm, pos) - plane_offset;
 						float vel_dot = Vec3::Dot(plane_norm, vel);
 
-						// is the sphere moving toward the plane?
-						if(center_offset * vel_dot <= 0.0f)
+						// if the sphere is moving away from the plane, don't bounce!
+						if(vel_dot <= 0.0f)
 						{
 							float dist = fabs(center_offset) - radius;
-							float t = dist / fabs(vel_dot);
-
-							if(t > 0 && t <= time.elapsed)
+							float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
+							if(t >= 0 && t <= time.elapsed)
 							{
 								ContactPoint p;
 
 								p.a.obj = ibody;
 								p.b.obj = jbody;
 								p.a.pos = pos + t * vel;
-								p.b.pos = p.a.pos- plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
+								p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
 								p.b.norm = plane_norm;
 								p.a.norm = -plane_norm;
 
