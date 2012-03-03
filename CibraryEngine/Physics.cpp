@@ -19,11 +19,6 @@
 
 namespace CibraryEngine
 {
-	static vector<ContactPoint*> cp_recycle_bin;
-
-
-
-
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
@@ -33,8 +28,6 @@ namespace CibraryEngine
 
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> > shape_bodies;		// lists of rigid bodies by shape type
 
-		boost::unordered_set<ContactPoint*> contact_points;										// list of continuous contact points between objects
-
 		Vec3 gravity;
 
 		Imp();
@@ -43,10 +36,8 @@ namespace CibraryEngine
 		void AddRigidBody(RigidBody* body);
 		bool RemoveRigidBody(RigidBody* body);
 
-		void DoCollisionResponse(ContactPoint& cp);
-		bool DoContinuousContactUpdate(ContactPoint* cp);										// returns true if the contact point should persist
-
-		ContactPoint* AddContinuousContact(const ContactPoint& cp);
+		void DoCollisionResponse(const ContactPoint& cp);
+		void DoContactUpdate(const ContactPoint& cp);										// returns true if the contact point should persist
 	};
 
 
@@ -77,8 +68,6 @@ namespace CibraryEngine
 
 		CollisionCallback* collision_callback;
 
-		boost::unordered_set<ContactPoint*> contact_points;
-
 		Imp() : gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 		Imp(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) :
 			pos(pos),
@@ -92,8 +81,7 @@ namespace CibraryEngine
 			can_rotate(false),
 			active(can_move),
 			user_entity(NULL),
-			collision_callback(NULL),
-			contact_points()
+			collision_callback(NULL)
 		{
 			Mat3 moi_rm(mass_info.moi);
 
@@ -135,18 +123,6 @@ namespace CibraryEngine
 			force = can_move ? gravity * mass_info.mass : Vec3();
 			torque = force_impulse = torque_impulse = Vec3();
 		}
-
-		bool NeedsCollision(RigidBody* other)
-		{
-			for(boost::unordered_set<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
-			{
-				ContactPoint* cp = *iter;
-				if(cp->a.obj == other || cp->b.obj == other)
-					return false;
-			}
-
-			return true;
-		}
 	};
 
 
@@ -162,12 +138,7 @@ namespace CibraryEngine
 		// dispose rigid bodies
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			(*iter)->Dispose();
-		rigid_bodies.clear();
-		
-		// put contact points into recycle bin
-		for(boost::unordered_set<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
-			cp_recycle_bin.push_back(*iter);
-		contact_points.clear();
+		rigid_bodies.clear();	
 	}
 
 	void PhysicsWorld::Imp::AddRigidBody(RigidBody* r)
@@ -201,19 +172,6 @@ namespace CibraryEngine
 		{
 			rigid_bodies.erase(found);
 
-			for(boost::unordered_set<ContactPoint*>::iterator iter = r->imp->contact_points.begin(); iter != r->imp->contact_points.end(); ++iter)
-			{
-				ContactPoint* cp = *iter;
-
-				contact_points.erase(cp);
-				cp_recycle_bin.push_back(cp);
-				
-				if(cp->a.obj == r)
-					cp->b.obj->imp->contact_points.erase(cp);
-				else
-					cp->a.obj->imp->contact_points.erase(cp);
-			}
-
 			ShapeType shape_type = r->GetCollisionShape()->GetShapeType();
 			if(shape_bodies.find(shape_type) != shape_bodies.end())
 				shape_bodies[shape_type].erase(r);
@@ -224,7 +182,7 @@ namespace CibraryEngine
 			return false;
 	}
 
-	void PhysicsWorld::Imp::DoCollisionResponse(ContactPoint& cp)
+	void PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
 	{
 		// TODO: make it so if A and B were swapped, the outcome would be the same
 
@@ -257,17 +215,14 @@ namespace CibraryEngine
 				}
 			}
 			
-			//AddContinuousContact(cp);
-			DoContinuousContactUpdate(&cp);
+			DoContactUpdate(cp);
 		}
 	}
 
-	bool PhysicsWorld::Imp::DoContinuousContactUpdate(ContactPoint* cp)
+	void PhysicsWorld::Imp::DoContactUpdate(const ContactPoint& cp)
 	{
-		// TODO: update the contact point, and determine if it needs to be severed; this will probably depend on the types of collision shapes involved
-
-		RigidBody* ibody = cp->a.obj;
-		RigidBody* jbody = cp->b.obj;
+		RigidBody* ibody = cp.a.obj;
+		RigidBody* jbody = cp.b.obj;
 
 		bool j_can_move = jbody->imp->can_move;
 
@@ -275,11 +230,11 @@ namespace CibraryEngine
 		float m2 = jbody->imp->mass_info.mass;
 		if(m1 + m2 > 0)
 		{
-			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp->a.pos, 1.0f);
-			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp->b.pos, 1.0f);
+			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.a.pos, 1.0f);
+			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
 
 			Vec3 df = jbody->imp->force - ibody->imp->force;
-			const Vec3& normal = Vec3::Normalize(cp->a.norm - cp->b.norm);
+			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
 
 			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
 
@@ -325,33 +280,7 @@ namespace CibraryEngine
 					}
 				}
 			}
-			
-			float nvdot = Vec3::Dot(dv, normal);
-			if(nvdot > 0.0f)
- 				return false;
 		}
-
-		return true;		// TODO: figure out under what conditions a continuous contact point should be removed
-	}
-
-	ContactPoint* PhysicsWorld::Imp::AddContinuousContact(const ContactPoint& cp)
-	{
-		ContactPoint* result;
-		if(cp_recycle_bin.empty())
-			result = new ContactPoint();
-		else
-		{
-			result = cp_recycle_bin[cp_recycle_bin.size() - 1];
-			cp_recycle_bin.pop_back();
-		}
-
-		*result = cp;
-
-		cp.a.obj->imp->contact_points.insert(result);
-		cp.b.obj->imp->contact_points.insert(result);
-		
-		contact_points.insert(result);
-		return result;
 	}
 
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
@@ -363,36 +292,6 @@ namespace CibraryEngine
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
-		// update continuous contact points
-		for(boost::unordered_set<ContactPoint*>::iterator iter = imp->contact_points.begin(); iter != imp->contact_points.end();)
-		{
-			ContactPoint* cp = *iter;
-			if(!imp->DoContinuousContactUpdate(cp))
-			{
-				cp_recycle_bin.push_back(cp);
-
-				// erase contact point
-				cp->a.obj->imp->contact_points.erase(cp);
-				cp->b.obj->imp->contact_points.erase(cp);
-				iter = imp->contact_points.erase(iter);
-			}
-			else
-				++iter;
-		}
-
-
-
-		// TODO: collision detection:
-		//
-		//		start storing broadphase info
-		//		rigid bodies: tell the broadphase what it needs to know about you
-		//
-		//		start collection of batched operations
-		//		rigid bodies: based on broadphase info, add appropriate batch ops (somehow make sure not to do any pairs doubly)
-		//
-		//		do the batched operations
-		//
-
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = imp->shape_bodies.find(ST_Ray);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = imp->shape_bodies.find(ST_Sphere);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = imp->shape_bodies.find(ST_TriangleMesh);
@@ -426,8 +325,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = spheres->second.begin(); jter != spheres->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						float first, second;
 
@@ -452,8 +349,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
 						
@@ -494,8 +389,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
@@ -552,8 +445,6 @@ namespace CibraryEngine
 					if(iter != jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
 
@@ -587,8 +478,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						Ray ray;
 						ray.origin = pos;
@@ -634,8 +523,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-						if(!ibody->imp->NeedsCollision(jbody))
-							continue;
 
 						InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
@@ -669,19 +556,17 @@ namespace CibraryEngine
 
 				if(!hits.empty())
 				{
-					hits.sort();
-
 					if(CollisionCallback* callback = ibody->GetCollisionCallback())
 					{
 						for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
 							if(callback->OnCollision(jter->p))
-							{
 								imp->DoCollisionResponse(jter->p);
-								break;
-							}
 					}
-					else 
-						imp->DoCollisionResponse(hits.begin()->p);
+					else
+					{
+						for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+							imp->DoCollisionResponse(jter->p);
+					}
 				}
 			}
 		}
