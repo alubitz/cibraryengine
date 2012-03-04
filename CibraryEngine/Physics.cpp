@@ -53,13 +53,16 @@ namespace CibraryEngine
 		Quaternion ori;
 		Vec3 rot;
 
-		Vec3 force, force_impulse;
-		Vec3 torque, torque_impulse;
+		Vec3 force, torque;
 
 		Vec3 gravity;
 
 		MassInfo mass_info;
 		CollisionShape* shape;
+
+		// cached values for inverses of stuff
+		float inv_mass;
+		Mat3 inv_moi;
 
 		bool can_move, can_rotate;
 		bool active;								// TODO: support deactivation and related stuffs
@@ -87,6 +90,9 @@ namespace CibraryEngine
 
 			if(moi_rm.Determinant() != 0.0f)
 				can_rotate = true;
+
+			inv_mass = mass_info.mass = 0.0f ? 0.0f : 1.0f / mass_info.mass;
+			inv_moi = ComputeInvMoi();
 		}
 
 		~Imp()
@@ -100,6 +106,8 @@ namespace CibraryEngine
 			}
 		}
 
+		Mat3 ComputeInvMoi() { return Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)); }
+
 		void Update(const TimingInfo& time)
 		{
 			if(active)
@@ -109,10 +117,13 @@ namespace CibraryEngine
 				pos += vel * timestep;
 				ori *= Quaternion::FromPYR(rot);
 
-				vel += (force * timestep + force_impulse) / mass_info.mass;
+				vel += (force * timestep) / mass_info.mass;
 
 				if(can_rotate)
-					rot += Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)) * (torque * timestep + torque_impulse);
+				{
+					inv_moi = ComputeInvMoi();
+					rot += inv_moi * (torque * timestep);
+				}
 			}
 
 			ResetForces();	
@@ -121,8 +132,20 @@ namespace CibraryEngine
 		void ResetForces() 
 		{
 			force = can_move ? gravity * mass_info.mass : Vec3();
-			torque = force_impulse = torque_impulse = Vec3();
+			torque = Vec3();
 		}
+
+		void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
+		{
+			if(active)
+			{
+				if(can_rotate)
+					rot += inv_moi * Vec3::Cross(impulse, local_poi);
+				vel += impulse * inv_mass;
+			}
+		}
+
+		void ApplyCentralImpulse(const Vec3& impulse) { if(active) { vel += impulse * inv_mass; } }
 	};
 
 
@@ -203,7 +226,7 @@ namespace CibraryEngine
 
 			float nvdot = Vec3::Dot(normal, dv);
 
-			if(fabs(nvdot) > 0.01f)
+			if(nvdot < 0.0f)
 			{
 				Vec3 impulse = normal * (nvdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : m1));				// TODO: get this formula right
 
@@ -214,8 +237,6 @@ namespace CibraryEngine
 						jbody->ApplyImpulse(-impulse, j_poi);
 				}
 			}
-			
-			DoContactUpdate(cp);
 		}
 	}
 
@@ -242,8 +263,8 @@ namespace CibraryEngine
 			float nfdot = Vec3::Dot(normal, df);
 			if(nfdot < 0)
 			{
-				float f_mag = nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f);			// TODO: get the other case right
-				Vec3 normal_force = normal * f_mag;
+				float nf_mag = -nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f);			// TODO: get the other case right
+				Vec3 normal_force = normal * nf_mag;
 
 				ibody->ApplyForce(normal_force, i_poi);
 				if(j_can_move)
@@ -258,7 +279,7 @@ namespace CibraryEngine
 
 				if(t_dv_magsq > 0.000001f)					// object is moving; apply kinetic friction
 				{
-					Vec3 fric_force = t_dv * (-f_mag * kfric_coeff / sqrtf(t_dv_magsq));
+					Vec3 fric_force = t_dv * (nf_mag * kfric_coeff / sqrtf(t_dv_magsq));
 
 					ibody->ApplyForce(fric_force, i_poi);
 					if(j_can_move)
@@ -269,7 +290,7 @@ namespace CibraryEngine
 					Vec3 t_df = df - normal * nfdot;
 					float t_df_mag = t_df.ComputeMagnitude();
 
-					float fric_f_mag = min(f_mag * sfric_coeff, t_df_mag);
+					float fric_f_mag = min(nf_mag * sfric_coeff, t_df_mag);
 					if(fric_f_mag > 0)
 					{
 						Vec3 fric_force = t_df * (-fric_f_mag / t_df_mag);
@@ -465,7 +486,7 @@ namespace CibraryEngine
 								p.b.obj = jbody;
 								p.a.pos = pos + first * vel;
 								p.b.pos = other_pos + first * other_vel;
-								p.b.norm = Vec3::Normalize(p.a.pos- other_pos, 1.0f);
+								p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
 								p.a.norm = -p.b.norm;
 
 								hits.push_back(Hit(first, p));
@@ -494,7 +515,7 @@ namespace CibraryEngine
 							Plane plane(Plane::FromTriangleVertices(a, b, c));
 
 							float vndot = Vec3::Dot(vel, plane.normal);
-							if(vndot <= 0.0f)
+							//if(vndot <= 0.0f)
 							{
 								float dist = Util::TriangleMinimumDistance(a, b, c, pos);
 
@@ -507,8 +528,8 @@ namespace CibraryEngine
 									p.b.obj = jbody;
 									p.a.pos = pos;
 									p.b.pos = pos;
-									p.b.norm = -plane.normal;
-									p.a.norm = plane.normal;
+									p.b.norm = plane.normal;
+									p.a.norm = -plane.normal;
 
 									hits.push_back(Hit(0, p));
 								}
@@ -556,17 +577,18 @@ namespace CibraryEngine
 
 				if(!hits.empty())
 				{
-					if(CollisionCallback* callback = ibody->GetCollisionCallback())
+					CollisionCallback* callback = ibody->GetCollisionCallback();
+
+					for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
 					{
-						for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-							if(callback->OnCollision(jter->p))
-								imp->DoCollisionResponse(jter->p);
+						if(callback)
+							callback->OnCollision(jter->p);
+
+						imp->DoCollisionResponse(jter->p);
 					}
-					else
-					{
-						for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-							imp->DoCollisionResponse(jter->p);
-					}
+
+					for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						imp->DoContactUpdate(jter->p);
 				}
 			}
 		}
@@ -627,14 +649,10 @@ namespace CibraryEngine
 		imp->torque += Vec3::Cross(force, local_poi);
 		imp->force += force;
 	}
-	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
-	{
-		imp->torque_impulse += Vec3::Cross(impulse, local_poi);;
-		imp->force_impulse += impulse;
-	}
+	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi) { imp->ApplyImpulse(impulse, local_poi); }
 
 	void RigidBody::ApplyCentralForce(const Vec3& force) { imp->force += force; }
-	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { imp->force_impulse += impulse; }
+	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { imp->ApplyCentralImpulse(impulse); }
 
 	void RigidBody::ResetForces() { imp->ResetForces(); }
 

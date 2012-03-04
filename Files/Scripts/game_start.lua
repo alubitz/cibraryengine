@@ -22,7 +22,7 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = false
+disable_enemies = true
 disable_ai = true
 
 god_toggle = false
