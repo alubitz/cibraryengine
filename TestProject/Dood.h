@@ -93,6 +93,13 @@ namespace Test
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
 
+			struct ContactCallback : public CollisionCallback
+			{
+				Dood* dood;
+				ContactCallback(Dood* dood);
+				bool OnCollision(const ContactPoint& collision);
+			} collision_callback;
+
 			struct AmmoFailureEvent : public Event
 			{
 				Dood* dood;

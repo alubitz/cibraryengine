@@ -60,6 +60,7 @@ namespace Test
 		standing(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
+		collision_callback(this),
 		OnAmmoFailure(),
 		OnDamageTaken(),
 		OnJumpFailure(),
@@ -153,8 +154,6 @@ namespace Test
 		Pawn::Update(time);
 
 		// figure out if you're standing on the ground or not
-		standing = 0;
-		//physics->ContactTest(rigid_body, *contact_callback);
 
 		pos = GetPosition();
 
@@ -201,6 +200,8 @@ namespace Test
 		MaybeDoScriptedUpdate(this);
 
 		DoWeaponControls(time);
+
+		standing = 0;				// reset this after everything that needs to use it has used it
 	}
 
 	void Dood::DoPitchAndYawControls(TimingInfo time)
@@ -332,6 +333,7 @@ namespace Test
 
 		RigidBody* rigid_body = new RigidBody(shape, mass_info, pos);
 		rigid_body->SetUserEntity(this);
+		rigid_body->SetCollisionCallback(&collision_callback);
 
 		physics->AddRigidBody(rigid_body);
 		this->rigid_body = rigid_body;
@@ -437,10 +439,28 @@ namespace Test
 
 
 	/*
-	 * Dood::MyContactResultCallback methods
+	 * Dood::ContactCallback methods
 	 */
+	
+	Dood::ContactCallback::ContactCallback(Dood* dood) : dood(dood) { }
+	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
+	{
+		ContactPoint::Part self = collision.a.obj->GetUserEntity() == dood ? collision.a : collision.b;
+		ContactPoint::Part other = collision.a.obj->GetUserEntity() == dood ? collision.b : collision.a;
+
+		Vec3 normal = other.norm;
+		if(normal.y > 0.1)
+		{
+			// player only counts as standing when they aren't moving away from the surface		
+			float dot = Vec3::Dot(dood->rigid_body->GetLinearVelocity() - other.obj->GetLinearVelocity(), normal);
+			if(dot <= 0.1)
+				dood->standing = 1;
+		}
+
+		return true;
+	}
+
 	/*
-	Dood::MyContactResultCallback::MyContactResultCallback(Dood* dood) : btCollisionWorld::ContactResultCallback(), dood(dood) { }
 	btScalar Dood::MyContactResultCallback::addSingleResult(btManifoldPoint& cp, const btCollisionObject* colObj0, int partId0, int index0, const btCollisionObject* colObj1, int partId1, int index1)
 	{
 		Vec3 normal = Vec3(cp.m_normalWorldOnB.getX(), cp.m_normalWorldOnB.getY(), cp.m_normalWorldOnB.getZ());
