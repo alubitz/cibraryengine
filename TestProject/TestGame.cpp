@@ -912,41 +912,30 @@ namespace Test
 
 	float TestGame::GetTerrainHeight(float x, float z)
 	{
-		/*
-		// define a callback for when a ray intersects an object
-		struct : btCollisionWorld::RayResultCallback
+		struct RayCallback : public CollisionCallback
 		{
-			float result;
+			float max_y;
+			RayCallback() : max_y(0.0f) { }
 
-			btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+			bool OnCollision(const ContactPoint& cp)
 			{
-				void* void_pointer = rayResult.m_collisionObject->getUserPointer();
-				if(void_pointer != NULL)
-				{
-					StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>((Entity*)void_pointer);
-					if(slg != NULL)
+				if(Entity* entity = cp.b.obj->GetUserEntity())
+					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
 					{
-						float frac = rayResult.m_hitFraction;
-						if(frac > result)
-							result = frac;
+						float y = cp.a.pos.y;
+						if(y > max_y)
+							max_y = y;
+
+						return true;
 					}
-				}
-				return 1;
+
+				return false;
 			}
 		} ray_callback;
 
-		ray_callback.result = 0;
+		physics_world->RayTest(Vec3(x, 0, z), Vec3(x, 1000, z), ray_callback);
 
-		// run that function for anything on this ray...
-		float top = 1000;
-		physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
-
-		if(ray_callback.result >= 0)
-			return ray_callback.result * top;
-		else
-			return 0;
-		*/
-		return 0;
+		return ray_callback.max_y;
 	}
 
 	void TestGame::InnerDispose()
@@ -1421,32 +1410,24 @@ namespace Test
 	{
 		// define a callback for when a ray intersects an object
 		list<float> results;
-		/*
-		struct : btCollisionWorld::RayResultCallback
+
+		struct RayCallback : public CollisionCallback
 		{
-			list<float>* results;
+			list<float>& results;
+			RayCallback(list<float>& results) : results(results) { }
 
-			btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+			bool OnCollision(const ContactPoint& cp)
 			{
-				void* void_pointer = rayResult.m_collisionObject->getUserPointer();
-				if(void_pointer != NULL)
-				{
-					StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>((Entity*)void_pointer);
-					if(slg != NULL)
-						results->push_back(rayResult.m_hitFraction);
-				}
-				return 1;
+				if(Entity* entity = cp.b.obj->GetUserEntity())
+					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
+						results.push_back(cp.a.pos.y);
+				return false;
 			}
-		} ray_callback;
+		} ray_callback(results);
 
-		ray_callback.results = &results;
-		*/
-
-		// run that function for anything on this ray...
 		float top = 1000;
-		//game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
+		game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
 		
-
 		results.sort();
 		results.reverse();
 
@@ -1455,7 +1436,7 @@ namespace Test
 		float y = top + min_ceiling_height;
 		for(list<float>::iterator iter = results.begin(); iter != results.end(); ++iter)
 		{
-			float new_y = *iter * top;
+			float new_y = *iter;
 			
 			if(floor && new_y + min_ceiling_height <= y)
 				valid_floors.push_back(new_y);

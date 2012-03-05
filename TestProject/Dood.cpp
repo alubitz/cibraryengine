@@ -170,6 +170,18 @@ namespace Test
 		if (falling_damage_base > 0)
 			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
+		TestGame* test_game = (TestGame*)game_state;
+		if(this == test_game->player_pawn)
+		{
+			float speed = vel.ComputeMagnitude();
+			int i = (int)floor(speed);
+			int j = (int)(10.0f * (speed - i));
+
+			stringstream ss;
+			ss << "Speed = " << i << "." << j << " m/s";
+			test_game->debug_text = ss.str();
+		}
+
 		this->vel = vel;
 
 		if (timestep > 0)
@@ -177,7 +189,7 @@ namespace Test
 			Vec3 post_damp_vel = vel * exp(-timestep * movement_damp);
 			Vec3 damp_force = (post_damp_vel - vel) * mass / timestep;
 
-			rigid_body->ApplyCentralForce(damp_force);
+			//rigid_body->ApplyCentralForce(damp_force);
 		}
 
 		DoMovementControls(time, forward, rightward);
@@ -459,36 +471,6 @@ namespace Test
 
 		return true;
 	}
-
-	/*
-	btScalar Dood::MyContactResultCallback::addSingleResult(btManifoldPoint& cp, const btCollisionObject* colObj0, int partId0, int index0, const btCollisionObject* colObj1, int partId1, int index1)
-	{
-		Vec3 normal = Vec3(cp.m_normalWorldOnB.getX(), cp.m_normalWorldOnB.getY(), cp.m_normalWorldOnB.getZ());
-
-		// player can only stand on an upward-facing surface
-		if(normal.y > 0.1)
-		{
-			// player only counts as standing when they aren't moving away from the surface
-			Vec3 vel_0 = dood->rigid_body->GetLinearVelocity();
-			Vec3 vel_1;
-
-			if(colObj1->getInternalType() == btCollisionObject::CO_RIGID_BODY)
-			{
-				btRigidBody* other = (btRigidBody*)colObj1;
-				btVector3 bt_vel_1 = other->getLinearVelocity();
-				vel_1 = Vec3(bt_vel_1.getX(), bt_vel_1.getY(), bt_vel_1.getZ());
-			}
-			else
-				vel_1 = Vec3();
-
-			float dot = Vec3::Dot(vel_0 - vel_1, normal);
-			if(dot <= 0.1)
-				dood->standing = 1;
-		}
-
-		return 0;
-	}
-	*/
 
 
 

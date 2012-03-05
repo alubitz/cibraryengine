@@ -38,6 +38,8 @@ namespace CibraryEngine
 
 		void DoCollisionResponse(const ContactPoint& cp);
 		void DoContactUpdate(const ContactPoint& cp);										// returns true if the contact point should persist
+
+		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f);
 	};
 
 
@@ -228,7 +230,8 @@ namespace CibraryEngine
 
 			if(nvdot < 0.0f)
 			{
-				Vec3 impulse = normal * (nvdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : m1));				// TODO: get this formula right
+				const float bounciness = 0.2f;					// TODO: compute this based on properties the objects
+				Vec3 impulse = normal * (nvdot * (1.0f + bounciness) * (j_can_move ? (m1 * m2 / (m1 + m2)) : m1));
 
 				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
@@ -241,7 +244,7 @@ namespace CibraryEngine
 	}
 
 	void PhysicsWorld::Imp::DoContactUpdate(const ContactPoint& cp)
-	{
+	{	
 		RigidBody* ibody = cp.a.obj;
 		RigidBody* jbody = cp.b.obj;
 
@@ -263,23 +266,26 @@ namespace CibraryEngine
 			float nfdot = Vec3::Dot(normal, df);
 			if(nfdot < 0)
 			{
-				float nf_mag = -nfdot * (j_can_move ? (m1 * m2 / (m1 + m2)) : 1.0f);			// TODO: get the other case right
+				float nf_mag = -nfdot * 1.0f;				// TODO: make sure this is right?
 				Vec3 normal_force = normal * nf_mag;
 
+				/*
 				ibody->ApplyForce(normal_force, i_poi);
 				if(j_can_move)
 					jbody->ApplyForce(-normal_force, j_poi);
+				*/
 
 				// apply friction
-				float kfric_coeff = 0.9f;					// TODO: compute this based on properties the objects, maybe?
+				float kfric_coeff = 0.9f;					// TODO: compute this based on properties the objects
 				float sfric_coeff = 1.0f;
 
 				Vec3 t_dv = dv - normal * Vec3::Dot(dv, normal);
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
 
-				if(t_dv_magsq > 0.000001f)					// object is moving; apply kinetic friction
+				if(t_dv_magsq > 0.0f)						// object is moving; apply kinetic friction
 				{
-					Vec3 fric_force = t_dv * (nf_mag * kfric_coeff / sqrtf(t_dv_magsq));
+					float t_dv_mag = max(0.1f, sqrtf(t_dv_magsq));					// arbitrary threshold
+					Vec3 fric_force = t_dv * (nf_mag * kfric_coeff / t_dv_mag);
 
 					ibody->ApplyForce(fric_force, i_poi);
 					if(j_can_move)
@@ -304,6 +310,127 @@ namespace CibraryEngine
 		}
 	}
 
+	void PhysicsWorld::Imp::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time)
+	{
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = shape_bodies.find(ST_TriangleMesh);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = shape_bodies.find(ST_InfinitePlane);
+
+		Ray ray;
+		ray.origin = from;
+		ray.direction = to - from;
+
+		RigidBody* ibody = NULL;
+
+		struct Hit
+		{
+			float t;
+			ContactPoint p;
+
+			Hit(float t, ContactPoint p) : t(t), p(p) { }
+			bool operator <(Hit& h) { return t < h.t; }
+		};
+
+		list<Hit> hits;
+
+		// ray-sphere collisions
+		if(spheres != shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator jter = spheres->second.begin(); jter != spheres->second.end(); ++jter)
+			{
+				RigidBody* jbody = *jter;
+
+				float first, second;
+
+				if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
+					if(first > 0 && first <= max_time)
+					{
+						ContactPoint p;
+
+						p.a.obj = ibody;
+						p.b.obj = jbody;
+						p.a.pos = ray.origin + first * ray.direction;
+						p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
+
+						hits.push_back(Hit(first, p));
+					}
+			}
+		}
+				
+		// ray-mesh collisions
+		if(meshes != shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
+			{
+				RigidBody* jbody = *jter;
+
+				TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
+						
+				vector<unsigned int> index_a, index_b, index_c;
+				for(vector<TriangleMeshShape::Tri>::iterator kter = mesh->triangles.begin(); kter != mesh->triangles.end(); ++kter)
+				{
+					index_a.push_back(kter->indices[0]);
+					index_b.push_back(kter->indices[1]);
+					index_c.push_back(kter->indices[2]);
+				}
+
+				vector<Ray> ray_list;
+				ray_list.push_back(ray);			// TODO: transform this to account for the rigid body's orientation and position
+
+				vector<Intersection> mesh_hits = Util::RayTriangleListIntersect(mesh->vertices, index_a, index_b, index_c, ray_list)[0];
+						
+				for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
+				{
+					float t = kter->time;
+					if(t > 0 && t < max_time)
+					{
+						ContactPoint p;
+
+						p.a.obj = ibody;
+						p.b.obj = jbody;
+						p.a.pos = ray.origin + t * ray.direction;
+						p.b.norm = kter->normal;
+
+						hits.push_back(Hit(t, p));
+					}
+				}
+			}
+		}
+
+		// ray-plane collisions
+		if(planes != shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
+			{
+				RigidBody* jbody = *jter;
+
+				InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+				float t = Util::RayPlaneIntersect(ray, plane->plane);
+				if(t > 0 && t <= max_time)
+				{
+					ContactPoint p;
+
+					p.a.obj = ibody;
+					p.b.obj = jbody;
+					p.a.pos = ray.origin + t * ray.direction;
+					p.b.norm = plane->plane.normal;
+
+					hits.push_back(Hit(t, p));
+				}
+			}
+		}
+
+		if(!hits.empty())
+		{
+			hits.sort();
+
+			for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+				if(callback.OnCollision(jter->p))
+					break;
+		}
+	}
+
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
 
 	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
@@ -318,14 +445,7 @@ namespace CibraryEngine
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = imp->shape_bodies.find(ST_TriangleMesh);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = imp->shape_bodies.find(ST_InfinitePlane);
 
-		struct Hit
-		{
-			float t;
-			ContactPoint p;
-
-			Hit(float t, ContactPoint p) : t(t), p(p) { }
-			bool operator <(Hit& h) { return t < h.t; }
-		};
+	
 
 		// handle all the collisions involving rays
 		if(rays != imp->shape_bodies.end())
@@ -334,115 +454,24 @@ namespace CibraryEngine
 			{
 				RigidBody* ibody = *iter;
 
-				Ray ray;
-				ray.origin = ibody->GetPosition();
-				ray.direction = ibody->GetLinearVelocity();
-
-				list<Hit> hits;
-
-				// ray-sphere collisions
-				if(spheres != imp->shape_bodies.end())
+				struct RayCallback : public CollisionCallback
 				{
-					for(boost::unordered_set<RigidBody*>::iterator jter = spheres->second.begin(); jter != spheres->second.end(); ++jter)
+					CollisionCallback* callback;
+					RayCallback(CollisionCallback* callback) : callback(callback) { }
+
+					bool OnCollision(const ContactPoint& cp)
 					{
-						RigidBody* jbody = *jter;
-
-						float first, second;
-
-						if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
-							if(first > 0 && first <= time.elapsed)
-							{
-								ContactPoint p;
-
-								p.a.obj = ibody;
-								p.b.obj = jbody;
-								p.a.pos = ray.origin + first * ray.direction;
-								p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
-
-								hits.push_back(Hit(first, p));
-							}
-					}
-				}
-				
-				// ray-mesh collisions
-				if(meshes != imp->shape_bodies.end())
-				{
-					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
-					{
-						RigidBody* jbody = *jter;
-
-						TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
-						
-						vector<unsigned int> index_a, index_b, index_c;
-						for(vector<TriangleMeshShape::Tri>::iterator kter = mesh->triangles.begin(); kter != mesh->triangles.end(); ++kter)
+						if(callback && callback->OnCollision(cp))
+							return false;
+						else
 						{
-							index_a.push_back(kter->indices[0]);
-							index_b.push_back(kter->indices[1]);
-							index_c.push_back(kter->indices[2]);
-						}
-
-						vector<Ray> ray_list;
-						ray_list.push_back(ray);			// TODO: transform this to account for the rigid body's orientation and position
-
-						vector<Intersection> mesh_hits = Util::RayTriangleListIntersect(mesh->vertices, index_a, index_b, index_c, ray_list)[0];
-						
-						for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
-						{
-							float t = kter->time;
-							if(t > 0 && t < time.elapsed)
-							{
-								ContactPoint p;
-
-								p.a.obj = ibody;
-								p.b.obj = jbody;
-								p.a.pos = ray.origin + t * ray.direction;
-								p.b.norm = kter->normal;
-
-								hits.push_back(Hit(t, p));
-							}
+							// TODO: maybe bounce?
+							return true;
 						}
 					}
-				}
+				} my_callback(ibody->GetCollisionCallback());
 
-				// ray-plane collisions
-				if(planes != imp->shape_bodies.end())
-				{
-					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
-					{
-						RigidBody* jbody = *jter;
-
-						InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
-
-						float t = Util::RayPlaneIntersect(ray, plane->plane);
-						if(t > 0 && t <= time.elapsed)
-						{
-							ContactPoint p;
-
-							p.a.obj = ibody;
-							p.b.obj = jbody;
-							p.a.pos = ray.origin + t * ray.direction;
-							p.b.norm = plane->plane.normal;
-
-							hits.push_back(Hit(t, p));
-						}
-					}
-				}
-
-				if(!hits.empty())
-				{
-					hits.sort();
-
-					if(CollisionCallback* callback = ibody->GetCollisionCallback())
-					{
-						for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-							if(callback->OnCollision(jter->p))
-								break;
-					}
-					else
-					{
-						// TODO: bounce off the first object?
-					}
-				}
+				imp->RayTest(ibody->GetPosition(), ibody->GetPosition() + ibody->GetLinearVelocity(), my_callback, time.elapsed);
 			}
 		}
 
@@ -458,7 +487,7 @@ namespace CibraryEngine
 				Vec3 pos = ibody->GetPosition();
 				Vec3 vel = ibody->GetLinearVelocity();
 
-				list<Hit> hits;
+				list<ContactPoint> hits;
 
 				// sphere-sphere collisions
 				for(boost::unordered_set<RigidBody*>::iterator jter = iter; jter != spheres->second.end(); ++jter)
@@ -489,7 +518,7 @@ namespace CibraryEngine
 								p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
 								p.a.norm = -p.b.norm;
 
-								hits.push_back(Hit(first, p));
+								hits.push_back(p);
 							}
 					}
 				}
@@ -531,7 +560,7 @@ namespace CibraryEngine
 									p.b.norm = plane.normal;
 									p.a.norm = -plane.normal;
 
-									hits.push_back(Hit(0, p));
+									hits.push_back(p);
 								}
 							}
 						}
@@ -569,7 +598,7 @@ namespace CibraryEngine
 								p.b.norm = plane_norm;
 								p.a.norm = -plane_norm;
 
-								hits.push_back(Hit(t, p));
+								hits.push_back(p);
 							}
 						}
 					}
@@ -579,16 +608,16 @@ namespace CibraryEngine
 				{
 					CollisionCallback* callback = ibody->GetCollisionCallback();
 
-					for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
 					{
 						if(callback)
-							callback->OnCollision(jter->p);
+							callback->OnCollision(*jter);
 
-						imp->DoCollisionResponse(jter->p);
+						imp->DoCollisionResponse(*jter);
 					}
 
-					for(list<Hit>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-						imp->DoContactUpdate(jter->p);
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						imp->DoContactUpdate(*jter);
 				}
 			}
 		}
@@ -616,6 +645,8 @@ namespace CibraryEngine
 		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
 			(*iter)->imp->gravity = gravity;
 	}
+
+	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { imp->RayTest(from, to, callback); }
 
 
 

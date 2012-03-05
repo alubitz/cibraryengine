@@ -12,10 +12,10 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class RigidBody;
-
 	struct Mat4;
-	struct Quaternion;
+
+	class RigidBody;
+	class CollisionCallback;
 
 	class SceneRenderer;
 
@@ -54,11 +54,12 @@ namespace CibraryEngine
 
 			Vec3 GetGravity();
 			void SetGravity(const Vec3& gravity);
+
+			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback);
 	};
 
 	struct MassInfo;
 	class CollisionShape;
-	class CollisionCallback;
 
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable

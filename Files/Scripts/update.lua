@@ -18,8 +18,9 @@ if bot_spawn_timer > 2 then
 end
 
 if num_bots == 0 then
-	level = level + 1
-	kills_this_level = 0
-
-	begin_level(gs, player_pos, level)
+	if not disable_enemies then
+		level = level + 1
+		kills_this_level = 0
+		begin_level(gs, player_pos, level)
+	end
 end

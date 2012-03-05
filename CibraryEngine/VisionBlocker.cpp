@@ -11,34 +11,23 @@ namespace CibraryEngine
 {
 	bool VisionBlocker::CheckLineOfSight(PhysicsWorld* physics, Vec3 from, Vec3 to)
 	{
-		/*
-		// define a callback for when a ray intersects an object
-		struct : btCollisionWorld::RayResultCallback
+		struct RayCallback : public CollisionCallback
 		{
-			float result;
-
-			btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
+			bool result;
+			RayCallback() : result(true) { }
+			bool OnCollision(const ContactPoint& cp)
 			{
-				void* void_pointer = rayResult.m_collisionObject->getUserPointer();
-				if(void_pointer != NULL)
-				{
-					VisionBlocker* vb = dynamic_cast<VisionBlocker*>((Entity*)void_pointer);
-					if(vb != NULL)
+				if(Entity* entity = cp.b.obj->GetUserEntity())
+					if(VisionBlocker* vision_blocker = dynamic_cast<VisionBlocker*>(entity))
 					{
-						float frac = rayResult.m_hitFraction;
-						if(frac > result)
-							result = frac;
+						result = false;
+						return true;
 					}
-				}
-				return 1;
+				return false;
 			}
 		} ray_callback;
 
-		ray_callback.result = 0.0f;
-		physics->RayTest(from, to, ray_callback);				// run that function for anything on this ray...
-		return ray_callback.result == 0.0f;						// if it's still zero, that means nothing is between those two points
-		*/
-
-		return false;
+		physics->RayTest(from, to, ray_callback);
+		return ray_callback.result;
 	}
 }
