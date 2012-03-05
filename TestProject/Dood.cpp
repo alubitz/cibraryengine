@@ -189,7 +189,7 @@ namespace Test
 			Vec3 post_damp_vel = vel * exp(-timestep * movement_damp);
 			Vec3 damp_force = (post_damp_vel - vel) * mass / timestep;
 
-			//rigid_body->ApplyCentralForce(damp_force);
+			rigid_body->ApplyCentralForce(damp_force);
 		}
 
 		DoMovementControls(time, forward, rightward);

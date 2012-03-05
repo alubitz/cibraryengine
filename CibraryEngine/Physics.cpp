@@ -30,6 +30,8 @@ namespace CibraryEngine
 
 		Vec3 gravity;
 
+		float internal_timer, timer_interval;
+
 		Imp();
 		~Imp();
 
@@ -37,7 +39,8 @@ namespace CibraryEngine
 		bool RemoveRigidBody(RigidBody* body);
 
 		void DoCollisionResponse(const ContactPoint& cp);
-		void DoContactUpdate(const ContactPoint& cp);										// returns true if the contact point should persist
+
+		void DoFixedStep();
 
 		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f);
 	};
@@ -56,6 +59,9 @@ namespace CibraryEngine
 		Vec3 rot;
 
 		Vec3 force, torque;
+		Vec3 applied_force, applied_torque;
+
+		bool apply_force_directly;
 
 		Vec3 gravity;
 
@@ -79,6 +85,11 @@ namespace CibraryEngine
 			vel(),
 			ori(ori),
 			rot(),
+			force(),
+			torque(),
+			applied_force(),
+			applied_torque(),
+			apply_force_directly(false),
 			gravity(),
 			mass_info(mass_info),
 			shape(shape),
@@ -128,13 +139,19 @@ namespace CibraryEngine
 				}
 			}
 
-			ResetForces();	
+			ResetToApplied();
 		}
 
 		void ResetForces() 
 		{
-			force = can_move ? gravity * mass_info.mass : Vec3();
-			torque = Vec3();
+			applied_force = can_move ? gravity * mass_info.mass : Vec3();
+			applied_torque = Vec3();
+		}
+
+		void ResetToApplied()
+		{
+			force = applied_force;
+			torque = applied_torque;
 		}
 
 		void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
@@ -156,14 +173,14 @@ namespace CibraryEngine
 	/*
 	 * PhysicsWorld and PhysicsWorld::Imp methods
 	 */
-	PhysicsWorld::Imp::Imp() : rigid_bodies(), gravity(0, -9.8f, 0) { }
+	PhysicsWorld::Imp::Imp() : rigid_bodies(), gravity(0, -9.8f, 0), internal_timer(), timer_interval(1.0f / 60.0f) { }
 
 	PhysicsWorld::Imp::~Imp()
 	{
 		// dispose rigid bodies
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			(*iter)->Dispose();
-		rigid_bodies.clear();	
+		rigid_bodies.clear();
 	}
 
 	void PhysicsWorld::Imp::AddRigidBody(RigidBody* r)
@@ -230,8 +247,10 @@ namespace CibraryEngine
 
 			if(nvdot < 0.0f)
 			{
-				const float bounciness = 0.2f;					// TODO: compute this based on properties the objects
-				Vec3 impulse = normal * (nvdot * (1.0f + bounciness) * (j_can_move ? (m1 * m2 / (m1 + m2)) : m1));
+				const float bounciness = 0.0f;					// TODO: compute this based on properties the objects
+				float use_mass = (j_can_move ? (m1 * m2 / (m1 + m2)) : m1);
+				float impulse_mag = (nvdot * (1.0f + bounciness) * use_mass);
+				Vec3 impulse = normal * impulse_mag;
 
 				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
@@ -239,71 +258,37 @@ namespace CibraryEngine
 					if(j_can_move)
 						jbody->ApplyImpulse(-impulse, j_poi);
 				}
-			}
-		}
-	}
 
-	void PhysicsWorld::Imp::DoContactUpdate(const ContactPoint& cp)
-	{	
-		RigidBody* ibody = cp.a.obj;
-		RigidBody* jbody = cp.b.obj;
-
-		bool j_can_move = jbody->imp->can_move;
-
-		float m1 = ibody->imp->mass_info.mass;
-		float m2 = jbody->imp->mass_info.mass;
-		if(m1 + m2 > 0)
-		{
-			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.a.pos, 1.0f);
-			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
-
-			Vec3 df = jbody->imp->force - ibody->imp->force;
-			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
-
-			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
-
-			// see if there neeeds to be a normal force applied to keep these objects from interpenetrating any further
-			float nfdot = Vec3::Dot(normal, df);
-			if(nfdot < 0)
-			{
-				float nf_mag = -nfdot * 1.0f;				// TODO: make sure this is right?
-				Vec3 normal_force = normal * nf_mag;
-
-				/*
-				ibody->ApplyForce(normal_force, i_poi);
-				if(j_can_move)
-					jbody->ApplyForce(-normal_force, j_poi);
-				*/
-
-				// apply friction
-				float kfric_coeff = 0.9f;					// TODO: compute this based on properties the objects
+				float kfric_coeff = 0.9f;						// TODO: compute this based on properties the objects
 				float sfric_coeff = 1.0f;
 
-				Vec3 t_dv = dv - normal * Vec3::Dot(dv, normal);
+				Vec3 t_dv = dv - normal * nvdot;
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
 
-				if(t_dv_magsq > 0.0f)						// object is moving; apply kinetic friction
+				if(t_dv_magsq > 0.0f)							// object is moving; apply kinetic friction
 				{
-					float t_dv_mag = max(0.1f, sqrtf(t_dv_magsq));					// arbitrary threshold
-					Vec3 fric_force = t_dv * (nf_mag * kfric_coeff / t_dv_mag);
+					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / sqrtf(t_dv_magsq)));
 
-					ibody->ApplyForce(fric_force, i_poi);
+					ibody->ApplyImpulse(fric_impulse, i_poi);
 					if(j_can_move)
-						jbody->ApplyForce(-fric_force, j_poi);
+						jbody->ApplyImpulse(-fric_impulse, j_poi);
 				}
-				else										// object isn't moving; apply static friction
+				else											// object isn't moving; apply static friction
 				{
+					Vec3 df = jbody->imp->applied_force - ibody->imp->applied_force;
+					float nfdot = Vec3::Dot(normal, df);
+
 					Vec3 t_df = df - normal * nfdot;
 					float t_df_mag = t_df.ComputeMagnitude();
 
-					float fric_f_mag = min(nf_mag * sfric_coeff, t_df_mag);
-					if(fric_f_mag > 0)
+					float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
+					if(fric_i_mag > 0)
 					{
-						Vec3 fric_force = t_df * (-fric_f_mag / t_df_mag);
+						Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
 
-						ibody->ApplyForce(fric_force, i_poi);
+						ibody->ApplyImpulse(fric_impulse, i_poi);
 						if(j_can_move)
-							jbody->ApplyForce(-fric_force, j_poi);
+							jbody->ApplyImpulse(-fric_impulse, j_poi);
 					}
 				}
 			}
@@ -431,24 +416,21 @@ namespace CibraryEngine
 		}
 	}
 
-	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
-
-	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
-
-	void PhysicsWorld::AddRigidBody(RigidBody* r) { imp->AddRigidBody(r); }
-	bool PhysicsWorld::RemoveRigidBody(RigidBody* r) { return imp->RemoveRigidBody(r); }
-
-	void PhysicsWorld::Update(TimingInfo time)
+	void PhysicsWorld::Imp::DoFixedStep()
 	{
-		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = imp->shape_bodies.find(ST_Ray);
-		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = imp->shape_bodies.find(ST_Sphere);
-		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = imp->shape_bodies.find(ST_TriangleMesh);
-		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = imp->shape_bodies.find(ST_InfinitePlane);
+		float timestep = timer_interval;
 
-	
+		// update positions and apply forces
+		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			(*iter)->Update(TimingInfo(timestep, timestep));
+
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = shape_bodies.find(ST_Ray);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = shape_bodies.find(ST_TriangleMesh);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = shape_bodies.find(ST_InfinitePlane);	
 
 		// handle all the collisions involving rays
-		if(rays != imp->shape_bodies.end())
+		if(rays != shape_bodies.end())
 		{
 			for(boost::unordered_set<RigidBody*>::iterator iter = rays->second.begin(); iter != rays->second.end(); ++iter)
 			{
@@ -471,12 +453,14 @@ namespace CibraryEngine
 					}
 				} my_callback(ibody->GetCollisionCallback());
 
-				imp->RayTest(ibody->GetPosition(), ibody->GetPosition() + ibody->GetLinearVelocity(), my_callback, time.elapsed);
+				RayTest(ibody->GetPosition(), ibody->GetPosition() + ibody->GetLinearVelocity(), my_callback, timestep);
 			}
 		}
 
+
+
 		// handle all the collisions involving spheres
-		if(spheres != imp->shape_bodies.end())
+		if(spheres != shape_bodies.end())
 		{
 			for(boost::unordered_set<RigidBody*>::iterator iter = spheres->second.begin(); iter != spheres->second.end(); ++iter)
 			{
@@ -507,7 +491,7 @@ namespace CibraryEngine
 
 						float first = 0, second = 0;
 						if(ray.origin.ComputeMagnitudeSquared() < sr * sr || Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
-							if(first >= 0 && first <= time.elapsed)
+							if(first >= 0 && first <= timestep)
 							{
 								ContactPoint p;
 
@@ -523,7 +507,7 @@ namespace CibraryEngine
 					}
 				}
 
-				if(meshes != imp->shape_bodies.end())
+				if(meshes != shape_bodies.end())
 				{
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
@@ -568,7 +552,7 @@ namespace CibraryEngine
 				}
 
 				// sphere-plane collisions
-				if(planes != imp->shape_bodies.end())
+				if(planes != shape_bodies.end())
 				{
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
@@ -587,7 +571,7 @@ namespace CibraryEngine
 						{
 							float dist = fabs(center_offset) - radius;
 							float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
-							if(t >= 0 && t <= time.elapsed)
+							if(t >= 0 && t <= timestep)
 							{
 								ContactPoint p;
 
@@ -613,18 +597,42 @@ namespace CibraryEngine
 						if(callback)
 							callback->OnCollision(*jter);
 
-						imp->DoCollisionResponse(*jter);
+						DoCollisionResponse(*jter);
 					}
-
-					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-						imp->DoContactUpdate(*jter);
 				}
 			}
 		}
 
-		// update positions and apply forces
+	
+	}
+
+	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
+
+	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
+
+	void PhysicsWorld::AddRigidBody(RigidBody* r) { imp->AddRigidBody(r); }
+	bool PhysicsWorld::RemoveRigidBody(RigidBody* r) { return imp->RemoveRigidBody(r); }
+
+	void PhysicsWorld::Update(TimingInfo time)
+	{
 		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
-			(*iter)->Update(time);
+		{
+			(*iter)->imp->ResetToApplied();
+			(*iter)->imp->apply_force_directly = true;
+		}
+
+		imp->internal_timer += time.elapsed;
+		while(imp->internal_timer >= imp->timer_interval)
+		{
+			imp->DoFixedStep();
+			imp->internal_timer -= imp->timer_interval;
+		}
+
+		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
+		{
+			(*iter)->ResetForces();
+			(*iter)->imp->apply_force_directly = false;
+		}
 	}
 
 	void PhysicsWorld::DebugDrawWorld(SceneRenderer* renderer)
@@ -677,12 +685,28 @@ namespace CibraryEngine
 
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
-		imp->torque += Vec3::Cross(force, local_poi);
-		imp->force += force;
+		if(imp->apply_force_directly)
+		{
+			imp->torque += Vec3::Cross(force, local_poi);
+			imp->force += force;
+		}
+		else
+		{
+			imp->applied_torque += Vec3::Cross(force, local_poi);
+			imp->applied_force += force;
+		}
 	}
+
 	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi) { imp->ApplyImpulse(impulse, local_poi); }
 
-	void RigidBody::ApplyCentralForce(const Vec3& force) { imp->force += force; }
+	void RigidBody::ApplyCentralForce(const Vec3& force)
+	{
+		if(imp->apply_force_directly)
+			imp->force += force;
+		else
+			imp->applied_force += force; 
+	}
+
 	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { imp->ApplyCentralImpulse(impulse); }
 
 	void RigidBody::ResetForces() { imp->ResetForces(); }
