@@ -57,13 +57,14 @@ namespace CibraryEngine
 		Vec3* A = new Vec3[num_faces];
 		Vec3* B = new Vec3[num_faces];
 		Vec3* C = new Vec3[num_faces];
-        Vec3* AB = new Vec3[num_faces];
+		Vec3* AB = new Vec3[num_faces];
 		Vec3* AC = new Vec3[num_faces];
 		Plane* planes = new Plane[num_faces];
-        Vec3* P = new Vec3[num_faces];
+		Vec3* P = new Vec3[num_faces];
 		Vec3* Q = new Vec3[num_faces];
-        float* UOffset = new float[num_faces];
+		float* UOffset = new float[num_faces];
 		float* VOffset = new float[num_faces];
+
 		for(size_t face_index = 0; face_index < num_faces; ++face_index)
 		{
 			A[face_index] = verts[a_vert[face_index]];
@@ -118,6 +119,17 @@ namespace CibraryEngine
 			}
 			results.push_back(test);
 		}
+
+		delete[] A;
+		delete[] B;
+		delete[] C;
+		delete[] AB;
+		delete[] AC;
+		delete[] planes;
+		delete[] P;
+		delete[] Q;
+		delete[] UOffset;
+		delete[] VOffset;
 
 		return results;
 	}
@@ -194,10 +206,10 @@ namespace CibraryEngine
 
 		// quadratic formula here...
         float A = vmag_sq;
-		float B = 2.0 * Vec3::Dot(dx, ray.direction);
+		float B = 2.0f * Vec3::Dot(dx, ray.direction);
 		float C = dmag_sq - sphere.radius * sphere.radius;
         
-		float under_root = B * B - 4.0 * A * C;
+		float under_root = B * B - 4.0f * A * C;
 
 		// no solutions
         if (under_root < 0 || A == 0)
