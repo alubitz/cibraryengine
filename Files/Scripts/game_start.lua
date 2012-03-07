@@ -24,7 +24,7 @@ bots_spawned = 0
 
 disable_enemies = false
 disable_waves = false
-disable_ai = false
+disable_ai = true
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false

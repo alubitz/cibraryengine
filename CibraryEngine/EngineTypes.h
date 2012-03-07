@@ -15,6 +15,7 @@
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
+#include "MultiSphereShape.h"
 
 #include "IKSolver.h"
 #include "IKPose.h"

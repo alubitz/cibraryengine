@@ -34,6 +34,16 @@ namespace Test
 		body->Dispose();
 		delete body;
 		body = NULL;
+
+		if(trail_head != NULL)
+		{
+			trail_head->head_free = true;
+			if(trail_head->trail_free)
+			{
+				delete trail_head;
+				trail_head = NULL;
+			}
+		}
 	}
 
 	void Shot::Spawned()

@@ -26,7 +26,8 @@ namespace CibraryEngine
 		ST_Ray = 1,
 		ST_Sphere = 2,
 		ST_TriangleMesh = 3,
-		ST_InfinitePlane = 4
+		ST_InfinitePlane = 4,
+		ST_MultiSphere = 5
 	};
 
 	/** A shape usable for collision detection and/or response */

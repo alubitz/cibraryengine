@@ -28,7 +28,16 @@ namespace CibraryEngine
 				TrailNode(Vec3 pos, float age, float max_age) : pos(pos), age(age), max_age(max_age) { }
 			};
 
-			struct TrailHead { virtual bool operator()(TrailNode& node) = 0; };
+			struct TrailHead
+			{
+				bool trail_free;
+				bool head_free;
+
+				TrailHead() : trail_free(false), head_free(false) { }
+				virtual ~TrailHead() { }
+
+				virtual bool operator()(TrailNode& node) = 0;
+			};
 
 		private:
 
@@ -46,14 +55,20 @@ namespace CibraryEngine
 			bool AddNode();
 			void InvalidateBoundingSphere();
 
-		public:
+		protected:
 
-			BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width);
-			void Update(TimingInfo time);
-			void Vis(SceneRenderer* renderer);
+			void InnerDispose();
+
+		public:
 
 			TrailHead* trailhead;
 
-			Sphere GetBoundingSphere();		
+
+			BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width);
+
+			void Update(TimingInfo time);
+			Sphere GetBoundingSphere();	
+			
+			void Vis(SceneRenderer* renderer);	
 	};
 }

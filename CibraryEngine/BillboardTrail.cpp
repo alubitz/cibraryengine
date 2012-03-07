@@ -26,6 +26,21 @@ namespace CibraryEngine
 		AddNode();
 	}
 
+	void BillboardTrail::InnerDispose()
+	{
+		if(trailhead != NULL)
+		{
+			trailhead->trail_free = true;
+			if(trailhead->head_free)
+			{
+				delete trailhead;
+				trailhead = NULL;
+			}
+		}
+
+		Entity::InnerDispose();
+	}
+
 	bool BillboardTrail::AddNode()
 	{
 		TrailNode head;

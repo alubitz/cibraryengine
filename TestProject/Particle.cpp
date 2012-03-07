@@ -8,6 +8,19 @@ namespace Test
 	 */
 	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
 
+	void Particle::InnerDispose()
+	{
+		if(trailhead != NULL)
+		{
+			trailhead->head_free = true;
+			if(trailhead->trail_free)
+			{
+				delete trailhead;
+				trailhead = NULL;
+			}
+		}
+	}
+
 	void Particle::Spawned()
 	{
 		if(billboard_mat != NULL)

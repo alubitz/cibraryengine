@@ -6,6 +6,7 @@
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
+#include "MultiSphereShape.h"
 
 #include "Matrix.h"
 
@@ -406,6 +407,8 @@ namespace CibraryEngine
 			}
 		}
 
+		// TODO: ray-multisphere collisions
+
 		if(!hits.empty())
 		{
 			hits.sort();
@@ -588,6 +591,8 @@ namespace CibraryEngine
 					}
 				}
 
+				// TODO: sphere-multisphere collisions
+
 				if(!hits.empty())
 				{
 					CollisionCallback* callback = ibody->GetCollisionCallback();
@@ -603,7 +608,7 @@ namespace CibraryEngine
 			}
 		}
 
-	
+		// TODO: handle all the collisions involving multispheres	
 	}
 
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }

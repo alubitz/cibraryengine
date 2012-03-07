@@ -107,6 +107,15 @@ namespace CibraryEngine
 			pq.Insert(node_to_index[source]);
 		}
 
+		~Imp()
+		{
+			for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); ++iter)
+			{
+				delete *iter;
+				*iter = NULL;
+			}
+		}
+
 		void Think(int steps)
 		{
 			// if the search has already finished, there's no need to do any more iterations
@@ -187,7 +196,10 @@ namespace CibraryEngine
 
 				// delete new'd stuffs
 				for(vector<Edge*>::iterator iter = search_frontier.begin(); iter != search_frontier.end(); ++iter)
+				{
 					delete *iter;
+					*iter = NULL;
+				}
 
 				// store the path we computed
 				solution = results;

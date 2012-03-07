@@ -8,6 +8,10 @@ namespace Test
 
 	class Particle : public Entity
 	{
+		protected:
+
+			void InnerDispose();
+
 		public:
 
 			ParticleMaterial* material;
@@ -33,8 +37,8 @@ namespace Test
 				TrailHead(Particle* particle);
 				bool operator()(BillboardTrail::TrailNode& node);
 			};
-
 			TrailHead* trailhead;
+
 			BillboardMaterial* billboard_mat;
 	};
 }
