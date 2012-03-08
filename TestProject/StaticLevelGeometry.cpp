@@ -76,7 +76,7 @@ namespace Test
 	{
 		for (int i = 0; i < 6; ++i)
 		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1);
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1.5f);
 			p->gravity = 9.8f;
 			p->damp = 2.0f;
 			p->angle = -float(M_PI) * 0.5f;

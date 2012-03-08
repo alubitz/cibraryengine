@@ -14,16 +14,15 @@ namespace CibraryEngine
 
 			bool built;
 
-			Vec3* A;
-			Vec3* B;
-			Vec3* C;
-			Vec3* AB;
-			Vec3* AC;
-			Plane* planes;
-			Vec3* P;
-			Vec3* Q;
-			float* UOffset;
-			float* VOffset;
+			struct TriCache
+			{
+				Vec3 a, b, c;
+				Vec3 ab, ac;
+				Vec3 p, q;
+				Plane plane;
+				float u_offset, v_offset;
+			};
+			TriCache* cache;
 
 			void InitCache();
 			void DeleteCache();

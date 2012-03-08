@@ -32,8 +32,10 @@ namespace Test
 
 		if(rigid_body != NULL)
 		{
-			rigid_body->DisposePreservingCollisionShape();
+			//rigid_body->DisposePreservingCollisionShape();
+			rigid_body->Dispose();
 			delete rigid_body;
+			rigid_body = NULL;
 		}
 	}
 
@@ -48,11 +50,11 @@ namespace Test
 		physics = game_state->physics_world;
 		
 		//if(model->bone_physics.size() > 0)
-		if(false)
+		//if(false)
 		{
 			DEBUG();
 			//btCollisionShape* shape = model->bone_physics[0].shape;
-			CollisionShape* shape = NULL;
+			CollisionShape* shape = new SphereShape(0.5f);
 
 			if(shape != NULL)
 				DEBUG();

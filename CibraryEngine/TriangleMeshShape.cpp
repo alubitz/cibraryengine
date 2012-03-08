@@ -141,24 +141,12 @@ namespace CibraryEngine
 	void TriangleMeshShape::InitCache()
 	{
 		built = false;
-
-		A = B = C = AB = AC = P = Q = NULL;
-		planes = NULL;
-		UOffset = VOffset = NULL;
+		cache = NULL;
 	}
 	
 	void TriangleMeshShape::DeleteCache()
 	{
-		delete[] A;
-		delete[] B;
-		delete[] C;
-		delete[] AB;
-		delete[] AC;
-		delete[] planes;
-		delete[] P;
-		delete[] Q;
-		delete[] UOffset;
-		delete[] VOffset;
+		delete[] cache;
 
 		InitCache();
 	}
@@ -171,38 +159,30 @@ namespace CibraryEngine
 
 		size_t num_faces = triangles.size();
 
-		A = new Vec3[num_faces];
-		B = new Vec3[num_faces];
-		C = new Vec3[num_faces];
-		AB = new Vec3[num_faces];
-		AC = new Vec3[num_faces];
-		planes = new Plane[num_faces];
-		P = new Vec3[num_faces];
-		Q = new Vec3[num_faces];
-		UOffset = new float[num_faces];
-		VOffset = new float[num_faces];
+		cache = new TriCache[num_faces];
 
 		for(size_t face_index = 0; face_index < num_faces; ++face_index)
 		{
 			Tri& tri = triangles[face_index];
+			TriCache& tri_cache = cache[face_index];
 
-			A[face_index] = vertices[tri.indices[0]];
-			B[face_index] = vertices[tri.indices[1]];
-			C[face_index] = vertices[tri.indices[2]];
-			AB[face_index] = B[face_index] - A[face_index];
-			AC[face_index] = C[face_index] - A[face_index];
+			tri_cache.a = vertices[tri.indices[0]];
+			tri_cache.b = vertices[tri.indices[1]];
+			tri_cache.c = vertices[tri.indices[2]];
+			tri_cache.ab = tri_cache.b - tri_cache.a;
+			tri_cache.ac = tri_cache.c - tri_cache.a;
 
-			Vec3 normal = Vec3::Normalize(Vec3::Cross(AB[face_index], AC[face_index]));
-			float offset = Vec3::Dot(normal, A[face_index]);
+			Vec3 normal = Vec3::Normalize(Vec3::Cross(tri_cache.ab, tri_cache.ac));
+			float offset = Vec3::Dot(normal, tri_cache.a);
 
-			planes[face_index] = Plane(normal, offset);
+			tri_cache.plane = Plane(normal, offset);
 
-			P[face_index] = Vec3::Cross(AC[face_index], normal);
-			P[face_index] = P[face_index] / Vec3::Dot(P[face_index], AB[face_index]);
-			Q[face_index] = Vec3::Cross(AB[face_index], normal);
-			Q[face_index] = Q[face_index] / Vec3::Dot(Q[face_index], AC[face_index]);
-			UOffset[face_index] = Vec3::Dot(P[face_index], A[face_index]);
-			VOffset[face_index] = Vec3::Dot(Q[face_index], A[face_index]);
+			tri_cache.p = Vec3::Cross(tri_cache.ac, normal);
+			tri_cache.p /= Vec3::Dot(tri_cache.p, tri_cache.ab);
+			tri_cache.q = Vec3::Cross(tri_cache.ab, normal);
+			tri_cache.q /= Vec3::Dot(tri_cache.q, tri_cache.ac);
+			tri_cache.u_offset = Vec3::Dot(tri_cache.p, tri_cache.a);
+			tri_cache.v_offset = Vec3::Dot(tri_cache.q, tri_cache.a);
 		}
 
 		built = true;
@@ -240,15 +220,17 @@ namespace CibraryEngine
 		vector<Intersection> test;
 		for(size_t face_index = 0; face_index < num_faces; ++face_index)
 		{
-			Plane& plane = planes[face_index];
+			TriCache& tri = cache[face_index];
+
+			Plane& plane = tri.plane;
 			float hit = Util::RayPlaneIntersect(ray, plane);
 
 			// TODO: maybe put (optional) conditions here to cull 'backward' items, etc.
 			if(hit > 0 || hit <= 0)						// for now just check that it's a real number
 			{
 				Vec3 pos = ray.origin + ray.direction * hit;
-				float u = Vec3::Dot(P[face_index], pos) - UOffset[face_index];
-				float v = Vec3::Dot(Q[face_index], pos) - VOffset[face_index];
+				float u = Vec3::Dot(tri.p, pos) - tri.u_offset;
+				float v = Vec3::Dot(tri.q, pos) - tri.v_offset;
 				if(u >= 0 && v >= 0 && u + v <= 1)
 				{
 					Intersection intersection;
