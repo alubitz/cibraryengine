@@ -6,10 +6,17 @@ namespace Test
 	/*
 	 * Particle methods
 	 */
-	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
+	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), body(NULL), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
 
 	void Particle::InnerDispose()
 	{
+		if(body != NULL)
+		{
+			body->Dispose();
+			delete body;
+			body = NULL;
+		}
+
 		if(trailhead != NULL)
 		{
 			trailhead->head_free = true;
@@ -23,11 +30,23 @@ namespace Test
 
 	void Particle::Spawned()
 	{
+		body = new RigidBody(new RayShape(), MassInfo(Vec3(), 0.000001f), pos);
+		body->SetLinearVelocity(vel);
+		body->SetUserEntity(this);
+
+		game_state->physics_world->AddRigidBody(body);
+
 		if(billboard_mat != NULL)
 		{
 			trailhead = new TrailHead(this);
 			game_state->Spawn(new BillboardTrail(game_state, trailhead, billboard_mat, radius));
 		}
+	}
+
+	void Particle::DeSpawned()
+	{
+		if(body != NULL)
+			game_state->physics_world->RemoveRigidBody(body);
 	}
 
 	void Particle::Update(TimingInfo time)
@@ -44,10 +63,12 @@ namespace Test
 			return;
 		}
 
-		pos += vel * timestep;
+		pos = body->GetPosition();
+		vel = body->GetLinearVelocity();
 
-		vel.y -= gravity * timestep;
-		vel *= exp(-damp * timestep);
+//		pos += vel * timestep;
+		//vel.y -= gravity * timestep;
+		//vel *= exp(-damp * timestep);
 	}
 
 	void Particle::Vis(SceneRenderer* scene)

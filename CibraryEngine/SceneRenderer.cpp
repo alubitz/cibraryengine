@@ -109,11 +109,13 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void SceneRenderer::RenderDepth(bool colors)
+	void SceneRenderer::RenderDepth(bool colors, bool shadows)
 	{
 		GLDEBUG();
 
 		in_depth_draw = true;
+		if(shadows)
+			in_shadow_draw = true;
 
 		if(colors)
 			glColorMask(true, true, true, false);
@@ -134,11 +136,13 @@ namespace CibraryEngine
 		}
 
 		in_depth_draw = false;
+		in_shadow_draw = false;
 
 		GLDEBUG();
 	}
 
 	bool SceneRenderer::DrawingDepth() { return in_depth_draw; }
+	bool SceneRenderer::DrawingShadows() { return in_shadow_draw; }
 
 	void SceneRenderer::Cleanup()
 	{

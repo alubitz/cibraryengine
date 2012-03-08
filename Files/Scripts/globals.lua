@@ -59,7 +59,7 @@ end
 god_toggle = false
 nav_edit_toggle = false
 debug_draw_toggle = false
-god_mode = true
+god_mode = false
 nav_edit_mode = false
 debug_draw_mode = false
 

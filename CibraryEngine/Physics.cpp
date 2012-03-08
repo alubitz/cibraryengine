@@ -43,7 +43,7 @@ namespace CibraryEngine
 
 		void DoFixedStep();
 
-		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f);
+		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
 	};
 
 
@@ -73,6 +73,9 @@ namespace CibraryEngine
 		float inv_mass;
 		Mat3 inv_moi;
 
+		float bounciness;
+		float friction;
+
 		bool can_move, can_rotate;
 		bool active;								// TODO: support deactivation and related stuffs
 
@@ -94,6 +97,8 @@ namespace CibraryEngine
 			gravity(),
 			mass_info(mass_info),
 			shape(shape),
+			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.0f),
+			friction(shape->GetShapeType() == ST_InfinitePlane ? 0.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 			can_move(shape->CanMove()),
 			can_rotate(false),
 			active(can_move),
@@ -122,15 +127,10 @@ namespace CibraryEngine
 
 		Mat3 ComputeInvMoi() { return Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)); }
 
-		void Update(const TimingInfo& time)
+		void UpdateVel(float timestep)
 		{
 			if(active)
 			{
-				float timestep = time.elapsed;
-
-				pos += vel * timestep;
-				ori *= Quaternion::FromPYR(rot);
-
 				vel += (force * timestep) / mass_info.mass;
 
 				if(can_rotate)
@@ -141,6 +141,15 @@ namespace CibraryEngine
 			}
 
 			ResetToApplied();
+		}
+
+		void UpdatePos(float timestep)
+		{
+			if(active)
+			{
+				pos += vel * timestep;
+				ori *= Quaternion::FromPYR(rot);
+			}
 		}
 
 		void ResetForces() 
@@ -242,13 +251,14 @@ namespace CibraryEngine
 			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
 					
 			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
-			const Vec3& normal = cp.a.norm;
+			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
 
 			float nvdot = Vec3::Dot(normal, dv);
 
 			if(nvdot < 0.0f)
 			{
-				const float bounciness = 0.0f;					// TODO: compute this based on properties the objects
+				float bounciness = ibody->imp->bounciness * jbody->imp->bounciness;
+
 				float use_mass = (j_can_move ? (m1 * m2 / (m1 + m2)) : m1);
 				float impulse_mag = (nvdot * (1.0f + bounciness) * use_mass);
 				Vec3 impulse = normal * impulse_mag;
@@ -260,8 +270,8 @@ namespace CibraryEngine
 						jbody->ApplyImpulse(-impulse, j_poi);
 				}
 
-				float kfric_coeff = 0.9f;						// TODO: compute this based on properties the objects
-				float sfric_coeff = 1.0f;
+				float sfric_coeff = ibody->imp->friction * jbody->imp->friction;
+				float kfric_coeff = 0.9f * sfric_coeff;
 
 				Vec3 t_dv = dv - normal * nvdot;
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
@@ -296,7 +306,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void PhysicsWorld::Imp::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time)
+	void PhysicsWorld::Imp::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time, RigidBody* ibody)
 	{
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = shape_bodies.find(ST_TriangleMesh);
@@ -305,8 +315,6 @@ namespace CibraryEngine
 		Ray ray;
 		ray.origin = from;
 		ray.direction = to - from;
-
-		RigidBody* ibody = NULL;
 
 		struct Hit
 		{
@@ -329,7 +337,7 @@ namespace CibraryEngine
 				float first, second;
 
 				if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
-					if(first > 0 && first <= max_time)
+					if(first >= 0 && first < max_time)
 					{
 						ContactPoint p;
 
@@ -351,24 +359,12 @@ namespace CibraryEngine
 				RigidBody* jbody = *jter;
 
 				TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
-						
-				vector<unsigned int> index_a, index_b, index_c;
-				for(vector<TriangleMeshShape::Tri>::iterator kter = mesh->triangles.begin(); kter != mesh->triangles.end(); ++kter)
-				{
-					index_a.push_back(kter->indices[0]);
-					index_b.push_back(kter->indices[1]);
-					index_c.push_back(kter->indices[2]);
-				}
-
-				vector<Ray> ray_list;
-				ray_list.push_back(ray);			// TODO: transform this to account for the rigid body's orientation and position
-
-				vector<Intersection> mesh_hits = Util::RayTriangleListIntersect(mesh->vertices, index_a, index_b, index_c, ray_list)[0];
+				vector<Intersection> mesh_hits = mesh->RayTest(ray);			// TODO: transform parameter to account for the rigid body's orientation and position
 						
 				for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
 				{
 					float t = kter->time;
-					if(t > 0 && t < max_time)
+					if(t >= 0 && t < max_time)
 					{
 						ContactPoint p;
 
@@ -393,7 +389,7 @@ namespace CibraryEngine
 				InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 				float t = Util::RayPlaneIntersect(ray, plane->plane);
-				if(t > 0 && t <= max_time)
+				if(t >= 0 && t < max_time)
 				{
 					ContactPoint p;
 
@@ -423,9 +419,9 @@ namespace CibraryEngine
 	{
 		float timestep = timer_interval;
 
-		// update positions and apply forces
+		// set forces to what was applied by gravity / user forces
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			(*iter)->Update(TimingInfo(timestep, timestep));
+			(*iter)->imp->UpdateVel(timestep);
 
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator rays = shape_bodies.find(ST_Ray);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
@@ -441,22 +437,24 @@ namespace CibraryEngine
 
 				struct RayCallback : public CollisionCallback
 				{
+					Imp* imp;
 					CollisionCallback* callback;
-					RayCallback(CollisionCallback* callback) : callback(callback) { }
+					RayCallback(Imp* imp, CollisionCallback* callback) : imp(imp), callback(callback) { }
 
 					bool OnCollision(const ContactPoint& cp)
 					{
-						if(callback && callback->OnCollision(cp))
-							return false;
+						if(callback && !callback->OnCollision(cp))
+							return true;
 						else
 						{
-							// TODO: maybe bounce?
+							imp->DoCollisionResponse(cp);
+							
 							return true;
 						}
 					}
-				} my_callback(ibody->GetCollisionCallback());
+				} my_callback(this, ibody->GetCollisionCallback());
 
-				RayTest(ibody->GetPosition(), ibody->GetPosition() + ibody->GetLinearVelocity(), my_callback, timestep);
+				RayTest(ibody->GetPosition(), ibody->GetPosition() + ibody->GetLinearVelocity(), my_callback, timestep, ibody);
 			}
 		}
 
@@ -608,7 +606,11 @@ namespace CibraryEngine
 			}
 		}
 
-		// TODO: handle all the collisions involving multispheres	
+		// TODO: handle all the collisions involving multispheres
+
+		// update positions
+		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			(*iter)->imp->UpdatePos(timestep);
 	}
 
 	PhysicsWorld::PhysicsWorld() : imp(new Imp()) { }
@@ -620,12 +622,6 @@ namespace CibraryEngine
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
-		{
-			(*iter)->imp->ResetToApplied();
-			(*iter)->imp->apply_force_directly = true;
-		}
-
 		imp->internal_timer += time.elapsed;
 		while(imp->internal_timer >= imp->timer_interval)
 		{
@@ -719,7 +715,7 @@ namespace CibraryEngine
 	Vec3 RigidBody::GetLinearVelocity() { return imp->vel; }
 	void RigidBody::SetLinearVelocity(const Vec3& vel) { imp->vel = vel; }
 
-	void RigidBody::Update(TimingInfo time) { imp->Update(time); }
+	void RigidBody::Update(TimingInfo time) { imp->UpdatePos(time.elapsed); }					// TODO: maybe get rid of this?
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }
 
 	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }

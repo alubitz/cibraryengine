@@ -54,7 +54,8 @@ namespace Test
 
 	void DSNMaterial::EndDraw()
 	{
-		bool shadow = scene->DrawingDepth();
+		bool depth = scene->DrawingDepth();
+		bool shadow = scene->DrawingShadows();
 		ShaderProgram* use_shader = shadow ? shadow_shader : shader;
 
 		GLDEBUG();
@@ -81,7 +82,7 @@ namespace Test
 		GLDEBUG();
 
 		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();
-		if(!shadow)
+		if(!depth)
 		{
 			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); ++iter)
 			{
@@ -105,7 +106,7 @@ namespace Test
 
 		ShaderProgram::SetActiveProgram(use_shader);
 
-		if(shadow)
+		if(depth)
 		{
 			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
 				DrawNodeData(*jter, use_shader);

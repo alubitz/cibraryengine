@@ -36,6 +36,7 @@ namespace CibraryEngine
 	{
 		protected:
 
+			bool in_shadow_draw;
 			bool in_depth_draw;
 
 			map<Material*, vector<RenderNode> > material_model_lists;
@@ -54,7 +55,7 @@ namespace CibraryEngine
 			vector<LightSource*> lights;
 
 			/** Initializes a SceneRenderer */
-			SceneRenderer(CameraView* camera) : in_depth_draw(false), material_model_lists(), opaque_items(), translucent_items(), sorted_translucent_items(), camera(camera), objects(), lights() { }
+			SceneRenderer(CameraView* camera) : in_depth_draw(false), in_shadow_draw(false), material_model_lists(), opaque_items(), translucent_items(), sorted_translucent_items(), camera(camera), objects(), lights() { }
 			virtual ~SceneRenderer() { }
 
 			/** Renders everything in the scene */
@@ -65,8 +66,9 @@ namespace CibraryEngine
 			virtual void RenderOpaque();
 			virtual void RenderTranslucent();
 
-			virtual void RenderDepth(bool colors);
+			virtual void RenderDepth(bool colors, bool shadow);
 			bool DrawingDepth();
+			bool DrawingShadows();
 
 			/** Calls the cleanup functions of the various materials */
 			void Cleanup();

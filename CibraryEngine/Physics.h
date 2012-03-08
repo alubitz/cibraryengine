@@ -128,6 +128,8 @@ namespace CibraryEngine
 		{
 			RigidBody* obj;
 			Vec3 pos, norm;
+
+			Part() : obj(NULL), pos(), norm() { }
 		} a, b;
 	};
 

@@ -801,7 +801,7 @@ namespace Test
 			glDepthMask(true);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			imp->renderer.RenderDepth(false);
+			imp->renderer.RenderDepth(false, false);
 
 			GLDEBUG();
 			glColorMask(true, true, true, false);
@@ -888,7 +888,7 @@ namespace Test
 		glDepthMask(true);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		renderer.RenderDepth(true);
+		renderer.RenderDepth(true, true);
 
 		// in case render functions changed the matrix mode
 		glMatrixMode(GL_PROJECTION);
