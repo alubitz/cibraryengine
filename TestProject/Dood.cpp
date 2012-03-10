@@ -170,6 +170,7 @@ namespace Test
 		if (falling_damage_base > 0)
 			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
+		/*
 		TestGame* test_game = (TestGame*)game_state;
 		if(this == test_game->player_pawn)
 		{
@@ -181,6 +182,7 @@ namespace Test
 			ss << "Speed = " << i << "." << j << " m/s";
 			test_game->debug_text = ss.str();
 		}
+		*/
 
 		this->vel = vel;
 

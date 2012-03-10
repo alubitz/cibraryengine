@@ -3,6 +3,8 @@
 #include "StdAfx.h"
 #include "CollisionShape.h"
 
+#include "Octree.h"
+
 namespace CibraryEngine
 {
 	struct Ray;
@@ -23,6 +25,27 @@ namespace CibraryEngine
 				float u_offset, v_offset;
 			};
 			TriCache* cache;
+
+			struct NodeData
+			{
+				struct Tri
+				{
+					unsigned int face_index;
+					AABB aabb;
+
+					Tri(unsigned int face_index, AABB aabb) : face_index(face_index), aabb(aabb) { }
+				};
+
+				vector<Tri> triangles;
+				unsigned int tri_count;
+
+				NodeData() : triangles(), tri_count() { }
+
+				void Add(Tri tri) { triangles.push_back(tri); ++tri_count; }
+			};
+
+			Octree<NodeData>* octree;
+			void BuildOctree();
 
 			void InitCache();
 			void DeleteCache();

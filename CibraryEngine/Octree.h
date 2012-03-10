@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StdAfx.h"
+#include "AABB.h"
 
 namespace CibraryEngine
 {
@@ -15,6 +16,13 @@ namespace CibraryEngine
 		T contents;					// if the node has children, this variable is ignored
 
 		AABB bounds;
+
+		Octree() :
+			parent(NULL),
+			contents(),
+			bounds()
+		{
+		}
 
 		Octree(Vec3 min, Vec3 max) : 
 			parent(NULL), 
@@ -64,7 +72,7 @@ namespace CibraryEngine
 
 		/**
 		 * If the node is a leaf node, gives it 8 children (making it no longer a leaf node) and returns true
-		 * Otherwise, returns false and does anything
+		 * Otherwise, returns false and does nothing
 		 *
 		 * Copies contents variable to newly created children
 		 */

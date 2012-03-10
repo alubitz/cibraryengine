@@ -359,11 +359,17 @@ namespace CibraryEngine
 				RigidBody* jbody = *jter;
 
 				TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
-				vector<Intersection> mesh_hits = mesh->RayTest(ray);			// TODO: transform parameter to account for the rigid body's orientation and position
+
+				Ray ray_cut;
+				ray_cut.origin = ray.origin;
+				ray_cut.direction = ray.direction * max_time;
+				// TODO: transform these into the coordinate-space of the mesh
+
+				vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
 						
 				for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
 				{
-					float t = kter->time;
+					float t = kter->time * max_time;
 					if(t >= 0 && t < max_time)
 					{
 						ContactPoint p;

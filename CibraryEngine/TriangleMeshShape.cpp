@@ -19,9 +19,9 @@ namespace CibraryEngine
 	/*
 	 * TriangleMeshShape methods
 	 */
-	TriangleMeshShape::TriangleMeshShape() : CollisionShape(ST_TriangleMesh), vertices(), triangles() { InitCache(); }
+	TriangleMeshShape::TriangleMeshShape() : CollisionShape(ST_TriangleMesh), octree(NULL), vertices(), triangles() { InitCache(); }
 
-	TriangleMeshShape::TriangleMeshShape(VertexBuffer* vbo) : CollisionShape(ST_TriangleMesh), vertices(), triangles()
+	TriangleMeshShape::TriangleMeshShape(VertexBuffer* vbo) : CollisionShape(ST_TriangleMesh), octree(NULL), vertices(), triangles()
 	{
 		InitCache();
 
@@ -188,6 +188,88 @@ namespace CibraryEngine
 		built = true;
 	}
 
+	void TriangleMeshShape::BuildOctree()
+	{
+		if(octree != NULL)
+		{
+			delete octree;
+			octree = NULL;
+		}
+
+		if(vertices.empty())
+			return;					// lolwut?
+
+		if(!built)
+			BuildCache();
+		
+		// find the bounds of the octree
+		AABB aabb;
+		bool first = true;
+		for(vector<Vec3>::iterator iter = vertices.begin(); iter != vertices.end(); ++iter)
+		{
+			if(first)
+			{
+				aabb = AABB(*iter);
+				first = false;
+			}
+			else
+				aabb.Expand(*iter);
+		}
+
+		// now create the octree
+		octree = new Octree<NodeData>(aabb.min, aabb.max);
+
+		// functor(?) to place a triangle into the octree
+		struct Action
+		{
+			NodeData::Tri tri;
+
+			Action(NodeData::Tri tri) : tri(tri) { }
+
+			void operator()(Octree<NodeData>* node)
+			{
+				if(AABB::IntersectTest(node->bounds, tri.aabb))
+				{
+					if(node->IsLeaf())
+					{
+						node->contents.Add(tri);
+
+						if(node->contents.tri_count >= 10 && (node->parent == NULL || node->parent->contents.tri_count >= node->contents.tri_count + 1))			// node is too crowded (and subdivision seems to be working), therefore subdivide it
+						{
+							node->Split(1);
+							for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
+							{
+								Action adder(*iter);
+								node->ForEach(adder);
+							}
+							node->contents.triangles = vector<NodeData::Tri>();
+						}
+					}
+					else
+					{
+						++node->contents.tri_count;
+						node->ForEach(*this);
+					}
+				}
+			}
+		};
+
+		// insert all the triangles into the octree
+		TriCache* tri_ptr = cache;
+		unsigned int count = triangles.size();
+		for(unsigned int i = 0; i < count; ++i, ++tri_ptr)
+		{
+			TriCache& tri = *tri_ptr;
+
+			AABB aabb(tri.a);
+			aabb.Expand(tri.b);
+			aabb.Expand(tri.c);
+
+			Action action(NodeData::Tri(i, aabb));
+			action(octree);
+		}
+	}
+
 	void TriangleMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
 	{
 		Mat3 rm(ori.ToMat3());
@@ -212,14 +294,45 @@ namespace CibraryEngine
 
 	vector<Intersection> TriangleMeshShape::RayTest(const Ray& ray)
 	{
-		if(!built)
-			BuildCache();
+		if(triangles.empty())
+			return vector<Intersection>();						// lolwut?
 
-		size_t num_faces = triangles.size();
+		if(octree == NULL)
+			BuildOctree();										// this will in turn call BuildCache if necessary
+
+		// functor(?) to get a list of relevant triangles
+		struct Action
+		{
+			const Ray& ray;
+			boost::unordered_set<unsigned int> relevant_list;	// list of unique maybe-relevant triangles encountered
+
+			AABB aabb;											// temporal aabb for the ray
+
+			Action(const Ray& ray) : relevant_list(), ray(ray), aabb(ray.origin) { aabb.Expand(ray.origin + ray.direction); }
+
+			void operator() (Octree<NodeData>* node)
+			{
+				if(AABB::IntersectTest(node->bounds, aabb))
+				{
+					if(node->IsLeaf())
+					{
+						for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
+							relevant_list.insert(iter->face_index);
+					}
+					else
+						node->ForEach(*this);
+				}
+			}
+		} action(ray);
+
+		action(octree);
 
 		vector<Intersection> test;
-		for(size_t face_index = 0; face_index < num_faces; ++face_index)
+
+		for(boost::unordered_set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
 		{
+			unsigned int face_index = *iter;
+
 			TriCache& tri = cache[face_index];
 
 			Plane& plane = tri.plane;
