@@ -24,6 +24,7 @@
 
 #include "Corpse.h"
 #include "StaticLevelGeometry.h"
+#include "Rubbish.h"
 
 using namespace std;
 
@@ -522,6 +523,19 @@ namespace Test
 		// if your game start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
+
+		/*
+		// spawn some rubbish
+		for(int i = 0; i < 2100; ++i)
+		{
+			float x = Random3D::Rand(-80, 80); 
+			float z = Random3D::Rand(-80, 80);
+			float y = GetTerrainHeight(x, z) + 10;
+
+			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), Vec3(x, y, z), Random3D::RandomQuaternionRotation(), imp->dirt_particle);
+			Spawn(rubbish);
+		}
+		*/
 
 		thread_script.Dispose();
 

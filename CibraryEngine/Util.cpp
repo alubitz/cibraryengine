@@ -20,7 +20,7 @@ namespace CibraryEngine
 		float urad = qb * qb - 4.0f * qa * qc;
 		if (urad < 0.0f)
 			return -1.0f;
-		float root = sqrt(urad);
+		float root = sqrtf(urad);
 		float min = -qb - root, max = -qb + root;
 		float use = min > 0.0f ? min : max;
 		use /= 2.0f * qa;
@@ -39,7 +39,7 @@ namespace CibraryEngine
 			if (magsq == 0)
 				continue;
 
-			right /= sqrt(magsq);
+			right /= sqrtf(magsq);
 			up = Vec3::Cross(dir_n, right);
 
 			float values[] = { right.x, right.y, right.z, up.x, up.y, up.z, dir_n.x, dir_n.y, dir_n.z };
@@ -53,36 +53,37 @@ namespace CibraryEngine
 		Vec3 ax = x - a, bx = x - b, cx = x - c;					// vectors from verts to X
 		Vec3 normal = Vec3::Normalize(Vec3::Cross(ab, bc));			// unit normal vector
 
-		// distances from verts; guaranteed to be valid
-		float dist_a_x = ax.ComputeMagnitude();
-		float dist_b_x = bx.ComputeMagnitude();
-		float dist_c_x = cx.ComputeMagnitude();
+		// squares of distances from verts; these distances guaranteed to be valid...
+		// we will take the square root of the minimum instead of the minimum of the square roots!
+		float dist_a_x_sq = ax.ComputeMagnitudeSquared();
+		float dist_b_x_sq = bx.ComputeMagnitudeSquared();
+		float dist_c_x_sq = cx.ComputeMagnitudeSquared();
 
-		// minimum value so far encountered
-		float min_d = min(dist_a_x, min(dist_b_x, dist_c_x));
+		// minimum value so far encountered...
+		float min_d = sqrtf(min(dist_a_x_sq, min(dist_b_x_sq, dist_c_x_sq)));
 
-		// lengths of the edges
-		float len_ab = ab.ComputeMagnitude();
-		float len_bc = bc.ComputeMagnitude();
-		float len_ca = ca.ComputeMagnitude();
+		// inverses of lengths of the edges
+		float inv_len_ab = 1.0f / ab.ComputeMagnitude();
+		float inv_len_bc = 1.0f / bc.ComputeMagnitude();
+		float inv_len_ca = 1.0f / ca.ComputeMagnitude();
 
 		// unit vectors perpendicular to each edge, lying in the plane of the triangle
-		Vec3 n_ab = Vec3::Cross(ab, normal) / len_ab;
-		Vec3 n_bc = Vec3::Cross(bc, normal) / len_bc;
-		Vec3 n_ca = Vec3::Cross(ca, normal) / len_ca;
+		Vec3 n_ab = Vec3::Cross(ab, normal) * inv_len_ab;
+		Vec3 n_bc = Vec3::Cross(bc, normal) * inv_len_bc;
+		Vec3 n_ca = Vec3::Cross(ca, normal) * inv_len_ca;
 
 		// finding the positions of X along each of the edges (necessary to determine if the edge distances are valid)
-		float part_x_ab = Vec3::Dot(ax, ab) / (len_ab * len_ab);
-		float part_x_bc = Vec3::Dot(bx, bc) / (len_bc * len_bc);
-		float part_x_ca = Vec3::Dot(cx, ca) / (len_ca * len_ca);
+		float part_x_ab = Vec3::Dot(ax, ab) * inv_len_ab * inv_len_ab;
+		float part_x_bc = Vec3::Dot(bx, bc) * inv_len_bc * inv_len_bc;
+		float part_x_ca = Vec3::Dot(cx, ca) * inv_len_ca * inv_len_ca;
 
 		// determining whether or not the edge distances are valid
 		if (part_x_ab >= 0 && part_x_ab <= 1)
-			min_d = min(min_d, Vec3::Cross(ab, ax).ComputeMagnitude() / len_ab);
+			min_d = min(min_d, Vec3::Cross(ab, ax).ComputeMagnitude() * inv_len_ab);
 		if (part_x_bc >= 0 && part_x_bc <= 1)
-			min_d = min(min_d, Vec3::Cross(bc, bx).ComputeMagnitude() / len_bc);
+			min_d = min(min_d, Vec3::Cross(bc, bx).ComputeMagnitude() * inv_len_bc);
 		if (part_x_ca >= 0 && part_x_ca <= 1)
-			min_d = min(min_d, Vec3::Cross(ca, cx).ComputeMagnitude() / len_ca);
+			min_d = min(min_d, Vec3::Cross(ca, cx).ComputeMagnitude() * inv_len_ca);
 
 		// finding the distance from the plane; valid under the least frequently satisfied conditions
 		float dot_n_ab_a = Vec3::Dot(n_ab, a);													// storing it because it's used twice in the expression... it'd be dumb to calculate twice

@@ -14,6 +14,13 @@
 #include "Serialize.h"
 #include "Util.h"
 
+//#define DEBUG_OCTREE_EFFICIENCY
+
+#ifdef DEBUG_OCTREE_EFFICIENCY
+	#include "Texture2D.h"
+	#include "ImageIO.h"
+#endif
+	
 namespace CibraryEngine
 {
 	/*
@@ -151,7 +158,44 @@ namespace CibraryEngine
 		InitCache();
 	}
 
-	void TriangleMeshShape::InnerDispose() { DeleteCache(); }
+#ifdef DEBUG_OCTREE_EFFICIENCY
+	static vector<unsigned char> efficiency_tex;
+
+	#define EFF_TEX_W 128
+	#define EFF_TEX_H 256
+
+#endif
+
+	void TriangleMeshShape::InnerDispose()
+	{
+#ifdef DEBUG_OCTREE_EFFICIENCY
+		unsigned char* color_ptr = &efficiency_tex[0];
+		for(unsigned int y = 0; y < EFF_TEX_H; ++y)
+			for(unsigned int x = 0; x < EFF_TEX_W; ++x)
+			{
+				unsigned char* temp = color_ptr;
+
+				float f = 0;
+
+				for(unsigned char i = 0; i < 4; ++i)
+					f += float(*(color_ptr++) * (0x1 << (8 * i)));
+				
+				f /= f + 1.0f;
+
+				float f_sq = f * f;
+				float g = f * 255.0f;
+
+				*(temp++) = (unsigned char)min(255.0f, g);
+				g *= f_sq;
+				*(temp++) = (unsigned char)min(255.0f, g);
+				g *= f_sq;
+				*(temp++) = (unsigned char)min(255.0f, g);
+				*temp = 255;
+			}
+		ImageIO::SaveTGA("octree_efficiency.tga", efficiency_tex, EFF_TEX_W, EFF_TEX_H);
+#endif
+		DeleteCache();
+	}
 
 	void TriangleMeshShape::BuildCache()
 	{
@@ -234,7 +278,7 @@ namespace CibraryEngine
 					{
 						node->contents.Add(tri);
 
-						if(node->contents.tri_count >= 10 && (node->parent == NULL || node->parent->contents.tri_count >= node->contents.tri_count + 1))			// node is too crowded (and subdivision seems to be working), therefore subdivide it
+						if(node->contents.tri_count >= 2 && (node->parent == NULL || node->parent->contents.tri_count >= node->contents.tri_count + 1))			// node is too crowded (and subdivision seems to be working), therefore subdivide it
 						{
 							node->Split(1);
 							for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
@@ -292,10 +336,10 @@ namespace CibraryEngine
 		}
 	}
 
-	vector<Intersection> TriangleMeshShape::RayTest(const Ray& ray)
+	vector<unsigned int> TriangleMeshShape::GetRelevantTriangles(const AABB& aabb)
 	{
 		if(triangles.empty())
-			return vector<Intersection>();						// lolwut?
+			return vector<unsigned int>();						// lolwut?
 
 		if(octree == NULL)
 			BuildOctree();										// this will in turn call BuildCache if necessary
@@ -303,63 +347,120 @@ namespace CibraryEngine
 		// functor(?) to get a list of relevant triangles
 		struct Action
 		{
-			const Ray& ray;
+#ifdef DEBUG_OCTREE_EFFICIENCY
+			unsigned int ops;
+#endif
+
 			boost::unordered_set<unsigned int> relevant_list;	// list of unique maybe-relevant triangles encountered
 
-			AABB aabb;											// temporal aabb for the ray
+			const AABB& aabb;									// temporal aabb for the ray
 
-			Action(const Ray& ray) : relevant_list(), ray(ray), aabb(ray.origin) { aabb.Expand(ray.origin + ray.direction); }
+			Action(const AABB& aabb) :
+#ifdef DEBUG_OCTREE_EFFICIENCY
+				ops(0),
+#endif
+				relevant_list(),
+				aabb(aabb)
+			{
+			}
 
 			void operator() (Octree<NodeData>* node)
 			{
+#ifdef DEBUG_OCTREE_EFFICIENCY
+				++ops;
+#endif
 				if(AABB::IntersectTest(node->bounds, aabb))
 				{
 					if(node->IsLeaf())
 					{
 						for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
-							relevant_list.insert(iter->face_index);
+							if(AABB::IntersectTest(iter->aabb, aabb))
+								relevant_list.insert(iter->face_index);
 					}
 					else
 						node->ForEach(*this);
 				}
 			}
-		} action(ray);
+		} action(aabb);
 
 		action(octree);
 
-		vector<Intersection> test;
+		vector<unsigned int> results;
+
+#ifdef DEBUG_OCTREE_EFFICIENCY
+
+		unsigned int x = (action.ops - 1) / 8, y = action.relevant_list.size();
+		if(efficiency_tex.empty())
+			efficiency_tex.resize(EFF_TEX_W * EFF_TEX_H * 4);
+
+		if(x < EFF_TEX_W && y < EFF_TEX_H)
+		{
+			unsigned char* color_ptr = &efficiency_tex[(y * EFF_TEX_W + x) * 4];
+
+			unsigned char* next = &color_ptr[4];
+			do { ++*color_ptr; } while(*(color_ptr++) == 0 && color_ptr != next);
+		}
+
+#endif
 
 		for(boost::unordered_set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
+			results.push_back(*iter);
+
+		return results;
+	}
+
+	vector<Intersection> TriangleMeshShape::RayTest(const Ray& ray)
+	{
+		AABB aabb(ray.origin);
+		aabb.Expand(ray.origin + ray.direction);
+
+		vector<unsigned int> relevant_triangles = GetRelevantTriangles(aabb);
+
+		vector<Intersection> test;
+		for(vector<unsigned int>::iterator iter = relevant_triangles.begin(); iter != relevant_triangles.end(); ++iter)
 		{
 			unsigned int face_index = *iter;
 
-			TriCache& tri = cache[face_index];
-
-			Plane& plane = tri.plane;
-			float hit = Util::RayPlaneIntersect(ray, plane);
-
-			// TODO: maybe put (optional) conditions here to cull 'backward' items, etc.
-			if(hit > 0 || hit <= 0)						// for now just check that it's a real number
-			{
-				Vec3 pos = ray.origin + ray.direction * hit;
-				float u = Vec3::Dot(tri.p, pos) - tri.u_offset;
-				float v = Vec3::Dot(tri.q, pos) - tri.v_offset;
-				if(u >= 0 && v >= 0 && u + v <= 1)
-				{
-					Intersection intersection;
-					intersection.face = face_index;
-					intersection.i = u;
-					intersection.j = v;
-					intersection.position = pos;
-					intersection.time = hit;
-					intersection.normal = plane.normal;
-					intersection.ray = ray;
-					test.push_back(intersection);
-				}
-			}
+			Intersection intersection;
+			if(cache[face_index].RayTest(ray, face_index, intersection))
+				test.push_back(intersection);			
 		}
 
 		return test;
+	}
+
+
+
+	bool TriangleMeshShape::TriCache::RayTest(const Ray& ray, unsigned int index, Intersection& intersection)
+	{
+		float hit = Util::RayPlaneIntersect(ray, plane);
+
+		// TODO: maybe put (optional) conditions here to cull 'backward' items, etc.
+		if(hit > 0 || hit <= 0)						// for now just check that it's a real number
+		{
+			Vec3 pos = ray.origin + ray.direction * hit;
+			float u = Vec3::Dot(p, pos) - u_offset;
+			float v = Vec3::Dot(q, pos) - v_offset;
+			if(u >= 0 && v >= 0 && u + v <= 1)
+			{
+				intersection.face = index;
+				intersection.i = u;
+				intersection.j = v;
+				intersection.position = pos;
+				intersection.time = hit;
+				intersection.normal = plane.normal;
+				intersection.ray = ray;
+
+				return true;
+			}
+		}
+		return false;
+	}
+
+	float TriangleMeshShape::TriCache::DistanceToPoint(const Vec3& point)
+	{
+		// TODO: use member data to do this more efficently; if necessary, add additional member data
+		return Util::TriangleMinimumDistance(a, b, c, point);
 	}
 
 

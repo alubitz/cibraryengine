@@ -514,6 +514,7 @@ namespace CibraryEngine
 					}
 				}
 
+				// sphere-mesh collisions
 				if(meshes != shape_bodies.end())
 				{
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
@@ -525,34 +526,25 @@ namespace CibraryEngine
 						ray.direction = vel;
 
 						TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
-						for(vector<TriangleMeshShape::Tri>::iterator kter = shape->triangles.begin(); kter != shape->triangles.end(); ++kter)
+
+						vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(Vec3(pos.x - radius, pos.y - radius, pos.z - radius), Vec3(pos.x + radius, pos.y + radius, pos.z + radius)));
+						for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
 						{
-							unsigned int* indices = kter->indices;
-							Vec3& a = shape->vertices[indices[0]];
-							Vec3& b = shape->vertices[indices[1]];
-							Vec3& c = shape->vertices[indices[2]];
-
-							Plane plane(Plane::FromTriangleVertices(a, b, c));
-
-							float vndot = Vec3::Dot(vel, plane.normal);
-							//if(vndot <= 0.0f)
+							TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
+							
+							float dist = tri.DistanceToPoint(pos);
+							if(dist < radius)
 							{
-								float dist = Util::TriangleMinimumDistance(a, b, c, pos);
+								ContactPoint p;
 
-								if(dist < radius)
-								{
+								p.a.obj = ibody;
+								p.b.obj = jbody;
+								p.a.pos = pos;
+								p.b.pos = pos;
+								p.a.norm = -tri.plane.normal;
+								p.b.norm = tri.plane.normal;
 
-									ContactPoint p;
-
-									p.a.obj = ibody;
-									p.b.obj = jbody;
-									p.a.pos = pos;
-									p.b.pos = pos;
-									p.b.norm = plane.normal;
-									p.a.norm = -plane.normal;
-
-									hits.push_back(p);
-								}
+								hits.push_back(p);
 							}
 						}
 					}

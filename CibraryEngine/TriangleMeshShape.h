@@ -12,9 +12,7 @@ namespace CibraryEngine
 
 	class TriangleMeshShape : public CollisionShape
 	{
-		private:
-
-			bool built;
+		public:
 
 			struct TriCache
 			{
@@ -23,7 +21,15 @@ namespace CibraryEngine
 				Vec3 p, q;
 				Plane plane;
 				float u_offset, v_offset;
+
+				bool RayTest(const Ray& ray, unsigned int index, Intersection& intersection);
+				float DistanceToPoint(const Vec3& point);
 			};
+
+		private:
+
+			bool built;
+
 			TriCache* cache;
 
 			struct NodeData
@@ -68,7 +74,11 @@ namespace CibraryEngine
 
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 
+			vector<unsigned int> GetRelevantTriangles(const AABB& aabb);
 			vector<Intersection> RayTest(const Ray& ray);
+
+			TriCache GetTriangleData(unsigned int index) { return cache[index]; }
+
 
 
 			void Write(ostream& stream);

@@ -52,12 +52,8 @@ namespace Test
 		//if(model->bone_physics.size() > 0)
 		//if(false)
 		{
-			DEBUG();
 			//btCollisionShape* shape = model->bone_physics[0].shape;
 			CollisionShape* shape = new SphereShape(0.5f);
-
-			if(shape != NULL)
-				DEBUG();
 			
 			MassInfo mass_info(Vec3(), 20);
 			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = 10;

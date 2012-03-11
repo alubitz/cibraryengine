@@ -14,13 +14,13 @@ namespace CibraryEngine
 		AABB(Vec3 point);
 		AABB(Vec3 min, Vec3 max);
 
-		bool IsDegenerate();
+		bool IsDegenerate() const;
 
-		bool ContainsPoint(Vec3& point);
-		Vec3 GetCenterPoint();
+		bool ContainsPoint(const Vec3& point) const;
+		Vec3 GetCenterPoint() const;
 
-		void Expand(Vec3& point);							// expand to include point; doesn't check if AABB is degenerate!
+		void Expand(const Vec3& point);							// expand to include point; doesn't check if AABB is degenerate!
 
-		static bool IntersectTest(AABB& a, AABB& b);
+		static bool IntersectTest(const AABB& a, const AABB& b);
 	};
 }
