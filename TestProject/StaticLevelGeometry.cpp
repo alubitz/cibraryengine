@@ -74,7 +74,7 @@ namespace Test
 
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		for (int i = 0; i < 12; ++i)
+		for (int i = 0; i < 25; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1.5f);
 			p->gravity = 9.8f;

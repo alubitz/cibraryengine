@@ -227,6 +227,20 @@ namespace CibraryEngine
 			tri_cache.q /= Vec3::Dot(tri_cache.q, tri_cache.ac);
 			tri_cache.u_offset = Vec3::Dot(tri_cache.p, tri_cache.a);
 			tri_cache.v_offset = Vec3::Dot(tri_cache.q, tri_cache.a);
+
+			tri_cache.bc = tri_cache.c - tri_cache.b;
+
+			tri_cache.inv_len_ab = 1.0f / tri_cache.ab.ComputeMagnitude();
+			tri_cache.inv_len_bc = 1.0f / tri_cache.bc.ComputeMagnitude();
+			tri_cache.inv_len_ca = 1.0f / tri_cache.ac.ComputeMagnitude();
+
+			tri_cache.n_ab = Vec3::Cross(tri_cache.ab, normal) * tri_cache.inv_len_ab;
+			tri_cache.n_bc = Vec3::Cross(tri_cache.bc, normal) * tri_cache.inv_len_bc;
+			tri_cache.n_ca = Vec3::Cross(-tri_cache.ac, normal) * tri_cache.inv_len_ca;
+			
+			tri_cache.dot_n_ab_a = Vec3::Dot(tri_cache.n_ab, tri_cache.a);
+			tri_cache.dot_n_bc_b = Vec3::Dot(tri_cache.n_bc, tri_cache.b);
+			tri_cache.dot_n_ca_c = Vec3::Dot(tri_cache.n_ca, tri_cache.c);
 		}
 
 		built = true;
@@ -435,7 +449,6 @@ namespace CibraryEngine
 	{
 		float hit = Util::RayPlaneIntersect(ray, plane);
 
-		// TODO: maybe put (optional) conditions here to cull 'backward' items, etc.
 		if(hit > 0 || hit <= 0)						// for now just check that it's a real number
 		{
 			Vec3 pos = ray.origin + ray.direction * hit;
@@ -457,10 +470,40 @@ namespace CibraryEngine
 		return false;
 	}
 
-	float TriangleMeshShape::TriCache::DistanceToPoint(const Vec3& point)
+	float TriangleMeshShape::TriCache::DistanceToPoint(const Vec3& x)
 	{
-		// TODO: use member data to do this more efficently; if necessary, add additional member data
-		return Util::TriangleMinimumDistance(a, b, c, point);
+		Vec3 ax = x - a, bx = x - b, cx = x - c;					// vectors from verts to X
+		const Vec3& normal = plane.normal;
+
+		// squares of distances from verts; these distances guaranteed to be valid...
+		// we will take the square root of the minimum instead of the minimum of the square roots!
+		float dist_a_x_sq = ax.ComputeMagnitudeSquared();
+		float dist_b_x_sq = bx.ComputeMagnitudeSquared();
+		float dist_c_x_sq = cx.ComputeMagnitudeSquared();
+
+		// minimum value so far encountered...
+		float min_d = sqrtf(min(dist_a_x_sq, min(dist_b_x_sq, dist_c_x_sq)));		
+
+		// finding the positions of X along each of the edges (necessary to determine if the edge distances are valid)
+		float part_x_ab = Vec3::Dot(ax, ab) * inv_len_ab * inv_len_ab;
+		float part_x_bc = Vec3::Dot(bx, bc) * inv_len_bc * inv_len_bc;
+		float part_x_ca = Vec3::Dot(cx, -ac) * inv_len_ca * inv_len_ca;
+
+		// determining whether or not the edge distances are valid
+		if (part_x_ab >= 0 && part_x_ab <= 1)
+			min_d = min(min_d, Vec3::Cross(ab, ax).ComputeMagnitude() * inv_len_ab);
+		if (part_x_bc >= 0 && part_x_bc <= 1)
+			min_d = min(min_d, Vec3::Cross(bc, bx).ComputeMagnitude() * inv_len_bc);
+		if (part_x_ca >= 0 && part_x_ca <= 1)
+			min_d = min(min_d, Vec3::Cross(-ac, cx).ComputeMagnitude() * inv_len_ca);
+
+		// finding the distance from the plane; valid under the least frequently satisfied conditions
+		if ((Vec3::Dot(n_ab, x) - dot_n_ab_a) * (Vec3::Dot(n_ab, c) - dot_n_ab_a) > 0)					// if they're on the same side, this product is positive
+			if ((Vec3::Dot(n_bc, x) - dot_n_bc_b) * (Vec3::Dot(n_bc, a) - dot_n_bc_b) > 0)
+				if ((Vec3::Dot(n_ca, x) - dot_n_ca_c) * (Vec3::Dot(n_ca, b) - dot_n_ca_c) > 0)
+					min_d = min(min_d, fabs(Vec3::Dot(normal, ax)));									// too bad it's so much harder to find out if it's valid than it is to calculate the value itself
+
+		return min_d;
 	}
 
 

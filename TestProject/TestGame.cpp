@@ -524,7 +524,7 @@ namespace Test
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
 
-		/*
+#if 0
 		// spawn some rubbish
 		for(int i = 0; i < 2100; ++i)
 		{
@@ -535,7 +535,7 @@ namespace Test
 			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), Vec3(x, y, z), Random3D::RandomQuaternionRotation(), imp->dirt_particle);
 			Spawn(rubbish);
 		}
-		*/
+#endif
 
 		thread_script.Dispose();
 
@@ -722,7 +722,7 @@ namespace Test
 				imp->render_target = new RenderTarget(width, height, 0, 4);
 			}
 
-#ifdef ENABLE_SHADOWS
+#if ENABLE_SHADOWS
 			if(imp->shadow_render_target == NULL)
 				imp->shadow_render_target = new RenderTarget(4096, 4096, 0, 1);
 #endif

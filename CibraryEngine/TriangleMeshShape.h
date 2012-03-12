@@ -22,6 +22,12 @@ namespace CibraryEngine
 				Plane plane;
 				float u_offset, v_offset;
 
+				Vec3 bc;
+				float inv_len_ab, inv_len_bc, inv_len_ca;
+				Vec3 n_ab, n_bc, n_ca;
+				float dot_n_ab_a, dot_n_bc_b, dot_n_ca_c;
+
+
 				bool RayTest(const Ray& ray, unsigned int index, Intersection& intersection);
 				float DistanceToPoint(const Vec3& point);
 			};
