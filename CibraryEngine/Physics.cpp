@@ -311,6 +311,7 @@ namespace CibraryEngine
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = shape_bodies.find(ST_TriangleMesh);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = shape_bodies.find(ST_InfinitePlane);
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator multispheres = shape_bodies.find(ST_MultiSphere);
 
 		Ray ray;
 		ray.origin = from;
@@ -357,7 +358,6 @@ namespace CibraryEngine
 			for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 			{
 				RigidBody* jbody = *jter;
-
 				TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
 
 				Ray ray_cut;
@@ -409,7 +409,17 @@ namespace CibraryEngine
 			}
 		}
 
-		// TODO: ray-multisphere collisions
+		// ray-multisphere collisions
+		if(multispheres != shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator jter = multispheres->second.begin(); jter != multispheres->second.end(); ++jter)
+			{
+				RigidBody* jbody = *jter;
+				MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
+				
+				// TODO: implement this
+			}
+		}
 
 		if(!hits.empty())
 		{
@@ -433,6 +443,7 @@ namespace CibraryEngine
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator spheres = shape_bodies.find(ST_Sphere);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator meshes = shape_bodies.find(ST_TriangleMesh);
 		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator planes = shape_bodies.find(ST_InfinitePlane);	
+		boost::unordered_map<ShapeType, boost::unordered_set<RigidBody*> >::iterator multispheres = shape_bodies.find(ST_MultiSphere);
 
 		// handle all the collisions involving rays
 		if(rays != shape_bodies.end())
@@ -472,7 +483,6 @@ namespace CibraryEngine
 			for(boost::unordered_set<RigidBody*>::iterator iter = spheres->second.begin(); iter != spheres->second.end(); ++iter)
 			{
 				RigidBody* ibody = *iter;
-
 				float radius = ((SphereShape*)ibody->GetCollisionShape())->radius;
 
 				Vec3 pos = ibody->GetPosition();
@@ -487,7 +497,6 @@ namespace CibraryEngine
 					if(iter != jter)
 					{
 						RigidBody* jbody = *jter;
-
 						float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
 
 						Vec3 other_pos = jbody->GetPosition();
@@ -522,12 +531,11 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
+						TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
 						Ray ray;
 						ray.origin = pos;
 						ray.direction = vel;
-
-						TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
 						vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(Vec3(pos.x - radius, pos.y - radius, pos.z - radius), Vec3(pos.x + radius, pos.y + radius, pos.z + radius)));
 						for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
@@ -558,7 +566,6 @@ namespace CibraryEngine
 					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
-
 						InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 						Vec3 plane_norm = shape->plane.normal;
@@ -589,7 +596,17 @@ namespace CibraryEngine
 					}
 				}
 
-				// TODO: sphere-multisphere collisions
+				// sphere-multisphere collisions
+				if(multispheres != shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = multispheres->second.begin(); jter != multispheres->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+						MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
+
+						// TODO: implement this
+					}
+				}
 
 				if(!hits.empty())
 				{
@@ -606,7 +623,55 @@ namespace CibraryEngine
 			}
 		}
 
-		// TODO: handle all the collisions involving multispheres
+
+
+		// handle all the collisions involving multispheres
+		if(multispheres != shape_bodies.end())
+		{
+			for(boost::unordered_set<RigidBody*>::iterator iter = multispheres->second.begin(); iter != multispheres->second.end(); ++iter)
+			{
+				RigidBody* ibody = *iter;
+				MultiSphereShape* ishape = (MultiSphereShape*)ibody->GetCollisionShape();
+
+				// multisphere-mesh collisions
+				if(meshes != shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+						TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
+
+						// TODO: implement this
+					}
+				}
+
+				// multisphere-plane collisions
+				if(planes != shape_bodies.end())
+				{
+					for(boost::unordered_set<RigidBody*>::iterator jter = planes->second.begin(); jter != planes->second.end(); ++jter)
+					{
+						RigidBody* jbody = *jter;
+						InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+						// TODO: implement this
+					}
+				}
+
+				// multisphere-multisphere collisions
+				for(boost::unordered_set<RigidBody*>::iterator jter = iter; jter != multispheres->second.end(); ++jter)
+				{
+					if(iter != jter)
+					{
+						RigidBody* jbody = *jter;
+						MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
+
+						// TODO: implement this
+					}
+				}
+			}
+		}
+
+
 
 		// update positions
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
