@@ -98,6 +98,9 @@ namespace CibraryEngine
 			Vec3 GetLinearVelocity();
 			void SetLinearVelocity(const Vec3& vel);
 
+			Vec3 GetAngularVelocity();
+			void SetAngularVelocity(const Vec3& vel);
+
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();			
 

@@ -7,17 +7,15 @@ namespace CibraryEngine
 {
 	class MultiSphereShape : public CollisionShape
 	{
-		private:
-
-			Vec3* centers;
-			float* radii;
-			unsigned int count;
-
 		protected:
 
 			void InnerDispose();
 
 		public:
+
+			Vec3* centers;
+			float* radii;
+			unsigned int count;
 
 			MultiSphereShape();
 			MultiSphereShape(Vec3* centers, float* radii, unsigned int count);

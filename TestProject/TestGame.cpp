@@ -309,6 +309,8 @@ namespace Test
 
 	void TestGame::Load()
 	{
+		srand((unsigned int)time(NULL));
+
 		sound_system->TryToEnable();
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
@@ -450,6 +452,7 @@ namespace Test
 		imp->shot_model = vtn_cache->Load("shot");
 		imp->blood_red = (BillboardMaterial*)mat_cache->Load("blood");
 		imp->blood_blue = (BillboardMaterial*)mat_cache->Load("bug_blood");
+		imp->dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 
 		if(load_status.HasAborted())
 		{
@@ -524,9 +527,9 @@ namespace Test
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
 
-#if 0
+#if 1
 		// spawn some rubbish
-		for(int i = 0; i < 2100; ++i)
+		for(int i = 0; i < 100; ++i)
 		{
 			float x = Random3D::Rand(-80, 80); 
 			float z = Random3D::Rand(-80, 80);

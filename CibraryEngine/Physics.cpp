@@ -125,7 +125,7 @@ namespace CibraryEngine
 			}
 		}
 
-		Mat3 ComputeInvMoi() { return Mat3::Invert(ori.ToMat3() * Mat3(mass_info.moi)); }
+		Mat3 ComputeInvMoi() { return ori.ToMat3() * Mat3::Invert(Mat3(mass_info.moi)) * ori.ToMat3().Transpose(); }
 
 		void UpdateVel(float timestep)
 		{
@@ -148,7 +148,7 @@ namespace CibraryEngine
 			if(active)
 			{
 				pos += vel * timestep;
-				ori *= Quaternion::FromPYR(rot);
+				ori *= Quaternion::FromPYR(rot * timestep);
 			}
 		}
 
@@ -169,7 +169,12 @@ namespace CibraryEngine
 			if(active)
 			{
 				if(can_rotate)
-					rot += inv_moi * Vec3::Cross(impulse, local_poi);
+				{
+					Vec3 poi = ori.ToMat3().Transpose() * local_poi;
+					Vec3 cross = Vec3::Cross(impulse, poi);
+					Vec3 moid = inv_moi * cross;
+					rot += moid;
+				}
 				vel += impulse * inv_mass;
 			}
 		}
@@ -249,8 +254,11 @@ namespace CibraryEngine
 		{
 			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.a.pos, 1.0f);
 			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
+
+			Vec3 i_v = ibody->GetLinearVelocity() + Vec3::Cross(cp.a.pos - ibody->GetPosition(), ibody->GetAngularVelocity());
+			Vec3 j_v = jbody->GetLinearVelocity() + Vec3::Cross(cp.b.pos - jbody->GetPosition(), jbody->GetAngularVelocity());
 					
-			Vec3 dv = jbody->GetLinearVelocity() - ibody->GetLinearVelocity();
+			Vec3 dv = j_v - i_v;
 			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
 
 			float nvdot = Vec3::Dot(normal, dv);
@@ -549,8 +557,8 @@ namespace CibraryEngine
 
 								p.a.obj = ibody;
 								p.b.obj = jbody;
-								p.a.pos = pos;
-								p.b.pos = pos;
+								p.a.pos = pos - tri.plane.normal * radius;
+								p.b.pos = p.a.pos;
 								p.a.norm = -tri.plane.normal;
 								p.b.norm = tri.plane.normal;
 
@@ -585,7 +593,7 @@ namespace CibraryEngine
 
 								p.a.obj = ibody;
 								p.b.obj = jbody;
-								p.a.pos = pos + t * vel;
+								p.a.pos = pos - plane_norm * radius;
 								p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
 								p.b.norm = plane_norm;
 								p.a.norm = -plane_norm;
@@ -633,6 +641,12 @@ namespace CibraryEngine
 				RigidBody* ibody = *iter;
 				MultiSphereShape* ishape = (MultiSphereShape*)ibody->GetCollisionShape();
 
+				Vec3 vel = ibody->GetLinearVelocity();
+				Vec3 pos = ibody->GetPosition();
+				Mat4 xform = ibody->GetTransformationMatrix();
+
+				list<ContactPoint> hits;
+
 				// multisphere-mesh collisions
 				if(meshes != shape_bodies.end())
 				{
@@ -653,7 +667,36 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
-						// TODO: implement this
+						Vec3 plane_norm = jshape->plane.normal;
+						float plane_offset = jshape->plane.offset;
+
+						float vel_dot = Vec3::Dot(plane_norm, vel);
+						if(vel_dot <= 0.0f)								// if the object is moving away from the plane, don't bounce!
+						{
+							for(unsigned int sphere_num = 0; sphere_num < ishape->count; ++sphere_num)
+							{
+								Vec3 sphere_pos = xform.TransformVec3(ishape->centers[sphere_num], 1.0f);
+								float radius = ishape->radii[sphere_num];
+
+								float center_offset = Vec3::Dot(plane_norm, sphere_pos) - plane_offset;
+
+								float dist = fabs(center_offset) - radius;
+								float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
+								if(t >= 0 && t <= timestep)
+								{
+									ContactPoint p;
+
+									p.a.obj = ibody;
+									p.b.obj = jbody;
+									p.a.pos = pos + t * vel;
+									p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
+									p.b.norm = plane_norm;
+									p.a.norm = -plane_norm;
+
+									hits.push_back(p);
+								}
+							}
+						}
 					}
 				}
 
@@ -666,6 +709,19 @@ namespace CibraryEngine
 						MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 
 						// TODO: implement this
+					}
+				}
+
+				if(!hits.empty())
+				{
+					CollisionCallback* callback = ibody->GetCollisionCallback();
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+					{
+						if(callback)
+							callback->OnCollision(*jter);
+
+						DoCollisionResponse(*jter);
 					}
 				}
 			}
@@ -753,12 +809,12 @@ namespace CibraryEngine
 	{
 		if(imp->apply_force_directly)
 		{
-			imp->torque += Vec3::Cross(force, local_poi);
+			imp->torque += Vec3::Cross(force, imp->ori.ToMat3().Transpose() * local_poi);
 			imp->force += force;
 		}
 		else
 		{
-			imp->applied_torque += Vec3::Cross(force, local_poi);
+			imp->applied_torque += Vec3::Cross(force, imp->ori.ToMat3().Transpose() * local_poi);
 			imp->applied_force += force;
 		}
 	}
@@ -779,6 +835,9 @@ namespace CibraryEngine
 
 	Vec3 RigidBody::GetLinearVelocity() { return imp->vel; }
 	void RigidBody::SetLinearVelocity(const Vec3& vel) { imp->vel = vel; }
+
+	Vec3 RigidBody::GetAngularVelocity() { return imp->rot; }
+	void RigidBody::SetAngularVelocity(const Vec3& vel) { imp->rot = vel; }
 
 	void RigidBody::Update(TimingInfo time) { imp->UpdatePos(time.elapsed); }					// TODO: maybe get rid of this?
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }

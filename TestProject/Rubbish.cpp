@@ -53,10 +53,7 @@ namespace Test
 		//if(false)
 		{
 			//btCollisionShape* shape = model->bone_physics[0].shape;
-			CollisionShape* shape = new SphereShape(0.5f);
-			
-			MassInfo mass_info(Vec3(), 20);
-			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = 10;
+			CollisionShape* shape = new SphereShape(0.6f);
 
 			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
 			Vec3 a = xform.TransformVec3(1, 0, 0, 0);
@@ -64,7 +61,8 @@ namespace Test
 			Vec3 c = xform.TransformVec3(0, 0, 1, 0);
 			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
 
-			rigid_body = new RigidBody(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
+			rigid_body = new RigidBody(shape, shape->ComputeMassInfo() * 100.0f, pos, Quaternion::FromRotationMatrix(Mat3(values)));
+			rigid_body->SetUserEntity(this);
 
 			physics->AddRigidBody(rigid_body);
 			this->rigid_body = rigid_body;
@@ -90,29 +88,10 @@ namespace Test
 		}
 
 		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
-		Vec3 x_axis = xform.TransformVec3(1, 0, 0, 0);
-		Vec3 y_axis = xform.TransformVec3(0, 1, 0, 0);
-		Vec3 z_axis = xform.TransformVec3(0, 0, 1, 0);
-
-		Vec3 local_poi;
-		local_poi = poi - pos;
-		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
-		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
-
-		rigid_body->ApplyImpulse(momentum, local_poi);
+		rigid_body->ApplyImpulse(momentum, poi - pos);
 
 		return true;
 	}
 
-	void Rubbish::Update(TimingInfo time)
-	{
-		xform = rigid_body->GetTransformationMatrix();
-
-		float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
-		Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
-
-		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
-
-		xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
-	}
+	void Rubbish::Update(TimingInfo time) { xform = rigid_body->GetTransformationMatrix(); }
 }
