@@ -673,29 +673,34 @@ namespace CibraryEngine
 						float vel_dot = Vec3::Dot(plane_norm, vel);
 						if(vel_dot <= 0.0f)								// if the object is moving away from the plane, don't bounce!
 						{
+							// find the part of this shape that has most exceeded the boundary
+							float min = 0.0f;
+							ContactPoint p;
+
 							for(unsigned int sphere_num = 0; sphere_num < ishape->count; ++sphere_num)
 							{
 								Vec3 sphere_pos = xform.TransformVec3(ishape->centers[sphere_num], 1.0f);
 								float radius = ishape->radii[sphere_num];
 
-								float center_offset = Vec3::Dot(plane_norm, sphere_pos) - plane_offset;
+								float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
 
-								float dist = fabs(center_offset) - radius;
-								float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
-								if(t >= 0 && t <= timestep)
+								if(dist < min)
 								{
-									ContactPoint p;
+									min = dist;
 
+									p = ContactPoint();
 									p.a.obj = ibody;
 									p.b.obj = jbody;
-									p.a.pos = pos + t * vel;
+									p.a.pos = sphere_pos - plane_norm * radius;
 									p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
 									p.b.norm = plane_norm;
 									p.a.norm = -plane_norm;
-
-									hits.push_back(p);
 								}
 							}
+
+							// this only passes if at least one sphere was over the line
+							if(min < 0.0f)
+								hits.push_back(p);
 						}
 					}
 				}

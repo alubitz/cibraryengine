@@ -45,9 +45,32 @@ namespace CibraryEngine
 		count = 0;
 	}
 
-	MassInfo MultiSphereShape::ComputeMassInfo() { return CollisionShape::ComputeMassInfo(); }				// TODO: implement this
+	MassInfo MultiSphereShape::ComputeMassInfo()
+	{
+		// TODO: implement this for real
+		MassInfo temp;
+		for(unsigned int i = 0; i < count; ++i)
+			temp += MassInfo(centers[i], pow(radii[i], 3.0f));
 
-	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { }	// TODO: implement this
+		return temp;
+	}
+
+	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	{
+		// TODO: implement this for real
+		float radius = 1.0f;
+
+		Mat3 rm = ori.ToMat3();
+		Vec3 x = Vec3(rm[0], rm[1], rm[2]) * radius;
+		Vec3 y = Vec3(rm[3], rm[4], rm[5]) * radius;
+		Vec3 z = Vec3(rm[6], rm[7], rm[8]) * radius;
+
+		static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1);
+
+		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - x, pos + x, r), 1.0f));
+		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y, g), 1.0f));
+		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z, b), 1.0f));
+	}
 
 	void MultiSphereShape::Write(ostream& stream)
 	{

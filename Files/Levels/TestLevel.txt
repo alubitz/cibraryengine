@@ -1,10 +1,10 @@
 ~ creating the terrain
 
-: static_geometry "nbridge"
-:: pos
-::: x 0
-::: y 0
-::: z 0
+~: static_geometry "nbridge"
+~:: pos
+~::: x 0
+~::: y 0
+~::: z 0
 
 
 
