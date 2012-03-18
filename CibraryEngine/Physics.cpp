@@ -612,7 +612,12 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
 
-						// TODO: implement this
+						Mat4 inv_xform = Mat4::Invert(jbody->GetTransformationMatrix());
+						Vec3 nu_pos = inv_xform.TransformVec3(pos, 1.0f);
+
+						ContactPoint cp;
+						if(shape->CollisionCheck(Sphere(nu_pos, radius), cp, ibody, jbody))
+							hits.push_back(cp);
 					}
 				}
 
@@ -667,41 +672,9 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
-						Vec3 plane_norm = jshape->plane.normal;
-						float plane_offset = jshape->plane.offset;
-
-						float vel_dot = Vec3::Dot(plane_norm, vel);
-						if(vel_dot <= 0.0f)								// if the object is moving away from the plane, don't bounce!
-						{
-							// find the part of this shape that has most exceeded the boundary
-							float min = 0.0f;
-							ContactPoint p;
-
-							for(unsigned int sphere_num = 0; sphere_num < ishape->count; ++sphere_num)
-							{
-								Vec3 sphere_pos = xform.TransformVec3(ishape->centers[sphere_num], 1.0f);
-								float radius = ishape->radii[sphere_num];
-
-								float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
-
-								if(dist < min)
-								{
-									min = dist;
-
-									p = ContactPoint();
-									p.a.obj = ibody;
-									p.b.obj = jbody;
-									p.a.pos = sphere_pos - plane_norm * radius;
-									p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
-									p.b.norm = plane_norm;
-									p.a.norm = -plane_norm;
-								}
-							}
-
-							// this only passes if at least one sphere was over the line
-							if(min < 0.0f)
-								hits.push_back(p);
-						}
+						ContactPoint p;
+						if(ishape->CollisionCheck(xform, jshape->plane, p, ibody, jbody))
+							hits.push_back(p);
 					}
 				}
 

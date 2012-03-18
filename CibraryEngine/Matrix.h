@@ -23,9 +23,9 @@ namespace CibraryEngine
 		float& operator[](int index);
 
 		/** Returns the transpose of this matrix */
-		Mat3 Transpose();
+		Mat3 Transpose() const;
 		/** Returns the determinant of this matrix */
-		float Determinant();
+		float Determinant() const;
 
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, by the specified angle. The axis should be normalized. */
 		static Mat3 FromAxisAngle(float x, float y, float z, float angle);
@@ -67,12 +67,12 @@ namespace CibraryEngine
 		
 
 		/** Returns the transpose of this matrix */
-		Mat4 Transpose();
+		Mat4 Transpose() const;
 
 		/** Returns the result of transforming the 3-component vector xyz with homogeneous component w by this matrix, divided by the results' homogeneous component */
-		Vec3 TransformVec3(Vec3 xyz, float w);
+		Vec3 TransformVec3(Vec3 xyz, float w) const;
 		/** Returns the result of transforming the 3-component vector xyz with homogeneous component w by this matrix, divided by the results' homogeneous component */
-		Vec3 TransformVec3(float x, float y, float z, float w);
+		Vec3 TransformVec3(float x, float y, float z, float w) const;
 
 		/** Returns the identity matrix */
 		static Mat4 Identity();

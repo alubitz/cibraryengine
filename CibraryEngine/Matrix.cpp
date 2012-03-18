@@ -25,13 +25,13 @@ namespace CibraryEngine
 		return values[index];
 	}
 
-	Mat3 Mat3::Transpose()
+	Mat3 Mat3::Transpose() const
 	{
 		float values_[] = { values[0], values[3], values[6], values[1], values[4], values[7], values[2], values[5], values[8] };
 		return Mat3(values_);
 	}
 
-	float Mat3::Determinant()
+	float Mat3::Determinant() const
 	{
 		return values[0] * values[4] * values[8] + values[1] * values[5] * values[6] + values[2] * values[3] * values[7] - values[0] * values[5] * values[7] - values[1] * values[3] * values[8] - values[2] * values[5] * values[7];
 	}
@@ -163,7 +163,7 @@ namespace CibraryEngine
 		return values[index];
 	}
 
-	Mat4 Mat4::Transpose()
+	Mat4 Mat4::Transpose() const
 	{
 		float values_[] = {
 			values[0],	values[4],	values[8],	values[12],
@@ -174,8 +174,8 @@ namespace CibraryEngine
 		return Mat4(values_);
 	}
 
-	Vec3 Mat4::TransformVec3(Vec3 xyz, float w) { return TransformVec3(xyz.x, xyz.y, xyz.z, w); }
-	Vec3 Mat4::TransformVec3(float x, float y, float z, float w)
+	Vec3 Mat4::TransformVec3(Vec3 xyz, float w) const { return TransformVec3(xyz.x, xyz.y, xyz.z, w); }
+	Vec3 Mat4::TransformVec3(float x, float y, float z, float w) const
 	{
 		Vec4 xformed = *this * Vec4(x, y, z, w);
 		float inv_w = xformed.w == 0 ? 1.0f : 1.0f / xformed.w;

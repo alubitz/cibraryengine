@@ -53,9 +53,14 @@ namespace Test
 		//if(false)
 		{
 			//btCollisionShape* shape = model->bone_physics[0].shape;
+
 			CollisionShape* shape = NULL;
 			MassInfo mass_info;
-			
+
+#if 0
+			shape = new SphereShape(0.6f);
+			mass_info = shape->ComputeMassInfo() * 50.0f;
+#else		
 			{
 				float b = 0.5f, r = 0.2f;
 				Vec3 centers[] = { Vec3(-b, -b, -b), Vec3(-b, -b, b), Vec3(-b, b, -b), Vec3(-b, b, b), Vec3(b, -b, -b), Vec3(b, -b, b), Vec3(b, b, -b), Vec3(b, b, b) };
@@ -67,8 +72,7 @@ namespace Test
 				mass_info.com = Vec3();
 				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * b * b) / 1.0f;			// formula says divide by six, but some reason that doesn't work right
 			}
-			
-			//CollisionShape* shape = new SphereShape(0.6f);
+#endif
 
 			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
 			Vec3 a = xform.TransformVec3(1, 0, 0, 0);
@@ -76,7 +80,6 @@ namespace Test
 			Vec3 c = xform.TransformVec3(0, 0, 1, 0);
 			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
 
-			//rigid_body = new RigidBody(shape, shape->ComputeMassInfo() * 100.0f, pos, Quaternion::FromRotationMatrix(Mat3(values)));
 			rigid_body = new RigidBody(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
 			rigid_body->SetUserEntity(this);
 
