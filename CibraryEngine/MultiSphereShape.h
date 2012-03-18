@@ -8,6 +8,7 @@ namespace CibraryEngine
 	struct Mat4;
 	struct ContactPoint;
 	struct Sphere;
+	struct Ray;
 
 	class MultiSphereShape : public CollisionShape
 	{
@@ -31,8 +32,10 @@ namespace CibraryEngine
 
 			bool Contains(const Vec3& point);
 
-			bool CollisionCheck(const Mat4& xform, const Plane& plane, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
-			bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);			// sphere pre-transformed into local coords
+			bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody = NULL, RigidBody* jbody = NULL);						// ray pre-transformed into local coords
+			bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
+			bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
+			bool CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of i xform and inverse j xform
 
 			void Write(ostream& stream);
 			unsigned int Read(istream& stream);

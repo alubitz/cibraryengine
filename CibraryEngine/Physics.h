@@ -103,6 +103,7 @@ namespace CibraryEngine
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();			
+			Mat4 GetInvTransform();
 
 			void ApplyForce(const Vec3& force, const Vec3& local_poi);
 			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);
@@ -110,8 +111,6 @@ namespace CibraryEngine
 			void ApplyCentralImpulse(const Vec3& impulse);
 
 			void ResetForces();
-
-			void Update(TimingInfo time);			// to be called by the PhysicsWorld
 
 			void DebugDraw(SceneRenderer* renderer);
 

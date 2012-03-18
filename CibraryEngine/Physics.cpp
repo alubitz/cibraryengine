@@ -73,6 +73,9 @@ namespace CibraryEngine
 		float inv_mass;
 		Mat3 inv_moi;
 
+		bool xform_valid;
+		Mat4 xform, inv_xform;
+
 		float bounciness;
 		float friction;
 
@@ -97,6 +100,7 @@ namespace CibraryEngine
 			gravity(),
 			mass_info(mass_info),
 			shape(shape),
+			xform_valid(false),
 			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.0f),
 			friction(shape->GetShapeType() == ST_InfinitePlane ? 0.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 			can_move(shape->CanMove()),
@@ -149,7 +153,17 @@ namespace CibraryEngine
 			{
 				pos += vel * timestep;
 				ori *= Quaternion::FromPYR(rot * timestep);
+
+				xform_valid = false;
 			}
+		}
+
+		void ComputeXform()
+		{
+			xform = Mat4::FromPositionAndOrientation(pos, ori);
+			inv_xform = Mat4::Invert(xform);
+
+			xform_valid = true;
 		}
 
 		void ResetForces() 
@@ -252,8 +266,8 @@ namespace CibraryEngine
 		float m2 = jbody->imp->mass_info.mass;
 		if(m1 + m2 > 0)
 		{
-			Vec3 i_poi = Mat4::Invert(ibody->GetTransformationMatrix()).TransformVec3(cp.a.pos, 1.0f);
-			Vec3 j_poi = Mat4::Invert(jbody->GetTransformationMatrix()).TransformVec3(cp.b.pos, 1.0f);
+			Vec3 i_poi = ibody->GetInvTransform().TransformVec3(cp.a.pos, 1.0f);
+			Vec3 j_poi = jbody->GetInvTransform().TransformVec3(cp.b.pos, 1.0f);
 
 			Vec3 i_v = ibody->GetLinearVelocity() + Vec3::Cross(cp.a.pos - ibody->GetPosition(), ibody->GetAngularVelocity());
 			Vec3 j_v = jbody->GetLinearVelocity() + Vec3::Cross(cp.b.pos - jbody->GetPosition(), jbody->GetAngularVelocity());
@@ -368,10 +382,11 @@ namespace CibraryEngine
 				RigidBody* jbody = *jter;
 				TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
 
+				Mat4 inv_mat = jbody->GetInvTransform();
+
 				Ray ray_cut;
-				ray_cut.origin = ray.origin;
-				ray_cut.direction = ray.direction * max_time;
-				// TODO: transform these into the coordinate-space of the mesh
+				ray_cut.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
+				ray_cut.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
 
 				vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
 						
@@ -424,8 +439,17 @@ namespace CibraryEngine
 			{
 				RigidBody* jbody = *jter;
 				MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
-				
-				// TODO: implement this
+
+				Mat4 inv_mat = jbody->GetInvTransform();
+
+				Ray nu_ray;
+				nu_ray.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
+				nu_ray.direction = inv_mat.TransformVec3(ray.direction, 0.0f);
+
+				ContactPoint p;
+				float t;
+				if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
+					hits.push_back(Hit(t, p));
 			}
 		}
 
@@ -686,7 +710,11 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 
-						// TODO: implement this
+						Mat4 net_xform = xform * ibody->GetInvTransform();		// TODO: check the order of this matrix multiplication
+
+						ContactPoint p;
+						if(ishape->CollisionCheck(net_xform, jshape, p, ibody, jbody))
+							hits.push_back(p);
 					}
 				}
 
@@ -776,12 +804,13 @@ namespace CibraryEngine
 	void RigidBody::DisposePreservingCollisionShape() { imp->shape = NULL; Dispose(); }
 
 	Vec3 RigidBody::GetPosition() { return imp->pos; }
-	void RigidBody::SetPosition(Vec3 pos) { imp->pos = pos; }
+	void RigidBody::SetPosition(Vec3 pos) { imp->pos = pos; imp->xform_valid = false; }
 
 	Quaternion RigidBody::GetOrientation() { return imp->ori; }
-	void RigidBody::SetOrientation(Quaternion ori) { imp->ori = ori; }
+	void RigidBody::SetOrientation(Quaternion ori) { imp->ori = ori; imp->xform_valid = false; }
 
-	Mat4 RigidBody::GetTransformationMatrix() { return Mat4::FromPositionAndOrientation(imp->pos, imp->ori); }
+	Mat4 RigidBody::GetTransformationMatrix() { if(!imp->xform_valid) { imp->ComputeXform(); } return imp->xform; }
+	Mat4 RigidBody::GetInvTransform() { if(!imp->xform_valid) { imp->ComputeXform(); } return imp->inv_xform; }
 
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
@@ -817,7 +846,6 @@ namespace CibraryEngine
 	Vec3 RigidBody::GetAngularVelocity() { return imp->rot; }
 	void RigidBody::SetAngularVelocity(const Vec3& vel) { imp->rot = vel; }
 
-	void RigidBody::Update(TimingInfo time) { imp->UpdatePos(time.elapsed); }					// TODO: maybe get rid of this?
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }
 
 	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }

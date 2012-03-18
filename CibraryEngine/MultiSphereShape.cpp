@@ -11,6 +11,7 @@
 #include "DebugDrawMaterial.h"
 
 #include "Serialize.h"
+#include "Util.h"
 
 namespace CibraryEngine
 {
@@ -95,7 +96,19 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollisionCheck(const Mat4& xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
+		{
+			// TODO: implement this
+			return false;
+		}
+
+		bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		{
+			// TODO: implement this
+			return false;
+		}
+
+		bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			// TODO: maybe fudge a bit to make face/edge collisions less chaotic?
 			float min = 0.0f;
@@ -105,7 +118,7 @@ namespace CibraryEngine
 
 			for(unsigned int sphere_num = 0; sphere_num < count; ++sphere_num)
 			{
-				Vec3 sphere_pos = xform.TransformVec3(centers[sphere_num], 1.0f);
+				Vec3 sphere_pos = my_xform.TransformVec3(centers[sphere_num], 1.0f);
 				float radius = radii[sphere_num];
 
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
@@ -129,7 +142,7 @@ namespace CibraryEngine
 			return min < 0.0f;
 		}
 
-		bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			// TODO: implement this
 			return false;
@@ -181,8 +194,11 @@ namespace CibraryEngine
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 
 	bool MultiSphereShape::Contains(const Vec3& point) { return imp->Contains(point); }
-	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, plane, result, ibody, jbody); }
+
+	bool MultiSphereShape::CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(ray, result, time, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, other, result, ibody, jbody); }
 
 	void MultiSphereShape::Write(ostream& stream) { imp->Write(stream);}
 	unsigned int MultiSphereShape::Read(istream& stream) { return imp->Read(stream); }	
