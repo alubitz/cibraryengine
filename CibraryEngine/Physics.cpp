@@ -102,7 +102,7 @@ namespace CibraryEngine
 			shape(shape),
 			xform_valid(false),
 			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.0f),
-			friction(shape->GetShapeType() == ST_InfinitePlane ? 0.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
+			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 			can_move(shape->CanMove()),
 			can_rotate(false),
 			active(can_move),
@@ -449,7 +449,10 @@ namespace CibraryEngine
 				ContactPoint p;
 				float t;
 				if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
+				{
+					p.a.pos = jbody->GetTransformationMatrix().TransformVec3(p.b.pos, 1.0f);
 					hits.push_back(Hit(t, p));
+				}
 			}
 		}
 

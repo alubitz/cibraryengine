@@ -117,12 +117,12 @@ namespace CibraryEngine
 
 		float vmag_sq = ray.direction.ComputeMagnitudeSquared();
         float dmag_sq = dx.ComputeMagnitudeSquared();
-
-		// quadratic formula here...
-        float A = vmag_sq;
-		float B = 2.0f * Vec3::Dot(dx, ray.direction);
-		float C = dmag_sq - sphere.radius * sphere.radius;
         
+		return SolveQuadraticFormula(vmag_sq, 2.0f * Vec3::Dot(dx, ray.direction), dmag_sq - sphere.radius * sphere.radius, first, second);
+	}
+
+	bool Util::SolveQuadraticFormula(float A, float B, float C, float& first, float& second)
+	{
 		float under_root = B * B - 4.0f * A * C;
 
 		// no solutions
@@ -136,6 +136,5 @@ namespace CibraryEngine
 		second = (-B + root) * inv_a;
 		
 		return true;
-
 	}
 }

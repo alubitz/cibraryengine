@@ -51,5 +51,7 @@ namespace CibraryEngine
 			static float RayPlaneIntersect(const Ray& ray, const Plane& plane);
 
 			static bool RaySphereIntersect(const Ray& ray, const Sphere& sphere, float& first, float& second);
+
+			static bool SolveQuadraticFormula(float A, float B, float C, float& first, float& second);
 	};
 }

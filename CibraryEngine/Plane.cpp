@@ -19,6 +19,8 @@ namespace CibraryEngine
 
 	Plane Plane::FromTriangleVertices(Vec3 a, Vec3 b, Vec3 c) { return Plane::FromPositionNormal(a, Vec3::Cross(b - a, c - a)); }
 
+	Plane Plane::Reverse(const Plane& plane) { return Plane(-plane.normal, -plane.offset); }
+
 	float Plane::CheckEquality(Plane a, Plane b)
 	{
 		float magprodsq = a.normal.ComputeMagnitudeSquared() * b.normal.ComputeMagnitudeSquared();		// although the magnitude of the normals SHOULD be 1... maybe somebody did something funky

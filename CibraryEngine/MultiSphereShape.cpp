@@ -20,36 +20,235 @@ namespace CibraryEngine
 	 */
 	struct MultiSphereShape::Imp
 	{
-		Vec3* centers;
-		float* radii;
-		unsigned int count;
-
-		Imp() : centers(NULL), radii(NULL), count(0) { }
-
-		Imp(Vec3* centers_, float* radii_, unsigned int count) : centers(NULL), radii(NULL), count(count)
+		struct Part
 		{
+			vector<Plane> planes;
+
+			Part() : planes() { }
+			virtual ~Part() { }
+
+			bool IsPointRelevant(const Vec3& point)
+			{
+				for(vector<Plane>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+					if(iter->PointDistance(point) < 0)
+						return false;
+				return true;
+			}
+
+			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) = 0;
+		};
+
+		struct SpherePart : Part
+		{
+			Sphere sphere;
+			SpherePart(Sphere sphere) : Part(), sphere(sphere) { }
+
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			{
+				return false;			// TODO: remove this lol
+
+				float t[2];
+
+				if(Util::RaySphereIntersect(ray, sphere, t[0], t[1]))
+				{
+					for(unsigned char i = 0; i < 2; ++i)
+					{
+						Vec3 pos = ray.origin + ray.direction * t[i];
+						if(t[i] >= 0.0f && t[i] <= 1.0f && IsPointRelevant(pos))
+						{
+							contact.pos = pos;
+							contact.norm = Vec3::Normalize(pos - sphere.center);
+
+							time = t[i];
+
+							return true;
+						}
+					}
+				}
+
+				return false;
+			}
+		};
+
+		struct TubePart : Part
+		{
+			Vec3 p1, p2;
+			float r1, r2;
+
+			Vec3 u;
+			float inv_dmag;
+			float cos_theta, sin_theta;
+
+			float opzsq, trz;
+
+			TubePart(Vec3 p1, Vec3 p2, float r1, float r2) : Part(), p1(p1), p2(p2), r1(r1), r2(r2)
+			{
+				Vec3 n = Vec3::Normalize(p2 - p1);
+
+				planes.push_back(Plane(n, Vec3::Dot(n, p1)));
+				planes.push_back(Plane(-n, -Vec3::Dot(n, p2)));
+			}
+
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			{
+				Vec3 q = ray.origin - p1;
+
+				float vu = Vec3::Dot(ray.direction, u);
+				float qu = Vec3::Dot(q, u);
+
+				float A = ray.direction.ComputeMagnitudeSquared() - vu * vu * opzsq;
+				float B = 2.0f * qu * (1 - vu * opzsq) - trz * vu;
+				float C = q.ComputeMagnitudeSquared() - qu * qu * opzsq - trz * qu - r1 * r1;
+
+				float t[2];
+				if(Util::SolveQuadraticFormula(A, B, C, t[0], t[1]))
+				{
+					for(unsigned char i = 0; i < 2; ++i)
+					{
+						Vec3 pos = ray.origin + ray.direction * t[i];
+						if(t[i] >= 0.0f && t[i] <= 1.0f && IsPointRelevant(pos))
+						{
+							contact.pos = pos;
+
+							Vec3 from_axis = pos - (p1 + u * Vec3::Dot(pos - p1, u));
+							contact.norm = Vec3::Normalize(from_axis) * cos_theta + u * sin_theta;
+
+							time = t[i];
+
+							return true;
+						}
+					}
+				}
+
+				return false;
+			}
+		};
+
+		struct PlanePart : Part
+		{
+			Plane plane;
+
+			PlanePart(Plane plane) : Part(), plane(plane) { }
+
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			{
+				float t = Util::RayPlaneIntersect(ray, plane);
+				Vec3 pos = ray.origin + ray.direction * t;
+
+				if(t >= 0.0f && t <= 1.0f && IsPointRelevant(pos))
+				{
+					contact.pos = pos;
+					contact.norm = plane.normal;
+
+					time  = t;
+
+					return true;
+				}
+
+				return false;
+			}
+		};
+
+		vector<SpherePart> spheres;
+		vector<TubePart> tubes;
+		vector<PlanePart> planes;
+
+		AABB aabb;
+
+		Imp() : spheres(), tubes(), planes(), aabb() { }
+		Imp(Vec3* centers, float* radii, unsigned int count) { Init(centers, radii, count); }
+
+		~Imp() { }
+
+		void Init(Vec3* centers, float* radii, unsigned int count)
+		{
+			// TODO: deal with unused spheres, duplicates, etc.
+
+			spheres = vector<SpherePart>();
+			tubes = vector<TubePart>();
+			planes = vector<PlanePart>();
+
 			if(count > 0)
 			{
-				centers = new Vec3[count];
-				radii = new float[count];
-
 				for(unsigned int i = 0; i < count; ++i)
 				{
-					centers[i] = centers_[i];
-					radii[i] = radii_[i];
+					// TODO: detect and discard unworthy spheres
+
+					Vec3 i_center = centers[i];
+					float i_radius = radii[i];
+
+					SpherePart sphere(Sphere(i_center, i_radius));
+					spheres.push_back(sphere);
+
+					if(i == 0)
+						aabb = AABB(i_center, i_radius);
+					else
+						aabb.Expand(AABB(i_center, i_radius));
+				}
+
+				unsigned int num_spheres = spheres.size();
+				for(unsigned int i = 0; i < num_spheres; ++i)
+				{
+					SpherePart& i_sphere = spheres[i];
+
+					Vec3 i_center = i_sphere.sphere.center;
+					float i_radius = i_sphere.sphere.radius;
+
+					for(unsigned int j = i + 1; j < num_spheres; ++j)
+					{
+						// TODO: detect and discard unworthy tubes
+
+						SpherePart& j_sphere = spheres[j];
+
+						Vec3 j_center = j_sphere.sphere.center;
+						float j_radius = j_sphere.sphere.radius;
+
+						// finding a tube tangent to both spheres
+						Vec3 d = j_center - i_center;
+						float dmag = d.ComputeMagnitude(), inv_dmag = 1.0f / dmag;
+						Vec3 ud = d * inv_dmag;
+
+						float theta = acosf((j_radius - i_radius) * inv_dmag);				// angle from the axis vector to the point of tangency
+						float cos_theta = cosf(theta), sin_theta = sinf(theta);
+
+						Vec3 p1 = i_center + ud * (i_radius * cos_theta);					// center points of the circles where the tube touches the spheres
+						Vec3 p2 = j_center + ud * (j_radius * cos_theta);
+						float r1 = i_radius * sin_theta, r2 = j_radius * sin_theta;			// radii of those circles
+
+						TubePart tube(p1, p2, r1, r2);
+
+						// cache some parts of the ray-test formula
+						tube.cos_theta = cos_theta;
+						tube.sin_theta = sin_theta;
+						tube.u = ud;
+						tube.inv_dmag = 1.0f / (p2 - p1).ComputeMagnitude();				// careful! it's not the same as the inv_dmag used here!
+
+						float z = (j_radius - i_radius) * inv_dmag;
+						tube.opzsq = 1 + z * z;
+						tube.trz = 2.0f * r1 * z;
+
+						i_sphere.planes.push_back(Plane::Reverse(tube.planes[0]));
+						j_sphere.planes.push_back(Plane::Reverse(tube.planes[1]));
+
+						tubes.push_back(tube);
+					}
+				}
+
+				unsigned int num_tubes = tubes.size();
+				for(unsigned int i = 0; i < num_tubes; ++i)
+				{
+					TubePart& i_tube = tubes[i];
+
+					for(unsigned int j = i + 1; j < num_tubes; ++j)
+					{
+						TubePart& j_tube = tubes[j];
+
+						// TODO: add triangles/planes here
+					}
 				}
 			}
-		}
-
-		~Imp()
-		{
-			delete[] centers;
-			centers = NULL;
-
-			delete[] radii;	
-			radii = NULL;
-
-			count = 0;
+			else
+				aabb = AABB();
 		}
 
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
@@ -73,8 +272,9 @@ namespace CibraryEngine
 		{
 			// TODO: implement this for real
 			MassInfo temp;
-			for(unsigned int i = 0; i < count; ++i)
-				temp += MassInfo(centers[i], pow(radii[i], 3.0f));
+
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				temp += MassInfo(iter->sphere.center, pow(iter->sphere.radius, 3.0f));
 
 			return temp;
 		}
@@ -83,11 +283,11 @@ namespace CibraryEngine
 		{
 			// TODO: implement this for real
 
-			for(unsigned int i = 0; i < count; ++i)
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				Vec3 i_cen = centers[i];
+				Vec3 i_cen = iter->sphere.center;
 				Vec3 dif = point - i_cen;
-				float i_radius = radii[i];
+				float i_radius = iter->sphere.radius;
 
 				if(dif.ComputeMagnitudeSquared() < i_radius * i_radius)
 					return true;
@@ -98,7 +298,39 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
 		{
-			// TODO: implement this
+			ContactPoint cp;
+
+			cp.a.obj = ibody;
+			cp.b.obj = jbody;
+
+			float t;
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				if(iter->RayTest(ray, cp.b, t))
+				{
+					result = cp;
+					time = t;
+
+					return true;
+				}
+
+			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+				if(iter->RayTest(ray, cp.b, t))
+				{
+					result = cp;
+					time = t;
+
+					return true;
+				}
+
+			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+				if(iter->RayTest(ray, cp.b, t))
+				{
+					result = cp;
+					time = t;
+
+					return true;
+				}
+
 			return false;
 		}
 
@@ -116,10 +348,10 @@ namespace CibraryEngine
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
 
-			for(unsigned int sphere_num = 0; sphere_num < count; ++sphere_num)
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				Vec3 sphere_pos = my_xform.TransformVec3(centers[sphere_num], 1.0f);
-				float radius = radii[sphere_num];
+				Vec3 sphere_pos = my_xform.TransformVec3(iter->sphere.center, 1.0f);
+				float radius = iter->sphere.radius;
 
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
 
@@ -150,28 +382,33 @@ namespace CibraryEngine
 
 		void Write(ostream& stream)
 		{
-			WriteUInt32(count, stream);
-			for(unsigned int i = 0; i < count; ++i)
+			WriteUInt32(spheres.size(), stream);
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				WriteVec3(centers[i], stream);
-				WriteSingle(radii[i], stream);
+				WriteVec3(iter->sphere.center, stream);
+				WriteSingle(iter->sphere.radius, stream);
 			}
 		}
 
 		unsigned int Read(istream& stream)
 		{
-			count = ReadUInt32(stream);
+			unsigned int count = ReadUInt32(stream);
 
 			if(count > 0)
 			{
-				centers = new Vec3[count];
-				radii = new float[count];
+				Vec3* centers = new Vec3[count];
+				float* radii = new float[count];
 
 				for(unsigned int i = 0; i < count; ++i)
 				{
 					centers[i] = ReadVec3(stream);
 					radii[i] = ReadSingle(stream);
 				}
+
+				Init(centers, radii, count);
+
+				delete[] centers;
+				delete[] radii;
 			}
 
 			return stream.fail() ? 1 : 0;

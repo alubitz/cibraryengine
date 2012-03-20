@@ -31,6 +31,9 @@ namespace CibraryEngine
 			/** Returns the plane containing the three given points */
 			static Plane FromTriangleVertices(Vec3 a, Vec3 b, Vec3 c);
 
+			/** Returns a plane with the same position but with flipped normal vector */
+			static Plane Reverse(const Plane& plane);
+
 			/** Determines whether two planes are equal */
 			static float CheckEquality(Plane a, Plane b);
 

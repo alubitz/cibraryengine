@@ -118,8 +118,9 @@ namespace CibraryEngine
 						if(GetCursorClientPos(x, y))
 							SetActive(true);
 					}
+					else
+						input_state->SetMouseButtonState(0, true);
 
-					input_state->SetMouseButtonState(0, true);
 					return 0;
 				}
 				case WM_LBUTTONUP:
@@ -129,7 +130,15 @@ namespace CibraryEngine
 				}
 				case WM_MBUTTONDOWN:
 				{
-					input_state->SetMouseButtonState(1, true);
+					if(!active)
+					{
+						int x, y;
+						if(GetCursorClientPos(x, y))
+							SetActive(true);
+					}
+					else
+						input_state->SetMouseButtonState(1, true);
+
 					return 0;
 				}
 				case WM_MBUTTONUP:
@@ -139,7 +148,15 @@ namespace CibraryEngine
 				}
 				case WM_RBUTTONDOWN:
 				{
-					input_state->SetMouseButtonState(2, true);
+					if(!active)
+					{
+						int x, y;
+						if(GetCursorClientPos(x, y))
+							SetActive(true);
+					}
+					else
+						input_state->SetMouseButtonState(2, true);
+
 					return 0;
 				}
 				case WM_RBUTTONUP:

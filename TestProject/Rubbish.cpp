@@ -62,7 +62,8 @@ namespace Test
 			mass_info = shape->ComputeMassInfo() * 50.0f;
 #else		
 			{
-				float b = 0.5f, r = 0.2f;
+				static const float b = 0.4f, r = 0.1f, s = b + r;
+
 				Vec3 centers[] = { Vec3(-b, -b, -b), Vec3(-b, -b, b), Vec3(-b, b, -b), Vec3(-b, b, b), Vec3(b, -b, -b), Vec3(b, -b, b), Vec3(b, b, -b), Vec3(b, b, b) };
 				float radii[] = { r, r, r, r, r, r, r, r };
 				shape = new MultiSphereShape(centers, radii, 8);
@@ -70,7 +71,7 @@ namespace Test
 				// constructing MassInfo for a cube
 				mass_info.mass = 50;
 				mass_info.com = Vec3();
-				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * b * b) / 1.0f;			// formula says divide by six, but some reason that doesn't work right
+				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 1.0f;			// formula says divide by six, but some reason that doesn't work right
 			}
 #endif
 
