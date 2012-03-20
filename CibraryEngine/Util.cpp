@@ -132,8 +132,18 @@ namespace CibraryEngine
 		// one or two solutions
 		float root = sqrtf(under_root);
 		float inv_a = 0.5f / A;
-        first = (-B - root) * inv_a;
-		second = (-B + root) * inv_a;
+        
+		// we want first to be the lesser of the two, regardless of the sign of A
+		if(A > 0)
+		{
+			first = (-B - root) * inv_a;
+			second = (-B + root) * inv_a;
+		}
+		else
+		{
+			first = (-B + root) * inv_a;
+			second = (-B - root) * inv_a;
+		}
 		
 		return true;
 	}

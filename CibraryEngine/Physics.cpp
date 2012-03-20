@@ -103,7 +103,7 @@ namespace CibraryEngine
 			xform_valid(false),
 			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.0f),
 			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
-			can_move(shape->CanMove()),
+			can_move(shape->CanMove() && mass_info.mass > 0),
 			can_rotate(false),
 			active(can_move),
 			user_entity(NULL),

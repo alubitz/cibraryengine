@@ -481,6 +481,16 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
 		}
 
+		if(ubermodel_cache->Load("pill") == NULL)
+		{
+			load_status.task = "pill";
+
+			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("pill"), "dummycube"));
+			UberModelLoader::SaveZZZ(pill_model, "Files/Models/pill.zzz");
+
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("pill").id).fail = false;
+		}
+
 		if(load_status.HasAborted())
 		{
 			load_status.Stop();
@@ -529,13 +539,14 @@ namespace Test
 
 #if 1
 		// spawn some rubbish
-		for(int i = 0; i < 1; ++i)
+		for(int i = 0; i < 100; ++i)
 		{
-			float x = Random3D::Rand(-80, 80); 
-			float z = Random3D::Rand(-80, 80);
-			float y = GetTerrainHeight(x, z) + 10;
+			Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
+			pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
 
-			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), Vec3(x, y, z), Random3D::RandomQuaternionRotation(), imp->dirt_particle);
+			Quaternion ori = Random3D::RandomQuaternionRotation();
+
+			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), pos, ori, imp->dirt_particle);
 			Spawn(rubbish);
 		}
 #endif

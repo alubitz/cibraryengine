@@ -45,8 +45,6 @@ namespace CibraryEngine
 
 			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
 			{
-				return false;			// TODO: remove this lol
-
 				float t[2];
 
 				if(Util::RaySphereIntersect(ray, sphere, t[0], t[1]))
@@ -92,12 +90,13 @@ namespace CibraryEngine
 			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
 			{
 				Vec3 q = ray.origin - p1;
+				Vec3 v = ray.direction;
 
 				float vu = Vec3::Dot(ray.direction, u);
 				float qu = Vec3::Dot(q, u);
 
-				float A = ray.direction.ComputeMagnitudeSquared() - vu * vu * opzsq;
-				float B = 2.0f * qu * (1 - vu * opzsq) - trz * vu;
+				float A = v.ComputeMagnitudeSquared() - vu * vu * opzsq;
+				float B = 2.0f * (Vec3::Dot(q, v) - qu * vu * opzsq) - trz * vu;
 				float C = q.ComputeMagnitudeSquared() - qu * qu * opzsq - trz * qu - r1 * r1;
 
 				float t[2];
