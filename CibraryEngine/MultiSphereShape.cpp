@@ -252,19 +252,28 @@ namespace CibraryEngine
 
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
 		{
-			// TODO: implement this for real
-			float radius = 1.0f;
+			static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1), w(1, 1, 1);
 
 			Mat3 rm = ori.ToMat3();
-			Vec3 x = Vec3(rm[0], rm[1], rm[2]) * radius;
-			Vec3 y = Vec3(rm[3], rm[4], rm[5]) * radius;
-			Vec3 z = Vec3(rm[6], rm[7], rm[8]) * radius;
 
-			static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1);
+			Vec3 x = Vec3(rm[0], rm[1], rm[2]);
+			Vec3 y = Vec3(rm[3], rm[4], rm[5]);
+			Vec3 z = Vec3(rm[6], rm[7], rm[8]);
 
-			renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - x, pos + x, r), 1.0f));
-			renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y, g), 1.0f));
-			renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z, b), 1.0f));
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			{
+				const Sphere& sphere = iter->sphere;
+				
+				float r = sphere.radius;
+				Vec3 cen = sphere.center;
+				
+				Vec3 use_pos = pos + x * cen.x + y * cen.y + z * cen.z;
+				Vec3 xr = x * r, yr = y * r, zr = z * r;
+
+				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - xr, use_pos + xr, w), 1.0f));
+				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - yr, use_pos + yr, w), 1.0f));
+				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - zr, use_pos + zr, w), 1.0f));
+			}
 		}
 
 		MassInfo ComputeMassInfo()
