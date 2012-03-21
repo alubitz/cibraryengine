@@ -101,7 +101,7 @@ namespace CibraryEngine
 			mass_info(mass_info),
 			shape(shape),
 			xform_valid(false),
-			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.0f),
+			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.5f),
 			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 			can_move(shape->CanMove() && mass_info.mass > 0),
 			can_rotate(false),
@@ -151,8 +151,12 @@ namespace CibraryEngine
 		{
 			if(active)
 			{
+				pos += ori.ToMat3().Transpose() * mass_info.com;
 				pos += vel * timestep;
+
 				ori *= Quaternion::FromPYR(rot * timestep);
+
+				pos -= ori.ToMat3().Transpose() * mass_info.com;
 
 				xform_valid = false;
 			}
@@ -166,6 +170,8 @@ namespace CibraryEngine
 			xform_valid = true;
 		}
 
+		void ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
+
 		void ResetForces() 
 		{
 			applied_force = can_move ? gravity * mass_info.mass : Vec3();
@@ -178,17 +184,15 @@ namespace CibraryEngine
 			torque = applied_torque;
 		}
 
+		Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi) { return Vec3::Cross(force, ori.ToMat3().Transpose() * (local_poi - mass_info.com)); }
+		Vec3 GetLocalVelocity(const Vec3& point) { return vel + Vec3::Cross(point - (pos + ori.ToMat3().Transpose() * mass_info.com), rot); }
+
 		void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
 		{
 			if(active)
 			{
 				if(can_rotate)
-				{
-					Vec3 poi = ori.ToMat3().Transpose() * local_poi;
-					Vec3 cross = Vec3::Cross(impulse, poi);
-					Vec3 moid = inv_moi * cross;
-					rot += moid;
-				}
+					rot += inv_moi * LocalForceToTorque(impulse, local_poi);
 				vel += impulse * inv_mass;
 			}
 		}
@@ -269,8 +273,8 @@ namespace CibraryEngine
 			Vec3 i_poi = ibody->GetInvTransform().TransformVec3(cp.a.pos, 1.0f);
 			Vec3 j_poi = jbody->GetInvTransform().TransformVec3(cp.b.pos, 1.0f);
 
-			Vec3 i_v = ibody->GetLinearVelocity() + Vec3::Cross(cp.a.pos - ibody->GetPosition(), ibody->GetAngularVelocity());
-			Vec3 j_v = jbody->GetLinearVelocity() + Vec3::Cross(cp.b.pos - jbody->GetPosition(), jbody->GetAngularVelocity());
+			Vec3 i_v = ibody->imp->GetLocalVelocity(cp.a.pos);
+			Vec3 j_v = jbody->imp->GetLocalVelocity(cp.b.pos);
 					
 			Vec3 dv = j_v - i_v;
 			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
@@ -812,19 +816,19 @@ namespace CibraryEngine
 	Quaternion RigidBody::GetOrientation() { return imp->ori; }
 	void RigidBody::SetOrientation(Quaternion ori) { imp->ori = ori; imp->xform_valid = false; }
 
-	Mat4 RigidBody::GetTransformationMatrix() { if(!imp->xform_valid) { imp->ComputeXform(); } return imp->xform; }
-	Mat4 RigidBody::GetInvTransform() { if(!imp->xform_valid) { imp->ComputeXform(); } return imp->inv_xform; }
+	Mat4 RigidBody::GetTransformationMatrix() { imp->ComputeXformAsNeeded(); return imp->xform; }
+	Mat4 RigidBody::GetInvTransform() { imp->ComputeXformAsNeeded(); return imp->inv_xform; }
 
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
 		if(imp->apply_force_directly)
 		{
-			imp->torque += Vec3::Cross(force, imp->ori.ToMat3().Transpose() * local_poi);
+			imp->torque += imp->LocalForceToTorque(force, local_poi);
 			imp->force += force;
 		}
 		else
 		{
-			imp->applied_torque += Vec3::Cross(force, imp->ori.ToMat3().Transpose() * local_poi);
+			imp->applied_torque += imp->LocalForceToTorque(force, local_poi);
 			imp->applied_force += force;
 		}
 	}

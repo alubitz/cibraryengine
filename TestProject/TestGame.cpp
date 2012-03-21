@@ -485,7 +485,7 @@ namespace Test
 		{
 			load_status.task = "pill";
 
-			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("pill"), "dummycube"));
+			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("pill"), "pill"));
 			UberModelLoader::SaveZZZ(pill_model, "Files/Models/pill.zzz");
 
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("pill").id).fail = false;
@@ -546,7 +546,7 @@ namespace Test
 
 			Quaternion ori = Random3D::RandomQuaternionRotation();
 
-			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), pos, ori, imp->dirt_particle);
+			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("pill"), pos, ori, imp->dirt_particle);
 			Spawn(rubbish);
 		}
 #endif
