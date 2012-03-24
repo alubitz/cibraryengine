@@ -207,8 +207,8 @@ namespace CibraryEngine
 						float dmag = d.ComputeMagnitude(), inv_dmag = 1.0f / dmag;
 						Vec3 ud = d * inv_dmag;
 
-						float theta = acosf((j_radius - i_radius) * inv_dmag);				// angle from the axis vector to the point of tangency
-						float cos_theta = cosf(theta), sin_theta = sinf(theta);
+						// "theta" would be the angle from the axis vector to the point of tangency
+						float cos_theta = (j_radius - i_radius) * inv_dmag, sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
 
 						Vec3 p1 = i_center + ud * (i_radius * cos_theta);					// center points of the circles where the tube touches the spheres
 						Vec3 p2 = j_center + ud * (j_radius * cos_theta);
@@ -234,6 +234,7 @@ namespace CibraryEngine
 				}
 
 				unsigned int num_tubes = tubes.size();
+				// TODO: maybe change how this is set up
 				for(unsigned int i = 0; i < num_tubes; ++i)
 				{
 					TubePart& i_tube = tubes[i];
@@ -242,7 +243,18 @@ namespace CibraryEngine
 					{
 						TubePart& j_tube = tubes[j];
 
-						// TODO: add triangles/planes here
+						Vec3 n = Vec3::Normalize(Vec3::Cross(i_tube.u, j_tube.u));
+
+						Vec3 abn = i_tube.sin_theta * i_tube.u - i_tube.cos_theta * n;			// point of tangency in plane of a, b, and n
+						Vec3 acn = j_tube.sin_theta * j_tube.u - j_tube.cos_theta * n;			// point of tangency in plane of a, c, and n
+
+						Vec3 plane_normal = Vec3::Normalize(Vec3::Cross(abn, acn));
+						Vec3 other_plane_normal = plane_normal - n * (2.0f * Vec3::Dot(plane_normal, n));
+
+						Plane plane = Plane::FromPositionNormal(i_tube.p1 + plane_normal * i_tube.r1, plane_normal);
+						Plane other_plane = Plane::FromPositionNormal(i_tube.p1 + other_plane_normal * i_tube.r1, other_plane_normal);
+
+						// TODO: create PlanePart, cut tubes, etc.
 					}
 				}
 			}
