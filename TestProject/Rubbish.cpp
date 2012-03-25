@@ -64,16 +64,16 @@ namespace Test
 			{
 				static const float b = 0.4f, r = 0.1f, s = b + r;
 
-	#if 0		// box
+	#if 1		// box
 				Vec3 centers[] = { Vec3(-b, -b, -b), Vec3(-b, -b, b), Vec3(-b, b, -b), Vec3(-b, b, b), Vec3(b, -b, -b), Vec3(b, -b, b), Vec3(b, b, -b), Vec3(b, b, b) };
 				float radii[] = { r, r, r, r, r, r, r, r };
 				shape = new MultiSphereShape(centers, radii, 8);
 
 				// constructing MassInfo for a cube
-				mass_info.mass = 50;
+				mass_info.mass = 1;
 				mass_info.com = Vec3();
 				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 1.0f;			// formula says divide by six, but some reason that doesn't work right
-	#else		// pill
+	#elif 1		// pill
 				Vec3 centers[] = { Vec3(0, 0.5f, 0), Vec3(0, 1.5f, 0) };
 				float radii[] = { 0.5f, 0.5f };
 				shape = new MultiSphereShape(centers, radii, 2);
@@ -82,6 +82,12 @@ namespace Test
 				mass_info.com = Vec3(0, 1, 0);
 				mass_info.moi[0] = mass_info.moi[8] = 1.0f * mass_info.mass * 5;
 				mass_info.moi[4] = 1.0f * mass_info.mass * 2;
+	#else
+				// sphere, but using multisphere shape
+				Vec3 centers[] = { Vec3() };
+				float radii[] = { 0.5f };
+				shape = new MultiSphereShape(centers, radii, 1);
+
 	#endif
 			}
 #endif
@@ -108,9 +114,15 @@ namespace Test
 
 	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
+#if 1
+		BillboardMaterial* trail_mat = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("shot");
+#else
+		BillboardMaterial* trail_mat = NULL;
+#endif
+
 		for (int i = 0; i < 6; ++i)
 		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1);
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, trail_mat, 0.05f, 1);
 			p->gravity = 9.8f;
 			p->damp = 2.0f;
 			p->angle = -float(M_PI) * 0.5f;

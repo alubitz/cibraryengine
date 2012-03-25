@@ -101,7 +101,7 @@ namespace CibraryEngine
 			mass_info(mass_info),
 			shape(shape),
 			xform_valid(false),
-			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.5f),
+			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
 			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 			can_move(shape->CanMove() && mass_info.mass > 0),
 			can_rotate(false),
@@ -448,14 +448,14 @@ namespace CibraryEngine
 
 				Ray nu_ray;
 				nu_ray.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
-				nu_ray.direction = inv_mat.TransformVec3(ray.direction, 0.0f);
+				nu_ray.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
 
 				ContactPoint p;
 				float t;
 				if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
 				{
 					p.a.pos = jbody->GetTransformationMatrix().TransformVec3(p.b.pos, 1.0f);
-					hits.push_back(Hit(t, p));
+					hits.push_back(Hit(t * max_time, p));
 				}
 			}
 		}
