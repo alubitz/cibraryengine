@@ -101,9 +101,18 @@ namespace CibraryEngine
 			Vec3 GetAngularVelocity();
 			void SetAngularVelocity(const Vec3& vel);
 
+			Vec3 GetLocalVelocity(const Vec3& point);
+
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();			
 			Mat4 GetInvTransform();
+
+			MassInfo GetMassInfo();
+
+			void SetBounciness(float bounciness);
+			void SetFriction(float friction);
+			float GetBounciness();
+			float GetFriction();
 
 			void ApplyForce(const Vec3& force, const Vec3& local_poi);
 			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);

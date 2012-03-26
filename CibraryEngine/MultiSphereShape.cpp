@@ -175,13 +175,13 @@ namespace CibraryEngine
 			if(count > 0)
 			{
 				// creating spheres
+				vector<Sphere> spheres_temp;
 				for(unsigned int i = 0; i < count; ++i)
 				{
 					Vec3 i_center = centers[i];
 					float i_radius = radii[i];
 
-					SpherePart sphere(Sphere(i_center, i_radius));
-					spheres.push_back(sphere);
+					spheres_temp.push_back(Sphere(i_center, i_radius));
 
 					if(i == 0)
 						aabb = AABB(i_center, i_radius);
@@ -189,7 +189,30 @@ namespace CibraryEngine
 						aabb.Expand(AABB(i_center, i_radius));
 				}
 
-				unsigned int num_spheres = spheres.size();					// may differ from count, if spheres get discarded (after some more coding gets done)
+				// add those spheres to the list, eliminating any that are completely contained inside another sphere
+				for(unsigned int i = 0; i < count; ++i)
+				{
+					const Sphere& a = spheres_temp[i];
+					
+					bool ok = true;
+					for(unsigned int j = 0; j < count; ++j)
+					{					
+						const Sphere& b = spheres_temp[j];
+						if(a.radius < b.radius)
+						{
+							float dr = a.radius - b.radius;
+							if((a.center - b.center).ComputeMagnitudeSquared() < dr * dr)
+							{
+								ok = false;
+								break;
+							}
+						}
+					}
+					if(ok)
+						spheres.push_back(SpherePart(a));
+				}
+
+				unsigned int num_spheres = spheres.size();					// may differ from count, if spheres got discarded
 				unsigned int n_sq = num_spheres * num_spheres;
 				unsigned int n_cubed = n_sq * num_spheres;
 

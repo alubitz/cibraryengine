@@ -497,7 +497,7 @@ namespace CibraryEngine
 					CollisionCallback* callback;
 					RayCallback(Imp* imp, CollisionCallback* callback) : imp(imp), callback(callback) { }
 
-					bool OnCollision(const ContactPoint& cp)
+					bool OnCollision(const ContactPoint& cp)			// return value controls whether to continue iterating through ray collisions
 					{
 						if(callback && !callback->OnCollision(cp))
 							return true;
@@ -819,6 +819,11 @@ namespace CibraryEngine
 	Mat4 RigidBody::GetTransformationMatrix() { imp->ComputeXformAsNeeded(); return imp->xform; }
 	Mat4 RigidBody::GetInvTransform() { imp->ComputeXformAsNeeded(); return imp->inv_xform; }
 
+	void RigidBody::SetBounciness(float bounciness) { imp->bounciness = bounciness; }
+	void RigidBody::SetFriction(float friction) { imp->friction = friction; }
+	float RigidBody::GetBounciness() { return imp->bounciness; }
+	float RigidBody::GetFriction() { return imp->friction; }
+
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
 		if(imp->apply_force_directly)
@@ -852,6 +857,10 @@ namespace CibraryEngine
 
 	Vec3 RigidBody::GetAngularVelocity() { return imp->rot; }
 	void RigidBody::SetAngularVelocity(const Vec3& vel) { imp->rot = vel; }
+
+	Vec3 RigidBody::GetLocalVelocity(const Vec3& point) { return imp->GetLocalVelocity(point); }
+
+	MassInfo RigidBody::GetMassInfo() { return imp->mass_info; }
 
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }
 
