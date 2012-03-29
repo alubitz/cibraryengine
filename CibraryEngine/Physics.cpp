@@ -264,17 +264,21 @@ namespace CibraryEngine
 		RigidBody* ibody = cp.a.obj;
 		RigidBody* jbody = cp.b.obj;
 
-		bool j_can_move = jbody->imp->can_move;
+		RigidBody::Imp* iimp = ibody->imp;
+		RigidBody::Imp* jimp = jbody->imp;
 
-		float m1 = ibody->imp->mass_info.mass;
-		float m2 = jbody->imp->mass_info.mass;
+		bool j_can_move = jimp->can_move;
+
+		float m1 = iimp->mass_info.mass;
+		float m2 = jimp->mass_info.mass;
+
 		if(m1 + m2 > 0)
 		{
 			Vec3 i_poi = ibody->GetInvTransform().TransformVec3(cp.a.pos, 1.0f);
 			Vec3 j_poi = jbody->GetInvTransform().TransformVec3(cp.b.pos, 1.0f);
 
-			Vec3 i_v = ibody->imp->GetLocalVelocity(cp.a.pos);
-			Vec3 j_v = jbody->imp->GetLocalVelocity(cp.b.pos);
+			Vec3 i_v = iimp->GetLocalVelocity(cp.a.pos);
+			Vec3 j_v = jimp->GetLocalVelocity(cp.b.pos);
 					
 			Vec3 dv = j_v - i_v;
 			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
@@ -283,10 +287,39 @@ namespace CibraryEngine
 
 			if(nvdot < 0.0f)
 			{
-				float bounciness = ibody->imp->bounciness * jbody->imp->bounciness;
+				float A, B;				// much cleaner than that quadratic formula nonsense
 
-				float use_mass = (j_can_move ? (m1 * m2 / (m1 + m2)) : m1);
-				float impulse_mag = (nvdot * (1.0f + bounciness) * use_mass);
+				if(j_can_move)
+				{
+					A = iimp->inv_mass + jimp->inv_mass;
+
+					Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel, com_vel = (i_lvel * m1 + j_lvel * m2) / (m1 + m2);
+					B = Vec3::Dot(i_lvel, normal) - Vec3::Dot(j_lvel, normal) - 2.0f * Vec3::Dot(com_vel, normal);
+				}
+				else
+				{
+					A = iimp->inv_mass;
+					B = Vec3::Dot(iimp->vel, normal);
+				}
+
+				if(iimp->can_rotate)
+				{
+					Vec3 nr1 = Vec3::Cross(normal, cp.a.pos - iimp->pos);
+					A += Vec3::Dot(iimp->inv_moi * nr1, nr1);
+					B += Vec3::Dot(iimp->rot, nr1);
+				}
+
+				if(jimp->can_rotate)
+				{
+					Vec3 nr2 = Vec3::Cross(normal, cp.b.pos - jimp->pos);
+					A += Vec3::Dot(jimp->inv_moi * nr2, nr2);						
+					B -= Vec3::Dot(jimp->rot, nr2);
+				}
+
+				float use_mass = 1.0f / A;
+				float bounciness = iimp->bounciness * jimp->bounciness;
+				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
+				
 				Vec3 impulse = normal * impulse_mag;
 
 				if(impulse.ComputeMagnitudeSquared() != 0)
@@ -296,7 +329,7 @@ namespace CibraryEngine
 						jbody->ApplyImpulse(-impulse, j_poi);
 				}
 
-				float sfric_coeff = ibody->imp->friction * jbody->imp->friction;
+				float sfric_coeff = iimp->friction * jimp->friction;
 				float kfric_coeff = 0.9f * sfric_coeff;
 
 				Vec3 t_dv = dv - normal * nvdot;
@@ -312,7 +345,7 @@ namespace CibraryEngine
 				}
 				else											// object isn't moving; apply static friction
 				{
-					Vec3 df = jbody->imp->applied_force - ibody->imp->applied_force;
+					Vec3 df = jimp->applied_force - iimp->applied_force;
 					float nfdot = Vec3::Dot(normal, df);
 
 					Vec3 t_df = df - normal * nfdot;

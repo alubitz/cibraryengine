@@ -539,12 +539,10 @@ namespace Test
 
 #if 1
 		// spawn some rubbish
-		for(int i = 0; i < 1; ++i)
+		for(int i = 0; i < 100; ++i)
 		{
 			Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
 			pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
-
-			pos = Vec3(0, 10, 10);
 			
 			Quaternion ori = Random3D::RandomQuaternionRotation();
 

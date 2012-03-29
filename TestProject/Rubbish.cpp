@@ -72,7 +72,7 @@ namespace Test
 				// constructing MassInfo for a cube
 				mass_info.mass = 1;
 				mass_info.com = Vec3();
-				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 1.0f;			// formula says divide by six, but some reason that doesn't work right
+				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
 	#elif 1		// pill
 				Vec3 centers[] = { Vec3(0, 0.5f, 0), Vec3(0, 1.5f, 0) };
 				float radii[] = { 0.5f, 0.5f };
@@ -87,7 +87,6 @@ namespace Test
 				Vec3 centers[] = { Vec3() };
 				float radii[] = { 0.5f };
 				shape = new MultiSphereShape(centers, radii, 1);
-
 	#endif
 			}
 #endif

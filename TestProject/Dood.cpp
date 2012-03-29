@@ -27,7 +27,6 @@ namespace Test
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
 
-	float gravity = 9.8f;
 	float movement_damp = 0.2f;
 
 	float air_spin_fix = 100;
