@@ -17,6 +17,8 @@ namespace CibraryEngine
 			/** A vector to which the line is parallel */
 			Vec3 direction;
 
+			/** Initializes a degenerate line (direction is a null vector) */
+			Line();
 			/** Initializes a line with the given origin and direction */
 			Line(Vec3 origin, Vec3 direction);
 

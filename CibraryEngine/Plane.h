@@ -24,7 +24,7 @@ namespace CibraryEngine
 			Plane(Vec3 normal, float offset);
 
 			/** Returns the signed distance of a point from the plane */
-			float PointDistance(Vec3 point);			// Signed distance
+			float PointDistance(Vec3 point) const;			// Signed distance
 
 			/** Returns a plane which contains the specified point, and which has the specified normal vector */
 			static Plane FromPositionNormal(Vec3 position, Vec3 normal);

@@ -9,7 +9,7 @@ namespace CibraryEngine
 	Plane::Plane() : normal(), offset(0.0f) { }				// normal vector is degenerate
 	Plane::Plane(Vec3 normal_, float offset_) : normal(normal_), offset(offset_) { }
 
-	float Plane::PointDistance(Vec3 point) { return Vec3::Dot(normal, point) - offset; }
+	float Plane::PointDistance(Vec3 point) const { return Vec3::Dot(normal, point) - offset; }
 
 	Plane Plane::FromPositionNormal(Vec3 position, Vec3 normal)
 	{
@@ -38,7 +38,7 @@ namespace CibraryEngine
 		return aparallelness + distsq1 + distsq2;
 	}
 
-	bool Intersect(Plane a, Plane b, Line& result)
+	bool Plane::Intersect(Plane a, Plane b, Line& result)
 	{
 		Vec3 cross = Vec3::Cross(a.normal, b.normal);
 		float magsq = cross.ComputeMagnitudeSquared();

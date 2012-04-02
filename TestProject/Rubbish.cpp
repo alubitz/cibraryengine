@@ -65,9 +65,18 @@ namespace Test
 				static const float b = 0.4f, r = 0.1f, s = b + r;
 
 	#if 1		// box
-				Vec3 centers[] = { Vec3(-b, -b, -b), Vec3(-b, -b, b), Vec3(-b, b, -b), Vec3(-b, b, b), Vec3(b, -b, -b), Vec3(b, -b, b), Vec3(b, b, -b), Vec3(b, b, b) };
-				float radii[] = { r, r, r, r, r, r, r, r };
-				shape = new MultiSphereShape(centers, radii, 8);
+				Sphere spheres[] = 
+				{
+					Sphere(Vec3(-b,	-b,	-b	), r),
+					Sphere(Vec3(-b,	-b,	b	), r),
+					Sphere(Vec3(-b,	b,	-b	), r),
+					Sphere(Vec3(-b,	b,	b	), r),
+					Sphere(Vec3(b,	-b,	-b	), r),
+					Sphere(Vec3(b,	-b,	b	), r),
+					Sphere(Vec3(b,	b,	-b	), r),
+					Sphere(Vec3(b,	b,	b	), r)
+				};
+				shape = new MultiSphereShape(spheres, 8);
 
 				// constructing MassInfo for a cube
 				mass_info.mass = 1;

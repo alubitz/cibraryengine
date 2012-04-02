@@ -24,7 +24,7 @@ namespace CibraryEngine
 		public:
 
 			MultiSphereShape();
-			MultiSphereShape(Vec3* centers, float* radii, unsigned int count);
+			MultiSphereShape(Sphere* spheres, unsigned int count);
 
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 

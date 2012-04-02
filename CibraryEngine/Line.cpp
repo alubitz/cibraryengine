@@ -5,6 +5,7 @@
 
 namespace CibraryEngine
 {
+	Line::Line() : origin(), direction() { }
 	Line::Line(Vec3 origin_, Vec3 direction_) : origin(origin_), direction(direction_) { }
 
 	float Line::CheckEquality(Line a, Line b)
