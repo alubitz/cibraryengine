@@ -79,7 +79,7 @@ namespace Test
 				shape = new MultiSphereShape(spheres, 8);
 
 				// constructing MassInfo for a cube
-				mass_info.mass = 1;
+				mass_info.mass = 2;
 				mass_info.com = Vec3();
 				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
 	#elif 1		// pill
