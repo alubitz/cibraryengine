@@ -193,8 +193,6 @@ namespace CibraryEngine
 
 		void Init(Sphere* input_spheres, unsigned int count)
 		{
-			// TODO: deal with unused spheres, duplicates, etc.
-
 			spheres = vector<SpherePart>();
 			tubes = vector<TubePart>();
 			planes = vector<PlanePart>();
@@ -248,6 +246,9 @@ namespace CibraryEngine
 				// creating tubes
 				TubePart** sphere_tubes = new TubePart* [n_sq];
 				memset(sphere_tubes, 0, sizeof(TubePart*) * n_sq);
+
+				bool* tube_tried_planes = new bool[n_sq];
+				memset(tube_tried_planes, 0, sizeof(bool) * n_sq);
 
 				for(unsigned int i = 0; i < num_spheres; ++i)
 				{
@@ -366,10 +367,9 @@ namespace CibraryEngine
 											if(iter->PointDistance(center) < 0)
 												*iter = Plane::Reverse(*iter);
 
-										ij_tube.planes.push_back(Plane::Reverse(pp.planes[0]));
-										if(jk_tubep != NULL)
-											jk_tubep->planes.push_back(Plane::Reverse(pp.planes[1]));		// is there a third tube to form a triangle?
-										ik_tube.planes.push_back(pp.planes[2]);								// not reversed because the tube is oriented the opposite direction
+										tube_tried_planes[i_n + j] = true;
+										tube_tried_planes[i_n + k] = true;
+										tube_tried_planes[j_n + k] = true;
 
 										unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
 
@@ -382,6 +382,7 @@ namespace CibraryEngine
 					}
 				}
 
+				// detect and discard unworthy planes (ones that do not contribute to the surface of the final shape)
 				for(unsigned int i = 0; i < n_cubed * 2; ++i)
 				{
 					if(planes_valid[i])
@@ -472,29 +473,36 @@ namespace CibraryEngine
 							}
 
 							if(worthy)
-							{
 								planes.push_back(part);
-
-								// TODO: add cutting planes from worthy planes to the tubes this plane connects
-							}
 						}
 					}
 				}
 
-				// detect and discard unworthy tubes; a tube that generated some planes should have exactly 2 planes neighboring it, or it is unworthy
-				unsigned int* tube_planes = new unsigned int[n_sq];
-				memset(tube_planes, 0, sizeof(unsigned int*) * n_sq);
+				// detect and discard unworthy tubes; if a tube generated any planes then it should have exactly 2 planes neighboring it or it is unworthy
+				vector<Plane>* tube_planes_adjoining = new vector<Plane>[n_sq];
+				for(unsigned int i = 0; i < n_sq; ++i)
+					tube_planes_adjoining[i] = vector<Plane>();
 
 				for(unsigned int i = 0; i < num_spheres; ++i)
 					for(unsigned int j = i + 1; j < num_spheres; ++j)
 						for(unsigned int k = j + 1; k < num_spheres; ++k)
 							for(unsigned char m = 0; m < 2; ++m)
-								if(planes_valid[(i * n_sq + j * num_spheres + k) * 2 + m])
+							{
+								unsigned int plane_index = (i * n_sq + j * num_spheres + k) * 2 + m;
+								if(planes_valid[plane_index])
 								{
-									++tube_planes[i * num_spheres + j];
-									++tube_planes[i * num_spheres + k];
-									++tube_planes[j * num_spheres + k];
+									unsigned int indices[] = { i * num_spheres + j, i * num_spheres + k, j * num_spheres + k };
+									for(unsigned char n = 0; n < 3; ++n)
+									{
+										int index = indices[n];
+
+										TubePart* tube = sphere_tubes[index];
+										PlanePart* plane = sphere_planes[plane_index];
+
+										tube_planes_adjoining[index].push_back(plane->plane);
+									}
 								}
+							}
 
 				for(unsigned int i = 0; i < n_sq; ++i)
 				{
@@ -502,28 +510,121 @@ namespace CibraryEngine
 					{
 						TubePart part(*tube_p);
 
-						if(part.planes.size() == 2 || tube_planes[i] == 2)
+						bool worthy = true;
+
+						if(tube_tried_planes[i])
+						{
+							// remove duplicate planes before taking a count!
+							vector<Plane> nu_planes_adjoining;
+							for(vector<Plane>::iterator iter = tube_planes_adjoining[i].begin(); iter != tube_planes_adjoining[i].end(); ++iter)
+							{
+								vector<Plane>::iterator jter;
+								for(jter = nu_planes_adjoining.begin(); jter != nu_planes_adjoining.end(); ++jter)
+									if(Vec3::Dot(iter->normal, jter->normal) > 0.9999f && fabs(iter->offset - jter->offset) < 0.000001f)
+										break;
+								if(jter == nu_planes_adjoining.end())
+									if(nu_planes_adjoining.size() < 2)					// if count of unique planes is ever > 2, something is fishy
+										nu_planes_adjoining.push_back(*iter);
+									else
+									{
+										DEBUG();
+
+										worthy = false;
+										break;
+									}
+							}
+
+							if(worthy)
+							{
+								if(nu_planes_adjoining.size() == 2)
+								{
+									part.planes.resize(2);
+
+									for(unsigned char j = 0; j < 2; ++j)
+									{
+										Plane plane = Plane::FromTriangleVertices(part.p1, part.p2, part.p1 + nu_planes_adjoining[j].normal);
+
+										// make sure the plane is facing the correct direction
+										if(Vec3::Dot(plane.normal, nu_planes_adjoining[1 - j].normal) < 0.0f)
+											plane = Plane::Reverse(plane);
+
+										part.planes.push_back(plane);
+									}
+								}
+								else
+									worthy = false;
+							}
+						}
+
+						if(worthy)
 						{
 							tubes.push_back(part);
 
-							// TODO: add cutting planes to the spheres this tube connects
+							spheres[i / num_spheres].planes.push_back(Plane::Reverse(part.planes[0]));
+							spheres[i % num_spheres].planes.push_back(Plane::Reverse(part.planes[1]));
 						}
 
 						delete tube_p;
 					}
 				}
-				delete[] sphere_tubes;
-				delete[] tube_planes;
 
+				// eliminate orphaned spheres
+				if(num_spheres > 1)
+				{
+					vector<SpherePart> nu_spheres;
+
+					for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+						if(!iter->planes.empty())
+							nu_spheres.push_back(*iter);
+
+					spheres = nu_spheres;
+				}
+
+				delete[] sphere_tubes;
+				delete[] tube_planes_adjoining;
+				delete[] tube_tried_planes;
 
 				for(unsigned int i = 0; i < n_cubed * 2; ++i)
 					if(PlanePart* p = sphere_planes[i])
 						delete p;
 				delete[] sphere_planes;
 				delete[] planes_valid;
+
+				OutputParts();
 			}
 			else
 				aabb = AABB();
+		}
+
+		void OutputParts()
+		{
+			stringstream ss;
+			ss << "Shape contains " << spheres.size() << " spheres, " << tubes.size() << " tubes, and " << planes.size() << " planes" << endl;
+			ss << endl << "Spheres:" << endl;
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			{
+				Sphere& sphere = iter->sphere;
+				ss << endl << "\tSphere: center = (" << sphere.center.x << ", " << sphere.center.y << ", " << sphere.center.z << "), radius = " << sphere.radius << endl;
+				for(vector<Plane>::iterator jter = iter->planes.begin(); jter != iter->planes.end(); ++jter)
+					ss << "\t\tPlane: normal = (" << jter->normal.x << ", " << jter->normal.y << ", " << jter->normal.z << "), offset = " << jter->offset << endl;
+			}
+			ss << endl << "Tubes:" << endl;
+			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			{
+				Vec3& p1 = iter->p1;
+				Vec3& p2 = iter->p2;
+				ss << endl << "\tTube: p1 = (" << p1.x << ", " << p1.y << ", " << p1.z << "), p2 = (" << p2.x << ", " << p2.y << ", " << p2.z << "), r1 = " << iter->r1 << ", r2 = " << iter->r2 << ", theta = " << atan2(iter->sin_theta, iter->cos_theta) << endl;
+				for(vector<Plane>::iterator jter = iter->planes.begin(); jter != iter->planes.end(); ++jter)
+					ss << "\t\tPlane: normal = (" << jter->normal.x << ", " << jter->normal.y << ", " << jter->normal.z << "), offset = " << jter->offset << endl;
+			}
+			ss << endl << "Planes:" << endl;
+			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+			{
+				ss << endl << "\tPlane: normal = (" << iter->plane.normal.x << ", " << iter->plane.normal.y << ", " << iter->plane.normal.z << "), offset = " << iter->plane.offset << endl;
+				for(vector<Plane>::iterator jter = iter->planes.begin(); jter != iter->planes.end(); ++jter)
+					ss << "\t\tPlane: normal = (" << jter->normal.x << ", " << jter->normal.y << ", " << jter->normal.z << "), offset = " << jter->offset << endl;
+			}
+			Debug(ss.str());
 		}
 
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
