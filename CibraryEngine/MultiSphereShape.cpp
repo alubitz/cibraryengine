@@ -590,7 +590,7 @@ namespace CibraryEngine
 				delete[] sphere_planes;
 				delete[] planes_valid;
 
-				OutputParts();
+				//OutputParts();
 			}
 			else
 				aabb = AABB();
@@ -694,35 +694,40 @@ namespace CibraryEngine
 			cp.a.obj = ibody;
 			cp.b.obj = jbody;
 
+			bool any = false;
+
 			float t;
 			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 				if(iter->RayTest(ray, cp.b, t))
-				{
-					result = cp;
-					time = t;
+					if(!any || t < time)
+					{
+						result = cp;
+						time = t;
 
-					return true;
-				}
+						any = true;
+					}
 
 			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
 				if(iter->RayTest(ray, cp.b, t))
-				{
-					result = cp;
-					time = t;
+					if(!any || t < time)
+					{
+						result = cp;
+						time = t;
 
-					return true;
-				}
+						any = true;
+					}
 
 			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
 				if(iter->RayTest(ray, cp.b, t))
-				{
-					result = cp;
-					time = t;
+					if(!any || t < time)
+					{
+						result = cp;
+						time = t;
 
-					return true;
-				}
+						any = true;
+					}
 
-			return false;
+			return any;
 		}
 
 		bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)

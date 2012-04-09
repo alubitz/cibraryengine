@@ -129,7 +129,7 @@ namespace CibraryEngine
 			}
 		}
 
-		Mat3 ComputeInvMoi() { return ori.ToMat3() * Mat3::Invert(Mat3(mass_info.moi)) * ori.ToMat3().Transpose(); }
+		Mat3 ComputeInvMoi() { Mat3 rm(ori.ToMat3()); return rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * rm; }
 
 		void UpdateVel(float timestep)
 		{
@@ -184,9 +184,17 @@ namespace CibraryEngine
 			torque = applied_torque;
 		}
 
+		// force is a world-space direction
+		// local_poi is in the coordinate system of the object
+		// returns a world-space direction
 		Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi) { return Vec3::Cross(force, ori.ToMat3().Transpose() * (local_poi - mass_info.com)); }
+
+		// point is in world-space
+		// returns a world-space velocity
 		Vec3 GetLocalVelocity(const Vec3& point) { return vel + Vec3::Cross(point - (pos + ori.ToMat3().Transpose() * mass_info.com), rot); }
 
+		// impulse is a world-space direction
+		// local_poi is in the coordinate system of the object
 		void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
 		{
 			if(active)
@@ -304,15 +312,15 @@ namespace CibraryEngine
 
 				if(iimp->can_rotate)
 				{
-					Vec3 nr1 = Vec3::Cross(normal, cp.a.pos - iimp->pos);
+					Vec3 nr1 = Vec3::Cross(normal, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(iimp->mass_info.com, 1.0f));
 					A += Vec3::Dot(iimp->inv_moi * nr1, nr1);
 					B += Vec3::Dot(iimp->rot, nr1);
 				}
 
 				if(jimp->can_rotate)
 				{
-					Vec3 nr2 = Vec3::Cross(normal, cp.b.pos - jimp->pos);
-					A += Vec3::Dot(jimp->inv_moi * nr2, nr2);						
+					Vec3 nr2 = Vec3::Cross(normal, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jimp->mass_info.com, 1.0f));
+					A += Vec3::Dot(jimp->inv_moi * nr2, nr2);
 					B -= Vec3::Dot(jimp->rot, nr2);
 				}
 
@@ -426,7 +434,7 @@ namespace CibraryEngine
 				ray_cut.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
 
 				vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
-						
+
 				for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
 				{
 					float t = kter->time * max_time;

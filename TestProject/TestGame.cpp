@@ -491,6 +491,16 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("pill").id).fail = false;
 		}
 
+		if(ubermodel_cache->Load("ground_plane") == NULL)
+		{
+			load_status.task = "ground_plane";
+
+			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("ground_plane"), "ground_plane"));
+			UberModelLoader::SaveZZZ(pill_model, "Files/Models/ground_plane.zzz");
+
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("ground_plane").id).fail = false;
+		}
+
 		if(load_status.HasAborted())
 		{
 			load_status.Stop();
@@ -539,10 +549,12 @@ namespace Test
 
 #if 1
 		// spawn some rubbish
-		for(int i = 0; i < 1; ++i)
+		for(int i = 0; i < 100; ++i)
 		{
 			Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
 			pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
+
+			//pos = Vec3(0, 5, 10);
 			
 			Quaternion ori = Random3D::RandomQuaternionRotation();
 
