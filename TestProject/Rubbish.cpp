@@ -83,19 +83,21 @@ namespace Test
 				mass_info.com = Vec3();
 				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
 	#elif 1		// pill
-				Vec3 centers[] = { Vec3(0, 0.5f, 0), Vec3(0, 1.5f, 0) };
-				float radii[] = { 0.5f, 0.5f };
-				shape = new MultiSphereShape(centers, radii, 2);
+				Sphere spheres[] = 
+				{
+					Sphere(Vec3(0, 0.5f, 0), 0.5f),
+					Sphere(Vec3(0, 1.5f, 0), 0.5f),
+				};
+				shape = new MultiSphereShape(spheres, 2);
 
-				mass_info.mass = 1;
+				mass_info.mass = 2;
 				mass_info.com = Vec3(0, 1, 0);
 				mass_info.moi[0] = mass_info.moi[8] = 1.0f * mass_info.mass * 5;
 				mass_info.moi[4] = 1.0f * mass_info.mass * 2;
 	#else
 				// sphere, but using multisphere shape
-				Vec3 centers[] = { Vec3() };
-				float radii[] = { 0.5f };
-				shape = new MultiSphereShape(centers, radii, 1);
+				Sphere spheres[] = { Sphere(Vec3(0, 0.5f, 0), 0.5f) };
+				shape = new MultiSphereShape(spheres, 2);
 	#endif
 			}
 #endif

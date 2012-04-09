@@ -221,21 +221,19 @@ namespace CibraryEngine
 				{
 					const Sphere& a = spheres_temp[i];
 					
-					bool ok = true;
-					for(unsigned int j = 0; j < count; ++j)
-					{					
-						const Sphere& b = spheres_temp[j];
-						if(a.radius < b.radius)
-						{
+					unsigned int j;
+					for(j = 0; j < count; ++j)
+						if(i != j)
+						{					
+							const Sphere& b = spheres_temp[j];
+
 							float dr = a.radius - b.radius;
-							if((a.center - b.center).ComputeMagnitudeSquared() < dr * dr)
-							{
-								ok = false;
+							float dif = (a.center - b.center).ComputeMagnitudeSquared() - dr * dr;
+							
+							if(dif <= 0 && (dr < 0 || dr == 0 && i < j))
 								break;
-							}
 						}
-					}
-					if(ok)
+					if(j == count)											// did we make it all the way through without a larger sphere eating this one?
 						spheres.push_back(SpherePart(a));
 				}
 
@@ -289,9 +287,6 @@ namespace CibraryEngine
 						tube.opzsq = 1 + z * z;
 						tube.trz = 2.0f * r1 * z;
 
-						//i_sphere.planes.push_back(Plane::Reverse(tube.planes[0]));
-						//j_sphere.planes.push_back(Plane::Reverse(tube.planes[1]));
-
 						sphere_tubes[i_n + j] = new TubePart(tube);
 					}
 				}
@@ -335,46 +330,51 @@ namespace CibraryEngine
 
 									TubePart* jk_tubep = sphere_tubes[j_n + k];
 
-									Vec3 n = Vec3::Normalize(Vec3::Cross(ij_tube.u, ik_tube.u));			// normal to plane containing the spheres' centers
-
-									Vec3 abn = ij_tube.sin_theta * ij_tube.u - ij_tube.cos_theta * n;		// point of tangency in plane of a, b, and n
-									Vec3 acn = ik_tube.sin_theta * ik_tube.u - ik_tube.cos_theta * n;		// point of tangency in plane of a, c, and n
-
-									Vec3 normal_1 = Vec3::Normalize(Vec3::Cross(abn, acn));					// normal vectors to first plane
-									Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
-
-									PlanePart plane_parts[] =
+									Vec3 cross = Vec3::Cross(ij_tube.u, ik_tube.u);
+									float cross_magsq = cross.ComputeMagnitudeSquared();
+									if(cross_magsq > 0)
 									{
-										PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
-										PlanePart(Plane::FromPositionNormal(i_center + normal_2 * i_radius, normal_2))
-									};
+										Vec3 n = cross / sqrtf(cross_magsq);									// normal to plane containing the spheres' centers
 
-									for(unsigned char m = 0; m < 2; ++m)
-									{
-										PlanePart& pp = plane_parts[m];
+										Vec3 abn = ij_tube.sin_theta * ij_tube.u - ij_tube.cos_theta * n;		// point of tangency in plane of a, b, and n
+										Vec3 acn = ik_tube.sin_theta * ik_tube.u - ik_tube.cos_theta * n;		// point of tangency in plane of a, c, and n
 
-										// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
-										if(fabs(fabs(pp.plane.PointDistance(i_center)) - i_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(j_center)) - j_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(k_center)) - k_radius) > 0.0001f)
-											continue;
+										Vec3 normal_1 = Vec3::Normalize(Vec3::Cross(abn, acn));					// normal vectors to first plane
+										Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
+									
+										PlanePart plane_parts[] =
+										{
+											PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
+											PlanePart(Plane::FromPositionNormal(i_center + normal_2 * i_radius, normal_2))
+										};
 
-										pp.planes.push_back(Plane::FromTriangleVertices(i_center, j_center, i_center + pp.plane.normal));
-										pp.planes.push_back(Plane::FromTriangleVertices(j_center, k_center, j_center + pp.plane.normal));
-										pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
+										for(unsigned char m = 0; m < 2; ++m)
+										{
+											PlanePart& pp = plane_parts[m];
 
-										Vec3 center = (i_center + j_center + k_center) / 3.0f;
+											// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
+											if(fabs(fabs(pp.plane.PointDistance(i_center)) - i_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(j_center)) - j_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(k_center)) - k_radius) > 0.0001f)
+												continue;
+
+											pp.planes.push_back(Plane::FromTriangleVertices(i_center, j_center, i_center + pp.plane.normal));
+											pp.planes.push_back(Plane::FromTriangleVertices(j_center, k_center, j_center + pp.plane.normal));
+											pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
+
+											Vec3 center = (i_center + j_center + k_center) / 3.0f;
 										
-										for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
-											if(iter->PointDistance(center) < 0)
-												*iter = Plane::Reverse(*iter);
+											for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
+												if(iter->PointDistance(center) < 0)
+													*iter = Plane::Reverse(*iter);
 
-										tube_tried_planes[i_n + j] = true;
-										tube_tried_planes[i_n + k] = true;
-										tube_tried_planes[j_n + k] = true;
+											tube_tried_planes[i_n + j] = true;
+											tube_tried_planes[i_n + k] = true;
+											tube_tried_planes[j_n + k] = true;
 
-										unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
+											unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
 
-										sphere_planes[index] = new PlanePart(pp);
-										planes_valid[index] = true;
+											sphere_planes[index] = new PlanePart(pp);
+											planes_valid[index] = true;
+										}
 									}
 								}
 							}
