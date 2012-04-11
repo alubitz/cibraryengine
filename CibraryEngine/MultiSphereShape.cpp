@@ -20,6 +20,10 @@ namespace CibraryEngine
 	 */
 	struct MultiSphereShape::Imp
 	{
+		struct SpherePart;
+		struct TubePart;
+		struct PlanePart;
+
 		struct Part
 		{
 			vector<Plane> planes;
@@ -36,6 +40,13 @@ namespace CibraryEngine
 			}
 
 			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) = 0;
+
+			// TODO: revise the signatures of these functions as necessary
+			virtual bool Intersect(const Part& part) const = 0;
+
+			virtual bool IntersectSphere(const SpherePart& sphere) const = 0;
+			virtual bool IntersectTube(const TubePart& tube) const = 0;
+			virtual bool IntersectPlane(const PlanePart& plane) const = 0;
 		};
 
 		struct SpherePart : Part
@@ -71,6 +82,13 @@ namespace CibraryEngine
 
 				return false;
 			}
+
+			bool Intersect(const Part& part) const { return part.IntersectSphere(*this); }
+
+			// TODO: implement these
+			bool IntersectSphere(const SpherePart& sphere) const { return false; }
+			bool IntersectTube(const TubePart& tube) const { return false; }
+			bool IntersectPlane(const PlanePart& plane) const { return false; }
 		};
 
 		struct TubePart : Part
@@ -126,6 +144,13 @@ namespace CibraryEngine
 
 				return false;
 			}
+
+			bool Intersect(const Part& part) const { return part.IntersectTube(*this); }
+
+			// TODO: implement these
+			bool IntersectSphere(const SpherePart& sphere) const { return false; }
+			bool IntersectTube(const TubePart& tube) const { return false; }
+			bool IntersectPlane(const PlanePart& plane) const { return false; }
 		};
 
 		struct PlanePart : Part
@@ -152,6 +177,13 @@ namespace CibraryEngine
 
 				return false;
 			}
+
+			bool Intersect(const Part& part) const { return part.IntersectPlane(*this); }
+
+			// TODO: implement these
+			bool IntersectSphere(const SpherePart& sphere) const { return false; }
+			bool IntersectTube(const TubePart& tube) const { return false; }
+			bool IntersectPlane(const PlanePart& plane) const { return false; }
 
 			vector<Vec3> GetVerts()
 			{
@@ -655,30 +687,25 @@ namespace CibraryEngine
 
 		MassInfo ComputeMassInfo()
 		{
-			// TODO: implement this for real
-			MassInfo temp;
-
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
-				temp += MassInfo(iter->sphere.center, pow(iter->sphere.radius, 3.0f));
-
-			return temp;
-		}
-
-		bool Contains(const Vec3& point)
-		{
-			// TODO: implement this for real
-
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			if(aabb.IsDegenerate())
+				return MassInfo();
+			else
 			{
-				Vec3 i_cen = iter->sphere.center;
-				Vec3 dif = point - i_cen;
-				float i_radius = iter->sphere.radius;
+				// approximate the MultiSphereShape as a box (same as how Bullet handles them)
+				MassInfo temp;
 
-				if(dif.ComputeMagnitudeSquared() < i_radius * i_radius)
-					return true;
+				Vec3 dim = aabb.max - aabb.min;
+
+				temp.mass = dim.x * dim.y * dim.z;							// assumes density = 1
+				temp.com = (aabb.min + aabb.max) * 0.5f;
+
+				float coeff = temp.mass / 12.0f;
+				temp.moi[0] = coeff * (dim.y * dim.y + dim.z * dim.z);
+				temp.moi[4] = coeff * (dim.x * dim.x + dim.z * dim.z);
+				temp.moi[8] = coeff * (dim.x * dim.x + dim.y * dim.y);
+
+				return temp;
 			}
-
-			return false;
 		}
 
 		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
@@ -732,8 +759,75 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			// TODO: implement this
 			return false;
+
+			if(!AABB::IntersectTest(AABB(sphere.center, sphere.radius), aabb))
+				return false;
+
+			ContactPoint cp;
+
+			cp.a.obj = ibody;
+			cp.b.obj = jbody;
+
+			bool any = false;
+			float r_sq = sphere.radius * sphere.radius;
+
+			// sphere-sphere
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			{
+				const Sphere& my_sphere = iter->sphere;
+
+				Vec3 dx = sphere.center - my_sphere.center;
+				float dmag_sq = dx.ComputeMagnitudeSquared();
+				
+				float sr = my_sphere.radius + sphere.radius;
+				if(dmag_sq <= sr * sr)
+				{
+					// TODO: decide how to deal with one sphere completely containing the other
+					
+					float dmag = sqrtf(dmag_sq);
+					float my_rsq = my_sphere.radius * my_sphere.radius;
+
+					float x1, x2;
+					if(Util::SolveQuadraticFormula(2.0f, -2.0f * (dmag + my_sphere.radius), dmag_sq + my_rsq - r_sq, x1, x2))
+					{
+						float x = x1 >= 0 ? x1 : x2;			// distance along vector from my_sphere to sphere to reach plane of intersection
+						if(x < 0)
+						{
+							Vec3 c_normal = dx / dmag;
+							Vec3 c_center = my_sphere.center + c_normal * x;
+							float c_radius = sqrtf(my_rsq - x * x);
+
+							// TODO: implement this
+						}
+					}
+				}
+			}
+
+			// sphere-tube
+			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			{
+				// TODO: implement this
+			}
+
+			// sphere-plane
+			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+			{
+				const Plane& plane = iter->plane;
+
+				float dist = plane.PointDistance(sphere.center);
+				if(fabs(dist) <= sphere.radius)
+				{
+					// center and radius of the circle where the sphere was cut by this plane
+					Vec3 c_normal = plane.normal;
+					Vec3 c_center = sphere.center - c_normal * dist;
+					float c_radius = sqrtf(r_sq - dist * dist);
+
+					// TODO: implement this
+				}
+			}
+
+			return any;
 		}
 
 		bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
@@ -825,8 +919,6 @@ namespace CibraryEngine
 	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { imp->DebugDraw(renderer, pos, ori); }
 
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
-
-	bool MultiSphereShape::Contains(const Vec3& point) { return imp->Contains(point); }
 
 	bool MultiSphereShape::CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }

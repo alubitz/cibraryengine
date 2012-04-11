@@ -138,7 +138,7 @@ namespace CibraryEngine
 		struct Part
 		{
 			RigidBody* obj;
-			Vec3 pos, norm;
+			Vec3 pos, norm;					// both are world coords
 
 			Part() : obj(NULL), pos(), norm() { }
 		} a, b;
