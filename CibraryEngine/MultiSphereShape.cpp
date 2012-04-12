@@ -31,22 +31,143 @@ namespace CibraryEngine
 			Part() : planes() { }
 			virtual ~Part() { }
 
-			bool IsPointRelevant(const Vec3& point)
+			bool IsPointRelevant(const Vec3& point) const
 			{
-				for(vector<Plane>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+				for(vector<Plane>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
 					if(iter->PointDistance(point) < 0)
 						return false;
 				return true;
 			}
 
-			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) = 0;
+			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const = 0;
 
 			// TODO: revise the signatures of these functions as necessary
 			virtual bool Intersect(const Part& part) const = 0;
 
-			virtual bool IntersectSphere(const SpherePart& sphere) const = 0;
-			virtual bool IntersectTube(const TubePart& tube) const = 0;
-			virtual bool IntersectPlane(const PlanePart& plane) const = 0;
+			virtual bool IntersectSphere(const SpherePart& part) const = 0;
+			virtual bool IntersectTube(const TubePart& part) const = 0;
+			virtual bool IntersectPlane(const PlanePart& part) const = 0;
+
+			// true if any part of the circle is on the correct side of all planes (from both parts)
+			static bool IsCircleRelevant(const Vec3& center, const Vec3& normal, float radius, const Part& part_a, const Part& part_b)
+			{
+				// circle struct, because we like OOP
+				struct Circle
+				{
+					struct Arc
+					{
+						float a, b;
+
+						Arc() : a(), b() { }
+						Arc(float a, float b) : a(a), b(b) { }
+					};
+
+					vector<Arc> arcs;
+
+					Vec3 center, normal;
+					float radius;
+
+					Plane plane;
+
+					Vec3 axis_a, axis_b;
+
+					Circle(const Vec3& center, const Vec3& normal, float radius) : arcs(), center(center), normal(normal), radius(radius), plane(Plane::FromPositionNormal(center, normal))
+					{
+						arcs.push_back(Arc(float(-M_PI), float(M_PI)));
+
+						Mat3 mat = Util::FindOrientationZEdge(normal).Transpose();
+						axis_a = mat * Vec3(1, 0, 0);
+						axis_b = mat * Vec3(0, 1, 0);
+					}
+
+					void Cut(const Plane& cut)
+					{
+						if(arcs.empty())			// nothing to do
+							return;
+
+						Line line;
+						if(Plane::Intersect(plane, cut, line))
+						{
+							line.origin -= center;
+
+							// transform line into the 2d coordinate system of the circle
+							Vec2 origin =		Vec2(Vec3::Dot(axis_a, line.origin),	Vec3::Dot(axis_b, line.origin)		);
+							Vec2 direction =	Vec2(Vec3::Dot(axis_a, line.direction),	Vec3::Dot(axis_b, line.direction)	);
+
+							// also find out which is the "good" side
+							Vec2 good_dir =		Vec2(Vec3::Dot(axis_a, cut.normal),		Vec3::Dot(axis_b, cut.normal)		);
+							float good_offset = Vec2::Dot(good_dir, origin);
+        
+							// find where the cutting line intersects the circle
+							float t1, t2;
+							if(Util::SolveQuadraticFormula(direction.ComputeMagnitudeSquared(), 2.0f * Vec2::Dot(origin, direction), origin.ComputeMagnitudeSquared() - radius * radius, t1, t2))
+							{
+								// points of intersection
+								Vec2 p1 = origin + direction * t1;
+								Vec2 p2 = origin + direction * t2;
+
+								// find the angles to those points
+								float theta_1 = atan2f(p1.y, p1.x);
+								float theta_2 = atan2f(p2.y, p2.x);
+
+								if(theta_1 > theta_2)
+									swap(theta_1, theta_2);
+
+								// cut arcs that contain our angles
+								vector<Arc> nu_arcs;
+								for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+								{
+									float a = iter->a, b = iter->b;
+
+									bool contains_1 = a < theta_1 && b >= theta_1, contains_2 = a < theta_2 && b >= theta_2;
+
+									if(contains_1)
+									{
+										nu_arcs.push_back(Arc(a, theta_1));
+										
+										if(contains_2)
+										{
+											nu_arcs.push_back(Arc(theta_1, theta_2));
+											nu_arcs.push_back(Arc(theta_2, b));
+										}
+										else
+											nu_arcs.push_back(Arc(theta_1, b));
+									}
+									else if(contains_2)
+									{
+										nu_arcs.push_back(Arc(a, theta_2));
+										nu_arcs.push_back(Arc(theta_2, b));
+									}
+									else
+										nu_arcs.push_back(*iter);
+								}
+								arcs = nu_arcs;
+							}
+
+							// remove arcs that are on the wrong side of the cutting plane
+							vector<Arc> nu_arcs;
+							for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+							{
+								float theta = 0.5f * (iter->a + iter->b);
+								Vec2 arc_center = Vec2(cosf(theta) * radius, sinf(theta) * radius);
+
+								if(Vec2::Dot(arc_center, good_dir) > good_offset)
+									nu_arcs.push_back(*iter);
+							}
+							arcs = nu_arcs;
+						}
+						else if(cut.PointDistance(center) < 0.0f)
+							arcs.clear();
+					}
+				} circle(center, normal, radius);
+
+				for(vector<Plane>::const_iterator iter = part_a.planes.begin(); iter != part_a.planes.end(); ++iter)
+					circle.Cut(*iter);
+				for(vector<Plane>::const_iterator iter = part_b.planes.begin(); iter != part_b.planes.end(); ++iter)
+					circle.Cut(*iter);
+
+				return !circle.arcs.empty();
+			}
 		};
 
 		struct SpherePart : Part
@@ -54,7 +175,7 @@ namespace CibraryEngine
 			Sphere sphere;
 			SpherePart(Sphere sphere) : Part(), sphere(sphere) { }
 
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
 				float t[2];
 
@@ -85,10 +206,53 @@ namespace CibraryEngine
 
 			bool Intersect(const Part& part) const { return part.IntersectSphere(*this); }
 
-			// TODO: implement these
-			bool IntersectSphere(const SpherePart& sphere) const { return false; }
-			bool IntersectTube(const TubePart& tube) const { return false; }
-			bool IntersectPlane(const PlanePart& plane) const { return false; }
+			bool IntersectSphere(const SpherePart& part) const
+			{
+				const Sphere& other_sphere = part.sphere;
+				Vec3 dx = other_sphere.center - sphere.center;
+				float dmag_sq = dx.ComputeMagnitudeSquared();
+
+				float sr = sphere.radius + other_sphere.radius;
+				if(dmag_sq < sr * sr)
+				{
+					float dmag = sqrtf(dmag_sq), inv_dmag = 1.0f / dmag;
+					float rsq = sphere.radius * sphere.radius;
+					float other_rsq = other_sphere.radius * other_sphere.radius;
+
+					float x = 0.5f * (rsq - other_rsq + dmag_sq) * inv_dmag;
+
+					Vec3 c_normal = dx * inv_dmag;
+					Vec3 c_center = sphere.center + c_normal * x;
+					float c_radius = sqrtf(rsq - x * x);
+
+					return IsCircleRelevant(c_center, c_normal, c_radius, *this, part);
+				}
+
+				return false;
+			}
+
+			bool IntersectTube(const TubePart& part) const
+			{
+				// TODO: implement this
+				return false;
+			}
+
+			bool IntersectPlane(const PlanePart& part) const
+			{
+				const Plane& plane = part.plane;
+
+				float dist = plane.PointDistance(sphere.center);
+				if(fabs(dist) <= sphere.radius)
+				{
+					Vec3 c_normal = plane.normal;
+					Vec3 c_center = sphere.center - c_normal * dist;
+					float c_radius = sqrtf(sphere.radius * sphere.radius - dist * dist);
+
+					return IsCircleRelevant(c_center, c_normal, c_radius, *this, part);
+				}
+
+				return false;
+			}
 		};
 
 		struct TubePart : Part
@@ -110,7 +274,7 @@ namespace CibraryEngine
 				planes.push_back(Plane(-n, -Vec3::Dot(n, p2)));
 			}
 
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
 				Vec3 q = ray.origin - p1;
 				Vec3 v = ray.direction;
@@ -147,10 +311,18 @@ namespace CibraryEngine
 
 			bool Intersect(const Part& part) const { return part.IntersectTube(*this); }
 
-			// TODO: implement these
-			bool IntersectSphere(const SpherePart& sphere) const { return false; }
-			bool IntersectTube(const TubePart& tube) const { return false; }
-			bool IntersectPlane(const PlanePart& plane) const { return false; }
+			bool IntersectSphere(const SpherePart& part) const { return part.IntersectTube(*this); }
+
+			bool IntersectTube(const TubePart& part) const
+			{
+				// TODO: implement this
+				return false;
+			}
+			bool IntersectPlane(const PlanePart& part) const
+			{
+				// TODO: implement this
+				return false;
+			}
 		};
 
 		struct PlanePart : Part
@@ -159,7 +331,7 @@ namespace CibraryEngine
 
 			PlanePart(Plane plane) : Part(), plane(plane) { }
 
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time)
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
 				float t = Util::RayPlaneIntersect(ray, plane);
 				Vec3 pos = ray.origin + ray.direction * t;
@@ -180,10 +352,14 @@ namespace CibraryEngine
 
 			bool Intersect(const Part& part) const { return part.IntersectPlane(*this); }
 
-			// TODO: implement these
-			bool IntersectSphere(const SpherePart& sphere) const { return false; }
-			bool IntersectTube(const TubePart& tube) const { return false; }
-			bool IntersectPlane(const PlanePart& plane) const { return false; }
+			bool IntersectSphere(const SpherePart& part) const { return part.IntersectPlane(*this); }
+			bool IntersectTube(const TubePart& part) const { return part.IntersectPlane(*this); }
+
+			bool IntersectPlane(const PlanePart& part) const
+			{
+				// TODO: implement this
+				return false;
+			}
 
 			vector<Vec3> GetVerts()
 			{
@@ -759,75 +935,8 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
+			// TODO: implement this
 			return false;
-
-			if(!AABB::IntersectTest(AABB(sphere.center, sphere.radius), aabb))
-				return false;
-
-			ContactPoint cp;
-
-			cp.a.obj = ibody;
-			cp.b.obj = jbody;
-
-			bool any = false;
-			float r_sq = sphere.radius * sphere.radius;
-
-			// sphere-sphere
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
-			{
-				const Sphere& my_sphere = iter->sphere;
-
-				Vec3 dx = sphere.center - my_sphere.center;
-				float dmag_sq = dx.ComputeMagnitudeSquared();
-				
-				float sr = my_sphere.radius + sphere.radius;
-				if(dmag_sq <= sr * sr)
-				{
-					// TODO: decide how to deal with one sphere completely containing the other
-					
-					float dmag = sqrtf(dmag_sq);
-					float my_rsq = my_sphere.radius * my_sphere.radius;
-
-					float x1, x2;
-					if(Util::SolveQuadraticFormula(2.0f, -2.0f * (dmag + my_sphere.radius), dmag_sq + my_rsq - r_sq, x1, x2))
-					{
-						float x = x1 >= 0 ? x1 : x2;			// distance along vector from my_sphere to sphere to reach plane of intersection
-						if(x < 0)
-						{
-							Vec3 c_normal = dx / dmag;
-							Vec3 c_center = my_sphere.center + c_normal * x;
-							float c_radius = sqrtf(my_rsq - x * x);
-
-							// TODO: implement this
-						}
-					}
-				}
-			}
-
-			// sphere-tube
-			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
-			{
-				// TODO: implement this
-			}
-
-			// sphere-plane
-			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
-			{
-				const Plane& plane = iter->plane;
-
-				float dist = plane.PointDistance(sphere.center);
-				if(fabs(dist) <= sphere.radius)
-				{
-					// center and radius of the circle where the sphere was cut by this plane
-					Vec3 c_normal = plane.normal;
-					Vec3 c_center = sphere.center - c_normal * dist;
-					float c_radius = sqrtf(r_sq - dist * dist);
-
-					// TODO: implement this
-				}
-			}
-
-			return any;
 		}
 
 		bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
