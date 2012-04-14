@@ -168,6 +168,100 @@ namespace CibraryEngine
 
 				return !circle.arcs.empty();
 			}
+
+			// true if any part of the line is on the correct side of all planes (from both parts)
+			static bool IsLineRelevant(const Line& line, const Part& part_a, const Part& part_b)
+			{
+				struct Arc
+				{
+					Ray ray;
+
+					bool valid;
+
+					float a, b;
+					bool a_inf, b_inf;
+
+					Arc(const Line& line) : valid(true), a_inf(true), b_inf(true)
+					{
+						ray.origin = line.origin;
+						ray.direction = line.direction;
+					}
+
+					// assuming it's a line segment, sees if it's on the correct side of the plane
+					bool IsValid(const Plane& plane) { return plane.PointDistance(ray.origin + ray.direction * (0.5f * (a + b))) > 0;}
+
+					void Cut(const Plane& plane)
+					{
+						if(!valid)
+							return;
+
+						float hit = Util::RayPlaneIntersect(ray, plane);
+
+						if(_finite(hit))		// TODO: come up with a solution that doesn't depend on msvc
+						{
+							if(a_inf && b_inf)
+							{
+								if(plane.PointDistance(ray.origin + ray.direction * (hit + 1.0f)) > 0)
+								{
+									a_inf = false;
+									a = hit;
+								}
+								else
+								{
+									b_inf = false;
+									b = hit;
+								}
+							}
+							else if(a_inf)
+							{
+								if(hit <= b)
+								{
+									a = hit;
+
+									if(plane.PointDistance(ray.origin + ray.direction * (0.5f * (a + b))) < 0)
+										valid = false;
+									else
+										a_inf = false;
+								}
+							}
+							else if(b_inf)
+							{
+								if(hit >= a)
+								{
+									b = hit;
+
+									if(IsValid(plane))
+										b_inf = false;
+									else
+										valid = false;
+								}
+							}
+							else
+							{
+								if(hit < a || hit > b)
+								{
+									if(!IsValid(plane))
+										valid = false;
+								}
+								else if(plane.PointDistance(ray.origin + ray.direction * (0.5 * (a + hit))) < 0)
+									a = hit;
+								else if(plane.PointDistance(ray.origin + ray.direction * (0.5 * (a + hit))) < 0)
+									b = hit;
+							}
+						}
+						else if(plane.PointDistance(ray.origin) < 0)
+							valid = false;
+					}
+				} arc(line);
+
+				for(vector<Plane>::const_iterator iter = part_a.planes.begin(); iter != part_a.planes.end(); ++iter)
+					arc.Cut(*iter);
+
+				for(vector<Plane>::const_iterator iter = part_b.planes.begin(); iter != part_b.planes.end(); ++iter)
+					arc.Cut(*iter);
+
+				return arc.valid;
+			}
 		};
 
 		struct SpherePart : Part
@@ -357,7 +451,10 @@ namespace CibraryEngine
 
 			bool IntersectPlane(const PlanePart& part) const
 			{
-				// TODO: implement this
+				Line line;
+				if(Plane::Intersect(plane, part.plane, line))
+					return IsLineRelevant(line, *this, part);
+
 				return false;
 			}
 
