@@ -243,9 +243,9 @@ namespace CibraryEngine
 									if(!IsValid(plane))
 										valid = false;
 								}
-								else if(plane.PointDistance(ray.origin + ray.direction * (0.5 * (a + hit))) < 0)
+								else if(plane.PointDistance(ray.origin + ray.direction * (0.5f * (a + hit))) < 0)
 									a = hit;
-								else if(plane.PointDistance(ray.origin + ray.direction * (0.5 * (a + hit))) < 0)
+								else if(plane.PointDistance(ray.origin + ray.direction * (0.5f * (a + hit))) < 0)
 									b = hit;
 							}
 						}
@@ -368,7 +368,7 @@ namespace CibraryEngine
 				planes.push_back(Plane(-n, -Vec3::Dot(n, p2)));
 			}
 
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
+			bool RayTestInfinite(const Ray& ray, float& t1, float& t2) const
 			{
 				Vec3 q = ray.origin - p1;
 				Vec3 v = ray.direction;
@@ -380,8 +380,12 @@ namespace CibraryEngine
 				float B = 2.0f * (Vec3::Dot(q, v) - qu * vu * opzsq) - trz * vu;
 				float C = q.ComputeMagnitudeSquared() - qu * qu * opzsq - trz * qu - r1 * r1;
 
+				return Util::SolveQuadraticFormula(A, B, C, t1, t2);
+			}
+			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
+			{
 				float t[2];
-				if(Util::SolveQuadraticFormula(A, B, C, t[0], t[1]))
+				if(RayTestInfinite(ray, t[0], t[1]))
 				{
 					for(unsigned char i = 0; i < 2; ++i)
 					{
@@ -414,8 +418,158 @@ namespace CibraryEngine
 			}
 			bool IntersectPlane(const PlanePart& part) const
 			{
-				// TODO: implement this
-				return false;
+				struct Locus
+				{
+					struct Arc
+					{
+						float a, b;
+						Arc() : a(), b() { }
+						Arc(float a, float b) : a(a), b(b) { }
+					};
+					vector<Arc> arcs;
+
+					const Plane& plane;
+					const TubePart& tube;
+
+					Vec3 axis_a, axis_b;
+
+					Locus(const Plane& plane, const TubePart& tube) : arcs(), plane(plane), tube(tube)
+					{
+						const Vec3& normal = plane.normal;
+
+						float dr = tube.r2 - tube.r1;
+						Vec3 dp = tube.p2 - tube.p1;
+
+						Mat3 mat = Util::FindOrientationZEdge(dp).Transpose();
+						axis_a = mat * Vec3(1, 0, 0);
+						axis_b = mat * Vec3(0, 1, 0);
+
+						// some stuff only applies to cones (i.e. tubes where the end radii are unequal)
+						if(dr != 0.0f)
+						{
+							// find out if shape is a hyperbola
+							float X = Vec3::Dot(axis_a, normal);
+							float Y = Vec3::Dot(axis_b, normal);
+							float Z = Vec3::Dot(dp, normal) / dr;
+
+							float cos1, cos2;
+							if(Util::SolveQuadraticFormula(X * X + Y * Y, -X * Z, Z * Z - Y * Y, cos1, cos2))
+							{
+								// shape is a hyperbola! asymptotes are at these angles...
+								float theta1 = acosf(cos1);
+								float theta2 = acosf(cos2);
+
+								if(theta2 < theta1)
+									swap(theta2, theta1);
+
+								arcs.push_back(Arc(float(-M_PI), theta1));
+								arcs.push_back(Arc(theta1, theta2));
+								arcs.push_back(Arc(theta2, float(M_PI)));
+							}
+							else
+								arcs.push_back(Arc(float(-M_PI), float(M_PI)));			// shape is not a hyperbola
+
+							// TODO: check that parabolas are dealt with properly
+						}
+						else
+						{
+							if(Vec3::Dot(dp, normal) != 0)
+								arcs.push_back(Arc(float(-M_PI), float(M_PI)));
+							else
+							{
+								// TODO: maybe there are lines
+							}
+						}
+					}
+
+					void Cut(const Plane& cut)
+					{
+						if(arcs.empty())
+							return;
+
+						vector<Arc> nu_arcs;
+
+						// find out how the cutting plane cuts the existing arcs
+						Line line;
+						if(Plane::Intersect(plane, cut, line))
+						{
+							Ray ray;
+							ray.origin = line.origin;
+							ray.direction = line.direction;
+
+							float t[2];
+							if(tube.RayTestInfinite(ray, t[0], t[1]))
+							{
+								float theta[2];
+								for(unsigned char i = 0; i < 2; ++i)
+								{
+									Vec3 hit = ray.origin + ray.direction * t[i];
+									hit -= tube.p1;
+
+									theta[i] = atan2f(Vec3::Dot(hit, axis_b), Vec3::Dot(hit, axis_a));
+								}
+
+								if(theta[1] < theta[0])
+									swap(theta[0], theta[1]);
+
+								for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+								{
+									bool contains_a = theta[0] >= iter->a && theta[0] <= iter->b, contains_b = theta[1] >= iter->a && theta[1] <= iter->b;
+
+									if(contains_a)
+									{
+										if(contains_b)
+										{
+											nu_arcs.push_back(Arc(iter->a, theta[0]));
+											nu_arcs.push_back(Arc(theta[0], theta[1]));
+											nu_arcs.push_back(Arc(theta[1], iter->b));
+										}
+										else
+										{
+											nu_arcs.push_back(Arc(iter->a, theta[0]));
+											nu_arcs.push_back(Arc(theta[0], iter->b));
+										}
+									}
+									else if(contains_b)
+									{
+										nu_arcs.push_back(Arc(iter->a, theta[1]));
+										nu_arcs.push_back(Arc(theta[1], iter->b));
+									}
+									else
+										nu_arcs.push_back(*iter);
+								}
+								arcs = nu_arcs;
+								nu_arcs = vector<Arc>();
+							}
+						}
+
+						Vec3 dp = tube.p2 - tube.p1;
+						float dr = tube.r2 - tube.r1;
+
+						// discard arcs that are on the wrong side of the cutting plane
+						for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+						{
+							float mid_theta = (iter->a + iter->b) * 0.5f;
+							
+							Vec3 g = axis_a * cosf(mid_theta) + axis_b * sinf(mid_theta);
+							Vec3 gr1 = g * tube.r1, gdr = g * dr;
+							float y = (plane.offset - Vec3::Dot(plane.normal, tube.p1 + gr1)) / Vec3::Dot(plane.normal, dp + gdr);
+							Vec3 point = (dp + gdr) * y + tube.p1 + gr1;
+
+
+							if(cut.PointDistance(point) > 0.0f)
+								nu_arcs.push_back(*iter);
+						}
+						arcs = nu_arcs;
+					}
+				} locus(part.plane, *this);
+
+				for(vector<Plane>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
+					locus.Cut(*iter);
+				for(vector<Plane>::const_iterator iter = part.planes.begin(); iter != part.planes.end(); ++iter)
+					locus.Cut(*iter);
+
+				return !locus.arcs.empty();
 			}
 		};
 
@@ -588,7 +742,7 @@ namespace CibraryEngine
 						tube.u = ud;
 						tube.inv_dmag = 1.0f / (p2 - p1).ComputeMagnitude();				// careful! it's not the same as the inv_dmag used here!
 
-						float z = (j_radius - i_radius) * inv_dmag;
+						float z = (r2 - r1) * inv_dmag;
 						tube.opzsq = 1 + z * z;
 						tube.trz = 2.0f * r1 * z;
 
