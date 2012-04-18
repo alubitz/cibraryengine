@@ -327,8 +327,251 @@ namespace CibraryEngine
 
 			bool IntersectTube(const TubePart& part) const
 			{
-				// TODO: implement this
-				return false;
+				struct Locus
+				{
+					struct Arc
+					{
+						float a, b;
+						bool plus;
+
+						Arc() : a(), b(), plus() { }
+						Arc(float a, float b, bool plus) : a(a), b(b), plus(plus) { }
+					};
+
+					vector<Arc> arcs;
+
+					const TubePart& tube;
+					const Sphere& sphere;
+
+					Vec3 dp;
+					float dr;
+
+					float dpsq, inv_dpsq;
+
+					Vec3 axis_a, axis_b;
+
+					Locus(const TubePart& tube, const Sphere& sphere) : arcs(), tube(tube), sphere(sphere), dp(tube.p2 - tube.p1), dr(tube.r2 - tube.r1), dpsq(dp.ComputeMagnitudeSquared()), inv_dpsq(1.0f / dpsq)
+					{
+						Vec3 dc = tube.p1 - sphere.center;
+
+						Mat3 mat = Util::FindOrientationZEdge(dp).Transpose();
+						axis_a = mat * Vec3(1, 0, 0);
+						axis_b = mat * Vec3(0, 1, 0);
+
+						vector<Arc> nu_arcs;			// temporarily stores arc (no sign information)
+
+						// some things behave differently depending on whether its a cylinder or a cone...
+						if(dr != 0.0f)
+						{
+							// it's a cone... find where the discriminant of the quadratic formula is zero (this in turn requires us to solve yet another quadratic!)
+
+							float cdotp = Vec3::Dot(dc, dp);
+
+							float rsq = sphere.radius * sphere.radius;
+
+							// solving for (dc dot g) which we will later use to solve for theta
+							float A = dr * dr;
+							float B = 2.0f * (dr * cdotp + tube.r1 * (rsq - dpsq));
+							float C = cdotp * cdotp + 2.0f * tube.r1 * dr * cdotp + (dc.ComputeMagnitudeSquared() + tube.r1 * tube.r1) * (rsq - A - dpsq);;
+
+							float t[2];
+							if(Util::SolveQuadraticFormula(A, B, C, t[0], t[1]))
+							{
+								list<float> angles;
+								for(unsigned char i = 0; i < 2; ++i)
+								{
+									// solving for theta given (dc dot g), as promised
+									float X = Vec3::Dot(dc, axis_a);
+									float Y = Vec3::Dot(dc, axis_b);
+									float Z = t[i];
+
+									float cos_theta[2];
+									if(Util::SolveQuadraticFormula(X * X + Y * Y, -2.0f * X * Z, Z * Z - Y * Y, cos_theta[0], cos_theta[1]))
+									{
+										angles.push_back(acosf(cos_theta[0]));
+										angles.push_back(acosf(cos_theta[1]));
+									}
+								}
+								angles.sort();
+
+								angles.push_front(float(-M_PI));
+								angles.push_back(float(M_PI));
+
+								float prev = -100;
+								for(list<float>::iterator iter = angles.begin(); iter != angles.end(); ++iter)
+								{
+									if(prev != -100)
+										nu_arcs.push_back(Arc(prev, *iter, false));
+									prev = *iter;
+								}
+							}
+							else
+								nu_arcs.push_back(Arc(float(-M_PI), float(M_PI), false));
+						}
+						else
+						{
+							// it's a cylinder
+							Vec3 sphere_offset = sphere.center - tube.p1;
+
+							Vec2 dx = Vec2(Vec3::Dot(axis_a, sphere_offset), Vec3::Dot(axis_b, sphere_offset));
+							float dmag_sq = dx.ComputeMagnitudeSquared();
+
+							float sr = sphere.radius + tube.r1;
+							if(dmag_sq <= sr * sr)
+							{
+								float dmag = sqrtf(dmag_sq), inv_dmag = 1.0f / dmag;
+								float rsq = sphere.radius * sphere.radius;
+								float other_rsq = tube.r1 * tube.r1;
+
+								float x = 0.5f * (other_rsq - rsq + dmag_sq) * inv_dmag;
+								float y = sqrtf(other_rsq - x * x);
+								float signed_y[] = { -y, y };
+
+								// find where the discriminant of the quadratic formula is zero
+								Vec2 u = dx * inv_dmag, r = Vec2(-u.y, u.x);
+								float theta[2];
+								for(unsigned char i = 0; i < 2; ++i)
+								{
+									Vec2 p = u * x + r * signed_y[i];
+									theta[i] = atan2f(p.y, p.x);
+								}
+
+								if(theta[0] > theta[1])
+									swap(theta[0], theta[1]);
+
+								nu_arcs.push_back(Arc(float(-M_PI), theta[0], false));
+								nu_arcs.push_back(Arc(theta[0], theta[1], false));
+								nu_arcs.push_back(Arc(theta[1], float(M_PI), false));
+							}
+						}
+
+						// initial sign check
+						for(vector<Arc>::iterator iter = nu_arcs.begin(); iter != nu_arcs.end(); ++iter)
+						{
+							float mid_theta = 0.5f * (iter->a + iter->b);
+							Vec3 g = axis_a * cosf(mid_theta) + axis_b * sinf(mid_theta);
+
+							Vec3 dppgdr = dp + g * dr;
+							Vec3 gr1pdc = g * tube.r1 + dc;
+
+							float A = dppgdr.ComputeMagnitudeSquared();
+							float B = 2.0f * Vec3::Dot(dppgdr, gr1pdc);
+							float C = gr1pdc.ComputeMagnitudeSquared() - sphere.radius * sphere.radius;
+
+							float discriminant = B * B - 4.0f * A * C;
+							if(discriminant >= 0.0f)
+							{
+								arcs.push_back(Arc(iter->a, iter->b, false));
+								arcs.push_back(Arc(iter->a, iter->b, true));
+							}
+						}
+					}
+
+					void Cut(const Plane& cut)
+					{
+						if(arcs.empty())
+							return;
+
+						vector<Arc> nu_arcs;
+
+						// find the circle where the sphere and plane intersect
+						float sphere_dist = cut.PointDistance(sphere.center);
+						if(fabs(sphere_dist) < sphere.radius)
+						{
+							Vec3 center_c = sphere.center - cut.normal * sphere_dist;
+							float radius_c = sqrtf(sphere.radius * sphere.radius - sphere_dist * sphere_dist);
+
+							Mat3 mat = Util::FindOrientationZEdge(cut.normal).Transpose();
+							Vec3 circle_a = mat * Vec3(1, 0, 0);
+							Vec3 circle_b = mat * Vec3(0, 1, 0);
+
+							Vec3 dp = tube.p2 - tube.p1;
+							Vec3 dc = center_c - tube.p1;
+
+							// solve for (g dot dc); note that g = (a cos theta + b sin theta) for the circle, not the tube!
+							float temp = tube.r1 + dr * Vec3::Dot(dc, dp) * inv_dpsq;
+							Vec3 dc_non_dp = dc - dp * Vec3::Dot(dc, dp) * inv_dpsq;
+							float g_dot_dc = 0.5f * (temp * temp - radius_c * radius_c + dc_non_dp.ComputeMagnitudeSquared()) / radius_c;
+							
+							// now see what angles satisfy that
+							float X = Vec3::Dot(dc, circle_a);
+							float Y = Vec3::Dot(dc, circle_b);
+							float Z = g_dot_dc;
+
+							float cos_theta[2];
+							if(Util::SolveQuadraticFormula(X * X + Y * Y, -2.0f * X * Z, Z * Z - Y * Y, cos_theta[0], cos_theta[1]))
+							{
+								float theta[2];
+								for(unsigned char i = 0; i < 2; ++i)
+									theta[i] = acosf(cos_theta[i]);
+								if(theta[0] > theta[1])
+									swap(theta[0], theta[1]);
+
+								for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+								{
+									bool contains_a = iter->a <= theta[0] && iter->b >= theta[0];
+									bool contains_b = iter->a <= theta[1] && iter->b >= theta[1];
+
+									if(contains_a)
+									{
+										if(contains_b)
+										{
+											nu_arcs.push_back(Arc(iter->a, theta[0], iter->plus));
+											nu_arcs.push_back(Arc(theta[0], theta[1], iter->plus));
+											nu_arcs.push_back(Arc(theta[1], iter->b, iter->plus));
+										}
+										else
+										{
+											nu_arcs.push_back(Arc(iter->a, theta[0], iter->plus));
+											nu_arcs.push_back(Arc(theta[0], iter->b, iter->plus));
+										}
+									}
+									else if(contains_b)
+									{
+										nu_arcs.push_back(Arc(iter->a, theta[1], iter->plus));
+										nu_arcs.push_back(Arc(theta[1], iter->b, iter->plus));
+									}
+									else
+										nu_arcs.push_back(*iter);
+								}
+								arcs = nu_arcs;
+								nu_arcs = vector<Arc>();
+							}
+						}
+
+
+						// go through and check whether arcs are on the correct side of the cutting plane
+						for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+						{
+							float mid_theta = 0.5f * (iter->a + iter->b);
+							Vec3 g = axis_a * cosf(mid_theta) + axis_b * sinf(mid_theta);
+
+							Vec3 dppgdr = dp + g * dr;
+							Vec3 gr1pdc = g * tube.r1 + tube.p1 - sphere.center;
+							
+							float A = dppgdr.ComputeMagnitudeSquared();
+							float B = 2.0f * Vec3::Dot(dppgdr, gr1pdc);
+							float C = gr1pdc.ComputeMagnitudeSquared() - (sphere.radius * sphere.radius);
+
+							float discriminant = B * B - 4.0f * A * C;
+							assert(discriminant >= 0);
+							
+							float y = iter->plus ? 0.5f * (-B + sqrtf(discriminant)) / A : 0.5f * (-B - sqrtf(discriminant)) / A;
+							Vec3 pos = (dp + g * dr) * y + tube.p1 + g * tube.r1;
+
+							if(cut.PointDistance(pos) >= 0.0f)
+								nu_arcs.push_back(*iter);							
+						}
+						arcs = nu_arcs;
+					}
+				} locus(part, sphere);
+
+				for(vector<Plane>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
+					locus.Cut(*iter);
+				for(vector<Plane>::const_iterator iter = part.planes.begin(); iter != part.planes.end(); ++iter)
+					locus.Cut(*iter);
+
+				return !locus.arcs.empty();
 			}
 
 			bool IntersectPlane(const PlanePart& part) const
