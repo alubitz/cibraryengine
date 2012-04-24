@@ -1755,42 +1755,56 @@ namespace CibraryEngine
 			{
 				Mat4 inv_xform = Mat4::Invert(xform);
 
-				const int steps = 5;
-				Vec3 start = overlap.min;
-				Vec3 increment = (overlap.max - start) / float(steps - 1);
+				const int steps = 4;
+				Vec3 increment = (overlap.max - overlap.min) / float(steps);
+				Vec3 start = overlap.min + increment * 0.5f;
 
-				Vec3 accum;
-				int weight = 0;
+				Vec3 a_accum, b_accum, c_accum;	
+				unsigned int a_weight = 0, b_weight = 0, c_weight = 0;
 
 				Vec3 pos = start;
-				for(int x = 0; x < steps; ++x)
-				{
-					pos.x += increment.x;
-					for(int y = 0; y < steps; ++y)
-					{
-						pos.y += increment.y;
-						for(int z = 0; z < steps; ++z)
+				int x, y, z;
+				for(x = 0; x < steps; ++x, pos.x += increment.x)
+					for(y = 0, pos.y = start.y; y < steps; ++y, pos.y += increment.y)
+						for(z = 0, pos.z = start.z; z < steps; ++z, pos.z += increment.z)
 						{
-							pos.z += increment.z;
-							
-							if(ContainsPoint(pos))
-							{
-								Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
-								if(other->ContainsPoint(inv_xformed))
-								{
-									++weight;
-									accum += pos;
-								}
-							}
-						}
-						pos.z = start.z;
-					}
-					pos.y = start.y;
-				}
+							unsigned char flags = 0;
 
-				if(weight > 0)
+							if(ContainsPoint(pos))
+								flags |= 1;
+
+							Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
+							if(other->ContainsPoint(inv_xformed))
+								flags |= 2;
+
+							switch(flags)
+							{
+								case 1:
+
+									++a_weight;
+									a_accum += pos;
+									break;
+
+								case 2:
+
+									++b_weight;
+									b_accum += pos;
+									break;
+
+								case 3:
+
+									++c_weight;
+									c_accum += pos;
+									break;
+							}		
+						}
+
+				if(c_weight)
 				{
-					pos = accum / float(weight);
+					pos = c_accum / float(c_weight);
+					Vec3 a_norm = Vec3::Normalize(pos - (a_weight ? a_accum / float(a_weight) : aabb.GetCenterPoint()));
+					Vec3 b_norm = Vec3::Normalize(pos - (b_weight ? b_accum / float(b_weight) : xform.TransformVec3(other->imp->aabb.GetCenterPoint(), 1)));
+					Vec3 normal = Vec3::Normalize(a_norm - b_norm);
 
 					result = ContactPoint();
 					result.a.obj = ibody;
@@ -1798,7 +1812,6 @@ namespace CibraryEngine
 					result.a.pos = pos;
 					result.b.pos = pos;
 
-					Vec3 normal = Vec3::Normalize(Vec3::Normalize(pos - aabb.GetCenterPoint()) - Vec3::Normalize(inv_xform.TransformVec3(pos, 1.0f) - other->imp->aabb.GetCenterPoint()));
 					result.a.norm = normal;
 					result.b.norm = -normal;
 
