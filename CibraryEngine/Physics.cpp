@@ -282,8 +282,8 @@ namespace CibraryEngine
 		{
 			A = iimp->inv_mass + jimp->inv_mass;
 
-			Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel, com_vel = (i_lvel * m1 + j_lvel * m2) / (m1 + m2);
-			B = Vec3::Dot(i_lvel, direction) - Vec3::Dot(j_lvel, direction) - 2.0f * Vec3::Dot(com_vel, direction);
+			Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel;
+			B = Vec3::Dot(i_lvel, direction) - Vec3::Dot(j_lvel, direction);
 		}
 		else
 		{
@@ -333,7 +333,6 @@ namespace CibraryEngine
 			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
 
 			float nvdot = Vec3::Dot(normal, dv);
-
 			if(nvdot < 0.0f)
 			{
 				float A, B;
@@ -343,50 +342,53 @@ namespace CibraryEngine
 				float bounciness = iimp->bounciness * jimp->bounciness;
 				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
 				
-				Vec3 impulse = normal * impulse_mag;
-
-				if(impulse.ComputeMagnitudeSquared() != 0)
+				if(impulse_mag < 0)
 				{
-					ibody->ApplyImpulse(impulse, i_poi);
-					if(j_can_move)
-						jbody->ApplyImpulse(-impulse, j_poi);
-				}
+					Vec3 impulse = normal * impulse_mag;
 
-				float sfric_coeff = iimp->friction * jimp->friction;
-				float kfric_coeff = 0.9f * sfric_coeff;
-
-				Vec3 t_dv = dv - normal * nvdot;
-				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
-
-				if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
-				{
-					float t_dv_mag = sqrtf(t_dv_magsq);
-
-					GetUseMass(t_dv / t_dv_mag, cp, A, B);
-					use_mass = 1.0f / A;
-
-					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / t_dv_mag));
-
-					ibody->ApplyImpulse(fric_impulse, i_poi);
-					if(j_can_move)
-						jbody->ApplyImpulse(-fric_impulse, j_poi);
-				}
-				else											// object isn't moving; apply static friction
-				{
-					Vec3 df = jimp->applied_force - iimp->applied_force;
-					float nfdot = Vec3::Dot(normal, df);
-
-					Vec3 t_df = df - normal * nfdot;
-					float t_df_mag = t_df.ComputeMagnitude();
-
-					float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
-					if(fric_i_mag > 0)
+					if(impulse.ComputeMagnitudeSquared() != 0)
 					{
-						Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
+						ibody->ApplyImpulse(impulse, i_poi);
+						if(j_can_move)
+							jbody->ApplyImpulse(-impulse, j_poi);
+					}
+
+					float sfric_coeff = iimp->friction * jimp->friction;
+					float kfric_coeff = 0.9f * sfric_coeff;
+
+					Vec3 t_dv = dv - normal * nvdot;
+					float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
+
+					if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
+					{
+						float t_dv_mag = sqrtf(t_dv_magsq);
+
+						GetUseMass(t_dv / t_dv_mag, cp, A, B);
+						use_mass = 1.0f / A;
+
+						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / t_dv_mag));
 
 						ibody->ApplyImpulse(fric_impulse, i_poi);
 						if(j_can_move)
 							jbody->ApplyImpulse(-fric_impulse, j_poi);
+					}
+					else											// object isn't moving; apply static friction
+					{
+						Vec3 df = jimp->applied_force - iimp->applied_force;
+						float nfdot = Vec3::Dot(normal, df);
+
+						Vec3 t_df = df - normal * nfdot;
+						float t_df_mag = t_df.ComputeMagnitude();
+
+						float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
+						if(fric_i_mag > 0)
+						{
+							Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
+
+							ibody->ApplyImpulse(fric_impulse, i_poi);
+							if(j_can_move)
+								jbody->ApplyImpulse(-fric_impulse, j_poi);
+						}
 					}
 				}
 			}

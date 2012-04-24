@@ -335,12 +335,8 @@ namespace Test
 	{
 		physics = game_state->physics_world;
 
-		/*
-		btVector3 spheres[] = { btVector3(0, 0.5f, 0), btVector3(0, 1.5f, 0) };
-		float radii[] = { 0.5f, 0.5f };
-		btConvexShape* shape = new btMultiSphereShape(spheres, radii, 2);
-		*/
-		CollisionShape* shape = new SphereShape(0.8f);
+		Sphere spheres[] = { Sphere(Vec3(0, 0.5f, 0), 0.5f), Sphere(Vec3(0, 1.5f, 0), 0.5f) };
+		CollisionShape* shape = new MultiSphereShape(spheres, 2);
 
 		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
 

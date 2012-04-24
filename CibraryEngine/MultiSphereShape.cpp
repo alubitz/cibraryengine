@@ -1704,7 +1704,7 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			bool any;
+			bool any = false;
 
 			Vec3 center;
 			float weight = 0.0f;
