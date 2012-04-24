@@ -30,6 +30,8 @@ namespace CibraryEngine
 
 			MassInfo ComputeMassInfo();
 
+			bool ContainsPoint(const Vec3& point) const;
+
 			bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody = NULL, RigidBody* jbody = NULL);						// ray pre-transformed into local coords
 			bool CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
 			bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);

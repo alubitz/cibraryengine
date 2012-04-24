@@ -39,6 +39,7 @@ namespace CibraryEngine
 				return true;
 			}
 
+			virtual int RayTest(const Ray& ray) const = 0;
 			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const = 0;
 
 			// TODO: revise the signatures of these functions as necessary
@@ -268,6 +269,26 @@ namespace CibraryEngine
 		{
 			Sphere sphere;
 			SpherePart(Sphere sphere) : Part(), sphere(sphere) { }
+
+			int RayTest(const Ray& ray) const
+			{
+				int result = 0;
+				float t[2];
+
+				if(Util::RaySphereIntersect(ray, sphere, t[0], t[1]))
+				{
+					for(unsigned char i = 0; i < 2; ++i)
+					{
+						float ti = t[i];
+						Vec3 pos = ray.origin + ray.direction * ti;
+						if(ti >= 0.0f && ti <= 1.0f)
+							if(IsPointRelevant(pos))
+								++result;
+					}
+				}
+
+				return result;
+			}
 
 			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
@@ -625,6 +646,22 @@ namespace CibraryEngine
 
 				return Util::SolveQuadraticFormula(A, B, C, t1, t2);
 			}
+			int RayTest(const Ray& ray) const
+			{
+				int result = 0;
+				float t[2];
+				if(RayTestInfinite(ray, t[0], t[1]))
+				{
+					for(unsigned char i = 0; i < 2; ++i)
+					{
+						Vec3 pos = ray.origin + ray.direction * t[i];
+						if(t[i] >= 0.0f && t[i] <= 1.0f && IsPointRelevant(pos))
+							++result;
+					}
+				}
+
+				return result;
+			}
 			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
 				float t[2];
@@ -656,8 +693,209 @@ namespace CibraryEngine
 
 			bool IntersectTube(const TubePart& part) const
 			{
-				// TODO: implement this
-				return false;
+				struct Locus
+				{
+					struct Arc
+					{
+						float a, b;
+						bool minus, plus;
+
+						Arc() : a(), b(), minus(), plus() { }
+						Arc(float a, float b, bool minus, bool plus) : a(a), b(b), minus(minus), plus(plus) { }
+					};
+
+					vector<Arc> arcs;
+
+					const TubePart& tube_1;
+					const TubePart& tube_2;
+
+					Vec3 axis_a, axis_b;
+
+					Vec3 dp1, dp2, p1mp3;
+					float dr1;
+
+					float qa[3];
+					float qb[4]; 
+					float qc[4]; 
+
+					Locus(const TubePart& tube_1, const TubePart& tube_2) : arcs(), tube_1(tube_1), tube_2(tube_2)
+					{
+						dp1 = tube_1.p2 - tube_1.p1;
+						dp2 = tube_2.p2 - tube_2.p1;
+						p1mp3 = tube_1.p1 - tube_2.p1;
+
+						float dp1_magsq = dp1.ComputeMagnitudeSquared();
+						float dp2_magsq = dp2.ComputeMagnitudeSquared(), inv_dp2sq = 1.0f / dp2_magsq, inv_dp2_4 = inv_dp2sq * inv_dp2sq;
+
+						dr1 = tube_1.r2 - tube_1.r1;
+						float dr1_sq = dr1 * dr1;
+						float dr2 = tube_2.r2 - tube_2.r1, dr2_sq = dr2 * dr2;
+
+						float dp1dp2 = Vec3::Dot(dp1, dp2);
+						float dp2sqpdr2sq = dp2_magsq + dr2_sq;
+
+						float dp2dp1mp3 = Vec3::Dot(dp2, p1mp3);
+
+						qa[0] = -dr1_sq * dp2sqpdr2sq * inv_dp2_4;
+						qa[1] = -2.0f * tube_1.r1 * dp1dp2 * inv_dp2_4 * dp2sqpdr2sq;
+						qa[2] = dp1_magsq + dr1_sq - dp2sqpdr2sq * dp1dp2 * dp1dp2 * inv_dp2_4;
+
+						qb[0] = -2.0f * tube_1.r1 * dr1 * dp2sqpdr2sq * inv_dp2_4;
+						qb[1] = -2.0f * (dp2sqpdr2sq * tube_1.r2 * inv_dp2_4 + tube_2.r1 * dr1 * dr2 * inv_dp2sq);
+						qb[2] = 2.0f * dr1;
+						qb[3] = 2.0f * (Vec3::Dot(dp1, p1mp3) - inv_dp2_4 * (dp1dp2 + dp2dp1mp3) - tube_2.r1 * dr2 * dp1dp2 * inv_dp2sq);
+
+						qc[0] = tube_1.r1 * tube_1.r1;
+						qc[1] = 2.0f * (dp2sqpdr2sq * tube_1.r1 * dp2dp1mp3) * inv_dp2_4 - tube_2.r1 * dr2 * tube_1.r1 * inv_dp2sq;
+						qc[2] = 2.0f * tube_1.r1;
+						qc[3] = tube_1.r1 * tube_1.r1 + p1mp3.ComputeMagnitudeSquared() + dp2sqpdr2sq * dp2dp1mp3 * dp2dp1mp3 * inv_dp2_4 - 2.0f * tube_1.r1 * dr2 * dp2dp1mp3 * inv_dp2sq - tube_2.r1 * tube_2.r1;
+
+						Mat3 rm = Util::FindOrientationZEdge(dp1).Transpose();
+						axis_a = rm * Vec3(1, 0, 0);
+						axis_b = rm * Vec3(0, 1, 0);
+
+						int ops = 0;
+						list<float> zeros;
+
+						FindZeros(zeros);
+						zeros.sort();
+
+						float prev = -100;
+						for(list<float>::iterator iter = zeros.begin(); iter != zeros.end(); ++iter)
+						{
+							float cur = *iter;
+							if(prev != -100)
+							{
+								float mid_theta = 0.5f * (prev + cur);
+								if(EvaluateDiscriminant(mid_theta) > 0.0f)
+									arcs.push_back(Arc(prev, cur, true, true));
+							}
+							prev = cur;
+						}
+					}
+
+					float EvaluateDiscriminant(float theta)
+					{
+						float A, B, C;
+						GetQuadraticCoefficients(theta, A, B, C);
+
+						return B * B - 4.0f * A * C;
+					}
+
+					void FindZeros(list<float>& zeros) { float val = EvaluateDiscriminant(float(-M_PI)); RecursiveFindZeros(float(-M_PI), float(M_PI), val, val, 0, zeros); }
+					void RecursiveFindZeros(float x1, float x2, float y1, float y2, int depth, list<float>& zeros)
+					{
+						if(depth > 10)
+							return;
+
+						if(depth <= 3)
+						{
+							float mid = 0.5f * (x1 + x2);
+							float value = EvaluateDiscriminant(mid);
+
+							RecursiveFindZeros(x1, mid, y1, value, depth + 1, zeros);
+							RecursiveFindZeros(mid, x2, value, y2, depth + 1, zeros);
+						}
+						else if(y1 * y2 < 0.0f)
+						{
+							float guess = (x1 * y2 - x2 * y1) / (y2 - y1);
+							float value = EvaluateDiscriminant(guess);
+
+							if(fabs(value) < 0.001f)
+								zeros.push_back(guess);
+							else
+							{
+								RecursiveFindZeros(x1, guess, y1, value, depth + 1, zeros);
+								RecursiveFindZeros(guess, x2, value, y2, depth + 1, zeros);
+							}
+						}
+					}
+
+					void GetQuadraticCoefficients(float theta, float& A, float& B, float& C, Vec3& radius_vector)
+					{
+						radius_vector = GetRadiusVector(theta);
+
+						float z1 = Vec3::Dot(radius_vector, dp2), z2 = Vec3::Dot(radius_vector, p1mp3);
+						float z1sq = z1 * z1;
+
+						A = qa[0] * z1sq + qa[1] * z1 + qa[2];
+						B = qb[0] * z1sq + qb[1] * z1 + qb[2] * z2 + qb[3];
+						C = qc[0] * z1sq + qc[1] * z1 + qc[2] * z2 + qc[3];
+					}
+					void GetQuadraticCoefficients(float theta, float& A, float& B, float& C) { Vec3 dummy_var; GetQuadraticCoefficients(theta, A, B, C, dummy_var); }
+
+					Vec3 GetRadiusVector(float theta) { return axis_a * cosf(theta) + axis_b * sinf(theta); }
+
+					void Cut(const Plane& cut)
+					{
+						if(arcs.empty())			// nothing to do here
+							return;
+
+						// TODO: find where the plane and two tubes meet
+
+						vector<Arc> nu_arcs;
+						if(false)					// if arcs need cutting...
+						{
+							for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+							{
+								if(false)
+								{
+									// TODO: cut arc
+								}
+								else
+									nu_arcs.push_back(*iter);
+							}
+
+							arcs = nu_arcs;
+							nu_arcs = vector<Arc>();
+						}
+
+						// now discard arcs which are on the wrong side of the cutting plane
+						for(vector<Arc>::iterator iter = arcs.begin(); iter != arcs.end(); ++iter)
+						{
+							float mid_theta = 0.5f * (iter->a + iter->b);
+						
+							float A, B, C;
+							Vec3 g;
+							GetQuadraticCoefficients(mid_theta, A, B, C, g);
+
+							float root = sqrtf(B * B - 4.0f * A * C);
+							float a_coeff = 0.5f / A;
+							
+							Vec3 dp1pgdr1 = dp1 + g * dr1;
+							Vec3 p1pgr1 = tube_1.p1 + g * tube_1.r1;
+
+							if(iter->minus)
+							{
+								float y = (-B - root) * a_coeff;
+								Vec3 pos = dp1pgdr1 * y + p1pgr1;
+								
+								if(cut.PointDistance(pos) < 0.0f)
+									iter->minus = false;
+							}
+
+							if(iter->plus)
+							{
+								float y = (-B + root) * a_coeff;
+								Vec3 pos = dp1pgdr1 * y + p1pgr1;
+								
+								if(cut.PointDistance(pos) < 0.0f)
+									iter->plus = false;
+							}
+
+							if(iter->plus || iter->minus)
+								nu_arcs.push_back(*iter);
+						}
+						arcs = nu_arcs;
+					}
+				} locus(*this, part);
+
+				for(vector<Plane>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
+					locus.Cut(*iter);
+				for(vector<Plane>::const_iterator iter = part.planes.begin(); iter != part.planes.end(); ++iter)
+					locus.Cut(*iter);
+
+				return !locus.arcs.empty();
 			}
 			bool IntersectPlane(const PlanePart& part) const
 			{
@@ -822,6 +1060,17 @@ namespace CibraryEngine
 
 			PlanePart(Plane plane) : Part(), plane(plane) { }
 
+			int RayTest(const Ray& ray) const
+			{
+				int result = 0;
+				float t = Util::RayPlaneIntersect(ray, plane);
+				Vec3 pos = ray.origin + ray.direction * t;
+				
+				if(IsPointRelevant(pos))
+					if(t >= 0.0f && t <= 1.0f)
+						++result;
+				return result;
+			}
 			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
 			{
 				float t = Util::RayPlaneIntersect(ray, plane);
@@ -1378,6 +1627,26 @@ namespace CibraryEngine
 			}
 		}
 
+		bool ContainsPoint(const Vec3& point) const
+		{
+			int count = 0;
+
+			Ray ray;
+			ray.origin = point;
+			ray.direction = Vec3(0, 10000000, 0);			// direction is arbitrary, magnitude is arbitrarily large
+
+			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end() && count < 2; ++iter)
+				count += iter->RayTest(ray);
+
+			for(vector<TubePart>::const_iterator iter = tubes.begin(); iter != tubes.end() && count < 2; ++iter)
+				count += iter->RayTest(ray);
+
+			for(vector<PlanePart>::const_iterator iter = planes.begin(); iter != planes.end() && count < 2; ++iter)
+				count += iter->RayTest(ray);
+
+			return count == 1;
+		}
+
 		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
 		{
 			Vec3 a = ray.origin, b = ray.origin + ray.direction;
@@ -1435,8 +1704,10 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			// TODO: maybe fudge a bit to make face/edge collisions less chaotic?
-			float min = 0.0f;
+			bool any;
+
+			Vec3 center;
+			float weight = 0.0f;
 
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
@@ -1448,28 +1719,93 @@ namespace CibraryEngine
 
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
 
-				if(dist < min)
+				if(dist < 0.0f)
 				{
-					min = dist;
+					float cur_w = -dist;
+					weight += cur_w;
+					center += (sphere_pos - plane_norm * (Vec3::Dot(sphere_pos, plane_norm) - plane_offset)) * cur_w;
 
-					Vec3 a_pos = sphere_pos - plane_norm * radius;
-
-					result = ContactPoint();
-					result.a.obj = ibody;
-					result.b.obj = jbody;
-					result.a.pos = a_pos;
-					result.b.pos = a_pos - plane_norm * (Vec3::Dot(a_pos, plane_norm) - plane_offset);
-					result.b.norm = plane_norm;
-					result.a.norm = -plane_norm;
+					any = true;
 				}
 			}
 
-			return min < 0.0f;
+			if(any)
+			{
+				center /= weight;
+
+				result = ContactPoint();
+				result.a.obj = ibody;
+				result.b.obj = jbody;
+				result.a.pos = center;
+				result.b.pos = center;
+				result.b.norm = plane_norm;
+				result.a.norm = -plane_norm;
+
+				return true;
+			}
+			return false;
 		}
 
 		bool CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			// TODO: implement this
+			AABB other_aabb = other->imp->aabb.GetTransformedAABB(xform);
+
+			AABB overlap;
+			if(AABB::Intersect(aabb, other_aabb, overlap))
+			{
+				Mat4 inv_xform = Mat4::Invert(xform);
+
+				const int steps = 5;
+				Vec3 start = overlap.min;
+				Vec3 increment = (overlap.max - start) / float(steps - 1);
+
+				Vec3 accum;
+				int weight = 0;
+
+				Vec3 pos = start;
+				for(int x = 0; x < steps; ++x)
+				{
+					pos.x += increment.x;
+					for(int y = 0; y < steps; ++y)
+					{
+						pos.y += increment.y;
+						for(int z = 0; z < steps; ++z)
+						{
+							pos.z += increment.z;
+							
+							if(ContainsPoint(pos))
+							{
+								Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
+								if(other->ContainsPoint(inv_xformed))
+								{
+									++weight;
+									accum += pos;
+								}
+							}
+						}
+						pos.z = start.z;
+					}
+					pos.y = start.y;
+				}
+
+				if(weight > 0)
+				{
+					pos = accum / float(weight);
+
+					result = ContactPoint();
+					result.a.obj = ibody;
+					result.b.obj = jbody;
+					result.a.pos = pos;
+					result.b.pos = pos;
+
+					Vec3 normal = Vec3::Normalize(Vec3::Normalize(pos - aabb.GetCenterPoint()) - Vec3::Normalize(inv_xform.TransformVec3(pos, 1.0f) - other->imp->aabb.GetCenterPoint()));
+					result.a.norm = normal;
+					result.b.norm = -normal;
+
+					return true;
+				}
+			}
+
 			return false;
 		}
 
@@ -1522,6 +1858,8 @@ namespace CibraryEngine
 	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { imp->DebugDraw(renderer, pos, ori); }
 
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
+
+	bool MultiSphereShape::ContainsPoint(const Vec3& point) const { return imp->ContainsPoint(point); }
 
 	bool MultiSphereShape::CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }

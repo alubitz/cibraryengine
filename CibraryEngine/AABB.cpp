@@ -1,6 +1,9 @@
 #include "StdAfx.h"
 #include "AABB.h"
 
+#include "Matrix.h"
+#include "DebugLog.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -45,6 +48,20 @@ namespace CibraryEngine
 		max.z = std::max(max.z, aabb.max.z);
 	}
 
+	AABB AABB::GetTransformedAABB(const Mat4& xform) const
+	{
+		AABB result = AABB(	xform.TransformVec3(min.x, min.y, min.z, 1.0f));
+		result.Expand(		xform.TransformVec3(min.x, min.y, max.z, 1.0f));
+		result.Expand(		xform.TransformVec3(min.x, max.y, min.z, 1.0f));
+		result.Expand(		xform.TransformVec3(min.x, max.y, max.z, 1.0f));
+		result.Expand(		xform.TransformVec3(max.x, min.y, min.z, 1.0f));
+		result.Expand(		xform.TransformVec3(max.x, min.y, max.z, 1.0f));
+		result.Expand(		xform.TransformVec3(max.x, max.y, min.z, 1.0f));
+		result.Expand(		xform.TransformVec3(max.x, max.y, max.z, 1.0f));
+
+		return result;
+	}
+
 	bool AABB::IntersectTest(const AABB& a, const AABB& b)
 	{
 		return	a.min.x <= b.max.x && b.min.x <= a.max.x &&
@@ -52,5 +69,22 @@ namespace CibraryEngine
 				a.min.z <= b.max.z && b.min.z <= a.max.z;
 	}
 
-	
+	bool AABB::Intersect(const AABB& a, const AABB& b, AABB& result)
+	{
+		AABB temp;
+		temp.min.x = std::max(a.min.x, b.min.x);
+		temp.min.y = std::max(a.min.y, b.min.y);
+		temp.min.z = std::max(a.min.z, b.min.z);
+		temp.max.x = std::min(a.max.x, b.max.x);
+		temp.max.y = std::min(a.max.y, b.max.y);
+		temp.max.z = std::min(a.max.z, b.max.z);
+
+		if(temp.IsDegenerate())
+			return false;
+		else
+		{
+			result = temp;
+			return true;
+		}
+	}	
 }

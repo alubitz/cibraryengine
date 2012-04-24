@@ -39,6 +39,7 @@ namespace CibraryEngine
 		void AddRigidBody(RigidBody* body);
 		bool RemoveRigidBody(RigidBody* body);
 
+		void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
 		void DoCollisionResponse(const ContactPoint& cp);
 
 		void DoFixedStep();
@@ -265,6 +266,46 @@ namespace CibraryEngine
 			return false;
 	}
 
+	// much cleaner than that quadratic formula nonsense
+	void PhysicsWorld::Imp::GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B)
+	{
+		RigidBody* ibody = cp.a.obj;
+		RigidBody* jbody = cp.b.obj;
+		RigidBody::Imp* iimp = ibody->imp;
+		RigidBody::Imp* jimp = jbody->imp;
+
+		float m1 = iimp->mass_info.mass, m2 = jimp->mass_info.mass;
+
+		A = B = 0;
+
+		if(jimp->can_move)
+		{
+			A = iimp->inv_mass + jimp->inv_mass;
+
+			Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel, com_vel = (i_lvel * m1 + j_lvel * m2) / (m1 + m2);
+			B = Vec3::Dot(i_lvel, direction) - Vec3::Dot(j_lvel, direction) - 2.0f * Vec3::Dot(com_vel, direction);
+		}
+		else
+		{
+			A = iimp->inv_mass;
+			B = Vec3::Dot(iimp->vel, direction);
+		}
+
+		if(iimp->can_rotate)
+		{
+			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(iimp->mass_info.com, 1.0f));
+			A += Vec3::Dot(iimp->inv_moi * nr1, nr1);
+			B += Vec3::Dot(iimp->rot, nr1);
+		}
+
+		if(jimp->can_rotate)
+		{
+			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jimp->mass_info.com, 1.0f));
+			A += Vec3::Dot(jimp->inv_moi * nr2, nr2);
+			B -= Vec3::Dot(jimp->rot, nr2);
+		}
+	}
+
 	void PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
 	{
 		// TODO: make it so if A and B were swapped, the outcome would be the same
@@ -295,34 +336,8 @@ namespace CibraryEngine
 
 			if(nvdot < 0.0f)
 			{
-				float A, B;				// much cleaner than that quadratic formula nonsense
-
-				if(j_can_move)
-				{
-					A = iimp->inv_mass + jimp->inv_mass;
-
-					Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel, com_vel = (i_lvel * m1 + j_lvel * m2) / (m1 + m2);
-					B = Vec3::Dot(i_lvel, normal) - Vec3::Dot(j_lvel, normal) - 2.0f * Vec3::Dot(com_vel, normal);
-				}
-				else
-				{
-					A = iimp->inv_mass;
-					B = Vec3::Dot(iimp->vel, normal);
-				}
-
-				if(iimp->can_rotate)
-				{
-					Vec3 nr1 = Vec3::Cross(normal, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(iimp->mass_info.com, 1.0f));
-					A += Vec3::Dot(iimp->inv_moi * nr1, nr1);
-					B += Vec3::Dot(iimp->rot, nr1);
-				}
-
-				if(jimp->can_rotate)
-				{
-					Vec3 nr2 = Vec3::Cross(normal, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jimp->mass_info.com, 1.0f));
-					A += Vec3::Dot(jimp->inv_moi * nr2, nr2);
-					B -= Vec3::Dot(jimp->rot, nr2);
-				}
+				float A, B;
+				GetUseMass(normal, cp, A, B);
 
 				float use_mass = 1.0f / A;
 				float bounciness = iimp->bounciness * jimp->bounciness;
@@ -343,9 +358,14 @@ namespace CibraryEngine
 				Vec3 t_dv = dv - normal * nvdot;
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
 
-				if(t_dv_magsq > 0.0f)							// object is moving; apply kinetic friction
+				if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
 				{
-					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / sqrtf(t_dv_magsq)));
+					float t_dv_mag = sqrtf(t_dv_magsq);
+
+					GetUseMass(t_dv / t_dv_mag, cp, A, B);
+					use_mass = 1.0f / A;
+
+					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / t_dv_mag));
 
 					ibody->ApplyImpulse(fric_impulse, i_poi);
 					if(j_can_move)
@@ -758,11 +778,17 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 
-						Mat4 net_xform = xform * ibody->GetInvTransform();		// TODO: check the order of this matrix multiplication
+						Mat4 net_xform = ibody->GetInvTransform() * jbody->GetTransformationMatrix();
 
 						ContactPoint p;
 						if(ishape->CollisionCheck(net_xform, jshape, p, ibody, jbody))
+						{
+							p.a.pos = p.b.pos = xform.TransformVec3(p.a.pos, 1.0f);
+							p.a.norm = xform.TransformVec3(p.a.norm, 0.0f);
+							p.b.norm = -p.a.norm;
+
 							hits.push_back(p);
+						}
 					}
 				}
 

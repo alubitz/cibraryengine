@@ -59,7 +59,8 @@ namespace Test
 
 #if 0			// sphere
 			shape = new SphereShape(0.6f);
-			mass_info = shape->ComputeMassInfo() * 50.0f;
+			mass_info = shape->ComputeMassInfo();
+			mass_info *= 50.0f / mass_info.mass;
 #else		
 			{
 				static const float b = 0.4f, r = 0.1f, s = b + r;
@@ -79,10 +80,10 @@ namespace Test
 				shape = new MultiSphereShape(spheres, 8);
 
 				// constructing MassInfo for a cube
-				mass_info.mass = 2;
+				mass_info.mass = 5;
 				mass_info.com = Vec3();
 				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
-	#elif 1		// pill
+	#elif 0		// pill
 				Sphere spheres[] = 
 				{
 					Sphere(Vec3(0, 0.5f, 0), 0.5f),
@@ -96,8 +97,11 @@ namespace Test
 				mass_info.moi[4] = 1.0f * mass_info.mass * 2;
 	#else
 				// sphere, but using multisphere shape
-				Sphere spheres[] = { Sphere(Vec3(0, 0.5f, 0), 0.5f) };
-				shape = new MultiSphereShape(spheres, 2);
+				Sphere spheres[] = { Sphere(Vec3(0, 0, 0), 0.5f) };
+				shape = new MultiSphereShape(spheres, 1);
+
+				mass_info = SphereShape(0.5f).ComputeMassInfo();
+				mass_info *= 50.0f;
 	#endif
 			}
 #endif
@@ -124,11 +128,12 @@ namespace Test
 
 	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-#if 1
+#if 0
+	#if 1
 		BillboardMaterial* trail_mat = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("shot");
-#else
+	#else
 		BillboardMaterial* trail_mat = NULL;
-#endif
+	#endif
 
 		for (int i = 0; i < 6; ++i)
 		{
@@ -139,11 +144,12 @@ namespace Test
 
 			game_state->Spawn(p);
 		}
+#endif
 
 		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
 		rigid_body->ApplyImpulse(momentum, poi - pos);
-
 		return true;
+
 	}
 
 	void Rubbish::Update(TimingInfo time) { xform = rigid_body->GetTransformationMatrix(); }

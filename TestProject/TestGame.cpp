@@ -554,7 +554,8 @@ namespace Test
 			Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
 			pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
 
-			//pos = Vec3(0, 5, 10);
+			if(i < 2)
+				pos = Vec3(i * 2, 5, 10);
 			
 			Quaternion ori = Random3D::RandomQuaternionRotation();
 
