@@ -112,10 +112,13 @@ namespace Test
 
 		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
+			if(timestep < 0.01f)			// bit of hackery here to make stuff work properly with extremely high framerates
+				timestep = 0.01f;
+
 			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
 
-			Vec3 force = (desired_vel - vel) * mass / timestep;
-			rigid_body->ApplyCentralForce(force);
+			Vec3 impulse = (desired_vel - vel) * mass;
+			rigid_body->ApplyCentralImpulse(impulse);
 		}
 	}
 
