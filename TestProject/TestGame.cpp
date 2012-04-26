@@ -548,19 +548,60 @@ namespace Test
 		hud->SetPlayer(player_pawn);
 
 #if 1
-		// spawn some rubbish
-		for(int i = 0; i < 2; ++i)
+		ModelPhysics* rubbish_phys = mphys_cache->Load("dummycube");
+		if(rubbish_phys == NULL)
 		{
-			Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
-			pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
+			static const float b = 0.4f, r = 0.1f, s = b + r;
 
-			if(i < 2)
-				pos = Vec3(i * 2, 5, 10);
+			Sphere spheres[] = 
+			{
+				Sphere(Vec3(-b,	-b,	-b	), r),
+				Sphere(Vec3(-b,	-b,	b	), r),
+				Sphere(Vec3(-b,	b,	-b	), r),
+				Sphere(Vec3(-b,	b,	b	), r),
+				Sphere(Vec3(b,	-b,	-b	), r),
+				Sphere(Vec3(b,	-b,	b	), r),
+				Sphere(Vec3(b,	b,	-b	), r),
+				Sphere(Vec3(b,	b,	b	), r)
+			};
+			CollisionShape* shape = new MultiSphereShape(spheres, 8);
+
+			MassInfo mass_info;
+			mass_info.mass = 5;
+			mass_info.com = Vec3();
+			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
+
+			rubbish_phys = new ModelPhysics();
+
+			ModelPhysics::BonePhysics bone;
+			bone.collision_shape = shape;
+			bone.mass_info = mass_info;
+
+			rubbish_phys->bones.push_back(bone);
+
+			ModelPhysicsLoader::SaveZZP(rubbish_phys, "Files/Physics/dummycube.zzp");
+
+			mphys_cache->GetMetadata(mphys_cache->GetHandle("dummycube").id).fail = false;
+		}
+
+		UberModel* rubbish_model = ubermodel_cache->Load("dummycube");
+
+		if(rubbish_phys != NULL)
+		{
+			// spawn some rubbish
+			for(int i = 0; i < 100; ++i)
+			{
+				Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
+				pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
+
+				if(i < 2)
+					pos = Vec3(i * 2, 5, 10);
 			
-			Quaternion ori = Random3D::RandomQuaternionRotation();
+				Quaternion ori = Random3D::RandomQuaternionRotation();
 
-			Rubbish* rubbish = new Rubbish(this, ubermodel_cache->Load("dummycube"), pos, ori, imp->dirt_particle);
-			Spawn(rubbish);
+				Rubbish* rubbish = new Rubbish(this, rubbish_model, rubbish_phys, pos, ori, imp->dirt_particle);
+				Spawn(rubbish);
+			}
 		}
 #endif
 

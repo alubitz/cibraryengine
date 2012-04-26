@@ -22,10 +22,12 @@ namespace Test
 
 			Sphere bs;
 
+			ModelPhysics* model_phys;
+
 			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
-			Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);
+			Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);
 
 			void Vis(SceneRenderer* renderer);
 

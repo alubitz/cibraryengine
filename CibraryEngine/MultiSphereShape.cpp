@@ -237,10 +237,18 @@ namespace CibraryEngine
 
 		AABB aabb;
 
-		Imp() : spheres(), tubes(), planes(), aabb() { }
-		Imp(Sphere* spheres, unsigned int count) { Init(spheres, count); }
+		struct GridNode		// caches what points are inside/outside of the multisphereshape
+		{
+			bool solid;
+			Vec3 normal;
+		};
+		GridNode* grid;
+		unsigned int grid_sx, grid_sy, grid_sz;
 
-		~Imp() { }
+		Imp() : spheres(), tubes(), planes(), aabb(), grid(NULL) { }
+		Imp(Sphere* spheres, unsigned int count) : grid(NULL) { Init(spheres, count); }
+
+		~Imp() { if(grid != NULL) { delete[] grid; grid = NULL; } }
 
 		void Init(Sphere* input_spheres, unsigned int count)
 		{
@@ -642,6 +650,8 @@ namespace CibraryEngine
 				delete[] planes_valid;
 
 				//OutputParts();
+
+				BuildGrid();
 			}
 			else
 				aabb = AABB();
@@ -727,7 +737,53 @@ namespace CibraryEngine
 			}
 		}
 
+		void BuildGrid()
+		{
+			// TODO: make this more dynamic
+			grid_sx = 40;
+			grid_sy = 40;
+			grid_sz = 40;
+
+			grid = new GridNode[grid_sx * grid_sy * grid_sz];
+
+			Vec3 increment = (aabb.max - aabb.min);
+			increment.x /= float(grid_sx - 1);
+			increment.y /= float(grid_sy - 1);
+			increment.z /= float(grid_sz - 1);
+
+			unsigned int x_step = grid_sy * grid_sz;
+
+			GridNode* grid_ptr = grid;
+			for(unsigned int x = 0; x < grid_sx; ++x)
+				for(unsigned int y = 0; y < grid_sy; ++y)
+					for(unsigned int z = 0; z < grid_sz; ++z)
+					{
+						Vec3 pos = Vec3(aabb.min.x + x * increment.x, aabb.min.y + y * increment.y, aabb.min.z + z * increment.z);
+						grid_ptr->solid = ContainsPointAnalytic(pos);
+
+						// TODO: compute normal vector
+
+						++grid_ptr;
+					}
+		}
+
 		bool ContainsPoint(const Vec3& point) const
+		{
+			Vec3 dim = aabb.max - aabb.min;
+			Vec3 xyz = point - aabb.min;
+
+			xyz.x *= grid_sx / dim.x;
+			xyz.y *= grid_sy / dim.y;
+			xyz.z *= grid_sz / dim.z;
+
+			int x = max(0, min(int(grid_sx) - 1, (int)floor(xyz.x)));
+			int y = max(0, min(int(grid_sy) - 1, (int)floor(xyz.y)));
+			int z = max(0, min(int(grid_sz) - 1, (int)floor(xyz.z)));
+
+			return grid[x * grid_sy * grid_sz + y * grid_sz + z].solid;
+		}
+
+		bool ContainsPointAnalytic(const Vec3& point) const
 		{
 			int count = 0;
 
@@ -855,7 +911,7 @@ namespace CibraryEngine
 			{
 				Mat4 inv_xform = Mat4::Invert(xform);
 
-				const int steps = 4;
+				const int steps = 8;
 				Vec3 increment = (overlap.max - overlap.min) / float(steps);
 				Vec3 start = overlap.min + increment * 0.5f;
 

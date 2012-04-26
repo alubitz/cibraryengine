@@ -7,13 +7,14 @@
 
 namespace Test
 {
-	Rubbish::Rubbish(GameState* gs, UberModel* model, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle) :
+	Rubbish::Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle) :
 		Entity(gs),
 		model(model),
 		materials(),
 		dirt_particle(dirt_particle),
 		xform(Mat4::FromPositionAndOrientation(pos, ori)),
 		bs(model->GetBoundingSphere()),
+		model_phys(model_phys),
 		rigid_body(NULL),
 		physics(NULL)
 	{
@@ -32,8 +33,7 @@ namespace Test
 
 		if(rigid_body != NULL)
 		{
-			//rigid_body->DisposePreservingCollisionShape();
-			rigid_body->Dispose();
+			rigid_body->DisposePreservingCollisionShape();
 			delete rigid_body;
 			rigid_body = NULL;
 		}
@@ -49,70 +49,17 @@ namespace Test
 	{
 		physics = game_state->physics_world;
 		
-		//if(model->bone_physics.size() > 0)
-		//if(false)
+		if(model_phys->bones.size() > 0)
 		{
-			//btCollisionShape* shape = model->bone_physics[0].shape;
-
-			CollisionShape* shape = NULL;
-			MassInfo mass_info;
-
-#if 0			// sphere
-			shape = new SphereShape(0.6f);
-			mass_info = shape->ComputeMassInfo();
-			mass_info *= 50.0f / mass_info.mass;
-#else		
-			{
-				static const float b = 0.4f, r = 0.1f, s = b + r;
-
-	#if 1		// box
-				Sphere spheres[] = 
-				{
-					Sphere(Vec3(-b,	-b,	-b	), r),
-					Sphere(Vec3(-b,	-b,	b	), r),
-					Sphere(Vec3(-b,	b,	-b	), r),
-					Sphere(Vec3(-b,	b,	b	), r),
-					Sphere(Vec3(b,	-b,	-b	), r),
-					Sphere(Vec3(b,	-b,	b	), r),
-					Sphere(Vec3(b,	b,	-b	), r),
-					Sphere(Vec3(b,	b,	b	), r)
-				};
-				shape = new MultiSphereShape(spheres, 8);
-
-				// constructing MassInfo for a cube
-				mass_info.mass = 5;
-				mass_info.com = Vec3();
-				mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
-	#elif 0		// pill
-				Sphere spheres[] = 
-				{
-					Sphere(Vec3(0, 0.5f, 0), 0.5f),
-					Sphere(Vec3(0, 1.5f, 0), 0.5f),
-				};
-				shape = new MultiSphereShape(spheres, 2);
-
-				mass_info.mass = 2;
-				mass_info.com = Vec3(0, 1, 0);
-				mass_info.moi[0] = mass_info.moi[8] = 1.0f * mass_info.mass * 5;
-				mass_info.moi[4] = 1.0f * mass_info.mass * 2;
-	#else
-				// sphere, but using multisphere shape
-				Sphere spheres[] = { Sphere(Vec3(0, 0, 0), 0.5f) };
-				shape = new MultiSphereShape(spheres, 1);
-
-				mass_info = SphereShape(0.5f).ComputeMassInfo();
-				mass_info *= 50.0f;
-	#endif
-			}
-#endif
-
 			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
 			Vec3 a = xform.TransformVec3(1, 0, 0, 0);
 			Vec3 b = xform.TransformVec3(0, 1, 0, 0);
 			Vec3 c = xform.TransformVec3(0, 0, 1, 0);
 			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
 
-			rigid_body = new RigidBody(shape, mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
+			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
+
+			rigid_body = new RigidBody(bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
 			rigid_body->SetUserEntity(this);
 
 			physics->AddRigidBody(rigid_body);
