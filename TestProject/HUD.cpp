@@ -304,7 +304,7 @@ namespace Test
 		glVertex2f(0, 0);
 
 		int ring_steps = 128;
-		float ring_coeff = M_PI * 2.0f / ring_steps;
+		float ring_coeff = float(M_PI) * 2.0f / ring_steps;
 		for (int i = 0; i <= ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
@@ -320,10 +320,10 @@ namespace Test
 		glVertex2f(0, 0);
 
 		int fan_steps = 32;
-		float fan_coeff = M_PI * 0.25f / fan_steps;
+		float fan_coeff = float(M_PI) * 0.25f / fan_steps;
 		for (int i = -fan_steps; i <= fan_steps; ++i)
 		{
-			float theta = i * fan_coeff + player->yaw + M_PI * 0.5f;
+			float theta = i * fan_coeff + player->yaw + float(M_PI) * 0.5f;
 			glVertex2f(cosf(theta), sinf(theta));
 		}
 
@@ -617,7 +617,7 @@ namespace Test
 
 			for (int i = 0; i < 8; ++i)
 			{
-				float theta = (i + 5) * M_PI * 2.0f / 8.0f;           // 8 is the number of steps in our "circle"
+				float theta = (i + 5) * float(M_PI) * 2.0f / 8.0f;           // 8 is the number of steps in our "circle"
 				Vec3 vec = rightward * cosf(theta) - forward * sinf(theta);
 				float dot = Vec3::Dot(vec, from_direction);
 				hud->directional_damage[i] = max(hud->directional_damage[i], dot);

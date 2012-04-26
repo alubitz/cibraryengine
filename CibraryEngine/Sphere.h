@@ -24,6 +24,9 @@ namespace CibraryEngine
 			/** Modifies the sphere so that its radius is sufficient to contain the given point, if it is not already sufficient */
 			void Expand(Vec3 b);
 
+			/** Returns whether the specified point is within the volume of this sphere (if it's exactly on the radius, it counts) */
+			bool ContainsPoint(const Vec3& point) const;
+
 			/** Returns the minimum sphere able to contain the two specified spheres */
 			static Sphere Expand(Sphere a, Sphere b);
 			/** Returns the minimum sphere able to contain both the sphere and point given */

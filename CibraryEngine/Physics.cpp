@@ -18,6 +18,8 @@
 
 #include "Util.h"
 
+#include "DebugDrawMaterial.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -592,7 +594,6 @@ namespace CibraryEngine
 
 				list<ContactPoint> hits;
 
-#if 1
 				// sphere-sphere collisions
 				for(boost::unordered_set<RigidBody*>::iterator jter = iter; jter != spheres->second.end(); ++jter)
 				{
@@ -625,7 +626,6 @@ namespace CibraryEngine
 							}
 					}
 				}
-#endif
 
 				// sphere-mesh collisions
 				if(meshes != shape_bodies.end())

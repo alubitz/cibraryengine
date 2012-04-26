@@ -155,7 +155,7 @@ namespace CibraryEngine
 							contact.pos = pos;
 
 							Vec3 from_axis = pos - (p1 + u * Vec3::Dot(pos - p1, u));
-							contact.norm = Vec3::Normalize(from_axis) * cos_theta + u * sin_theta;
+							contact.norm = Vec3::Normalize(from_axis) * sin_theta + u * cos_theta;
 
 							time = t[i];
 
@@ -739,7 +739,7 @@ namespace CibraryEngine
 
 		void BuildGrid()
 		{
-			// TODO: make this more dynamic
+			// TODO: make the way the dimensions are determined dynamic
 			grid_sx = 40;
 			grid_sy = 40;
 			grid_sz = 40;
@@ -759,15 +759,13 @@ namespace CibraryEngine
 					for(unsigned int z = 0; z < grid_sz; ++z)
 					{
 						Vec3 pos = Vec3(aabb.min.x + x * increment.x, aabb.min.y + y * increment.y, aabb.min.z + z * increment.z);
-						grid_ptr->solid = ContainsPointAnalytic(pos);
 
-						// TODO: compute normal vector
-
-						++grid_ptr;
+						GridNode node = ComputeGridNode(pos);
+						*(grid_ptr++) = node;
 					}
 		}
 
-		bool ContainsPoint(const Vec3& point) const
+		GridNode LookUpGridNode(const Vec3& point) const
 		{
 			Vec3 dim = aabb.max - aabb.min;
 			Vec3 xyz = point - aabb.min;
@@ -780,28 +778,83 @@ namespace CibraryEngine
 			int y = max(0, min(int(grid_sy) - 1, (int)floor(xyz.y)));
 			int z = max(0, min(int(grid_sz) - 1, (int)floor(xyz.z)));
 
-			return grid[x * grid_sy * grid_sz + y * grid_sz + z].solid;
+			return grid[x * grid_sy * grid_sz + y * grid_sz + z];
 		}
 
-		bool ContainsPointAnalytic(const Vec3& point) const
+		GridNode ComputeGridNode(const Vec3& point) const
 		{
-			int count = 0;
+			GridNode result;
 
-			Ray ray;
-			ray.origin = point;
-			ray.direction = Vec3(0, 10000000, 0);			// direction is arbitrary, magnitude is arbitrarily large
+			// find out if the point is inside any spheres
+			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			{
+				if(iter->IsPointRelevant(point))
+				{
+					const Sphere& sphere = iter->sphere;
 
-			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end() && count < 2; ++iter)
-				count += iter->RayTest(ray);
+					Vec3 dx = point - sphere.center;
+					float dmag_sq = dx.ComputeMagnitudeSquared();
+					if(dmag_sq <= sphere.radius * sphere.radius)
+					{
+						float dmag = sqrtf(dmag_sq);
 
-			for(vector<TubePart>::const_iterator iter = tubes.begin(); iter != tubes.end() && count < 2; ++iter)
-				count += iter->RayTest(ray);
+						result.solid = true;
+						result.normal = dx / dmag;
 
-			for(vector<PlanePart>::const_iterator iter = planes.begin(); iter != planes.end() && count < 2; ++iter)
-				count += iter->RayTest(ray);
+						return result;
+					}
+				}
+			}
 
-			return count == 1;
+			// find out if the point is inside any tubes
+			for(vector<TubePart>::const_iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			{
+				if(iter->IsPointRelevant(point))
+				{
+					const Vec3& u = iter->u;
+					const Vec3& p1 = iter->p1;
+
+					Vec3 q = point - p1;
+
+					float qu = Vec3::Dot(q, u);
+					float dr = iter->r2 - iter->r1;
+					float r = iter->r1 + qu * iter->inv_dmag * dr;
+
+					Vec3 from_axis = q - u * qu;
+
+					if(from_axis.ComputeMagnitudeSquared() <= r * r)
+					{
+						result.solid = true;
+						result.normal = Vec3::Normalize(from_axis) * iter->sin_theta + u * iter->cos_theta;
+
+						return result;
+					}
+				}
+			}
+
+			// to get the correct normal vector we want to find the plane this point is closest to
+			float best_dist;
+			result.solid = false;
+
+			for(vector<PlanePart>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
+			{
+				if(iter->IsPointRelevant(point))
+				{
+					float dist = iter->plane.PointDistance(point);
+					if(dist <= 0.0f && (!result.solid || dist > best_dist))
+					{
+						best_dist = dist;
+						result.solid = true;
+						result.normal = iter->plane.normal;
+					}
+				}
+			}
+
+			// either it's behind a plane, or it's in space... either way, the data is ready
+			return result;
 		}
+
+		bool ContainsPoint(const Vec3& point) const { return LookUpGridNode(point).solid; }
 
 		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
 		{
@@ -915,8 +968,8 @@ namespace CibraryEngine
 				Vec3 increment = (overlap.max - overlap.min) / float(steps);
 				Vec3 start = overlap.min + increment * 0.5f;
 
-				Vec3 a_accum, b_accum, c_accum;	
-				unsigned int a_weight = 0, b_weight = 0, c_weight = 0;
+				Vec3 pos_accum, normal_accum;	
+				unsigned int weight = 0;
 
 				Vec3 pos = start;
 				int x, y, z;
@@ -924,43 +977,25 @@ namespace CibraryEngine
 					for(y = 0, pos.y = start.y; y < steps; ++y, pos.y += increment.y)
 						for(z = 0, pos.z = start.z; z < steps; ++z, pos.z += increment.z)
 						{
-							unsigned char flags = 0;
-
-							if(ContainsPoint(pos))
-								flags |= 1;
-
-							Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
-							if(other->ContainsPoint(inv_xformed))
-								flags |= 2;
-
-							switch(flags)
+							GridNode a = LookUpGridNode(pos);
+							if(a.solid)
 							{
-								case 1:
+								Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
 
-									++a_weight;
-									a_accum += pos;
-									break;
-
-								case 2:
-
-									++b_weight;
-									b_accum += pos;
-									break;
-
-								case 3:
-
-									++c_weight;
-									c_accum += pos;
-									break;
-							}		
+								GridNode b = other->imp->LookUpGridNode(inv_xformed);
+								if(b.solid)
+								{
+									pos_accum += pos;
+									normal_accum += Vec3::Normalize(a.normal - xform.TransformVec3(b.normal, 0.0f));
+									++weight;
+								}
+							}
 						}
 
-				if(c_weight)
+				if(weight)
 				{
-					pos = c_accum / float(c_weight);
-					Vec3 a_norm = Vec3::Normalize(pos - (a_weight ? a_accum / float(a_weight) : aabb.GetCenterPoint()));
-					Vec3 b_norm = Vec3::Normalize(pos - (b_weight ? b_accum / float(b_weight) : xform.TransformVec3(other->imp->aabb.GetCenterPoint(), 1)));
-					Vec3 normal = Vec3::Normalize(a_norm - b_norm);
+					pos = pos_accum / float(weight);
+					Vec3 normal = Vec3::Normalize(normal_accum);
 
 					result = ContactPoint();
 					result.a.obj = ibody;

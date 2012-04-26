@@ -39,6 +39,8 @@ namespace CibraryEngine
 		return Sphere(center, radius);
 	}
 
+	bool Sphere::ContainsPoint(const Vec3& point) const { return (point - center).ComputeMagnitudeSquared() <= radius * radius; }
+
 	Sphere Sphere::Expand(Sphere a, Vec3 b)
 	{
 		Vec3 dif = b - a.center;
