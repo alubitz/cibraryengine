@@ -8,6 +8,8 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
+#include "CollisionGraph.h"
+
 #include "Matrix.h"
 
 #include "DebugLog.h"
@@ -25,7 +27,7 @@ namespace CibraryEngine
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
-	struct PhysicsWorld::Imp
+	struct PhysicsWorld::Imp : public CollisionGraphSolver
 	{
 		boost::unordered_set<RigidBody*> rigid_bodies;											// List of all of the rigid bodies in the physical simulation
 
@@ -43,6 +45,8 @@ namespace CibraryEngine
 
 		void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
 		void DoCollisionResponse(const ContactPoint& cp);
+
+		void Solve(const ContactPoint& cp) { DoCollisionResponse(cp); }
 
 		void DoFixedStep();
 
@@ -580,6 +584,8 @@ namespace CibraryEngine
 		}
 
 
+		CollisionGraph collision_graph;
+
 
 		// handle all the collisions involving spheres
 		if(spheres != shape_bodies.end())
@@ -724,7 +730,7 @@ namespace CibraryEngine
 						if(callback)
 							callback->OnCollision(*jter);
 
-						DoCollisionResponse(*jter);
+						collision_graph.AddContactPoint(*jter);
 					}
 				}
 			}
@@ -803,11 +809,13 @@ namespace CibraryEngine
 						if(callback)
 							callback->OnCollision(*jter);
 
-						DoCollisionResponse(*jter);
+						collision_graph.AddContactPoint(*jter);
 					}
 				}
 			}
 		}
+
+		collision_graph.Solve(this);
 
 
 
@@ -892,6 +900,8 @@ namespace CibraryEngine
 	void RigidBody::SetFriction(float friction) { imp->friction = friction; }
 	float RigidBody::GetBounciness() { return imp->bounciness; }
 	float RigidBody::GetFriction() { return imp->friction; }
+
+	bool RigidBody::MergesSubgraphs() { return imp->shape->CanMove() && imp->shape->GetShapeType() != ST_Ray; }
 
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
