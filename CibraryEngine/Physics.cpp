@@ -22,12 +22,14 @@
 
 #include "DebugDrawMaterial.h"
 
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 50
+
 namespace CibraryEngine
 {
 	/*
 	 * PhysicsWorld private implementation struct
 	 */
-	struct PhysicsWorld::Imp : public CollisionGraphSolver
+	struct PhysicsWorld::Imp
 	{
 		boost::unordered_set<RigidBody*> rigid_bodies;											// List of all of the rigid bodies in the physical simulation
 
@@ -44,9 +46,9 @@ namespace CibraryEngine
 		bool RemoveRigidBody(RigidBody* body);
 
 		void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
-		void DoCollisionResponse(const ContactPoint& cp);
 
-		void Solve(const ContactPoint& cp) { DoCollisionResponse(cp); }
+		// returns whether or not a collision response was actually needed (i.e. whether an impulse was applied to prevent interpenetration)
+		bool DoCollisionResponse(const ContactPoint& cp);
 
 		void DoFixedStep();
 
@@ -312,7 +314,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
+	bool PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
 	{
 		// TODO: make it so if A and B were swapped, the outcome would be the same
 
@@ -396,9 +398,13 @@ namespace CibraryEngine
 								jbody->ApplyImpulse(-fric_impulse, j_poi);
 						}
 					}
+
+					return true;
 				}
 			}
 		}
+
+		return false;
 	}
 
 	void PhysicsWorld::Imp::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time, RigidBody* ibody)
@@ -815,9 +821,17 @@ namespace CibraryEngine
 			}
 		}
 
-		collision_graph.Solve(this);
+		// solve collision graph
+		for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+		{
+			bool any = false;
+			for(vector<ContactPoint*>::iterator iter = collision_graph.contact_points.begin(); iter != collision_graph.contact_points.end(); ++iter)
+				if(DoCollisionResponse(**iter))
+					any = true;
 
-
+			if(!any)
+				break;
+		}
 
 		// update positions
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)

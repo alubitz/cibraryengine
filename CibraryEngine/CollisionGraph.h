@@ -7,12 +7,6 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class CollisionGraphSolver
-	{
-		public:
-			virtual void Solve(const ContactPoint& cp) = 0;
-	};
-
 	struct CollisionGraph
 	{
 		struct Node;
@@ -48,9 +42,6 @@ namespace CibraryEngine
 		 * The first object has to be something that merges subgraphs
 		 */
 		void AddContactPoint(const ContactPoint& cp);
-
-		/** Call this after all collisions have been found and added */
-		void Solve(CollisionGraphSolver* solver);
 	};
 
 }

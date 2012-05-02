@@ -567,7 +567,7 @@ namespace Test
 			CollisionShape* shape = new MultiSphereShape(spheres, 8);
 
 			MassInfo mass_info;
-			mass_info.mass = 5;
+			mass_info.mass = 25;
 			mass_info.com = Vec3();
 			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
 
@@ -592,7 +592,7 @@ namespace Test
 			for(int i = 0; i < 100; ++i)
 			{
 				Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
-				pos.y = GetTerrainHeight(pos.x, pos.z) + 10;
+				pos.y = GetTerrainHeight(pos.x, pos.z) + 10 + Random3D::Rand(10);
 
 				if(i < 2)
 					pos = Vec3(i * 2, 5, 10);

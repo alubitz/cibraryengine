@@ -60,12 +60,4 @@ namespace CibraryEngine
 			// TODO: output to the effect of "excuse me wtf r u doin"
 		}
 	}
-
-	void CollisionGraph::Solve(CollisionGraphSolver* solver)
-	{
-		// TODO: implement this for real (might need some additional parameters)
-
-		for(vector<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
-			solver->Solve(**iter);
-	}
 }
