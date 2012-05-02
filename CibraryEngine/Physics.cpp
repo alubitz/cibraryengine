@@ -87,6 +87,7 @@ namespace CibraryEngine
 
 		float bounciness;
 		float friction;
+		float linear_damp, angular_damp;
 
 		bool can_move, can_rotate;
 		bool active;								// TODO: support deactivation and related stuffs
@@ -112,6 +113,8 @@ namespace CibraryEngine
 			xform_valid(false),
 			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
 			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
+			linear_damp(0.2f),
+			angular_damp(0.6f),
 			can_move(shape->CanMove() && mass_info.mass > 0),
 			can_rotate(false),
 			active(can_move),
@@ -145,11 +148,14 @@ namespace CibraryEngine
 			if(active)
 			{
 				vel += (force * timestep) / mass_info.mass;
+				vel *= exp(-linear_damp * timestep);
 
 				if(can_rotate)
 				{
 					inv_moi = ComputeInvMoi();
 					rot += inv_moi * (torque * timestep);
+
+					rot *= exp(-angular_damp * timestep);
 				}
 			}
 
@@ -359,6 +365,10 @@ namespace CibraryEngine
 						ibody->ApplyImpulse(impulse, i_poi);
 						if(j_can_move)
 							jbody->ApplyImpulse(-impulse, j_poi);
+
+						// applying this impulse means we need to recompute dv and nvdot!
+						dv = jimp->GetLocalVelocity(cp.b.pos) - iimp->GetLocalVelocity(cp.a.pos);
+						nvdot = Vec3::Dot(normal, dv);
 					}
 
 					float sfric_coeff = iimp->friction * jimp->friction;
@@ -369,12 +379,13 @@ namespace CibraryEngine
 
 					if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
 					{
-						float t_dv_mag = sqrtf(t_dv_magsq);
+						float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
+						Vec3 u_tdv = t_dv * inv_tdmag;
 
-						GetUseMass(t_dv / t_dv_mag, cp, A, B);
+						GetUseMass(u_tdv, cp, A, B);
 						use_mass = 1.0f / A;
 
-						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff / t_dv_mag));
+						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
 
 						ibody->ApplyImpulse(fric_impulse, i_poi);
 						if(j_can_move)
