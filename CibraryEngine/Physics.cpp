@@ -732,12 +732,7 @@ namespace CibraryEngine
 					CollisionCallback* callback = ibody->GetCollisionCallback();
 
 					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-					{
-						if(callback)
-							callback->OnCollision(*jter);
-
 						collision_graph.AddContactPoint(*jter);
-					}
 				}
 			}
 		}
@@ -812,9 +807,7 @@ namespace CibraryEngine
 
 					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
 					{
-						if(callback)
-							callback->OnCollision(*jter);
-
+						
 						collision_graph.AddContactPoint(*jter);
 					}
 				}
@@ -827,7 +820,15 @@ namespace CibraryEngine
 			bool any = false;
 			for(vector<ContactPoint*>::iterator iter = collision_graph.contact_points.begin(); iter != collision_graph.contact_points.end(); ++iter)
 				if(DoCollisionResponse(**iter))
+				{
 					any = true;
+
+					if((*iter)->a.obj->imp->collision_callback)
+						(*iter)->a.obj->imp->collision_callback->OnCollision(**iter);
+
+					if((*iter)->b.obj->imp->collision_callback)
+						(*iter)->b.obj->imp->collision_callback->OnCollision(**iter);
+				}
 
 			if(!any)
 				break;

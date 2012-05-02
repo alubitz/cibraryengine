@@ -155,8 +155,6 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		// figure out if you're standing on the ground or not
-
 		pos = GetPosition();
 
 		float timestep = time.elapsed;
@@ -172,7 +170,7 @@ namespace Test
 		if (falling_damage_base > 0)
 			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
-		/*
+#if 0
 		TestGame* test_game = (TestGame*)game_state;
 		if(this == test_game->player_pawn)
 		{
@@ -184,7 +182,7 @@ namespace Test
 			ss << "Speed = " << i << "." << j << " m/s";
 			test_game->debug_text = ss.str();
 		}
-		*/
+#endif
 
 		this->vel = vel;
 
@@ -453,7 +451,6 @@ namespace Test
 	/*
 	 * Dood::ContactCallback methods
 	 */
-	
 	Dood::ContactCallback::ContactCallback(Dood* dood) : dood(dood) { }
 	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
 	{
@@ -462,12 +459,7 @@ namespace Test
 
 		Vec3 normal = other.norm;
 		if(normal.y > 0.1)
-		{
-			// player only counts as standing when they aren't moving away from the surface		
-			float dot = Vec3::Dot(dood->rigid_body->GetLinearVelocity() - other.obj->GetLinearVelocity(), normal);
-			if(dot <= 0.1)
-				dood->standing = 1;
-		}
+			dood->standing = 1;
 
 		return true;
 	}
