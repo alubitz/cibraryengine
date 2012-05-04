@@ -1015,23 +1015,87 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollisionCheck(const Mat4& inv_xform, TriangleMeshShape* mesh, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			AABB xformed_aabb = aabb.GetTransformedAABB(inv_xform);		// the AABB of the multisphere in the coordinate system of the mesh
-			
-			vector<unsigned int> relevant_triangles = mesh->GetRelevantTriangles(xformed_aabb);
-			if(relevant_triangles.empty())
-				return false;
-
-			Mat4 xform = Mat4::Invert(inv_xform);
-			for(vector<unsigned int>::iterator iter = relevant_triangles.begin(); iter != relevant_triangles.end(); ++iter)
+			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(my_xform), but it may be slower
+			AABB xformed_aabb;
+			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				TriangleMeshShape::TriCache tri_data = mesh->GetTriangleData(*iter);
+				const Sphere& sphere = iter->sphere;
+				Vec3 pos = my_xform.TransformVec3(sphere.center, 1.0f);
 
-				// TODO: intersect triangle with parts
+				if(iter == spheres.begin())
+					xformed_aabb = AABB(pos, sphere.radius);
+				else
+					xformed_aabb.Expand(AABB(pos, sphere.radius));
+			}
+			Vec3 dim = xformed_aabb.max - xformed_aabb.min;
+
+			int steps = 5;
+			float coeff = 1.0f / float(steps - 1);
+			Vec3 increment = dim * coeff;
+
+			unsigned int weight = 0;
+			Vec3 center;
+			Mat4 inv_xform = Mat4::Invert(my_xform);
+
+			// figure out which of the cardinal axes the normal vector most closely matches (x = 0, y = 1, z = 2)
+			int n_axis = fabs(tri.plane.normal.x) > fabs(tri.plane.normal.y) ? fabs(tri.plane.normal.x) > fabs(tri.plane.normal.z) ? 0 : 2 : fabs(tri.plane.normal.y) > fabs(tri.plane.normal.z) ? 1 : 2;
+			
+			Ray ray;
+			ray.direction = n_axis == 0 ? Vec3(dim.x, 0, 0) : n_axis == 1 ? Vec3(0, dim.y, 0) : Vec3(0, 0, dim.z);
+
+			// iterate on the other two cardinal axes, and find the appropriate height on the normal-ish axis
+			for(int i = 0; i < steps; ++i)
+			{
+				for(int j = 0; j < steps; ++j)
+				{
+					ray.origin = xformed_aabb.min;
+
+					switch(n_axis)
+					{
+						case 0:
+							ray.origin.y += increment.y * i;
+							ray.origin.z += increment.z * j;
+							break;
+						case 1:
+							ray.origin.x += increment.x * i;
+							ray.origin.z += increment.z * j;
+							break;
+						case 2:
+							ray.origin.x += increment.x * i;
+							ray.origin.y += increment.y * j;
+							break;
+					}
+					
+					Vec3 pos = ray.origin + ray.direction * Util::RayPlaneIntersect(ray, tri.plane);
+
+					float u = Vec3::Dot(tri.p, pos) - tri.u_offset;
+					float v = Vec3::Dot(tri.q, pos) - tri.v_offset;
+					if(u >= 0 && v >= 0 && u + v <= 1)
+					{
+						Vec3 my_pos = inv_xform.TransformVec3(pos, 1.0f);
+						if(aabb.ContainsPoint(my_pos) && LookUpGridNode(my_pos).solid)
+						{
+							++weight;
+							center += pos;
+						}
+					}
+				}
 			}
 
-			// TODO: if any parts and triangles collided, fill in data for the ContactPoint
+			if(weight)
+			{
+				center /= float(weight);
+
+				result.a.obj = ibody;
+				result.b.obj = jbody;
+				result.a.pos = result.b.pos = center;
+				result.b.norm = tri.plane.normal;
+				result.a.norm = -result.b.norm;
+
+				return true;
+			}
 
 			return false;
 		}
@@ -1092,7 +1156,9 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, other, result, ibody, jbody); }
-	bool MultiSphereShape::CollisionCheck(const Mat4& inv_xform, TriangleMeshShape* mesh, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(inv_xform, mesh, result, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, tri, result, ibody, jbody); }
+
+	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 
 	void MultiSphereShape::Write(ostream& stream) { imp->Write(stream); }
 	unsigned int MultiSphereShape::Read(istream& stream) { return imp->Read(stream); }

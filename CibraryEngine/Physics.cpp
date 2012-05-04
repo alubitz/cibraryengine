@@ -662,7 +662,7 @@ namespace CibraryEngine
 						ray.origin = pos;
 						ray.direction = vel;
 
-						vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(Vec3(pos.x - radius, pos.y - radius, pos.z - radius), Vec3(pos.x + radius, pos.y + radius, pos.z + radius)));
+						vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(pos, radius));
 						for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
 						{
 							TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
@@ -748,8 +748,6 @@ namespace CibraryEngine
 			}
 		}
 
-
-
 		// handle all the collisions involving multispheres
 		if(multispheres != shape_bodies.end())
 		{
@@ -767,19 +765,36 @@ namespace CibraryEngine
 				// multisphere-mesh collisions
 				if(meshes != shape_bodies.end())
 				{
+					AABB i_aabb = ishape->GetAABB();
+
 					for(boost::unordered_set<RigidBody*>::iterator jter = meshes->second.begin(); jter != meshes->second.end(); ++jter)
 					{
 						RigidBody* jbody = *jter;
 						TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
 						Mat4 inv_net_xform = jbody->GetInvTransform() * ibody->GetTransformationMatrix();
+						AABB xformed_aabb = i_aabb.GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
+
+						vector<unsigned int> relevant_triangles = jshape->GetRelevantTriangles(xformed_aabb);
+						if(relevant_triangles.empty())
+							continue;
 
 						ContactPoint p;
-						if(ishape->CollisionCheck(inv_net_xform, jshape, p, ibody, jbody))
+						for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
 						{
-							// TODO: modify contact point's position / normal vector as needed
+							TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
 
-							hits.push_back(p);
+							ContactPoint p;
+							if(ishape->CollisionCheck(inv_net_xform, tri, p, ibody, jbody))
+							{
+								Mat4 j_xform = jbody->GetTransformationMatrix();
+
+								p.a.pos = p.b.pos = j_xform.TransformVec3(p.a.pos, 1.0f);
+								p.a.norm = j_xform.TransformVec3(p.a.norm, 0.0f);
+								p.b.norm = -p.a.norm;
+
+								hits.push_back(p);
+							}
 						}
 					}
 				}

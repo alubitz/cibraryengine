@@ -7,8 +7,8 @@ function player_death(dood)
 end
 
 -- figure out which dood is the player, and remember that
-player = gs.spawnPlayer(ba.createVector(0, 1, 0))
---player = gs.spawnPlayer(ba.createVector(8.3, 149.2 + 1, 69.5))
+--player = gs.spawnPlayer(ba.createVector(0, 1, 0))
+player = gs.spawnPlayer(ba.createVector(8.3, 149.2 + 1, 69.5))
 player.death_callback = player_death
 
 dood_properties = {}
@@ -27,6 +27,8 @@ disable_enemies = true
 disable_waves = false
 disable_ai = false
 
+num_boxes = 100
+
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false
 nav_edit_toggle = false
@@ -38,7 +40,7 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
-for i = 0, 100 do
+for i = 0, num_boxes do
 	local x = math.random() * 160.0 - 80.0
 	local z = math.random() * 160.0 - 80.0
 	local y = gs.getTerrainHeight(x, z) + 10.0

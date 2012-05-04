@@ -1,8 +1,8 @@
 ~ creating the terrain
 
-~: static_geometry "nbridge"
+: static_geometry "nbridge"
 
-: static_geometry "ground_plane"
+~: static_geometry "ground_plane"
 :: pos
 ::: x 0
 ::: y 0
