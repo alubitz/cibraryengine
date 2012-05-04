@@ -38,6 +38,14 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
+for i = 0, 100 do
+	local x = math.random() * 160.0 - 80.0
+	local z = math.random() * 160.0 - 80.0
+	local y = gs.getTerrainHeight(x, z) + 10.0
+
+	gs.spawnRubbish(ba.createVector(x, y, z))
+end
+
 -- function called every time a bug dies
 function crab_bug_death(dood)
 	if not game_over then

@@ -297,6 +297,7 @@ namespace Test
 		vtn_cache(screen->window->content->GetCache<VertexBuffer>()),
 		ubermodel_cache(screen->window->content->GetCache<UberModel>()),
 		mat_cache(NULL),
+		mphys_cache(screen->window->content->GetCache<ModelPhysics>()),
 		load_status(this)
 	{
 		imp->bot_death_handler.game = this;
@@ -362,7 +363,6 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("nbridge").id).fail = false;
 		}
 
-		Cache<ModelPhysics>* mphys_cache = content->GetCache<ModelPhysics>();
 		if(mphys_cache->Load("nbridge") == NULL)
 		{
 			load_status.task = "terrain mesh";
@@ -583,26 +583,6 @@ namespace Test
 
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("dummycube").id).fail = false;
 		}
-
-		UberModel* rubbish_model = ubermodel_cache->Load("dummycube");
-
-		if(rubbish_phys != NULL)
-		{
-			// spawn some rubbish
-			for(int i = 0; i < 100; ++i)
-			{
-				Vec3 pos = Vec3(Random3D::Rand(-80, 80), 0, Random3D::Rand(-80, 80));
-				pos.y = GetTerrainHeight(pos.x, pos.z) + 10 + Random3D::Rand(10);
-
-				if(i < 2)
-					pos = Vec3(i * 2, 5, 10);
-			
-				Quaternion ori = Random3D::RandomQuaternionRotation();
-
-				Rubbish* rubbish = new Rubbish(this, rubbish_model, rubbish_phys, pos, ori, imp->dirt_particle);
-				Spawn(rubbish);
-			}
-		}
 #endif
 
 		thread_script.Dispose();
@@ -680,6 +660,24 @@ namespace Test
 		EntityList bugs = GetQualifyingEntities(getter);
 
 		return bugs.Count();
+	}
+
+	Rubbish* TestGame::SpawnRubbish(Vec3 pos)
+	{
+		UberModel* rubbish_model = ubermodel_cache->Load("dummycube");
+		ModelPhysics* rubbish_phys = mphys_cache->Load("dummycube");
+
+		if(rubbish_model && rubbish_phys)
+		{
+			Quaternion ori = Random3D::RandomQuaternionRotation();
+
+			Rubbish* rubbish = new Rubbish(this, rubbish_model, rubbish_phys, pos, ori, imp->dirt_particle);
+			Spawn(rubbish);
+
+			return rubbish;
+		}
+
+		return NULL;
 	}
 
 	TestGame::~TestGame() { Dispose(); ScriptSystem::SetGS(NULL); }
@@ -1101,6 +1099,7 @@ namespace Test
 	int gs_spawnBot(lua_State* L);
 	int gs_spawnArtilleryBug(lua_State* L);
 	int gs_spawnPlayer(lua_State* L);
+	int gs_spawnRubbish(lua_State* L);
 	int gs_getTerrainHeight(lua_State* L);
 	int gs_getNumberOfBugs(lua_State* L);
 	int gs_getDoodsList(lua_State* L);
@@ -1129,6 +1128,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_spawnPlayer, 1);
 		lua_setfield(L, 1, "spawnPlayer");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_spawnRubbish, 1);
+		lua_setfield(L, 1, "spawnRubbish");
 
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_getTerrainHeight, 1);
@@ -1254,6 +1257,32 @@ namespace Test
 		}
 
 		Debug("gs.spawnPlayer takes exactly 1 argument, a position vector; returning nil\n");
+		return 0;
+	}
+
+	int gs_spawnRubbish(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isuserdata(L, 1))
+		{
+			void* ptr = lua_touserdata(L, 1);
+			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+			lua_settop(L, 0);
+
+			if(vec != NULL)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				TestGame* gs = (TestGame*)lua_touserdata(L, 1);
+				lua_pop(L, 1);
+
+				gs->SpawnRubbish(*vec);
+
+				return 0;
+			}
+		}
+
+		Debug("gs.spawnRubbish takes exactly 1 argument, a position vector; returning nil\n");
 		return 0;
 	}
 

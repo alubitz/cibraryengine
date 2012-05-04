@@ -15,6 +15,7 @@ namespace Test
 	class DSNMaterial;
 	class GlowyModelMaterial;
 	class Sun;
+	class Rubbish;
 
 	class TestGame : public GameState
 	{
@@ -58,6 +59,7 @@ namespace Test
 			Cache<VertexBuffer>* vtn_cache;
 			Cache<UberModel>* ubermodel_cache;
 			Cache<Material>* mat_cache;
+			Cache<ModelPhysics>* mphys_cache;
 
 			struct Loader : public Disposable
 			{
@@ -95,6 +97,8 @@ namespace Test
 			Dood* SpawnBot(Vec3 pos);
 			Dood* SpawnArtilleryBug(Vec3 pos);
 			unsigned int GetNumberOfBugs();
+
+			Rubbish* SpawnRubbish(Vec3 pos);
 
 			void Update(TimingInfo time);
 
