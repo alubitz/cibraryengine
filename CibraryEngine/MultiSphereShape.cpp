@@ -6,6 +6,8 @@
 #include "Matrix.h"
 #include "Quaternion.h"
 
+#include "TriangleMeshShape.h"
+
 #include "SceneRenderer.h"
 #include "RenderNode.h"
 #include "DebugDrawMaterial.h"
@@ -1013,6 +1015,27 @@ namespace CibraryEngine
 			return false;
 		}
 
+		bool CollisionCheck(const Mat4& inv_xform, TriangleMeshShape* mesh, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		{
+			AABB xformed_aabb = aabb.GetTransformedAABB(inv_xform);		// the AABB of the multisphere in the coordinate system of the mesh
+			
+			vector<unsigned int> relevant_triangles = mesh->GetRelevantTriangles(xformed_aabb);
+			if(relevant_triangles.empty())
+				return false;
+
+			Mat4 xform = Mat4::Invert(inv_xform);
+			for(vector<unsigned int>::iterator iter = relevant_triangles.begin(); iter != relevant_triangles.end(); ++iter)
+			{
+				TriangleMeshShape::TriCache tri_data = mesh->GetTriangleData(*iter);
+
+				// TODO: intersect triangle with parts
+			}
+
+			// TODO: if any parts and triangles collided, fill in data for the ContactPoint
+
+			return false;
+		}
+
 		void Write(ostream& stream)
 		{
 			WriteUInt32(spheres.size(), stream);
@@ -1069,6 +1092,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, other, result, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& inv_xform, TriangleMeshShape* mesh, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(inv_xform, mesh, result, ibody, jbody); }
 
 	void MultiSphereShape::Write(ostream& stream) { imp->Write(stream); }
 	unsigned int MultiSphereShape::Read(istream& stream) { return imp->Read(stream); }

@@ -772,7 +772,15 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
-						// TODO: implement this
+						Mat4 inv_net_xform = jbody->GetInvTransform() * ibody->GetTransformationMatrix();
+
+						ContactPoint p;
+						if(ishape->CollisionCheck(inv_net_xform, jshape, p, ibody, jbody))
+						{
+							// TODO: modify contact point's position / normal vector as needed
+
+							hits.push_back(p);
+						}
 					}
 				}
 
