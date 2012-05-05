@@ -50,6 +50,9 @@ namespace CibraryEngine
 		// returns whether or not a collision response was actually needed (i.e. whether an impulse was applied to prevent interpenetration)
 		bool DoCollisionResponse(const ContactPoint& cp);
 
+		// do collision responses to make stuff work
+		void SolveCollisionGraph(CollisionGraph& graph);
+
 		void DoFixedStep();
 
 		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
@@ -322,8 +325,6 @@ namespace CibraryEngine
 
 	bool PhysicsWorld::Imp::DoCollisionResponse(const ContactPoint& cp)
 	{
-		// TODO: make it so if A and B were swapped, the outcome would be the same
-
 		RigidBody* ibody = cp.a.obj;
 		RigidBody* jbody = cp.b.obj;
 
@@ -416,6 +417,87 @@ namespace CibraryEngine
 		}
 
 		return false;
+	}
+
+	void PhysicsWorld::Imp::SolveCollisionGraph(CollisionGraph& graph)
+	{
+		// break the graph into separate subgraphs
+		struct Subgraph
+		{
+			boost::unordered_set<CollisionGraph::Node*> nodes;
+			vector<ContactPoint*> contact_points;
+
+			Subgraph() : contact_points() { }
+
+			bool ContainsNode(CollisionGraph::Node* node) { return nodes.find(node) != nodes.end(); }
+		};
+		
+		boost::unordered_set<Subgraph*> subgraphs;
+		boost::unordered_map<RigidBody*, Subgraph*> body_subgraphs;
+		
+		for(map<RigidBody*, CollisionGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
+		{
+			boost::unordered_map<RigidBody*, Subgraph*>::iterator found = body_subgraphs.find(iter->first);
+			
+			if(found == body_subgraphs.end())
+			{
+				Subgraph* subgraph = new Subgraph();
+				subgraphs.insert(subgraph);
+
+				vector<CollisionGraph::Node*> fringe;
+				fringe.push_back(iter->second);
+
+				while(!fringe.empty())
+				{
+					CollisionGraph::Node* node = *fringe.rbegin();
+					subgraph->nodes.insert(node);
+
+					body_subgraphs[node->body] = subgraph;
+
+					fringe.pop_back();
+
+					for(vector<CollisionGraph::Edge>::iterator jter = node->edges.begin(); jter != node->edges.end(); ++jter)
+					{
+						subgraph->contact_points.push_back(jter->cp);
+
+						if(CollisionGraph::Node* other = jter->other_node)
+							if(!subgraph->ContainsNode(other))
+								fringe.push_back(other);
+					}
+				}
+			}
+		}
+
+		// now go through each subgraph and do as many iterations as are necessary
+		for(boost::unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
+		{
+			Subgraph& subgraph = **iter;
+
+			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+			{
+				bool any = false;
+				for(vector<ContactPoint*>::iterator jter = subgraph.contact_points.begin(); jter != subgraph.contact_points.end(); ++jter)
+				{
+					if(DoCollisionResponse(**jter))
+					{
+						any = true;
+
+						if((*jter)->a.obj->imp->collision_callback)
+							(*jter)->a.obj->imp->collision_callback->OnCollision(**jter);
+
+						if((*jter)->b.obj->imp->collision_callback)
+							(*jter)->b.obj->imp->collision_callback->OnCollision(**jter);
+					}
+				}
+
+				if(!any)
+					break;
+			}
+		}
+
+		// clean up subgraphs
+		for(boost::unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
+			delete *iter;
 	}
 
 	void PhysicsWorld::Imp::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time, RigidBody* ibody)
@@ -603,7 +685,6 @@ namespace CibraryEngine
 
 		CollisionGraph collision_graph;
 
-
 		// handle all the collisions involving spheres
 		if(spheres != shape_bodies.end())
 		{
@@ -739,12 +820,8 @@ namespace CibraryEngine
 				}
 
 				if(!hits.empty())
-				{
-					CollisionCallback* callback = ibody->GetCollisionCallback();
-
 					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
 						collision_graph.AddContactPoint(*jter);
-				}
 			}
 		}
 
@@ -836,37 +913,12 @@ namespace CibraryEngine
 				}
 
 				if(!hits.empty())
-				{
-					CollisionCallback* callback = ibody->GetCollisionCallback();
-
 					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
-					{
-						
 						collision_graph.AddContactPoint(*jter);
-					}
-				}
 			}
 		}
 
-		// solve collision graph
-		for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
-		{
-			bool any = false;
-			for(vector<ContactPoint*>::iterator iter = collision_graph.contact_points.begin(); iter != collision_graph.contact_points.end(); ++iter)
-				if(DoCollisionResponse(**iter))
-				{
-					any = true;
-
-					if((*iter)->a.obj->imp->collision_callback)
-						(*iter)->a.obj->imp->collision_callback->OnCollision(**iter);
-
-					if((*iter)->b.obj->imp->collision_callback)
-						(*iter)->b.obj->imp->collision_callback->OnCollision(**iter);
-				}
-
-			if(!any)
-				break;
-		}
+		SolveCollisionGraph(collision_graph);
 
 		// update positions
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
