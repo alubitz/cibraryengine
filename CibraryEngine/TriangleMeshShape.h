@@ -85,6 +85,8 @@ namespace CibraryEngine
 
 			TriCache GetTriangleData(unsigned int index) { return cache[index]; }
 
+			AABB GetAABB();
+
 
 
 			void Write(ostream& stream);

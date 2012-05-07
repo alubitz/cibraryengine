@@ -75,7 +75,7 @@ namespace Test
 
 	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-#if 0
+#if 1
 	#if 1
 		BillboardMaterial* trail_mat = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("shot");
 	#else

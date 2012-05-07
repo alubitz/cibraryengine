@@ -508,6 +508,17 @@ namespace CibraryEngine
 
 
 
+
+	AABB TriangleMeshShape::GetAABB()
+	{
+		if(octree == NULL)
+			BuildOctree();
+
+		return octree->bounds;
+	}
+
+
+
 	unsigned int TriangleMeshShape::Read(istream& stream)
 	{
 		unsigned int num_vertices = ReadUInt32(stream);
