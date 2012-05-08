@@ -18,8 +18,7 @@ namespace DestructibleTerrain
 
 		struct CacheData
 		{
-			/** Up to 12 vertices */
-			TerrainVertex verts[12];
+			TerrainVertex verts[3];
 			
 			/** Indices into the vertex array; triples are used to make triangles. */
 			char indices[16];

@@ -10,6 +10,10 @@ namespace DestructibleTerrain
 	struct TerrainVertex
 	{
 		Vec3 pos;
+
+		Vec3 normal;
+		bool normal_valid;
+		
 		MultiMaterial material;
 
 		TerrainVertex();

@@ -8,15 +8,16 @@
 namespace DestructibleTerrain
 {
 	/*
-	 * Struct used for input to MarchingCubes::Polygonize in CubeTriangles::AppendVertexData
+	 * Struct used for input to MarchingCubes::Polygonize
 	 */
 	struct GridStruct
 	{
 		float value;
 		Vec3 position;
 		MultiMaterial material;
+		TerrainChunk* owner;
 
-		GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)) 
+		GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)), owner(t) 
 		{
 			TerrainNode* node_ptr = t->GetNodeRelative(x, y, z);
 			assert(node_ptr != NULL);
@@ -29,7 +30,7 @@ namespace DestructibleTerrain
 		}
 
 		static TerrainVertex Convert(GridStruct& a) { return TerrainVertex(a.position, a.material); }
-		static TerrainVertex Lerp(GridStruct& a, GridStruct& b, float mu) {  return TerrainVertex(a.position * (1.0f - mu) + b.position * mu, MultiMaterial::Lerp(a.material, b.material, mu)); }
+		static TerrainVertex Lerp(GridStruct& a, GridStruct& b, float mu) { return TerrainVertex(a.position * (1.0f - mu) + b.position * mu, MultiMaterial::Lerp(a.material, b.material, mu)); }
 	};
 
 
@@ -57,14 +58,14 @@ namespace DestructibleTerrain
 		{
 			GridStruct grid[] =
 			{
-				GridStruct(chunk, x, y, z),	
-				GridStruct(chunk, x, y, z + 1),
-				GridStruct(chunk, x, y + 1, z + 1),
-				GridStruct(chunk, x, y + 1, z),			
-				GridStruct(chunk, x + 1, y, z),	
-				GridStruct(chunk, x + 1, y, z + 1),
-				GridStruct(chunk, x + 1, y + 1, z + 1),
-				GridStruct(chunk, x + 1, y + 1, z)
+				GridStruct(chunk, x,		y,		z		),	
+				GridStruct(chunk, x,		y,		z + 1	),
+				GridStruct(chunk, x,		y + 1,	z + 1	),
+				GridStruct(chunk, x,		y + 1,	z		),			
+				GridStruct(chunk, x + 1,	y,		z		),	
+				GridStruct(chunk, x + 1,	y,		z + 1	),
+				GridStruct(chunk, x + 1,	y + 1,	z + 1	),
+				GridStruct(chunk, x + 1,	y + 1,	z		)
 			};
 
 			assert(cache == NULL);

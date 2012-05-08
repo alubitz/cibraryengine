@@ -39,6 +39,8 @@ namespace DestructibleTerrain
 	TerrainNode* TerrainChunk::GetNode(int x, int y, int z) { return &node_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
+	void TerrainChunk::GetChunkPosition(int& x, int& y, int& z) { x = chunk_x; y = chunk_y; z = chunk_z; }
+
 	TerrainNode* TerrainChunk::GetNodeRelative(int x, int y, int z)
 	{
 		TerrainChunk* chunk;
@@ -222,8 +224,19 @@ namespace DestructibleTerrain
 	 */
 
 	// forward declarations for a couple of utility functions (to break the function into more readable pieces)
-	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
-	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
+	struct RelativeTerrainVertex
+	{
+		TerrainVertex* vertex;
+		Vec3 offset;
+
+		RelativeTerrainVertex(TerrainVertex* vertex) : vertex(vertex), offset() { }
+		RelativeTerrainVertex(TerrainVertex* vertex, Vec3 offset) : vertex(vertex), offset(offset) { }
+
+		Vec3 GetPosition() { return vertex->pos + offset; }
+	};
+
+	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
+	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
 
 	// the function itself...
 	VertexBuffer* TerrainChunk::CreateVBO()
@@ -235,15 +248,16 @@ namespace DestructibleTerrain
 		int max_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize - 1 : ChunkSize + 1;
 		int max_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize - 1 : ChunkSize + 1;
 
-		int vbo_x_span = max_y * max_z;
-
-		vector<TerrainVertex> unique_vertices;
-		vector<unsigned int>* vertex_indices = new vector<unsigned int>[vbo_x_span * max_x];
+		vector<RelativeTerrainVertex*> unique_vertices;
 
 		// dimensions of the chunk itself
-		int cmax_x = min(max_x, ChunkSize);
-		int cmax_y = min(max_y, ChunkSize);
-		int cmax_z = min(max_z, ChunkSize);
+		int cmax_x = min(max_x - 1, ChunkSize);
+		int cmax_y = min(max_y - 1, ChunkSize);
+		int cmax_z = min(max_z - 1, ChunkSize);
+
+		int vbo_x_span = max_y * max_z;
+		int c_x_span = cmax_y * cmax_z;
+		vector<unsigned int>* vertex_indices = new vector<unsigned int>[c_x_span * cmax_x];
 
 		for(int x = 0; x < max_x; ++x)
 			for(int y = 0; y < max_y; ++y)
@@ -253,81 +267,90 @@ namespace DestructibleTerrain
 					CubeTriangles* cube = GetCubeRelative(x, y, z);
 
 					if(cube != NULL)
-					{						
+					{
 						cube->BuildAsNeeded();
+						
+						if(cube->cache != NULL)
+						{
+							for(char i = 0; i < 3; ++i)
+							{
+								if(cube->chunk == this)
+									unique_vertices.push_back(new RelativeTerrainVertex(&cube->cache->verts[i]));
+								else
+								{
+									int dx, dy, dz;
+									cube->chunk->GetChunkPosition(dx, dy, dz);
+									dx -= chunk_x;
+									dy -= chunk_y;
+									dz -= chunk_z;
 
+									unique_vertices.push_back(new RelativeTerrainVertex(&cube->cache->verts[i], Vec3(float(dx * ChunkSize), float(dy * ChunkSize), float(dz * ChunkSize))));
+								}
+							}
+
+							continue;
+						}
+					}
+
+					for(char i = 0; i < 3; ++i)
+						unique_vertices.push_back(NULL);
+				}
+		
+		for(int x = 0; x < cmax_x; ++x)
+			for(int y = 0; y < cmax_y; ++y)
+				for(int z = 0; z < cmax_z; ++z)
+				{
+					CubeTriangles* cube = GetCubeRelative(x, y, z);
+
+					if(cube != NULL)
+					{
 						char cube_vert_count = cube->num_vertices;
 						if(cube_vert_count == 0)
 							continue;
 
-						if(x < cmax_x && y < cmax_y && z < cmax_z)
-							num_verts += cube_vert_count;
+						num_verts += cube_vert_count;
 
 						char* cube_indices = &cube->cache->indices[0];
-						TerrainVertex* cube_verts = &cube->cache->verts[0];
-						int cube_global_indices[12];							// key = index in "cube_verts", value = index in "unique_vertices"
-
-						unsigned short int known_mask = 0;
 
 						vector<unsigned int> cube_vertex_indices;
 						for(int i = 0; i < cube_vert_count; ++i)
 						{
-							// find out if this vert is a duplicate of one which has already been assigned an index
 							char index = cube_indices[i];
-							if((known_mask & (1 << index)) == 0)
+
+							unsigned int global_index;
+
+							unsigned int start = x * vbo_x_span + y * max_z + z;
+							switch(index)
 							{
-								TerrainVertex& vert = cube_verts[index];
-								Vec3& pos = vert.pos;
-
-								bool found = false;
-								unsigned int use_index = unique_vertices.size();		// if we don't find a duplicate vert, use the next available vert
-
-								for(int xx = x - 1; xx >= 0 && xx <= x && !found; ++xx)						
-									for(int yy = y - 1; yy >= 0 && yy <= y && !found; ++yy)
-										for(int zz = z - 1; zz >= 0 && zz <= z && !found; ++zz)
-										{
-											vector<unsigned int>& indices = vertex_indices[xx * vbo_x_span + yy * max_z + zz];
-											for(vector<unsigned int>::iterator jter = indices.begin(); jter != indices.end(); ++jter)
-											{
-												Vec3 vertex_pos = unique_vertices[*jter].pos;
-											
-												if(	(vertex_pos.x == pos.x && vertex_pos.y == pos.y && fabs(vertex_pos.z - pos.z) < 0.000001f) ||
-													(vertex_pos.x == pos.x && vertex_pos.z == pos.z && fabs(vertex_pos.y - pos.y) < 0.000001f) ||
-													(vertex_pos.y == pos.y && vertex_pos.z == pos.z && fabs(vertex_pos.x - pos.x) < 0.000001f))
-												{
-													use_index = *jter;
-													found = true;
-													break;
-												}
-											}
-										}
-
-								// vert doesn't already exist; create it
-								if(!found)
-									unique_vertices.push_back(vert);
-
-								cube_global_indices[index] = use_index;
-
-								known_mask |= (1 << index);
+								case 0: global_index =	(start							) * 3;		break;
+								case 1: global_index =	(start						+ 1	) * 3 + 1;	break;
+								case 2: global_index =	(start				+ max_z		) * 3;		break;
+								case 3: global_index =	(start							) * 3 + 1;	break;
+								case 4: global_index =	(start + vbo_x_span				) * 3;		break;
+								case 5: global_index =	(start + vbo_x_span			+ 1	) * 3 + 1;	break;
+								case 6: global_index =	(start + vbo_x_span	+ max_z		) * 3;		break;
+								case 7: global_index =	(start + vbo_x_span				) * 3 + 1;	break;
+								case 8: global_index =	(start							) * 3 + 2;	break;
+								case 9: global_index =	(start						+ 1	) * 3 + 2;	break;
+								case 10: global_index = (start				+ max_z	+ 1	) * 3 + 2;	break;
+								case 11: global_index = (start				+ max_z		) * 3 + 2;	break;
 							}
 
-							cube_vertex_indices.push_back(cube_global_indices[index]);
+							assert(unique_vertices[global_index] != NULL);
+
+							cube_vertex_indices.push_back(global_index);
 						}
 
-						vertex_indices[x * vbo_x_span + y * max_z + z] = cube_vertex_indices;
+						vertex_indices[x * c_x_span + y * cmax_z + z] = cube_vertex_indices;
 					}
 				}
 
-		Vec3* normal_vectors = new Vec3[unique_vertices.size()];
-		for(unsigned int i = 0; i < unique_vertices.size(); ++i)
-			normal_vectors[i] = Vec3();
-
 		// go back through them and find the normal vectors (faster than it used to be!)
-		for(int x = 0; x < max_x; ++x)
-			for(int y = 0; y < max_y; ++y)
-				for(int z = 0; z < max_z; ++z)
+		for(int x = 0; x < cmax_x; ++x)
+			for(int y = 0; y < cmax_y; ++y)
+				for(int z = 0; z < cmax_z; ++z)
 				{
-					vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
+					vector<unsigned int>& cube_verts = vertex_indices[x * c_x_span + y * cmax_z + z];
 
 					if(cube_verts.empty())
 						continue;
@@ -335,25 +358,44 @@ namespace DestructibleTerrain
 					// iterate through all of the verts
 					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); )
 					{
-						unsigned int a = *(iter++), b = *(iter++), c = *(iter++);
-						Vec3 va = unique_vertices[a].pos, vb = unique_vertices[b].pos, vc = unique_vertices[c].pos;
+						RelativeTerrainVertex* tri_verts[3];
 
-						Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
-
-						float len_sq = tri_normal.ComputeMagnitudeSquared();
-						if(len_sq > 0.0f)
+						bool need_normals = false;
+						for(char i = 0; i < 3; ++i)
 						{
-							//tri_normal /= sqrtf(len_sq);
+							tri_verts[i] = unique_vertices[*(iter++)];
+							if(!tri_verts[i]->vertex->normal_valid)
+								need_normals = true;
+						}
+						
+						if(need_normals)
+						{
+							Vec3 va = tri_verts[0]->GetPosition(), vb = tri_verts[1]->GetPosition(), vc = tri_verts[2]->GetPosition();
 
-							normal_vectors[a] += tri_normal;
-							normal_vectors[b] += tri_normal;
-							normal_vectors[c] += tri_normal;
+							Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
+
+							float len_sq = tri_normal.ComputeMagnitudeSquared();
+							if(len_sq > 0.0f)
+							{
+								//tri_normal /= sqrtf(len_sq);
+
+								tri_verts[0]->vertex->normal += tri_normal;
+								tri_verts[1]->vertex->normal += tri_normal;
+								tri_verts[2]->vertex->normal += tri_normal;
+							}
 						}
 					}
 				}
 
 		if(num_verts == 0)
+		{
+			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
+				if(*iter != NULL)
+					delete *iter;
+			delete[] vertex_indices;
+
 			return NULL;
+		}
 		else
 		{
 			VertexBuffer* model = new VertexBuffer(Triangles);
@@ -373,17 +415,19 @@ namespace DestructibleTerrain
 				for(int y = 0; y < cmax_y; ++y)
 					for(int z = 0; z < cmax_z; ++z)
 					{
-						vector<unsigned int>& cube_verts = vertex_indices[x * vbo_x_span + y * max_z + z];
+						vector<unsigned int>& cube_verts = vertex_indices[x * c_x_span + y * cmax_z + z];
 
 						if(cube_verts.empty())
 							continue;
 
 						// iterate through all of the verts in this cube
 						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end();)
-							ProcessTriangle(iter, unique_vertices, normal_vectors, vertex_ptr, normal_ptr, mat_ptr);
+							ProcessTriangle(iter, unique_vertices, vertex_ptr, normal_ptr, mat_ptr);
 					}
 
-			delete[] normal_vectors;
+			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
+				if(*iter != NULL)
+					delete *iter;
 			delete[] vertex_indices;
 
 			model->BuildVBO();
@@ -391,20 +435,21 @@ namespace DestructibleTerrain
 		}
 	}
 
-	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
 	{
 		// TODO: rewrite this and ProcessVert so that they take the materials into account
 		for(unsigned char i = 0; i < 3; ++i)
-			ProcessVert(iter++, unique_vertices, normal_vectors, vertex_ptr, normal_ptr, mat_ptr);
+			ProcessVert(iter++, unique_vertices, vertex_ptr, normal_ptr, mat_ptr);
 	}
 
-	void ProcessVert(vector<unsigned int>::iterator& iter, vector<TerrainVertex>& unique_vertices, Vec3* normal_vectors, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
 	{
-		TerrainVertex& vert = unique_vertices[*iter];
+		RelativeTerrainVertex& vert = *unique_vertices[*iter];
 
-		Vec3 pos = vert.pos;
+		Vec3 pos = vert.GetPosition();
 
-		Vec3 normal = Vec3::Normalize(normal_vectors[*iter]);
+		Vec3 normal = vert.vertex->normal = Vec3::Normalize(vert.vertex->normal);
+		vert.vertex->normal_valid = true;
 
 		// put the data for this vertex into the VBO
 		*(vertex_ptr++) = pos.x;
@@ -415,8 +460,8 @@ namespace DestructibleTerrain
 		*(normal_ptr++) = normal.y;
 		*(normal_ptr++) = normal.z;
 
-		float stone_amount = (float)vert.material.GetMaterialAmount(1);
-		float sand_amount = (float)vert.material.GetMaterialAmount(2);
+		float stone_amount = (float)vert.vertex->material.GetMaterialAmount(1);
+		float sand_amount = (float)vert.vertex->material.GetMaterialAmount(2);
 		float tot = stone_amount + sand_amount, inv_tot = 1.0f / tot;
 
 		*(mat_ptr++) = stone_amount * inv_tot;

@@ -6,6 +6,6 @@ namespace DestructibleTerrain
 	/* 
 	 * TerrainVertex methods
 	 */
-	TerrainVertex::TerrainVertex() : pos() { }
-	TerrainVertex::TerrainVertex(Vec3 pos, MultiMaterial material) : pos(pos), material(material) { }
+	TerrainVertex::TerrainVertex() : pos(), normal(), normal_valid(false) { }
+	TerrainVertex::TerrainVertex(Vec3 pos, MultiMaterial material) : pos(pos), normal(), normal_valid(false), material(material) { }
 }

@@ -52,6 +52,8 @@ namespace DestructibleTerrain
 			 */
 			TerrainNode* GetNode(int x, int y, int z);
 			CubeTriangles* GetCube(int x, int y, int z);
+
+			void GetChunkPosition(int& x, int& y, int& z);
 			
 			/**
 			 * Get a pointer to the node at the specified position relative to this chunk, or NULL if the position is not within a non-NULL TerrainChunk
