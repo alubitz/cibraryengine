@@ -30,7 +30,14 @@ namespace DestructibleTerrain
 		}
 
 		static TerrainVertex Convert(GridStruct& a) { return TerrainVertex(a.position, a.material); }
-		static TerrainVertex Lerp(GridStruct& a, GridStruct& b, float mu) { return TerrainVertex(a.position * (1.0f - mu) + b.position * mu, MultiMaterial::Lerp(a.material, b.material, mu)); }
+		static TerrainVertex Lerp(GridStruct& a, GridStruct& b, float mu)
+		{
+			float a_coeff = (1.0f - mu) * max(0.0f, -a.value);
+			float b_coeff = mu * max(0.0f, -b.value);
+			float mat_mu = b_coeff / (a_coeff + b_coeff);
+
+			return TerrainVertex(a.position * (1.0f - mu) + b.position * mu, MultiMaterial::Lerp(a.material, b.material, mat_mu));
+		}
 	};
 
 

@@ -17,94 +17,84 @@ namespace DestructibleTerrain
 			if(amount < 128)
 				return;
 
-			unsigned int total_solidity = node.solidity * 255;
-			unsigned int total_weight = 255;
-
+			unsigned int total_weight = 0;
+			unsigned int total_solidity = 0;
 			unordered_map<unsigned char, unsigned int> total_materials;
-
-			// copy this node's materials
-			for(unsigned char i = 0; i < 4; ++i)
-				if(unsigned char material = node.material.types[i])
-					if(unsigned char mat_weight = node.material.weights[i])
-					{
-						unordered_map<unsigned char, unsigned int>::iterator found = total_materials.find(material);
-
-						if(found == total_materials.end())
-							total_materials[material] = mat_weight;
-						else
-							total_materials[material] += mat_weight;
-					}
 
 			for(int xx = x - 1; xx <= x + 1; ++xx)
 				for(int yy = y - 1; yy <= y + 1; ++yy)
 					for(int zz = z - 1; zz <= z + 1; ++zz)
-						if(xx != x || yy != y || zz != z)			
-							if(TerrainNode* neighbor_node = chunk->GetNodeRelative(xx, yy, zz))
+						if(TerrainNode* neighbor_node = chunk->GetNodeRelative(xx, yy, zz))
+						{
+							int weight = 255;
+							total_weight += weight;
+
+							int solidity = neighbor_node->solidity;
+							total_solidity += solidity * weight;
+
+							if(solidity >= 128)
 							{
-								int weight = 255;
+								// add neighboring node's materials
+								for(int i = 0; i < 4; ++i)
+									if(unsigned char material = neighbor_node->material.types[i])
+										if(unsigned int mat_weight = neighbor_node->material.weights[i])
+										{
+											unordered_map<unsigned char, unsigned int>::iterator found = total_materials.find(material);
 
-								total_weight += weight;
-								total_solidity += int(neighbor_node->solidity) * weight;
-
-								if(neighbor_node->solidity >= 128)
-								{
-									// add neighboring node's materials
-									for(int i = 0; i < 4; ++i)
-										if(unsigned char material = neighbor_node->material.types[i])
-											if(unsigned char mat_weight = neighbor_node->material.weights[i])
-											{
-												unordered_map<unsigned char, unsigned int>::iterator found = total_materials.find(material);
-
-												if(found == total_materials.end())
-													total_materials[material] = mat_weight;
-												else
-													total_materials[material] += mat_weight;
-											}
-								}
+											if(found == total_materials.end())
+												total_materials[material] = mat_weight * (solidity - 128);
+											else
+												total_materials[material] += mat_weight * (solidity - 128);
+										}
 							}
+						}
 
 			bool changed = false;					// only invalidate the node if it is changed by one (or more) of these two blocks of code...
 
-			unsigned char nu_value = (unsigned char)floor(max(0.0f, min(255.0f, float(total_solidity) / total_weight + 0.5f)));
+			unsigned char nu_value = (unsigned char)floor(max(0.0f, min(255.0f, float(total_solidity) / total_weight)));
+
 			if(nu_value != node.solidity)
 			{
 				node.solidity = nu_value;
 				changed = true;
 			}
 
-			// if there are somehow no materials in or around this node, don't bother with these steps
-			if(unsigned int count = min(4u, (unsigned int)total_materials.size()))
+			if(nu_value >= 128)
 			{
-				unsigned char mat_types[4];
-				unsigned int mat_weights[4];
-				for(unsigned char i = 0; i < count; ++i)
+				// if there are somehow no materials in or around this node, don't bother with these steps
+				if(unsigned int count = min(4u, (unsigned int)total_materials.size()))
 				{
-					unordered_map<unsigned char, unsigned int>::iterator iter = total_materials.begin();
-					unordered_map<unsigned char, unsigned int>::iterator best = iter++;
-
-					for(; iter != total_materials.end(); ++iter)
-						if(iter->second > best->second)
-							best = iter;
-
-					mat_types[i] = best->first;
-					mat_weights[i] = best->second;
-
-					total_materials.erase(best);
-				}
-
-				for(unsigned char i = 0; i < 4; ++i)
-				{
-					if(i < count)
+					unsigned char mat_types[4];
+					unsigned int mat_weights[4];
+					for(unsigned char i = 0; i < count; ++i)
 					{
-						node.material.types[i] = mat_types[i];
-						node.material.weights[i] = mat_weights[i] * 255 / mat_weights[0];
-					}
-					else
-						node.material.weights[i] = 0;
-				}
+						unordered_map<unsigned char, unsigned int>::iterator iter = total_materials.begin();
+						unordered_map<unsigned char, unsigned int>::iterator best = iter++;
 
-				// TODO: make a MultiMaterial::operator== or something comparable, and only set this if it's not equal
-				changed = true;
+						for(; iter != total_materials.end(); ++iter)
+							if(iter->second > best->second)
+								best = iter;
+
+						mat_types[i] = best->first;
+						mat_weights[i] = best->second;
+
+						total_materials.erase(best);
+					}
+
+					for(unsigned char i = 0; i < 4; ++i)
+					{
+						if(i < count)
+						{
+							node.material.types[i] = mat_types[i];
+							node.material.weights[i] = mat_weights[i] * 255 / mat_weights[0];
+						}
+						else
+							node.material.weights[i] = 0;
+					}
+
+					// TODO: make a MultiMaterial::operator== or something comparable, and only set this if it's not equal
+					changed = true;
+				}
 			}
 
 			if(changed)
@@ -131,26 +121,18 @@ namespace DestructibleTerrain
 			}
 			else									// add/change material mode
 			{
-				bool changed = false;				// only invalidate the node if it is changed by one (or more) of these two blocks of code...
-
-				if(amount > node.solidity)
+				if(amount >= 128 || amount > node.solidity)
 				{
-					node.solidity = amount;			// should this affect the node's material somehow?
-					changed = true;
-				}
+					if(amount > node.solidity)
+						node.solidity = amount;
 
-				if(amount >= 128 && node.IsSolid())
-				{
 					MultiMaterial mat;
 					mat.types[0] = material;
 					mat.weights[0] = 255;
 					node.material = mat;
 
-					changed = true;
-				}
-
-				if(changed)
 					chunk->InvalidateNode(x, y, z);
+				}
 			}
 		}
 	};
@@ -472,25 +454,25 @@ namespace DestructibleTerrain
 		struct SubtractBrush : public EditorBrush
 		{
 			SubtractBrush() : EditorBrush("Subtract") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(0)); }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(0)); imp->terrain->Solidify(); }
 		} subtract_brush;
 
 		struct StoneBrush : public EditorBrush
 		{
 			StoneBrush() : EditorBrush("Add Stone") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); imp->terrain->Solidify(); }
 		} stone_brush;
 
 		struct SandBrush : public EditorBrush
 		{
 			SandBrush() : EditorBrush("Add Sand") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); imp->terrain->Solidify(); }
 		} sand_brush;
 
 		struct SmoothBrush : public EditorBrush
 		{
 			SmoothBrush() : EditorBrush("Smooth") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); }
+			void DoAction(Imp* imp) { imp->ApplyBrush(SphereSmoother()); imp->terrain->Solidify(); }
 		} smooth_brush;
 	};
 

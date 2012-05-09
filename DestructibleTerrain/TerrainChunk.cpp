@@ -21,6 +21,7 @@ namespace DestructibleTerrain
 		material(material),
 		model(NULL),
 		vbo_valid(false),
+		solidified(false),
 		owner(owner)
 	{
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
@@ -200,7 +201,9 @@ namespace DestructibleTerrain
 
 
 
+
 	// Nodes with same solidity as all neighbors get 0 or 255 solidity (whichever is appropriate)
+	void TerrainChunk::SolidifyAsNeeded() { if(!solidified) { Solidify(); } }
 	void TerrainChunk::Solidify()
 	{
 		for(int x = 0; x < ChunkSize; ++x)
@@ -226,6 +229,8 @@ namespace DestructibleTerrain
 					if(pass)
 						GetNode(x, y, z)->solidity = solid ? 255 : 0;
 				}
+
+		solidified = true;
 	}
 
 	void TerrainChunk::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)
@@ -256,9 +261,13 @@ namespace DestructibleTerrain
 					{
 						TerrainNode& node = *GetNode(xx, yy, zz);
 
+						unsigned char old_solidity = node.solidity;
+
 						float dist = sqrtf(dist_sq);
-						
 						action.AffectNode(this, node, xx, yy, zz, max(0, min(255, (int)(255.0f * ((outer_radius - dist) * inv_range)))));
+						
+						if(node.solidity != old_solidity)	// NOTE: not 100% thorough! nodes changes across chunk edges can affect this too!
+							solidified = false;
 					}
 				}
 			}
@@ -305,7 +314,43 @@ namespace DestructibleTerrain
 		RelativeTerrainVertex(TerrainVertex* vertex, Vec3 offset) : vertex(vertex), offset(offset) { }
 
 		Vec3 GetPosition() { return vertex->pos + offset; }
+
+		static vector<RelativeTerrainVertex*> rel_vert_recycle_bin;
+		
+		static RelativeTerrainVertex* New(TerrainVertex* vertex)
+		{
+			if(rel_vert_recycle_bin.empty())
+				return new RelativeTerrainVertex(vertex);
+			else
+			{
+				RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
+				rel_vert_recycle_bin.pop_back();
+
+				return new(result) RelativeTerrainVertex(vertex);
+			}
+		}
+		static RelativeTerrainVertex* New(TerrainVertex* vertex, Vec3 offset)
+		{
+			if(rel_vert_recycle_bin.empty())
+				return new RelativeTerrainVertex(vertex, offset);
+			else
+			{
+				RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
+				rel_vert_recycle_bin.pop_back();
+
+				return new(result) RelativeTerrainVertex(vertex, offset);
+			}
+		}
+		static void Delete(RelativeTerrainVertex* v) { rel_vert_recycle_bin.push_back(v); }
+
+		static void PurgeRecycleBin()
+		{
+			for(vector<RelativeTerrainVertex*>::iterator iter = rel_vert_recycle_bin.begin(); iter != rel_vert_recycle_bin.end(); ++iter)
+				delete *iter;
+			rel_vert_recycle_bin.clear();
+		}
 	};
+	vector<RelativeTerrainVertex*> RelativeTerrainVertex::rel_vert_recycle_bin = vector<RelativeTerrainVertex*>();
 
 	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
 	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
@@ -348,7 +393,7 @@ namespace DestructibleTerrain
 							for(char i = 0; i < 3; ++i)
 							{
 								if(cube->chunk == this)
-									unique_vertices.push_back(new RelativeTerrainVertex(&cube->cache->verts[i]));
+									unique_vertices.push_back(RelativeTerrainVertex::New(&cube->cache->verts[i]));
 								else
 								{
 									int dx, dy, dz;
@@ -357,7 +402,7 @@ namespace DestructibleTerrain
 									dy -= chunk_y;
 									dz -= chunk_z;
 
-									unique_vertices.push_back(new RelativeTerrainVertex(&cube->cache->verts[i], Vec3(float(dx * ChunkSize), float(dy * ChunkSize), float(dz * ChunkSize))));
+									unique_vertices.push_back(RelativeTerrainVertex::New(&cube->cache->verts[i], Vec3(float(dx * ChunkSize), float(dy * ChunkSize), float(dz * ChunkSize))));
 								}
 							}
 
@@ -465,7 +510,7 @@ namespace DestructibleTerrain
 		{
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
-					delete *iter;
+					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
 			return NULL;
@@ -501,7 +546,7 @@ namespace DestructibleTerrain
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
-					delete *iter;
+					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
 			model->BuildVBO();

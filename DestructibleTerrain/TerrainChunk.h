@@ -28,6 +28,8 @@ namespace DestructibleTerrain
 			VertexBuffer* model;
 			bool vbo_valid;
 
+			bool solidified;
+
 			VertexBuffer* CreateVBO();
 
 			VoxelTerrain* owner;
@@ -69,6 +71,7 @@ namespace DestructibleTerrain
 			void InvalidateCubeNormalsRelative(int x, int y, int z);
 			void InvalidateVBO();
 
+			void SolidifyAsNeeded();
 			void Solidify();
 
 			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action);

@@ -91,7 +91,7 @@ namespace DestructibleTerrain
 	void VoxelTerrain::Solidify()
 	{
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			(*iter)->Solidify();
+			(*iter)->SolidifyAsNeeded();
 	}
 
 	void VoxelTerrain::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)
