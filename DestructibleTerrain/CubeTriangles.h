@@ -35,6 +35,8 @@ namespace DestructibleTerrain
 		/** Call this when one of the 8 nodes at the corners of this cube is changed */
 		void Invalidate();
 
+		void InvalidateNormals();
+
 		void BuildAsNeeded();
 	};
 }

@@ -116,6 +116,58 @@ namespace DestructibleTerrain
 		InvalidateCubeRelative(	x,		y - 1,	z		);
 		InvalidateCubeRelative(	x,		y,		z - 1	);
 		InvalidateCubeRelative(	x,		y,		z		);
+
+		InvalidateCubeNormalsRelative(	x - 2,	y - 2,	z - 2	);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 2,	z - 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 2,	z		);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 2,	z + 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 1,	z		);
+		InvalidateCubeNormalsRelative(	x - 2,	y - 1,	z + 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y,		z - 2	);
+		InvalidateCubeNormalsRelative(	x - 2,	y,		z - 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y,		z		);
+		InvalidateCubeNormalsRelative(	x - 2,	y,		z + 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y + 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x - 2,	y + 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x - 2,	y + 1,	z		);
+		InvalidateCubeNormalsRelative(	x - 2,	y + 1,	z + 1	);
+
+		InvalidateCubeNormalsRelative(	x - 1,	y - 2,	z - 2	);
+		InvalidateCubeNormalsRelative(	x - 1,	y - 2,	z - 1	);
+		InvalidateCubeNormalsRelative(	x - 1,	y - 2,	z		);
+		InvalidateCubeNormalsRelative(	x - 1,	y - 2,	z + 1	);
+		InvalidateCubeNormalsRelative(	x - 1,	y + 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x - 1,	y + 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x - 1,	y + 1,	z		);
+		InvalidateCubeNormalsRelative(	x - 1,	y + 1,	z + 1	);
+
+		InvalidateCubeNormalsRelative(	x,		y - 2,	z - 2	);
+		InvalidateCubeNormalsRelative(	x,		y - 2,	z - 1	);
+		InvalidateCubeNormalsRelative(	x,		y - 2,	z		);
+		InvalidateCubeNormalsRelative(	x,		y - 2,	z + 1	);
+		InvalidateCubeNormalsRelative(	x,		y + 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x,		y + 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x,		y + 1,	z		);
+		InvalidateCubeNormalsRelative(	x,		y + 1,	z + 1	);
+
+		InvalidateCubeNormalsRelative(	x + 1,	y - 2,	z - 2	);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 2,	z - 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 2,	z		);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 2,	z + 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 1,	z		);
+		InvalidateCubeNormalsRelative(	x + 1,	y - 1,	z + 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y,		z - 2	);
+		InvalidateCubeNormalsRelative(	x + 1,	y,		z - 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y,		z		);
+		InvalidateCubeNormalsRelative(	x + 1,	y,		z + 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y + 1,	z - 2	);
+		InvalidateCubeNormalsRelative(	x + 1,	y + 1,	z - 1	);
+		InvalidateCubeNormalsRelative(	x + 1,	y + 1,	z		);
+		InvalidateCubeNormalsRelative(	x + 1,	y + 1,	z + 1	);
 	}
 
 	void TerrainChunk::InvalidateCubeRelative(int x, int y, int z)
@@ -130,6 +182,20 @@ namespace DestructibleTerrain
 		}
 		else
 			GetCube(x, y, z)->Invalidate();
+	}
+
+	void TerrainChunk::InvalidateCubeNormalsRelative(int x, int y, int z)
+	{
+		TerrainChunk* chunk;
+		int dx, dy, dz;
+
+		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
+		{
+			if(chunk != NULL)
+				chunk->GetCube(dx, dy, dz)->InvalidateNormals();
+		}
+		else
+			GetCube(x, y, z)->InvalidateNormals();
 	}
 
 
@@ -204,16 +270,22 @@ namespace DestructibleTerrain
 
 	void TerrainChunk::Vis(SceneRenderer *renderer, Mat4 main_xform)
 	{
-		if(!vbo_valid)
+		Mat4 net_xform = main_xform * xform;
+
+		AABB aabb = AABB(Vec3(), Vec3(1, 1, 1) * ChunkSize).GetTransformedAABB(net_xform);
+		//if(renderer->camera->CheckSphereVisibility((aabb.min + aabb.max) * 0.5f, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
 		{
-			assert(model == NULL);
+			if(!vbo_valid)
+			{
+				assert(model == NULL);
 
-			model = CreateVBO();
-			vbo_valid = true;
+				model = CreateVBO();
+				vbo_valid = true;
+			}
+
+			if(model != NULL)
+				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize)), net_xform), 0));
 		}
-
-		if(model != NULL)
-			renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize)), main_xform * xform), 0));
 	}
 
 
@@ -244,18 +316,19 @@ namespace DestructibleTerrain
 		int num_verts = 0;
 
 		// dimensions including neighboring chunks (in order to compute normal vectors)
-		int max_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize - 1 : ChunkSize + 1;
-		int max_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize - 1 : ChunkSize + 1;
-		int max_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize - 1 : ChunkSize + 1;
+		int max_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize : ChunkSize + 2;
+		int max_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize : ChunkSize + 2;
+		int max_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize : ChunkSize + 2;
 
 		vector<RelativeTerrainVertex*> unique_vertices;
+		unique_vertices.reserve(max_x * max_y * max_z * 3);
 
 		// dimensions of the chunk itself
-		int cmax_x = min(max_x - 1, ChunkSize);
-		int cmax_y = min(max_y - 1, ChunkSize);
-		int cmax_z = min(max_z - 1, ChunkSize);
+		int cmax_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize - 2 : ChunkSize;
+		int cmax_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize - 2 : ChunkSize;
+		int cmax_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize - 2 : ChunkSize;
 
-		int vbo_x_span = max_y * max_z;
+		int a_x_span = max_y * max_z;
 		int c_x_span = cmax_y * cmax_z;
 		vector<unsigned int>* vertex_indices = new vector<unsigned int>[c_x_span * cmax_x];
 
@@ -264,7 +337,7 @@ namespace DestructibleTerrain
 				for(int z = 0; z < max_z; ++z)
 				{
 					// find the verts for this one cube
-					CubeTriangles* cube = GetCubeRelative(x, y, z);
+					CubeTriangles* cube = GetCubeRelative(x - 1, y - 1, z - 1);
 
 					if(cube != NULL)
 					{
@@ -305,6 +378,7 @@ namespace DestructibleTerrain
 					if(cube != NULL)
 					{
 						char cube_vert_count = cube->num_vertices;
+						assert(cube_vert_count >= 0 && cube_vert_count < 16);
 						if(cube_vert_count == 0)
 							continue;
 
@@ -319,21 +393,21 @@ namespace DestructibleTerrain
 
 							unsigned int global_index;
 
-							unsigned int start = x * vbo_x_span + y * max_z + z;
+							unsigned int start = (x + 1) * a_x_span + (y + 1) * max_z + (z + 1);
 							switch(index)
 							{
-								case 0: global_index =	(start							) * 3;		break;
-								case 1: global_index =	(start						+ 1	) * 3 + 1;	break;
-								case 2: global_index =	(start				+ max_z		) * 3;		break;
-								case 3: global_index =	(start							) * 3 + 1;	break;
-								case 4: global_index =	(start + vbo_x_span				) * 3;		break;
-								case 5: global_index =	(start + vbo_x_span			+ 1	) * 3 + 1;	break;
-								case 6: global_index =	(start + vbo_x_span	+ max_z		) * 3;		break;
-								case 7: global_index =	(start + vbo_x_span				) * 3 + 1;	break;
-								case 8: global_index =	(start							) * 3 + 2;	break;
-								case 9: global_index =	(start						+ 1	) * 3 + 2;	break;
-								case 10: global_index = (start				+ max_z	+ 1	) * 3 + 2;	break;
-								case 11: global_index = (start				+ max_z		) * 3 + 2;	break;
+								case 0: global_index =	(start								) * 3;		break;
+								case 1: global_index =	(start							+ 1	) * 3 + 1;	break;
+								case 2: global_index =	(start				+ max_z			) * 3;		break;
+								case 3: global_index =	(start								) * 3 + 1;	break;
+								case 4: global_index =	(start + a_x_span					) * 3;		break;
+								case 5: global_index =	(start + a_x_span				+ 1	) * 3 + 1;	break;
+								case 6: global_index =	(start + a_x_span	+ max_z			) * 3;		break;
+								case 7: global_index =	(start + a_x_span					) * 3 + 1;	break;
+								case 8: global_index =	(start								) * 3 + 2;	break;
+								case 9: global_index =	(start							+ 1	) * 3 + 2;	break;
+								case 10: global_index = (start				+ max_z		+ 1	) * 3 + 2;	break;
+								case 11: global_index = (start				+ max_z			) * 3 + 2;	break;
 							}
 
 							assert(unique_vertices[global_index] != NULL);
@@ -345,7 +419,7 @@ namespace DestructibleTerrain
 					}
 				}
 
-		// go back through them and find the normal vectors (faster than it used to be!)
+		// go back through them and find the normal vectors
 		for(int x = 0; x < cmax_x; ++x)
 			for(int y = 0; y < cmax_y; ++y)
 				for(int z = 0; z < cmax_z; ++z)
@@ -379,9 +453,9 @@ namespace DestructibleTerrain
 							{
 								//tri_normal /= sqrtf(len_sq);
 
-								tri_verts[0]->vertex->normal += tri_normal;
-								tri_verts[1]->vertex->normal += tri_normal;
-								tri_verts[2]->vertex->normal += tri_normal;
+								for(char i = 0; i < 3; ++i)
+									if(!tri_verts[i]->vertex->normal_valid)
+										tri_verts[i]->vertex->normal += tri_normal;
 							}
 						}
 					}

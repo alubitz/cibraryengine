@@ -66,6 +66,7 @@ namespace DestructibleTerrain
 
 			void InvalidateNode(int x, int y, int z);
 			void InvalidateCubeRelative(int x, int y, int z);
+			void InvalidateCubeNormalsRelative(int x, int y, int z);
 			void InvalidateVBO();
 
 			void Solidify();

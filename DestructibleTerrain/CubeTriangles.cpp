@@ -52,6 +52,16 @@ namespace DestructibleTerrain
 		chunk->InvalidateVBO();
 	}
 
+	void CubeTriangles::InvalidateNormals()
+	{
+		if(cache != NULL)
+		{
+			cache->verts[0].normal_valid = cache->verts[1].normal_valid = cache->verts[2].normal_valid = false;
+
+			chunk->InvalidateVBO();
+		}
+	}
+
 	void CubeTriangles::BuildAsNeeded()
 	{
 		if(num_vertices == -1)
