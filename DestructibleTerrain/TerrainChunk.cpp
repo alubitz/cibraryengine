@@ -579,14 +579,17 @@ namespace DestructibleTerrain
 		*(normal_ptr++) = normal.y;
 		*(normal_ptr++) = normal.z;
 
-		float stone_amount = (float)vert.vertex->material.GetMaterialAmount(1);
-		float sand_amount = (float)vert.vertex->material.GetMaterialAmount(2);
-		float tot = stone_amount + sand_amount, inv_tot = 1.0f / tot;
+		float a_amount = (float)vert.vertex->material.GetMaterialAmount(1);
+		float b_amount = (float)vert.vertex->material.GetMaterialAmount(2);
+		float c_amount = (float)vert.vertex->material.GetMaterialAmount(3);
+		float d_amount = (float)vert.vertex->material.GetMaterialAmount(4);
 
-		*(mat_ptr++) = stone_amount * inv_tot;
-		*(mat_ptr++) = 0.0f;
-		*(mat_ptr++) = 0.0f;
-		*(mat_ptr++) = sand_amount * inv_tot;
+		float tot = a_amount + b_amount + c_amount + d_amount, inv_tot = 1.0f / tot;
+
+		*(mat_ptr++) = a_amount * inv_tot;
+		*(mat_ptr++) = b_amount * inv_tot;
+		*(mat_ptr++) = c_amount * inv_tot;
+		*(mat_ptr++) = d_amount * inv_tot;
 	}
 
 

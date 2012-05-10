@@ -175,6 +175,8 @@ namespace DestructibleTerrain
 		float brush_distance;
 		float brush_radius;
 
+		unsigned int add_tex;
+
 		Imp(ProgramWindow* window) :
 			window(window),
 			renderer(NULL),
@@ -188,17 +190,20 @@ namespace DestructibleTerrain
 			current_brush(NULL), 
 			brush_distance(40.0f),
 			brush_radius(5.0f),
+			add_tex(0),
 			mouse_button_handler(this), 
 			mouse_motion_handler(&yaw, &pitch),
+			key_press_handler(&add_tex, &add_brush),
 			subtract_brush(),
-			stone_brush(),
-			sand_brush(),
+			add_brush(&add_tex),
 			smooth_brush()
 		{
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
 			editor_orb = window->content->GetCache<VertexBuffer>()->Load("terrain_edit_orb");
+
+			add_brush.UpdateName();
 		}
 
 		~Imp()
@@ -210,7 +215,11 @@ namespace DestructibleTerrain
 		void MakeTerrainAsNeeded()
 		{
 			if(material == NULL)
+			{
 				material = new VoxelMaterial(window->content);
+				add_brush.material = key_press_handler.material = material;
+				add_brush.UpdateName();
+			}
 
 			if(terrain == NULL)
 			{
@@ -316,9 +325,10 @@ namespace DestructibleTerrain
 			if(current_brush != NULL)
 			{
 				stringstream ss;
-				ss << current_brush->name << " - radius " << brush_radius;
+				ss << "Radius: " << brush_radius;
 				
-				font->Print(ss.str(), 0, 0);
+				font->Print(current_brush->name, 0, 0);
+				font->Print(ss.str(), 0, font->font_height);
 			}
 
 			GLDEBUG();
@@ -420,10 +430,8 @@ namespace DestructibleTerrain
 				if(mbse->button == 2 && mbse->state)
 				{
 					if(imp->current_brush == &imp->subtract_brush)
-						imp->current_brush = &imp->stone_brush;
-					else if(imp->current_brush == &imp->stone_brush)
-						imp->current_brush = &imp->sand_brush;
-					else if(imp->current_brush == &imp->sand_brush)
+						imp->current_brush = &imp->add_brush;
+					else if(imp->current_brush == &imp->add_brush)
 						imp->current_brush = &imp->smooth_brush;
 					else
 						imp->current_brush = &imp->subtract_brush;
@@ -448,7 +456,29 @@ namespace DestructibleTerrain
 			}
 		} mouse_motion_handler;
 
+		struct AddBrush;
+		struct KeyPressHandler : public EventHandler
+		{
+			VoxelMaterial* material;
+			unsigned int* which_ptr;
+			AddBrush* add_brush;
 
+			KeyPressHandler(unsigned int* which_ptr, AddBrush* add_brush) : material(NULL), which_ptr(which_ptr), add_brush(add_brush) { }
+
+			void HandleEvent(Event* evt)
+			{
+				KeyStateEvent* kse = (KeyStateEvent*)evt;
+
+				if(kse->state && kse->key == 'M' && material != NULL)
+				{
+					(*which_ptr)++;
+					if(*which_ptr == material->textures.size())
+						*which_ptr = 0;
+
+					add_brush->UpdateName();
+				}
+			}
+		} key_press_handler;
 
 
 		struct SubtractBrush : public EditorBrush
@@ -457,17 +487,17 @@ namespace DestructibleTerrain
 			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(0)); imp->terrain->Solidify(); }
 		} subtract_brush;
 
-		struct StoneBrush : public EditorBrush
+		struct AddBrush : public EditorBrush
 		{
-			StoneBrush() : EditorBrush("Add Stone") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(1)); imp->terrain->Solidify(); }
-		} stone_brush;
+			VoxelMaterial* material;
+			unsigned int* which_ptr;
 
-		struct SandBrush : public EditorBrush
-		{
-			SandBrush() : EditorBrush("Add Sand") { }
-			void DoAction(Imp* imp) { imp->ApplyBrush(SphereMaterialSetter(2)); imp->terrain->Solidify(); }
-		} sand_brush;
+			AddBrush(unsigned int* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
+
+			void UpdateName() { if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << material->textures[*which_ptr].name << "\"")).str(); } }
+
+			void DoAction(Imp* imp) { if(material != NULL) { imp->ApplyBrush(SphereMaterialSetter(material->textures[*which_ptr].material_index)); imp->terrain->Solidify(); } }
+		} add_brush;
 
 		struct SmoothBrush : public EditorBrush
 		{
@@ -497,12 +527,14 @@ namespace DestructibleTerrain
 
 		window->input_state->MouseButtonStateChanged += &imp->mouse_button_handler;
 		window->input_state->MouseMoved += &imp->mouse_motion_handler;
+		window->input_state->KeyStateChanged += &imp->key_press_handler;
 	}
 
 	void DTScreen::Deactivate()
 	{
 		window->input_state->MouseButtonStateChanged -= &imp->mouse_button_handler;
 		window->input_state->MouseMoved -= &imp->mouse_motion_handler;
+		window->input_state->KeyStateChanged -= &imp->key_press_handler;
 	}
 
 	ProgramScreen* DTScreen::Update(TimingInfo time)

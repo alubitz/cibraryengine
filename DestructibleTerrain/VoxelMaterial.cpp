@@ -13,6 +13,10 @@ namespace DestructibleTerrain
 		chunk_pos(chunk_pos),
 		xform(xform)
 	{
+		materials[0] = 1;
+		materials[1] = 2;
+		materials[2] = 3;
+		materials[3] = 4;		
 	}
 
 	void VoxelMaterialNodeData::Draw(ShaderProgram* shader)
@@ -23,6 +27,7 @@ namespace DestructibleTerrain
 		glMultMatrixf(xform.Transpose().values);
 
 		shader->SetUniform<Vec3>("chunk_pos", &chunk_pos);
+
 		shader->UpdateUniforms();
 
 		model->Draw();
@@ -38,10 +43,11 @@ namespace DestructibleTerrain
 	 */
 	VoxelMaterial::VoxelMaterial(ContentMan* content) : Material(4, Opaque, false)
 	{
-		texture_a = content->GetCache<Texture2D>()->Load("rock1");
-		texture_b = content->GetCache<Texture2D>()->Load("rock2");
-		texture_c = content->GetCache<Texture2D>()->Load("rock3");
-		texture_d = content->GetCache<Texture2D>()->Load("sand1");
+		Cache<Texture2D>* tex_cache = content->GetCache<Texture2D>();
+		textures.push_back(TerrainTexture(tex_cache->Load("rock1"), "Rock 1",	1));
+		textures.push_back(TerrainTexture(tex_cache->Load("rock2"), "Rock 2",	2));
+		textures.push_back(TerrainTexture(tex_cache->Load("rock3"), "Rock 3",	3));
+		textures.push_back(TerrainTexture(tex_cache->Load("sand1"), "Sand",		4));
 
 		Shader* vs = content->GetCache<Shader>()->Load("terrain-v");
 		Shader* fs = content->GetCache<Shader>()->Load("terrain-f");
@@ -74,10 +80,10 @@ namespace DestructibleTerrain
 
 		Vec3 v;
 
-		shader->SetUniform<Texture2D>("texture_a", texture_a);
-		shader->SetUniform<Texture2D>("texture_b", texture_b);
-		shader->SetUniform<Texture2D>("texture_c", texture_c);
-		shader->SetUniform<Texture2D>("texture_d", texture_d);
+		shader->SetUniform<Texture2D>("texture_a", textures[0].texture);
+		shader->SetUniform<Texture2D>("texture_b", textures[1].texture);
+		shader->SetUniform<Texture2D>("texture_c", textures[2].texture);
+		shader->SetUniform<Texture2D>("texture_d", textures[3].texture);
 		shader->SetUniform<Vec3>("chunk_pos", &v);
 		ShaderProgram::SetActiveProgram(shader);
 
