@@ -14,7 +14,7 @@ namespace DestructibleTerrain
 
 		unsigned char materials[4];
 
-		VoxelMaterialNodeData(VertexBuffer* model, Vec3 chunk_pos, Mat4 xform);
+		VoxelMaterialNodeData(VertexBuffer* model, Vec3 chunk_pos, Mat4 xform, unsigned char materials[4]);
 
 		void Draw(ShaderProgram* shader);
 	};

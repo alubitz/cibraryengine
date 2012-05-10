@@ -19,7 +19,7 @@ namespace DestructibleTerrain
 		chunk_y(y),
 		chunk_z(z),
 		material(material),
-		model(NULL),
+		vbos(),
 		vbo_valid(false),
 		solidified(false),
 		owner(owner)
@@ -99,12 +99,15 @@ namespace DestructibleTerrain
 	void TerrainChunk::InvalidateVBO()
 	{
 		vbo_valid = false;
-		if(model != NULL)
+
+		for(vector<MultiMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
 		{
-			model->Dispose(); 
-			delete model; 
-			model = NULL;
+			VertexBuffer* model = iter->vbo;
+
+			model->Dispose();
+			delete model;
 		}
+		vbos.clear();
 	}
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
@@ -286,14 +289,14 @@ namespace DestructibleTerrain
 		{
 			if(!vbo_valid)
 			{
-				assert(model == NULL);
+				assert(vbos.empty());
 
-				model = CreateVBO();
+				CreateVBOs(vbos);
 				vbo_valid = true;
 			}
 
-			if(model != NULL)
-				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(model, Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize)), net_xform), 0));
+			for(vector<MultiMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
+				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(iter->vbo, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)) * ChunkSize, net_xform, iter->materials), 0));
 		}
 	}
 
@@ -352,12 +355,14 @@ namespace DestructibleTerrain
 	};
 	vector<RelativeTerrainVertex*> RelativeTerrainVertex::rel_vert_recycle_bin = vector<RelativeTerrainVertex*>();
 
-	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
-	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr);
+	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials);
+	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials);
 
 	// the function itself...
-	VertexBuffer* TerrainChunk::CreateVBO()
+	void TerrainChunk::CreateVBOs(vector<MultiMaterialVBO>& results)
 	{
+		assert(results.empty());
+
 		int num_verts = 0;
 
 		// dimensions including neighboring chunks (in order to compute normal vectors)
@@ -464,48 +469,6 @@ namespace DestructibleTerrain
 					}
 				}
 
-		// go back through them and find the normal vectors
-		for(int x = 0; x < cmax_x; ++x)
-			for(int y = 0; y < cmax_y; ++y)
-				for(int z = 0; z < cmax_z; ++z)
-				{
-					vector<unsigned int>& cube_verts = vertex_indices[x * c_x_span + y * cmax_z + z];
-
-					if(cube_verts.empty())
-						continue;
-
-					// iterate through all of the verts
-					for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); )
-					{
-						RelativeTerrainVertex* tri_verts[3];
-
-						bool need_normals = false;
-						for(char i = 0; i < 3; ++i)
-						{
-							tri_verts[i] = unique_vertices[*(iter++)];
-							if(!tri_verts[i]->vertex->normal_valid)
-								need_normals = true;
-						}
-						
-						if(need_normals)
-						{
-							Vec3 va = tri_verts[0]->GetPosition(), vb = tri_verts[1]->GetPosition(), vc = tri_verts[2]->GetPosition();
-
-							Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
-
-							float len_sq = tri_normal.ComputeMagnitudeSquared();
-							if(len_sq > 0.0f)
-							{
-								//tri_normal /= sqrtf(len_sq);
-
-								for(char i = 0; i < 3; ++i)
-									if(!tri_verts[i]->vertex->normal_valid)
-										tri_verts[i]->vertex->normal += tri_normal;
-							}
-						}
-					}
-				}
-
 		if(num_verts == 0)
 		{
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
@@ -513,10 +476,56 @@ namespace DestructibleTerrain
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
-			return NULL;
+			return;
 		}
 		else
 		{
+			// go back through them and find the normal vectors
+			for(int x = 0; x < cmax_x; ++x)
+				for(int y = 0; y < cmax_y; ++y)
+					for(int z = 0; z < cmax_z; ++z)
+					{
+						vector<unsigned int>& cube_verts = vertex_indices[x * c_x_span + y * cmax_z + z];
+
+						if(cube_verts.empty())
+							continue;
+
+						// iterate through all of the verts
+						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end(); )
+						{
+							RelativeTerrainVertex* tri_verts[3];
+
+							bool need_normals = false;
+							for(char i = 0; i < 3; ++i)
+							{
+								tri_verts[i] = unique_vertices[*(iter++)];
+								if(!tri_verts[i]->vertex->normal_valid)
+									need_normals = true;
+							}
+						
+							if(need_normals)
+							{
+								Vec3 va = tri_verts[0]->GetPosition(), vb = tri_verts[1]->GetPosition(), vc = tri_verts[2]->GetPosition();
+
+								Vec3 tri_normal = Vec3::Cross(vb - va, vc - va);
+
+								float len_sq = tri_normal.ComputeMagnitudeSquared();
+								if(len_sq > 0.0f)
+								{
+									//tri_normal /= sqrtf(len_sq);
+
+									for(char i = 0; i < 3; ++i)
+										if(!tri_verts[i]->vertex->normal_valid)
+											tri_verts[i]->vertex->normal += tri_normal;
+								}
+							}
+						}
+					}
+
+			// TODO: support dynamic material selecty business up in here
+			unsigned char materials[] = { 1, 2, 3, 4 };
+
+			// now to actually construct some vbos from it...
 			VertexBuffer* model = new VertexBuffer(Triangles);
 
 			model->AddAttribute("gl_Vertex",			Float, 3);
@@ -541,27 +550,26 @@ namespace DestructibleTerrain
 
 						// iterate through all of the verts in this cube
 						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end();)
-							ProcessTriangle(iter, unique_vertices, vertex_ptr, normal_ptr, mat_ptr);
+							ProcessTriangle(iter, unique_vertices, vertex_ptr, normal_ptr, mat_ptr, materials);
 					}
+
+			model->BuildVBO();
+			results.push_back(MultiMaterialVBO(materials, model));
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
-
-			model->BuildVBO();
-			return model;
 		}
 	}
 
-	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials)
 	{
-		// TODO: rewrite this and ProcessVert so that they take the materials into account
 		for(unsigned char i = 0; i < 3; ++i)
-			ProcessVert(iter++, unique_vertices, vertex_ptr, normal_ptr, mat_ptr);
+			ProcessVert(iter++, unique_vertices, vertex_ptr, normal_ptr, mat_ptr, materials);
 	}
 
-	void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr)
+	void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials)
 	{
 		RelativeTerrainVertex& vert = *unique_vertices[*iter];
 
@@ -579,10 +587,10 @@ namespace DestructibleTerrain
 		*(normal_ptr++) = normal.y;
 		*(normal_ptr++) = normal.z;
 
-		float a_amount = (float)vert.vertex->material.GetMaterialAmount(1);
-		float b_amount = (float)vert.vertex->material.GetMaterialAmount(2);
-		float c_amount = (float)vert.vertex->material.GetMaterialAmount(3);
-		float d_amount = (float)vert.vertex->material.GetMaterialAmount(4);
+		float a_amount = (float)vert.vertex->material.GetMaterialAmount(materials[0]);
+		float b_amount = (float)vert.vertex->material.GetMaterialAmount(materials[1]);
+		float c_amount = (float)vert.vertex->material.GetMaterialAmount(materials[2]);
+		float d_amount = (float)vert.vertex->material.GetMaterialAmount(materials[3]);
 
 		float tot = a_amount + b_amount + c_amount + d_amount, inv_tot = 1.0f / tot;
 

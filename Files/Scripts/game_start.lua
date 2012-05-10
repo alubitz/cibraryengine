@@ -23,11 +23,11 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = true
+disable_enemies = false
 disable_waves = false
 disable_ai = false
 
-num_boxes = 100
+num_boxes = 0
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false
@@ -40,12 +40,14 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
-for i = 0, num_boxes do
-	local x = math.random() * 160.0 - 80.0
-	local z = math.random() * 160.0 - 80.0
-	local y = gs.getTerrainHeight(x, z) + 10.0
+if num_boxes > 0 then
+	for i = 0, num_boxes do
+		local x = math.random() * 160.0 - 80.0
+		local z = math.random() * 160.0 - 80.0
+		local y = gs.getTerrainHeight(x, z) + 10.0
 
-	gs.spawnRubbish(ba.createVector(x, y, z))
+		gs.spawnRubbish(ba.createVector(x, y, z))
+	end
 end
 
 -- function called every time a bug dies

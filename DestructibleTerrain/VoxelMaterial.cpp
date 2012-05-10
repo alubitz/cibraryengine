@@ -8,15 +8,15 @@ namespace DestructibleTerrain
 	/*
 	 * VoxelMaterialNodeData methods
 	 */
-	VoxelMaterialNodeData::VoxelMaterialNodeData(VertexBuffer* model, Vec3 chunk_pos, Mat4 xform) :
+	VoxelMaterialNodeData::VoxelMaterialNodeData(VertexBuffer* model, Vec3 chunk_pos, Mat4 xform, unsigned char materials_[4]) :
 		model(model),
 		chunk_pos(chunk_pos),
 		xform(xform)
 	{
-		materials[0] = 1;
-		materials[1] = 2;
-		materials[2] = 3;
-		materials[3] = 4;		
+		materials[0] = materials_[0];
+		materials[1] = materials_[1];
+		materials[2] = materials_[2];
+		materials[3] = materials_[3];
 	}
 
 	void VoxelMaterialNodeData::Draw(ShaderProgram* shader)

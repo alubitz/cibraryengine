@@ -25,12 +25,21 @@ namespace DestructibleTerrain
 
 			VoxelMaterial* material;
 
-			VertexBuffer* model;
+			struct MultiMaterialVBO
+			{
+				unsigned char materials[4];
+				VertexBuffer* vbo;
+
+				MultiMaterialVBO() : vbo(NULL) { }
+				MultiMaterialVBO(unsigned char mats[4], VertexBuffer* vbo) : vbo(vbo) { materials[0] = mats[0]; materials[1] = mats[1]; materials[2] = mats[2]; materials[3] = mats[3]; }
+			};
+
+			vector<MultiMaterialVBO> vbos;
 			bool vbo_valid;
 
 			bool solidified;
 
-			VertexBuffer* CreateVBO();
+			void CreateVBOs(vector<MultiMaterialVBO>& result);
 
 			VoxelTerrain* owner;
 
@@ -79,7 +88,7 @@ namespace DestructibleTerrain
 			void Vis(SceneRenderer* renderer, Mat4 main_xform);
 
 			bool IsEmpty();				// check if this chunk is completely empty; call Solidify before calling this!
-			bool IsEntirelySolid();		// similar to IsEmpt, but checks for solidity instead
+			bool IsEntirelySolid();		// similar to IsEmpty, but checks for solidity instead
 
 			// Member I/O functions
 			unsigned int Write(ostream& stream);
