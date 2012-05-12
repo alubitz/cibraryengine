@@ -175,7 +175,7 @@ namespace DestructibleTerrain
 		float brush_distance;
 		float brush_radius;
 
-		unsigned int add_tex;
+		boost::unordered_map<unsigned char, TerrainTexture>::iterator add_tex;
 
 		Imp(ProgramWindow* window) :
 			window(window),
@@ -190,7 +190,6 @@ namespace DestructibleTerrain
 			current_brush(NULL),
 			brush_distance(40.0f),
 			brush_radius(5.0f),
-			add_tex(0),
 			mouse_button_handler(this),
 			mouse_motion_handler(&yaw, &pitch),
 			key_press_handler(&add_tex, &add_brush),
@@ -202,8 +201,6 @@ namespace DestructibleTerrain
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
 			editor_orb = window->content->GetCache<VertexBuffer>()->Load("terrain_edit_orb");
-
-			add_brush.UpdateName();
 		}
 
 		~Imp()
@@ -217,7 +214,10 @@ namespace DestructibleTerrain
 			if(material == NULL)
 			{
 				material = new VoxelMaterial(window->content);
+				
 				add_brush.material = key_press_handler.material = material;
+
+				add_tex = material->textures.begin();
 				add_brush.UpdateName();
 			}
 
@@ -460,10 +460,10 @@ namespace DestructibleTerrain
 		struct KeyPressHandler : public EventHandler
 		{
 			VoxelMaterial* material;
-			unsigned int* which_ptr;
+			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 			AddBrush* add_brush;
 
-			KeyPressHandler(unsigned int* which_ptr, AddBrush* add_brush) : material(NULL), which_ptr(which_ptr), add_brush(add_brush) { }
+			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush) : material(NULL), which_ptr(which_ptr), add_brush(add_brush) { }
 
 			void HandleEvent(Event* evt)
 			{
@@ -471,9 +471,9 @@ namespace DestructibleTerrain
 
 				if(kse->state && kse->key == 'M' && material != NULL)
 				{
-					(*which_ptr)++;
-					if(*which_ptr == material->textures.size())
-						*which_ptr = 0;
+					++(*which_ptr);
+					if(*which_ptr == material->textures.end())
+						*which_ptr = material->textures.begin();
 
 					add_brush->UpdateName();
 				}
@@ -490,13 +490,13 @@ namespace DestructibleTerrain
 		struct AddBrush : public EditorBrush
 		{
 			VoxelMaterial* material;
-			unsigned int* which_ptr;
+			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 
-			AddBrush(unsigned int* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
+			AddBrush(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
 
-			void UpdateName() { if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << material->textures[*which_ptr].name << "\"")).str(); } }
+			void UpdateName() { if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << (*which_ptr)->second.name << "\"")).str(); } }
 
-			void DoAction(Imp* imp) { if(material != NULL) { imp->ApplyBrush(SphereMaterialSetter(material->textures[*which_ptr].material_index)); imp->terrain->Solidify(); } }
+			void DoAction(Imp* imp) { if(material != NULL) { imp->ApplyBrush(SphereMaterialSetter((*which_ptr)->second.material_index)); imp->terrain->Solidify(); } }
 		} add_brush;
 
 		struct SmoothBrush : public EditorBrush

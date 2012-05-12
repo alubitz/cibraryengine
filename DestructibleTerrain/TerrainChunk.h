@@ -12,6 +12,8 @@ namespace DestructibleTerrain
 	class VoxelTerrain;
 	struct CubeTriangles;
 
+	struct TerrainVertex;
+
 	class TerrainChunk
 	{
 		private:
@@ -39,7 +41,59 @@ namespace DestructibleTerrain
 
 			bool solidified;
 
+			struct RelativeTerrainVertex
+			{
+				TerrainVertex* vertex;
+				Vec3 offset;
+
+				RelativeTerrainVertex(TerrainVertex* vertex) : vertex(vertex), offset() { }
+				RelativeTerrainVertex(TerrainVertex* vertex, Vec3 offset) : vertex(vertex), offset(offset) { }
+
+				Vec3 GetPosition();
+
+				static vector<RelativeTerrainVertex*> rel_vert_recycle_bin;
+		
+				static RelativeTerrainVertex* New(TerrainVertex* vertex)
+				{
+					if(rel_vert_recycle_bin.empty())
+						return new RelativeTerrainVertex(vertex);
+					else
+					{
+						RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
+						rel_vert_recycle_bin.pop_back();
+
+						return new(result) RelativeTerrainVertex(vertex);
+					}
+				}
+				static RelativeTerrainVertex* New(TerrainVertex* vertex, Vec3 offset)
+				{
+					if(rel_vert_recycle_bin.empty())
+						return new RelativeTerrainVertex(vertex, offset);
+					else
+					{
+						RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
+						rel_vert_recycle_bin.pop_back();
+
+						return new(result) RelativeTerrainVertex(vertex, offset);
+					}
+				}
+				static void Delete(RelativeTerrainVertex* v) { rel_vert_recycle_bin.push_back(v); }
+
+				static void PurgeRecycleBin()
+				{
+					for(vector<RelativeTerrainVertex*>::iterator iter = rel_vert_recycle_bin.begin(); iter != rel_vert_recycle_bin.end(); ++iter)
+						delete *iter;
+					rel_vert_recycle_bin.clear();
+				}
+			};
+
 			void CreateVBOs(vector<MultiMaterialVBO>& result);
+
+			// these are functions used within CreateVBOs...
+			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, vector<MultiMaterialVBO>& vbos);
+			VertexBuffer* CreateVBO(unsigned int allocate_n);
+			MultiMaterialVBO GetOrCreateVBO(vector<MultiMaterialVBO>& get_from, unsigned char* mats, unsigned int size_to_create);
+			void ProcessVert(RelativeTerrainVertex& vert, MultiMaterialVBO target_vbo);
 
 			VoxelTerrain* owner;
 

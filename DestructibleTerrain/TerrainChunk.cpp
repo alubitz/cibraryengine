@@ -304,61 +304,18 @@ namespace DestructibleTerrain
 
 
 	/*
+	 * TerrainChunk::RelativeTerrainVertex members
+	 */
+	Vec3 TerrainChunk::RelativeTerrainVertex::GetPosition() { return vertex->pos + offset; }
+
+	vector<TerrainChunk::RelativeTerrainVertex*> TerrainChunk::RelativeTerrainVertex::rel_vert_recycle_bin = vector<TerrainChunk::RelativeTerrainVertex*>();
+
+
+
+
+	/*
 	 * CreateVBO is long...
 	 */
-
-	// forward declarations for a couple of utility functions (to break the function into more readable pieces)
-	struct RelativeTerrainVertex
-	{
-		TerrainVertex* vertex;
-		Vec3 offset;
-
-		RelativeTerrainVertex(TerrainVertex* vertex) : vertex(vertex), offset() { }
-		RelativeTerrainVertex(TerrainVertex* vertex, Vec3 offset) : vertex(vertex), offset(offset) { }
-
-		Vec3 GetPosition() { return vertex->pos + offset; }
-
-		static vector<RelativeTerrainVertex*> rel_vert_recycle_bin;
-		
-		static RelativeTerrainVertex* New(TerrainVertex* vertex)
-		{
-			if(rel_vert_recycle_bin.empty())
-				return new RelativeTerrainVertex(vertex);
-			else
-			{
-				RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
-				rel_vert_recycle_bin.pop_back();
-
-				return new(result) RelativeTerrainVertex(vertex);
-			}
-		}
-		static RelativeTerrainVertex* New(TerrainVertex* vertex, Vec3 offset)
-		{
-			if(rel_vert_recycle_bin.empty())
-				return new RelativeTerrainVertex(vertex, offset);
-			else
-			{
-				RelativeTerrainVertex* result = *rel_vert_recycle_bin.rbegin();
-				rel_vert_recycle_bin.pop_back();
-
-				return new(result) RelativeTerrainVertex(vertex, offset);
-			}
-		}
-		static void Delete(RelativeTerrainVertex* v) { rel_vert_recycle_bin.push_back(v); }
-
-		static void PurgeRecycleBin()
-		{
-			for(vector<RelativeTerrainVertex*>::iterator iter = rel_vert_recycle_bin.begin(); iter != rel_vert_recycle_bin.end(); ++iter)
-				delete *iter;
-			rel_vert_recycle_bin.clear();
-		}
-	};
-	vector<RelativeTerrainVertex*> RelativeTerrainVertex::rel_vert_recycle_bin = vector<RelativeTerrainVertex*>();
-
-	static void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials);
-	static void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials);
-
-	// the function itself...
 	void TerrainChunk::CreateVBOs(vector<MultiMaterialVBO>& results)
 	{
 		assert(results.empty());
@@ -522,22 +479,6 @@ namespace DestructibleTerrain
 						}
 					}
 
-			// TODO: support dynamic material selecty business up in here
-			unsigned char materials[] = { 1, 2, 3, 4 };
-
-			// now to actually construct some vbos from it...
-			VertexBuffer* model = new VertexBuffer(Triangles);
-
-			model->AddAttribute("gl_Vertex",			Float, 3);
-			model->AddAttribute("gl_Normal",			Float, 3);
-			model->AddAttribute("material_weights",		Float, 4);
-
-			model->SetNumVerts(num_verts);
-
-			float* vertex_ptr = model->GetFloatPointer("gl_Vertex");
-			float* normal_ptr = model->GetFloatPointer("gl_Normal");
-			float* mat_ptr = model->GetFloatPointer("material_weights");
-
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
 				for(int y = 0; y < cmax_y; ++y)
@@ -550,11 +491,17 @@ namespace DestructibleTerrain
 
 						// iterate through all of the verts in this cube
 						for(vector<unsigned int>::iterator iter = cube_verts.begin(); iter != cube_verts.end();)
-							ProcessTriangle(iter, unique_vertices, vertex_ptr, normal_ptr, mat_ptr, materials);
+						{
+							RelativeTerrainVertex* v1 = unique_vertices[*(iter++)];
+							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
+							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
+
+							ProcessTriangle(v1, v2, v3, results);
+						}
 					}
 
-			model->BuildVBO();
-			results.push_back(MultiMaterialVBO(materials, model));
+			for(vector<MultiMaterialVBO>::iterator iter = results.begin(); iter != results.end(); ++iter)
+				iter->vbo->BuildVBO();
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
@@ -563,22 +510,142 @@ namespace DestructibleTerrain
 		}
 	}
 
-	void ProcessTriangle(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials)
+	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, vector<MultiMaterialVBO>& vbos)
 	{
-		for(unsigned char i = 0; i < 3; ++i)
-			ProcessVert(iter++, unique_vertices, vertex_ptr, normal_ptr, mat_ptr, materials);
+		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
+
+		// get a list of all the materials these 3 verts want to use
+		boost::unordered_set<unsigned char> needed_materials;
+
+		for(int i = 0; i < 3; ++i)
+		{
+			MultiMaterial& multimat = verts[i]->vertex->material;
+			for(int j = 0; j < 4; ++j)
+			{
+				if(multimat.weights[j])
+					if(unsigned char mat = multimat.types[j])
+						needed_materials.insert(mat);
+			}
+		}
+
+		assert(needed_materials.size() > 0);
+
+		// TODO: eliminate excess materials by more sane means
+		unsigned char use_materials[] = { 0, 0, 0, 0 };
+		
+		unsigned int use_count = min(4u, needed_materials.size());
+
+		boost::unordered_set<unsigned char>::iterator iter = needed_materials.begin();
+		for(unsigned int i = 0; i < use_count; ++i, ++iter)
+			use_materials[i] = *iter;
+
+		// now find a compatible vbo
+		MultiMaterialVBO target_vbo = GetOrCreateVBO(vbos, use_materials, 100);			// TODO: use a more plausible heuristic
+
+		// finally put the verts into the vbo
+		ProcessVert(*v1, target_vbo);
+		ProcessVert(*v2, target_vbo);
+		ProcessVert(*v3, target_vbo);
 	}
 
-	void ProcessVert(vector<unsigned int>::iterator& iter, vector<RelativeTerrainVertex*>& unique_vertices, float*& vertex_ptr, float*& normal_ptr, float*& mat_ptr, unsigned char* materials)
+	TerrainChunk::MultiMaterialVBO TerrainChunk::GetOrCreateVBO(vector<MultiMaterialVBO>& get_from, unsigned char* mats, unsigned int size_to_create)
 	{
-		RelativeTerrainVertex& vert = *unique_vertices[*iter];
+		int used_slots = 0;
+		for(int i = 0; i < 4; ++i)
+		{
+			if(mats[i])
+				++used_slots;
+			else
+				break;
+		}
 
+		// go through the existing vbos to see if any are compatible...
+		for(vector<MultiMaterialVBO>::iterator iter = get_from.begin(); iter != get_from.end(); ++iter)
+		{
+			unsigned char* vbo_mats = iter->materials;
+
+			int free_slots = 0;
+			
+			for(int i = 0; i < 4; ++i)
+				if(vbo_mats[i] == 0)
+					++free_slots;
+
+			int matches = 0;
+			for(int i = 0; i < used_slots; ++i)
+			{
+				unsigned char needed_mat = mats[i];
+
+				for(int j = 0; j < 4; ++j)
+					if(vbo_mats[j] == needed_mat)
+						++matches;
+			}
+
+			if(free_slots + matches >= used_slots)							// found an acceptable vbo
+			{
+				// do we need to fill some of the free slots?
+				if(matches < used_slots)
+				{
+					for(int i = 0; i < used_slots; ++i)
+					{
+						unsigned char needed_mat = mats[i];
+
+						int j;
+						for(j = 0; j < 4; ++j)
+							if(vbo_mats[j] == needed_mat)
+								break;
+
+						if(j == 4)
+							for(j = 0; j < 4; ++j)
+								if(vbo_mats[j] == 0)
+								{
+									vbo_mats[j] = needed_mat;
+									break;
+								}
+					}
+				}
+
+				return *iter;
+			}
+		}
+
+		// if we got here it's because none of the existing vbos were acceptable
+		VertexBuffer* vbo = CreateVBO(size_to_create);
+		MultiMaterialVBO result = MultiMaterialVBO(mats, vbo);
+		get_from.push_back(result);
+
+		return result;
+	}
+
+	VertexBuffer* TerrainChunk::CreateVBO(unsigned int allocate_n)
+	{
+		VertexBuffer* vbo = new VertexBuffer(Triangles);
+
+		vbo->AddAttribute("gl_Vertex",			Float, 3);
+		vbo->AddAttribute("gl_Normal",			Float, 3);
+		vbo->AddAttribute("material_weights",	Float, 4);
+		vbo->SetAllocatedSize(allocate_n);
+
+		return vbo;
+	}
+
+	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, MultiMaterialVBO target_vbo)
+	{
 		Vec3 pos = vert.GetPosition();
 
 		Vec3 normal = vert.vertex->normal = Vec3::Normalize(vert.vertex->normal);
 		vert.vertex->normal_valid = true;
 
+		VertexBuffer* vbo = target_vbo.vbo;
+		unsigned char* materials = target_vbo.materials;
+
+		unsigned int v_index = vbo->GetNumVerts();
+		vbo->SetNumVerts(v_index + 1);
+
 		// put the data for this vertex into the VBO
+		float* vertex_ptr = &vbo->GetFloatPointer("gl_Vertex")[v_index * 3];
+		float* normal_ptr = &vbo->GetFloatPointer("gl_Normal")[v_index * 3];
+		float* mat_ptr = &vbo->GetFloatPointer("material_weights")[v_index * 4];
+
 		*(vertex_ptr++) = pos.x;
 		*(vertex_ptr++) = pos.y;
 		*(vertex_ptr++) = pos.z;
