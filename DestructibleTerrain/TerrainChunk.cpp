@@ -20,6 +20,7 @@ namespace DestructibleTerrain
 		chunk_z(z),
 		material(material),
 		vbos(),
+		depth_vbo(NULL),
 		vbo_valid(false),
 		solidified(false),
 		owner(owner)
@@ -100,14 +101,22 @@ namespace DestructibleTerrain
 	{
 		vbo_valid = false;
 
-		for(vector<MultiMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
+		for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
 		{
-			VertexBuffer* model = iter->vbo;
+			VertexBuffer* model = iter->second.vbo;
 
 			model->Dispose();
 			delete model;
 		}
 		vbos.clear();
+
+		if(depth_vbo != NULL)
+		{
+			depth_vbo->Dispose();
+			delete depth_vbo;
+
+			depth_vbo = NULL;
+		}
 	}
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
@@ -290,13 +299,14 @@ namespace DestructibleTerrain
 			if(!vbo_valid)
 			{
 				assert(vbos.empty());
+				assert(depth_vbo == NULL);
 
-				CreateVBOs(vbos);
+				CreateVBOs(vbos, depth_vbo);
 				vbo_valid = true;
 			}
 
-			for(vector<MultiMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
-				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(iter->vbo, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)) * ChunkSize, net_xform, iter->materials), 0));
+			if(depth_vbo != NULL)
+				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(vbos, depth_vbo, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)) * ChunkSize, net_xform), 0));
 		}
 	}
 
@@ -316,9 +326,10 @@ namespace DestructibleTerrain
 	/*
 	 * CreateVBO is long...
 	 */
-	void TerrainChunk::CreateVBOs(vector<MultiMaterialVBO>& results)
+	void TerrainChunk::CreateVBOs(boost::unordered_map<unsigned char, VoxelMaterialVBO>& results, VertexBuffer*& depth_vbo)
 	{
 		assert(results.empty());
+		assert(depth_vbo == NULL);
 
 		int num_verts = 0;
 
@@ -479,6 +490,14 @@ namespace DestructibleTerrain
 						}
 					}
 
+			depth_vbo = new VertexBuffer(Triangles);
+			depth_vbo->AddAttribute("gl_Vertex", Float, 3);
+			depth_vbo->SetNumVerts(num_verts);
+
+			float* depth_vert_ptr = depth_vbo->GetFloatPointer("gl_Vertex");
+
+			boost::unordered_map<unsigned char, VMVBOIterator> vbo_iterators;
+
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
 				for(int y = 0; y < cmax_y; ++y)
@@ -496,12 +515,15 @@ namespace DestructibleTerrain
 							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
 							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
 
-							ProcessTriangle(v1, v2, v3, results);
+							ProcessTriangle(v1, v2, v3, results, vbo_iterators, depth_vert_ptr, num_verts);
 						}
 					}
 
-			for(vector<MultiMaterialVBO>::iterator iter = results.begin(); iter != results.end(); ++iter)
-				iter->vbo->BuildVBO();
+			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = results.begin(); iter != results.end(); ++iter)
+			{
+				iter->second.vbo->SetNumVerts(vbo_iterators[iter->first].used_verts);
+				iter->second.vbo->BuildVBO();
+			}
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
@@ -510,9 +532,11 @@ namespace DestructibleTerrain
 		}
 	}
 
-	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, vector<MultiMaterialVBO>& vbos)
+	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, float*& depth_vert_ptr, unsigned int num_verts)
 	{
 		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
+
+		// TODO: eliminate excess materials by more sane means
 
 		// get a list of all the materials these 3 verts want to use
 		boost::unordered_set<unsigned char> needed_materials;
@@ -530,90 +554,72 @@ namespace DestructibleTerrain
 
 		assert(needed_materials.size() > 0);
 
-		// TODO: eliminate excess materials by more sane means
-		unsigned char use_materials[] = { 0, 0, 0, 0 };
-		
+		unsigned char use_materials[] = { 0, 0, 0, 0 };		
 		unsigned int use_count = min(4u, needed_materials.size());
 
 		boost::unordered_set<unsigned char>::iterator iter = needed_materials.begin();
 		for(unsigned int i = 0; i < use_count; ++i, ++iter)
 			use_materials[i] = *iter;
+				
+		// for each vert, compute the inverse of the total weight of used materials
+		float inv_totals[] = { 0.0f, 0.0f, 0.0f };		
+		for(unsigned int i = 0; i < use_count; ++i)
+		{
+			unsigned char mat = use_materials[i];
+			for(int j = 0; j < 3; ++j)
+				inv_totals[j] += verts[j]->vertex->material.GetMaterialAmount(mat);
+		}
+		for(unsigned int i = 0; i < 3; ++i)
+		{
+			assert(inv_totals[i] != 0.0f);
+			inv_totals[i] = 1.0f / inv_totals[i];
+		}
 
-		// now find a compatible vbo
-		MultiMaterialVBO target_vbo = GetOrCreateVBO(vbos, use_materials, 100);			// TODO: use a more plausible heuristic
+		iter = needed_materials.begin();
+		for(unsigned int i = 0; i < use_count; ++i, ++iter)
+		{
+			// now find a compatible vbo
+			VMVBOIterator& target_vbo = GetOrCreateVBO(vbos, vbo_iterators, *iter, num_verts);
 
-		// finally put the verts into the vbo
-		ProcessVert(*v1, target_vbo);
-		ProcessVert(*v2, target_vbo);
-		ProcessVert(*v3, target_vbo);
+			// finally put the verts into the vbo
+			ProcessVert(*v1, target_vbo, *iter, inv_totals[0]);
+			ProcessVert(*v2, target_vbo, *iter, inv_totals[1]);
+			ProcessVert(*v3, target_vbo, *iter, inv_totals[2]);
+		}
+
+		// add verts to depth vbo as well
+		for(int i = 0; i < 3; ++i)
+		{ 
+			Vec3 xyz = verts[i]->GetPosition();
+			*(depth_vert_ptr++) = xyz.x;
+			*(depth_vert_ptr++) = xyz.y;
+			*(depth_vert_ptr++) = xyz.z;
+		}
 	}
 
-	TerrainChunk::MultiMaterialVBO TerrainChunk::GetOrCreateVBO(vector<MultiMaterialVBO>& get_from, unsigned char* mats, unsigned int size_to_create)
+	TerrainChunk::VMVBOIterator& TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, unsigned char material, unsigned int size_to_create)
 	{
-		int used_slots = 0;
-		for(int i = 0; i < 4; ++i)
+		boost::unordered_map<unsigned char, VMVBOIterator>::iterator found = vbo_iterators.find(material);
+		if(found != vbo_iterators.end())
+			return found->second;
+		else
 		{
-			if(mats[i])
-				++used_slots;
-			else
-				break;
+			// there is no existing vbo for this material
+			VertexBuffer* vbo = CreateVBO(size_to_create);
+			VoxelMaterialVBO result = VoxelMaterialVBO(material, vbo);
+			get_from[material] = result;
+
+			VMVBOIterator iter;
+
+			iter.vert_ptr = vbo->GetFloatPointer("gl_Vertex");
+			iter.normal_ptr = vbo->GetFloatPointer("gl_Normal");
+			iter.mat_ptr = vbo->GetFloatPointer("material_weight");
+			iter.used_verts = 0;
+
+			vbo_iterators[material] = iter;
+
+			return vbo_iterators[material];
 		}
-
-		// go through the existing vbos to see if any are compatible...
-		for(vector<MultiMaterialVBO>::iterator iter = get_from.begin(); iter != get_from.end(); ++iter)
-		{
-			unsigned char* vbo_mats = iter->materials;
-
-			int free_slots = 0;
-			
-			for(int i = 0; i < 4; ++i)
-				if(vbo_mats[i] == 0)
-					++free_slots;
-
-			int matches = 0;
-			for(int i = 0; i < used_slots; ++i)
-			{
-				unsigned char needed_mat = mats[i];
-
-				for(int j = 0; j < 4; ++j)
-					if(vbo_mats[j] == needed_mat)
-						++matches;
-			}
-
-			if(free_slots + matches >= used_slots)							// found an acceptable vbo
-			{
-				// do we need to fill some of the free slots?
-				if(matches < used_slots)
-				{
-					for(int i = 0; i < used_slots; ++i)
-					{
-						unsigned char needed_mat = mats[i];
-
-						int j;
-						for(j = 0; j < 4; ++j)
-							if(vbo_mats[j] == needed_mat)
-								break;
-
-						if(j == 4)
-							for(j = 0; j < 4; ++j)
-								if(vbo_mats[j] == 0)
-								{
-									vbo_mats[j] = needed_mat;
-									break;
-								}
-					}
-				}
-
-				return *iter;
-			}
-		}
-
-		// if we got here it's because none of the existing vbos were acceptable
-		VertexBuffer* vbo = CreateVBO(size_to_create);
-		MultiMaterialVBO result = MultiMaterialVBO(mats, vbo);
-		get_from.push_back(result);
-
-		return result;
 	}
 
 	VertexBuffer* TerrainChunk::CreateVBO(unsigned int allocate_n)
@@ -622,49 +628,20 @@ namespace DestructibleTerrain
 
 		vbo->AddAttribute("gl_Vertex",			Float, 3);
 		vbo->AddAttribute("gl_Normal",			Float, 3);
-		vbo->AddAttribute("material_weights",	Float, 4);
+		vbo->AddAttribute("material_weight",	Float, 1);
 		vbo->SetAllocatedSize(allocate_n);
 
 		return vbo;
 	}
 
-	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, MultiMaterialVBO target_vbo)
+	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, VMVBOIterator& target_vbo, unsigned char material, float inv_total)
 	{
 		Vec3 pos = vert.GetPosition();
 
 		Vec3 normal = vert.vertex->normal = Vec3::Normalize(vert.vertex->normal);
 		vert.vertex->normal_valid = true;
 
-		VertexBuffer* vbo = target_vbo.vbo;
-		unsigned char* materials = target_vbo.materials;
-
-		unsigned int v_index = vbo->GetNumVerts();
-		vbo->SetNumVerts(v_index + 1);
-
-		// put the data for this vertex into the VBO
-		float* vertex_ptr = &vbo->GetFloatPointer("gl_Vertex")[v_index * 3];
-		float* normal_ptr = &vbo->GetFloatPointer("gl_Normal")[v_index * 3];
-		float* mat_ptr = &vbo->GetFloatPointer("material_weights")[v_index * 4];
-
-		*(vertex_ptr++) = pos.x;
-		*(vertex_ptr++) = pos.y;
-		*(vertex_ptr++) = pos.z;
-
-		*(normal_ptr++) = normal.x;
-		*(normal_ptr++) = normal.y;
-		*(normal_ptr++) = normal.z;
-
-		float a_amount = (float)vert.vertex->material.GetMaterialAmount(materials[0]);
-		float b_amount = (float)vert.vertex->material.GetMaterialAmount(materials[1]);
-		float c_amount = (float)vert.vertex->material.GetMaterialAmount(materials[2]);
-		float d_amount = (float)vert.vertex->material.GetMaterialAmount(materials[3]);
-
-		float tot = a_amount + b_amount + c_amount + d_amount, inv_tot = 1.0f / tot;
-
-		*(mat_ptr++) = a_amount * inv_tot;
-		*(mat_ptr++) = b_amount * inv_tot;
-		*(mat_ptr++) = c_amount * inv_tot;
-		*(mat_ptr++) = d_amount * inv_tot;
+		target_vbo.Write(pos, normal, (float)vert.vertex->material.GetMaterialAmount(material) * inv_total);
 	}
 
 

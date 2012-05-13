@@ -14,6 +14,8 @@ namespace DestructibleTerrain
 
 	struct TerrainVertex;
 
+	struct VoxelMaterialVBO;
+
 	class TerrainChunk
 	{
 		private:
@@ -27,16 +29,9 @@ namespace DestructibleTerrain
 
 			VoxelMaterial* material;
 
-			struct MultiMaterialVBO
-			{
-				unsigned char materials[4];
-				VertexBuffer* vbo;
+			boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
+			VertexBuffer* depth_vbo;
 
-				MultiMaterialVBO() : vbo(NULL) { }
-				MultiMaterialVBO(unsigned char mats[4], VertexBuffer* vbo) : vbo(vbo) { materials[0] = mats[0]; materials[1] = mats[1]; materials[2] = mats[2]; materials[3] = mats[3]; }
-			};
-
-			vector<MultiMaterialVBO> vbos;
 			bool vbo_valid;
 
 			bool solidified;
@@ -87,13 +82,37 @@ namespace DestructibleTerrain
 				}
 			};
 
-			void CreateVBOs(vector<MultiMaterialVBO>& result);
+			struct VMVBOIterator
+			{
+				float* vert_ptr;
+				float* normal_ptr;
+				float* mat_ptr;
+				
+				int used_verts;
+
+				void Write(const Vec3& pos, const Vec3& normal, float mat)
+				{
+					*(vert_ptr++) = pos.x;
+					*(vert_ptr++) = pos.y;
+					*(vert_ptr++) = pos.z;
+
+					*(normal_ptr++) = normal.x;
+					*(normal_ptr++) = normal.y;
+					*(normal_ptr++) = normal.z;
+
+					*(mat_ptr++) = mat;
+
+					++used_verts;
+				}
+			};
+
+			void CreateVBOs(boost::unordered_map<unsigned char, VoxelMaterialVBO>& result, VertexBuffer*& depth_vbo);
 
 			// these are functions used within CreateVBOs...
-			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, vector<MultiMaterialVBO>& vbos);
+			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, float*& depth_vert_ptr, unsigned int num_verts);
 			VertexBuffer* CreateVBO(unsigned int allocate_n);
-			MultiMaterialVBO GetOrCreateVBO(vector<MultiMaterialVBO>& get_from, unsigned char* mats, unsigned int size_to_create);
-			void ProcessVert(RelativeTerrainVertex& vert, MultiMaterialVBO target_vbo);
+			VMVBOIterator& GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, unsigned char material, unsigned int size_to_create);
+			void ProcessVert(RelativeTerrainVertex& vert, VMVBOIterator& target_vbo, unsigned char material, float inv_total);
 
 			VoxelTerrain* owner;
 

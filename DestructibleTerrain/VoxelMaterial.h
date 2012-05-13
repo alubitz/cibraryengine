@@ -6,6 +6,8 @@ namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;
 
+	class VoxelMaterial;
+
 	struct TerrainTexture
 	{
 		Texture2D* texture;
@@ -16,17 +18,26 @@ namespace DestructibleTerrain
 		TerrainTexture(Texture2D* texture, string name, int material_index) : texture(texture), name(name), material_index(material_index) { }
 	};
 
+	struct VoxelMaterialVBO
+	{
+		unsigned char material;
+		VertexBuffer* vbo;
+
+		VoxelMaterialVBO() : vbo(NULL) { }
+		VoxelMaterialVBO(unsigned char material, VertexBuffer* vbo) : material(material), vbo(vbo) { }
+	};
+
 	struct VoxelMaterialNodeData
 	{
-		VertexBuffer* model;
+		boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
+		VertexBuffer* depth_vbo;
+
 		Vec3 chunk_pos;
 		Mat4 xform;
 
-		unsigned char materials[4];
+		VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, Vec3 chunk_pos, Mat4 xform);
 
-		VoxelMaterialNodeData(VertexBuffer* model, Vec3 chunk_pos, Mat4 xform, unsigned char materials[4]);
-
-		void Draw(ShaderProgram* shader, Texture2D** textures);
+		void Draw(ShaderProgram* shader, ShaderProgram* depth_shader, VoxelMaterial* material);
 	};
 
 	class VoxelMaterial : public Material
@@ -34,6 +45,7 @@ namespace DestructibleTerrain
 		public:
 
 			ShaderProgram* shader;
+			ShaderProgram* depth_shader;
 			boost::unordered_map<unsigned char, TerrainTexture> textures;
 
 			VoxelMaterial(ContentMan* content);

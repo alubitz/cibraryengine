@@ -167,10 +167,11 @@ namespace CibraryEngine
 			GLDEBUG();
 		}
 
-		if(program != NULL && program->program_id != 0)
-		{
+		if(program != NULL && program->program_id == 0)
 			program->Build();
 
+		if(program != NULL && program->program_id != 0)
+		{
 			GLDEBUG();
 
 			glUseProgram(program->program_id);

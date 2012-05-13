@@ -1,12 +1,9 @@
-uniform	sampler2D		texture_a;
-uniform	sampler2D		texture_b;
-uniform	sampler2D		texture_c;
-uniform	sampler2D		texture_d;
+uniform	sampler2D		texture;
 uniform	vec3			chunk_pos;
 
 varying	vec3			normal, position;
 varying	vec3			input_normal, vertex;
-varying	vec4			mat_weights;
+varying	float			mat_weight;
 
 vec4 sampleTriplanar(sampler2D texture, vec3 sample_xyz)
 {
@@ -40,11 +37,7 @@ void main()
 
 	vec3 sample_xyz = (vertex + chunk_pos) / 10.0;
 
-	vec4 diffuse_sample =	sampleTriplanar(texture_a, sample_xyz) * mat_weights[0] +
-							sampleTriplanar(texture_b, sample_xyz) * mat_weights[1] + 
-							sampleTriplanar(texture_c, sample_xyz) * mat_weights[2] +
-							sampleTriplanar(texture_d, sample_xyz) * mat_weights[3];
-
+	vec4 diffuse_sample = sampleTriplanar(texture, sample_xyz) * mat_weight;
 	vec3 base_color = diffuse_sample.xyz * light;
 
 	gl_FragColor.xyz = base_color;

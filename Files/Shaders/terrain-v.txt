@@ -1,9 +1,9 @@
-attribute	vec4			material_weights;
+attribute	float			material_weight;
 
 varying		vec3			position,			normal;
 varying		vec3			vertex,				input_normal;
 
-varying		vec4			mat_weights;
+varying		float			mat_weight;
 
 void main()
 {
@@ -16,7 +16,7 @@ void main()
 	vertex = gl_Vertex.xyz;
 	input_normal = gl_Normal;
 
-	mat_weights = material_weights;
+	mat_weight = material_weight;
 
 	gl_FrontColor = gl_BackColor = gl_Color;
 }
