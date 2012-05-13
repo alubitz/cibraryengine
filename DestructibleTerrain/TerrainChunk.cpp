@@ -496,8 +496,6 @@ namespace DestructibleTerrain
 
 			float* depth_vert_ptr = depth_vbo->GetFloatPointer("gl_Vertex");
 
-			boost::unordered_map<unsigned char, VMVBOIterator> vbo_iterators;
-
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
 				for(int y = 0; y < cmax_y; ++y)
@@ -515,15 +513,12 @@ namespace DestructibleTerrain
 							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
 							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
 
-							ProcessTriangle(v1, v2, v3, results, vbo_iterators, depth_vert_ptr, num_verts);
+							ProcessTriangle(v1, v2, v3, results, depth_vert_ptr, num_verts);
 						}
 					}
 
 			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = results.begin(); iter != results.end(); ++iter)
-			{
-				iter->second.vbo->SetNumVerts(vbo_iterators[iter->first].used_verts);
 				iter->second.vbo->BuildVBO();
-			}
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
@@ -532,37 +527,17 @@ namespace DestructibleTerrain
 		}
 	}
 
-	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, float*& depth_vert_ptr, unsigned int num_verts)
+	static unsigned int PickTriangleMaterials(const MultiMaterial& m1, const MultiMaterial& m2, const MultiMaterial& m3, unsigned char* pick);
+	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, float*& depth_vert_ptr, unsigned int num_verts)
 	{
 		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
 
-		// TODO: eliminate excess materials by more sane means
+		unsigned char use_materials[4];
+		unsigned int use_count = PickTriangleMaterials(v1->vertex->material, v2->vertex->material, v3->vertex->material, use_materials);
 
-		// get a list of all the materials these 3 verts want to use
-		boost::unordered_set<unsigned char> needed_materials;
-
-		for(int i = 0; i < 3; ++i)
-		{
-			MultiMaterial& multimat = verts[i]->vertex->material;
-			for(int j = 0; j < 4; ++j)
-			{
-				if(multimat.weights[j])
-					if(unsigned char mat = multimat.types[j])
-						needed_materials.insert(mat);
-			}
-		}
-
-		assert(needed_materials.size() > 0);
-
-		unsigned char use_materials[] = { 0, 0, 0, 0 };		
-		unsigned int use_count = min(4u, needed_materials.size());
-
-		boost::unordered_set<unsigned char>::iterator iter = needed_materials.begin();
-		for(unsigned int i = 0; i < use_count; ++i, ++iter)
-			use_materials[i] = *iter;
-				
 		// for each vert, compute the inverse of the total weight of used materials
-		float inv_totals[] = { 0.0f, 0.0f, 0.0f };		
+		float inv_totals[] = { 0.0f, 0.0f, 0.0f };
+
 		for(unsigned int i = 0; i < use_count; ++i)
 		{
 			unsigned char mat = use_materials[i];
@@ -575,16 +550,17 @@ namespace DestructibleTerrain
 			inv_totals[i] = 1.0f / inv_totals[i];
 		}
 
-		iter = needed_materials.begin();
-		for(unsigned int i = 0; i < use_count; ++i, ++iter)
+		for(unsigned int i = 0; i < use_count; ++i)
 		{
+			unsigned char mat = use_materials[i];
+
 			// now find a compatible vbo
-			VMVBOIterator& target_vbo = GetOrCreateVBO(vbos, vbo_iterators, *iter, num_verts);
+			VertexBuffer* target_vbo = GetOrCreateVBO(vbos, mat, num_verts);
 
 			// finally put the verts into the vbo
-			ProcessVert(*v1, target_vbo, *iter, inv_totals[0]);
-			ProcessVert(*v2, target_vbo, *iter, inv_totals[1]);
-			ProcessVert(*v3, target_vbo, *iter, inv_totals[2]);
+			ProcessVert(*v1, target_vbo, mat, inv_totals[0]);
+			ProcessVert(*v2, target_vbo, mat, inv_totals[1]);
+			ProcessVert(*v3, target_vbo, mat, inv_totals[2]);
 		}
 
 		// add verts to depth vbo as well
@@ -595,13 +571,17 @@ namespace DestructibleTerrain
 			*(depth_vert_ptr++) = xyz.y;
 			*(depth_vert_ptr++) = xyz.z;
 		}
+		
 	}
 
-	TerrainChunk::VMVBOIterator& TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, boost::unordered_map<unsigned char, VMVBOIterator>& vbo_iterators, unsigned char material, unsigned int size_to_create)
+	VertexBuffer* TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, unsigned char material, unsigned int size_to_create)
 	{
-		boost::unordered_map<unsigned char, VMVBOIterator>::iterator found = vbo_iterators.find(material);
-		if(found != vbo_iterators.end())
-			return found->second;
+		boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator found = get_from.find(material);
+		if(found != get_from.end())
+		{
+			VoxelMaterialVBO result = found->second;
+			return result.vbo;
+		}
 		else
 		{
 			// there is no existing vbo for this material
@@ -609,16 +589,7 @@ namespace DestructibleTerrain
 			VoxelMaterialVBO result = VoxelMaterialVBO(material, vbo);
 			get_from[material] = result;
 
-			VMVBOIterator iter;
-
-			iter.vert_ptr = vbo->GetFloatPointer("gl_Vertex");
-			iter.normal_ptr = vbo->GetFloatPointer("gl_Normal");
-			iter.mat_ptr = vbo->GetFloatPointer("material_weight");
-			iter.used_verts = 0;
-
-			vbo_iterators[material] = iter;
-
-			return vbo_iterators[material];
+			return vbo;
 		}
 	}
 
@@ -629,21 +600,166 @@ namespace DestructibleTerrain
 		vbo->AddAttribute("gl_Vertex",			Float, 3);
 		vbo->AddAttribute("gl_Normal",			Float, 3);
 		vbo->AddAttribute("material_weight",	Float, 1);
+
 		vbo->SetAllocatedSize(allocate_n);
+		vbo->SetNumVerts(0);
 
 		return vbo;
 	}
 
-	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, VMVBOIterator& target_vbo, unsigned char material, float inv_total)
+	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, VertexBuffer* target_vbo, unsigned char material, float inv_total)
 	{
 		Vec3 pos = vert.GetPosition();
 
 		Vec3 normal = vert.vertex->normal = Vec3::Normalize(vert.vertex->normal);
 		vert.vertex->normal_valid = true;
 
-		target_vbo.Write(pos, normal, (float)vert.vertex->material.GetMaterialAmount(material) * inv_total);
+		unsigned int num_verts = target_vbo->GetNumVerts();
+		
+		target_vbo->SetNumVerts(num_verts + 1);
+
+		float* vert_ptr =	&target_vbo->GetFloatPointer("gl_Vertex")		[num_verts * 3];
+		float* normal_ptr =	&target_vbo->GetFloatPointer("gl_Normal")		[num_verts * 3];
+		float* mat_ptr =	&target_vbo->GetFloatPointer("material_weight")	[num_verts];
+
+		*(vert_ptr++) =		pos.x;
+		*(vert_ptr++) =		pos.y;
+		*(vert_ptr++) =		pos.z;
+
+		*(normal_ptr++) =	normal.x;
+		*(normal_ptr++) =	normal.y;
+		*(normal_ptr++) =	normal.z;
+
+		*(mat_ptr++) =		(float)vert.vertex->material.GetMaterialAmount(material) * inv_total;
 	}
 
+	unsigned int PickTriangleMaterials(const MultiMaterial& m1, const MultiMaterial& m2, const MultiMaterial& m3, unsigned char* pick)
+	{
+		MultiMaterial mats[] = { m1, m2, m3 };
+
+		unsigned char types[3][4];
+		unsigned short weights[3][4];
+
+		// put data into arrays
+		for(char i = 0; i < 3; ++i)
+		{
+			unsigned char* my_types = &types[i][0];
+			unsigned short* my_weights = &weights[i][0];
+
+			const MultiMaterial& mat = mats[i];
+			for(char j = 0; j < 4; ++j)
+			{
+				my_types[j] = mat.types[j];
+				my_weights[j] = unsigned short(mat.weights[j]);
+			}
+		}
+
+		// sort materials within each multimaterial
+		for(char i = 0; i < 3; ++i)
+		{
+			unsigned char* my_types = &types[i][0];
+			unsigned short* my_weights = &weights[i][0];
+
+			// first combine duplicate materials and get rid of empty ones
+			for(char j = 0; j < 4; ++j)
+				if(unsigned char type = my_types[j])
+				{
+					if(my_weights[j] > 0)
+						for(char k = j + 1; k < 4; ++k)
+							if(my_types[k] == type)
+							{
+								my_weights[j] += my_weights[k];
+								my_types[k] = 0;
+							}
+				}
+				else
+					my_weights[j] = 0;
+
+			// now bubble sort!
+			for(char j = 0; j < 4; ++j)
+				for(char k = 0; k + j < 3; ++k)
+					if(my_weights[k + 1] > my_weights[k])
+					{
+						swap(my_types[k], my_types[k + 1]);
+						swap(my_weights[k], my_weights[k + 1]);
+					}
+		}
+
+		// clear the output array
+		for(char i = 0; i < 4; ++i)
+			pick[i] = 0;
+
+		unsigned char extra_types[9];
+		unsigned short extra_weights[9];
+
+		char used = 0, extras = 0;
+
+		// make sure each vertex has its most prevalent material represented
+		for(char i = 0; i < 3; ++i)
+		{
+			unsigned char* my_types = &types[i][0];
+			unsigned short* my_weights = &weights[i][0];
+
+			unsigned char type = my_types[0];
+			assert(type != 0);
+			
+			char j;
+			for(j = 0; j < used; ++j)
+				if(pick[j] == type)
+					break;
+
+			if(j == used)
+				pick[used++] = type;
+
+			// put other types into extras list
+			for(j = 1; j < 4; ++j)
+				if(unsigned char extra_type = my_types[j])
+				{
+					char k;
+					for(k = 0; k < extras; ++k)
+						if(extra_types[k] == extra_type)
+						{
+							extra_weights[k] += my_weights[j];
+							break;
+						}
+
+					if(k == extras)				// type not already present in extras list
+					{
+						extra_types[extras] = extra_type;
+						extra_weights[extras] = my_weights[j];
+						++extras;
+					}
+				}
+		}
+
+		// pick the highest-weighted of the extras
+		while(used < 4 && extras)
+		{
+			unsigned char best_index = 0;
+			unsigned short best_weight = extra_weights[0];
+
+			for(char i = 1; i < extras; ++i)
+				if(extra_weights[i] > best_weight)
+				{
+					best_index = i;
+					best_weight = extra_weights[i];
+				}
+
+			if(best_weight)
+			{
+				pick[used++] = extra_types[best_index];
+
+				// remove that item from the search pool without having to shift everything else over by one
+				swap(extra_types[best_index], extra_types[extras - 1]);
+				swap(extra_weights[best_index], extra_weights[extras - 1]);
+				--extras;
+			}
+			else
+				break;
+		}
+
+		return used;
+	}
 
 	
 
