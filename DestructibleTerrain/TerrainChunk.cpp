@@ -291,21 +291,22 @@ namespace DestructibleTerrain
 
 	void TerrainChunk::Vis(SceneRenderer *renderer, Mat4 main_xform)
 	{
-		Mat4 net_xform = main_xform * xform;
-
-		AABB aabb = AABB(Vec3(), Vec3(1, 1, 1) * ChunkSize).GetTransformedAABB(net_xform);
-		//if(renderer->camera->CheckSphereVisibility((aabb.min + aabb.max) * 0.5f, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
+		// make sure vbo is up to date regardless of the visibility check
+		if(!vbo_valid)
 		{
-			if(!vbo_valid)
-			{
-				assert(vbos.empty());
-				assert(depth_vbo == NULL);
+			assert(vbos.empty());
+			assert(depth_vbo == NULL);
 
-				CreateVBOs(vbos, depth_vbo);
-				vbo_valid = true;
-			}
+			CreateVBOs(vbos, depth_vbo);
+			vbo_valid = true;
+		}
 
-			if(depth_vbo != NULL)
+		if(depth_vbo != NULL)
+		{
+			Mat4 net_xform = main_xform * xform;
+			AABB aabb = AABB(Vec3(), Vec3(1, 1, 1) * ChunkSize).GetTransformedAABB(net_xform);
+
+			if(renderer->camera->CheckSphereVisibility((aabb.min + aabb.max) * 0.5f, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
 				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(vbos, depth_vbo, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)) * ChunkSize, net_xform), 0));
 		}
 	}
@@ -532,7 +533,7 @@ namespace DestructibleTerrain
 	{
 		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
 
-		unsigned char use_materials[4];
+		unsigned char use_materials[12];
 		unsigned int use_count = PickTriangleMaterials(v1->vertex->material, v2->vertex->material, v3->vertex->material, use_materials);
 
 		// for each vert, compute the inverse of the total weight of used materials
@@ -637,6 +638,47 @@ namespace DestructibleTerrain
 	{
 		MultiMaterial mats[] = { m1, m2, m3 };
 
+		unsigned char types[12];
+		unsigned short weights[12];
+
+		char used = 0;
+
+		for(char i = 0; i < 3; ++i)
+			for(char j = 0; j < 4; ++j)
+				if(unsigned char type = mats[i].types[j])
+					if(unsigned short weight = unsigned short(mats[i].weights[j]))
+					{
+						types[used] = type;
+						weights[used] = weight;
+
+						++used;
+					}
+
+		
+		for(char i = 0; i < used; ++i)
+		{
+			char type = types[i];
+			for(char j = i + 1; j < used;)
+			{
+				if(types[j] == type)
+				{
+					weights[i] += weights[j];
+					
+					--used;
+					types[j] = types[used];
+					weights[j] = weights[used];
+				}
+				else
+					++j;
+			}
+		}
+
+		for(char i = 0; i < used; ++i)
+			pick[i] = types[i];
+
+		return used;
+
+		/*
 		unsigned char types[3][4];
 		unsigned short weights[3][4];
 
@@ -686,7 +728,7 @@ namespace DestructibleTerrain
 		}
 
 		// clear the output array
-		for(char i = 0; i < 4; ++i)
+		for(char i = 0; i < 12; ++i)
 			pick[i] = 0;
 
 		unsigned char extra_types[9];
@@ -733,7 +775,7 @@ namespace DestructibleTerrain
 		}
 
 		// pick the highest-weighted of the extras
-		while(used < 4 && extras)
+		while(used < 12 && extras)
 		{
 			unsigned char best_index = 0;
 			unsigned short best_weight = extra_weights[0];
@@ -759,6 +801,7 @@ namespace DestructibleTerrain
 		}
 
 		return used;
+		*/
 	}
 
 	

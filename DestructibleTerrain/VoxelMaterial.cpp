@@ -56,11 +56,17 @@ namespace DestructibleTerrain
 	{
 		Cache<Texture2D>* tex_cache = content->GetCache<Texture2D>();
 
-		LoadTexture(tex_cache, 1, "rock1",			"Rock 1");
-		LoadTexture(tex_cache, 2, "rock2",			"Rock 2");
-		LoadTexture(tex_cache, 3, "rock3",			"Rock 3");
-		LoadTexture(tex_cache, 4, "sand1",			"Sand");
-		LoadTexture(tex_cache, 5, "dummycube-d",	"Dummy Cube");
+		unsigned char next_mat = 1;
+
+		LoadTexture(tex_cache, next_mat++, "rock1",			"Rock 1");
+		LoadTexture(tex_cache, next_mat++, "rock2",			"Rock 2");
+		LoadTexture(tex_cache, next_mat++, "rock3",			"Rock 3");
+		LoadTexture(tex_cache, next_mat++, "sand1",			"Sand");
+		LoadTexture(tex_cache, next_mat++, "grass1",		"Grass 1");
+		LoadTexture(tex_cache, next_mat++, "grass2",		"Grass 2");
+		LoadTexture(tex_cache, next_mat++, "dirt1",			"Dirt");
+		LoadTexture(tex_cache, next_mat++, "gravel1",		"Gravel 1");
+		LoadTexture(tex_cache, next_mat++, "gravel2",		"Gravel 2");
 
 		// single-material shader
 		Shader* vs = content->GetCache<Shader>()->Load("terrain-v");

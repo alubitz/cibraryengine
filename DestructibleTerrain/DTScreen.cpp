@@ -174,6 +174,7 @@ namespace DestructibleTerrain
 		EditorBrush* current_brush;
 		float brush_distance;
 		float brush_radius;
+		bool enable_editing;
 
 		boost::unordered_map<unsigned char, TerrainTexture>::iterator add_tex;
 
@@ -190,9 +191,10 @@ namespace DestructibleTerrain
 			current_brush(NULL),
 			brush_distance(40.0f),
 			brush_radius(5.0f),
+			enable_editing(true),
 			mouse_button_handler(this),
 			mouse_motion_handler(&yaw, &pitch),
-			key_press_handler(&add_tex, &add_brush),
+			key_press_handler(&add_tex, &add_brush, &enable_editing),
 			subtract_brush(),
 			add_brush(&add_tex),
 			smooth_brush()
@@ -283,7 +285,7 @@ namespace DestructibleTerrain
 
 			GLDEBUG();
 
-			if(current_brush != NULL)
+			if(enable_editing && current_brush != NULL)
 			{
 				Vec3 ori, dir;
 				GetCameraRay(ori, dir);
@@ -322,7 +324,7 @@ namespace DestructibleTerrain
 
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-			if(current_brush != NULL)
+			if(enable_editing && current_brush != NULL)
 			{
 				stringstream ss;
 				ss << "Radius: " << brush_radius;
@@ -336,7 +338,7 @@ namespace DestructibleTerrain
 
 		void Update(TimingInfo time)
 		{
-			if(window->input_state->mb[0] && current_brush != NULL)
+			if(window->input_state->mb[0] && current_brush != NULL && enable_editing)
 				current_brush->DoAction(this);
 
 			Mat3 camera_rm = camera_ori.ToMat3();
@@ -462,20 +464,35 @@ namespace DestructibleTerrain
 			VoxelMaterial* material;
 			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 			AddBrush* add_brush;
+			bool* enable_editing;
 
-			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush) : material(NULL), which_ptr(which_ptr), add_brush(add_brush) { }
+			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush, bool* enable_editing) : material(NULL), which_ptr(which_ptr), add_brush(add_brush), enable_editing(enable_editing) { }
 
 			void HandleEvent(Event* evt)
 			{
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
 
-				if(kse->state && kse->key == 'M' && material != NULL)
+				switch(kse->key)
 				{
-					++(*which_ptr);
-					if(*which_ptr == material->textures.end())
-						*which_ptr = material->textures.begin();
+					case 'M':
 
-					add_brush->UpdateName();
+						if(kse->state && material != NULL)
+						{
+							++(*which_ptr);
+							if(*which_ptr == material->textures.end())
+								*which_ptr = material->textures.begin();
+
+							add_brush->UpdateName();
+						}
+
+						break;
+
+					case VK_F1:
+
+						if(kse->state)
+							*enable_editing = !*enable_editing;
+
+						break;
 				}
 			}
 		} key_press_handler;
