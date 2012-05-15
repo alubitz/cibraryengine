@@ -52,8 +52,8 @@ namespace CibraryEngine
 	{
 		protected:
 
-			map<string, VertexAttribute> attributes;
-			map<string, VertexData> attribute_data;
+			boost::unordered_map<string, VertexAttribute> attributes;
+			boost::unordered_map<string, VertexData> attribute_data;
 
 			DrawMode storage_mode;
 
@@ -77,15 +77,15 @@ namespace CibraryEngine
 
 			void SetAllocatedSize(unsigned int n);
 
-			void AddAttribute(string name, VertexAttributeType type, int n_per_vertex);
-			void RemoveAttribute(string name);
-			VertexAttribute GetAttribute(string name);
+			void AddAttribute(const string& name, VertexAttributeType type, int n_per_vertex);
+			void RemoveAttribute(const string& name);
+			VertexAttribute GetAttribute(const string& name);
 
 			vector<VertexAttribute> GetAttributes();
 			int GetVertexSize();
 
 			/** Returns a pointer to the float data for the given attribute name, if applicable; if non-applicable, returns NULL */
-			float* GetFloatPointer(string name);
+			float* GetFloatPointer(const string& name);
 
 			void InvalidateVBO();
 			void BuildVBO();

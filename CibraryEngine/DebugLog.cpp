@@ -26,26 +26,32 @@ namespace CibraryEngine
 		Debug(ss.str());
 	}
 
-	void GLErrorDebug(int line, string file) { GLErrorDebug(line, file, string()); }
-	void GLErrorDebug(int line, string file, string no_error_message)
+	static void DisplayGLError(int error, int line, const string& file)
 	{
-		int err = glGetError();
-		if(err != 0)
+		string error_string;
+		switch(error)
 		{
-			string error_string;
-			switch(err)
-			{
-				case GL_INVALID_FRAMEBUFFER_OPERATION:
-					error_string = "GL_INVALID_FRAMEBUFFER_OPERATION";
-					break;
-				default:
-					error_string = (char*)gluErrorString(err);
-					break;
-			}
-			stringstream ss;
-			ss << error_string << " at line " << line << " of " << file << endl;
-			Debug(ss.str());
+			case GL_INVALID_FRAMEBUFFER_OPERATION:
+				error_string = "GL_INVALID_FRAMEBUFFER_OPERATION";
+				break;
+			default:
+				error_string = (char*)gluErrorString(error);
+				break;
 		}
+		stringstream ss;
+		ss << error_string << " at line " << line << " of " << file << endl;
+		Debug(ss.str());
+	}
+
+	void GLErrorDebug(int line, const string& file)
+	{
+		if(int err = glGetError())
+			DisplayGLError(err, line, file);
+	}
+	void GLErrorDebug(int line, const string& file, const string& no_error_message)
+	{
+		if(int err = glGetError())
+			DisplayGLError(err, line, file);
 		else if(no_error_message.length() != 0)
 		{
 			stringstream ss;

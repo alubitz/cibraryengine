@@ -20,7 +20,7 @@ namespace CibraryEngine
 	GLErrorDebug(__LINE__, __FILE__)
 
 	/** If an OpenGL error has occurred, writes information to the debug log */
-	void GLErrorDebug(int line, string file);
+	void GLErrorDebug(int line, const string& file);
 	/** If an OpenGL error has occurred, writes information to the debug log; otherwise, if it is not an empty string, outputs no_error_message to the debug log */
-	void GLErrorDebug(int line, string file, string no_error_message);
+	void GLErrorDebug(int line, const string& file, const string& no_error_message);
 }

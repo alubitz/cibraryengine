@@ -220,8 +220,9 @@ namespace CibraryEngine
 					Update();
 
 					Draw();
-
 					SwapBuffers(device_context);
+
+					Sleep(1);			// will actually be more like Sleep(15) because of the low timer resolution
 				}
 			}
 

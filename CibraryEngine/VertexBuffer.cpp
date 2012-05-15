@@ -49,8 +49,8 @@ namespace CibraryEngine
 		{
 			allocated_size = verts;
 
-			map<string, VertexData> nu_attribute_data;
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			boost::unordered_map<string, VertexData> nu_attribute_data;
+			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 				if(attrib.type == Float)
@@ -66,7 +66,7 @@ namespace CibraryEngine
 				}
 			}
 
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 				if(attrib.type == Float)
@@ -83,8 +83,8 @@ namespace CibraryEngine
 		{
 			allocated_size = 0;
 
-			map<string, VertexData> nu_attribute_data;
-			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			boost::unordered_map<string, VertexData> nu_attribute_data;
+			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				VertexAttribute attrib = GetAttribute(iter->first);
 
@@ -105,7 +105,7 @@ namespace CibraryEngine
 			num_verts = verts;
 	}
 
-	void VertexBuffer::AddAttribute(string name, VertexAttributeType type, int n_per_vertex)
+	void VertexBuffer::AddAttribute(const string& name, VertexAttributeType type, int n_per_vertex)
 	{
 		RemoveAttribute(name);				// in case it already exists!
 
@@ -118,15 +118,15 @@ namespace CibraryEngine
 			attribute_data[name].floats = num_elements > 0 ? new float[num_elements] : NULL;
 	}
 
-	void VertexBuffer::RemoveAttribute(string name)
+	void VertexBuffer::RemoveAttribute(const string& name)
 	{
-		map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
 		{
 			VertexAttribute attribute = found_name->second;
 			attributes.erase(found_name);
 
-			map<string, VertexData>::iterator found_attrib = attribute_data.find(name);
+			boost::unordered_map<string, VertexData>::iterator found_attrib = attribute_data.find(name);
 			if(found_attrib != attribute_data.end())
 			{
 				VertexData data = found_attrib->second;
@@ -139,9 +139,9 @@ namespace CibraryEngine
 		}
 	}
 
-	VertexAttribute VertexBuffer::GetAttribute(string name)
+	VertexAttribute VertexBuffer::GetAttribute(const string& name)
 	{
-		map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
 			return found_name->second;
 		else
@@ -151,7 +151,7 @@ namespace CibraryEngine
 	vector<VertexAttribute> VertexBuffer::GetAttributes()
 	{
 		vector<VertexAttribute> results;
-		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 			results.push_back(iter->second);
 		return results;
 	}
@@ -171,7 +171,7 @@ namespace CibraryEngine
 		return total_size;
 	}
 
-	float* VertexBuffer::GetFloatPointer(string name)
+	float* VertexBuffer::GetFloatPointer(const string& name)
 	{
 		VertexAttribute a = GetAttribute(name);
 		if(a.type == Float)

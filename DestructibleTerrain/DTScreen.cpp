@@ -6,7 +6,8 @@
 #include "TerrainChunk.h"
 #include "VoxelMaterial.h"
 
-#define TERRAIN_RESOLUTION 16
+#define TERRAIN_DIM_HORIZONTAL 16
+#define TERRAIN_DIM_VERTICAL 8
 
 namespace DestructibleTerrain
 {
@@ -176,6 +177,10 @@ namespace DestructibleTerrain
 		float brush_radius;
 		bool enable_editing;
 
+		float time_since_fps;
+		int frames_since_fps;
+		int fps;
+
 		boost::unordered_map<unsigned char, TerrainTexture>::iterator add_tex;
 
 		Imp(ProgramWindow* window) :
@@ -184,7 +189,7 @@ namespace DestructibleTerrain
 			material(NULL),
 			terrain(NULL),
 			font(NULL),
-			camera_pos(0, TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.125f, 0),
+			camera_pos(0, TERRAIN_DIM_VERTICAL * TerrainChunk::ChunkSize * 0.125f, 0),
 			yaw(),
 			pitch(),
 			camera_ori(Quaternion::Identity()), 
@@ -197,6 +202,9 @@ namespace DestructibleTerrain
 			key_press_handler(&add_tex, &add_brush, &enable_editing),
 			subtract_brush(),
 			add_brush(&add_tex),
+			time_since_fps(0.0f),
+			frames_since_fps(0),
+			fps(0),
 			smooth_brush()
 		{
 			current_brush = &subtract_brush;
@@ -231,7 +239,7 @@ namespace DestructibleTerrain
 					load_err_ss << "LoadVVV returned with status " << terrain_load_error << "! Generating random terrain instead..." << endl;
 					Debug(load_err_ss.str());
 
-					terrain = VoxelTerrainLoader::GenerateTerrain(material, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
+					terrain = VoxelTerrainLoader::GenerateTerrain(material, TERRAIN_DIM_HORIZONTAL, TERRAIN_DIM_VERTICAL, TERRAIN_DIM_HORIZONTAL);
 
 					if(unsigned int terrain_save_error = VoxelTerrainLoader::SaveVVV(terrain, "Files/Levels/VoxelWorld.vvv"))
 					{
@@ -273,6 +281,7 @@ namespace DestructibleTerrain
 
 			float light_pos[] = {0, 1, 0, 0};
 			glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+			glEnable(GL_LIGHT0);
 
 			GLDEBUG();
 
@@ -325,19 +334,29 @@ namespace DestructibleTerrain
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 			if(enable_editing && current_brush != NULL)
-			{
-				stringstream ss;
-				ss << "Radius: " << brush_radius;
-				
+			{			
 				font->Print(current_brush->name, 0, 0);
-				font->Print(ss.str(), 0, font->font_height);
+				font->Print(((stringstream&)(stringstream() << "Radius : " << brush_radius)).str(), 0, font->font_height);
 			}
+			font->Print(((stringstream&)(stringstream() << "FPS : " << fps)).str(), width - font->font_spacing * 10, 0);
 
 			GLDEBUG();
+
+			++frames_since_fps;
 		}
 
 		void Update(TimingInfo time)
 		{
+			time_since_fps += time.elapsed;
+
+			if(frames_since_fps && time_since_fps > 0.1f)
+			{
+				fps = (int)(frames_since_fps / time_since_fps);
+
+				frames_since_fps = 0;
+				time_since_fps = 0.0f;
+			}
+
 			if(window->input_state->mb[0] && current_brush != NULL && enable_editing)
 				current_brush->DoAction(this);
 
@@ -386,10 +405,10 @@ namespace DestructibleTerrain
 			Vec3 pos = origin;
 			direction = Vec3::Normalize(direction, 0.5f);
 
-			float center_xyz = TERRAIN_RESOLUTION * TerrainChunk::ChunkSize * 0.5f;
-			Vec3 center = Vec3(center_xyz, center_xyz, center_xyz);
+			float center_xz = TERRAIN_DIM_HORIZONTAL * TerrainChunk::ChunkSize * 0.5f;
+			Vec3 center = Vec3(center_xz, TERRAIN_DIM_VERTICAL * TerrainChunk::ChunkSize * 0.5f, center_xz);
 
-			float radius_squared = center_xyz * center_xyz * 3.0f;
+			float radius_squared = center.ComputeMagnitudeSquared() * 3.0f;
 
 			int steps = 0;
 			while(steps < 1000)
