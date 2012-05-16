@@ -10,6 +10,51 @@
 namespace DestructibleTerrain
 {
 	/*
+	 * TerrainChunk::CombinedVBO methods
+	 */
+	TerrainChunk::CombinedVBO::CombinedVBO() : vbos(), depth_vbo(NULL), valid(false) { } 
+
+	void TerrainChunk::CombinedVBO::Vis(TerrainChunk* owner, SceneRenderer* renderer, const Mat4& main_xform)
+	{
+		if(depth_vbo != NULL)
+		{
+			Mat4 net_xform = main_xform * owner->xform;
+			AABB aabb = AABB(Vec3(), Vec3(1, 1, 1) * ChunkSize).GetTransformedAABB(net_xform);
+
+			if(renderer->camera->CheckSphereVisibility((aabb.min + aabb.max) * 0.5f, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
+				renderer->objects.push_back(RenderNode(owner->material, new VoxelMaterialNodeData(vbos, depth_vbo, Vec3(float(owner->chunk_x), float(owner->chunk_y), float(owner->chunk_z)) * ChunkSize, net_xform), 0));
+		}
+	}
+
+	void TerrainChunk::CombinedVBO::Invalidate()
+	{
+		if(valid)
+		{
+			valid = false;
+
+			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
+			{
+				VertexBuffer* model = iter->second.vbo;
+
+				model->Dispose();
+				delete model;
+			}
+			vbos.clear();
+
+			if(depth_vbo != NULL)
+			{
+				depth_vbo->Dispose();
+				delete depth_vbo;
+
+				depth_vbo = NULL;
+			}
+		}
+	}
+
+
+
+
+	/*
 	 * TerrainChunk methods
 	 */
 	TerrainChunk::TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z) :
@@ -19,9 +64,8 @@ namespace DestructibleTerrain
 		chunk_y(y),
 		chunk_z(z),
 		material(material),
-		vbos(),
-		depth_vbo(NULL),
-		vbo_valid(false),
+		combined_vbo(),
+		lores_vbo(),
 		solidified(false),
 		owner(owner)
 	{
@@ -97,27 +141,7 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::InvalidateVBO()
-	{
-		vbo_valid = false;
-
-		for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
-		{
-			VertexBuffer* model = iter->second.vbo;
-
-			model->Dispose();
-			delete model;
-		}
-		vbos.clear();
-
-		if(depth_vbo != NULL)
-		{
-			depth_vbo->Dispose();
-			delete depth_vbo;
-
-			depth_vbo = NULL;
-		}
-	}
+	void TerrainChunk::InvalidateVBO() { combined_vbo.Invalidate(); lores_vbo.Invalidate(); }
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
 	{
@@ -289,26 +313,18 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::Vis(SceneRenderer *renderer, Mat4 main_xform)
+	void TerrainChunk::Vis(SceneRenderer *renderer, const Mat4& main_xform)
 	{
 		// make sure vbo is up to date regardless of the visibility check
-		if(!vbo_valid)
+		if(!combined_vbo.valid)
 		{
 			assert(vbos.empty());
 			assert(depth_vbo == NULL);
 
-			CreateVBOs(vbos, depth_vbo);
-			vbo_valid = true;
+			combined_vbo = CreateVBOs(0);
 		}
 
-		if(depth_vbo != NULL)
-		{
-			Mat4 net_xform = main_xform * xform;
-			AABB aabb = AABB(Vec3(), Vec3(1, 1, 1) * ChunkSize).GetTransformedAABB(net_xform);
-
-			if(renderer->camera->CheckSphereVisibility((aabb.min + aabb.max) * 0.5f, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
-				renderer->objects.push_back(RenderNode(material, new VoxelMaterialNodeData(vbos, depth_vbo, Vec3(float(chunk_x), float(chunk_y), float(chunk_z)) * ChunkSize, net_xform), 0));
-		}
+		combined_vbo.Vis(this, renderer, main_xform);
 	}
 
 
@@ -327,11 +343,8 @@ namespace DestructibleTerrain
 	/*
 	 * CreateVBO is long...
 	 */
-	void TerrainChunk::CreateVBOs(boost::unordered_map<unsigned char, VoxelMaterialVBO>& results, VertexBuffer*& depth_vbo)
+	TerrainChunk::CombinedVBO TerrainChunk::CreateVBOs(int lod)
 	{
-		assert(results.empty());
-		assert(depth_vbo == NULL);
-
 		int num_verts = 0;
 
 		// dimensions including neighboring chunks (in order to compute normal vectors)
@@ -445,7 +458,9 @@ namespace DestructibleTerrain
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
-			return;
+			CombinedVBO result;
+			result.valid = true;
+			return result;
 		}
 		else
 		{
@@ -491,11 +506,13 @@ namespace DestructibleTerrain
 						}
 					}
 
-			depth_vbo = new VertexBuffer(Triangles);
-			depth_vbo->AddAttribute("gl_Vertex", Float, 3);
-			depth_vbo->SetNumVerts(num_verts);
+			CombinedVBO result;
 
-			float* depth_vert_ptr = depth_vbo->GetFloatPointer("gl_Vertex");
+			result.depth_vbo = new VertexBuffer(Triangles);
+			result.depth_vbo->AddAttribute("gl_Vertex", Float, 3);
+			result.depth_vbo->SetNumVerts(num_verts);
+
+			float* depth_vert_ptr = result.depth_vbo->GetFloatPointer("gl_Vertex");
 
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
@@ -514,17 +531,20 @@ namespace DestructibleTerrain
 							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
 							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
 
-							ProcessTriangle(v1, v2, v3, results, depth_vert_ptr, num_verts);
+							ProcessTriangle(v1, v2, v3, result.vbos, depth_vert_ptr, num_verts);
 						}
 					}
 
-			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = results.begin(); iter != results.end(); ++iter)
+			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = result.vbos.begin(); iter != result.vbos.end(); ++iter)
 				iter->second.vbo->BuildVBO();
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
+
+			result.valid = true;
+			return result;
 		}
 	}
 

@@ -29,10 +29,18 @@ namespace DestructibleTerrain
 
 			VoxelMaterial* material;
 
-			boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
-			VertexBuffer* depth_vbo;
+			struct CombinedVBO
+			{
+				boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
+				VertexBuffer* depth_vbo;
 
-			bool vbo_valid;
+				bool valid;
+
+				CombinedVBO();
+
+				void Vis(TerrainChunk* owner, SceneRenderer* renderer, const Mat4& main_xform);
+				void Invalidate();
+			} combined_vbo, lores_vbo;
 
 			bool solidified;
 
@@ -82,7 +90,7 @@ namespace DestructibleTerrain
 				}
 			};
 
-			void CreateVBOs(boost::unordered_map<unsigned char, VoxelMaterialVBO>& result, VertexBuffer*& depth_vbo);
+			CombinedVBO CreateVBOs(int lod);
 
 			// these are functions used within CreateVBOs...
 			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, float*& depth_vert_ptr, unsigned int num_verts);
@@ -134,7 +142,7 @@ namespace DestructibleTerrain
 
 			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action);
 
-			void Vis(SceneRenderer* renderer, Mat4 main_xform);
+			void Vis(SceneRenderer* renderer, const Mat4& main_xform);
 
 			bool IsEmpty();				// check if this chunk is completely empty; call Solidify before calling this!
 			bool IsEntirelySolid();		// similar to IsEmpty, but checks for solidity instead

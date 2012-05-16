@@ -209,7 +209,7 @@ namespace DestructibleTerrain
 			PerlinNoise n1;
 
 			PNFunc() : n1(256) { }
-			float operator() (Vec3 vec) { return n1.Sample(vec) + n1.Sample(vec * 2) / 4 + n1.Sample(vec * 4) / 8 + n1.Sample(vec * 8) / 16; }
+			float operator() (Vec3 vec) { return n1.Sample(vec) + n1.Sample(vec * 2) / 2 + n1.Sample(vec * 4) / 4 + n1.Sample(vec * 8) / 8; }
 		} n;
 
 		VoxelTerrain* result = new VoxelTerrain(material, dim_x, dim_y, dim_z);
@@ -247,6 +247,59 @@ namespace DestructibleTerrain
 				}
 
 		result->Solidify();
+
+		for(int x = 0; x < dim_x; ++x)
+			for(int xx = 0; xx < TerrainChunk::ChunkSize; ++xx)
+				for(int z = 0; z < dim_z; ++z)
+					for(int zz = 0; zz < TerrainChunk::ChunkSize; ++zz)
+					{
+						float pos_x = (x * TerrainChunk::ChunkSize + xx) / 32.0f, pos_z = (z * TerrainChunk::ChunkSize + zz) / 32.0f;
+
+						int grass1 = max(0, min(255, int((n(Vec3(pos_x, 5.3f, pos_z)) + 0.5f) * 255)));
+						int grass2 = 255 - grass1;
+
+						bool started = false;
+
+						int grass_energy = max(0, int((n(Vec3(pos_x, 1.8f, pos_z)) + 0.5f) * 64.0f));
+
+						for(int y = dim_y - 1; y >= 0; --y)
+							for(int yy = TerrainChunk::ChunkSize - 1; yy >= 0; --yy)
+							{
+								if(TerrainNode* node = result->Chunk(x, y, z)->GetNode(xx, yy, zz))
+								{
+									if(node->IsSolid())
+									{
+										started = true;
+
+										int needed = 64;
+										if(node->solidity < 255)
+										{
+											node->material.Clear();
+
+											int a = grass_energy * grass1 / 255, b = grass_energy * grass2 / 255;
+											if(a == 0 && b == 0)
+											{
+												a = grass1 > grass2 ? grass_energy : 0;
+												b = grass1 > grass2 ? 0 : grass_energy;
+											}
+
+											node->material.SetMaterialAmount(5, a);
+											node->material.SetMaterialAmount(6, b);
+
+											needed -= grass_energy;
+										}
+										else
+											y = yy = -1;
+
+										if(needed > 0)
+											node->material.SetMaterialAmount(1, needed);
+									}
+									else if(started)
+										y = yy = -1;
+								}
+							}
+					}
+				
 
 		return result;
 	}
