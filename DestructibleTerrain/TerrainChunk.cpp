@@ -65,7 +65,6 @@ namespace DestructibleTerrain
 		chunk_z(z),
 		material(material),
 		combined_vbo(),
-		lores_vbo(),
 		solidified(false),
 		owner(owner)
 	{
@@ -141,7 +140,7 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::InvalidateVBO() { combined_vbo.Invalidate(); lores_vbo.Invalidate(); }
+	void TerrainChunk::InvalidateVBO() { combined_vbo.Invalidate(); }
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
 	{
@@ -317,12 +316,7 @@ namespace DestructibleTerrain
 	{
 		// make sure vbo is up to date regardless of the visibility check
 		if(!combined_vbo.valid)
-		{
-			assert(vbos.empty());
-			assert(depth_vbo == NULL);
-
-			combined_vbo = CreateVBOs(0);
-		}
+			CreateVBOs(combined_vbo);
 
 		combined_vbo.Vis(this, renderer, main_xform);
 	}
@@ -343,7 +337,7 @@ namespace DestructibleTerrain
 	/*
 	 * CreateVBO is long...
 	 */
-	TerrainChunk::CombinedVBO TerrainChunk::CreateVBOs(int lod)
+	void TerrainChunk::CreateVBOs(CombinedVBO& target)
 	{
 		int num_verts = 0;
 
@@ -401,6 +395,7 @@ namespace DestructibleTerrain
 						unique_vertices.push_back(NULL);
 				}
 		
+		// match up per-cube indices with indices into the master vertex list (unique_vertices)
 		for(int x = 0; x < cmax_x; ++x)
 			for(int y = 0; y < cmax_y; ++y)
 				for(int z = 0; z < cmax_z; ++z)
@@ -458,9 +453,7 @@ namespace DestructibleTerrain
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
-			CombinedVBO result;
-			result.valid = true;
-			return result;
+			target.valid = true;
 		}
 		else
 		{
@@ -506,13 +499,11 @@ namespace DestructibleTerrain
 						}
 					}
 
-			CombinedVBO result;
+			target.depth_vbo = new VertexBuffer(Triangles);
+			target.depth_vbo->AddAttribute("gl_Vertex", Float, 3);
+			target.depth_vbo->SetNumVerts(num_verts);
 
-			result.depth_vbo = new VertexBuffer(Triangles);
-			result.depth_vbo->AddAttribute("gl_Vertex", Float, 3);
-			result.depth_vbo->SetNumVerts(num_verts);
-
-			float* depth_vert_ptr = result.depth_vbo->GetFloatPointer("gl_Vertex");
+			float* depth_vert_ptr = target.depth_vbo->GetFloatPointer("gl_Vertex");
 
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
@@ -531,11 +522,11 @@ namespace DestructibleTerrain
 							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
 							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
 
-							ProcessTriangle(v1, v2, v3, result.vbos, depth_vert_ptr, num_verts);
+							ProcessTriangle(v1, v2, v3, target.vbos, depth_vert_ptr, num_verts);
 						}
 					}
 
-			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = result.vbos.begin(); iter != result.vbos.end(); ++iter)
+			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = target.vbos.begin(); iter != target.vbos.end(); ++iter)
 				iter->second.vbo->BuildVBO();
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
@@ -543,8 +534,7 @@ namespace DestructibleTerrain
 					RelativeTerrainVertex::Delete(*iter);
 			delete[] vertex_indices;
 
-			result.valid = true;
-			return result;
+			target.valid = true;
 		}
 	}
 
@@ -697,131 +687,6 @@ namespace DestructibleTerrain
 			pick[i] = types[i];
 
 		return used;
-
-		/*
-		unsigned char types[3][4];
-		unsigned short weights[3][4];
-
-		// put data into arrays
-		for(char i = 0; i < 3; ++i)
-		{
-			unsigned char* my_types = &types[i][0];
-			unsigned short* my_weights = &weights[i][0];
-
-			const MultiMaterial& mat = mats[i];
-			for(char j = 0; j < 4; ++j)
-			{
-				my_types[j] = mat.types[j];
-				my_weights[j] = unsigned short(mat.weights[j]);
-			}
-		}
-
-		// sort materials within each multimaterial
-		for(char i = 0; i < 3; ++i)
-		{
-			unsigned char* my_types = &types[i][0];
-			unsigned short* my_weights = &weights[i][0];
-
-			// first combine duplicate materials and get rid of empty ones
-			for(char j = 0; j < 4; ++j)
-				if(unsigned char type = my_types[j])
-				{
-					if(my_weights[j] > 0)
-						for(char k = j + 1; k < 4; ++k)
-							if(my_types[k] == type)
-							{
-								my_weights[j] += my_weights[k];
-								my_types[k] = 0;
-							}
-				}
-				else
-					my_weights[j] = 0;
-
-			// now bubble sort!
-			for(char j = 0; j < 4; ++j)
-				for(char k = 0; k + j < 3; ++k)
-					if(my_weights[k + 1] > my_weights[k])
-					{
-						swap(my_types[k], my_types[k + 1]);
-						swap(my_weights[k], my_weights[k + 1]);
-					}
-		}
-
-		// clear the output array
-		for(char i = 0; i < 12; ++i)
-			pick[i] = 0;
-
-		unsigned char extra_types[9];
-		unsigned short extra_weights[9];
-
-		char used = 0, extras = 0;
-
-		// make sure each vertex has its most prevalent material represented
-		for(char i = 0; i < 3; ++i)
-		{
-			unsigned char* my_types = &types[i][0];
-			unsigned short* my_weights = &weights[i][0];
-
-			unsigned char type = my_types[0];
-			assert(type != 0);
-			
-			char j;
-			for(j = 0; j < used; ++j)
-				if(pick[j] == type)
-					break;
-
-			if(j == used)
-				pick[used++] = type;
-
-			// put other types into extras list
-			for(j = 1; j < 4; ++j)
-				if(unsigned char extra_type = my_types[j])
-				{
-					char k;
-					for(k = 0; k < extras; ++k)
-						if(extra_types[k] == extra_type)
-						{
-							extra_weights[k] += my_weights[j];
-							break;
-						}
-
-					if(k == extras)				// type not already present in extras list
-					{
-						extra_types[extras] = extra_type;
-						extra_weights[extras] = my_weights[j];
-						++extras;
-					}
-				}
-		}
-
-		// pick the highest-weighted of the extras
-		while(used < 12 && extras)
-		{
-			unsigned char best_index = 0;
-			unsigned short best_weight = extra_weights[0];
-
-			for(char i = 1; i < extras; ++i)
-				if(extra_weights[i] > best_weight)
-				{
-					best_index = i;
-					best_weight = extra_weights[i];
-				}
-
-			if(best_weight)
-			{
-				pick[used++] = extra_types[best_index];
-
-				// remove that item from the search pool without having to shift everything else over by one
-				swap(extra_types[best_index], extra_types[extras - 1]);
-				swap(extra_weights[best_index], extra_weights[extras - 1]);
-				--extras;
-			}
-			else
-				break;
-		}
-
-		return used;
-		*/
 	}
 
 	

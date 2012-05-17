@@ -40,7 +40,7 @@ namespace DestructibleTerrain
 
 				void Vis(TerrainChunk* owner, SceneRenderer* renderer, const Mat4& main_xform);
 				void Invalidate();
-			} combined_vbo, lores_vbo;
+			} combined_vbo;
 
 			bool solidified;
 
@@ -90,7 +90,7 @@ namespace DestructibleTerrain
 				}
 			};
 
-			CombinedVBO CreateVBOs(int lod);
+			void CreateVBOs(CombinedVBO& target);
 
 			// these are functions used within CreateVBOs...
 			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, float*& depth_vert_ptr, unsigned int num_verts);
