@@ -12,9 +12,26 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainChunk::CombinedVBO methods
 	 */
-	TerrainChunk::CombinedVBO::CombinedVBO() : vbos(), depth_vbo(NULL), valid(false) { } 
+	TerrainChunk::CombinedVBO::CombinedVBO(TerrainChunk* owner, int lod) :
+		owner(owner),
+		chunk_x(owner->chunk_x),
+		chunk_y(owner->chunk_y),
+		chunk_z(owner->chunk_z),
+		lod(lod),
+		use_size(ChunkSize >> lod),
+		use_size_squared(use_size * use_size),
+		tri_data(),
+		vbos(),
+		depth_vbo(NULL),
+		valid(false)
+	{
+		for(int x = 0; x < use_size; ++x)
+			for(int y = 0; y < use_size; ++y)
+				for(int z = 0; z < use_size; ++z)
+					tri_data.push_back(CubeTriangles(owner, lod, x, y, z));
+	} 
 
-	void TerrainChunk::CombinedVBO::Vis(TerrainChunk* owner, SceneRenderer* renderer, const Mat4& main_xform)
+	void TerrainChunk::CombinedVBO::Vis(SceneRenderer* renderer, const Mat4& main_xform)
 	{
 		if(depth_vbo != NULL)
 		{
@@ -51,6 +68,44 @@ namespace DestructibleTerrain
 		}
 	}
 
+	bool TerrainChunk::CombinedVBO::GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz)
+	{
+		if(x >= 0 && y >= 0 && z >= 0 && x < use_size && y < use_size && z < use_size)
+			return false;
+		else
+		{
+			int cx = (int)floor((float)x / use_size) + chunk_x;
+			int cy = (int)floor((float)y / use_size) + chunk_y;
+			int cz = (int)floor((float)z / use_size) + chunk_z;
+
+			dx = x - (cx - chunk_x) * use_size;
+			dy = y - (cy - chunk_y) * use_size;
+			dz = z - (cz - chunk_z) * use_size;
+
+			chunk = owner->owner->Chunk(cx, cy, cz);
+
+			return true;
+		}
+	}
+
+	CubeTriangles* TerrainChunk::CombinedVBO::GetCube(int x, int y, int z) { return &tri_data[x * use_size_squared + y * use_size + z]; }
+
+	CubeTriangles* TerrainChunk::CombinedVBO::GetCubeRelative(int x, int y, int z)
+	{
+		TerrainChunk* chunk;
+		int dx, dy, dz;
+
+		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
+		{
+			if(chunk != NULL)
+				return chunk->vbos[lod]->GetCube(dx, dy, dz);
+			else
+				return NULL;
+		}
+		else
+			return GetCube(x, y, z);
+	}	
+
 
 
 
@@ -59,30 +114,25 @@ namespace DestructibleTerrain
 	 */
 	TerrainChunk::TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z) :
 		node_data(),
-		tri_data(),
 		chunk_x(x),
 		chunk_y(y),
 		chunk_z(z),
 		material(material),
-		combined_vbo(),
 		solidified(false),
 		owner(owner)
 	{
+		vbos[0] = new CombinedVBO(this, 0);
+		vbos[1] = new CombinedVBO(this, 1);
+
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
 		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; ++i)
 			node_data.push_back(TerrainNode());
-
-		for(int x = 0; x < ChunkSize; ++x)
-			for(int y = 0; y < ChunkSize; ++y)
-				for(int z = 0; z < ChunkSize; ++z)
-					tri_data.push_back(CubeTriangles(this, x, y, z));
 	}
 
 	TerrainChunk::~TerrainChunk() { InvalidateVBO(); }
 
 	TerrainNode* TerrainChunk::GetNode(int x, int y, int z) { return &node_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
-	CubeTriangles* TerrainChunk::GetCube(int x, int y, int z) { return &tri_data[x * ChunkSizeSquared + y * ChunkSize + z]; }
 
 	void TerrainChunk::GetChunkPosition(int& x, int& y, int& z) { x = chunk_x; y = chunk_y; z = chunk_z; }
 
@@ -100,22 +150,6 @@ namespace DestructibleTerrain
 		}
 		else
 			return GetNode(x, y, z);
-	}
-
-	CubeTriangles* TerrainChunk::GetCubeRelative(int x, int y, int z)
-	{
-		TerrainChunk* chunk;
-		int dx, dy, dz;
-
-		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
-		{
-			if(chunk != NULL)
-				return chunk->GetCube(dx, dy, dz);
-			else
-				return NULL;
-		}
-		else
-			return GetCube(x, y, z);
 	}
 
 	bool TerrainChunk::GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz)
@@ -140,7 +174,7 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::InvalidateVBO() { combined_vbo.Invalidate(); }
+	void TerrainChunk::InvalidateVBO() { vbos[0]->Invalidate(); vbos[1]->Invalidate(); }
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
 	{
@@ -214,10 +248,16 @@ namespace DestructibleTerrain
 		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
 			if(chunk != NULL)
-				chunk->GetCube(dx, dy, dz)->Invalidate();
+			{
+				chunk->vbos[0]->GetCube(dx, dy, dz)->Invalidate();
+				chunk->vbos[1]->GetCube(dx / 2, dy / 2, dz / 2)->Invalidate();
+			}
 		}
 		else
-			GetCube(x, y, z)->Invalidate();
+		{
+			vbos[0]->GetCube(x, y, z)->Invalidate();
+			vbos[1]->GetCube(x / 2, y / 2, z / 2)->Invalidate();
+		}
 	}
 
 	void TerrainChunk::InvalidateCubeNormalsRelative(int x, int y, int z)
@@ -228,10 +268,16 @@ namespace DestructibleTerrain
 		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
 			if(chunk != NULL)
-				chunk->GetCube(dx, dy, dz)->InvalidateNormals();
+			{
+				chunk->vbos[0]->GetCube(dx, dy, dz)->InvalidateNormals();
+				chunk->vbos[1]->GetCube(dx / 2, dy / 2, dz / 2)->InvalidateNormals();
+			}
 		}
 		else
-			GetCube(x, y, z)->InvalidateNormals();
+		{
+			vbos[0]->GetCube(x, y, z)->InvalidateNormals();
+			vbos[1]->GetCube(x / 2, y / 2, z / 2)->InvalidateNormals();
+		}
 	}
 
 
@@ -250,19 +296,34 @@ namespace DestructibleTerrain
 						continue;
 
 					bool solid = GetNode(x, y, z)->IsSolid();
-					bool pass = true;
 
-					for(int xx = x - 1; xx <= x + 1 && pass; ++xx)
-						for(int yy = y - 1; yy <= y + 1 && pass; ++yy)
-							for(int zz = z - 1; zz <= z + 1 && pass; ++zz)
+					TerrainNode* neighbor;
+
+					neighbor = GetNodeRelative(x, y, z + 1);
+					if(neighbor == NULL || neighbor->IsSolid() == solid)
+					{
+						neighbor = GetNodeRelative(x, y, z - 1);
+						if(neighbor == NULL || neighbor->IsSolid() == solid)
+						{
+							neighbor = GetNodeRelative(x, y + 1, z);
+							if(neighbor == NULL || neighbor->IsSolid() == solid)
 							{
-								TerrainNode* neighbor = GetNodeRelative(xx, yy, zz);
-								if(neighbor != NULL && neighbor->IsSolid() != solid)
-									pass = false;
+								neighbor = GetNodeRelative(x, y - 1, z);
+								if(neighbor == NULL || neighbor->IsSolid() == solid)
+								{
+									neighbor = GetNodeRelative(x + 1, y, z);
+									if(neighbor == NULL || neighbor->IsSolid() == solid)
+									{
+										neighbor = GetNodeRelative(x - 1, y, z);
+										if(neighbor == NULL || neighbor->IsSolid() == solid)
+										{
+											GetNode(x, y, z)->solidity = solid ? 255 : 0;
+										}
+									}
+								}
 							}
-
-					if(pass)
-						GetNode(x, y, z)->solidity = solid ? 255 : 0;
+						}
+					}
 				}
 
 		solidified = true;
@@ -314,11 +375,12 @@ namespace DestructibleTerrain
 
 	void TerrainChunk::Vis(SceneRenderer *renderer, const Mat4& main_xform)
 	{
-		// make sure vbo is up to date regardless of the visibility check
-		if(!combined_vbo.valid)
-			CreateVBOs(combined_vbo);
+		CombinedVBO& use_vbo = *vbos[0];
 
-		combined_vbo.Vis(this, renderer, main_xform);
+		if(!use_vbo.valid)
+			CreateVBOs(use_vbo);
+
+		use_vbo.Vis(renderer, main_xform);
 	}
 
 
@@ -339,20 +401,20 @@ namespace DestructibleTerrain
 	 */
 	void TerrainChunk::CreateVBOs(CombinedVBO& target)
 	{
-		int num_verts = 0;
+		int use_size = target.use_size;
 
 		// dimensions including neighboring chunks (in order to compute normal vectors)
-		int max_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize : ChunkSize + 2;
-		int max_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize : ChunkSize + 2;
-		int max_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize : ChunkSize + 2;
+		int max_x = owner->GetXDim() == chunk_x + 1 ? use_size : use_size + 2;
+		int max_y = owner->GetYDim() == chunk_y + 1 ? use_size : use_size + 2;
+		int max_z = owner->GetZDim() == chunk_z + 1 ? use_size : use_size + 2;
 
 		vector<RelativeTerrainVertex*> unique_vertices;
 		unique_vertices.reserve(max_x * max_y * max_z * 3);
 
 		// dimensions of the chunk itself
-		int cmax_x = owner->GetXDim() == chunk_x + 1 ? ChunkSize - 2 : ChunkSize;
-		int cmax_y = owner->GetYDim() == chunk_y + 1 ? ChunkSize - 2 : ChunkSize;
-		int cmax_z = owner->GetZDim() == chunk_z + 1 ? ChunkSize - 2 : ChunkSize;
+		int cmax_x = owner->GetXDim() == chunk_x + 1 ? use_size - 2 : use_size;
+		int cmax_y = owner->GetYDim() == chunk_y + 1 ? use_size - 2 : use_size;
+		int cmax_z = owner->GetZDim() == chunk_z + 1 ? use_size - 2 : use_size;
 
 		int a_x_span = max_y * max_z;
 		int c_x_span = cmax_y * cmax_z;
@@ -363,7 +425,7 @@ namespace DestructibleTerrain
 				for(int z = 0; z < max_z; ++z)
 				{
 					// find the verts for this one cube
-					CubeTriangles* cube = GetCubeRelative(x - 1, y - 1, z - 1);
+					CubeTriangles* cube = target.GetCubeRelative(x - 1, y - 1, z - 1);
 
 					if(cube != NULL)
 					{
@@ -395,12 +457,14 @@ namespace DestructibleTerrain
 						unique_vertices.push_back(NULL);
 				}
 		
+		int num_verts = 0;
+
 		// match up per-cube indices with indices into the master vertex list (unique_vertices)
 		for(int x = 0; x < cmax_x; ++x)
 			for(int y = 0; y < cmax_y; ++y)
 				for(int z = 0; z < cmax_z; ++z)
 				{
-					CubeTriangles* cube = GetCubeRelative(x, y, z);
+					CubeTriangles* cube = target.GetCubeRelative(x, y, z);
 
 					if(cube != NULL)
 					{

@@ -73,16 +73,21 @@ namespace DestructibleTerrain
 	{
 		if(num_vertices == -1)
 		{
+			int X = x << lod;
+			int Y = y << lod;
+			int Z = z << lod;
+			int D = 0x1u << lod;
+
 			GridStruct grid[] =
 			{
-				GridStruct(chunk, x,		y,		z		),	
-				GridStruct(chunk, x,		y,		z + 1	),
-				GridStruct(chunk, x,		y + 1,	z + 1	),
-				GridStruct(chunk, x,		y + 1,	z		),			
-				GridStruct(chunk, x + 1,	y,		z		),	
-				GridStruct(chunk, x + 1,	y,		z + 1	),
-				GridStruct(chunk, x + 1,	y + 1,	z + 1	),
-				GridStruct(chunk, x + 1,	y + 1,	z		)
+				GridStruct(chunk, X,		Y,		Z		),	
+				GridStruct(chunk, X,		Y,		Z + D	),
+				GridStruct(chunk, X,		Y + D,	Z + D	),
+				GridStruct(chunk, X,		Y + D,	Z		),			
+				GridStruct(chunk, X + D,	Y,		Z		),	
+				GridStruct(chunk, X + D,	Y,		Z + D	),
+				GridStruct(chunk, X + D,	Y + D,	Z + D	),
+				GridStruct(chunk, X + D,	Y + D,	Z		)
 			};
 
 			assert(cache == NULL);

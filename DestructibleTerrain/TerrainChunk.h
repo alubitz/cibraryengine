@@ -21,7 +21,6 @@ namespace DestructibleTerrain
 		private:
 
 			vector<TerrainNode> node_data;
-			vector<CubeTriangles> tri_data;
 
 			int chunk_x, chunk_y, chunk_z;
 
@@ -31,16 +30,29 @@ namespace DestructibleTerrain
 
 			struct CombinedVBO
 			{
+				TerrainChunk* owner;
+				int chunk_x, chunk_y, chunk_z;
+				int lod;
+				int use_size, use_size_squared;
+
+				vector<CubeTriangles> tri_data;
+
 				boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
 				VertexBuffer* depth_vbo;
 
 				bool valid;
 
-				CombinedVBO();
+				CombinedVBO(TerrainChunk* chunk, int lod);
 
-				void Vis(TerrainChunk* owner, SceneRenderer* renderer, const Mat4& main_xform);
+				void Vis(SceneRenderer* renderer, const Mat4& main_xform);
 				void Invalidate();
-			} combined_vbo;
+
+				bool GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz);						// internal utility function, but possibly useful for external code as well (thus, public)
+				CubeTriangles* GetCube(int x, int y, int z);
+				CubeTriangles* GetCubeRelative(int x, int y, int z);
+			};
+
+			CombinedVBO* vbos[2];
 
 			bool solidified;
 
@@ -119,7 +131,6 @@ namespace DestructibleTerrain
 			 * Get a pointer to the specified node
 			 */
 			TerrainNode* GetNode(int x, int y, int z);
-			CubeTriangles* GetCube(int x, int y, int z);
 
 			void GetChunkPosition(int& x, int& y, int& z);
 			
@@ -128,7 +139,6 @@ namespace DestructibleTerrain
 			 * Unlike GetNode, this works for nodes outside the range of this chunk
 			 */
 			TerrainNode* GetNodeRelative(int x, int y, int z);
-			CubeTriangles* GetCubeRelative(int x, int y, int z);
 
 			bool GetRelativePositionInfo(int x, int y, int z, TerrainChunk*& chunk, int& dx, int &dy, int& dz);						// internal utility function, but possibly useful for external code as well (thus, public)
 
