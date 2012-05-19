@@ -9,7 +9,7 @@ namespace CibraryEngine
 	 * BinaryChunk methods
 	 */
 	BinaryChunk::BinaryChunk() : name(), data() { }
-	BinaryChunk::BinaryChunk(string name) : data() { SetName(name); }
+	BinaryChunk::BinaryChunk(const string& name) : data() { SetName(name); }
 
 	void BinaryChunk::Read(istream& stream)
 	{
@@ -34,7 +34,7 @@ namespace CibraryEngine
 
 	string BinaryChunk::GetName() { return name; }
 
-	void BinaryChunk::SetName(string n) { name = n; }
+	void BinaryChunk::SetName(const string& n) { name = n; }
 
 
 
@@ -63,10 +63,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void ChunkTypeIndexer::SetHandler(string name, ChunkTypeFunction* func)
-	{
-		chunk_handlers[name] = func;
-	}
+	void ChunkTypeIndexer::SetHandler(const string& name, ChunkTypeFunction* func) { chunk_handlers[name] = func; }
 
 	void ChunkTypeIndexer::SetDefaultHandler(ChunkTypeFunction* func) { default_handler = func; }
 }

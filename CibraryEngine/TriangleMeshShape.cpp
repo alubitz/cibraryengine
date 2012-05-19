@@ -38,7 +38,7 @@ namespace CibraryEngine
 			{
 				if(float* pos_ptr = vbo->GetFloatPointer("gl_Vertex"))
 				{
-					bool skip_fourth = vbo->GetAttribute("gl_Vertex").n_per_vertex == 4;
+					bool skip_fourth = vbo->GetAttribNPerVertex("gl_Vertex") == 4;
 
 					// put all the verts in a vector temporarily (and find the aabb while we're at it)
 					vector<Vec3> verts;

@@ -89,7 +89,7 @@ namespace CibraryEngine
 	{
 		private:
 
-			map<const type_info*, map<string, UniformVariable*>, UTypeInfoComp> type_caches;			// map type_infos to Caches
+			map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp> type_caches;			// map type_infos to Caches
 
 			void LinkProgram();
 
@@ -116,9 +116,9 @@ namespace CibraryEngine
 			template <typename T> void AddUniform(UniformVariable* u) { type_caches[&typeid(T)][u->name] = u; }
 
 			/** Get the value of the specified uniform variable */
-			template <typename T> T* GetUniform(string name) { Build(); return (T*)((TypedUniformVariable<T>*)(type_caches[&typeid(T)][name]))->GetValue(); }
+			template <typename T> T* GetUniform(const string& name) { Build(); return (T*)((TypedUniformVariable<T>*)(type_caches[&typeid(T)][name]))->GetValue(); }
 			/** Set the value of the specified uniform variable */
-			template <typename T> void SetUniform(string name, T* value) { Build(); ((TypedUniformVariable<T>*)(type_caches[&typeid(T)][name]))->SetValue(value); }
+			template <typename T> void SetUniform(const string& name, T* value) { Build(); ((TypedUniformVariable<T>*)(type_caches[&typeid(T)][name]))->SetValue(value); }
 
 			/** Set the active ShaderProgram; pass NULL to use the fixed-function pipeline */
 			static void SetActiveProgram(ShaderProgram* program);

@@ -9,7 +9,7 @@ namespace CibraryEngine
 	/** Writes a string to the debug log */
 	void Debug(string s);
 
-	void Debug(int line, string file);
+	void Debug(int line, const char* file);
 
 	/** Writes the current line number and filename to the debug log */
 #define DEBUG() \
@@ -20,7 +20,8 @@ namespace CibraryEngine
 	GLErrorDebug(__LINE__, __FILE__)
 
 	/** If an OpenGL error has occurred, writes information to the debug log */
-	void GLErrorDebug(int line, const string& file);
+	void GLErrorDebug(int line, const char* file);
+
 	/** If an OpenGL error has occurred, writes information to the debug log; otherwise, if it is not an empty string, outputs no_error_message to the debug log */
-	void GLErrorDebug(int line, const string& file, const string& no_error_message);
+	void GLErrorDebug(int line, const char* file, const string& no_error_message);
 }

@@ -89,7 +89,7 @@ namespace CibraryEngine
 				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
 				assert(vertex_ptr != NULL);
 		
-				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+				unsigned int items_per = vbo->GetAttribNPerVertex("gl_Vertex");				// number of floats per vertex
 
 				assert(items_per == 3 || items_per == 4);
 
@@ -146,7 +146,7 @@ namespace CibraryEngine
 				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
 				assert(vertex_ptr != NULL);
 		
-				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+				unsigned int items_per = vbo->GetAttribNPerVertex("gl_Vertex");				// number of floats per vertex
 
 				assert(items_per == 3 || items_per == 4);
 
@@ -201,7 +201,7 @@ namespace CibraryEngine
 
 				assert(vertex_ptr != NULL && indices_ptr != NULL && weights_ptr != NULL);
 
-				unsigned int items_per = vbo->GetAttribute("gl_Vertex").n_per_vertex;				// number of floats per vertex
+				unsigned int items_per = vbo->GetAttribNPerVertex("gl_Vertex");				// number of floats per vertex
 
 				assert(items_per == 3 || items_per == 4);
 

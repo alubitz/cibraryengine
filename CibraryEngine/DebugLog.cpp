@@ -19,16 +19,11 @@ namespace CibraryEngine
 		printf(cstr);
 	}
 
-	void Debug(int line, string file)
-	{
-		stringstream ss;
-		ss << "Executing line " << line << " of " << file.c_str() << endl;
-		Debug(ss.str());
-	}
+	void Debug(int line, const char* file) { Debug(((stringstream&)(stringstream() << "Executing line " << line << " of " << file << endl)).str()); }
 
-	static void DisplayGLError(int error, int line, const string& file)
+	static void DisplayGLError(int error, int line, const char* file)
 	{
-		string error_string;
+		char* error_string;
 		switch(error)
 		{
 			case GL_INVALID_FRAMEBUFFER_OPERATION:
@@ -38,25 +33,19 @@ namespace CibraryEngine
 				error_string = (char*)gluErrorString(error);
 				break;
 		}
-		stringstream ss;
-		ss << error_string << " at line " << line << " of " << file << endl;
-		Debug(ss.str());
+		Debug(((stringstream&)(stringstream() << error_string << " at line " << line << " of " << file << endl)).str());
 	}
 
-	void GLErrorDebug(int line, const string& file)
+	void GLErrorDebug(int line, const char* file)
 	{
 		if(int err = glGetError())
 			DisplayGLError(err, line, file);
 	}
-	void GLErrorDebug(int line, const string& file, const string& no_error_message)
+	void GLErrorDebug(int line, const char* file, const string& no_error_message)
 	{
 		if(int err = glGetError())
 			DisplayGLError(err, line, file);
 		else if(no_error_message.length() != 0)
-		{
-			stringstream ss;
-			ss << no_error_message << " at line " << line << " of " << file << endl;
-			Debug(ss.str());
-		}
+			Debug(((stringstream&)(stringstream() << no_error_message << " at line " << line << " of " << file << endl)).str());
 	}
 }

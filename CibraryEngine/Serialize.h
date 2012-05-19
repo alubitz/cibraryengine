@@ -11,7 +11,7 @@ namespace CibraryEngine
 	void InitEndianness();			// This seems to have been rendered unnecessary by that clever bitshifting solution I came up with
 
 	/** Makes a string containing the entire contents of a file; returns 0 if ok, or a nonzero int error code */
-	int GetFileString(string filename, string* result);
+	int GetFileString(const string& filename, string* result);
 
 	/** Writes a boolean to a stream */
 	void WriteBool(bool b, ostream& stream);
@@ -48,8 +48,8 @@ namespace CibraryEngine
 	/** Reads a single-precision floating point number from a stream */
 	float ReadSingle(istream& stream);
 
-	void WriteString1(string s, ostream& stream);
-	void WriteString4(string s, ostream& stream);
+	void WriteString1(const string& s, ostream& stream);
+	void WriteString4(const string& s, ostream& stream);
 	string ReadString1(istream& stream);
 	string ReadString4(istream& stream);
 

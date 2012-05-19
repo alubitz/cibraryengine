@@ -25,6 +25,8 @@ namespace DestructibleTerrain
 		depth_vbo(NULL),
 		valid(false)
 	{
+		tri_data.reserve(use_size_squared * use_size);
+
 		for(int x = 0; x < use_size; ++x)
 			for(int y = 0; y < use_size; ++y)
 				for(int z = 0; z < use_size; ++z)
@@ -126,6 +128,7 @@ namespace DestructibleTerrain
 
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
+		node_data.reserve(ChunkSizeSquared * ChunkSize);
 		for(int i = 0; i < ChunkSize * ChunkSize * ChunkSize; ++i)
 			node_data.push_back(TerrainNode());
 	}
@@ -690,7 +693,8 @@ namespace DestructibleTerrain
 		vert.vertex->normal_valid = true;
 
 		unsigned int num_verts = target_vbo->GetNumVerts();
-		
+
+		// TODO: avoid calling GetFloatPointer so much (this will require allocating a big enough array initially)
 		target_vbo->SetNumVerts(num_verts + 1);
 
 		float* vert_ptr =	&target_vbo->GetFloatPointer("gl_Vertex")		[num_verts * 3];

@@ -20,13 +20,13 @@ namespace CibraryEngine
 			string data;
 
 			BinaryChunk();
-			BinaryChunk(string name);
+			BinaryChunk(const string& name);
 
 			void Read(istream& stream);
 			void Write(ostream& stream);
 
 			string GetName();
-			void SetName(string n);
+			void SetName(const string& n);
 	};
 
 	struct ChunkTypeFunction
@@ -43,7 +43,7 @@ namespace CibraryEngine
 
 		void HandleChunk(BinaryChunk& chunk);
 
-		void SetHandler(string name, ChunkTypeFunction* func);
+		void SetHandler(const string& name, ChunkTypeFunction* func);
 		void SetDefaultHandler(ChunkTypeFunction* func);
 	};
 }

@@ -255,12 +255,15 @@ namespace DestructibleTerrain
 					{
 						float pos_x = (x * TerrainChunk::ChunkSize + xx) / 32.0f, pos_z = (z * TerrainChunk::ChunkSize + zz) / 32.0f;
 
-						int grass1 = max(0, min(255, int((n(Vec3(pos_x, 5.3f, pos_z)) + 0.5f) * 255)));
+						const float ahtkogitsp = 8.0f;		// larger values --> avoid having two kinds of grass in the same place
+						const float ahgasitsp = 1.5f;		// larger values --> avoid having grass and stone in the same place
+
+						int grass1 = max(0, min(255, int((n(Vec3(pos_x, 5.3f, pos_z)) * ahtkogitsp + 0.5f) * 255)));
 						int grass2 = 255 - grass1;
 
 						bool started = false;
 
-						int grass_energy = max(0, int((n(Vec3(pos_x, 1.8f, pos_z)) + 0.5f) * 64.0f));
+						int grass_energy = max(0, int((n(Vec3(pos_x, 1.8f, pos_z)) * ahgasitsp + 0.5f) * 64.0f));
 
 						for(int y = dim_y - 1; y >= 0; --y)
 							for(int yy = TerrainChunk::ChunkSize - 1; yy >= 0; --yy)

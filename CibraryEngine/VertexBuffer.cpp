@@ -24,9 +24,9 @@ namespace CibraryEngine
 	{
 		InvalidateVBO();
 
-		vector<VertexAttribute> attribs = GetAttributes();
-		for(unsigned int i = 0; i < attribs.size(); ++i)
-			RemoveAttribute(attribs[i].name);
+		vector<string> attribs = GetAttributes();
+		for(vector<string>::iterator iter = attribs.begin(); iter != attribs.end(); ++iter)
+			RemoveAttribute(*iter);
 
 		SetNumVerts(0);
 	}
@@ -52,14 +52,14 @@ namespace CibraryEngine
 			boost::unordered_map<string, VertexData> nu_attribute_data;
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				VertexAttribute attrib = GetAttribute(iter->first);
-				if(attrib.type == Float)
+				if(GetAttribType(iter->first) == Float)
 				{
-					float* new_data = new float[allocated_size * attrib.n_per_vertex];
+					int n_per_vertex = GetAttribNPerVertex(iter->first);
+					float* new_data = new float[allocated_size * n_per_vertex];
 					float* old_data = iter->second.floats;
 					if(old_data != NULL)
 					{
-						for(unsigned int i = 0; i < num_verts * attrib.n_per_vertex; ++i)
+						for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
 							new_data[i] = old_data[i];
 					}
 					nu_attribute_data[iter->first] = VertexData(new_data);
@@ -68,8 +68,7 @@ namespace CibraryEngine
 
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				VertexAttribute attrib = GetAttribute(iter->first);
-				if(attrib.type == Float)
+				if(GetAttribType(iter->first) == Float)
 				{
 					float* floats = iter->second.floats;
 					delete[] floats;
@@ -86,9 +85,7 @@ namespace CibraryEngine
 			boost::unordered_map<string, VertexData> nu_attribute_data;
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				VertexAttribute attrib = GetAttribute(iter->first);
-
-				if(attrib.type == Float)
+				if(GetAttribType(iter->first) == Float)
 				{
 					float* old_data = iter->second.floats;
 					if(old_data != NULL)
@@ -139,32 +136,38 @@ namespace CibraryEngine
 		}
 	}
 
-	VertexAttribute VertexBuffer::GetAttribute(const string& name)
+	VertexAttributeType VertexBuffer::GetAttribType(const string& name)
 	{
 		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
-			return found_name->second;
+			return found_name->second.type;
 		else
-			return VertexAttribute();
+			return BadVertexAttribute;
 	}
 
-	vector<VertexAttribute> VertexBuffer::GetAttributes()
+	int VertexBuffer::GetAttribNPerVertex(const string& name)
 	{
-		vector<VertexAttribute> results;
+		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		if(found_name != attributes.end())
+			return found_name->second.n_per_vertex;
+		else
+			return -1;
+	}
+
+	vector<string> VertexBuffer::GetAttributes()
+	{
+		vector<string> results;
 		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
-			results.push_back(iter->second);
+			results.push_back(iter->first);
 		return results;
 	}
 
 	int VertexBuffer::GetVertexSize()
 	{
-		vector<VertexAttribute> attribs = GetAttributes();
-
 		int total_size = 0;
-		for(unsigned int i = 0; i < attribs.size(); ++i)
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
-			VertexAttribute attrib = attribs[i];
-
+			VertexAttribute& attrib = iter->second;
 			if(attrib.type == Float)
 				total_size += sizeof(float) * attrib.n_per_vertex;
 		}
@@ -173,8 +176,7 @@ namespace CibraryEngine
 
 	float* VertexBuffer::GetFloatPointer(const string& name)
 	{
-		VertexAttribute a = GetAttribute(name);
-		if(a.type == Float)
+		if(GetAttribType(name) == Float)
 			return attribute_data[name].floats;
 		else
 			return NULL;
@@ -193,7 +195,6 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		vector<VertexAttribute> attribs = GetAttributes();
 		int total_size = GetVertexSize();
 
 		InvalidateVBO();					// just in case...
@@ -206,9 +207,9 @@ namespace CibraryEngine
 		glBufferData(GL_ARRAY_BUFFER, total_size * num_verts, NULL, GL_STATIC_DRAW);
 
 		int offset = 0;
-		for(unsigned int i = 0; i < attribs.size(); ++i)
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
-			VertexAttribute attrib = attribs[i];
+			const VertexAttribute& attrib = iter->second;
 
 			int attrib_size = 0;
 			if(attrib.type == Float)
@@ -248,11 +249,7 @@ namespace CibraryEngine
 			multi_tex_names = new string[max_texture_units];
 
 			for(int i = 0; i < max_texture_units; ++i)
-			{
-				stringstream ss;
-				ss << "gl_MultiTexCoord" << i;
-				multi_tex_names[i] = ss.str();
-			}
+				multi_tex_names[i] = ((stringstream&)(stringstream() << "gl_MultiTexCoord" << i)).str();
 		}
 	}
 
@@ -263,7 +260,6 @@ namespace CibraryEngine
 		GLDEBUG();
 
 		unsigned int vbo = GetVBO();
-		vector<VertexAttribute> attribs = GetAttributes();
 
 
 		/*
@@ -272,22 +268,25 @@ namespace CibraryEngine
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
 		int offset = 0;
-		for(unsigned int i = 0; i < attribs.size(); ++i)
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
-			VertexAttribute attrib = attribs[i];
-			if(attrib.name.length() >= 3 && attrib.name.substr(0, 3) == "gl_")
+			const VertexAttribute& attrib = iter->second;
+			const string& name = iter->first;
+			const char* name_cstr = name.c_str();
+
+			if(name.length() >= 3 && memcmp(name_cstr, "gl_", 3) == 0)
 			{
-				if(attrib.name == "gl_Vertex")
+				if(name == "gl_Vertex")
 				{
 					glEnable(GL_VERTEX_ARRAY);
 					glVertexPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0,	(void*)(num_verts * offset));
 				}
-				else if(attrib.name == "gl_Normal")
+				else if(name == "gl_Normal")
 				{
 					glEnable(GL_NORMAL_ARRAY);
 					glNormalPointer((GLenum)attrib.type, 0, (void*)(num_verts * offset));
 				}
-				else if(attrib.name == "gl_Color")
+				else if(name == "gl_Color")
 				{
 					glEnable(GL_COLOR_ARRAY);
 					glColorPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
@@ -299,7 +298,7 @@ namespace CibraryEngine
 
 					for(int j = 0; j < max_texture_units; ++j)
 					{
-						if(attrib.name == multi_tex_names[j])
+						if(name == multi_tex_names[j])
 						{
 							glClientActiveTexture(GL_TEXTURE0 + j);
 							glEnable(GL_TEXTURE_COORD_ARRAY);
@@ -313,7 +312,7 @@ namespace CibraryEngine
 				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
 				if(shader != NULL)
 				{
-					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, attrib.name.c_str());
+					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
 					glEnableVertexAttribArray(index);
 					glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
 				}
@@ -333,16 +332,19 @@ namespace CibraryEngine
 		/*
 		 * Now to put everything back the way we found it...
 		 */
-		for(unsigned int i = 0; i < attribs.size(); ++i)
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
-			VertexAttribute attrib = attribs[i];
-			if(attrib.name.length() >= 3 && attrib.name.substr(0, 3) == "gl_")
+			const VertexAttribute& attrib = iter->second;
+			const string& name = iter->first;
+			const char* name_cstr = name.c_str();
+
+			if(name.length() >= 3 && memcmp(name_cstr, "gl_", 3) == 0)
 			{
-				if(attrib.name == "gl_Vertex")
+				if(name == "gl_Vertex")
 					glDisable(GL_VERTEX_ARRAY);
-				else if(attrib.name == "gl_Normal")
+				else if(name == "gl_Normal")
 					glDisable(GL_NORMAL_ARRAY);
-				else if(attrib.name == "gl_Color")
+				else if(name == "gl_Color")
 					glDisable(GL_COLOR_ARRAY);
 				else
 				{
@@ -350,7 +352,7 @@ namespace CibraryEngine
 					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
 					for(int j = 0; j < max_texture_units; ++j)
 					{
-						if(attrib.name == multi_tex_names[j])
+						if(name == multi_tex_names[j])
 						{
 							glClientActiveTexture(GL_TEXTURE0 + j);
 							glDisable(GL_TEXTURE_COORD_ARRAY);
@@ -363,7 +365,7 @@ namespace CibraryEngine
 				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
 				if(shader != NULL)
 				{
-					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, attrib.name.c_str());
+					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
 					glDisableVertexAttribArray(index);
 				}				
 			}

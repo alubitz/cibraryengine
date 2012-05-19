@@ -136,10 +136,10 @@ namespace CibraryEngine
 	{
 		Build();
 
-		for(map<const type_info*, map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
 		{
-			map<string, UniformVariable*>& m = iter->second;
-			for(map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+			boost::unordered_map<string, UniformVariable*>& m = iter->second;
+			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
 				jter->second->ApplyValue(this);
 		}
 	}
@@ -148,10 +148,10 @@ namespace CibraryEngine
 	{
 		Build();
 
-		for(map<const type_info*, map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
 		{
-			map<string, UniformVariable*>& m = iter->second;
-			for(map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+			boost::unordered_map<string, UniformVariable*>& m = iter->second;
+			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
 				jter->second->Disable();
 		}
 	}
