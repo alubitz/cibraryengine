@@ -109,9 +109,7 @@ namespace CibraryEngine
 
 	void ScriptedController::UpdateController(TimingInfo time)
 	{
-		stringstream ss;
-		ss << "Files/Scripts/" << script << ".lua";
-		string filename = ss.str();
+		string filename = ((stringstream&)(stringstream() << "Files/Scripts/" << script << ".lua")).str();
 
 		ScriptingState script = ScriptSystem::GetGlobalState();
 		lua_State* L = script.GetLuaState();

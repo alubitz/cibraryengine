@@ -30,7 +30,7 @@ namespace CibraryEngine
 
 	void ContentReqList::InnerDispose() { delete imp; }
 
-	ContentHandle<UberModel> ContentReqList::LoadModel(string model_name) 
+	ContentHandle<UberModel> ContentReqList::LoadModel(const string& model_name) 
 	{
 		ContentHandle<UberModel> handle(imp->ubermodel_cache->GetHandle(model_name));
 		imp->models.push_back(handle);

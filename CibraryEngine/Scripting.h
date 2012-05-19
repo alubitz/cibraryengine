@@ -33,8 +33,8 @@ namespace CibraryEngine
 			ScriptingState NewThread();
 
 			int DoFunction(int args, int results);
-			int DoString(string& str);
-			int DoFile(string filename);
+			int DoString(const string& str);
+			int DoFile(const string& filename);
 
 			bool IsValid();
 	};

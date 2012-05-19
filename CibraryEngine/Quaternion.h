@@ -35,49 +35,49 @@ namespace CibraryEngine
 		Mat3 ToMat3() const;
 
 		/** Returns the opposite of this quaternion */
-		Quaternion operator -();
+		Quaternion operator -() const;
 		/** Transforms (rotates) a 3-component vector by this quaternion */
-		Vec3 operator *(Vec3 right);
+		Vec3 operator *(const Vec3& right) const;
 
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
-		Quaternion operator *(Quaternion right);
+		Quaternion operator *(const Quaternion& right) const;
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
-		void operator *=(Quaternion right);
+		void operator *=(const Quaternion& right);
 
 		/** Scales this quaternion by the specified amount */
-		Quaternion operator *(float right);
+		Quaternion operator *(float right) const;
 		/** Scales this quaternion by the specified amount */
 		void operator *=(float right);
 
 		/** Inversely scales this quaternion by the specified amount */
-		Quaternion operator /(float right);
+		Quaternion operator /(float right) const;
 		/** Inversely scales this quaternion by the specified amount */
 		void operator /=(float right);
 
 		/** Adds two quaternions */
-		Quaternion operator +(Quaternion right);
+		Quaternion operator +(const Quaternion& right) const;
 		/** Adds two quaternions */
-		void operator +=(Quaternion right);
+		void operator +=(const Quaternion& right);
 
 		/** Subtracts two quaternions */
-		Quaternion operator -(Quaternion right);
+		Quaternion operator -(const Quaternion& right) const;
 		/** Subtracts two quaternions */
-		void operator -=(Quaternion right);
+		void operator -=(const Quaternion& right);
 
 		/** Returns the identity quaternion */
 		static Quaternion Identity();
 		/** Returns a quaternion representing the same rotation as the specified 3x3 rotation matrix */
-		static Quaternion FromRotationMatrix(Mat3 mat);
+		static Quaternion FromRotationMatrix(const Mat3& mat);
 		/** Returns a quaternion representing a rotation about the specified axis (should be a unit vector) with the specified magnitude */
 		static Quaternion FromAxisAngle(float x, float y, float z, float angle);
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
-		static Quaternion FromPYR(Vec3 pyrVector);
+		static Quaternion FromPYR(const Vec3& pyrVector);
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
 		static Quaternion FromPYR(float p, float y, float r);
 		/** Normalizes the given quaternion */
-		static Quaternion Normalize(Quaternion q);
+		static Quaternion Normalize(const Quaternion& q);
 	};
 
-	void WriteQuaternion(Quaternion& q, ostream& stream);
+	void WriteQuaternion(const Quaternion& q, ostream& stream);
 	Quaternion ReadQuaternion(istream& stream);
 }

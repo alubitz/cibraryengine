@@ -4,9 +4,9 @@
 namespace CibraryEngine
 {
 	Sphere::Sphere() : center(), radius(0.0f) { }
-	Sphere::Sphere(Vec3 center_, float radius_) : center(center_), radius(radius_) { }
+	Sphere::Sphere(const Vec3& center, float radius) : center(center), radius(radius) { }
 
-	void Sphere::Expand(Vec3 b)
+	void Sphere::Expand(const Vec3& b)
 	{
 		Vec3 dif = b - center;
 		float distance = dif.ComputeMagnitude();
@@ -21,7 +21,7 @@ namespace CibraryEngine
 		center += Vec3::Normalize(dif, radius - oldradius);
 	}
 
-	Sphere Sphere::Expand(Sphere a, Sphere b)
+	Sphere Sphere::Expand(const Sphere& a, const Sphere& b)
 	{
 		Vec3 dif = b.center - a.center;
 		float distance = dif.ComputeMagnitude();
@@ -41,7 +41,7 @@ namespace CibraryEngine
 
 	bool Sphere::ContainsPoint(const Vec3& point) const { return (point - center).ComputeMagnitudeSquared() <= radius * radius; }
 
-	Sphere Sphere::Expand(Sphere a, Vec3 b)
+	Sphere Sphere::Expand(const Sphere& a, const Vec3& b)
 	{
 		Vec3 dif = b - a.center;
 		float distance = dif.ComputeMagnitude();
@@ -57,7 +57,7 @@ namespace CibraryEngine
 		return Sphere(center, radius);
 	}
 
-	bool Sphere::IntersectTest(Sphere a, Sphere b)
+	bool Sphere::IntersectTest(const Sphere& a, const Sphere& b)
 	{
 		Vec3 dist = b.center - a.center;
 		float radius = a.radius + b.radius;
@@ -65,7 +65,7 @@ namespace CibraryEngine
 		return (dist.ComputeMagnitudeSquared() < radius * radius);
 	}
 
-	bool Sphere::OcclusionTest(Sphere occluding, Sphere hidden, Vec3 viewer)
+	bool Sphere::OcclusionTest(const Sphere& occluding, const Sphere& hidden, const Vec3& viewer)
 	{
 		Vec3 to_occluding = occluding.center - viewer;
 		Vec3 to_hidden = hidden.center - viewer;

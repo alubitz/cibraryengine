@@ -6,9 +6,9 @@
 namespace CibraryEngine
 {
 	Line::Line() : origin(), direction() { }
-	Line::Line(Vec3 origin_, Vec3 direction_) : origin(origin_), direction(direction_) { }
+	Line::Line(const Vec3& origin, const Vec3& direction) : origin(origin), direction(direction) { }
 
-	float Line::CheckEquality(Line a, Line b)
+	float Line::CheckEquality(const Line& a, const Line& b)
 	{
 		float magprodsq = a.direction.ComputeMagnitudeSquared() * b.direction.ComputeMagnitudeSquared();
 		float dot = Vec3::Dot(a.direction, b.direction);
@@ -26,7 +26,7 @@ namespace CibraryEngine
 		return aparallelness + distsq1 + distsq2;											// sum of 3 squared quantities... anything big --> big result
 	}
 
-	bool Line::IntersectPlane(Line line, Plane plane, Vec3& result)
+	bool Line::IntersectPlane(const Line& line, const Plane& plane, Vec3& result)
 	{
 		Vec3 dir = Vec3::Normalize(line.direction);
 		float dir_dot = Vec3::Dot(dir, plane.normal);

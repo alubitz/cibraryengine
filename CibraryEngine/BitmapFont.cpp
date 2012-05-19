@@ -66,10 +66,7 @@ namespace CibraryEngine
 
 		if(texture_handle.GetObject() == NULL)
 		{
-			stringstream ss;
-			ss << "Couldn't load texture for font \"" << what.name << "\"" << endl;
-			Debug(ss.str());
-
+			Debug(((stringstream&)(stringstream() << "Couldn't load texture for font \"" << what.name << "\"" << endl)).str());
 			return NULL;
 		}
 

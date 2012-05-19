@@ -19,16 +19,16 @@ namespace CibraryEngine
 			StringTable();
 			~StringTable();
 
-			bool StringExists(string str);
-			bool IntExists(unsigned int i);
+			bool StringExists(const string& str) const;
+			bool IntExists(unsigned int i) const;
 
 			/** Creates if not already present */
-			unsigned int StringToInt(string str);
+			unsigned int StringToInt(const string& str);
 
-			string IntToString(unsigned int i);
+			string IntToString(unsigned int i) const;
 
 			// wrap the above two functions
-			unsigned int operator[](string str);
-			string operator[](unsigned int i);
+			unsigned int operator[](const string& str);
+			string operator[](unsigned int i) const;
 	};
 }

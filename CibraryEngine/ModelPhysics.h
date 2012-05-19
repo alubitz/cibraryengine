@@ -49,7 +49,7 @@ namespace CibraryEngine
 		ModelPhysics* Load(ContentMetadata& what);
 		void Unload(ModelPhysics* content, ContentMetadata& what);
 
-		static unsigned int LoadZZP(ModelPhysics*& phys, string filename);
-		static unsigned int SaveZZP(ModelPhysics* phys, string filename);
+		static unsigned int LoadZZP(ModelPhysics*& phys, const string& filename);
+		static unsigned int SaveZZP(ModelPhysics* phys, const string& filename);
 	};
 }

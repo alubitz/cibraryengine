@@ -45,13 +45,13 @@ namespace CibraryEngine
 		ContentMetadata& GetMetadata(unsigned int id);
 
 		ContentHandle<T> CreateHandle(ContentMetadata meta);
-		ContentHandle<T> GetHandle(string name);
+		ContentHandle<T> GetHandle(const string& name);
 
 		void ForceLoad(ContentHandle<T> handle);
 		void Unload(ContentHandle<T> handle);
 		bool IsLoaded(ContentHandle<T> handle);
 
-		T* Load(string asset_name);
+		T* Load(const string& asset_name);
 
 		ContentTypeHandler<T>* GetHandler();
 		void SetHandler(ContentTypeHandler<T>* handler);
@@ -83,7 +83,7 @@ namespace CibraryEngine
 		return handle;
 	}
 
-	template <class T> ContentHandle<T> Cache<T>::GetHandle(string name)
+	template <class T> ContentHandle<T> Cache<T>::GetHandle(const string& name)
 	{
 		for(map<unsigned int, MetaDataPair>::iterator iter = content.begin(); iter != content.end(); ++iter)
 			if(iter->second.meta.name == name)
@@ -131,7 +131,7 @@ namespace CibraryEngine
 		return content[id].data != NULL;
 	}
 
-	template <class T> T* Cache<T>::Load(string asset_name)
+	template <class T> T* Cache<T>::Load(const string& asset_name)
 	{
 		ContentHandle<T> handle = GetHandle(asset_name);
 		ForceLoad(handle);

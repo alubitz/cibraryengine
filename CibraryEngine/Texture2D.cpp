@@ -77,25 +77,21 @@ namespace CibraryEngine
 		string filename = "Files/Textures/" + what.name + ".png";
 
 		int width, height;
-		vector<unsigned char> image = vector<unsigned char>();
+		vector<unsigned char> image;
 
 		unsigned int result = ImageIO::LoadPNG(filename, image, width, height);
 		if(result != 0)
 			return NULL;
 		else if(width == 0 || height == 0)
 		{
-			stringstream ss;
-			ss << "Image loaded from file \"" << filename << "\" has dimensions " << width << " x " << height << "!" << endl;
-			Debug(ss.str());
-
+			Debug(((stringstream&)(stringstream() << "Image loaded from file \"" << filename << "\" has dimensions " << width << " x " << height << "!" << endl)).str());
 			return NULL;
 		}
 
 		int dim = image.size();
-		unsigned char* byte_data = new unsigned char[dim];
 
-		for(int i = 0; i < dim; ++i)
-			byte_data[i] = image[i];
+		unsigned char* byte_data = new unsigned char[dim];
+		memcpy(byte_data, &image[0], dim);
 
 		return new Texture2D(width, height, byte_data, default_mipmaps, default_clamp);
 	}

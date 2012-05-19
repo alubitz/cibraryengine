@@ -25,19 +25,13 @@ namespace CibraryEngine
 		vbo->AddAttribute("gl_MultiTexCoord1", Float, 3);
 		vbo->AddAttribute("gl_MultiTexCoord2", Float, 3);
 
-		int aam_result = LoadAAM("Files/Models/" + model_name + ".aam", vbo);
-		if(aam_result != 0)
+		if(int aam_result = LoadAAM("Files/Models/" + model_name + ".aam", vbo))
 		{
-			stringstream aam_msg;
-			aam_msg << "LoadAAM (" << model_name << ") returned with status " << aam_result << "; falling back to OBJ" << endl;
-			Debug(aam_msg.str());
+			Debug(((stringstream&)(stringstream() << "LoadAAM (" << model_name << ") returned with status " << aam_result << "; falling back to OBJ" << endl)).str());
 
-			int obj_result = LoadOBJ("Files/Models/" + model_name + ".obj", vbo);
-			if(obj_result != 0)
+			if(int obj_result = LoadOBJ("Files/Models/" + model_name + ".obj", vbo))
 			{
-				stringstream obj_msg;
-				obj_msg << "...And then LoadOBJ returned with status " << obj_result << "!" << endl;
-				Debug(obj_msg.str());
+				Debug(((stringstream&)(stringstream() << "...And then LoadOBJ returned with status " << obj_result << "!" << endl)).str());
 
 				vbo->Dispose();
 				delete vbo;
@@ -78,12 +72,9 @@ namespace CibraryEngine
 		vector<string> material_names;
 		Skeleton* skeleton = new Skeleton();
 
-		int aak_result = LoadAAK("Files/Models/" + model_name + ".aak", material_model_pairs, material_names, skeleton);
-		if(aak_result != 0)
+		if(int aak_result = LoadAAK("Files/Models/" + model_name + ".aak", material_model_pairs, material_names, skeleton))
 		{
-			stringstream aak_msg;
-			aak_msg << "LoadAAK returned with status " << aak_result << endl;
-			Debug(aak_msg.str());
+			Debug(((stringstream&)(stringstream() << "LoadAAK returned with status " << aak_result << endl)).str());
 
 			skeleton->Dispose();
 			delete skeleton;
@@ -107,7 +98,7 @@ namespace CibraryEngine
 	/*
 	 * Loader for OBJ models
 	 */
-	int LoadOBJ(string filename, VertexBuffer* vbo)
+	int LoadOBJ(const string& filename, VertexBuffer* vbo)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);			// not binary --> size gets reported incorrectly
 		if(!file)
@@ -290,7 +281,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for OBJ models
 	 */
-	int SaveOBJ(string filename, VertexBuffer* vbo)
+	int SaveOBJ(const string& filename, VertexBuffer* vbo)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -359,7 +350,7 @@ namespace CibraryEngine
 	/*
 	 * Loader for AAM models
 	 */
-	int LoadAAM(string filename, VertexBuffer* vbo)
+	int LoadAAM(const string& filename, VertexBuffer* vbo)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -430,7 +421,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for AAM models
 	 */
-	int SaveAAM(string filename, VertexBuffer* vbo, bool overwrite)
+	int SaveAAM(const string& filename, VertexBuffer* vbo, bool overwrite)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -522,7 +513,7 @@ namespace CibraryEngine
 	/*
 	 * Loader for AAK files
 	 */
-	int LoadAAK(string filename, vector<MaterialModelPair>& material_model_pairs, vector<string>& material_names, Skeleton*& skeleton)
+	int LoadAAK(const string& filename, vector<MaterialModelPair>& material_model_pairs, vector<string>& material_names, Skeleton*& skeleton)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -592,7 +583,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for AAK files
 	 */
-	int SaveAAK(string filename, SkinnedModel* model, bool overwrite)
+	int SaveAAK(const string& filename, SkinnedModel* model, bool overwrite)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -650,7 +641,7 @@ namespace CibraryEngine
 	/*
 	 * Loader for AAA files
 	 */
-	int LoadAAA(string filename, KeyframeAnimation& anim)
+	int LoadAAA(const string& filename, KeyframeAnimation& anim)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -705,7 +696,7 @@ namespace CibraryEngine
 	/*
 	 * Saver for AAA files
 	 */
-	int SaveAAA(string filename, KeyframeAnimation& anim)
+	int SaveAAA(const string& filename, KeyframeAnimation& anim)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)

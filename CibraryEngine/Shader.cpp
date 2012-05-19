@@ -11,7 +11,7 @@ namespace CibraryEngine
 	 * Shader methods
 	 */
 	Shader::Shader() : shader_id(0), source() { }
-	Shader::Shader(ShaderType type, string source) :
+	Shader::Shader(ShaderType type, const string& source) :
 		shader_id(0),
 		type(type),
 		source(source)
@@ -32,7 +32,7 @@ namespace CibraryEngine
 		}
 	}
 
-	Shader* Shader::FragmentShaderFromFile(string filename)
+	Shader* Shader::FragmentShaderFromFile(const string& filename)
 	{
 		string str;
 		if(GetFileString("Files/Shaders/" + filename + ".txt", &str) != 0)
@@ -40,7 +40,7 @@ namespace CibraryEngine
 		return new Shader(Fragment, str);
 	}
 
-	Shader* Shader::VertexShaderFromFile(string filename)
+	Shader* Shader::VertexShaderFromFile(const string& filename)
 	{
 		string str;
 		if(GetFileString("Files/Shaders/" + filename + ".txt", &str) != 0)
@@ -218,7 +218,7 @@ namespace CibraryEngine
 	 */
 	Shader* ShaderLoader::Load(ContentMetadata& what)
 	{
-		string asset_name = what.name;
+		const string& asset_name = what.name;
 		if(asset_name.rfind("-f") == asset_name.length() - 2)
 			return Shader::FragmentShaderFromFile(asset_name);
 		else

@@ -27,7 +27,7 @@ namespace CibraryEngine
 
 			ContentReqList(ContentMan* content);
 
-			ContentHandle<UberModel> LoadModel(string model_name);
+			ContentHandle<UberModel> LoadModel(const string& model_name);
 
 			void LoadContent(string* status);
 	};

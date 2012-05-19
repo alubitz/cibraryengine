@@ -57,10 +57,7 @@ namespace Test
 		int load_result = LoadMaterial("Files/Materials/" + short_filename, &material);
 		if(load_result != 0)
 		{
-			stringstream ss;
-			ss << "LoadMaterial (" << short_filename << ") failed; error code is " << load_result << endl;
-			Debug(ss.str());
-
+			Debug(((stringstream&)(stringstream() << "LoadMaterial (" << short_filename << ") failed; error code is " << load_result << endl)).str());
 			return NULL;
 		}
 

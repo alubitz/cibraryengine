@@ -118,11 +118,7 @@ namespace DestructibleTerrain
 		unsigned int vvv_result = VoxelTerrainLoader::LoadVVV(model, default_material, filename);
 
 		if(vvv_result != 0)
-		{
-			stringstream vvv_msg;
-			vvv_msg << "LoadVVV (" << what.name << ") returned with status " << vvv_result << endl;
-			Debug(vvv_msg.str());
-		}
+			Debug(((stringstream&)(stringstream() << "LoadVVV (" << what.name << ") returned with status " << vvv_result << endl)).str());
 
 		return model;
 	}
@@ -133,7 +129,7 @@ namespace DestructibleTerrain
 		delete content;
 	}
 
-	unsigned int VoxelTerrainLoader::SaveVVV(VoxelTerrain* terrain, string filename)
+	unsigned int VoxelTerrainLoader::SaveVVV(VoxelTerrain* terrain, const string& filename)
 	{
 		if(terrain == NULL)
 			return 1;
@@ -166,7 +162,7 @@ namespace DestructibleTerrain
 		return 0;
 	}
 
-	unsigned int VoxelTerrainLoader::LoadVVV(VoxelTerrain*& terrain, VoxelMaterial* material, string filename)
+	unsigned int VoxelTerrainLoader::LoadVVV(VoxelTerrain*& terrain, VoxelMaterial* material, const string& filename)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -209,7 +205,7 @@ namespace DestructibleTerrain
 			PerlinNoise n1;
 
 			PNFunc() : n1(256) { }
-			float operator() (Vec3 vec) { return n1.Sample(vec) + n1.Sample(vec * 2) / 2 + n1.Sample(vec * 4) / 4 + n1.Sample(vec * 8) / 8; }
+			float operator() (Vec3 vec) { return n1.Sample(vec) * 2 + n1.Sample(vec * 2) / 2 + n1.Sample(vec * 4) / 4 + n1.Sample(vec * 8) / 8; }
 		} n;
 
 		VoxelTerrain* result = new VoxelTerrain(material, dim_x, dim_y, dim_z);
@@ -302,7 +298,6 @@ namespace DestructibleTerrain
 								}
 							}
 					}
-				
 
 		return result;
 	}

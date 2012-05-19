@@ -7,7 +7,7 @@
 #include "VoxelMaterial.h"
 
 #define TERRAIN_DIM_HORIZONTAL 8
-#define TERRAIN_DIM_VERTICAL 2
+#define TERRAIN_DIM_VERTICAL 4
 
 namespace DestructibleTerrain
 {

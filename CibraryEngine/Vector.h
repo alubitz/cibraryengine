@@ -27,36 +27,41 @@ namespace CibraryEngine
 		float ComputeMagnitude();
 
 		/** Computes the dot product of two vectors */
-		static float Dot(Vec2 a, Vec2 b);
+		static float Dot(const Vec2& a, const Vec2& b);
 
 		/** Computes the magnitude of a vector with the given x and y components */
 		static float Magnitude(float x, float y);
 		/** Computes the square of the magnitude of a vector with the given x and y components (one less step than taking a square root) */
 		static float MagnitudeSquared(float x, float y);
+
+
+
+		/** Returns the opposite of the vector */
+		Vec2 operator -() const;
+		/** Adds two vectors */
+		void operator +=(const Vec2& b);
+		/** Adds two vectors */
+		Vec2 operator +(const Vec2& b) const;
+		/** Subtracts two vectors */
+		void operator -=(const Vec2& b);
+		/** Subtracts two vectors */
+		Vec2 operator -(const Vec2& b) const;
+		/** Multiplies a vector by a scalar */
+		void operator *=(float b);
+		/** Multiplies a vector by a scalar */
+		Vec2 operator *(float b) const;
+		/** Divides a vector by a scalar */
+		void operator /=(float b);
+		/** Divides a vector by a scalar */
+		Vec2 operator /(float b) const;
+		/** Tests whether two vectors are equal */
+		bool operator ==(const Vec2& b) const;
 	};
 
-	/** Returns the opposite of the vector */
-	Vec2 operator -(Vec2 a);
-	/** Adds two vectors */
-	void operator +=(Vec2& a, Vec2 b);
-	/** Adds two vectors */
-	Vec2 operator +(Vec2 a, Vec2 b);
-	/** Subtracts two vectors */
-	void operator -=(Vec2& a, Vec2 b);
-	/** Subtracts two vectors */
-	Vec2 operator -(Vec2 a, Vec2 b);
 	/** Multiplies a vector by a scalar */
-	void operator *=(Vec2& a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec2 operator *(Vec2 a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec2 operator *(float b, Vec2 a);
-	/** Divides a vector by a scalar */
-	void operator /=(Vec2& a, float b);
-	/** Divides a vector by a scalar */
-	Vec2 operator /(Vec2 a, float b);
-	/** Tests whether two vectors are equal */
-	bool operator ==(Vec2 a, Vec2 b);
+	Vec2 operator *(float b, const Vec2& a);
+
+	
 
 	/** Class representing a 3-component vector */
 	struct Vec3
@@ -81,43 +86,48 @@ namespace CibraryEngine
 		
 
 		/** Computes the dot product of two vectors */
-		static float Dot(Vec3 a, Vec3 b);
+		static float Dot(const Vec3& a, const Vec3& b);
 		/** Computes the cross product of two vectors */
-		static Vec3 Cross(Vec3 a, Vec3 b);
+		static Vec3 Cross(const Vec3& a, const Vec3& b);
 
 		/** Returns a unit vector parallel to the given vector */
-		static Vec3 Normalize(Vec3 a);
+		static Vec3 Normalize(const Vec3& a);
 		/** Returns a vector parallel to the given vector with the specified magnitude */
-		static Vec3 Normalize(Vec3 a, float len);
+		static Vec3 Normalize(const Vec3& a, float len);
 
 		/** Computes the magnitude of a vector with the given x, y, and z components */
 		static float Magnitude(float x, float y, float z);
 		/** Computes the square of the magnitude of a vector with the given x, y, and z components (one less step than taking a square root) */
 		static float MagnitudeSquared(float x, float y, float z);
+
+
+
+
+		/** Returns the opposite of the vector */
+		Vec3 operator -() const;
+		/** Adds two vectors */
+		void operator +=(const Vec3& b);
+		/** Adds two vectors */
+		Vec3 operator +(const Vec3& b) const;
+		/** Subtracts two vectors */
+		void operator -=(const Vec3& b);
+		/** Subtracts two vectors */
+		Vec3 operator -(const Vec3& b) const;
+		/** Multiplies a vector by a scalar */
+		void operator *=(float b);
+		/** Multiplies a vector by a scalar */
+		Vec3 operator *(float b) const;
+		/** Divides a vector by a scalar */
+		void operator /=(float b);
+		/** Divides a vector by a scalar */
+		Vec3 operator /(float b) const;
+		/** Tests whether two vectors are equal */
+		bool operator ==(const Vec3& b) const;
 	};
 
-	/** Returns the opposite of the vector */
-	Vec3 operator -(Vec3 a);
-	/** Adds two vectors */
-	void operator +=(Vec3& a, Vec3 b);
-	/** Adds two vectors */
-	Vec3 operator +(Vec3 a, Vec3 b);
-	/** Subtracts two vectors */
-	void operator -=(Vec3& a, Vec3 b);
-	/** Subtracts two vectors */
-	Vec3 operator -(Vec3 a, Vec3 b);
 	/** Multiplies a vector by a scalar */
-	void operator *=(Vec3& a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec3 operator *(Vec3 a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec3 operator *(float b, Vec3 a);
-	/** Divides a vector by a scalar */
-	void operator /=(Vec3& a, float b);
-	/** Divides a vector by a scalar */
-	Vec3 operator /(Vec3 a, float b);
-	/** Tests whether two vectors are equal */
-	bool operator ==(Vec3 a, Vec3 b);
+	Vec3 operator *(float b, const Vec3& a);
+
 
 	/** Class representing a 4-component vector */
 	struct Vec4
@@ -134,7 +144,7 @@ namespace CibraryEngine
 		/** Initializes a zero vector */
 		Vec4();
 		/** Initializes a vector with the specified x, y, z, and w components */
-		Vec4(Vec3 xyz, float w);
+		Vec4(const Vec3& xyz, float w);
 		/** Initializes a vector with the specified x, y, z, and w components */
 		Vec4(float x, float y, float z, float w);
 
@@ -145,36 +155,42 @@ namespace CibraryEngine
 
 		
 		/** Computes the dot product of two vectors */
-		static float Dot(Vec4 a, Vec4 b);
+		static float Dot(const Vec4& a, const Vec4& b);
+
+
+
+
+		/** Returns the opposite of the vector */
+		Vec4 operator -() const;
+		/** Adds two vectors */
+		void operator +=(const Vec4& b);
+		/** Adds two vectors */
+		Vec4 operator +(const Vec4& b) const;
+		/** Subtracts two vectors */
+		void operator -=(const Vec4& b);
+		/** Subtracts two vectors */
+		Vec4 operator -(const Vec4& b) const;
+		/** Multiplies a vector by a scalar */
+		void operator *=(float b);
+		/** Multiplies a vector by a scalar */
+		Vec4 operator *(float b) const;
+		/** Divides a vector by a scalar */
+		void operator /=(float b);
+		/** Divides a vector by a scalar */
+		Vec4 operator /(float b) const;
+		/** Tests whether two vectors are equal */
+		bool operator ==(const Vec4& b) const;
 	};
 
-	/** Returns the opposite of the vector */
-	Vec4 operator -(Vec4 a);
-	/** Adds two vectors */
-	void operator +=(Vec4& a, Vec4 b);
-	/** Adds two vectors */
-	Vec4 operator +(Vec4 a, Vec4 b);
-	/** Subtracts two vectors */
-	void operator -=(Vec4& a, Vec4 b);
-	/** Subtracts two vectors */
-	Vec4 operator -(Vec4 a, Vec4 b);
 	/** Multiplies a vector by a scalar */
-	void operator *=(Vec4& a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec4 operator *(Vec4 a, float b);
-	/** Multiplies a vector by a scalar */
-	Vec4 operator *(float b, Vec4 a);
-	/** Divides a vector by a scalar */
-	void operator /=(Vec4& a, float b);
-	/** Divides a vector by a scalar */
-	Vec4 operator /(Vec4 a, float b);
-	/** Tests whether two vectors are equal */
-	bool operator ==(Vec4 a, Vec4 b);
+	Vec4 operator *(float b, const Vec4& a);
+	
 
 
-	void WriteVec2(Vec2& vec, ostream& stream);
-	void WriteVec3(Vec3& vec, ostream& stream);
-	void WriteVec4(Vec4& vec, ostream& stream);
+
+	void WriteVec2(const Vec2& vec, ostream& stream);
+	void WriteVec3(const Vec3& vec, ostream& stream);
+	void WriteVec4(const Vec4& vec, ostream& stream);
 
 	Vec2 ReadVec2(istream& stream);
 	Vec3 ReadVec3(istream& stream);
@@ -183,6 +199,6 @@ namespace CibraryEngine
 
 
 
-	void PushLuaVector(lua_State* L, Vec3 vec);
+	void PushLuaVector(lua_State* L, const Vec3& vec);
 	int ba_createVector(lua_State* L);
 }

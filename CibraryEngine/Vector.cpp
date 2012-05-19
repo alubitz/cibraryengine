@@ -13,12 +13,12 @@ namespace CibraryEngine
 	Vec2::Vec2() : x(0), y(0) { }
 	Vec2::Vec2(float x, float y) : x(x), y(y) { }
 
-	float Vec2::ComputeMagnitudeSquared() { return x * x + y * y; }
-	float Vec2::ComputeMagnitude() { return sqrt(x * x + y * y); }
-	float Vec2::Dot(Vec2 a, Vec2 b) { return a.x * b.x + a.y * b.y; }
+	float Vec2::ComputeMagnitudeSquared()			{ return x * x + y * y; }
+	float Vec2::ComputeMagnitude()					{ return sqrt(x * x + y * y); }
+	float Vec2::Dot(const Vec2& a, const Vec2& b)	{ return a.x * b.x + a.y * b.y; }
 
-	float Vec2::Magnitude(float x, float y) { return sqrt(x * x + y * y); }
-	float Vec2::MagnitudeSquared(float x, float y) { return x * x + y * y; }
+	float Vec2::Magnitude(float x, float y)			{ return sqrt(x * x + y * y); }
+	float Vec2::MagnitudeSquared(float x, float y)	{ return x * x + y * y; }
 
 
 
@@ -26,18 +26,18 @@ namespace CibraryEngine
 	/*
 	 * Vec2 operators
 	 */
-	Vec2 operator -(Vec2 a) { return Vec2(-a.x, -a.y); }
-	void operator +=(Vec2& a, Vec2 b) { a.x += b.x; a.y += b.y; }
-	Vec2 operator +(Vec2 a, Vec2 b) { Vec2 result(a); result += b; return result; }
-	void operator -=(Vec2& a, Vec2 b) { a.x -= b.x; a.y -= b.y; }
-	Vec2 operator -(Vec2 a, Vec2 b) { Vec2 result(a); result -= b; return result; }
-	void operator *=(Vec2& a, float b) { a.x *= b; a.y *= b; }
-	Vec2 operator *(Vec2 a, float b) { Vec2 result(a); result *= b; return result; }
-	Vec2 operator *(float b, Vec2 a) { Vec2 result(a); result *= b; return result; }
-	void operator /=(Vec2& a, float b) { a *= 1.0f / b; }
-	Vec2 operator /(Vec2 a, float b) { Vec2 result(a); result /= b; return result; }
-	bool operator ==(Vec2 a, Vec2 b) { return a.x == b.x && a.y == b.y; }
+	Vec2 Vec2::operator -() const					{ return Vec2(-x, -y); }
+	void Vec2::operator +=(const Vec2& b)			{ x += b.x; y += b.y; }
+	Vec2 Vec2::operator +(const Vec2& b) const		{ Vec2 result(*this); result += b; return result; }
+	void Vec2::operator -=(const Vec2& b)			{ x -= b.x; y -= b.y; }
+	Vec2 Vec2::operator -(const Vec2& b) const		{ Vec2 result(*this); result -= b; return result; }
+	void Vec2::operator *=(float b)					{ x *= b; y *= b; }
+	Vec2 Vec2::operator *(float b) const			{ Vec2 result(*this); result *= b; return result; }
+	void Vec2::operator /=(float b)					{ *this *= 1.0f / b; }
+	Vec2 Vec2::operator /(float b) const			{ Vec2 result(*this); result /= b; return result; }
+	bool Vec2::operator ==(const Vec2& b) const		{ return x == b.x && y == b.y; }
 
+	Vec2 operator *(float b, const Vec2& a)			{ Vec2 result(a); result *= b; return result; }
 
 
 
@@ -47,18 +47,17 @@ namespace CibraryEngine
 	Vec3::Vec3() : x(0), y(0), z(0) { }
 	Vec3::Vec3(float x, float y, float z) : x(x), y(y), z(z) { }
 
-	float Vec3::ComputeMagnitudeSquared() const { return x * x + y * y + z * z; }
-	float Vec3::ComputeMagnitude() const { return sqrt(x * x + y * y + z * z); }
+	float Vec3::ComputeMagnitudeSquared() const		{ return x * x + y * y + z * z; }
+	float Vec3::ComputeMagnitude() const			{ return sqrt(x * x + y * y + z * z); }
 
-	float Vec3::Dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+	float Vec3::Dot(const Vec3& a, const Vec3& b)	{ return a.x * b.x + a.y * b.y + a.z * b.z; }
+	Vec3 Vec3::Cross(const Vec3& a, const Vec3& b)	{ return Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
 
-	Vec3 Vec3::Cross(Vec3 a, Vec3 b) { return Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
+	Vec3 Vec3::Normalize(const Vec3& a)				{ return a * (1.0f / a.ComputeMagnitude()); }
+	Vec3 Vec3::Normalize(const Vec3& a, float len)	{ return a * (len / a.ComputeMagnitude()); }
 
-	Vec3 Vec3::Normalize(Vec3 a) { return a * (1.0f / a.ComputeMagnitude()); }
-	Vec3 Vec3::Normalize(Vec3 a, float len) { return a * (len / a.ComputeMagnitude()); }
-
-	float Vec3::Magnitude(float x, float y, float z) { return sqrt(x * x + y * y + z * z); }
-	float Vec3::MagnitudeSquared(float x, float y, float z) { return x * x + y * y + z * z; }
+	float Vec3::Magnitude(float x, float y, float z)		{ return sqrt(x * x + y * y + z * z); }
+	float Vec3::MagnitudeSquared(float x, float y, float z)	{ return x * x + y * y + z * z; }
 
 
 
@@ -66,17 +65,18 @@ namespace CibraryEngine
 	/*
 	 * Vec3 operators
 	 */
-	Vec3 operator -(Vec3 a) { return Vec3(-a.x, -a.y, -a.z); }
-	void operator +=(Vec3& a, Vec3 b) { a.x += b.x; a.y += b.y; a.z += b.z; }
-	Vec3 operator +(Vec3 a, Vec3 b) { Vec3 result(a); result += b; return result; }
-	void operator -=(Vec3& a, Vec3 b) { a.x -= b.x; a.y -= b.y; a.z -= b.z; }
-	Vec3 operator -(Vec3 a, Vec3 b) { Vec3 result(a); result -= b; return result; }
-	void operator *=(Vec3& a, float b) { a.x *= b; a.y *= b; a.z *= b; }
-	Vec3 operator *(Vec3 a, float b) { Vec3 result(a); result *= b; return result; }
-	Vec3 operator *(float b, Vec3 a) { Vec3 result(a); result *= b; return result; }
-	void operator /=(Vec3& a, float b) { a *= 1.0f / b; }
-	Vec3 operator /(Vec3 a, float b) { Vec3 result(a); result /= b; return result; }
-	bool operator ==(Vec3 a, Vec3 b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
+	Vec3 Vec3::operator -() const					{ return Vec3(-x, -y, -z); }
+	void Vec3::operator +=(const Vec3& b)			{ x += b.x; y += b.y; z += b.z; }
+	Vec3 Vec3::operator +(const Vec3& b) const		{ Vec3 result(*this); result += b; return result; }
+	void Vec3::operator -=(const Vec3& b)			{ x -= b.x; y -= b.y; z -= b.z; }
+	Vec3 Vec3::operator -(const Vec3& b) const		{ Vec3 result(*this); result -= b; return result; }
+	void Vec3::operator *=(float b)					{ x *= b; y *= b; z *= b; }
+	Vec3 Vec3::operator *(float b) const			{ Vec3 result(*this); result *= b; return result; }
+	void Vec3::operator /=(float b)					{ *this *= 1.0f / b; }
+	Vec3 Vec3::operator /(float b) const			{ Vec3 result(*this); result /= b; return result; }
+	bool Vec3::operator ==(const Vec3& b) const		{ return x == b.x && y == b.y && z == b.z; }
+
+	Vec3 operator *(float b, const Vec3& a)			{ Vec3 result(a); result *= b; return result; }
 
 
 
@@ -85,13 +85,13 @@ namespace CibraryEngine
 	 * Vec4 methods
 	 */
 	Vec4::Vec4() : x(0), y(0), z(0), w(0) { }
-	Vec4::Vec4(Vec3 xyz, float w) : x(xyz.x), y(xyz.y), z(xyz.z), w(w) { }
+	Vec4::Vec4(const Vec3& xyz, float w) : x(xyz.x), y(xyz.y), z(xyz.z), w(w) { }
 	Vec4::Vec4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) { }
 
-	float Vec4::ComputeMagnitudeSquared() { return x * x + y * y + z * z + w * w; }
-	float Vec4::ComputeMagnitude() { return sqrt(x * x + y * y + z * z + w * w); }
+	float Vec4::ComputeMagnitudeSquared()			{ return x * x + y * y + z * z + w * w; }
+	float Vec4::ComputeMagnitude()					{ return sqrt(x * x + y * y + z * z + w * w); }
 
-	float Vec4::Dot(Vec4 a, Vec4 b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
+	float Vec4::Dot(const Vec4& a, const Vec4& b)	{ return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
 
 
 
@@ -99,17 +99,18 @@ namespace CibraryEngine
 	/*
 	 * Vec4 operators
 	 */
-	Vec4 operator -(Vec4 a) { return Vec4(-a.x, -a.y, -a.z, -a.w); }
-	void operator +=(Vec4& a, Vec4 b) { a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w; }
-	Vec4 operator +(Vec4 a, Vec4 b) { Vec4 result(a); result += b; return result; }
-	void operator -=(Vec4& a, Vec4 b) { a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w; }
-	Vec4 operator -(Vec4 a, Vec4 b) { Vec4 result(a); result -= b; return result; }
-	void operator *=(Vec4& a, float b) { a.x *= b; a.y *= b; a.z *= b; a.w *= b; }
-	Vec4 operator *(Vec4 a, float b) { Vec4 result(a); result *= b; return result; }
-	Vec4 operator *(float b, Vec4 a) { Vec4 result(a); result *= b; return result; }
-	void operator /=(Vec4& a, float b) { a *= 1.0f / b; }
-	Vec4 operator /(Vec4 a, float b) { Vec4 result(a); result /= b; return result; }
-	bool operator ==(Vec4 a, Vec4 b) { return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w; }
+	Vec4 Vec4::operator -() const					{ return Vec4(-x, -y, -z, -w); }
+	void Vec4::operator +=(const Vec4& b)			{ x += b.x; y += b.y; z += b.z; w += b.w; }
+	Vec4 Vec4::operator +(const Vec4& b) const		{ Vec4 result(*this); result += b; return result; }
+	void Vec4::operator -=(const Vec4& b)			{ x -= b.x; y -= b.y; z -= b.z; w -= b.w; }
+	Vec4 Vec4::operator -(const Vec4& b) const		{ Vec4 result(*this); result -= b; return result; }
+	void Vec4::operator *=(float b)					{ x *= b; y *= b; z *= b; w *= b; }
+	Vec4 Vec4::operator *(float b) const			{ Vec4 result(*this); result *= b; return result; }
+	void Vec4::operator /=(float b)					{ *this *= 1.0f / b; }
+	Vec4 Vec4::operator /(float b) const			{ Vec4 result(*this); result /= b; return result; }
+	bool Vec4::operator ==(const Vec4& b) const		{ return x == b.x && y == b.y && z == b.z && w == b.w; }
+
+	Vec4 operator *(float b, const Vec4& a)			{ Vec4 result(a); result *= b; return result; }
 
 
 
@@ -117,18 +118,18 @@ namespace CibraryEngine
 	/*
 	 * Vector serialization functions
 	 */
-	void WriteVec2(Vec2& vec, ostream& stream)
+	void WriteVec2(const Vec2& vec, ostream& stream)
 	{
 		WriteSingle(vec.x, stream);
 		WriteSingle(vec.y, stream);
 	}
-	void WriteVec3(Vec3& vec, ostream& stream)
+	void WriteVec3(const Vec3& vec, ostream& stream)
 	{
 		WriteSingle(vec.x, stream);
 		WriteSingle(vec.y, stream);
 		WriteSingle(vec.z, stream);
 	}
-	void WriteVec4(Vec4& vec, ostream& stream)
+	void WriteVec4(const Vec4& vec, ostream& stream)
 	{
 		WriteSingle(vec.x, stream);
 		WriteSingle(vec.y, stream);
@@ -163,7 +164,7 @@ namespace CibraryEngine
 	/*
 	 * Vec3 scripting stuff
 	 */
-	void PushLuaVector(lua_State* L, Vec3 vec);
+	void PushLuaVector(lua_State* L, const Vec3& vec);
 
 	int ba_vector_index(lua_State* L)
 	{
@@ -305,7 +306,7 @@ namespace CibraryEngine
 
 
 
-	void PushLuaVector(lua_State* L, Vec3 vec)
+	void PushLuaVector(lua_State* L, const Vec3& vec)
 	{
 		lua_settop(L, 0);
 

@@ -68,8 +68,8 @@ namespace DestructibleTerrain
 			VoxelTerrain* Load(ContentMetadata& what);
 			void Unload(VoxelTerrain* content, ContentMetadata& meta);
 
-			static unsigned int SaveVVV(VoxelTerrain* terrain, string filename);
-			static unsigned int LoadVVV(VoxelTerrain*& terrain, VoxelMaterial* material, string filename);
+			static unsigned int SaveVVV(VoxelTerrain* terrain, const string& filename);
+			static unsigned int LoadVVV(VoxelTerrain*& terrain, VoxelMaterial* material, const string& filename);
 
 			static VoxelTerrain* GenerateTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z);
 	};

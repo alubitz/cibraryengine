@@ -42,6 +42,7 @@ namespace DestructibleTerrain
 
 				bool valid;
 
+				CombinedVBO();
 				CombinedVBO(TerrainChunk* chunk, int lod);
 
 				void Vis(SceneRenderer* renderer, const Mat4& main_xform);
@@ -52,7 +53,7 @@ namespace DestructibleTerrain
 				CubeTriangles* GetCubeRelative(int x, int y, int z);
 			};
 
-			CombinedVBO* vbos[2];
+			CombinedVBO vbos[1];
 
 			bool solidified;
 

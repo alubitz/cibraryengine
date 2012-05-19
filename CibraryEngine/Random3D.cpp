@@ -9,35 +9,13 @@ namespace CibraryEngine
 	/*
 	 * Random3D methods
 	 */
-	float Random3D::Rand()
-	{
-		return (float)rand() / RAND_MAX;
-	}
+	float Random3D::Rand() { return (float)rand() / RAND_MAX; }
+	float Random3D::Rand(float max) { return Rand() * max; }
+	float Random3D::Rand(float min, float max) { return Rand() * (max - min) + min; }
 
-	float Random3D::Rand(float max)
-	{
-		return Rand() * max;
-	}
-
-	float Random3D::Rand(float min, float max)
-	{
-		return Rand() * (max - min) + min;
-	}
-
-	int Random3D::RandInt()
-	{
-		return rand();
-	}
-
-	int Random3D::RandInt(int min, int max)
-	{
-		return rand() % (max - min + 1) + min;
-	}
-
-	int Random3D::RandInt(int max_plus_one)
-	{
-		return rand() % max_plus_one;
-	}
+	int Random3D::RandInt() { return rand(); }
+	int Random3D::RandInt(int min, int max) { return rand() % (max - min + 1) + min; }
+	int Random3D::RandInt(int max_plus_one) { return rand() % max_plus_one; }
 
 	Vec3 Random3D::RandomNormalizedVector(float len)
 	{

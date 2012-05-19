@@ -60,8 +60,7 @@ namespace CibraryEngine
 						int source = (y * size + x) * 4;
 						int dest = ((y_initial + y) * anim->width + (x_initial + x)) * 4;
 
-						for (int j = 0; j < 4; ++j)
-							byte_data[i][source + j] = anim->byte_data[dest + j];
+						memcpy(&byte_data[i][source], &anim->byte_data[dest], 4);
 					}
 			}
 

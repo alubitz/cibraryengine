@@ -144,11 +144,11 @@ namespace CibraryEngine
 		UberModel* Load(ContentMetadata& what);
 		void Unload(UberModel* content, ContentMetadata& meta);
 
-		static unsigned int LoadZZZ(UberModel*& model, string filename);
-		static unsigned int SaveZZZ(UberModel* model, string filename);
+		static unsigned int LoadZZZ(UberModel*& model, const string& filename);
+		static unsigned int SaveZZZ(UberModel* model, const string& filename);
 
 		static UberModel* CopySkinnedModel(SkinnedModel* skinny);
 
-		static void AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, string lod_name);
+		static void AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, const string& lod_name);
 	};
 }

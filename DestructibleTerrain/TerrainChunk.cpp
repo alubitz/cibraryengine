@@ -12,6 +12,7 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainChunk::CombinedVBO methods
 	 */
+	TerrainChunk::CombinedVBO::CombinedVBO() : owner(NULL) { }
 	TerrainChunk::CombinedVBO::CombinedVBO(TerrainChunk* owner, int lod) :
 		owner(owner),
 		chunk_x(owner->chunk_x),
@@ -100,7 +101,7 @@ namespace DestructibleTerrain
 		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
 			if(chunk != NULL)
-				return chunk->vbos[lod]->GetCube(dx, dy, dz);
+				return chunk->vbos[lod].GetCube(dx, dy, dz);
 			else
 				return NULL;
 		}
@@ -123,8 +124,7 @@ namespace DestructibleTerrain
 		solidified(false),
 		owner(owner)
 	{
-		vbos[0] = new CombinedVBO(this, 0);
-		vbos[1] = new CombinedVBO(this, 1);
+		vbos[0] = CombinedVBO(this, 0);
 
 		xform = Mat4::Translation(float(x * ChunkSize), float(y * ChunkSize), float(z * ChunkSize));
 
@@ -177,7 +177,7 @@ namespace DestructibleTerrain
 
 
 
-	void TerrainChunk::InvalidateVBO() { vbos[0]->Invalidate(); vbos[1]->Invalidate(); }
+	void TerrainChunk::InvalidateVBO() { vbos[0].Invalidate(); }
 
 	void TerrainChunk::InvalidateNode(int x, int y, int z)
 	{
@@ -251,16 +251,10 @@ namespace DestructibleTerrain
 		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
 			if(chunk != NULL)
-			{
-				chunk->vbos[0]->GetCube(dx, dy, dz)->Invalidate();
-				chunk->vbos[1]->GetCube(dx / 2, dy / 2, dz / 2)->Invalidate();
-			}
+				chunk->vbos[0].GetCube(dx, dy, dz)->Invalidate();
 		}
 		else
-		{
-			vbos[0]->GetCube(x, y, z)->Invalidate();
-			vbos[1]->GetCube(x / 2, y / 2, z / 2)->Invalidate();
-		}
+			vbos[0].GetCube(x, y, z)->Invalidate();
 	}
 
 	void TerrainChunk::InvalidateCubeNormalsRelative(int x, int y, int z)
@@ -271,16 +265,10 @@ namespace DestructibleTerrain
 		if(GetRelativePositionInfo(x, y, z, chunk, dx, dy, dz))
 		{
 			if(chunk != NULL)
-			{
-				chunk->vbos[0]->GetCube(dx, dy, dz)->InvalidateNormals();
-				chunk->vbos[1]->GetCube(dx / 2, dy / 2, dz / 2)->InvalidateNormals();
-			}
+				chunk->vbos[0].GetCube(dx, dy, dz)->InvalidateNormals();
 		}
 		else
-		{
-			vbos[0]->GetCube(x, y, z)->InvalidateNormals();
-			vbos[1]->GetCube(x / 2, y / 2, z / 2)->InvalidateNormals();
-		}
+			vbos[0].GetCube(x, y, z)->InvalidateNormals();
 	}
 
 
@@ -378,7 +366,7 @@ namespace DestructibleTerrain
 
 	void TerrainChunk::Vis(SceneRenderer *renderer, const Mat4& main_xform)
 	{
-		CombinedVBO& use_vbo = *vbos[0];
+		CombinedVBO& use_vbo = vbos[0];
 
 		if(!use_vbo.valid)
 			CreateVBOs(use_vbo);

@@ -45,11 +45,7 @@ namespace CibraryEngine
 
 		ModelPhysics* shape = NULL;
 		if(unsigned int zzp_result = ModelPhysicsLoader::LoadZZP(shape, filename))
-		{
-			stringstream zzp_msg;
-			zzp_msg << "LoadZZP (" << what.name << ") returned with status " << zzp_result << "!" << endl;
-			Debug(zzp_msg.str());
-		}
+			Debug(((stringstream&)(stringstream() << "LoadZZP (" << what.name << ") returned with status " << zzp_result << "!" << endl)).str());
 
 		return shape;
 	}
@@ -97,7 +93,7 @@ namespace CibraryEngine
 		}
 	};
 
-	unsigned int ModelPhysicsLoader::LoadZZP(ModelPhysics*& phys, string filename)
+	unsigned int ModelPhysicsLoader::LoadZZP(ModelPhysics*& phys, const string& filename)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -133,7 +129,7 @@ namespace CibraryEngine
 		return 0;
 	}
 
-	unsigned int ModelPhysicsLoader::SaveZZP(ModelPhysics* phys, string filename)
+	unsigned int ModelPhysicsLoader::SaveZZP(ModelPhysics* phys, const string& filename)
 	{
 		if(phys == NULL)
 			return 1;

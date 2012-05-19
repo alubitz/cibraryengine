@@ -12,12 +12,12 @@ namespace CibraryEngine
 		 * Function to load a PNG image.
 		 * @return An int error code, or 0 if all clear
 		 */
-		static unsigned int LoadPNG(string filename, std::vector<unsigned char>& image, int& w, int& h);
+		static unsigned int LoadPNG(const string& filename, std::vector<unsigned char>& image, int& w, int& h);
 
 		/**
 		 * Function to save a TGA image.
 		 * @return An int error code, or 0 if all clear
 		 */
-		static unsigned int SaveTGA(string filename, std::vector<unsigned char>& image, int w, int h);
+		static unsigned int SaveTGA(const string& filename, std::vector<unsigned char>& image, int w, int h);
 	};
 };

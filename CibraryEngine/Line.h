@@ -20,11 +20,11 @@ namespace CibraryEngine
 			/** Initializes a degenerate line (direction is a null vector) */
 			Line();
 			/** Initializes a line with the given origin and direction */
-			Line(Vec3 origin, Vec3 direction);
+			Line(const Vec3& origin, const Vec3& direction);
 
 			/** Determines whether two lines are equal */
-			static float CheckEquality(Line a, Line b);
+			static float CheckEquality(const Line& a, const Line& b);
 			/** Determines whether and where a line intersects a plane */
-			static bool IntersectPlane(Line line, Plane plane, Vec3& result);
+			static bool IntersectPlane(const Line& line, const Plane& plane, Vec3& result);
 	};
 }

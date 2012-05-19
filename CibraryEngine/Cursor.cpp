@@ -107,10 +107,7 @@ namespace CibraryEngine
 		cache->ForceLoad(texture);
 		if(texture.GetObject() == NULL)
 		{
-			stringstream ss;
-			ss << "Couldn't load texture for cursor \"" << what.name << "\"" << endl;
-			Debug(ss.str());
-
+			Debug(((stringstream&)(stringstream() << "Couldn't load texture for cursor \"" << what.name << "\"" << endl)).str());
 			return NULL;
 		}
 		else

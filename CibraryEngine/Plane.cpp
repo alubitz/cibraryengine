@@ -7,21 +7,21 @@
 namespace CibraryEngine
 {
 	Plane::Plane() : normal(), offset(0.0f) { }				// normal vector is degenerate
-	Plane::Plane(Vec3 normal_, float offset_) : normal(normal_), offset(offset_) { }
+	Plane::Plane(const Vec3& normal, float offset) : normal(normal), offset(offset) { }
 
-	float Plane::PointDistance(Vec3 point) const { return Vec3::Dot(normal, point) - offset; }
+	float Plane::PointDistance(const Vec3& point) const { return Vec3::Dot(normal, point) - offset; }
 
-	Plane Plane::FromPositionNormal(Vec3 position, Vec3 normal)
+	Plane Plane::FromPositionNormal(const Vec3& position, const Vec3& normal)
 	{
 		Vec3 unit_normal = Vec3::Normalize(normal);
 		return Plane(unit_normal, Vec3::Dot(position, unit_normal));
 	}
 
-	Plane Plane::FromTriangleVertices(Vec3 a, Vec3 b, Vec3 c) { return Plane::FromPositionNormal(a, Vec3::Cross(b - a, c - a)); }
+	Plane Plane::FromTriangleVertices(const Vec3& a, const Vec3& b, const Vec3& c) { return Plane::FromPositionNormal(a, Vec3::Cross(b - a, c - a)); }
 
 	Plane Plane::Reverse(const Plane& plane) { return Plane(-plane.normal, -plane.offset); }
 
-	float Plane::CheckEquality(Plane a, Plane b)
+	float Plane::CheckEquality(const Plane& a, const Plane& b)
 	{
 		float magprodsq = a.normal.ComputeMagnitudeSquared() * b.normal.ComputeMagnitudeSquared();		// although the magnitude of the normals SHOULD be 1... maybe somebody did something funky
 		float dot = Vec3::Dot(a.normal, b.normal);
@@ -38,7 +38,7 @@ namespace CibraryEngine
 		return aparallelness + distsq1 + distsq2;
 	}
 
-	bool Plane::Intersect(Plane a, Plane b, Line& result)
+	bool Plane::Intersect(const Plane& a, const Plane& b, Line& result)
 	{
 		Vec3 cross = Vec3::Cross(a.normal, b.normal);
 		float magsq = cross.ComputeMagnitudeSquared();

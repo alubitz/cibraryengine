@@ -21,23 +21,23 @@ namespace CibraryEngine
 			/** Initializes a degenerate plane... don't use this */
 			Plane();
 			/** Initializes a plane with the specified normal vector and offset */
-			Plane(Vec3 normal, float offset);
+			Plane(const Vec3& normal, float offset);
 
 			/** Returns the signed distance of a point from the plane */
-			float PointDistance(Vec3 point) const;			// Signed distance
+			float PointDistance(const Vec3& point) const;			// Signed distance
 
 			/** Returns a plane which contains the specified point, and which has the specified normal vector */
-			static Plane FromPositionNormal(Vec3 position, Vec3 normal);
+			static Plane FromPositionNormal(const Vec3& position, const Vec3& normal);
 			/** Returns the plane containing the three given points */
-			static Plane FromTriangleVertices(Vec3 a, Vec3 b, Vec3 c);
+			static Plane FromTriangleVertices(const Vec3& a, const Vec3& b, const Vec3& c);
 
 			/** Returns a plane with the same position but with flipped normal vector */
 			static Plane Reverse(const Plane& plane);
 
 			/** Determines whether two planes are equal */
-			static float CheckEquality(Plane a, Plane b);
+			static float CheckEquality(const Plane& a, const Plane& b);
 
 			/** Determines whether and where two planes intersect */
-			static bool Intersect(Plane a, Plane b, Line& result);
+			static bool Intersect(const Plane& a, const Plane& b, Line& result);
 	};
 }

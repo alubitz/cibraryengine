@@ -69,30 +69,33 @@ namespace DestructibleTerrain
 		int y2 = (y1 + 1) % res;
 		int z2 = (z1 + 1) % res;
 
-		Vec3 eight[] = 
+		int x1rr = x1 * res_sq, x2rr = x2 * res_sq;
+		int y1r = y1 * res, y2r = y2 * res;
+
+		Vec3* eight[] = 
 		{
-			gradients[x1 * res_sq + y1 * res + z1],
-			gradients[x1 * res_sq + y1 * res + z2],
-			gradients[x1 * res_sq + y2 * res + z1],
-			gradients[x1 * res_sq + y2 * res + z2],
-			gradients[x2 * res_sq + y1 * res + z1],
-			gradients[x2 * res_sq + y1 * res + z2],
-			gradients[x2 * res_sq + y2 * res + z1],
-			gradients[x2 * res_sq + y2 * res + z2]
+			&gradients[x1rr + y1r + z1],
+			&gradients[x1rr + y1r + z2],
+			&gradients[x1rr + y2r + z1],
+			&gradients[x1rr + y2r + z2],
+			&gradients[x2rr + y1r + z1],
+			&gradients[x2rr + y1r + z2],
+			&gradients[x2rr + y2r + z1],
+			&gradients[x2rr + y2r + z2]
 		};
 
 		float x_frac = noise_x - x1, y_frac = noise_y - y1, z_frac = noise_z - z1;
 
 		float vert_values[] =
 		{
-			Vec3::Dot(eight[0], Vec3(	x_frac,		y_frac,		z_frac		)),
-			Vec3::Dot(eight[1], Vec3(	x_frac,		y_frac,		z_frac - 1	)),
-			Vec3::Dot(eight[2], Vec3(	x_frac,		y_frac - 1,	z_frac		)),
-			Vec3::Dot(eight[3], Vec3(	x_frac,		y_frac - 1,	z_frac - 1	)),
-			Vec3::Dot(eight[4], Vec3(	x_frac - 1,	y_frac,		z_frac		)),
-			Vec3::Dot(eight[5], Vec3(	x_frac - 1,	y_frac,		z_frac - 1	)),
-			Vec3::Dot(eight[6], Vec3(	x_frac - 1,	y_frac - 1,	z_frac		)),
-			Vec3::Dot(eight[7], Vec3(	x_frac - 1,	y_frac - 1,	z_frac - 1	))
+			Vec3::Dot(*eight[0], Vec3(	x_frac,		y_frac,		z_frac		)),
+			Vec3::Dot(*eight[1], Vec3(	x_frac,		y_frac,		z_frac - 1	)),
+			Vec3::Dot(*eight[2], Vec3(	x_frac,		y_frac - 1,	z_frac		)),
+			Vec3::Dot(*eight[3], Vec3(	x_frac,		y_frac - 1,	z_frac - 1	)),
+			Vec3::Dot(*eight[4], Vec3(	x_frac - 1,	y_frac,		z_frac		)),
+			Vec3::Dot(*eight[5], Vec3(	x_frac - 1,	y_frac,		z_frac - 1	)),
+			Vec3::Dot(*eight[6], Vec3(	x_frac - 1,	y_frac - 1,	z_frac		)),
+			Vec3::Dot(*eight[7], Vec3(	x_frac - 1,	y_frac - 1,	z_frac - 1	))
 		};
 
 		float sx_frac = 3.0f * x_frac * x_frac - 2.0f * x_frac * x_frac * x_frac;

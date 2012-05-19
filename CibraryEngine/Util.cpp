@@ -10,7 +10,7 @@
 
 namespace CibraryEngine
 {
-	float Util::LeadTime(Vec3 dx, Vec3 dv, float muzzle_speed)
+	float Util::LeadTime(const Vec3& dx, const Vec3& dv, float muzzle_speed)
 	{
 		float xmag_sq = dx.ComputeMagnitudeSquared();
 		float vmag_sq = dv.ComputeMagnitudeSquared();
@@ -27,7 +27,7 @@ namespace CibraryEngine
 		return use;
 	}
 
-	Mat3 Util::FindOrientationZEdge(Vec3 dir)
+	Mat3 Util::FindOrientationZEdge(const Vec3& dir)
 	{
 		Vec3 dir_n = Vec3::Normalize(dir);
 		while (true)

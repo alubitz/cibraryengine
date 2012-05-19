@@ -35,15 +35,15 @@ namespace CibraryEngine
 
 			Shader();
 			/** Initializes a Shader of the specified type, with the specified source code */
-			Shader(ShaderType type, string source);
+			Shader(ShaderType type, const string& source);
 
 			/** Compiles the shader */
 			void CompileShader();
 
 			/** Creates a fragment shader from the specified file */
-			static Shader* FragmentShaderFromFile(string filename);
+			static Shader* FragmentShaderFromFile(const string& filename);
 			/** Creates a vertex shader from the specified file */
-			static Shader* VertexShaderFromFile(string filename);
+			static Shader* VertexShaderFromFile(const string& filename);
 	};
 
 	class ShaderProgram;

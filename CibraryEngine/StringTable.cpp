@@ -33,10 +33,10 @@ namespace CibraryEngine
 	StringTable::StringTable() : imp(new Imp()) { }
 	StringTable::~StringTable() { if(imp != NULL) { delete imp; imp = NULL; } }
 
-	bool StringTable::StringExists(string str) { return imp->str_to_i.find(str) != imp->str_to_i.end(); }
-	bool StringTable::IntExists(unsigned int i) { return imp->i_to_str.find(i) != imp->i_to_str.end(); }
+	bool StringTable::StringExists(const string& str) const { return imp->str_to_i.find(str) != imp->str_to_i.end(); }
+	bool StringTable::IntExists(unsigned int i) const { return imp->i_to_str.find(i) != imp->i_to_str.end(); }
 
-	unsigned int StringTable::StringToInt(string str)
+	unsigned int StringTable::StringToInt(const string& str)
 	{
 		unordered_map<string, unsigned int>::iterator found = imp->str_to_i.find(str);
 		if(found == imp->str_to_i.end())
@@ -52,7 +52,7 @@ namespace CibraryEngine
 			return found->second;
 	}
 
-	string StringTable::IntToString(unsigned int i) 
+	string StringTable::IntToString(unsigned int i) const
 	{
 		unordered_map<unsigned int, string>::iterator found = imp->i_to_str.find(i);
 		if(found != imp->i_to_str.end())
@@ -61,6 +61,6 @@ namespace CibraryEngine
 			return string();			// maybe you should have checked first
 	}
 
-	unsigned int StringTable::operator[] (string str) { return StringToInt(str); }
-	string StringTable::operator[] (unsigned int i) { return IntToString(i); }
+	unsigned int StringTable::operator[] (const string& str) { return StringToInt(str); }
+	string StringTable::operator[] (unsigned int i) const { return IntToString(i); }
 }

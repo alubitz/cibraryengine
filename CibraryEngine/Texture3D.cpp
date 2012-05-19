@@ -79,9 +79,8 @@ namespace CibraryEngine
 			for (int x = from_x; x < to_x; ++x)
 				for (int y = from_y; y < to_y; ++y)
 				{
-					//unsigned char* rgba = &sheet->byte_data[(y * sheet->width + x) * 4];
-					for (int chan = 0; chan < 4; ++chan)
-						data[data_index++] = sheet->byte_data[(y * sheet->width + x) * 4 + chan];
+					memcpy(&data[data_index], &sheet->byte_data[(y * sheet->width + x) * 4], 4);
+					data_index += 4;
 				}
 		}
 

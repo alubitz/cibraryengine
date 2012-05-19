@@ -47,18 +47,15 @@ namespace CibraryEngine
 		{
 			if(int error = lua_pcall(state, args, results, 0))
 			{
-				stringstream msg;
-				msg << "Script error: " << lua_tostring(state, -1) << endl;
-				Debug(msg.str());
-
+				Debug(((stringstream&)(stringstream() << "Script error: " << lua_tostring(state, -1) << endl)).str());
 				return error;
 			}
 			return 0;
 		}
 
-		int DoString(string& str) { return luaL_loadstring(state, str.c_str()) || DoFunction(0, LUA_MULTRET); }
+		int DoString(const string& str) { return luaL_loadstring(state, str.c_str()) || DoFunction(0, LUA_MULTRET); }
 
-		int DoFile(string filename)
+		int DoFile(const string& filename)
 		{
 			string code;
 			int load_error = GetFileString(filename, &code);
@@ -67,10 +64,7 @@ namespace CibraryEngine
 				int result = DoString(code);
 				if(result != 0)
 				{
-					stringstream ss;
-					ss << "Script error: " << lua_tostring(state, -1) << endl;
-					Debug(ss.str());
-
+					Debug(((stringstream&)(stringstream() << "Script error: " << lua_tostring(state, -1) << endl)).str());
 					return result + 1;
 				}
 				else
@@ -100,8 +94,8 @@ namespace CibraryEngine
 	ScriptingState ScriptingState::NewThread() { ScriptingState result(lua_newthread(imp->state)); result.imp->is_thread = true; return result; }
 
 	int ScriptingState::DoFunction(int args, int results) { return imp->DoFunction(args, results); }
-	int ScriptingState::DoString(string& str) { return imp->DoString(str); }
-	int ScriptingState::DoFile(string filename) { return imp->DoFile(filename); }
+	int ScriptingState::DoString(const string& str) { return imp->DoString(str); }
+	int ScriptingState::DoFile(const string& filename) { return imp->DoFile(filename); }
 
 	bool ScriptingState::IsValid() { return imp != NULL && imp->state != NULL; }
 

@@ -166,10 +166,7 @@ namespace CibraryEngine
 	/*
 	 * SoundBufferLoader methods
 	 */
-	SoundBuffer* SoundBufferLoader::Load(ContentMetadata& what)
-	{
-		return SoundBuffer::FromFile("Files/Sound/" + what.name + ".wav");
-	}
+	SoundBuffer* SoundBufferLoader::Load(ContentMetadata& what) { return SoundBuffer::FromFile("Files/Sound/" + what.name + ".wav"); }
 
 	void SoundBufferLoader::Unload(SoundBuffer* content, ContentMetadata& meta)
 	{

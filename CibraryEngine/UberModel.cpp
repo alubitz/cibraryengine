@@ -754,9 +754,7 @@ namespace CibraryEngine
 
 		if(zzz_result != 0)
 		{
-			stringstream zzz_msg;
-			zzz_msg << "LoadZZZ (" << what.name << ") returned with status " << zzz_result << "; looking for suitable AAK" << endl;
-			Debug(zzz_msg.str());
+			Debug(((stringstream&)(stringstream() << "LoadZZZ (" << what.name << ") returned with status " << zzz_result << "; looking for suitable AAK" << endl)).str());
 
 			// see if there is a skinned model we could convert?
 			SkinnedModel* skinny = man->GetCache<SkinnedModel>()->Load(what.name);
@@ -785,7 +783,7 @@ namespace CibraryEngine
 		delete content;
 	}
 
-	unsigned int UberModelLoader::LoadZZZ(UberModel*& model, string filename)
+	unsigned int UberModelLoader::LoadZZZ(UberModel*& model, const string& filename)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)
@@ -824,7 +822,7 @@ namespace CibraryEngine
 		return 0;
 	}
 
-	unsigned int UberModelLoader::SaveZZZ(UberModel* model, string filename)
+	unsigned int UberModelLoader::SaveZZZ(UberModel* model, const string& filename)
 	{
 		if(model == NULL)
 			return 1;
@@ -938,7 +936,7 @@ namespace CibraryEngine
 		return uber;
 	}
 
-	void UberModelLoader::AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, string lod_name)
+	void UberModelLoader::AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, const string& lod_name)
 	{
 		unsigned int initial_material = uber->materials.size();
 		UberModel::LOD* lod = new UberModel::LOD();
