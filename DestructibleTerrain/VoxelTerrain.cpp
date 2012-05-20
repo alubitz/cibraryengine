@@ -79,7 +79,7 @@ namespace DestructibleTerrain
 	}
 
 	void VoxelTerrain::Vis(SceneRenderer* renderer)
-	{ 
+	{
 		Mat4 xform = GetTransform();
 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)

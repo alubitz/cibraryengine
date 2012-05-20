@@ -36,12 +36,15 @@ namespace DestructibleTerrain
 		Mat4 xform;
 
 		VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, Vec3 chunk_pos, Mat4 xform);
-
-		void Draw(ShaderProgram* shader, ShaderProgram* depth_shader, VoxelMaterial* material);
 	};
 
 	class VoxelMaterial : public Material
 	{
+		private:
+
+			struct DrawCache;				// private data stored only between calls to BeginDraw and EndDraw
+			DrawCache* draw_cache;
+
 		public:
 
 			ShaderProgram* shader;

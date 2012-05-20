@@ -116,7 +116,7 @@ namespace DestructibleTerrain
 		public:
 
 			// If these were unsigned ints it would cause some stupid errors with underflow
-			static const int ChunkSize = 32;
+			static const int ChunkSize = 16;
 			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
 
 
