@@ -41,7 +41,9 @@ namespace DestructibleTerrain
 			glMatrixMode(GL_MODELVIEW);
 
 			glDisable(GL_BLEND);
+			glEnable(GL_DEPTH_TEST);
 			glDepthMask(true);
+			glDepthFunc(GL_LESS);
 
 			for(vector<ChunkVBO>::iterator iter = depth_vbos.begin(); iter != depth_vbos.end(); ++iter)
 			{
@@ -62,6 +64,7 @@ namespace DestructibleTerrain
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
 			glDepthMask(false);
+			glDepthFunc(GL_EQUAL);
 
 			for(boost::unordered_map<unsigned char, vector<ChunkVBO> >::const_iterator iter = material_vbos.begin(); iter != material_vbos.end(); ++iter)
 			{
@@ -70,8 +73,6 @@ namespace DestructibleTerrain
 				Texture2D* texture = material->textures[iter->first].texture;
 				shader->SetUniform<Texture2D>("texture", texture);
 
-				ShaderProgram::SetActiveProgram(shader);
-
 				for(vector<ChunkVBO>::const_iterator jter = vbos.begin(); jter != vbos.end(); ++jter)
 				{
 					glPushMatrix();
@@ -79,7 +80,8 @@ namespace DestructibleTerrain
 		
 					Vec3 chunk_pos = jter->offset;
 					shader->SetUniform<Vec3>("chunk_pos", &chunk_pos);
-					shader->UpdateUniforms();
+
+					ShaderProgram::SetActiveProgram(shader);
 
 					jter->vbo->Draw();
 
@@ -154,26 +156,11 @@ namespace DestructibleTerrain
 		GLDEBUG();
 
 		glEnable(GL_CULL_FACE);
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
 
-		glDisable(GL_TEXTURE_2D);
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);
 
 		glEnable(GL_RESCALE_NORMAL);
-		glDisable(GL_CULL_FACE);
-
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-
-		Vec3 v;
-
-		Texture2D* default_tex = textures[1].texture;
-		shader->SetUniform<Texture2D>("texture", default_tex);
-
-		shader->SetUniform<Vec3>("chunk_pos", &v);
-
-		ShaderProgram::SetActiveProgram(shader);
 
 		GLDEBUG();
 	}
@@ -212,7 +199,9 @@ namespace DestructibleTerrain
 		draw_cache->Draw(shader, depth_shader, this);
 
 		ShaderProgram::SetActiveProgram(NULL);
+		glEnable(GL_CULL_FACE);
 		glDepthMask(true);
+		glDepthFunc(GL_LEQUAL);
 		
 		GLDEBUG();
 

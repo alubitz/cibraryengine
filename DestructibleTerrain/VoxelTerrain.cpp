@@ -7,6 +7,8 @@
 #include "VoxelMaterial.h"
 #include "PerlinNoise.h"
 
+#define GENERATE_MULTIPLE_MATERIALS 1
+
 namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;
@@ -244,6 +246,7 @@ namespace DestructibleTerrain
 
 		result->Solidify();
 
+#if GENERATE_MULTIPLE_MATERIALS
 		for(int x = 0; x < dim_x; ++x)
 			for(int xx = 0; xx < TerrainChunk::ChunkSize; ++xx)
 				for(int z = 0; z < dim_z; ++z)
@@ -298,7 +301,7 @@ namespace DestructibleTerrain
 								}
 							}
 					}
-
+#endif
 		return result;
 	}
 }

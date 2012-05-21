@@ -5,6 +5,8 @@ varying	vec3			normal, position;
 varying	vec3			input_normal, vertex;
 varying	float			mat_weight;
 
+const	float			ambient_amount = 0.2;const	float			tile_size = 10.0;
+
 vec4 sampleTriplanar(sampler2D texture, vec3 sample_xyz)
 {
 	vec4 x_sample = texture2D(texture, sample_xyz.yz);
@@ -18,28 +20,18 @@ vec4 sampleTriplanar(sampler2D texture, vec3 sample_xyz)
 
 void main()
 {
-	vec3 uPos = normalize(position);
+	float distance = length(position);
+	vec3 uPos = position / distance;
 	vec3 uLight = normalize(gl_LightSource[0].position.xyz);
 
 	vec3 uNorm = normalize(normal);
+	float light = max(min(1.0, dot(uNorm, uLight)), ambient_amount);
 
-	float light_dot = dot(uNorm, uLight);
-	float eye_dot = dot(uNorm, uPos);
-	vec3 uBounce = uPos - (2.0 * eye_dot) * uNorm;
+	vec3 sample_xyz = (vertex + chunk_pos) / tile_size;
 
-	float diffuse_amount = max(0.0, min(1.0, light_dot));
-
-	float specular_dot = dot(uBounce, uLight);
-	float specular_base = max(0.0, min(1.0, specular_dot));
-	float specular_amount = pow(specular_base, 4.0);
-
-	float light = diffuse_amount * 0.8 + 0.2;
-
-	vec3 sample_xyz = (vertex + chunk_pos) / 10.0;
-
-	vec4 diffuse_sample = sampleTriplanar(texture, sample_xyz) * mat_weight;
+	vec4 diffuse_sample = sampleTriplanar(texture, sample_xyz);
 	vec3 base_color = diffuse_sample.xyz * light;
 
-	gl_FragColor.xyz = base_color;
+	gl_FragColor.xyz = base_color * mat_weight;
 	gl_FragColor.w = 1.0;
 }
