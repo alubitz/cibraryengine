@@ -19,12 +19,15 @@ namespace DestructibleTerrain
 	VoxelTerrain::VoxelTerrain(VoxelMaterial* material, int dim_x, int dim_y, int dim_z) :
 		chunks(),
 		scale(Mat4::UniformScale(0.25f)),
-		xform(Mat4::Translation(float(-0.5f * dim_x * TerrainChunk::ChunkSize), float(-0.5f * dim_y * TerrainChunk::ChunkSize), float(-0.5f * dim_z * TerrainChunk::ChunkSize)))
+		xform(Mat4::Translation(float(-0.5f * dim_x * TerrainChunk::ChunkSize), float(-0.5f * dim_y * TerrainChunk::ChunkSize), float(-0.5f * dim_z * TerrainChunk::ChunkSize))),
+		material(material)
 	{
 		dim[0] = dim_x;
 		dim[1] = dim_y;
 		dim[2] = dim_z;
 		x_span = dim_y * dim_z;
+
+		chunks.reserve(dim_x * dim_y * dim_z);
 
 		for(int x = 0; x < dim_x; ++x)
 			for(int y = 0; y < dim_y; ++y)
@@ -85,17 +88,15 @@ namespace DestructibleTerrain
 		Mat4 xform = GetTransform();
 
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-		{
-			TerrainChunk* chunk = *iter;
-			if(chunk != NULL)
+			if(TerrainChunk* chunk = *iter)
 				chunk->Vis(renderer, xform);
-		}
 	}
 
 	void VoxelTerrain::Solidify()
 	{
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			(*iter)->SolidifyAsNeeded();
+			if(TerrainChunk* chunk = *iter)
+				chunk->SolidifyAsNeeded();
 	}
 
 	void VoxelTerrain::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)

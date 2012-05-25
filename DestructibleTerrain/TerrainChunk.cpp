@@ -325,8 +325,6 @@ namespace DestructibleTerrain
 		const float inv_range = 1.0f / (outer_radius - inner_radius);
 		const float outer_radius_sq = outer_radius * outer_radius;
 
-		int owner_dim_x = owner->GetXDim(), owner_dim_y = owner->GetYDim(), owner_dim_z = owner->GetZDim();
-
 		int max_radius = (int)ceil(outer_radius);
 		center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
 

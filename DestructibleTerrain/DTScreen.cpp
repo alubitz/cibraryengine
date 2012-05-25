@@ -194,8 +194,8 @@ namespace DestructibleTerrain
 			pitch(),
 			camera_ori(Quaternion::Identity()), 
 			current_brush(NULL),
-			brush_distance(40.0f),
-			brush_radius(5.0f),
+			brush_distance(60.0f),
+			brush_radius(7.5f),
 			enable_editing(true),
 			mouse_button_handler(this),
 			mouse_motion_handler(&yaw, &pitch),
@@ -258,6 +258,9 @@ namespace DestructibleTerrain
 			MakeTerrainAsNeeded();
 
 			glViewport(0, 0, width, height);
+
+			if(width <= 0 || height <= 0)
+				return;
 
 			glDepthMask(true);
 			glColorMask(true, true, true, false);
