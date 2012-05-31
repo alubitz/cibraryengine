@@ -15,6 +15,7 @@ namespace DestructibleTerrain
 	struct TerrainVertex;
 
 	struct VoxelMaterialVBO;
+	struct VoxelMaterialVBOBuilder;
 
 	class TerrainChunk
 	{
@@ -34,6 +35,7 @@ namespace DestructibleTerrain
 				int chunk_x, chunk_y, chunk_z;
 				int lod;
 				int use_size, use_size_squared;
+				float inv_use_size;
 
 				vector<CubeTriangles> tri_data;
 
@@ -106,10 +108,10 @@ namespace DestructibleTerrain
 			void CreateVBOs(CombinedVBO& target);
 
 			// these are functions used within CreateVBOs...
-			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, float*& depth_vert_ptr, unsigned int num_verts);
+			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& vbo_builders, float*& depth_vert_ptr, unsigned int num_verts);
 			VertexBuffer* CreateVBO(unsigned int allocate_n);
-			VertexBuffer* GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, unsigned char material, unsigned int size_to_create);
-			void ProcessVert(RelativeTerrainVertex& vert, VertexBuffer* target_vbo, unsigned char material, float inv_total);
+			VoxelMaterialVBOBuilder& GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create);
+			void ProcessVert(RelativeTerrainVertex& vert, VoxelMaterialVBOBuilder& target_vbo, unsigned char material, float inv_total);
 
 			VoxelTerrain* owner;
 
@@ -118,6 +120,7 @@ namespace DestructibleTerrain
 			// If these were unsigned ints it would cause some stupid errors with underflow
 			static const int ChunkSize = 16;
 			static const int ChunkSizeSquared = ChunkSize * ChunkSize;
+			static const float InvChunkSize;
 
 
 

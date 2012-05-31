@@ -21,6 +21,7 @@ namespace DestructibleTerrain
 		lod(lod),
 		use_size(ChunkSize >> lod),
 		use_size_squared(use_size * use_size),
+		inv_use_size(1.0f / float(use_size)),
 		tri_data(),
 		vbos(),
 		depth_vbo(NULL),
@@ -77,9 +78,9 @@ namespace DestructibleTerrain
 			return false;
 		else
 		{
-			int cx = (int)floor((float)x / use_size) + chunk_x;
-			int cy = (int)floor((float)y / use_size) + chunk_y;
-			int cz = (int)floor((float)z / use_size) + chunk_z;
+			int cx = (int)floor(x * inv_use_size) + chunk_x;
+			int cy = (int)floor(y * inv_use_size) + chunk_y;
+			int cz = (int)floor(z * inv_use_size) + chunk_z;
 
 			dx = x - (cx - chunk_x) * use_size;
 			dy = y - (cy - chunk_y) * use_size;
@@ -115,6 +116,10 @@ namespace DestructibleTerrain
 	/*
 	 * TerrainChunk methods
 	 */
+	const float TerrainChunk::InvChunkSize = 1.0f / ChunkSize;
+
+
+
 	TerrainChunk::TerrainChunk(VoxelMaterial* material, VoxelTerrain* owner, int x, int y, int z) :
 		node_data(),
 		chunk_x(x),
@@ -161,9 +166,9 @@ namespace DestructibleTerrain
 			return false;
 		else
 		{
-			int cx = (int)floor((float)x / ChunkSize) + chunk_x;
-			int cy = (int)floor((float)y / ChunkSize) + chunk_y;
-			int cz = (int)floor((float)z / ChunkSize) + chunk_z;
+			int cx = (int)floor((float)x * InvChunkSize) + chunk_x;
+			int cy = (int)floor((float)y * InvChunkSize) + chunk_y;
+			int cz = (int)floor((float)z * InvChunkSize) + chunk_z;
 
 			dx = x - (cx - chunk_x) * ChunkSize;
 			dy = y - (cy - chunk_y) * ChunkSize;
@@ -558,6 +563,8 @@ namespace DestructibleTerrain
 
 			float* depth_vert_ptr = target.depth_vbo->GetFloatPointer("gl_Vertex");
 
+			boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder> builders;
+
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
 				for(int y = 0; y < cmax_y; ++y)
@@ -575,12 +582,27 @@ namespace DestructibleTerrain
 							RelativeTerrainVertex* v2 = unique_vertices[*(iter++)];
 							RelativeTerrainVertex* v3 = unique_vertices[*(iter++)];
 
-							ProcessTriangle(v1, v2, v3, target.vbos, depth_vert_ptr, num_verts);
+							ProcessTriangle(v1, v2, v3, target.vbos, builders, depth_vert_ptr, num_verts);
 						}
 					}
 
-			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = target.vbos.begin(); iter != target.vbos.end(); ++iter)
-				iter->second.vbo->BuildVBO();
+			for(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator iter = builders.begin(); iter != builders.end(); ++iter)
+			{
+				VoxelMaterialVBOBuilder& builder = iter->second;
+
+				VoxelMaterialVBO& vbo = *builder.vbo;
+				vbo.vbo->SetNumVerts(builder.num_verts);
+				vbo.vbo->BuildVBO();
+
+				/*
+				float* ptr = vbo.vbo->GetFloatPointer("gl_Vertex");
+				float* expected = ptr + vbo.num_verts * 3;
+				if(expected != vbo.vert_ptr)
+					Debug(((stringstream&)(stringstream() << "gl_Vertex starts at " << ptr << " and num_verts = " << vbo.num_verts << ";\t" << (vbo.num_verts < 10 ? "\t" : "") << "vert_ptr should be " << expected << " but was instead " << vbo.vert_ptr << endl)).str());
+				else
+					Debug(((stringstream&)(stringstream() << "gl_Vertex starts at " << ptr << " and num_verts = " << vbo.num_verts << ";\t" << (vbo.num_verts < 10 ? "\t" : "") << "vert_ptr was where is ought to be at " << expected << endl)).str());
+				*/
+			}
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)
 				if(*iter != NULL)
@@ -592,7 +614,7 @@ namespace DestructibleTerrain
 	}
 
 	static unsigned int PickTriangleMaterials(const MultiMaterial& m1, const MultiMaterial& m2, const MultiMaterial& m3, unsigned char* pick);
-	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, float*& depth_vert_ptr, unsigned int num_verts)
+	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, float*& depth_vert_ptr, unsigned int num_verts)
 	{
 		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
 
@@ -619,7 +641,7 @@ namespace DestructibleTerrain
 			unsigned char mat = use_materials[i];
 
 			// now find a compatible vbo
-			VertexBuffer* target_vbo = GetOrCreateVBO(vbos, mat, num_verts);
+			VoxelMaterialVBOBuilder& target_vbo = GetOrCreateVBO(builders, vbos, mat, num_verts);
 
 			// finally put the verts into the vbo
 			ProcessVert(*v1, target_vbo, mat, inv_totals[0]);
@@ -638,22 +660,19 @@ namespace DestructibleTerrain
 		
 	}
 
-	VertexBuffer* TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBO>& get_from, unsigned char material, unsigned int size_to_create)
+	VoxelMaterialVBOBuilder& TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create)
 	{
-		boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator found = get_from.find(material);
-		if(found != get_from.end())
-		{
-			VoxelMaterialVBO result = found->second;
-			return result.vbo;
-		}
+		boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator found = builders.find(material);
+		if(found != builders.end())
+			return found->second;
 		else
 		{
 			// there is no existing vbo for this material
 			VertexBuffer* vbo = CreateVBO(size_to_create);
-			VoxelMaterialVBO result = VoxelMaterialVBO(material, vbo);
-			get_from[material] = result;
+			VoxelMaterialVBO& vmvbo = vbos[material] = VoxelMaterialVBO(material, vbo);
+			VoxelMaterialVBOBuilder& result = builders[material] = VoxelMaterialVBOBuilder(&vmvbo);
 
-			return vbo;
+			return result;
 		}
 	}
 
@@ -671,31 +690,14 @@ namespace DestructibleTerrain
 		return vbo;
 	}
 
-	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, VertexBuffer* target_vbo, unsigned char material, float inv_total)
+	void TerrainChunk::ProcessVert(RelativeTerrainVertex& vert, VoxelMaterialVBOBuilder& target_vbo, unsigned char material, float inv_total)
 	{
 		Vec3 pos = vert.GetPosition();
 
 		Vec3 normal = vert.vertex->normal = Vec3::Normalize(vert.vertex->normal);
 		vert.vertex->normal_valid = true;
 
-		unsigned int num_verts = target_vbo->GetNumVerts();
-
-		// TODO: avoid calling GetFloatPointer so much (this will require allocating a big enough array initially)
-		target_vbo->SetNumVerts(num_verts + 1);
-
-		float* vert_ptr =	&target_vbo->GetFloatPointer("gl_Vertex")		[num_verts * 3];
-		float* normal_ptr =	&target_vbo->GetFloatPointer("gl_Normal")		[num_verts * 3];
-		float* mat_ptr =	&target_vbo->GetFloatPointer("material_weight")	[num_verts];
-
-		*(vert_ptr++) =		pos.x;
-		*(vert_ptr++) =		pos.y;
-		*(vert_ptr++) =		pos.z;
-
-		*(normal_ptr++) =	normal.x;
-		*(normal_ptr++) =	normal.y;
-		*(normal_ptr++) =	normal.z;
-
-		*(mat_ptr++) =		(float)vert.vertex->material.GetMaterialAmount(material) * inv_total;
+		target_vbo.AddVert(pos, normal, (float)vert.vertex->material.GetMaterialAmount(material) * inv_total);
 	}
 
 	unsigned int PickTriangleMaterials(const MultiMaterial& m1, const MultiMaterial& m2, const MultiMaterial& m3, unsigned char* pick)
@@ -790,19 +792,24 @@ namespace DestructibleTerrain
 
 	unsigned int TerrainChunk::Read(istream& stream)
 	{
-		int emptiness_code = ReadByte(stream);
-
-		if(emptiness_code == 1)
-		{
-			for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
-				iter->solidity = 0;
-		}
+		if(!stream)
+			return 1;
 		else
 		{
-			for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
-				if(unsigned int node_read_error = iter->Read(stream))
-					return node_read_error;
+			int emptiness_code = ReadByte(stream);
+
+			if(emptiness_code == 1)
+			{
+				for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+					iter->solidity = 0;
+			}
+			else
+			{
+				for(vector<TerrainNode>::iterator iter = node_data.begin(); iter != node_data.end(); ++iter)
+					iter->Read(stream);
+			}
+
+			return 0;
 		}
-		return 0;
 	}
 }

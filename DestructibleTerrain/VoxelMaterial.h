@@ -24,7 +24,43 @@ namespace DestructibleTerrain
 		VertexBuffer* vbo;
 
 		VoxelMaterialVBO() : vbo(NULL) { }
-		VoxelMaterialVBO(unsigned char material, VertexBuffer* vbo) : material(material), vbo(vbo) { }
+		VoxelMaterialVBO(unsigned char material, VertexBuffer* vbo) : material(material), vbo(vbo) { }		
+	};
+
+	struct VoxelMaterialVBOBuilder
+	{
+		VoxelMaterialVBO* vbo;
+
+		float* vert_ptr;
+		float* normal_ptr;
+		float* mat_ptr;
+
+		unsigned int num_verts;
+
+		VoxelMaterialVBOBuilder() : vbo(NULL), normal_ptr(NULL), mat_ptr(NULL), num_verts(0) { }
+		VoxelMaterialVBOBuilder(VoxelMaterialVBO* vbo) :
+			vbo(vbo),
+			vert_ptr(vbo->vbo->GetFloatPointer("gl_Vertex")),
+			normal_ptr(vbo->vbo->GetFloatPointer("gl_Normal")),
+			mat_ptr(vbo->vbo->GetFloatPointer("material_weight")),
+			num_verts(0)
+		{
+		}
+
+		void AddVert(const Vec3& pos, const Vec3& normal, float mat_weight)
+		{
+			*(vert_ptr++) =		pos.x;
+			*(vert_ptr++) =		pos.y;
+			*(vert_ptr++) =		pos.z;
+
+			*(normal_ptr++) =	normal.x;
+			*(normal_ptr++) =	normal.y;
+			*(normal_ptr++) =	normal.z;
+
+			*(mat_ptr++) =		mat_weight;
+
+			++num_verts;
+		}
 	};
 
 	struct VoxelMaterialNodeData

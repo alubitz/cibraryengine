@@ -19,20 +19,15 @@ namespace DestructibleTerrain
 
 		GridStruct(TerrainChunk* t, int x, int y, int z) : position(float(x), float(y), float(z)), owner(t) 
 		{
-			TerrainNode* node_ptr = t->GetNodeRelative(x, y, z);
-
-			if(node_ptr != NULL)
+			if(TerrainNode* node_ptr = t->GetNodeRelative(x, y, z))
 			{
 				TerrainNode& node = *node_ptr;
 
 				value = node.GetScalarValue();
-			
 				material = node.material;
 			}
 			else
 				value = 127.5;
-
-			position = Vec3(float(x), float(y), float(z));
 		}
 
 		static TerrainVertex Convert(GridStruct& a) { return TerrainVertex(a.position, a.material); }
