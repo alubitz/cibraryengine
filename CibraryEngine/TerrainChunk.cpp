@@ -7,6 +7,9 @@
 
 #include "VoxelMaterial.h"
 
+#include "CameraView.h"
+#include "Serialize.h"
+
 namespace DestructibleTerrain
 {
 	/*

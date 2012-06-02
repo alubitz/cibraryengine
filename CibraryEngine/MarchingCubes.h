@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StdAfx.h"
+#include "Vector.h"
 
 namespace DestructibleTerrain
 {

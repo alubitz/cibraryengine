@@ -1,10 +1,7 @@
 #include "StdAfx.h"
 
 #include "DTScreen.h"
-#include "VoxelTerrain.h"
-#include "TerrainNode.h"
-#include "TerrainChunk.h"
-#include "VoxelMaterial.h"
+#include "../CibraryEngine/DestructibleTerrain.h"
 
 #define TERRAIN_DIM_HORIZONTAL 16
 #define TERRAIN_DIM_VERTICAL 8

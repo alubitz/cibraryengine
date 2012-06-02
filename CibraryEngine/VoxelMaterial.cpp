@@ -3,6 +3,10 @@
 #include "PerlinNoise.h"
 #include "VoxelMaterial.h"
 
+#include "Shader.h"
+#include "RenderNode.h"
+#include "UniformVariables.h"
+
 #define DEBUG_N_CHUNKS_VBOS_TRIANGLES 0
 
 namespace DestructibleTerrain

@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 
 #include "PerlinNoise.h"
+#include "Random3D.h"
 
 namespace DestructibleTerrain
 {

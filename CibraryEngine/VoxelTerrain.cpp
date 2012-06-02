@@ -7,6 +7,9 @@
 #include "VoxelMaterial.h"
 #include "PerlinNoise.h"
 
+#include "Serialize.h"
+#include "BinaryChunk.h"
+
 #define GENERATE_MULTIPLE_MATERIALS 1
 
 namespace DestructibleTerrain

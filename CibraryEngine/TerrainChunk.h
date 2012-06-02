@@ -4,6 +4,10 @@
 
 #include "VoxelTerrain.h"
 
+#include "Matrix.h"
+#include "VertexBuffer.h"
+#include "SceneRenderer.h"
+
 namespace DestructibleTerrain
 {
 	using namespace std;

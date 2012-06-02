@@ -6,7 +6,7 @@
 
 namespace DestructibleTerrain
 {
-	using namespace CibraryEngine;
+	using namespace std;
 
 	class TerrainChunk;
 

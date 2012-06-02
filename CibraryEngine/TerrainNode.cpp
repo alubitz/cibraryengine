@@ -3,6 +3,8 @@
 
 #include "TerrainChunk.h"
 
+#include "Serialize.h"
+
 namespace DestructibleTerrain
 {
 	using namespace std;

@@ -2,6 +2,14 @@
 
 #include "StdAfx.h"
 
+#include "Disposable.h"
+#include "Matrix.h"
+
+#include "RenderNode.h"
+#include "SceneRenderer.h"
+
+#include "Content.h"
+
 namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;

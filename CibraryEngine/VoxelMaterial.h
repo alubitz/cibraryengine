@@ -1,6 +1,9 @@
 #pragma once
 
 #include "StdAfx.h"
+#include "Texture2D.h"
+#include "Material.h"
+#include "VertexBuffer.h"
 
 namespace DestructibleTerrain
 {

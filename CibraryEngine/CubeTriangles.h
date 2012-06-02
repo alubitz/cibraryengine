@@ -6,9 +6,6 @@
 
 namespace DestructibleTerrain
 {
-	using namespace std;
-	using namespace CibraryEngine;
-
 	class TerrainChunk;
 
 	struct CubeTriangles

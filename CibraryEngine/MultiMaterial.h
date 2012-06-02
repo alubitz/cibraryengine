@@ -3,8 +3,6 @@
 
 namespace DestructibleTerrain
 {
-	using namespace CibraryEngine;
-
 	struct MultiMaterial
 	{
 		unsigned char types[4], weights[4];

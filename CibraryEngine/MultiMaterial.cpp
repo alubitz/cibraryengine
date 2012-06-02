@@ -3,6 +3,8 @@
 
 namespace DestructibleTerrain
 {
+	using namespace std;
+
 	/*
 	 * MultiMaterial methods
 	 */

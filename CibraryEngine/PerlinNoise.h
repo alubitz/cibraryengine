@@ -2,6 +2,8 @@
 
 #include "StdAfx.h"
 
+#include "Vector.h"
+
 namespace DestructibleTerrain
 {
 	using namespace CibraryEngine;
