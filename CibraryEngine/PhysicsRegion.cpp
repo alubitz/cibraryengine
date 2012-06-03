@@ -10,10 +10,8 @@ namespace CibraryEngine
 	/*
 	 * PhysicsRegion methods
 	 */
-	PhysicsRegion::PhysicsRegion() : rigid_bodies() { }
-
+	PhysicsRegion::PhysicsRegion() : rigid_bodies(), shape_bodies() { }
 	void PhysicsRegion::InnerDispose() { }
-
 
 
 
@@ -64,7 +62,6 @@ namespace CibraryEngine
 
 
 
-
 	void PhysicsRegion::UpdateVel(float timestep)
 	{
 		for(unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
@@ -94,7 +91,7 @@ namespace CibraryEngine
 					// TODO: detect collisions between this pair of objects
 				}
 
-			// TODO: detect collisions with objects in nearby chunks
+			// TODO: detect collisions with objects in nearby chunks, too
 		}
 	}
 }
