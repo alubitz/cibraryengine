@@ -1,7 +1,7 @@
 #pragma once
 #include "StdAfx.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	struct MultiMaterial
 	{

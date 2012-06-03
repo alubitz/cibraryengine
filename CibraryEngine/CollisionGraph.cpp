@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "CollisionGraph.h"
+#include "RigidBody.h"
 
 namespace CibraryEngine
 {

@@ -12,10 +12,8 @@
 
 #define GENERATE_MULTIPLE_MATERIALS 1
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
-
 	/*
 	 * VoxelTerrain methods
 	 */

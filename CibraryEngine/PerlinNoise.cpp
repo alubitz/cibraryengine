@@ -3,7 +3,7 @@
 #include "PerlinNoise.h"
 #include "Random3D.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/*
 	 * PerlinNoise methods

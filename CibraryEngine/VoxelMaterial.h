@@ -5,10 +5,8 @@
 #include "Material.h"
 #include "VertexBuffer.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
-
 	class VoxelMaterial;
 
 	struct TerrainTexture

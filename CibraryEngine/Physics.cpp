@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "Physics.h"
 
+#include "RigidBody.h"
+
 #include "CollisionShape.h"
 #include "RayShape.h"
 #include "SphereShape.h"
@@ -62,171 +64,6 @@ namespace CibraryEngine
 
 
 	/*
-	 * RigidBody private implementation struct
-	 */
-	struct RigidBody::Imp
-	{
-		Vec3 pos;
-		Vec3 vel;
-		Quaternion ori;
-		Vec3 rot;
-
-		Vec3 force, torque;
-		Vec3 applied_force, applied_torque;
-
-		Vec3 gravity;
-
-		MassInfo mass_info;
-		CollisionShape* shape;
-
-		// cached values for inverses of stuff
-		float inv_mass;
-		Mat3 inv_moi;
-
-		bool xform_valid;
-		Mat4 xform, inv_xform;
-
-		float bounciness;
-		float friction;
-		float linear_damp, angular_damp;
-
-		bool can_move, can_rotate;
-		bool active;								// TODO: support deactivation and related stuffs
-
-		Entity* user_entity;
-
-		CollisionCallback* collision_callback;
-
-		Imp() : gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
-		Imp(CollisionShape* shape, MassInfo mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity()) :
-			pos(pos),
-			vel(),
-			ori(ori),
-			rot(),
-			force(),
-			torque(),
-			applied_force(),
-			applied_torque(),
-			gravity(),
-			mass_info(mass_info),
-			shape(shape),
-			xform_valid(false),
-			bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
-			friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
-			linear_damp(0.2f),
-			angular_damp(0.6f),
-			can_move(shape->CanMove() && mass_info.mass > 0),
-			can_rotate(false),
-			active(can_move),
-			user_entity(NULL),
-			collision_callback(NULL)
-		{
-			Mat3 moi_rm(mass_info.moi);
-
-			if(moi_rm.Determinant() != 0.0f)
-				can_rotate = true;
-
-			inv_mass = mass_info.mass = 0.0f ? 0.0f : 1.0f / mass_info.mass;
-			inv_moi = ComputeInvMoi();
-		}
-
-		~Imp()
-		{
-			if(shape != NULL)
-			{
-				shape->Dispose();
-				delete shape;
-
-				shape = NULL;
-			}
-		}
-
-		Mat3 ComputeInvMoi() { Mat3 rm(ori.ToMat3()); return rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * rm; }
-
-		void UpdateVel(float timestep)
-		{
-			if(active)
-			{
-				vel += (force * timestep) / mass_info.mass;
-				vel *= exp(-linear_damp * timestep);
-
-				if(can_rotate)
-				{
-					inv_moi = ComputeInvMoi();
-					rot += inv_moi * (torque * timestep);
-
-					rot *= exp(-angular_damp * timestep);
-				}
-			}
-
-			ResetToApplied();
-		}
-
-		void UpdatePos(float timestep)
-		{
-			if(active)
-			{
-				pos += ori.ToMat3().Transpose() * mass_info.com;
-				pos += vel * timestep;
-
-				ori *= Quaternion::FromPYR(rot * timestep);
-
-				pos -= ori.ToMat3().Transpose() * mass_info.com;
-
-				xform_valid = false;
-			}
-		}
-
-		void ComputeXform()
-		{
-			xform = Mat4::FromPositionAndOrientation(pos, ori);
-			inv_xform = Mat4::Invert(xform);
-
-			xform_valid = true;
-		}
-
-		void ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
-
-		void ResetForces() 
-		{
-			applied_force = can_move ? gravity * mass_info.mass : Vec3();
-			applied_torque = Vec3();
-		}
-
-		void ResetToApplied()
-		{
-			force = applied_force;
-			torque = applied_torque;
-		}
-
-		// force is a world-space direction
-		// local_poi is in the coordinate system of the object
-		// returns a world-space direction
-		Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi) { return Vec3::Cross(force, ori.ToMat3().Transpose() * (local_poi - mass_info.com)); }
-
-		// point is in world-space
-		// returns a world-space velocity
-		Vec3 GetLocalVelocity(const Vec3& point) { return vel + Vec3::Cross(point - (pos + ori.ToMat3().Transpose() * mass_info.com), rot); }
-
-		// impulse is a world-space direction
-		// local_poi is in the coordinate system of the object
-		void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
-		{
-			if(active)
-			{
-				if(can_rotate)
-					rot += inv_moi * LocalForceToTorque(impulse, local_poi);
-				vel += impulse * inv_mass;
-			}
-		}
-
-		void ApplyCentralImpulse(const Vec3& impulse) { if(active) { vel += impulse * inv_mass; } }
-	};
-
-
-
-
-	/*
 	 * PhysicsWorld and PhysicsWorld::Imp methods
 	 */
 	PhysicsWorld::Imp::Imp() : rigid_bodies(), shape_bodies(), gravity(0, -9.8f, 0), internal_timer(), timer_interval(1.0f / 60.0f) { }
@@ -255,7 +92,7 @@ namespace CibraryEngine
 		shape_bodies[shape_type].insert(r);
 
 		// set gravity upon adding to world
-		r->imp->gravity = gravity;
+		r->gravity = gravity;
 	}
 			
 	bool PhysicsWorld::Imp::RemoveRigidBody(RigidBody* r)
@@ -282,38 +119,36 @@ namespace CibraryEngine
 	{
 		RigidBody* ibody = cp.a.obj;
 		RigidBody* jbody = cp.b.obj;
-		RigidBody::Imp* iimp = ibody->imp;
-		RigidBody::Imp* jimp = jbody->imp;
 
-		float m1 = iimp->mass_info.mass, m2 = jimp->mass_info.mass;
+		float m1 = ibody->mass_info.mass, m2 = jbody->mass_info.mass;
 
 		A = B = 0;
 
-		if(jimp->can_move)
+		if(jbody->can_move)
 		{
-			A = iimp->inv_mass + jimp->inv_mass;
+			A = ibody->inv_mass + jbody->inv_mass;
 
-			Vec3 i_lvel = iimp->vel, j_lvel = jimp->vel;
+			Vec3 i_lvel = ibody->vel, j_lvel = jbody->vel;
 			B = Vec3::Dot(i_lvel, direction) - Vec3::Dot(j_lvel, direction);
 		}
 		else
 		{
-			A = iimp->inv_mass;
-			B = Vec3::Dot(iimp->vel, direction);
+			A = ibody->inv_mass;
+			B = Vec3::Dot(ibody->vel, direction);
 		}
 
-		if(iimp->can_rotate)
+		if(ibody->can_rotate)
 		{
-			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(iimp->mass_info.com, 1.0f));
-			A += Vec3::Dot(iimp->inv_moi * nr1, nr1);
-			B += Vec3::Dot(iimp->rot, nr1);
+			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(ibody->mass_info.com, 1.0f));
+			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
+			B += Vec3::Dot(ibody->rot, nr1);
 		}
 
-		if(jimp->can_rotate)
+		if(jbody->can_rotate)
 		{
-			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jimp->mass_info.com, 1.0f));
-			A += Vec3::Dot(jimp->inv_moi * nr2, nr2);
-			B -= Vec3::Dot(jimp->rot, nr2);
+			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jbody->mass_info.com, 1.0f));
+			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
+			B -= Vec3::Dot(jbody->rot, nr2);
 		}
 	}
 
@@ -322,21 +157,18 @@ namespace CibraryEngine
 		RigidBody* ibody = cp.a.obj;
 		RigidBody* jbody = cp.b.obj;
 
-		RigidBody::Imp* iimp = ibody->imp;
-		RigidBody::Imp* jimp = jbody->imp;
+		bool j_can_move = jbody->can_move;
 
-		bool j_can_move = jimp->can_move;
-
-		float m1 = iimp->mass_info.mass;
-		float m2 = jimp->mass_info.mass;
+		float m1 = ibody->mass_info.mass;
+		float m2 = jbody->mass_info.mass;
 
 		if(m1 + m2 > 0)
 		{
 			Vec3 i_poi = ibody->GetInvTransform().TransformVec3(cp.a.pos, 1.0f);
 			Vec3 j_poi = jbody->GetInvTransform().TransformVec3(cp.b.pos, 1.0f);
 
-			Vec3 i_v = iimp->GetLocalVelocity(cp.a.pos);
-			Vec3 j_v = jimp->GetLocalVelocity(cp.b.pos);
+			Vec3 i_v = ibody->GetLocalVelocity(cp.a.pos);
+			Vec3 j_v = jbody->GetLocalVelocity(cp.b.pos);
 					
 			Vec3 dv = j_v - i_v;
 			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
@@ -348,7 +180,7 @@ namespace CibraryEngine
 				GetUseMass(normal, cp, A, B);
 
 				float use_mass = 1.0f / A;
-				float bounciness = iimp->bounciness * jimp->bounciness;
+				float bounciness = ibody->bounciness * jbody->bounciness;
 				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
 				
 				if(impulse_mag < 0)
@@ -362,11 +194,11 @@ namespace CibraryEngine
 							jbody->ApplyImpulse(-impulse, j_poi);
 
 						// applying this impulse means we need to recompute dv and nvdot!
-						dv = jimp->GetLocalVelocity(cp.b.pos) - iimp->GetLocalVelocity(cp.a.pos);
+						dv = jbody->GetLocalVelocity(cp.b.pos) - ibody->GetLocalVelocity(cp.a.pos);
 						nvdot = Vec3::Dot(normal, dv);
 					}
 
-					float sfric_coeff = iimp->friction * jimp->friction;
+					float sfric_coeff = ibody->friction * jbody->friction;
 					float kfric_coeff = 0.9f * sfric_coeff;
 
 					Vec3 t_dv = dv - normal * nvdot;
@@ -388,7 +220,7 @@ namespace CibraryEngine
 					}
 					else											// object isn't moving; apply static friction
 					{
-						Vec3 df = jimp->applied_force - iimp->applied_force;
+						Vec3 df = jbody->applied_force - ibody->applied_force;
 						float nfdot = Vec3::Dot(normal, df);
 
 						Vec3 t_df = df - normal * nfdot;
@@ -476,11 +308,11 @@ namespace CibraryEngine
 					{
 						any = true;
 
-						if((*jter)->a.obj->imp->collision_callback)
-							(*jter)->a.obj->imp->collision_callback->OnCollision(**jter);
+						if((*jter)->a.obj->collision_callback)
+							(*jter)->a.obj->collision_callback->OnCollision(**jter);
 
-						if((*jter)->b.obj->imp->collision_callback)
-							(*jter)->b.obj->imp->collision_callback->OnCollision(**jter);
+						if((*jter)->b.obj->collision_callback)
+							(*jter)->b.obj->collision_callback->OnCollision(**jter);
 					}
 				}
 
@@ -621,7 +453,7 @@ namespace CibraryEngine
 
 		// set forces to what was applied by gravity / user forces
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			(*iter)->imp->UpdateVel(timestep);
+			(*iter)->UpdateVel(timestep);
 
 		// handle all the collisions involving rays
 		for(boost::unordered_set<RigidBody*>::iterator iter = shape_bodies[ST_Ray].begin(); iter != shape_bodies[ST_Ray].end(); ++iter)
@@ -868,7 +700,7 @@ namespace CibraryEngine
 
 		// update positions
 		for(boost::unordered_set<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			(*iter)->imp->UpdatePos(timestep);
+			(*iter)->UpdatePos(timestep);
 	}
 
 	
@@ -909,77 +741,8 @@ namespace CibraryEngine
 
 		// set gravity of all rigid bodies within the world
 		for(boost::unordered_set<RigidBody*>::iterator iter = imp->rigid_bodies.begin(); iter != imp->rigid_bodies.end(); ++iter)
-			(*iter)->imp->gravity = gravity;
+			(*iter)->gravity = gravity;
 	}
 
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { imp->RayTest(from, to, callback); }
-
-
-
-	
-	/*
-	 * RigidBody methods
-	 */
-	RigidBody::RigidBody() : imp(new Imp()) { }
-	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) : imp(new Imp(shape, mass_info, pos, ori)) { }
-	
-	void RigidBody::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			delete imp; 
-			imp = NULL; 
-		}
-	}
-	void RigidBody::DisposePreservingCollisionShape() { imp->shape = NULL; Dispose(); }
-
-	Vec3 RigidBody::GetPosition() { return imp->pos; }
-	void RigidBody::SetPosition(Vec3 pos) { imp->pos = pos; imp->xform_valid = false; }
-
-	Quaternion RigidBody::GetOrientation() { return imp->ori; }
-	void RigidBody::SetOrientation(Quaternion ori) { imp->ori = ori; imp->xform_valid = false; }
-
-	Mat4 RigidBody::GetTransformationMatrix() { imp->ComputeXformAsNeeded(); return imp->xform; }
-	Mat4 RigidBody::GetInvTransform() { imp->ComputeXformAsNeeded(); return imp->inv_xform; }
-
-	void RigidBody::SetBounciness(float bounciness) { imp->bounciness = bounciness; }
-	void RigidBody::SetFriction(float friction) { imp->friction = friction; }
-	float RigidBody::GetBounciness() { return imp->bounciness; }
-	float RigidBody::GetFriction() { return imp->friction; }
-
-	bool RigidBody::MergesSubgraphs() { return imp->shape->CanMove() && imp->shape->GetShapeType() != ST_Ray; }
-
-	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
-	{
-		imp->applied_torque += imp->LocalForceToTorque(force, local_poi);
-		imp->applied_force += force;
-	}
-
-	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi) { imp->ApplyImpulse(impulse, local_poi); }
-
-	void RigidBody::ApplyCentralForce(const Vec3& force) { imp->applied_force += force; }
-
-	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { imp->ApplyCentralImpulse(impulse); }
-
-	void RigidBody::ResetForces() { imp->ResetForces(); }
-
-	Vec3 RigidBody::GetLinearVelocity() { return imp->vel; }
-	void RigidBody::SetLinearVelocity(const Vec3& vel) { imp->vel = vel; }
-
-	Vec3 RigidBody::GetAngularVelocity() { return imp->rot; }
-	void RigidBody::SetAngularVelocity(const Vec3& vel) { imp->rot = vel; }
-
-	Vec3 RigidBody::GetLocalVelocity(const Vec3& point) { return imp->GetLocalVelocity(point); }
-
-	MassInfo RigidBody::GetMassInfo() { return imp->mass_info; }
-
-	void RigidBody::DebugDraw(SceneRenderer* renderer) { imp->shape->DebugDraw(renderer, imp->pos, imp->ori); }
-
-	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { imp->collision_callback = callback; }
-	CollisionCallback* RigidBody::GetCollisionCallback() { return imp->collision_callback; }
-
-	CollisionShape* RigidBody::GetCollisionShape() { return imp->shape; }
-
-	Entity* RigidBody::GetUserEntity() { return imp->user_entity; }
-	void RigidBody::SetUserEntity(Entity* entity) { imp->user_entity = entity; }
 }

@@ -4,7 +4,7 @@
 
 #include "TerrainVertex.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	class TerrainChunk;
 

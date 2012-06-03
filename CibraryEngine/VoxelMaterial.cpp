@@ -9,7 +9,7 @@
 
 #define DEBUG_N_CHUNKS_VBOS_TRIANGLES 0
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/*
 	 * VoxelMaterial implementation struct for data cached between calls to BeginDraw and EndDraw

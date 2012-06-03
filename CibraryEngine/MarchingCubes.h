@@ -3,10 +3,9 @@
 #include "StdAfx.h"
 #include "Vector.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	using namespace std;
-	using namespace CibraryEngine;
 
 	struct MarchingCubes
 	{

@@ -8,6 +8,7 @@
 #include "Scripting.h"
 
 #include "Physics.h"
+#include "RigidBody.h"
 #include "ModelPhysics.h"
 
 #include "CollisionShape.h"

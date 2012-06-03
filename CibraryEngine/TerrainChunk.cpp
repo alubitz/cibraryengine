@@ -10,7 +10,7 @@
 #include "CameraView.h"
 #include "Serialize.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/*
 	 * TerrainChunk::CombinedVBO methods

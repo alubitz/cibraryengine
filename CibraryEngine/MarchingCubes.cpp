@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "MarchingCubes.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/*
 	 * Tables used by MarchingCubes methods

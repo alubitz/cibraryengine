@@ -5,7 +5,7 @@
 #include "TerrainChunk.h"
 #include "MarchingCubes.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/*
 	 * Struct used for input to MarchingCubes::Polygonize

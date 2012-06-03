@@ -5,10 +5,8 @@
 
 #include "Vector.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
-
 	struct TerrainVertex
 	{
 		Vec3 pos;

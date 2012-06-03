@@ -10,10 +10,8 @@
 
 #include "Content.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
-
 	class VoxelMaterial;
 	
 	struct TerrainNode;

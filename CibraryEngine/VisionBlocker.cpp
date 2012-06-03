@@ -6,6 +6,7 @@
 
 #include "Entity.h"
 #include "Physics.h"
+#include "RigidBody.h"
 
 namespace CibraryEngine
 {

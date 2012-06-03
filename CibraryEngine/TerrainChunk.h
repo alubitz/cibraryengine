@@ -8,10 +8,9 @@
 #include "VertexBuffer.h"
 #include "SceneRenderer.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	using namespace std;
-	using namespace CibraryEngine;
 
 	class VoxelTerrain;
 	struct CubeTriangles;

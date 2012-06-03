@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "TerrainVertex.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	/* 
 	 * TerrainVertex methods

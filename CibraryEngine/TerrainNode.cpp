@@ -5,10 +5,9 @@
 
 #include "Serialize.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	using namespace std;
-	using namespace CibraryEngine;
 
 	/*
 	 * TerrainNode methods

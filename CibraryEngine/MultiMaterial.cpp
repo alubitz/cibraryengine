@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "MultiMaterial.h"
 
-namespace DestructibleTerrain
+namespace CibraryEngine
 {
 	using namespace std;
 
