@@ -8,21 +8,42 @@
 namespace CibraryEngine
 {
 	using namespace std;
+
+	using boost::unordered_map;
 	using boost::unordered_set;
 
 	class RigidBody;
+	struct NearPairs;
 	struct CollisionGraph;
 	class CollisionCallback;
 	class SceneRenderer;
+
+	struct AABB;
 
 	class PhysicsRegion : public Disposable
 	{
 		protected:
 
+			/** All objects owned by this region */
 			unordered_set<RigidBody*> rigid_bodies;
+
+			/** Objects owned by this region, categorized by shape type */
 			unordered_set<RigidBody*> shape_bodies[ST_ShapeTypeMax];
 
-			void InnerDispose();
+			/** Store all static objects which stick into this region (regardless of whether they are owned by this region) */
+			unordered_set<RigidBody*> static_bodies[ST_ShapeTypeMax];
+
+			/** Stores all objects which stick into this region from an outside region, as well as static bodies */
+			unordered_set<RigidBody*> overlapping_bodies[ST_ShapeTypeMax];
+
+			virtual void InnerDispose();
+
+
+			/** Override this! Default implementation gives an empty results vector */
+			virtual void GetRelevantNeighbors(const AABB& query, vector<PhysicsRegion*>& results);
+
+			/** Override this! Default implementation returns all objects owned by this region */
+			virtual void GetRelevantObjects(const AABB& query, vector<RigidBody*>& results);
 
 		public:
 
@@ -58,6 +79,8 @@ namespace CibraryEngine
 			// conveniently doesn't need to know about any of that collision graph business
 			void DoRayUpdates(float timestep, CollisionCallback& callback);
 
-			void AddCollisions(float timestep, CollisionGraph& collision_graph);
+			void ResetOverlappingObjects();
+
+			void AddNearPairs(float timestep, NearPairs& results);
 	};
 }

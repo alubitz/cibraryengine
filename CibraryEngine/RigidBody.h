@@ -19,6 +19,8 @@ namespace CibraryEngine
 
 		private:
 
+			PhysicsRegion* region;
+
 			Vec3 pos;
 			Vec3 vel;
 			Quaternion ori;

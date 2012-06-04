@@ -12,8 +12,9 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : region(NULL), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
+		region(NULL),
 		pos(pos),
 		vel(),
 		ori(ori),

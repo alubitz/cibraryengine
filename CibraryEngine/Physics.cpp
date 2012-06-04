@@ -4,6 +4,12 @@
 #include "RigidBody.h"
 #include "PhysicsRegion.h"
 
+#include "RayShape.h"
+#include "SphereShape.h"
+#include "TriangleMeshShape.h"
+#include "InfinitePlaneShape.h"
+#include "MultiSphereShape.h"
+
 #include "CollisionGraph.h"
 
 #include "Matrix.h"
@@ -24,6 +30,19 @@ namespace CibraryEngine
 {
 	using boost::unordered_set;
 	using boost::unordered_map;
+
+	// forward declare a few functions
+	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits);
+	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits);
+	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits);
+	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits);
+
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const AABB& i_aabb, list<ContactPoint>& hits);
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, list<ContactPoint>& hits);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, list<ContactPoint>& hits);
+
+
+
 
 	/*
 	 * PhysicsWorld private implementation struct
@@ -50,13 +69,6 @@ namespace CibraryEngine
 
 			region = NULL;
 		}
-
-		void AddRigidBody(RigidBody* body)
-		{
-			region->AddRigidBody(body);
-			body->gravity = gravity;					// set gravity upon adding to world
-		}
-		bool RemoveRigidBody(RigidBody* body) { return region->RemoveRigidBody(body); }
 
 		// much cleaner than that quadratic formula nonsense
 		void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B)
@@ -272,6 +284,8 @@ namespace CibraryEngine
 				delete *iter;
 		}
 
+
+
 		void DoFixedStep()
 		{
 			float timestep = timer_interval;
@@ -279,6 +293,15 @@ namespace CibraryEngine
 			// set forces to what was applied by gravity / user forces
 			for(unordered_set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
 				(*iter)->UpdateVel(timestep);
+
+			// reset cache of what objects are overlapping into nearby regions
+			for(unordered_set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
+				(*iter)->ResetOverlappingObjects();
+
+			// do broadphase; this will also update the overlapping objects
+			NearPairs near_pairs;
+			for(unordered_set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
+				(*iter)->AddNearPairs(timestep, near_pairs);
 
 			// handle all the collisions involving rays
 			struct RayCallback : public CollisionCallback
@@ -304,11 +327,219 @@ namespace CibraryEngine
 			for(unordered_set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
 				(*iter)->DoRayUpdates(timestep, ray_callback);
 
-			// deal with all other collisions
+			// do collision detection for all of the pairs we found, and populate a CollisionGraph with the results
 			CollisionGraph collision_graph;
 
-			for(unordered_set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
-				(*iter)->AddCollisions(timestep, collision_graph);
+			// sphere-sphere
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > sphere_sphere_pairs;
+				NearPairs::Data::iterator sphere_sphere_iter = near_pairs.GetSet(ST_Sphere, ST_Sphere);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = sphere_sphere_iter->second.begin(); iter != sphere_sphere_iter->second.end(); ++iter)
+				{
+					if(sphere_sphere_pairs.find(iter->first) == sphere_sphere_pairs.end())
+						sphere_sphere_pairs[iter->first] = unordered_set<RigidBody*>();
+					sphere_sphere_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = sphere_sphere_pairs.begin(); iter != sphere_sphere_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					SphereShape* ishape = (SphereShape*)ibody->GetCollisionShape();
+
+					float radius = ishape->radius;
+					Vec3 pos = ibody->GetPosition();
+					Vec3 vel = ibody->GetLinearVelocity();
+
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoSphereSphere(ibody, *jter, radius, pos, vel, timestep, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+
+			// sphere-mesh
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > sphere_mesh_pairs;
+				NearPairs::Data::iterator sphere_mesh_iter = near_pairs.GetSet(ST_Sphere, ST_TriangleMesh);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = sphere_mesh_iter->second.begin(); iter != sphere_mesh_iter->second.end(); ++iter)
+				{
+					if(sphere_mesh_pairs.find(iter->first) == sphere_mesh_pairs.end())
+						sphere_mesh_pairs[iter->first] = unordered_set<RigidBody*>();
+					sphere_mesh_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = sphere_mesh_pairs.begin(); iter != sphere_mesh_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					SphereShape* ishape = (SphereShape*)ibody->GetCollisionShape();
+
+					float radius = ishape->radius;
+					Vec3 pos = ibody->GetPosition();
+					Vec3 vel = ibody->GetLinearVelocity();
+
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoSphereMesh(ibody, *jter, radius, pos, vel, timestep, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+			// sphere-plane
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > sphere_plane_pairs;
+				NearPairs::Data::iterator sphere_plane_iter = near_pairs.GetSet(ST_Sphere, ST_InfinitePlane);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = sphere_plane_iter->second.begin(); iter != sphere_plane_iter->second.end(); ++iter)
+				{
+					if(sphere_plane_pairs.find(iter->first) == sphere_plane_pairs.end())
+						sphere_plane_pairs[iter->first] = unordered_set<RigidBody*>();
+					sphere_plane_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = sphere_plane_pairs.begin(); iter != sphere_plane_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					SphereShape* ishape = (SphereShape*)ibody->GetCollisionShape();
+
+					float radius = ishape->radius;
+					Vec3 pos = ibody->GetPosition();
+					Vec3 vel = ibody->GetLinearVelocity();
+
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoSpherePlane(ibody, *jter, radius, pos, vel, timestep, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+			// sphere-multisphere
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > sphere_msphere_pairs;
+				NearPairs::Data::iterator sphere_msphere_iter = near_pairs.GetSet(ST_Sphere, ST_MultiSphere);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = sphere_msphere_iter->second.begin(); iter != sphere_msphere_iter->second.end(); ++iter)
+				{
+					if(sphere_msphere_pairs.find(iter->first) == sphere_msphere_pairs.end())
+						sphere_msphere_pairs[iter->first] = unordered_set<RigidBody*>();
+					sphere_msphere_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = sphere_msphere_pairs.begin(); iter != sphere_msphere_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					SphereShape* ishape = (SphereShape*)ibody->GetCollisionShape();
+
+					float radius = ishape->radius;
+					Vec3 pos = ibody->GetPosition();
+					Vec3 vel = ibody->GetLinearVelocity();
+
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoSphereMultisphere(ibody, *jter, radius, pos, vel, timestep, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+			// multisphere-mesh
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > msphere_mesh_pairs;
+				NearPairs::Data::iterator msphere_mesh_iter = near_pairs.GetSet(ST_MultiSphere, ST_TriangleMesh);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = msphere_mesh_iter->second.begin(); iter != msphere_mesh_iter->second.end(); ++iter)
+				{
+					if(msphere_mesh_pairs.find(iter->first) == msphere_mesh_pairs.end())
+						msphere_mesh_pairs[iter->first] = unordered_set<RigidBody*>();
+					msphere_mesh_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = msphere_mesh_pairs.begin(); iter != msphere_mesh_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					MultiSphereShape* ishape = (MultiSphereShape*)ibody->GetCollisionShape();
+
+					AABB i_aabb = ishape->GetAABB();
+
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoMultisphereMesh(ibody, *jter, ishape, i_aabb, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+			// multisphere-plane
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > msphere_plane_pairs;
+				NearPairs::Data::iterator msphere_mesh_iter = near_pairs.GetSet(ST_MultiSphere, ST_InfinitePlane);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = msphere_mesh_iter->second.begin(); iter != msphere_mesh_iter->second.end(); ++iter)
+				{
+					if(msphere_plane_pairs.find(iter->first) == msphere_plane_pairs.end())
+						msphere_plane_pairs[iter->first] = unordered_set<RigidBody*>();
+					msphere_plane_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = msphere_plane_pairs.begin(); iter != msphere_plane_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					MultiSphereShape* ishape = (MultiSphereShape*)ibody->GetCollisionShape();
+
+					Mat4 xform = ibody->GetTransformationMatrix();
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoMultispherePlane(ibody, *jter, ishape, xform, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
+			// multisphere-multisphere
+			{
+				unordered_map<RigidBody*, unordered_set<RigidBody*> > msphere_msphere_pairs;
+				NearPairs::Data::iterator msphere_msphere_iter = near_pairs.GetSet(ST_MultiSphere, ST_MultiSphere);
+
+				for(unordered_set<pair<RigidBody*, RigidBody*> >::iterator iter = msphere_msphere_iter->second.begin(); iter != msphere_msphere_iter->second.end(); ++iter)
+				{
+					if(msphere_msphere_pairs.find(iter->first) == msphere_msphere_pairs.end())
+						msphere_msphere_pairs[iter->first] = unordered_set<RigidBody*>();
+					msphere_msphere_pairs[iter->first].insert(iter->second);
+				}
+
+				for(unordered_map<RigidBody*, unordered_set<RigidBody*> >::iterator iter = msphere_msphere_pairs.begin(); iter != msphere_msphere_pairs.end(); ++iter)
+				{
+					RigidBody* ibody = iter->first;
+					MultiSphereShape* ishape = (MultiSphereShape*)ibody->GetCollisionShape();
+
+					Mat4 xform = ibody->GetTransformationMatrix();
+					list<ContactPoint> hits;
+
+					for(unordered_set<RigidBody*>::iterator jter = iter->second.begin(); jter != iter->second.end(); ++jter)
+						DoMultisphereMultisphere(ibody, *jter, ishape, xform, hits);
+
+					for(list<ContactPoint>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+						collision_graph.AddContactPoint(*jter);
+				}
+			}
+
 
 			SolveCollisionGraph(collision_graph);
 
@@ -317,7 +548,9 @@ namespace CibraryEngine
 				(*iter)->UpdatePos(timestep);
 		}
 
-		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL) { region->RayTest(from, to, callback, max_time, ibody); }
+		PhysicsRegion* SelectRegion(const Vec3& pos) { return region; }
+
+		void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL) { SelectRegion(from)->RayTest(from, to, callback, max_time, ibody); }
 	};
 
 
@@ -330,8 +563,14 @@ namespace CibraryEngine
 
 	void PhysicsWorld::InnerDispose() { delete imp; imp = NULL; }
 
-	void PhysicsWorld::AddRigidBody(RigidBody* r) { imp->AddRigidBody(r); }
-	bool PhysicsWorld::RemoveRigidBody(RigidBody* r) { return imp->RemoveRigidBody(r); }
+	void PhysicsWorld::AddRigidBody(RigidBody* r) { r->gravity = imp->gravity; imp->SelectRegion(r->pos)->AddRigidBody(r); }
+	bool PhysicsWorld::RemoveRigidBody(RigidBody* r)
+	{
+		if(PhysicsRegion* region = r->region)
+			return region->RemoveRigidBody(r);
+		else
+			return false;
+	}
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
@@ -365,4 +604,198 @@ namespace CibraryEngine
 	}
 
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { imp->RayTest(from, to, callback); }
+
+
+
+
+	/*
+	 * NearPairs methods
+	 */
+	NearPairs::Data::iterator NearPairs::GetSet(ShapeType a, ShapeType b)
+	{
+		pair<ShapeType, ShapeType> key(a, b);	
+
+		Data::iterator found = pairs.find(key);
+		if(found != pairs.end())
+			return found;
+		else
+		{
+			pairs[key] = unordered_set<pair<RigidBody*, RigidBody*> >();
+			return pairs.find(key);
+		}
+	}
+
+	void NearPairs::AddPair(Data::iterator target, RigidBody* a, RigidBody* b) { target->second.insert(pair<RigidBody*, RigidBody*>(a, b)); }
+
+
+
+
+
+
+
+	/*
+	 * SphereShape collision functions
+	 */
+	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits)
+	{
+		float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
+
+		Vec3 other_pos = jbody->GetPosition();
+		Vec3 other_vel = jbody->GetLinearVelocity();
+
+		Ray ray;
+		ray.origin = pos - other_pos;
+		ray.direction = vel - other_vel;
+
+		float first = 0, second = 0;
+		if(ray.origin.ComputeMagnitudeSquared() < sr * sr || Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
+			if(first >= 0 && first <= timestep)
+			{
+				ContactPoint p;
+
+				p.a.obj = ibody;
+				p.b.obj = jbody;
+				p.a.pos = pos + first * vel;
+				p.b.pos = other_pos + first * other_vel;
+				p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
+				p.a.norm = -p.b.norm;
+
+				hits.push_back(p);
+			}
+	}
+
+	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits)
+	{
+		TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
+
+		Ray ray;
+		ray.origin = pos;
+		ray.direction = vel;
+
+		vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(pos, radius));
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
+		{
+			TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
+							
+			float dist = tri.DistanceToPoint(pos);
+			if(dist < radius)
+			{
+				ContactPoint p;
+
+				p.a.obj = ibody;
+				p.b.obj = jbody;
+				p.a.pos = pos - tri.plane.normal * radius;
+				p.b.pos = p.a.pos;
+				p.a.norm = -tri.plane.normal;
+				p.b.norm = tri.plane.normal;
+
+				hits.push_back(p);
+			}
+		}
+	}
+
+	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits)
+	{
+		InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+		Vec3 plane_norm = shape->plane.normal;
+		float plane_offset = shape->plane.offset;
+
+		float center_offset = Vec3::Dot(plane_norm, pos) - plane_offset;
+		float vel_dot = Vec3::Dot(plane_norm, vel);
+
+		// if the sphere is moving away from the plane, don't bounce!
+		if(vel_dot <= 0.0f)
+		{
+			float dist = fabs(center_offset) - radius;
+			float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
+			if(t >= 0 && t <= timestep)
+			{
+				ContactPoint p;
+
+				p.a.obj = ibody;
+				p.b.obj = jbody;
+				p.a.pos = pos - plane_norm * radius;
+				p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
+				p.b.norm = plane_norm;
+				p.a.norm = -plane_norm;
+
+				hits.push_back(p);
+			}
+		}
+	}
+
+	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, list<ContactPoint>& hits)
+	{
+		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
+
+		Mat4 inv_xform = Mat4::Invert(jbody->GetTransformationMatrix());
+		Vec3 nu_pos = inv_xform.TransformVec3(pos, 1.0f);
+
+		ContactPoint cp;
+		if(shape->CollisionCheck(Sphere(nu_pos, radius), cp, ibody, jbody))
+			hits.push_back(cp);
+	}
+
+
+
+
+	/*
+	 * MultiSphereShape collision functions
+	 */
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const AABB& i_aabb, list<ContactPoint>& hits)
+	{
+		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
+
+		Mat4 inv_net_xform = jbody->GetInvTransform() * ibody->GetTransformationMatrix();
+		AABB xformed_aabb = i_aabb.GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
+
+		vector<unsigned int> relevant_triangles = jshape->GetRelevantTriangles(xformed_aabb);
+		if(relevant_triangles.empty())
+			return;
+
+		ContactPoint p;
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
+		{
+			TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
+
+			ContactPoint p;
+			if(ishape->CollisionCheck(inv_net_xform, tri, p, ibody, jbody))
+			{
+				Mat4 j_xform = jbody->GetTransformationMatrix();
+
+				p.a.pos = p.b.pos = j_xform.TransformVec3(p.a.pos, 1.0f);
+				p.a.norm = j_xform.TransformVec3(p.a.norm, 0.0f);
+				p.b.norm = -p.a.norm;
+
+				hits.push_back(p);
+			}
+		}
+	}
+
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, list<ContactPoint>& hits)
+	{
+		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+		ContactPoint p;
+		if(ishape->CollisionCheck(xform, jshape->plane, p, ibody, jbody))
+			hits.push_back(p);
+	}
+
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, list<ContactPoint>& hits)
+	{
+		MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
+
+		Mat4 net_xform = ibody->GetInvTransform() * jbody->GetTransformationMatrix();
+
+		ContactPoint p;
+		if(ishape->CollisionCheck(net_xform, jshape, p, ibody, jbody))
+		{
+			p.a.pos = p.b.pos = xform.TransformVec3(p.a.pos, 1.0f);
+			p.a.norm = xform.TransformVec3(p.a.norm, 0.0f);
+			p.b.norm = -p.a.norm;
+
+			hits.push_back(p);
+		}
+	}
 }

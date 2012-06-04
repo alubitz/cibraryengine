@@ -14,6 +14,9 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	using boost::unordered_map;
+	using boost::unordered_set;
+
 	struct Mat4;
 
 	class RigidBody;
@@ -61,6 +64,17 @@ namespace CibraryEngine
 	};
 
 	class RigidBody;
+
+	enum ShapeType;
+
+	struct NearPairs
+	{
+		typedef unordered_map<pair<ShapeType, ShapeType>, unordered_set<pair<RigidBody*, RigidBody*> > > Data;
+		Data pairs;
+
+		Data::iterator GetSet(ShapeType a, ShapeType b);
+		void AddPair(Data::iterator target, RigidBody* a, RigidBody* b);
+	};
 
 	/** A point of contact between two physics objects */
 	struct ContactPoint
