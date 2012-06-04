@@ -12,6 +12,8 @@ namespace CibraryEngine
 
 	class RigidBody;
 	struct CollisionGraph;
+	class CollisionCallback;
+	class SceneRenderer;
 
 	class PhysicsRegion : public Disposable
 	{
@@ -41,13 +43,21 @@ namespace CibraryEngine
 			void Disown(RigidBody* body);
 
 
+			void DebugDrawRegion(SceneRenderer* renderer);
 
+
+			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
 
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep);
 
-			void DoRayUpdates(float timestep);
+			void ResetForces();
+			void SetGravity(const Vec3& gravity);
 
-			void AddCollisions(CollisionGraph& collision_graph);
+
+			// conveniently doesn't need to know about any of that collision graph business
+			void DoRayUpdates(float timestep, CollisionCallback& callback);
+
+			void AddCollisions(float timestep, CollisionGraph& collision_graph);
 	};
 }

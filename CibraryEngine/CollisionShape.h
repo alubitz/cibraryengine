@@ -51,6 +51,7 @@ namespace CibraryEngine
 			ShapeType GetShapeType();
 
 			bool CanMove();
+			static bool CanShapeTypeMove(ShapeType type);
 
 			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 

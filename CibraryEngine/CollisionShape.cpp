@@ -28,7 +28,9 @@ namespace CibraryEngine
 
 	ShapeType CollisionShape::GetShapeType() { return type; }
 
-	bool CollisionShape::CanMove()
+	bool CollisionShape::CanMove() { return CanShapeTypeMove(type); }
+
+	bool CollisionShape::CanShapeTypeMove(ShapeType type)
 	{
 		switch(type)
 		{
