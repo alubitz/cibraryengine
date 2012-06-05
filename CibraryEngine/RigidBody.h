@@ -17,7 +17,6 @@ namespace CibraryEngine
 	class RigidBody : public Disposable
 	{
 		friend class PhysicsWorld;
-		friend struct PhysicsWorld::Imp;
 		friend class PhysicsRegion;
 
 		private:

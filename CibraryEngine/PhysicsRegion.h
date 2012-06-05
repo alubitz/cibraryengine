@@ -20,9 +20,13 @@ namespace CibraryEngine
 
 	struct AABB;
 
+	class ObjectOrphanedCallback;
+
 	class PhysicsRegion : public Disposable
 	{
 		protected:
+
+			ObjectOrphanedCallback* orphan_callback;
 
 			unordered_set<RigidBody*> all_objects[ST_ShapeTypeMax];
 
@@ -35,6 +39,7 @@ namespace CibraryEngine
 		public:
 
 			PhysicsRegion();
+			PhysicsRegion(ObjectOrphanedCallback* orphan_callback);
 
 
 
@@ -58,5 +63,13 @@ namespace CibraryEngine
 
 			/** Override this! Default implementation returns all objects owned by this region */
 			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);
+	};
+
+	class ObjectOrphanedCallback
+	{
+		public:
+
+			/** An object is no longer contained by any PhysicsRegion! */
+			virtual void OnObjectOrphaned(RigidBody* object) = 0;
 	};
 }

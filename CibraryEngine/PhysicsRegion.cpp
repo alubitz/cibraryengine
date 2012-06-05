@@ -22,7 +22,8 @@ namespace CibraryEngine
 	/*
 	 * PhysicsRegion methods
 	 */
-	PhysicsRegion::PhysicsRegion() : Disposable(), all_objects(), active_objects(), inactive_objects(), static_objects() { }
+	PhysicsRegion::PhysicsRegion() : Disposable(), orphan_callback(NULL), all_objects(), active_objects(), inactive_objects(), static_objects() { }
+	PhysicsRegion::PhysicsRegion(ObjectOrphanedCallback* orphan_callback) : Disposable(), orphan_callback(orphan_callback), all_objects(), active_objects(), inactive_objects(), static_objects() { }
 	void PhysicsRegion::InnerDispose()
 	{
 		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
@@ -32,10 +33,8 @@ namespace CibraryEngine
 				RigidBody* body = *iter;
 				
 				body->regions.erase(this);
-				if(body->regions.empty())
-				{
-					// TODO: handle orphaned object here
-				}
+				if(body->regions.empty() && orphan_callback)
+					orphan_callback->OnObjectOrphaned(body);
 			}
 
 			all_objects[i].clear();
@@ -84,10 +83,8 @@ namespace CibraryEngine
 		RemoveRigidBody(body);
 
 		body->regions.erase(this);
-		if(body->regions.empty())
-		{
-			// TODO: deal with orphaned object here
-		}
+		if(body->regions.empty() && orphan_callback)
+			orphan_callback->OnObjectOrphaned(body);
 	}
 
 

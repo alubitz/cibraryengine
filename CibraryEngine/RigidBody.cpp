@@ -86,9 +86,6 @@ namespace CibraryEngine
 
 				rot *= exp(-angular_damp * timestep);
 			}
-
-			// TODO: maybe become inactive
-			// TODO: update what regions this object is in
 		}
 
 		ResetToApplied();
@@ -98,14 +95,22 @@ namespace CibraryEngine
 	{
 		if(active)
 		{
-			pos += ori.ToMat3().Transpose() * mass_info.com;
-			pos += vel * timestep;
+			if(vel.ComputeMagnitudeSquared() > 0.0f || rot.ComputeMagnitudeSquared() > 0.0f)			// eventually these should be thresholds instead of straight 0s
+			{
+				pos += vel * timestep;
 
-			ori *= Quaternion::FromPYR(rot * timestep);
+				pos += ori.ToMat3().Transpose() * mass_info.com;
+				ori *= Quaternion::FromPYR(rot * timestep);
+				pos -= ori.ToMat3().Transpose() * mass_info.com;
 
-			pos -= ori.ToMat3().Transpose() * mass_info.com;
+				xform_valid = false;
 
-			xform_valid = false;
+				// TODO: update what regions this object is in
+			}
+			else
+			{
+				// TODO: become inactive; tell the physics regions we extend into that we're no longer active, etc.
+			}
 		}
 	}
 

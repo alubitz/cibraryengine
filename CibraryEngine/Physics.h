@@ -3,6 +3,8 @@
 #include "StdAfx.h"
 #include "Disposable.h"
 
+#include "CollisionShape.h"
+
 #include "Vector.h"
 #include "Quaternion.h"
 #include "TimingInfo.h"
@@ -19,8 +21,13 @@ namespace CibraryEngine
 
 	struct Mat4;
 
+	struct ContactPoint;
 	class RigidBody;
 	class CollisionCallback;
+	struct CollisionGraph;
+
+	class PhysicsRegion;
+	class ObjectOrphanedCallback;
 
 	class SceneRenderer;
 
@@ -29,12 +36,36 @@ namespace CibraryEngine
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
 	{
-		friend class RigidBody;
-
 		private:
 
-			struct Imp;
-			Imp* imp;
+			unordered_set<RigidBody*> all_objects[ST_ShapeTypeMax];
+			unordered_set<RigidBody*> dynamic_objects[ST_ShapeTypeMax];
+
+			unordered_set<PhysicsRegion*> all_regions;
+			PhysicsRegion* region;
+
+			Vec3 gravity;
+
+			float internal_timer, timer_interval;
+
+			void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
+
+			// returns whether or not a collision response was actually needed (i.e. whether an impulse was applied to prevent interpenetration)
+			bool DoCollisionResponse(const ContactPoint& cp);
+
+			void SolveCollisionGraph(CollisionGraph& graph);
+
+			void InitiateCollisionsForSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph);
+			void InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph);
+
+			void DoFixedStep();
+
+			PhysicsRegion* SelectRegion(const Vec3& pos) { return region; }
+
+			void RayTestPrivate(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
+
+			struct MyOrphanCallback;
+			MyOrphanCallback* orphan_callback;
 
 			// no copying!
 			void operator=(PhysicsWorld& other) { }
