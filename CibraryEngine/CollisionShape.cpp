@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "CollisionShape.h"
 
+#include "AABB.h"
+
 #include "RayShape.h"
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
@@ -25,6 +27,9 @@ namespace CibraryEngine
 	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
 
 	MassInfo CollisionShape::ComputeMassInfo() { return MassInfo(); }
+
+	// default orientation returns a degenerate AABB
+	AABB CollisionShape::GetTransformedAABB(const Mat4& xform) { return AABB(); }
 
 	ShapeType CollisionShape::GetShapeType() { return type; }
 

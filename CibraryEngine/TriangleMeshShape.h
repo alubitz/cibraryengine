@@ -3,6 +3,8 @@
 #include "StdAfx.h"
 #include "CollisionShape.h"
 
+#include "Plane.h"
+
 #include "Octree.h"
 
 namespace CibraryEngine
@@ -86,6 +88,7 @@ namespace CibraryEngine
 			TriCache GetTriangleData(unsigned int index) { return cache[index]; }
 
 			AABB GetAABB();
+			AABB GetTransformedAABB(const Mat4& xform);
 
 
 

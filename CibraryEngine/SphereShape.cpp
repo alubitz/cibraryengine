@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "SphereShape.h"
 
+#include "AABB.h"
+
 #include "Physics.h"
 
 #include "Matrix.h"
@@ -47,6 +49,8 @@ namespace CibraryEngine
 		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y, g), 1.0f));
 		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z, b), 1.0f));
 	}
+
+	AABB SphereShape::GetTransformedAABB(const Mat4& xform) { return AABB(xform.TransformVec3(0, 0, 0, 1), radius); }
 
 	void SphereShape::Write(ostream& stream) { WriteSingle(radius, stream); }
 	unsigned int SphereShape::Read(istream& stream) { radius = ReadSingle(stream); return 0; }

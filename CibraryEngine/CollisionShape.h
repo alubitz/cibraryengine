@@ -4,7 +4,6 @@
 #include "Disposable.h"
 
 #include "Vector.h"
-#include "Plane.h"
 
 #include "ContentTypeHandler.h"
 
@@ -13,6 +12,9 @@ namespace CibraryEngine
 	using namespace std;
 
 	struct Quaternion;
+	struct Mat4;
+
+	struct AABB;
 
 	struct MassInfo;
 	class RigidBody;
@@ -47,6 +49,9 @@ namespace CibraryEngine
 
 			/** Compute the mass info for this shape, assuming a density of 1 */
 			virtual MassInfo ComputeMassInfo();
+
+			/** Get the AABB of this shape transformed by the specified matrix. Default implementation returns a degenerate AABB */
+			virtual AABB GetTransformedAABB(const Mat4& xform);
 
 			ShapeType GetShapeType();
 

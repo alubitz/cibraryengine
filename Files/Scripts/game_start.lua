@@ -23,11 +23,11 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = false
+disable_enemies = true
 disable_waves = false
 disable_ai = false
 
-num_boxes = 0
+num_boxes = 200
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false
@@ -44,7 +44,7 @@ if num_boxes > 0 then
 	for i = 0, num_boxes do
 		local x = math.random() * 160.0 - 80.0
 		local z = math.random() * 160.0 - 80.0
-		local y = gs.getTerrainHeight(x, z) + 10.0
+		local y = 200--gs.getTerrainHeight(x, z) + 10.0
 
 		gs.spawnRubbish(ba.createVector(x, y, z))
 	end

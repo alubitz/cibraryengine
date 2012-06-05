@@ -3,6 +3,8 @@
 #include "StdAfx.h"
 #include "CollisionShape.h"
 
+#include "Plane.h"
+
 namespace CibraryEngine
 {
 	class InfinitePlaneShape : public CollisionShape

@@ -24,26 +24,13 @@ namespace CibraryEngine
 	{
 		protected:
 
-			/** All objects owned by this region */
-			unordered_set<RigidBody*> rigid_bodies;
+			unordered_set<RigidBody*> all_objects[ST_ShapeTypeMax];
 
-			/** Objects owned by this region, categorized by shape type */
-			unordered_set<RigidBody*> shape_bodies[ST_ShapeTypeMax];
-
-			/** Store all static objects which stick into this region (regardless of whether they are owned by this region) */
-			unordered_set<RigidBody*> static_bodies[ST_ShapeTypeMax];
-
-			/** Stores all objects which stick into this region from an outside region, as well as static bodies */
-			unordered_set<RigidBody*> overlapping_bodies[ST_ShapeTypeMax];
+			unordered_set<RigidBody*> active_objects[ST_ShapeTypeMax];
+			unordered_set<RigidBody*> inactive_objects[ST_ShapeTypeMax];
+			unordered_set<RigidBody*> static_objects[ST_ShapeTypeMax];
 
 			virtual void InnerDispose();
-
-
-			/** Override this! Default implementation gives an empty results vector */
-			virtual void GetRelevantNeighbors(const AABB& query, vector<PhysicsRegion*>& results);
-
-			/** Override this! Default implementation returns all objects owned by this region */
-			virtual void GetRelevantObjects(const AABB& query, vector<RigidBody*>& results);
 
 		public:
 
@@ -51,16 +38,16 @@ namespace CibraryEngine
 
 
 
-			// create a new rigid body within this region
+			// add a rigid body to this region
 			void AddRigidBody(RigidBody* body);
 
-			// remove a rigid body from the simulation (true if the body was present)
-			bool RemoveRigidBody(RigidBody* body);
+			// remove a rigid body from this region
+			void RemoveRigidBody(RigidBody* body);
 
-			// take ownership of a rigid body from another region
+			// add a rigid body to this region, and add this region to its regions list
 			void TakeOwnership(RigidBody* body);
 
-			// relinquish ownership of a rigid body (for when another region takes ownership)
+			// remove a rigid body from this region, and remove this region from its regions list
 			void Disown(RigidBody* body);
 
 
@@ -69,18 +56,7 @@ namespace CibraryEngine
 
 			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
 
-			void UpdateVel(float timestep);
-			void UpdatePos(float timestep);
-
-			void ResetForces();
-			void SetGravity(const Vec3& gravity);
-
-
-			// conveniently doesn't need to know about any of that collision graph business
-			void DoRayUpdates(float timestep, CollisionCallback& callback);
-
-			void ResetOverlappingObjects();
-
-			void AddNearPairs(float timestep, NearPairs& results);
+			/** Override this! Default implementation returns all objects owned by this region */
+			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);
 	};
 }

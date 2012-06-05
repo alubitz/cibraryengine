@@ -517,6 +517,8 @@ namespace CibraryEngine
 		return octree->bounds;
 	}
 
+	AABB TriangleMeshShape::GetTransformedAABB(const Mat4& xform) { return GetAABB().GetTransformedAABB(xform); }
+
 
 
 	unsigned int TriangleMeshShape::Read(istream& stream)

@@ -1,20 +1,28 @@
 #include "StdAfx.h"
 #include "RigidBody.h"
 
+#include "AABB.h"
+
 #include "Vector.h"
 #include "Quaternion.h"
 #include "Matrix.h"
 #include "Physics.h"
+
 #include "CollisionShape.h"
+#include "RayShape.h"
+#include "SphereShape.h"
+#include "TriangleMeshShape.h"
+#include "InfinitePlaneShape.h"
+#include "MultiSphereShape.h"
 
 namespace CibraryEngine
 {
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : region(NULL), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
-		region(NULL),
+		regions(),
 		pos(pos),
 		vel(),
 		ori(ori),
@@ -78,6 +86,9 @@ namespace CibraryEngine
 
 				rot *= exp(-angular_damp * timestep);
 			}
+
+			// TODO: maybe become inactive
+			// TODO: update what regions this object is in
 		}
 
 		ResetToApplied();
@@ -176,6 +187,37 @@ namespace CibraryEngine
 	CollisionCallback* RigidBody::GetCollisionCallback() { return collision_callback; }
 
 	CollisionShape* RigidBody::GetCollisionShape() { return shape; }
+
+	AABB RigidBody::GetAABB(float timestep)
+	{
+		switch(shape->GetShapeType())
+		{
+			case ST_Ray:
+			{
+				AABB result(pos);
+				result.Expand(pos + vel * timestep);
+				return result;
+			}
+
+			case ST_Sphere:
+			{
+				float radius = ((SphereShape*)shape)->radius;
+				AABB result(pos, radius);
+				result.Expand(AABB(pos + vel * timestep, radius));
+				return result;
+			}
+
+			case ST_TriangleMesh:
+			case ST_MultiSphere:
+				return shape->GetTransformedAABB(GetTransformationMatrix());
+
+			case ST_InfinitePlane:
+				return AABB();
+
+			default:
+				return AABB();
+		}
+	}
 
 	Entity* RigidBody::GetUserEntity() { return user_entity; }
 	void RigidBody::SetUserEntity(Entity* entity) { user_entity = entity; }

@@ -29,6 +29,8 @@ namespace CibraryEngine
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
 	{
+		friend class RigidBody;
+
 		private:
 
 			struct Imp;
@@ -50,7 +52,7 @@ namespace CibraryEngine
 			/** Adds a rigid body to the simulation */
 			void AddRigidBody(RigidBody* r);
 			/** Removes a rigid body from the simulation */
-			bool RemoveRigidBody(RigidBody* r);
+			void RemoveRigidBody(RigidBody* r);
 
 			/** Steps the simulation */
 			void Update(TimingInfo time);
@@ -65,17 +67,6 @@ namespace CibraryEngine
 
 	class RigidBody;
 
-	enum ShapeType;
-
-	struct NearPairs
-	{
-		typedef unordered_map<pair<ShapeType, ShapeType>, unordered_set<pair<RigidBody*, RigidBody*> > > Data;
-		Data pairs;
-
-		Data::iterator GetSet(ShapeType a, ShapeType b);
-		void AddPair(Data::iterator target, RigidBody* a, RigidBody* b);
-	};
-
 	/** A point of contact between two physics objects */
 	struct ContactPoint
 	{
@@ -86,6 +77,15 @@ namespace CibraryEngine
 
 			Part() : obj(NULL), pos(), norm() { }
 		} a, b;
+	};
+
+	struct RayResult
+	{
+		float t;
+		ContactPoint p;
+
+		RayResult(float t, const ContactPoint& p) : t(t), p(p) { }
+		bool operator <(const RayResult& h) { return t < h.t; }
 	};
 
 	class CollisionCallback

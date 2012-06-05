@@ -32,6 +32,8 @@ namespace CibraryEngine
 
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 
+			AABB GetTransformedAABB(const Mat4& xform);
+
 			MassInfo ComputeMassInfo();
 
 			bool ContainsPoint(const Vec3& point) const;

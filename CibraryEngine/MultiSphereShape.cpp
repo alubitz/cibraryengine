@@ -716,6 +716,23 @@ namespace CibraryEngine
 			}
 		}
 
+		AABB GetTransformedAABB(const Mat4& xform)
+		{
+			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(xform), but it may be slower (especially if there are more than 8 spheres!)
+			AABB xformed_aabb;
+			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			{
+				const Sphere& sphere = iter->sphere;
+				Vec3 pos = xform.TransformVec3(sphere.center, 1.0f);
+
+				if(iter == spheres.begin())
+					xformed_aabb = AABB(pos, sphere.radius);
+				else
+					xformed_aabb.Expand(AABB(pos, sphere.radius));
+			}
+			return xformed_aabb;
+		}
+
 		MassInfo ComputeMassInfo()
 		{
 			if(aabb.IsDegenerate())
@@ -966,7 +983,7 @@ namespace CibraryEngine
 			{
 				Mat4 inv_xform = Mat4::Invert(xform);
 
-				const int steps = 8;
+				const int steps = 8;			// adjust this to change precision/speed of multisphere-multisphere collisions
 				Vec3 increment = (overlap.max - overlap.min) / float(steps);
 				Vec3 start = overlap.min + increment * 0.5f;
 
@@ -1017,21 +1034,10 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(my_xform), but it may be slower
-			AABB xformed_aabb;
-			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
-			{
-				const Sphere& sphere = iter->sphere;
-				Vec3 pos = my_xform.TransformVec3(sphere.center, 1.0f);
-
-				if(iter == spheres.begin())
-					xformed_aabb = AABB(pos, sphere.radius);
-				else
-					xformed_aabb.Expand(AABB(pos, sphere.radius));
-			}
+			AABB xformed_aabb = GetTransformedAABB(my_xform);
 			Vec3 dim = xformed_aabb.max - xformed_aabb.min;
 
-			int steps = 5;
+			int steps = 5;				// adjust this to change precision/speed of multisphere-mesh collisions
 			float coeff = 1.0f / float(steps - 1);
 			Vec3 increment = dim * coeff;
 
@@ -1147,6 +1153,8 @@ namespace CibraryEngine
 	void MultiSphereShape::InnerDispose() { delete imp; imp = NULL; }
 
 	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { imp->DebugDraw(renderer, pos, ori); }
+
+	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform) { return imp->GetTransformedAABB(xform); }
 
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 

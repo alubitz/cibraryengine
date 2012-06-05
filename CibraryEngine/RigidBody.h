@@ -11,15 +11,18 @@
 
 namespace CibraryEngine
 {
+	struct AABB;
+
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable
 	{
 		friend class PhysicsWorld;
+		friend struct PhysicsWorld::Imp;
 		friend class PhysicsRegion;
 
 		private:
 
-			PhysicsRegion* region;
+			set<PhysicsRegion*> regions;
 
 			Vec3 pos;
 			Vec3 vel;
@@ -131,6 +134,9 @@ namespace CibraryEngine
 			CollisionCallback* GetCollisionCallback();
 
 			CollisionShape* GetCollisionShape();
+
+			/** Gets AABB to be used for collision detection for this object. Timestep is only really relevant for rays and spheres */
+			AABB GetAABB(float timestep);
 
 			Entity* GetUserEntity();
 			void SetUserEntity(Entity* entity);
