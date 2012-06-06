@@ -245,7 +245,8 @@ namespace CibraryEngine
 			Vec3 normal;
 		};
 		GridNode* grid;
-		unsigned int grid_sx, grid_sy, grid_sz;
+		unsigned int grid_sx, grid_sy, grid_sz, grid_x_span;
+		Vec3 xyz_to_grid_scalers;
 
 		Imp() : spheres(), tubes(), planes(), aabb(), grid(NULL) { }
 		Imp(Sphere* spheres, unsigned int count) : grid(NULL) { Init(spheres, count); }
@@ -762,10 +763,16 @@ namespace CibraryEngine
 			grid_sx = 40;
 			grid_sy = 40;
 			grid_sz = 40;
+			grid_x_span = grid_sy * grid_sz;
 
 			grid = new GridNode[grid_sx * grid_sy * grid_sz];
 
 			Vec3 increment = (aabb.max - aabb.min);
+
+			xyz_to_grid_scalers.x = grid_sx / increment.x;
+			xyz_to_grid_scalers.y = grid_sy / increment.y;
+			xyz_to_grid_scalers.z = grid_sz / increment.z;
+
 			increment.x /= float(grid_sx - 1);
 			increment.y /= float(grid_sy - 1);
 			increment.z /= float(grid_sz - 1);
@@ -786,18 +793,17 @@ namespace CibraryEngine
 
 		GridNode LookUpGridNode(const Vec3& point) const
 		{
-			Vec3 dim = aabb.max - aabb.min;
 			Vec3 xyz = point - aabb.min;
 
-			xyz.x *= grid_sx / dim.x;
-			xyz.y *= grid_sy / dim.y;
-			xyz.z *= grid_sz / dim.z;
+			xyz.x *= xyz_to_grid_scalers.x;
+			xyz.y *= xyz_to_grid_scalers.y;
+			xyz.z *= xyz_to_grid_scalers.z;
 
 			int x = max(0, min(int(grid_sx) - 1, (int)floor(xyz.x)));
 			int y = max(0, min(int(grid_sy) - 1, (int)floor(xyz.y)));
 			int z = max(0, min(int(grid_sz) - 1, (int)floor(xyz.z)));
 
-			return grid[x * grid_sy * grid_sz + y * grid_sz + z];
+			return grid[x * grid_x_span + y * grid_sz + z];
 		}
 
 		GridNode ComputeGridNode(const Vec3& point) const
@@ -974,15 +980,13 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			AABB other_aabb = other->imp->aabb.GetTransformedAABB(xform);
 
 			AABB overlap;
 			if(AABB::Intersect(aabb, other_aabb, overlap))
 			{
-				Mat4 inv_xform = Mat4::Invert(xform);
-
 				const int steps = 8;			// adjust this to change precision/speed of multisphere-multisphere collisions
 				Vec3 increment = (overlap.max - overlap.min) / float(steps);
 				Vec3 start = overlap.min + increment * 0.5f;
@@ -1163,7 +1167,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
-	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, other, result, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, inv_xform, other, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }

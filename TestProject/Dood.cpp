@@ -162,6 +162,8 @@ namespace Test
 		Vec3 forward = Vec3(-sin(yaw), 0, cos(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
+		rigid_body->Activate();
+
 		Vec3 vel = rigid_body->GetLinearVelocity();												// velocity prior to forces being applied
 
 		Vec3 delta_v = vel - this->vel;

@@ -47,8 +47,9 @@ namespace CibraryEngine
 		if((*trailhead)(head))
 		{
 			node_count++;
-			nu_trail.push_back(trail.size());
 			trail.push_back(head);
+			if(nu_trail.size() < trail.size())
+				nu_trail.push_back(0);
 
 			InvalidateBoundingSphere();
 			return true;
@@ -75,6 +76,7 @@ namespace CibraryEngine
 		{
 			InvalidateBoundingSphere();
 			node_count = next;
+			trail.resize(node_count);
 		}
 		for(unsigned int i = 0; i < node_count; ++i)
 			trail[i] = trail[nu_trail[i]];

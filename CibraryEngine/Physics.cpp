@@ -133,9 +133,55 @@ namespace CibraryEngine
 				all_regions->insert(result);
 
 				for(unordered_set<RigidBody*>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
-					result->TakeOwnership(*iter);
+					if(IsPlaneRelevantToRegion(((InfinitePlaneShape*)(*iter)->GetCollisionShape())->plane, x, y, z))
+						result->TakeOwnership(*iter);
 
 				return result;
+			}
+
+			bool IsPlaneRelevantToRegion(const Plane& plane, int x, int y, int z)
+			{
+				float xa[] = { x * cell_dim, 0 };
+				float ya[] = { y * cell_dim, 0 };
+				float za[] = { z * cell_dim, 0 };
+				float* vars[] = { xa, ya, za };
+
+				for(int i = 0; i < 3; ++i)
+					vars[i][1] = vars[i][0] + cell_dim;
+
+				Vec3 xyz;
+
+				bool any_plus = false;
+				bool any_minus = false;
+
+				for(int i = 0; i < 2; ++i)
+				{
+					xyz.x = xa[i];
+					for(int j = 0; j < 2; ++j)
+					{
+						xyz.y = ya[j];
+						for(int k = 0; k < 2; ++k)
+						{
+							xyz.z = za[k];
+
+							float d = plane.PointDistance(xyz);
+							if(d == 0)
+								return true;
+							if(d > 0)
+								if(any_minus)
+									return true;
+								else
+									any_plus = true;
+							if(d < 0)
+								if(any_plus)
+									return true;
+								else
+									any_minus = true;
+						}
+					}
+				}
+				
+				return false;
 			}
 
 			void OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions)
@@ -159,10 +205,13 @@ namespace CibraryEngine
 				}
 				else
 				{
+					int count = 0, possible = 0;
+
 					for(unsigned int x = 0; x < region_array.size(); ++x)
 						for(unsigned int y = 0; y < region_array[x].size(); ++y)
 							for(unsigned int z = 0; z < region_array[x][y].size(); ++z)
-								region_array[x][y][z]->TakeOwnership(object);
+								if(IsPlaneRelevantToRegion(((InfinitePlaneShape*)object->GetCollisionShape())->plane, x + x0, y + y0, z + z0))
+									region_array[x][y][z]->TakeOwnership(object);
 
 					planes.insert(object);
 				}
@@ -409,6 +458,9 @@ namespace CibraryEngine
 						}
 					}
 
+					if(j_can_move)
+						jbody->active = true;
+
 					return true;
 				}
 			}
@@ -466,8 +518,6 @@ namespace CibraryEngine
 			}
 		}
 
-		//int count = 0;
-
 		// now go through each subgraph and do as many iterations as are necessary
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
 		{
@@ -478,7 +528,6 @@ namespace CibraryEngine
 				bool any = false;
 				for(vector<ContactPoint*>::iterator jter = subgraph.contact_points.begin(); jter != subgraph.contact_points.end(); ++jter)
 				{
-					//++count;
 					if(DoCollisionResponse(**jter))
 					{
 						any = true;
@@ -495,8 +544,6 @@ namespace CibraryEngine
 					break;
 			}
 		}
-
-		//Debug(((stringstream&)(stringstream() << "count = " << count << "; collision graph contains " << graph.contact_points.size() << " contact points, " << graph.nodes.size() << " nodes, and " << subgraphs.size() << " subgraphs" << endl)).str());
 
 		// clean up subgraphs
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
@@ -542,7 +589,8 @@ namespace CibraryEngine
 		AABB xformed_aabb = shape->GetTransformedAABB(xform);
 
 		// find out what might be colliding with us
-		unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+		static unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+
 		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
 
@@ -556,6 +604,9 @@ namespace CibraryEngine
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
 			if(*iter < body)
 				DoMultisphereMultisphere(body, *iter, shape, xform, collision_graph);
+
+		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)
+			relevant_objects[i].clear();
 	}
 
 	void PhysicsWorld::DoFixedStep()
@@ -972,9 +1023,10 @@ namespace CibraryEngine
 		MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 
 		Mat4 net_xform = ibody->GetInvTransform() * jbody->GetTransformationMatrix();
+		Mat4 inv_xform = jbody->GetInvTransform() * xform;
 
 		ContactPoint p;
-		if(ishape->CollisionCheck(net_xform, jshape, p, ibody, jbody))
+		if(ishape->CollisionCheck(net_xform, inv_xform, jshape, p, ibody, jbody))
 		{
 			p.a.pos = p.b.pos = xform.TransformVec3(p.a.pos, 1.0f);
 			p.a.norm = xform.TransformVec3(p.a.norm, 0.0f);

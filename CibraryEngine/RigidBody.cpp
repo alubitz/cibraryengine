@@ -15,6 +15,8 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
+#define ENABLE_OBJECT_DEACTIVATION 0
+
 namespace CibraryEngine
 {
 	/*
@@ -38,10 +40,11 @@ namespace CibraryEngine
 		bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
 		friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
 		linear_damp(0.2f),
-		angular_damp(0.6f),
+		angular_damp(1.0f),
 		can_move(shape->CanMove() && mass_info.mass > 0),
 		can_rotate(false),
 		active(can_move),
+		deactivation_timer(0.5f),
 		user_entity(NULL),
 		collision_callback(NULL)
 	{
@@ -95,8 +98,10 @@ namespace CibraryEngine
 	{
 		if(active)
 		{
-			if(vel.ComputeMagnitudeSquared() > 0.0f || rot.ComputeMagnitudeSquared() > 0.0f)			// eventually these should be thresholds instead of straight 0s
+#if ENABLE_OBJECT_DEACTIVATION
+			if(vel.ComputeMagnitudeSquared() > 0.01f || rot.ComputeMagnitudeSquared() > 0.1f)			// eventually these should be thresholds instead of straight 0s
 			{
+#endif
 				pos += vel * timestep;
 
 				pos += ori.ToMat3().Transpose() * mass_info.com;
@@ -106,11 +111,18 @@ namespace CibraryEngine
 				xform_valid = false;
 
 				region_man->OnObjectUpdate(this, regions, timestep);
+
+#if ENABLE_OBJECT_DEACTIVATION
+				deactivation_timer = 0.5f;
 			}
 			else
 			{
 				// TODO: become inactive; tell the physics regions we extend into that we're no longer active, etc.
+				deactivation_timer -= timestep;
+				if(deactivation_timer <= 0)
+					active = false;
 			}
+#endif
 		}
 	}
 

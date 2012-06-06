@@ -51,6 +51,7 @@ namespace CibraryEngine
 
 			bool can_move, can_rotate;
 			bool active;								// TODO: support deactivation and related stuffs
+			float deactivation_timer;
 
 			Entity* user_entity;
 
@@ -118,6 +119,8 @@ namespace CibraryEngine
 			float GetFriction();
 
 			bool MergesSubgraphs();
+
+			void Activate() { active = true; deactivation_timer = 0.5f; }
 
 			void ApplyForce(const Vec3& force, const Vec3& local_poi);
 

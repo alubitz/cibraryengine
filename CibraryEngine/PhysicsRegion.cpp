@@ -131,11 +131,12 @@ namespace CibraryEngine
 	void PhysicsRegion::GetRelevantObjects(const AABB& aabb, unordered_set<RigidBody*>* results)
 	{
 		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)						// skip past ST_Ray
-		{
-			results[i].insert(active_objects[i].begin(), active_objects[i].end());
-			results[i].insert(inactive_objects[i].begin(), inactive_objects[i].end());
-			results[i].insert(static_objects[i].begin(), static_objects[i].end());
-		}
+			if(i != ST_MultiSphere)
+			{
+				results[i].insert(active_objects[i].begin(), active_objects[i].end());
+				results[i].insert(inactive_objects[i].begin(), inactive_objects[i].end());
+				results[i].insert(static_objects[i].begin(), static_objects[i].end());
+			}
 	}
 
 

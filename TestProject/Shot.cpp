@@ -88,6 +88,7 @@ namespace Test
 			{
 				node = BillboardTrail::TrailNode(end_pos, 0.0f, 0.1f);
 				ended = true;
+
 				return true;
 			}
 		}

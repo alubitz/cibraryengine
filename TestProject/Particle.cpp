@@ -65,10 +65,6 @@ namespace Test
 
 		pos = body->GetPosition();
 		vel = body->GetLinearVelocity();
-
-//		pos += vel * timestep;
-		//vel.y -= gravity * timestep;
-		//vel *= exp(-damp * timestep);
 	}
 
 	void Particle::Vis(SceneRenderer* scene)
