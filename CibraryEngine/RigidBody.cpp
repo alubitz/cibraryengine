@@ -91,7 +91,7 @@ namespace CibraryEngine
 		ResetToApplied();
 	}
 
-	void RigidBody::UpdatePos(float timestep)
+	void RigidBody::UpdatePos(float timestep, PhysicsRegionManager* region_man)
 	{
 		if(active)
 		{
@@ -105,7 +105,7 @@ namespace CibraryEngine
 
 				xform_valid = false;
 
-				// TODO: update what regions this object is in
+				region_man->OnObjectUpdate(this, regions, timestep);
 			}
 			else
 			{

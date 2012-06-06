@@ -41,6 +41,9 @@ namespace CibraryEngine
 	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits);
 	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits);
 
+
+
+
 	/*
 	 * PhysicsWorld orphan callback struct (private)
 	 */
@@ -61,21 +64,148 @@ namespace CibraryEngine
 
 
 	/*
+	 * GridRegionManager, a subclass of PhysicsRegionManager
+	 */
+	class GridRegionManager : public PhysicsRegionManager
+	{
+		public:
+
+			ObjectOrphanedCallback* orphan_callback;
+
+			// size of each cell
+			float cell_dim;
+
+			// offset of the minimum cell
+			int x0, y0, z0;
+
+			vector<vector<vector<PhysicsRegion*> > > region_array;
+			unordered_set<RigidBody*> planes;
+
+			GridRegionManager(unordered_set<PhysicsRegion*>* all_regions, ObjectOrphanedCallback* orphan_callback) :
+				PhysicsRegionManager(all_regions),
+				orphan_callback(orphan_callback),
+				cell_dim(16.0f),
+				x0(-7),
+				y0(0),
+				z0(-7),
+				region_array(),
+				planes()
+			{
+				for(int x = 0; x < 14; ++x)
+				{
+					region_array.push_back(vector<vector<PhysicsRegion*> >());
+					for(int y = 0; y < 20; ++y)
+					{
+						region_array[x].push_back(vector<PhysicsRegion*>());
+						for(int z = 0; z < 14; ++z)
+						{
+							region_array[x][y].push_back(CreateRegion(x + x0, y + y0, z + z0));
+						}
+					}
+				}
+			}
+
+			~GridRegionManager() { }
+
+			void AABBToCells(const AABB& aabb, int& x1, int& y1, int& z1, int& x2, int& y2, int& z2)
+			{
+				x1 = (int)floor(aabb.min.x / cell_dim);
+				y1 = (int)floor(aabb.min.y / cell_dim);
+				z1 = (int)floor(aabb.min.z / cell_dim);
+				x2 = (int)ceil(aabb.max.x / cell_dim);
+				y2 = (int)ceil(aabb.max.y / cell_dim);
+				z2 = (int)ceil(aabb.max.z / cell_dim);
+			}
+
+			PhysicsRegion* CreateRegion(int x, int y, int z)
+			{
+				PhysicsRegion* result = new PhysicsRegion(orphan_callback);
+
+				all_regions->insert(result);
+
+				for(unordered_set<RigidBody*>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+					result->TakeOwnership(*iter);
+
+				return result;
+			}
+
+			void OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions)
+			{
+				if(object->GetCollisionShape()->GetShapeType() != ST_InfinitePlane)
+				{
+					int x1, y1, z1, x2, y2, z2;
+					AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
+				
+					for(int x = x1; x < x2; ++x)
+						for(int y = y1; y < y2; ++y)
+							for(int z = z1; z < z2; ++z)
+								region_array[x - x0][y - y0][z - z0]->TakeOwnership(object);
+				}
+				else
+				{
+					for(unsigned int x = 0; x < region_array.size(); ++x)
+						for(unsigned int y = 0; y < region_array[x].size(); ++y)
+							for(unsigned int z = 0; z < region_array[x][y].size(); ++z)
+								region_array[x][y][z]->TakeOwnership(object);
+
+					planes.insert(object);
+				}
+			}
+
+			void OnObjectUpdate(RigidBody* object, set<PhysicsRegion*>& object_regions, float timestep)
+			{
+				for(set<PhysicsRegion*>::iterator iter = object_regions.begin(); iter != object_regions.end(); ++iter)
+				{
+					PhysicsRegion* region = *iter;
+					region->RemoveRigidBody(object);
+				}
+
+				object_regions.clear();
+
+				OnObjectAdded(object, object_regions);
+
+				if(object_regions.empty() && orphan_callback)
+					orphan_callback->OnObjectOrphaned(object);
+			}
+
+			void OnObjectRemoved(RigidBody* object, set<PhysicsRegion*>& object_regions)
+			{
+				for(set<PhysicsRegion*>::iterator iter = object_regions.begin(); iter != object_regions.end(); ++iter)
+				{
+					PhysicsRegion* region = *iter;
+					region->RemoveRigidBody(object);
+				}
+
+				if(object->GetCollisionShape()->GetShapeType() == ST_InfinitePlane)
+					planes.erase(object);
+			}
+
+			PhysicsRegion* GetRegion(const Vec3& point)
+			{
+				int x1, y1, z1, x2, y2, z2;
+				AABBToCells(AABB(point), x1, y1, z1, x2, y2, z2);
+
+				return region_array[x1 - x0][y1 - y0][z1 - z0];
+			}
+	};
+
+
+
+
+	/*
 	 * PhysicsWorld methods
 	 */
 	PhysicsWorld::PhysicsWorld() :
 		all_objects(),
 		dynamic_objects(),
 		all_regions(),
+		region_man(NULL),
 		gravity(0, -9.8f, 0),
 		internal_timer(),
 		timer_interval(1.0f / 60.0f),
 		orphan_callback(new MyOrphanCallback())
 	{
-		// TODO: create multiple regions for whole-world spatial partitioning
-
-		region = new PhysicsRegion(orphan_callback);
-		all_regions.insert(region);
+		region_man = new GridRegionManager(&all_regions, orphan_callback);
 	}
 
 	void PhysicsWorld::InnerDispose()
@@ -104,7 +234,8 @@ namespace CibraryEngine
 			dynamic_objects[i].clear();
 		}
 
-		region = NULL;
+		delete region_man;
+		region_man = NULL;
 
 		delete orphan_callback;
 		orphan_callback = NULL;
@@ -372,7 +503,7 @@ namespace CibraryEngine
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
 			DoMultispherePlane(body, *iter, shape, xform, collision_graph);
-
+		
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
 			if(*iter < body)
 				DoMultisphereMultisphere(body, *iter, shape, xform, collision_graph);
@@ -430,7 +561,7 @@ namespace CibraryEngine
 		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
 			if(CollisionShape::CanShapeTypeMove((ShapeType)i))
 				for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[i].begin(); iter != dynamic_objects[i].end(); ++iter)
-					(*iter)->UpdatePos(timestep);
+					(*iter)->UpdatePos(timestep, region_man);
 	}
 
 
@@ -445,8 +576,7 @@ namespace CibraryEngine
 
 		r->gravity = gravity;
 
-		// TODO: revise this; figure out to which region(s) this object should be added
-		SelectRegion(r->pos)->TakeOwnership(r);
+		region_man->OnObjectAdded(r, r->regions);
 	}
 
 	void PhysicsWorld::RemoveRigidBody(RigidBody* r)
@@ -455,6 +585,8 @@ namespace CibraryEngine
 		all_objects[type].erase(r);
 		if(r->can_move)
 			dynamic_objects[type].erase(r);
+
+		region_man->OnObjectRemoved(r, r->regions);
 
 		const set<PhysicsRegion*>& regions = r->regions;
 		for(set<PhysicsRegion*>::const_iterator iter = regions.begin(); iter != regions.end(); ++iter)
@@ -479,8 +611,9 @@ namespace CibraryEngine
 
 	void PhysicsWorld::DebugDrawWorld(SceneRenderer* renderer)
 	{
-		for(unordered_set<PhysicsRegion*>::iterator iter = all_regions.begin(); iter != all_regions.end(); ++iter)
-			(*iter)->DebugDrawRegion(renderer);
+		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
+			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
+				(*iter)->DebugDraw(renderer);
 
 		renderer->Render();
 		renderer->Cleanup();
@@ -509,8 +642,7 @@ namespace CibraryEngine
 			bool OnCollision(const ContactPoint& cp) { any = true; return callback.OnCollision(cp); }
 		} ray_callback(callback);
 
-		PhysicsRegion* start_region = SelectRegion(from);
-
+		PhysicsRegion* start_region = region_man->GetRegion(from);
 		start_region->RayTest(from, to, ray_callback, max_time, ibody);
 
 		if(!ray_callback.any)
@@ -519,6 +651,7 @@ namespace CibraryEngine
 		}
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
+
 
 
 

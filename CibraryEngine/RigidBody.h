@@ -13,6 +13,8 @@ namespace CibraryEngine
 {
 	struct AABB;
 
+	class PhysicsRegionManager;
+
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable
 	{
@@ -57,7 +59,7 @@ namespace CibraryEngine
 			Mat3 ComputeInvMoi();
 
 			void UpdateVel(float timestep);
-			void UpdatePos(float timestep);
+			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
 			void ComputeXform();
 

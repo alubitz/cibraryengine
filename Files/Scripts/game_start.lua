@@ -27,7 +27,7 @@ disable_enemies = true
 disable_waves = false
 disable_ai = false
 
-num_boxes = 100
+num_boxes = 200
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false

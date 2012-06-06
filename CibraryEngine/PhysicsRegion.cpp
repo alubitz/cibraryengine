@@ -22,8 +22,40 @@ namespace CibraryEngine
 	/*
 	 * PhysicsRegion methods
 	 */
-	PhysicsRegion::PhysicsRegion() : Disposable(), orphan_callback(NULL), all_objects(), active_objects(), inactive_objects(), static_objects() { }
-	PhysicsRegion::PhysicsRegion(ObjectOrphanedCallback* orphan_callback) : Disposable(), orphan_callback(orphan_callback), all_objects(), active_objects(), inactive_objects(), static_objects() { }
+	PhysicsRegion::PhysicsRegion() :
+		Disposable(),
+		orphan_callback(NULL),
+		all_objects(),
+		active_objects(),
+		inactive_objects(),
+		static_objects()
+	{
+		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
+		{
+			all_objects[i] = unordered_set<RigidBody*>();
+			active_objects[i] = unordered_set<RigidBody*>();
+			inactive_objects[i] = unordered_set<RigidBody*>();
+			static_objects[i] = unordered_set<RigidBody*>();
+		}
+	}
+
+	PhysicsRegion::PhysicsRegion(ObjectOrphanedCallback* orphan_callback) :
+		Disposable(),
+		orphan_callback(orphan_callback),
+		all_objects(),
+		active_objects(),
+		inactive_objects(),
+		static_objects()
+	{
+		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
+		{
+			all_objects[i] = unordered_set<RigidBody*>();
+			active_objects[i] = unordered_set<RigidBody*>();
+			inactive_objects[i] = unordered_set<RigidBody*>();
+			static_objects[i] = unordered_set<RigidBody*>();
+		}
+	}
+
 	void PhysicsRegion::InnerDispose()
 	{
 		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)

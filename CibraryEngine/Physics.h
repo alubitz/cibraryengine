@@ -27,7 +27,7 @@ namespace CibraryEngine
 	struct CollisionGraph;
 
 	class PhysicsRegion;
-	class ObjectOrphanedCallback;
+	class PhysicsRegionManager;
 
 	class SceneRenderer;
 
@@ -42,7 +42,8 @@ namespace CibraryEngine
 			unordered_set<RigidBody*> dynamic_objects[ST_ShapeTypeMax];
 
 			unordered_set<PhysicsRegion*> all_regions;
-			PhysicsRegion* region;
+
+			PhysicsRegionManager* region_man;
 
 			Vec3 gravity;
 
@@ -59,8 +60,6 @@ namespace CibraryEngine
 			void InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph);
 
 			void DoFixedStep();
-
-			PhysicsRegion* SelectRegion(const Vec3& pos) { return region; }
 
 			void RayTestPrivate(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
 
@@ -108,6 +107,29 @@ namespace CibraryEngine
 
 			Part() : obj(NULL), pos(), norm() { }
 		} a, b;
+	};
+
+	class PhysicsRegionManager
+	{
+	protected:
+
+		unordered_set<PhysicsRegion*>* all_regions;
+
+	public:
+
+		PhysicsRegionManager(unordered_set<PhysicsRegion*>* all_regions) : all_regions(all_regions) { }		
+		virtual ~PhysicsRegionManager() { };
+
+		// region should call TakeOwnership
+		virtual void OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions) = 0;
+
+		virtual void OnObjectUpdate(RigidBody* object, set<PhysicsRegion*>& object_regions, float timestep) = 0;
+
+		// region should NOT call Disown
+		virtual void OnObjectRemoved(RigidBody* object, set<PhysicsRegion*>& object_regions) = 0;
+
+		/** Get the PhysicsRegion containing the specified point, if one exists */
+		virtual PhysicsRegion* GetRegion(const Vec3& point) = 0;
 	};
 
 	struct RayResult
