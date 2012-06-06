@@ -58,9 +58,6 @@ namespace CibraryEngine
 
 			void DebugDrawRegion(SceneRenderer* renderer);
 
-
-			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
-
 			/** Override this! Default implementation returns all objects owned by this region */
 			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);
 	};

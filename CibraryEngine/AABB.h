@@ -27,6 +27,8 @@ namespace CibraryEngine
 
 		AABB GetTransformedAABB(const Mat4& xform) const;		// gets the AABB of the result of transforming the vertices of this AABB by the specified Mat4
 
+		bool IntersectLineSegment(const Vec3& from, const Vec3& to) const;			// find out if any part of the specified line segment is within this AABB
+
 		static bool IntersectTest(const AABB& a, const AABB& b);
 		static bool Intersect(const AABB& a, const AABB& b, AABB& result);			// like IntersectTest, but if true, result contains the overlapping region
 	};

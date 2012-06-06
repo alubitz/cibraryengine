@@ -44,7 +44,7 @@ if num_boxes > 0 then
 	for i = 0, num_boxes do
 		local x = math.random() * 160.0 - 80.0
 		local z = math.random() * 160.0 - 80.0
-		local y = 200--gs.getTerrainHeight(x, z) + 10.0
+		local y = gs.getTerrainHeight(x, z) + 20.0
 
 		gs.spawnRubbish(ba.createVector(x, y, z))
 	end

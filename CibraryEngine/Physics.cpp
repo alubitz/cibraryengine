@@ -32,6 +32,11 @@ namespace CibraryEngine
 	using boost::unordered_map;
 
 	// forward declare a few functions
+	static void DoRaySphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
+	static void DoRayMesh(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
+	static void DoRayPlane(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
+	static void DoRayMultisphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
+
 	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
 	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
 	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
@@ -55,8 +60,8 @@ namespace CibraryEngine
 
 		void OnObjectOrphaned(RigidBody* object)
 		{
-			if(!shutdown)
-				Debug("An object has been orphaned!\n");
+			//if(!shutdown)
+			//	Debug("An object has been orphaned!\n");
 		}
 	};
 
@@ -77,6 +82,7 @@ namespace CibraryEngine
 
 			// offset of the minimum cell
 			int x0, y0, z0;
+			int dx, dy, dz;
 
 			vector<vector<vector<PhysicsRegion*> > > region_array;
 			unordered_set<RigidBody*> planes;
@@ -85,19 +91,22 @@ namespace CibraryEngine
 				PhysicsRegionManager(all_regions),
 				orphan_callback(orphan_callback),
 				cell_dim(16.0f),
-				x0(-7),
-				y0(0),
-				z0(-7),
+				x0(-8),
+				y0(-2),
+				z0(-8),
+				dx(16),
+				dy(22),
+				dz(16),
 				region_array(),
 				planes()
 			{
-				for(int x = 0; x < 14; ++x)
+				for(int x = 0; x < dx; ++x)
 				{
 					region_array.push_back(vector<vector<PhysicsRegion*> >());
-					for(int y = 0; y < 20; ++y)
+					for(int y = 0; y < dy; ++y)
 					{
 						region_array[x].push_back(vector<PhysicsRegion*>());
-						for(int z = 0; z < 14; ++z)
+						for(int z = 0; z < dz; ++z)
 						{
 							region_array[x][y].push_back(CreateRegion(x + x0, y + y0, z + z0));
 						}
@@ -135,6 +144,13 @@ namespace CibraryEngine
 				{
 					int x1, y1, z1, x2, y2, z2;
 					AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
+
+					x1 = max(x0, x1);
+					y1 = max(y0, y1);
+					z1 = max(z0, z1);
+					x2 = min(x0 + dx - 1, x2);
+					y2 = min(y0 + dy - 1, y2);
+					z2 = min(z0 + dz - 1, z2);
 				
 					for(int x = x1; x < x2; ++x)
 						for(int y = y1; y < y2; ++y)
@@ -186,6 +202,34 @@ namespace CibraryEngine
 				AABBToCells(AABB(point), x1, y1, z1, x2, y2, z2);
 
 				return region_array[x1 - x0][y1 - y0][z1 - z0];
+			}
+
+			void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results)
+			{
+				AABB aabb(from);
+				aabb.Expand(to);
+
+				int x1, y1, z1, x2, y2, z2;
+				AABBToCells(aabb, x1, y1, z1, x2, y2, z2);
+
+				Vec3 cell_diagonal(cell_dim, cell_dim, cell_dim);
+
+				x1 = max(x0, x1);
+				y1 = max(y0, y1);
+				z1 = max(z0, z1);
+				x2 = min(x0 + dx - 1, x2);
+				y2 = min(y0 + dy - 1, y2);
+				z2 = min(z0 + dz - 1, z2);
+
+				for(int x = x1; x < x2; ++x)
+					for(int y = y1; y < y2; ++y)
+						for(int z = z1; z < z2; ++z)
+						{
+							Vec3 xyz(x * cell_dim, y * cell_dim, z * cell_dim);
+
+							if(AABB(xyz, xyz + cell_diagonal).IntersectLineSegment(from, to))
+								results.insert(region_array[x - x0][y - y0][z - z0]);
+						}
 			}
 	};
 
@@ -422,6 +466,8 @@ namespace CibraryEngine
 			}
 		}
 
+		//int count = 0;
+
 		// now go through each subgraph and do as many iterations as are necessary
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
 		{
@@ -432,6 +478,7 @@ namespace CibraryEngine
 				bool any = false;
 				for(vector<ContactPoint*>::iterator jter = subgraph.contact_points.begin(); jter != subgraph.contact_points.end(); ++jter)
 				{
+					//++count;
 					if(DoCollisionResponse(**jter))
 					{
 						any = true;
@@ -448,6 +495,8 @@ namespace CibraryEngine
 					break;
 			}
 		}
+
+		//Debug(((stringstream&)(stringstream() << "count = " << count << "; collision graph contains " << graph.contact_points.size() << " contact points, " << graph.nodes.size() << " nodes, and " << subgraphs.size() << " subgraphs" << endl)).str());
 
 		// clean up subgraphs
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
@@ -632,25 +681,139 @@ namespace CibraryEngine
 
 	void PhysicsWorld::RayTestPrivate(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time, RigidBody* ibody)
 	{
-		struct RayCallback : public CollisionCallback
+		// find out what objects are relevant
+		set<PhysicsRegion*> regions;
+		Vec3 endpoint = from + (to - from) * max_time;
+
+		region_man->GetRegionsOnRay(from, endpoint, regions);
+
+		AABB ray_aabb(from);
+		ray_aabb.Expand(endpoint);
+
+		unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+		for(set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
+			(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
+
+		// now do the actual collision testing
+		Ray ray;
+		ray.origin = from;
+		ray.direction = to - from;
+
+		list<RayResult> hits;
+		
+		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_Sphere].begin(); jter != relevant_objects[ST_Sphere].end(); ++jter)
+			DoRaySphere(ibody, *jter, ray, max_time, hits);
+
+		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_TriangleMesh].begin(); jter != relevant_objects[ST_TriangleMesh].end(); ++jter)
+			DoRayMesh(ibody, *jter, ray, max_time, hits);
+
+		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_InfinitePlane].begin(); jter != relevant_objects[ST_InfinitePlane].end(); ++jter)
+			DoRayPlane(ibody, *jter, ray, max_time, hits);
+
+		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_MultiSphere].begin(); jter != relevant_objects[ST_MultiSphere].end(); ++jter)
+			DoRayMultisphere(ibody, *jter, ray, max_time, hits);
+
+		// run the collision callback on whatever we found
+		if(!hits.empty())
 		{
-			bool any;
-			CollisionCallback& callback;
+			hits.sort();
 
-			RayCallback(CollisionCallback& callback) : any(false), callback(callback) { }
-				
-			bool OnCollision(const ContactPoint& cp) { any = true; return callback.OnCollision(cp); }
-		} ray_callback(callback);
-
-		PhysicsRegion* start_region = region_man->GetRegion(from);
-		start_region->RayTest(from, to, ray_callback, max_time, ibody);
-
-		if(!ray_callback.any)
-		{
-			// TODO: repeat ray test in subsequent regions
+			for(list<RayResult>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+				if(callback.OnCollision(jter->p))
+					break;
 		}
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
+
+
+
+
+	/*
+	 * Ray intersect functions
+	 */
+	static void DoRaySphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
+	{
+		float first, second;
+
+		if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
+			if(first >= 0 && first < max_time)
+			{
+				ContactPoint p;
+
+				p.a.obj = ibody;
+				p.b.obj = jbody;
+				p.a.pos = ray.origin + first * ray.direction;
+				p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
+
+				hits.push_back(RayResult(first, p));
+			}
+	}
+
+	static void DoRayMesh(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
+	{
+		TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
+
+		Mat4 inv_mat = jbody->GetInvTransform();
+
+		Ray ray_cut;
+		ray_cut.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
+		ray_cut.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
+
+		vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
+
+		for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
+		{
+			float t = kter->time * max_time;
+			if(t >= 0 && t < max_time)
+			{
+				ContactPoint p;
+
+				p.a.obj = ibody;
+				p.b.obj = jbody;
+				p.a.pos = ray.origin + t * ray.direction;
+				p.b.norm = kter->normal;
+
+				hits.push_back(RayResult(t, p));
+			}
+		}
+	}
+
+	static void DoRayPlane(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
+	{
+		InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
+
+		float t = Util::RayPlaneIntersect(ray, plane->plane);
+		if(t >= 0 && t < max_time)
+		{
+			ContactPoint p;
+
+			p.a.obj = ibody;
+			p.b.obj = jbody;
+			p.a.pos = ray.origin + t * ray.direction;
+			p.b.norm = plane->plane.normal;
+
+			hits.push_back(RayResult(t, p));
+		}
+	}
+
+	static void DoRayMultisphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
+	{
+		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
+
+		Mat4 inv_mat = jbody->GetInvTransform();
+
+		Ray nu_ray;
+		nu_ray.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
+		nu_ray.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
+
+		ContactPoint p;
+		float t;
+		if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
+		{
+			p.a.pos = jbody->GetTransformationMatrix().TransformVec3(p.b.pos, 1.0f);
+			hits.push_back(RayResult(t * max_time, p));
+		}
+	}
 
 
 
