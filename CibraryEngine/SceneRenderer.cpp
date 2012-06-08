@@ -8,7 +8,7 @@
 namespace CibraryEngine
 {
 	// Comparison type for render nodes
-	struct RNDistanceComp { bool operator() (RenderNode& lhs, RenderNode& rhs) { return lhs.distance < rhs.distance; } };
+	struct RNDistanceComp { bool operator() (RenderNode& lhs, RenderNode& rhs) { return lhs.distance > rhs.distance; } };
 
 	void SceneRenderer::Render()
 	{

@@ -33,8 +33,11 @@ namespace Test
 		body = new RigidBody(new RayShape(), MassInfo(Vec3(), 0.000001f), pos);
 		body->SetLinearVelocity(vel);
 		body->SetUserEntity(this);
+		body->SetDamp(damp);
 
 		game_state->physics_world->AddRigidBody(body);
+
+		body->SetGravity(Vec3(0, -gravity, 0));			// have to set this after adding to world, or world gravity will override it
 
 		if(billboard_mat != NULL)
 		{

@@ -33,6 +33,7 @@ namespace Test
 		}
 
 		dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
+		dust_particle = (ParticleMaterial*)mat_cache->Load("dust_poof");
 	}
 
 	void StaticLevelGeometry::InnerDispose()
@@ -74,11 +75,20 @@ namespace Test
 
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		for (int i = 0; i < 16; ++i)
+		for (int i = 0; i < 8; ++i)
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1.5f);
 			p->gravity = 9.8f;
-			p->damp = 2.0f;
+			p->damp = 0.1f;
+			p->angle = -float(M_PI) * 0.5f;
+
+			game_state->Spawn(p);
+		}
+		for (int i = 0; i < 16; ++i)
+		{
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(1), dust_particle, NULL, 0.5f, 1.5f);
+			p->gravity = 9.8f * 0.125f;
+			p->damp = 1.0f;
 			p->angle = -float(M_PI) * 0.5f;
 
 			game_state->Spawn(p);

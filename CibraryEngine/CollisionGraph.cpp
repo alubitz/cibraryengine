@@ -64,7 +64,7 @@ namespace CibraryEngine
 
 	void CollisionGraph::AddContactPoint(const ContactPoint& cp)
 	{
-		RigidBody* body_a = cp.a.obj;
+		RigidBody* body_a = cp.a.obj->GetCollisionProxy();
 		if(body_a->MergesSubgraphs())
 		{
 			unsigned int cp_index = contact_points.size();
@@ -81,7 +81,7 @@ namespace CibraryEngine
 				nodes.insert(pair<RigidBody*, Node*>(body_a, node_a));
 			}
 
-			RigidBody* body_b = cp.b.obj;
+			RigidBody* body_b = cp.b.obj->GetCollisionProxy();
 			if(body_b->MergesSubgraphs())
 			{
 				Node* node_b;

@@ -1,0 +1,6 @@
+: particle_alpha "dust_poof"
+:: col_size 32
+:: row_size 32
+:: cols 4
+:: rows 2
+:: frames 8

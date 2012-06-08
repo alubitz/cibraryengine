@@ -57,6 +57,7 @@ namespace CibraryEngine
 
 			Entity* user_entity;
 
+			RigidBody* collision_proxy;
 			CollisionCallback* collision_callback;
 
 			Mat3 ComputeInvMoi();
@@ -78,6 +79,8 @@ namespace CibraryEngine
 		protected:
 
 			void InnerDispose();
+
+			void SetCollisionProxy(RigidBody* proxy);
 
 		public:
 
@@ -105,9 +108,12 @@ namespace CibraryEngine
 			Vec3 GetAngularVelocity();
 			void SetAngularVelocity(const Vec3& vel);
 
+			void SetGravity(const Vec3& grav);
+			void SetDamp(float damp);
+
 			// point is in world-space
 			// returns a world-space velocity
-			Vec3 GetLocalVelocity(const Vec3& point);
+			virtual Vec3 GetLocalVelocity(const Vec3& point);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();			
@@ -135,6 +141,9 @@ namespace CibraryEngine
 			void ResetForces();
 
 			void DebugDraw(SceneRenderer* renderer);
+
+			/** If there is a collision proxy, returns it; otherwise returns this */
+			RigidBody* GetCollisionProxy();
 
 			void SetCollisionCallback(CollisionCallback* callback);
 			CollisionCallback* GetCollisionCallback();

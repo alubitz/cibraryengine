@@ -8,6 +8,7 @@
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
+#include "KinematicCharacter.h"
 
 #include "Serialize.h"
 #include "Physics.h"
@@ -80,6 +81,9 @@ namespace CibraryEngine
 				break;
 			case ST_MultiSphere:
 				temp = new MultiSphereShape();
+				break;
+			case ST_KinematicCharacter:
+				temp = new KinematicCharacterShape();
 				break;
 			default:
 				return 1;				// error code 1 = invalid shape type

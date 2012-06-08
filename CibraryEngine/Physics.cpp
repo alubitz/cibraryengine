@@ -454,9 +454,6 @@ namespace CibraryEngine
 
 		if(m1 + m2 > 0)
 		{
-			Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(cp.a.pos);
-			Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(cp.b.pos);
-
 			Vec3 i_v = ibody->GetLocalVelocity(cp.a.pos);
 			Vec3 j_v = jbody->GetLocalVelocity(cp.b.pos);
 					
@@ -475,13 +472,19 @@ namespace CibraryEngine
 				
 				if(impulse_mag < 0)
 				{
+					Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(cp.a.pos);
+					Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(cp.b.pos);
+
+					RigidBody* ibody_proxy = ibody->GetCollisionProxy();
+					RigidBody* jbody_proxy = jbody->GetCollisionProxy();
+
 					Vec3 impulse = normal * impulse_mag;
 
 					if(impulse.ComputeMagnitudeSquared() != 0)
 					{
-						ibody->ApplyImpulse(impulse, i_poi);
+						ibody_proxy->ApplyImpulse(impulse, i_poi);
 						if(j_can_move)
-							jbody->ApplyImpulse(-impulse, j_poi);
+							jbody_proxy->ApplyImpulse(-impulse, j_poi);
 
 						// applying this impulse means we need to recompute dv and nvdot!
 						dv = jbody->GetLocalVelocity(cp.b.pos) - ibody->GetLocalVelocity(cp.a.pos);
@@ -504,9 +507,9 @@ namespace CibraryEngine
 
 						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
 
-						ibody->ApplyImpulse(fric_impulse, i_poi);
+						ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
 						if(j_can_move)
-							jbody->ApplyImpulse(-fric_impulse, j_poi);
+							jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
 					}
 					else											// object isn't moving; apply static friction
 					{
@@ -521,9 +524,9 @@ namespace CibraryEngine
 						{
 							Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
 
-							ibody->ApplyImpulse(fric_impulse, i_poi);
+							ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
 							if(j_can_move)
-								jbody->ApplyImpulse(-fric_impulse, j_poi);
+								jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
 						}
 					}
 
@@ -613,6 +616,7 @@ namespace CibraryEngine
 										nu_active.insert(lter->cp);
 							}
 
+						// TODO: decide whether to use collision proxy here instead?
 						// do collision callbacks for both objects
 						if(cp.a.obj->collision_callback)
 							cp.a.obj->collision_callback->OnCollision(cp);
