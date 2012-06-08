@@ -396,7 +396,7 @@ namespace DestructibleTerrain
 
 		void GetCameraRay(Vec3& origin, Vec3& direction)
 		{ 
-			origin = Mat4::Invert(terrain->GetTransform()).TransformVec3(camera_pos, 1); 
+			origin = Mat4::Invert(terrain->GetTransform()).TransformVec3_1(camera_pos); 
 			direction = camera_ori.ToMat3() * Vec3(0, 0, -1); 
 		}
 

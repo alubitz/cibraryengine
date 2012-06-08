@@ -23,11 +23,11 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = true
+disable_enemies = false
 disable_waves = false
 disable_ai = false
 
-num_boxes = 2100
+num_boxes = 0
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false
@@ -41,7 +41,7 @@ gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
 if num_boxes > 0 then
-	for i = 0, num_boxes do
+	for i = 1, num_boxes do
 		local x = math.random() * 160.0 - 80.0
 		local z = math.random() * 160.0 - 80.0
 		local y = gs.getTerrainHeight(x, z) + 20.0

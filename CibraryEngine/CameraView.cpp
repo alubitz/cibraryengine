@@ -26,12 +26,11 @@ namespace CibraryEngine
 			Vec3 right = GetRight();
 
 			// Construct rotation matrix from direction vectors
-			float values[] = { 
+			Mat3 rot(
 				right.x,	right.y,	right.z,
 				up.x,		up.y,		up.z,
 				reverse.x,	reverse.y,	reverse.z
-			};
-			Mat3 rot = Mat3(values);
+			);
 
 			// Generate and return the view matrix
 			view = Mat4::Translation(rot * -position) * Mat4::FromMat3(rot);
@@ -53,13 +52,12 @@ namespace CibraryEngine
 			float e = 2.0f * _near * inv_width;
 			float f = 2.0f * _near * inv_height;
 
-			float values[] = {
+			proj = Mat4(
 				e,	0,	a,	0,
 				0,	f,	b,	0,
 				0,	0,	c,	d,
 				0,	0,	-1,	0
-			};
-			proj = Mat4(values);
+			);
 			proj_valid = true;
 		}
 		return proj;
@@ -171,8 +169,7 @@ namespace CibraryEngine
 		up = Vec3(view_[4], view_[5], view_[6]);
 		Vec3 right = GetRight();
 
-		float rm_values[] = { right.x, right.y, right.z, up.x, up.y, up.z, -forward.x, -forward.y, -forward.z };
-		Mat3 rm = Mat3(rm_values).Transpose();
+		Mat3 rm(right.x, up.x, -forward.x, right.y, up.y, -forward.y, right.z, up.z, -forward.z);
 		position = rm * position;
 
 		view = view_;

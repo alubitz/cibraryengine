@@ -16,7 +16,7 @@ namespace Test
 		float ambient[] = {color.x, color.y, color.z, 1};
 		float diffuse[] = {color.x, color.y, color.z, 1};
 		float specular[] = {color.x, color.y, color.z, 1};
-		Vec3 current_dir = view_matrix.TransformVec3(position, 0);
+		Vec3 current_dir = view_matrix.TransformVec3_0(position);
 		float pos_f[] = { current_dir.x, current_dir.y, current_dir.z, 0 };
 
 		glEnable(GL_LIGHTING);
@@ -47,7 +47,7 @@ namespace Test
 			glLoadIdentity();
 
 			Mat4 m = Mat4::FromMat3(rm) * view_matrix.Transpose();
-			Vec3 camera_pos = view_matrix.TransformVec3(0, 0, 0, 1);
+			Vec3 camera_pos = view_matrix.TransformVec3_1(0, 0, 0);
 			glTranslatef(-camera_pos.x, -camera_pos.y, -camera_pos.z);
 			glMultMatrixf(&m.values[0]);
 			glTranslatef(0, 0, distance);
@@ -98,13 +98,12 @@ namespace Test
 		Vec3 forward_f = Vec3::Normalize(forward);								// flatten that onto plane perpendicular to light direction
 		Vec3 right_f = Vec3::Normalize(Vec3::Cross(light_dir, forward_f));		// the other vector in that plane
 
-		float rm_values[] =
-		{
+		Mat3 shadow_rm(
 			-right_f.x,		-right_f.y,		-right_f.z,
 			forward_f.x,	forward_f.y,	forward_f.z,
 			light_dir.x,	light_dir.y,	light_dir.z
-		};
-		Mat4 rotation(Mat4::FromMat3(Mat3(rm_values)));
+		);
+		Mat4 rotation(Mat4::FromMat3(shadow_rm));
 
 		float shadow_w = 50.0f;
 		float shadow_l = 50.0f;

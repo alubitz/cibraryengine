@@ -719,12 +719,13 @@ namespace CibraryEngine
 
 		AABB GetTransformedAABB(const Mat4& xform)
 		{
+#if 0
 			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(xform), but it may be slower (especially if there are more than 8 spheres!)
 			AABB xformed_aabb;
 			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
 				const Sphere& sphere = iter->sphere;
-				Vec3 pos = xform.TransformVec3(sphere.center, 1.0f);
+				Vec3 pos = xform.TransformVec3_1(sphere.center);
 
 				if(iter == spheres.begin())
 					xformed_aabb = AABB(pos, sphere.radius);
@@ -732,6 +733,14 @@ namespace CibraryEngine
 					xformed_aabb.Expand(AABB(pos, sphere.radius));
 			}
 			return xformed_aabb;
+#else
+			// faster computation, but the result is bigger than the results of both the above implementation and AABB::GetTransformedAABB
+
+			Vec3 center = xform.TransformVec3_1((aabb.min + aabb.max) * 0.5f);
+			float radius = (aabb.max - aabb.min).ComputeMagnitude() / 2.0f;
+
+			return AABB(center, radius);
+#endif
 		}
 
 		MassInfo ComputeMassInfo()
@@ -948,7 +957,7 @@ namespace CibraryEngine
 
 			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				Vec3 sphere_pos = my_xform.TransformVec3(iter->sphere.center, 1.0f);
+				Vec3 sphere_pos = my_xform.TransformVec3_1(iter->sphere.center);
 				float radius = iter->sphere.radius;
 
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
@@ -1003,13 +1012,13 @@ namespace CibraryEngine
 							GridNode a = LookUpGridNode(pos);
 							if(a.solid)
 							{
-								Vec3 inv_xformed = inv_xform.TransformVec3(pos, 1.0f);
+								Vec3 inv_xformed = inv_xform.TransformVec3_1(pos);
 
 								GridNode b = other->imp->LookUpGridNode(inv_xformed);
 								if(b.solid)
 								{
 									pos_accum += pos;
-									normal_accum += Vec3::Normalize(a.normal - xform.TransformVec3(b.normal, 0.0f));
+									normal_accum += Vec3::Normalize(a.normal - xform.TransformVec3_0(b.normal));
 									++weight;
 								}
 							}
@@ -1036,45 +1045,55 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollisionCheck(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			AABB xformed_aabb = GetTransformedAABB(my_xform);
 			Vec3 dim = xformed_aabb.max - xformed_aabb.min;
 
-			int steps = 5;				// adjust this to change precision/speed of multisphere-mesh collisions
-			float coeff = 1.0f / float(steps - 1);
+			static const int steps = 5;				// adjust this to change precision/speed of multisphere-mesh collisions
+			static const float coeff = 1.0f / float(steps - 1);
 			Vec3 increment = dim * coeff;
 
 			unsigned int weight = 0;
 			Vec3 center;
-			Mat4 inv_xform = Mat4::Invert(my_xform);
 
 			// figure out which of the cardinal axes the normal vector most closely matches (x = 0, y = 1, z = 2)
 			int n_axis = fabs(tri.plane.normal.x) > fabs(tri.plane.normal.y) ? fabs(tri.plane.normal.x) > fabs(tri.plane.normal.z) ? 0 : 2 : fabs(tri.plane.normal.y) > fabs(tri.plane.normal.z) ? 1 : 2;
 			
 			Ray ray;
 			ray.direction = n_axis == 0 ? Vec3(dim.x, 0, 0) : n_axis == 1 ? Vec3(0, dim.y, 0) : Vec3(0, 0, dim.z);
+			ray.origin = xformed_aabb.min;
 
 			// iterate on the other two cardinal axes, and find the appropriate height on the normal-ish axis
 			for(int i = 0; i < steps; ++i)
 			{
+				switch(n_axis)
+				{
+					case 0:
+						ray.origin.y += increment.y;
+						ray.origin.z = xformed_aabb.min.z;
+						break;
+					case 1:
+						ray.origin.x += increment.x;
+						ray.origin.z = xformed_aabb.min.z;
+						break;
+					case 2:
+						ray.origin.x += increment.x;
+						ray.origin.y = xformed_aabb.min.y;
+						break;
+				}
+
 				for(int j = 0; j < steps; ++j)
 				{
-					ray.origin = xformed_aabb.min;
-
 					switch(n_axis)
 					{
 						case 0:
-							ray.origin.y += increment.y * i;
-							ray.origin.z += increment.z * j;
+							ray.origin.z += increment.z;
 							break;
 						case 1:
-							ray.origin.x += increment.x * i;
-							ray.origin.z += increment.z * j;
+							ray.origin.z += increment.z;
 							break;
 						case 2:
-							ray.origin.x += increment.x * i;
-							ray.origin.y += increment.y * j;
+							ray.origin.y += increment.y;
 							break;
 					}
 					
@@ -1084,7 +1103,7 @@ namespace CibraryEngine
 					float v = Vec3::Dot(tri.q, pos) - tri.v_offset;
 					if(u >= 0 && v >= 0 && u + v <= 1)
 					{
-						Vec3 my_pos = inv_xform.TransformVec3(pos, 1.0f);
+						Vec3 my_pos = inv_xform.TransformVec3_1(pos);
 						if(aabb.ContainsPoint(my_pos) && LookUpGridNode(my_pos).solid)
 						{
 							++weight;
@@ -1168,7 +1187,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, inv_xform, other, result, ibody, jbody); }
-	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, tri, result, ibody, jbody); }
+	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, inv_xform, xformed_aabb, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 

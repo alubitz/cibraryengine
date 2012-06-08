@@ -41,7 +41,7 @@ namespace Test
 
 	void Rubbish::Vis(SceneRenderer* renderer)
 	{
-		if(renderer->camera->CheckSphereVisibility(Sphere(xform.TransformVec3(bs.center, 1.0), bs.radius)))
+		if(renderer->camera->CheckSphereVisibility(Sphere(xform.TransformVec3_1(bs.center), bs.radius)))
 			((TestGame*)game_state)->VisUberModel(renderer, model, 0, xform, NULL, &materials);
 	}
 
@@ -51,15 +51,14 @@ namespace Test
 		
 		if(model_phys->bones.size() > 0)
 		{
-			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
-			Vec3 a = xform.TransformVec3(1, 0, 0, 0);
-			Vec3 b = xform.TransformVec3(0, 1, 0, 0);
-			Vec3 c = xform.TransformVec3(0, 0, 1, 0);
-			float values[] = { a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z };
+			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
+			Vec3 a = xform.TransformVec3_0(1, 0, 0);
+			Vec3 b = xform.TransformVec3_0(0, 1, 0);
+			Vec3 c = xform.TransformVec3_0(0, 0, 1);
 
 			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
 
-			rigid_body = new RigidBody(bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(values)));
+			rigid_body = new RigidBody(bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)));
 			rigid_body->SetUserEntity(this);
 
 			physics->AddRigidBody(rigid_body);
@@ -93,7 +92,7 @@ namespace Test
 		}
 #endif
 
-		Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+		Vec3 pos = xform.TransformVec3_1(0, 0, 0);
 		rigid_body->ApplyImpulse(momentum, poi - pos);
 		return true;
 

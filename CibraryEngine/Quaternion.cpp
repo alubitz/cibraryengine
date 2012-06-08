@@ -32,12 +32,11 @@ namespace CibraryEngine
 
 		float W = n.w, X = n.x, Y = n.y, Z = n.z;
 
-		float values[] = {
+		return Mat3(
 			1.0f - 2.0f * Y * Y - 2.0f * Z * Z,	2.0f * (X * Y - W * Z),				2.0f * (X * Z + W * Y),
 			2.0f * (X * Y + W * Z),				1.0f - 2.0f * X * X - 2.0f * Z * Z,	2.0f * (Y * Z - W * X),
 			2.0f * (X * Z - W * Y),				2.0f * (Y * Z + W * X),				1.0f - 2.0f * X * X - 2.0f * Y * Y
-		};
-		return Mat3(values);
+		);
 	}
 
 	Vec3 Quaternion::operator *(const Vec3& right) const { return ToMat3() * right; }

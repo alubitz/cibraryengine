@@ -13,7 +13,6 @@ namespace CibraryEngine
 	using boost::unordered_set;
 
 	class RigidBody;
-	struct NearPairs;
 	struct CollisionGraph;
 	class CollisionCallback;
 	class SceneRenderer;
@@ -55,8 +54,6 @@ namespace CibraryEngine
 			// remove a rigid body from this region, and remove this region from its regions list
 			void Disown(RigidBody* body);
 
-
-			void DebugDrawRegion(SceneRenderer* renderer);
 
 			/** Override this! Default implementation returns all objects owned by this region */
 			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);

@@ -42,8 +42,7 @@ namespace CibraryEngine
 			right /= sqrtf(magsq);
 			up = Vec3::Cross(dir_n, right);
 
-			float values[] = { right.x, right.y, right.z, up.x, up.y, up.z, dir_n.x, dir_n.y, dir_n.z };
-			return Mat3(values);
+			return Mat3(right.x, right.y, right.z, up.x, up.y, up.z, dir_n.x, dir_n.y, dir_n.z);
 		}
 	}
 

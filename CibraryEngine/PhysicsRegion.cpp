@@ -121,27 +121,18 @@ namespace CibraryEngine
 
 
 
-	void PhysicsRegion::DebugDrawRegion(SceneRenderer* renderer)
-	{
-		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
-			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
-				(*iter)->DebugDraw(renderer);
-	}
-
 	void PhysicsRegion::GetRelevantObjects(const AABB& aabb, unordered_set<RigidBody*>* results)
 	{
 		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)						// skip past ST_Ray
-			if(i != ST_MultiSphere)
+		//	if(i != ST_MultiSphere)
+		{
+			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
 			{
-				results[i].insert(active_objects[i].begin(), active_objects[i].end());
-				results[i].insert(inactive_objects[i].begin(), inactive_objects[i].end());
-				results[i].insert(static_objects[i].begin(), static_objects[i].end());
+				RigidBody* object = *iter;
+				
+				if(i == ST_InfinitePlane || AABB::IntersectTest(aabb, object->GetCachedAABB()))
+					results[i].insert(object);
 			}
+		}
 	}
-
-
-
-
-	
-
 }

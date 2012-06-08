@@ -296,13 +296,13 @@ namespace Test
 		{
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 
-			Vec3 pos_vec	= eye_xform.TransformVec3(eye_bone->rest_pos,	1);
-			Vec3 left		= eye_xform.TransformVec3(1, 0, 0,				0);
-			Vec3 up			= eye_xform.TransformVec3(0, 1, 0,				0);
-			Vec3 forward	= eye_xform.TransformVec3(0, 0, 1,				0);
+			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
+			Vec3 left		= eye_xform.TransformVec3_0(1, 0, 0);
+			Vec3 up			= eye_xform.TransformVec3_0(0, 1, 0);
+			Vec3 forward	= eye_xform.TransformVec3_0(0, 0, 1);
 
-			float rm_values[] = { left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z };
-			return flip * Mat4::FromMat3(Mat3(rm_values)) * Mat4::Translation(-(pos + pos_vec));
+			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z);
+			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec));
 		}
 	}
 

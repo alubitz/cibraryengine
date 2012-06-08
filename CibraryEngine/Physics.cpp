@@ -24,7 +24,7 @@
 
 #include "DebugDrawMaterial.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 50
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 20
 
 namespace CibraryEngine
 {
@@ -90,13 +90,13 @@ namespace CibraryEngine
 			GridRegionManager(unordered_set<PhysicsRegion*>* all_regions, ObjectOrphanedCallback* orphan_callback) :
 				PhysicsRegionManager(all_regions),
 				orphan_callback(orphan_callback),
-				cell_dim(16.0f),
-				x0(-8),
-				y0(-2),
-				z0(-8),
-				dx(16),
-				dy(22),
-				dz(16),
+				cell_dim(8.0f),
+				x0(-16),
+				y0(-4),
+				z0(-16),
+				dx(32),
+				dy(44),
+				dz(32),
 				region_array(),
 				planes()
 			{
@@ -219,15 +219,43 @@ namespace CibraryEngine
 
 			void OnObjectUpdate(RigidBody* object, set<PhysicsRegion*>& object_regions, float timestep)
 			{
-				for(set<PhysicsRegion*>::iterator iter = object_regions.begin(); iter != object_regions.end(); ++iter)
+				int x1, y1, z1, x2, y2, z2;
+				AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
+
+				x1 = max(x0, x1);
+				y1 = max(y0, y1);
+				z1 = max(z0, z1);
+				x2 = min(x0 + dx - 1, x2);
+				y2 = min(y0 + dy - 1, y2);
+				z2 = min(z0 + dz - 1, z2);
+
+				set<PhysicsRegion*> ditch(object_regions.begin(), object_regions.end());
+				set<PhysicsRegion*> add;
+
+				for(int x = x1; x < x2; ++x)
+					for(int y = y1; y < y2; ++y)
+						for(int z = z1; z < z2; ++z)
+						{
+							PhysicsRegion* region = region_array[x - x0][y - y0][z - z0];
+
+							set<PhysicsRegion*>::iterator found = ditch.find(region);
+							if(found != ditch.end())
+								ditch.erase(found);
+							else
+								add.insert(region);
+						}
+
+				for(set<PhysicsRegion*>::iterator iter = add.begin(); iter != add.end(); ++iter)
 				{
-					PhysicsRegion* region = *iter;
-					region->RemoveRigidBody(object);
+					object_regions.insert(*iter);
+					(*iter)->AddRigidBody(object);
 				}
 
-				object_regions.clear();
-
-				OnObjectAdded(object, object_regions);
+				for(set<PhysicsRegion*>::iterator iter = ditch.begin(); iter != ditch.end(); ++iter)
+				{
+					object_regions.erase(*iter);
+					(*iter)->RemoveRigidBody(object);
+				}
 
 				if(object_regions.empty() && orphan_callback)
 					orphan_callback->OnObjectOrphaned(object);
@@ -284,6 +312,45 @@ namespace CibraryEngine
 
 
 
+	/*
+	 * Subgraph struct used within PhysicsWorld::SolveCollisionGraph
+	 */
+	struct Subgraph
+	{
+		static vector<Subgraph*> recycle_bin;
+
+		unordered_set<CollisionGraph::Node*> nodes;
+		vector<ContactPoint*> contact_points;
+
+		Subgraph() : nodes(), contact_points() { }
+
+		bool ContainsNode(CollisionGraph::Node* node) { return nodes.find(node) != nodes.end(); }
+
+		static Subgraph* New()
+		{
+			if(recycle_bin.empty())
+				return new Subgraph();
+			else
+			{
+				Subgraph* result = *recycle_bin.rbegin();
+				recycle_bin.pop_back();
+
+				return new (result) Subgraph();
+			}
+		}
+		static void Delete(Subgraph* s) { s->~Subgraph(); recycle_bin.push_back(s); }
+
+		static void EmptyRecycleBin()
+		{
+			for(vector<Subgraph*>::iterator iter = recycle_bin.begin(); iter != recycle_bin.end(); ++iter)
+				delete *iter;
+			recycle_bin.clear();
+		}
+	};
+	vector<Subgraph*> Subgraph::recycle_bin = vector<Subgraph*>();
+
+
+
 
 	/*
 	 * PhysicsWorld methods
@@ -300,7 +367,6 @@ namespace CibraryEngine
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
 	}
-
 	void PhysicsWorld::InnerDispose()
 	{
 		// suppress "object orphaned" messages
@@ -332,6 +398,9 @@ namespace CibraryEngine
 
 		delete orphan_callback;
 		orphan_callback = NULL;
+
+		Subgraph::EmptyRecycleBin();
+		CollisionGraph::EmptyRecycleBins();
 	}
 
 
@@ -360,14 +429,14 @@ namespace CibraryEngine
 
 		if(ibody->can_rotate)
 		{
-			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3(ibody->mass_info.com, 1.0f));
+			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
 			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
 			B += Vec3::Dot(ibody->rot, nr1);
 		}
 
 		if(jbody->can_rotate)
 		{
-			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3(jbody->mass_info.com, 1.0f));
+			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
 			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
 			B -= Vec3::Dot(jbody->rot, nr2);
 		}
@@ -385,8 +454,8 @@ namespace CibraryEngine
 
 		if(m1 + m2 > 0)
 		{
-			Vec3 i_poi = ibody->GetInvTransform().TransformVec3(cp.a.pos, 1.0f);
-			Vec3 j_poi = jbody->GetInvTransform().TransformVec3(cp.b.pos, 1.0f);
+			Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(cp.a.pos);
+			Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(cp.b.pos);
 
 			Vec3 i_v = ibody->GetLocalVelocity(cp.a.pos);
 			Vec3 j_v = jbody->GetLocalVelocity(cp.b.pos);
@@ -472,26 +541,22 @@ namespace CibraryEngine
 	void PhysicsWorld::SolveCollisionGraph(CollisionGraph& graph)
 	{
 		// break the graph into separate subgraphs
-		struct Subgraph
-		{
-			unordered_set<CollisionGraph::Node*> nodes;
-			vector<ContactPoint*> contact_points;
 
-			Subgraph() : contact_points() { }
+		unsigned int graph_nodes = graph.nodes.size();
 
-			bool ContainsNode(CollisionGraph::Node* node) { return nodes.find(node) != nodes.end(); }
-		};
-		
 		unordered_set<Subgraph*> subgraphs;
+		subgraphs.rehash((int)ceil(graph_nodes / subgraphs.max_load_factor()));
+
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
+		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
 		
-		for(map<RigidBody*, CollisionGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
+		for(unordered_map<RigidBody*, CollisionGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
 		{
 			unordered_map<RigidBody*, Subgraph*>::iterator found = body_subgraphs.find(iter->first);
 			
 			if(found == body_subgraphs.end())
 			{
-				Subgraph* subgraph = new Subgraph();
+				Subgraph* subgraph = Subgraph::New();
 				subgraphs.insert(subgraph);
 
 				vector<CollisionGraph::Node*> fringe;
@@ -500,9 +565,9 @@ namespace CibraryEngine
 				while(!fringe.empty())
 				{
 					CollisionGraph::Node* node = *fringe.rbegin();
-					subgraph->nodes.insert(node);
 
-					body_subgraphs[node->body] = subgraph;
+					subgraph->nodes.insert(node);
+					body_subgraphs.insert(pair<RigidBody*, Subgraph*>(node->body, subgraph));
 
 					fringe.pop_back();
 
@@ -523,31 +588,48 @@ namespace CibraryEngine
 		{
 			Subgraph& subgraph = **iter;
 
-			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+			vector<ContactPoint*> active(subgraph.contact_points);
+			set<ContactPoint*> nu_active;
+
+			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
 			{
-				bool any = false;
-				for(vector<ContactPoint*>::iterator jter = subgraph.contact_points.begin(); jter != subgraph.contact_points.end(); ++jter)
+				nu_active.clear();
+				for(vector<ContactPoint*>::iterator jter = active.begin(); jter != active.end(); ++jter)
 				{
-					if(DoCollisionResponse(**jter))
+					ContactPoint& cp = **jter;
+					if(DoCollisionResponse(cp))
 					{
-						any = true;
+						// collision resulted in an impulse! activate edges which involve either of the nodes affected by this edge
+						CollisionGraph::Node& node_a = *graph.nodes[cp.a.obj];
+						for(vector<CollisionGraph::Edge>::iterator kter = node_a.edges.begin(); kter != node_a.edges.end(); ++kter)
+							if(kter->cp != *jter)
+								nu_active.insert(kter->cp);
+							else if(CollisionGraph::Node* node_b_ptr = kter->other_node)
+							{
+								CollisionGraph::Node& node_b = *node_b_ptr;
+								
+								for(vector<CollisionGraph::Edge>::iterator lter = node_b.edges.begin(); lter != node_b.edges.end(); ++lter)
+									if(lter->cp != *jter)
+										nu_active.insert(lter->cp);
+							}
 
-						if((*jter)->a.obj->collision_callback)
-							(*jter)->a.obj->collision_callback->OnCollision(**jter);
+						// do collision callbacks for both objects
+						if(cp.a.obj->collision_callback)
+							cp.a.obj->collision_callback->OnCollision(cp);
 
-						if((*jter)->b.obj->collision_callback)
-							(*jter)->b.obj->collision_callback->OnCollision(**jter);
+						if(cp.b.obj->collision_callback)
+							cp.b.obj->collision_callback->OnCollision(cp);
 					}
 				}
 
-				if(!any)
-					break;
+				active.clear();
+				active.insert(active.end(), nu_active.begin(), nu_active.end());
 			}
 		}
 
 		// clean up subgraphs
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
-			delete *iter;
+			Subgraph::Delete(*iter);
 	}
 
 	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph) 
@@ -807,8 +889,8 @@ namespace CibraryEngine
 		Mat4 inv_mat = jbody->GetInvTransform();
 
 		Ray ray_cut;
-		ray_cut.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
-		ray_cut.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
+		ray_cut.origin = inv_mat.TransformVec3_1(ray.origin);
+		ray_cut.direction = inv_mat.TransformVec3_0(ray.direction * max_time);
 
 		vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
 
@@ -854,14 +936,14 @@ namespace CibraryEngine
 		Mat4 inv_mat = jbody->GetInvTransform();
 
 		Ray nu_ray;
-		nu_ray.origin = inv_mat.TransformVec3(ray.origin, 1.0f);
-		nu_ray.direction = inv_mat.TransformVec3(ray.direction * max_time, 0.0f);
+		nu_ray.origin = inv_mat.TransformVec3_1(ray.origin);
+		nu_ray.direction = inv_mat.TransformVec3_0(ray.direction * max_time);
 
 		ContactPoint p;
 		float t;
 		if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
 		{
-			p.a.pos = jbody->GetTransformationMatrix().TransformVec3(p.b.pos, 1.0f);
+			p.a.pos = jbody->GetTransformationMatrix().TransformVec3_1(p.b.pos);
 			hits.push_back(RayResult(t * max_time, p));
 		}
 	}
@@ -966,7 +1048,7 @@ namespace CibraryEngine
 		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
 
 		Mat4 inv_xform = Mat4::Invert(jbody->GetTransformationMatrix());
-		Vec3 nu_pos = inv_xform.TransformVec3(pos, 1.0f);
+		Vec3 nu_pos = inv_xform.TransformVec3_1(pos);
 
 		ContactPoint cp;
 		if(shape->CollisionCheck(Sphere(nu_pos, radius), cp, ibody, jbody))
@@ -982,8 +1064,10 @@ namespace CibraryEngine
 	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, CollisionGraph& hits)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
+		Mat4 j_xform = jbody->GetTransformationMatrix();
 
 		Mat4 inv_net_xform = jbody->GetInvTransform() * ibody->GetTransformationMatrix();
+		Mat4 inv_inv_xform = ibody->GetInvTransform() * j_xform;
 		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
 
 		vector<unsigned int> relevant_triangles = jshape->GetRelevantTriangles(xformed_aabb);
@@ -996,12 +1080,10 @@ namespace CibraryEngine
 			TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
 
 			ContactPoint p;
-			if(ishape->CollisionCheck(inv_net_xform, tri, p, ibody, jbody))
+			if(ishape->CollisionCheck(inv_net_xform, inv_inv_xform, xformed_aabb, tri, p, ibody, jbody))
 			{
-				Mat4 j_xform = jbody->GetTransformationMatrix();
-
-				p.a.pos = p.b.pos = j_xform.TransformVec3(p.a.pos, 1.0f);
-				p.a.norm = j_xform.TransformVec3(p.a.norm, 0.0f);
+				p.a.pos = p.b.pos = j_xform.TransformVec3_1(p.a.pos);
+				p.a.norm = j_xform.TransformVec3_0(p.a.norm);
 				p.b.norm = -p.a.norm;
 
 				hits.AddContactPoint(p);
@@ -1028,8 +1110,8 @@ namespace CibraryEngine
 		ContactPoint p;
 		if(ishape->CollisionCheck(net_xform, inv_xform, jshape, p, ibody, jbody))
 		{
-			p.a.pos = p.b.pos = xform.TransformVec3(p.a.pos, 1.0f);
-			p.a.norm = xform.TransformVec3(p.a.norm, 0.0f);
+			p.a.pos = p.b.pos = xform.TransformVec3_1(p.a.pos);
+			p.a.norm = xform.TransformVec3_0(p.a.norm);
 			p.b.norm = -p.a.norm;
 
 			hits.AddContactPoint(p);

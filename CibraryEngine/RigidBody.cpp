@@ -73,7 +73,7 @@ namespace CibraryEngine
 
 
 
-	Mat3 RigidBody::ComputeInvMoi() { Mat3 rm(ori.ToMat3()); return rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * rm; }
+	Mat3 RigidBody::ComputeInvMoi() { return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
 
 	void RigidBody::UpdateVel(float timestep)
 	{
@@ -128,8 +128,11 @@ namespace CibraryEngine
 
 	void RigidBody::ComputeXform()
 	{
-		xform = Mat4::FromPositionAndOrientation(pos, ori);
+		ori_rm = ori.ToMat3();
+		xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
 		inv_xform = Mat4::Invert(xform);
+
+		cached_aabb = shape->GetTransformedAABB(xform);
 
 		xform_valid = true;
 	}
@@ -148,9 +151,28 @@ namespace CibraryEngine
 		torque = applied_torque;
 	}
 
-	Vec3 RigidBody::LocalForceToTorque(const Vec3& force, const Vec3& local_poi) { return Vec3::Cross(force, ori.ToMat3().Transpose() * (local_poi - mass_info.com)); }
+	Vec3 RigidBody::LocalForceToTorque(const Vec3& force, const Vec3& local_poi)
+	{
+		ComputeXformAsNeeded();
+		Vec3 offset = local_poi - mass_info.com;
+		Vec3 radius_vector(
+			offset.x * ori_rm.values[0] + offset.y * ori_rm.values[3] + offset.z * ori_rm.values[6],
+			offset.x * ori_rm.values[1] + offset.y * ori_rm.values[4] + offset.z * ori_rm.values[7],
+			offset.x * ori_rm.values[2] + offset.y * ori_rm.values[5] + offset.z * ori_rm.values[8]
+		);
+		return Vec3::Cross(force, radius_vector);
+	}
 
-	Vec3 RigidBody::GetLocalVelocity(const Vec3& point) { return vel + Vec3::Cross(point - (pos + ori.ToMat3().Transpose() * mass_info.com), rot); }
+	Vec3 RigidBody::GetLocalVelocity(const Vec3& point)
+	{
+		ComputeXformAsNeeded();
+		Vec3 radius_vector(
+			point.x - pos.x - mass_info.com.x * ori_rm.values[0] - mass_info.com.y * ori_rm.values[3] - mass_info.com.z * ori_rm.values[6],
+			point.y - pos.y - mass_info.com.x * ori_rm.values[1] - mass_info.com.y * ori_rm.values[4] - mass_info.com.z * ori_rm.values[7],
+			point.z - pos.z - mass_info.com.x * ori_rm.values[2] - mass_info.com.y * ori_rm.values[5] - mass_info.com.z * ori_rm.values[8]
+		);
+		return vel + Vec3::Cross(radius_vector, rot);
+	}
 
 	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
 	{
@@ -235,6 +257,8 @@ namespace CibraryEngine
 				return AABB();
 		}
 	}
+
+	AABB RigidBody::GetCachedAABB() { ComputeXformAsNeeded(); return cached_aabb; }
 
 	Entity* RigidBody::GetUserEntity() { return user_entity; }
 	void RigidBody::SetUserEntity(Entity* entity) { user_entity = entity; }

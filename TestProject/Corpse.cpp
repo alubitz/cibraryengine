@@ -37,14 +37,14 @@ namespace Test
 				xform = rbi->GetTransformationMatrix();
 				float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
 				Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
-				Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
+				Vec3 pos = xform.TransformVec3_1(0, 0, 0);
 				xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
 			}
 
-			Vec3 pos = xform.TransformVec3(0, 0, 0, 1);
-			Vec3 x_axis = xform.TransformVec3(1, 0, 0, 0);
-			Vec3 y_axis = xform.TransformVec3(0, 1, 0, 0);
-			Vec3 z_axis = xform.TransformVec3(0, 0, 1, 0);
+			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
+			Vec3 x_axis = xform.TransformVec3_0(1, 0, 0);
+			Vec3 y_axis = xform.TransformVec3_0(0, 1, 0);
+			Vec3 z_axis = xform.TransformVec3_0(0, 0, 1);
 
 			Vec3 local_poi;
 			local_poi = poi - pos;
@@ -148,7 +148,7 @@ namespace Test
 					bone->ori = rigid_body_ori;
 
 					// model origin = rigid body pos - model rot * rest pos
-					Vec3 offset = Mat4::FromQuaternion(rigid_body_ori).TransformVec3(bone_offsets[bone_index], 1);
+					Vec3 offset = Mat4::FromQuaternion(rigid_body_ori).TransformVec3_1(bone_offsets[bone_index]);
 					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 				}
 
@@ -184,7 +184,7 @@ namespace Test
 				float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
 				bone->ori = Quaternion::FromRotationMatrix(Mat3(ori_values));
 
-				Vec3 bone_pos = mat.TransformVec3(bone_offsets[i], 1);
+				Vec3 bone_pos = mat.TransformVec3_1(bone_offsets[i]);
 
 				UberModel::BonePhysics* phys = NULL;
 				for(unsigned int j = 0; j < model->bone_physics.size(); ++j)

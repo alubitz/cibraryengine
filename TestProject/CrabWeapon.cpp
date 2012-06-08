@@ -45,7 +45,7 @@ namespace Test
 
 		Mat4 mat = Mat4::FromPositionAndOrientation(owner->pos, Quaternion::FromPYR(0, owner->yaw, 0));
 
-		Vec3 damage_location = mat.TransformVec3(0, 0, 0.8f, 1.0f);
+		Vec3 damage_location = mat.TransformVec3_1(0, 0, 0.8f);
 
 		struct : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } qualifier;
 

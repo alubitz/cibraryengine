@@ -18,6 +18,8 @@ namespace CibraryEngine
 		Mat3();
 		/** Initializes a matrix with the specified values */
 		Mat3(float values_[9]);
+		/** Initializes a matrix with the specified values */
+		Mat3(float v11, float v12, float v13, float v21, float v22, float v23, float v31, float v32, float v33);
 
 		/** Returns a reference to the specified element of the matrix */
 		float& operator[](int index);
@@ -62,6 +64,8 @@ namespace CibraryEngine
 		Mat4();
 		/** Initializes a matrix with the specified values */
 		Mat4(float values_[16]);
+		/** Initializes a matrix with the specified values */
+		Mat4(float v11, float v12, float v13, float v14, float v21, float v22, float v23, float v24, float v31, float v32, float v33, float v34, float v41, float v42, float v43, float v44);
 
 		/** Returns a reference to the specified element of the matrix */
 		float& operator[](int index);
@@ -75,6 +79,11 @@ namespace CibraryEngine
 		Vec3 TransformVec3(const Vec3& xyz, float w) const;
 		/** Returns the result of transforming the 3-component vector xyz with homogeneous component w by this matrix, divided by the results' homogeneous component */
 		Vec3 TransformVec3(float x, float y, float z, float w) const;
+
+		Vec3 TransformVec3_0(const Vec3& xyz) const;
+		Vec3 TransformVec3_1(const Vec3& xyz) const;
+		Vec3 TransformVec3_0(float x, float y, float z) const;
+		Vec3 TransformVec3_1(float x, float y, float z) const;
 
 		/** Returns the identity matrix */
 		static Mat4 Identity();

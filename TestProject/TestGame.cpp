@@ -750,9 +750,9 @@ namespace Test
 		Mat4 view_t = camera.GetViewMatrix().Transpose();
 
 		// TODO: find a better place for this sound-related code?
-		sound_system->SetListenerPos(-camera.GetViewMatrix().TransformVec3(0, 0, 0, 1));
-		sound_system->SetListenerUp(camera.GetViewMatrix().TransformVec3(0, 1, 0, 0));
-		sound_system->SetListenerForward(camera.GetViewMatrix().TransformVec3(0, 0, 1, 0));
+		sound_system->SetListenerPos(-camera.GetViewMatrix().TransformVec3_1(0, 0, 0));
+		sound_system->SetListenerUp(camera.GetViewMatrix().TransformVec3_0(0, 1, 0));
+		sound_system->SetListenerForward(camera.GetViewMatrix().TransformVec3_0(0, 0, 1));
 
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrixf(&proj_t.values[0]);
@@ -1072,7 +1072,7 @@ namespace Test
 		UberModel::LOD* use_lod = model->lods[lod];
 
 		Sphere bs = model->GetBoundingSphere();
-		bs.center = xform.TransformVec3(bs.center, 1.0);
+		bs.center = xform.TransformVec3_1(bs.center);
 
 		vector<MaterialModelPair>* mmps = use_lod->GetVBOs();
 

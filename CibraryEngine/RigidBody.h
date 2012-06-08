@@ -9,10 +9,10 @@
 #include "Quaternion.h"
 #include "Matrix.h"
 
+#include "AABB.h"
+
 namespace CibraryEngine
 {
-	struct AABB;
-
 	class PhysicsRegionManager;
 
 	/** Class representing a rigid body */
@@ -43,7 +43,9 @@ namespace CibraryEngine
 			Mat3 inv_moi;
 
 			bool xform_valid;
+			Mat3 ori_rm;
 			Mat4 xform, inv_xform;
+			AABB cached_aabb;
 
 			float bounciness;
 			float friction;
@@ -141,6 +143,9 @@ namespace CibraryEngine
 
 			/** Gets AABB to be used for collision detection for this object. Timestep is only really relevant for rays and spheres */
 			AABB GetAABB(float timestep);
+
+			/** Get AABB for this object, recomputing if necessary; not for rays; may be iffy for spheres */
+			AABB GetCachedAABB();
 
 			Entity* GetUserEntity();
 			void SetUserEntity(Entity* entity);

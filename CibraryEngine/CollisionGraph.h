@@ -31,17 +31,19 @@ namespace CibraryEngine
 			Node(RigidBody* body) : body(body), edges() { }
 		};
 
-		map<RigidBody*, Node*> nodes;
+		boost::unordered_map<RigidBody*, Node*> nodes;
 		vector<ContactPoint*> contact_points;
 
 		CollisionGraph();
 		~CollisionGraph();
 
 		/**
-		 * Call this whenever you find a collision
-		 * The first object has to be something that merges subgraphs
-		 */
+			* Call this whenever you find a collision
+			* The first object has to be something that merges subgraphs
+			*/
 		void AddContactPoint(const ContactPoint& cp);
+
+		static void EmptyRecycleBins();
 	};
 
 }
