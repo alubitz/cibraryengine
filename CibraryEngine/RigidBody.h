@@ -13,6 +13,8 @@
 
 namespace CibraryEngine
 {
+	class Entity;
+
 	class PhysicsRegionManager;
 
 	/** Class representing a rigid body */

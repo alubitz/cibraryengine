@@ -60,6 +60,7 @@ namespace CibraryEngine
 
 			unsigned long int GetID();
 
-			virtual Entity** GetScriptingHandle();
+			virtual void PushScriptingHandle(lua_State* L);
+			virtual void TossScriptingHandle();							// This should only be called from the scripting handle's gc metamethod
 	};
 }

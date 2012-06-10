@@ -405,11 +405,8 @@ namespace CibraryEngine
 
 
 
-	void PhysicsWorld::GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B)
+	void PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& A, float& B)
 	{
-		RigidBody* ibody = cp.obj_a;
-		RigidBody* jbody = cp.obj_b;
-
 		float m1 = ibody->mass_info.mass, m2 = jbody->mass_info.mass;
 
 		A = B = 0;
@@ -429,14 +426,14 @@ namespace CibraryEngine
 
 		if(ibody->can_rotate)
 		{
-			Vec3 nr1 = Vec3::Cross(direction, cp.a.pos - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
+			Vec3 nr1 = Vec3::Cross(direction, position - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
 			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
 			B += Vec3::Dot(ibody->rot, nr1);
 		}
 
 		if(jbody->can_rotate)
 		{
-			Vec3 nr2 = Vec3::Cross(direction, cp.b.pos - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
+			Vec3 nr2 = Vec3::Cross(direction, position - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
 			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
 			B -= Vec3::Dot(jbody->rot, nr2);
 		}
@@ -779,8 +776,10 @@ namespace CibraryEngine
 			float nvdot = Vec3::Dot(normal, dv);
 			if(nvdot < 0.0f)
 			{
+				Vec3 use_pos = (a.pos + b.pos) * 0.5f;
+
 				float A, B;
-				PhysicsWorld::GetUseMass(normal, *this, A, B);
+				PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, A, B);
 
 				float use_mass = 1.0f / A;
 				float bounciness = ibody->bounciness * jbody->bounciness;
@@ -818,7 +817,7 @@ namespace CibraryEngine
 						float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
 						Vec3 u_tdv = t_dv * inv_tdmag;
 
-						PhysicsWorld::GetUseMass(u_tdv, *this, A, B);
+						PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv, A, B);
 						use_mass = 1.0f / A;
 
 						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));

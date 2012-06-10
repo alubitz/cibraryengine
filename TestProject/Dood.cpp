@@ -188,14 +188,6 @@ namespace Test
 
 		this->vel = vel;
 
-		if (timestep > 0)
-		{
-			Vec3 post_damp_vel = vel * exp(-timestep * movement_damp);
-			Vec3 damp_force = (post_damp_vel - vel) * mass / timestep;
-
-			rigid_body->ApplyCentralForce(damp_force);
-		}
-
 		DoMovementControls(time, forward, rightward);
 		DoJumpControls(time, forward, rightward);
 
@@ -426,6 +418,8 @@ namespace Test
 			game_state->Spawn(corpse);
 		}
 
+		if(this != ((TestGame*)game_state)->player_pawn)
+			controller->is_valid = false;
 		is_valid = false;
 	}
 
@@ -488,7 +482,8 @@ namespace Test
 				Dood* dood = *dood_ptr;
 				if(dood != NULL)
 				{
-					if		(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
+					if		(key == "id")				{ lua_pushnumber(L, dood->GetID()); return 1; }
+					else if	(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
 					else if	(key == "is_player")		{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
 					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }			
 					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
@@ -523,7 +518,7 @@ namespace Test
 					{
 						lua_getmetatable(L, 1);								// push; top = 4
 						lua_getfield(L, 4, "update_callback");				// push the update_callback table; top = 5
-						lua_pushvalue(L, 1);								// push the dood; top = 6
+						lua_pushnumber(L, dood->GetID());					// push the dood's id; top = 6
 						lua_pushvalue(L, 3);								// push the function; top = 7
 						lua_settable(L, 5);									// pop x2; top = 5
 
@@ -537,7 +532,7 @@ namespace Test
 					{
 						lua_getmetatable(L, 1);								// push; top = 4
 						lua_getfield(L, 4, "death_callback");				// push the death_callback table; top = 5
-						lua_pushvalue(L, 1);								// push the dood; top = 6
+						lua_pushnumber(L, dood->GetID());					// push the dood's id; top = 6
 						lua_pushvalue(L, 3);								// push the function; top = 7
 						lua_settable(L, 5);									// pop x2; top = 5
 
@@ -567,9 +562,22 @@ namespace Test
 		return false;
 	}
 
+	int dood_gc(lua_State* L)
+	{
+		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
+		if(dood_ptr != NULL)
+		{
+			if(Dood* dood = *dood_ptr)
+				dood->TossScriptingHandle();
+		}
+
+		lua_settop(L, 0);
+		return 0;
+	}
+
 	void PushDoodHandle(lua_State* L, Dood* dood)
 	{
-		lua_pushlightuserdata(L, dood->GetScriptingHandle());
+		dood->PushScriptingHandle(L);
 
 		lua_getmetatable(L, -1);
 		if(lua_istable(L, -1))
@@ -594,6 +602,9 @@ namespace Test
 
 			lua_pushcclosure(L, dood_eq, 0);
 			lua_setfield(L, -2, "__eq");
+
+			lua_pushcclosure(L, dood_gc, 0);
+			lua_setfield(L, -2, "__gc");
 
 			lua_newtable(L);
 			lua_setfield(L, -2, "update_callback");
@@ -620,7 +631,7 @@ namespace Test
 			lua_getfield(L, 2, "update_callback");	// pop+push; top = 3
 			if(lua_istable(L, 3))
 			{
-				lua_pushvalue(L, 1);				// push dood; top = 4
+				lua_pushnumber(L, dood->GetID());	// push dood's id; top = 4
 				lua_gettable(L, 3);					// pop+push; top = 4
 
 				if(lua_isfunction(L, 4))
@@ -660,12 +671,12 @@ namespace Test
 			lua_getfield(L, 2, "death_callback");	// pop+push; top = 3
 			if(lua_istable(L, 3))
 			{
-				lua_pushvalue(L, 1);			// push dood; top = 4
-				lua_gettable(L, 3);				// pop+push; top = 4
+				lua_pushnumber(L, dood->GetID());	// push dood's id; top = 4
+				lua_gettable(L, 3);					// pop+push; top = 4
 
 				if(lua_isfunction(L, 4))
 				{
-					lua_pushvalue(L, 1);		// push dood; top = 5
+					lua_pushvalue(L, 1);									// push dood; top = 5
 					ScriptSystem::GetGlobalState().DoFunction(1, 0);		// pop
 
 					lua_settop(L, 0);

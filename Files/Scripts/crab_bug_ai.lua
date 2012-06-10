@@ -1,6 +1,7 @@
 if not disable_ai then
+
 	local dood = hv.pawn
-	local props = dood_properties[dood]
+	local props = dood_properties[dood.id]
 
 	-- sometimes this will get called after the bug is dead... return here to suppress error messages
 	if not props then return end

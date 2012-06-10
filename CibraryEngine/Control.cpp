@@ -141,7 +141,7 @@ namespace CibraryEngine
 		lua_setfield(L, -2, "time");
 
 		// hv.pawn
-		lua_pushlightuserdata(L, GetControlledPawn()->GetScriptingHandle());
+		GetControlledPawn()->PushScriptingHandle(L);
 		lua_setfield(L, -2, "pawn");
 
 		lua_setglobal(L, "hv");

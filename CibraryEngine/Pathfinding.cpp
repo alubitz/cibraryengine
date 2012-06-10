@@ -15,6 +15,7 @@ namespace CibraryEngine
 		Edge() : to(0), cost(0) { }
 		Edge(unsigned int to, float cost) : to(to), cost(cost) { }
 	};
+
 	struct PriorityQueue
 	{
 		list<unsigned int> queue;
@@ -263,7 +264,7 @@ namespace CibraryEngine
 		{
 			lua_pop(L, 1);
 			// must create metatable for globals
-			lua_newtable(L);	
+			lua_newtable(L);
 			
 			lua_pushcclosure(L, pathsearch_gc, 0);
 			lua_setfield(L, n + 2, "__gc");

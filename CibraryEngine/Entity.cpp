@@ -42,11 +42,16 @@ namespace CibraryEngine
 
 	unsigned long int Entity::GetID() { return id; }
 
-	Entity** Entity::GetScriptingHandle()
+	void Entity::PushScriptingHandle(lua_State* L)
 	{
 		if(scripting_handle == NULL)
-			scripting_handle = new Entity*(this);
-		return scripting_handle;
+		{
+			scripting_handle = (Entity**)lua_newuserdata(L, sizeof(Entity*));
+			*scripting_handle = this;
+		}
+		else
+			lua_pushlightuserdata(L, scripting_handle);
 	}
 
+	void Entity::TossScriptingHandle() { scripting_handle = NULL; }
 }

@@ -263,10 +263,10 @@ function do_steering_behavior(dood, control_state)
 end
 
 function get_steering_behavior(dood)
-	if not steering_behaviors[dood] then
-		steering_behaviors[dood] = create_steering_behavior(dood)
+	if not steering_behaviors[dood.id] then
+		steering_behaviors[dood.id] = create_steering_behavior(dood)
 	end
-	return steering_behaviors[dood]
+	return steering_behaviors[dood.id]
 end
 
 function create_steering_behavior(owner)

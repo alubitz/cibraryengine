@@ -21,7 +21,6 @@ namespace CibraryEngine
 
 	struct Mat4;
 
-	struct ContactPoint;
 	class RigidBody;
 	class CollisionCallback;
 	struct ConstraintGraph;
@@ -30,8 +29,6 @@ namespace CibraryEngine
 	class PhysicsRegionManager;
 
 	class SceneRenderer;
-
-	class Entity;
 
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
@@ -89,7 +86,8 @@ namespace CibraryEngine
 
 			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback);
 
-			static void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
+			/** Hard to explain... A is like inverse of mass, and B is like inward velocity */
+			static void GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& A, float& B);
 	};
 
 	class RigidBody;

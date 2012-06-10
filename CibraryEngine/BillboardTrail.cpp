@@ -76,10 +76,10 @@ namespace CibraryEngine
 		{
 			InvalidateBoundingSphere();
 			node_count = next;
-			trail.resize(node_count);
 		}
 		for(unsigned int i = 0; i < node_count; ++i)
 			trail[i] = trail[nu_trail[i]];
+		trail.resize(node_count);
 
 		// age the nodes
 		for(vector<TrailNode>::iterator iter = trail.begin(); iter != trail.end(); ++iter)

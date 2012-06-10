@@ -56,9 +56,12 @@ function crab_bug_death(dood)
 		kills_this_level = kills_this_level + 1
 		kills = kills + 1
 
-		dood_properties[dood] = nil
-		steering_behaviors[dood] = nil
-	end
+	end
+	dood_properties[dood.id].dood = nil
+	dood_properties[dood.id] = nil
+
+	steering_behaviors[dood.id].owner = nil
+	steering_behaviors[dood.id] = nil
 end
 
 function levelStartMessage()
@@ -85,7 +88,8 @@ function spawn_one(gs, player_pos, artillery)
 	props.dood = bot
 	props.nav = gs.getNearestNav(bot.position)
 
-	dood_properties[bot] = props
+	dood_properties[bot.id] = props
+
 end
 
 function begin_level(gs, player_pos, level)
