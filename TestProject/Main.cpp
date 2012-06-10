@@ -29,6 +29,8 @@ int main(int argc, char** argv)
 
 	win->input_state->KeyStateChanged -= &grabber;
 
+	ScriptSystem::Shutdown();
+
 	delete first_screen;
 	delete win;
 

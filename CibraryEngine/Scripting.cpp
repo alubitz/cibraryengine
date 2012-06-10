@@ -35,12 +35,15 @@ namespace CibraryEngine
 
 		void Dispose()
 		{
-			if(is_thread)
-				lua_pop(state, 1);
-			else
-				lua_close(state);
+			if(state != NULL)
+			{
+				if(is_thread)
+					lua_pop(state, 1);
+				else
+					lua_close(state);
 
-			state = NULL;
+				state = NULL;
+			}
 		}
 
 		int DoFunction(int args, int results)
