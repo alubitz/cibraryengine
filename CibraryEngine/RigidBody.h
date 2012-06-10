@@ -20,6 +20,7 @@ namespace CibraryEngine
 	{
 		friend class PhysicsWorld;
 		friend class PhysicsRegion;
+		friend struct ContactPoint;
 
 		private:
 
@@ -113,7 +114,7 @@ namespace CibraryEngine
 
 			// point is in world-space
 			// returns a world-space velocity
-			virtual Vec3 GetLocalVelocity(const Vec3& point);
+			Vec3 GetLocalVelocity(const Vec3& point);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix();			

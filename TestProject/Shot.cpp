@@ -111,7 +111,7 @@ namespace Test
 	{
 		if(shot->is_valid)
 		{
-			Shootable* hit = dynamic_cast<Shootable*>(cp.b.obj->GetUserEntity());
+			Shootable* hit = dynamic_cast<Shootable*>(cp.obj_b->GetUserEntity());
 			if(hit != NULL && hit->GetShot(shot, cp.a.pos, shot->GetMomentum()))
 			{
 				if(shot->trail_head != NULL)

@@ -10,7 +10,7 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
-#include "CollisionGraph.h"
+#include "ConstraintGraph.h"
 
 #include "Matrix.h"
 
@@ -37,14 +37,14 @@ namespace CibraryEngine
 	static void DoRayPlane(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
 	static void DoRayMultisphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
 
-	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
-	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
-	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
-	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits);
+	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
+	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
+	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
+	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, CollisionGraph& hits);
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits);
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, ConstraintGraph& hits);
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
 
 
 
@@ -313,18 +313,18 @@ namespace CibraryEngine
 
 
 	/*
-	 * Subgraph struct used within PhysicsWorld::SolveCollisionGraph
+	 * Subgraph struct used within PhysicsWorld::SolveConstraintGraph
 	 */
 	struct Subgraph
 	{
 		static vector<Subgraph*> recycle_bin;
 
-		unordered_set<CollisionGraph::Node*> nodes;
-		vector<ContactPoint*> contact_points;
+		unordered_map<RigidBody*, ConstraintGraph::Node*> nodes;
+		vector<PhysicsConstraint*> constraints;
 
-		Subgraph() : nodes(), contact_points() { }
+		Subgraph() : nodes(), constraints() { }
 
-		bool ContainsNode(CollisionGraph::Node* node) { return nodes.find(node) != nodes.end(); }
+		bool ContainsNode(ConstraintGraph::Node* node) { return nodes.find(node->body) != nodes.end(); }
 
 		static Subgraph* New()
 		{
@@ -400,15 +400,15 @@ namespace CibraryEngine
 		orphan_callback = NULL;
 
 		Subgraph::EmptyRecycleBin();
-		CollisionGraph::EmptyRecycleBins();
+		ConstraintGraph::EmptyRecycleBins();
 	}
 
 
 
 	void PhysicsWorld::GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B)
 	{
-		RigidBody* ibody = cp.a.obj;
-		RigidBody* jbody = cp.b.obj;
+		RigidBody* ibody = cp.obj_a;
+		RigidBody* jbody = cp.obj_b;
 
 		float m1 = ibody->mass_info.mass, m2 = jbody->mass_info.mass;
 
@@ -442,106 +442,7 @@ namespace CibraryEngine
 		}
 	}
 
-	bool PhysicsWorld::DoCollisionResponse(const ContactPoint& cp)
-	{
-		RigidBody* ibody = cp.a.obj;
-		RigidBody* jbody = cp.b.obj;
-
-		bool j_can_move = jbody->can_move;
-
-		float m1 = ibody->mass_info.mass;
-		float m2 = jbody->mass_info.mass;
-
-		if(m1 + m2 > 0)
-		{
-			Vec3 i_v = ibody->GetLocalVelocity(cp.a.pos);
-			Vec3 j_v = jbody->GetLocalVelocity(cp.b.pos);
-					
-			Vec3 dv = j_v - i_v;
-			const Vec3& normal = Vec3::Normalize(cp.a.norm - cp.b.norm);
-
-			float nvdot = Vec3::Dot(normal, dv);
-			if(nvdot < 0.0f)
-			{
-				float A, B;
-				GetUseMass(normal, cp, A, B);
-
-				float use_mass = 1.0f / A;
-				float bounciness = ibody->bounciness * jbody->bounciness;
-				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
-				
-				if(impulse_mag < 0)
-				{
-					Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(cp.a.pos);
-					Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(cp.b.pos);
-
-					RigidBody* ibody_proxy = ibody->GetCollisionProxy();
-					RigidBody* jbody_proxy = jbody->GetCollisionProxy();
-
-					Vec3 impulse = normal * impulse_mag;
-
-					if(impulse.ComputeMagnitudeSquared() != 0)
-					{
-						ibody_proxy->ApplyImpulse(impulse, i_poi);
-						if(j_can_move)
-							jbody_proxy->ApplyImpulse(-impulse, j_poi);
-
-						// applying this impulse means we need to recompute dv and nvdot!
-						dv = jbody->GetLocalVelocity(cp.b.pos) - ibody->GetLocalVelocity(cp.a.pos);
-						nvdot = Vec3::Dot(normal, dv);
-					}
-
-					float sfric_coeff = ibody->friction * jbody->friction;
-					float kfric_coeff = 0.9f * sfric_coeff;
-
-					Vec3 t_dv = dv - normal * nvdot;
-					float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
-
-					if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
-					{
-						float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
-						Vec3 u_tdv = t_dv * inv_tdmag;
-
-						GetUseMass(u_tdv, cp, A, B);
-						use_mass = 1.0f / A;
-
-						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
-
-						ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
-						if(j_can_move)
-							jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
-					}
-					else											// object isn't moving; apply static friction
-					{
-						Vec3 df = jbody->applied_force - ibody->applied_force;
-						float nfdot = Vec3::Dot(normal, df);
-
-						Vec3 t_df = df - normal * nfdot;
-						float t_df_mag = t_df.ComputeMagnitude();
-
-						float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
-						if(fric_i_mag > 0)
-						{
-							Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
-
-							ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
-							if(j_can_move)
-								jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
-						}
-					}
-
-					if(j_can_move)
-						jbody->active = true;
-
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	void PhysicsWorld::SolveCollisionGraph(CollisionGraph& graph)
+	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
 	{
 		// break the graph into separate subgraphs
 
@@ -553,7 +454,7 @@ namespace CibraryEngine
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
 		
-		for(unordered_map<RigidBody*, CollisionGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
+		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
 		{
 			unordered_map<RigidBody*, Subgraph*>::iterator found = body_subgraphs.find(iter->first);
 			
@@ -562,23 +463,23 @@ namespace CibraryEngine
 				Subgraph* subgraph = Subgraph::New();
 				subgraphs.insert(subgraph);
 
-				vector<CollisionGraph::Node*> fringe;
+				vector<ConstraintGraph::Node*> fringe;
 				fringe.push_back(iter->second);
 
 				while(!fringe.empty())
 				{
-					CollisionGraph::Node* node = *fringe.rbegin();
+					ConstraintGraph::Node* node = *fringe.rbegin();
 
-					subgraph->nodes.insert(node);
+					subgraph->nodes[node->body] = node;
 					body_subgraphs.insert(pair<RigidBody*, Subgraph*>(node->body, subgraph));
 
 					fringe.pop_back();
 
-					for(vector<CollisionGraph::Edge>::iterator jter = node->edges.begin(); jter != node->edges.end(); ++jter)
+					for(vector<ConstraintGraph::Edge>::iterator jter = node->edges.begin(); jter != node->edges.end(); ++jter)
 					{
-						subgraph->contact_points.push_back(jter->cp);
+						subgraph->constraints.push_back(jter->constraint);
 
-						if(CollisionGraph::Node* other = jter->other_node)
+						if(ConstraintGraph::Node* other = jter->other_node)
 							if(!subgraph->ContainsNode(other))
 								fringe.push_back(other);
 					}
@@ -591,38 +492,27 @@ namespace CibraryEngine
 		{
 			Subgraph& subgraph = **iter;
 
-			vector<ContactPoint*> active(subgraph.contact_points);
-			set<ContactPoint*> nu_active;
+			vector<PhysicsConstraint*> active(subgraph.constraints);
+			set<PhysicsConstraint*> nu_active;
 
 			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
 			{
 				nu_active.clear();
-				for(vector<ContactPoint*>::iterator jter = active.begin(); jter != active.end(); ++jter)
+				for(vector<PhysicsConstraint*>::iterator jter = active.begin(); jter != active.end(); ++jter)
 				{
-					ContactPoint& cp = **jter;
-					if(DoCollisionResponse(cp))
+					PhysicsConstraint& constraint = **jter;
+
+					set<RigidBody*> wakeup_list;
+					constraint.DoConstraintAction(wakeup_list);
+					
+					// constraint says we shoul wake up these rigid bodies
+					for(set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
 					{
-						// collision resulted in an impulse! activate edges which involve either of the nodes affected by this edge
-						CollisionGraph::Node& node_a = *graph.nodes[cp.a.obj];
-						for(vector<CollisionGraph::Edge>::iterator kter = node_a.edges.begin(); kter != node_a.edges.end(); ++kter)
-							if(kter->cp != *jter)
-								nu_active.insert(kter->cp);
-							else if(CollisionGraph::Node* node_b_ptr = kter->other_node)
-							{
-								CollisionGraph::Node& node_b = *node_b_ptr;
-								
-								for(vector<CollisionGraph::Edge>::iterator lter = node_b.edges.begin(); lter != node_b.edges.end(); ++lter)
-									if(lter->cp != *jter)
-										nu_active.insert(lter->cp);
-							}
+						ConstraintGraph::Node* node = subgraph.nodes[*kter];
 
-						// TODO: decide whether to use collision proxy here instead?
-						// do collision callbacks for both objects
-						if(cp.a.obj->collision_callback)
-							cp.a.obj->collision_callback->OnCollision(cp);
-
-						if(cp.b.obj->collision_callback)
-							cp.b.obj->collision_callback->OnCollision(cp);
+						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges.begin(); kter != node->edges.end(); ++kter)
+							if(kter->constraint != *jter)
+								nu_active.insert(kter->constraint);
 					}
 				}
 
@@ -636,7 +526,7 @@ namespace CibraryEngine
 			Subgraph::Delete(*iter);
 	}
 
-	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph) 
+	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph) 
 	{
 		SphereShape* shape = (SphereShape*)body->GetCollisionShape();
 
@@ -655,19 +545,19 @@ namespace CibraryEngine
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_Sphere].begin(); iter != relevant_objects[ST_Sphere].end(); ++iter)
 			if(*iter < body)
-				DoSphereSphere(body, *iter, radius, pos, vel, timestep, collision_graph);
+				DoSphereSphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoSphereMesh(body, *iter, radius, pos, vel, timestep, collision_graph);
+			DoSphereMesh(body, *iter, radius, pos, vel, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
-			DoSpherePlane(body, *iter, radius, pos, vel, timestep, collision_graph);
+			DoSpherePlane(body, *iter, radius, pos, vel, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
-			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, collision_graph);
+			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
 	}
 
-	void PhysicsWorld::InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph) 
+	void PhysicsWorld::InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph) 
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
 
@@ -682,14 +572,14 @@ namespace CibraryEngine
 
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoMultisphereMesh(body, *iter, shape, collision_graph);
+			DoMultisphereMesh(body, *iter, shape, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
-			DoMultispherePlane(body, *iter, shape, xform, collision_graph);
+			DoMultispherePlane(body, *iter, shape, xform, constraint_graph);
 		
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
 			if(*iter < body)
-				DoMultisphereMultisphere(body, *iter, shape, xform, collision_graph);
+				DoMultisphereMultisphere(body, *iter, shape, xform, constraint_graph);
 
 		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)
 			relevant_objects[i].clear();
@@ -713,13 +603,13 @@ namespace CibraryEngine
 
 			bool OnCollision(const ContactPoint& cp)			// return value controls whether to continue iterating through ray collisions
 			{
-				CollisionCallback* callback = cp.a.obj->GetCollisionCallback();
+				CollisionCallback* callback = cp.obj_a->GetCollisionCallback();
 
 				if(callback && !callback->OnCollision(cp))
 					return true;
 				else
 				{
-					world->DoCollisionResponse(cp);
+					cp.DoCollisionResponse();
 
 					return true;
 				}
@@ -733,15 +623,15 @@ namespace CibraryEngine
 		}
 
 		// populate a collision graph with all the collisions that are going on
-		CollisionGraph collision_graph;
+		ConstraintGraph constraint_graph;
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_Sphere].begin(); iter != dynamic_objects[ST_Sphere].end(); ++iter)
-			InitiateCollisionsForSphere(*iter, timestep, collision_graph);
+			InitiateCollisionsForSphere(*iter, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(); iter != dynamic_objects[ST_MultiSphere].end(); ++iter)
-			InitiateCollisionsForMultiSphere(*iter, timestep, collision_graph);	
+			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);	
 
-		SolveCollisionGraph(collision_graph);
+		SolveConstraintGraph(constraint_graph);
 
 		// update positions
 		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
@@ -866,6 +756,127 @@ namespace CibraryEngine
 
 
 	/*
+	 * ContactPoint methods
+	 */
+	bool ContactPoint::DoCollisionResponse() const
+	{
+		RigidBody* ibody = obj_a;
+		RigidBody* jbody = obj_b;
+
+		bool j_can_move = jbody->can_move;
+
+		float m1 = ibody->mass_info.mass;
+		float m2 = jbody->mass_info.mass;
+
+		if(m1 + m2 > 0)
+		{
+			Vec3 i_v = ibody->GetLocalVelocity(a.pos);
+			Vec3 j_v = jbody->GetLocalVelocity(b.pos);
+					
+			Vec3 dv = j_v - i_v;
+			const Vec3& normal = Vec3::Normalize(a.norm - b.norm);
+
+			float nvdot = Vec3::Dot(normal, dv);
+			if(nvdot < 0.0f)
+			{
+				float A, B;
+				PhysicsWorld::GetUseMass(normal, *this, A, B);
+
+				float use_mass = 1.0f / A;
+				float bounciness = ibody->bounciness * jbody->bounciness;
+				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
+				
+				if(impulse_mag < 0)
+				{
+					Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(a.pos);
+					Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(b.pos);
+
+					RigidBody* ibody_proxy = ibody->GetCollisionProxy();
+					RigidBody* jbody_proxy = jbody->GetCollisionProxy();
+
+					Vec3 impulse = normal * impulse_mag;
+
+					if(impulse.ComputeMagnitudeSquared() != 0)
+					{
+						ibody_proxy->ApplyImpulse(impulse, i_poi);
+						if(j_can_move)
+							jbody_proxy->ApplyImpulse(-impulse, j_poi);
+
+						// applying this impulse means we need to recompute dv and nvdot!
+						dv = jbody->GetLocalVelocity(b.pos) - ibody->GetLocalVelocity(a.pos);
+						nvdot = Vec3::Dot(normal, dv);
+					}
+
+					float sfric_coeff = ibody->friction * jbody->friction;
+					float kfric_coeff = 0.9f * sfric_coeff;
+
+					Vec3 t_dv = dv - normal * nvdot;
+					float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
+
+					if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
+					{
+						float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
+						Vec3 u_tdv = t_dv * inv_tdmag;
+
+						PhysicsWorld::GetUseMass(u_tdv, *this, A, B);
+						use_mass = 1.0f / A;
+
+						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
+
+						ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
+						if(j_can_move)
+							jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
+					}
+					else											// object isn't moving; apply static friction
+					{
+						Vec3 df = jbody->applied_force - ibody->applied_force;
+						float nfdot = Vec3::Dot(normal, df);
+
+						Vec3 t_df = df - normal * nfdot;
+						float t_df_mag = t_df.ComputeMagnitude();
+
+						float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
+						if(fric_i_mag > 0)
+						{
+							Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
+
+							ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
+							if(j_can_move)
+								jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
+						}
+					}
+
+					if(j_can_move)
+						jbody->active = true;
+
+					// because we applied an impulse, we should wake up edges for the rigid bodies involved
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	void ContactPoint::DoConstraintAction(set<RigidBody*> wakeup_list)
+	{
+		if(DoCollisionResponse())
+		{
+			wakeup_list.insert(obj_a);
+			if(obj_b->MergesSubgraphs())
+				wakeup_list.insert(obj_b);
+
+			if(obj_a->collision_callback)
+				obj_a->collision_callback->OnCollision(*this);
+			if(obj_b->collision_callback)
+				obj_b->collision_callback->OnCollision(*this);
+		}
+	}
+
+
+
+
+	/*
 	 * Ray intersect functions
 	 */
 	static void DoRaySphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
@@ -877,8 +888,8 @@ namespace CibraryEngine
 			{
 				ContactPoint p;
 
-				p.a.obj = ibody;
-				p.b.obj = jbody;
+				p.obj_a = ibody;
+				p.obj_b = jbody;
 				p.a.pos = ray.origin + first * ray.direction;
 				p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
 
@@ -905,8 +916,8 @@ namespace CibraryEngine
 			{
 				ContactPoint p;
 
-				p.a.obj = ibody;
-				p.b.obj = jbody;
+				p.obj_a = ibody;
+				p.obj_b = jbody;
 				p.a.pos = ray.origin + t * ray.direction;
 				p.b.norm = kter->normal;
 
@@ -924,8 +935,8 @@ namespace CibraryEngine
 		{
 			ContactPoint p;
 
-			p.a.obj = ibody;
-			p.b.obj = jbody;
+			p.obj_a = ibody;
+			p.obj_b = jbody;
 			p.a.pos = ray.origin + t * ray.direction;
 			p.b.norm = plane->plane.normal;
 
@@ -958,7 +969,7 @@ namespace CibraryEngine
 	/*
 	 * SphereShape collision functions
 	 */
-	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits)
+	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
 	{
 		float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
 
@@ -975,8 +986,8 @@ namespace CibraryEngine
 			{
 				ContactPoint p;
 
-				p.a.obj = ibody;
-				p.b.obj = jbody;
+				p.obj_a = ibody;
+				p.obj_b = jbody;
 				p.a.pos = pos + first * vel;
 				p.b.pos = other_pos + first * other_vel;
 				p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
@@ -986,7 +997,7 @@ namespace CibraryEngine
 			}
 	}
 
-	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits)
+	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
 	{
 		TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
@@ -1004,8 +1015,8 @@ namespace CibraryEngine
 			{
 				ContactPoint p;
 
-				p.a.obj = ibody;
-				p.b.obj = jbody;
+				p.obj_a = ibody;
+				p.obj_b = jbody;
 				p.a.pos = pos - tri.plane.normal * radius;
 				p.b.pos = p.a.pos;
 				p.a.norm = -tri.plane.normal;
@@ -1016,7 +1027,7 @@ namespace CibraryEngine
 		}
 	}
 
-	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits)
+	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
 	{
 		InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
@@ -1035,8 +1046,8 @@ namespace CibraryEngine
 			{
 				ContactPoint p;
 
-				p.a.obj = ibody;
-				p.b.obj = jbody;
+				p.obj_a = ibody;
+				p.obj_b = jbody;
 				p.a.pos = pos - plane_norm * radius;
 				p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
 				p.b.norm = plane_norm;
@@ -1047,7 +1058,7 @@ namespace CibraryEngine
 		}
 	}
 
-	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, CollisionGraph& hits)
+	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
 
@@ -1065,7 +1076,7 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape collision functions
 	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, CollisionGraph& hits)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, ConstraintGraph& hits)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
@@ -1095,7 +1106,7 @@ namespace CibraryEngine
 		}
 	}
 
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits)
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits)
 	{
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
@@ -1104,7 +1115,7 @@ namespace CibraryEngine
 			hits.AddContactPoint(p);
 	}
 
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, CollisionGraph& hits)
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits)
 	{
 		MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 

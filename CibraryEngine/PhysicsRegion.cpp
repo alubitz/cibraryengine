@@ -3,7 +3,7 @@
 
 #include "Physics.h"
 #include "RigidBody.h"
-#include "CollisionGraph.h"
+#include "ConstraintGraph.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"

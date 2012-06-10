@@ -1,5 +1,5 @@
 #include "StdAfx.h"
-#include "CollisionGraph.h"
+#include "ConstraintGraph.h"
 #include "RigidBody.h"
 
 namespace CibraryEngine
@@ -12,10 +12,10 @@ namespace CibraryEngine
 
 
 	/*
-	 * Recycle bins for ContactPoint and CollisionGraph::Node pointers
+	 * Recycle bins for ContactPoint and ConstraintGraph::Node pointers
 	 */
 	static vector<ContactPoint*> cp_recycle_bin;
-	static vector<CollisionGraph::Node*> node_recycle_bin;
+	static vector<ConstraintGraph::Node*> node_recycle_bin;
 
 	static ContactPoint* NewCP(const ContactPoint& cp)
 	{
@@ -28,30 +28,29 @@ namespace CibraryEngine
 			return result;
 		}
 	}
+	static void DeleteCP(ContactPoint* cp) { cp_recycle_bin.push_back(cp); }
 
-	static CollisionGraph::Node* NewNode(RigidBody* body)
+	static ConstraintGraph::Node* NewNode(RigidBody* body)
 	{
 		if(node_recycle_bin.empty())
-			return new CollisionGraph::Node(body);
+			return new ConstraintGraph::Node(body);
 		else
 		{
-			CollisionGraph::Node* result = new (*node_recycle_bin.rbegin()) CollisionGraph::Node(body);
+			ConstraintGraph::Node* result = new (*node_recycle_bin.rbegin()) ConstraintGraph::Node(body);
 			node_recycle_bin.pop_back();
 			return result;
 		}
 	}
-
-	static void DeleteCP(ContactPoint* cp) { cp_recycle_bin.push_back(cp); }
-	static void DeleteNode(CollisionGraph::Node* node) { node_recycle_bin.push_back(node); }
+	static void DeleteNode(ConstraintGraph::Node* node) { node_recycle_bin.push_back(node); }
 
 
 
 
 	/*
-	 * CollisionGraph methods
+	 * ConstraintGraph methods
 	 */
-	CollisionGraph::CollisionGraph() : nodes(), contact_points() { }
-	CollisionGraph::~CollisionGraph()
+	ConstraintGraph::ConstraintGraph() : nodes(), constraints(), contact_points() { }
+	ConstraintGraph::~ConstraintGraph()
 	{
 		for(unordered_map<RigidBody*, Node*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
 			DeleteNode(iter->second);
@@ -59,17 +58,23 @@ namespace CibraryEngine
 
 		for(vector<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
 			DeleteCP(*iter);
-		contact_points.clear();
+		constraints.clear();
 	}
 
-	void CollisionGraph::AddContactPoint(const ContactPoint& cp)
+	void ConstraintGraph::AddContactPoint(const ContactPoint& cp)
 	{
-		RigidBody* body_a = cp.a.obj->GetCollisionProxy();
+		ContactPoint* cp_ptr = NewCP(cp);
+		contact_points.push_back(cp_ptr);
+		AddConstraint(cp_ptr);
+	}
+
+	void ConstraintGraph::AddConstraint(PhysicsConstraint* constraint)
+	{
+		RigidBody* body_a = constraint->obj_a->GetCollisionProxy();
 		if(body_a->MergesSubgraphs())
 		{
-			unsigned int cp_index = contact_points.size();
-			ContactPoint* cp_ptr = NewCP(cp);
-			contact_points.push_back(cp_ptr);
+			unsigned int cp_index = constraints.size();
+			constraints.push_back(constraint);
 
 			Node* node_a;
 			unordered_map<RigidBody*, Node*>::iterator found_a = nodes.find(body_a);
@@ -81,7 +86,7 @@ namespace CibraryEngine
 				nodes.insert(pair<RigidBody*, Node*>(body_a, node_a));
 			}
 
-			RigidBody* body_b = cp.b.obj->GetCollisionProxy();
+			RigidBody* body_b = constraint->obj_b->GetCollisionProxy();
 			if(body_b->MergesSubgraphs())
 			{
 				Node* node_b;
@@ -94,11 +99,11 @@ namespace CibraryEngine
 					nodes.insert(pair<RigidBody*, Node*>(body_b, node_b));
 				}
 
-				node_a->edges.push_back(Edge(cp_ptr, &cp_ptr->a, &cp_ptr->b, node_b));
-				node_b->edges.push_back(Edge(cp_ptr, &cp_ptr->b, &cp_ptr->a, node_a));
+				node_a->edges.push_back(Edge(constraint, node_b));
+				node_b->edges.push_back(Edge(constraint, node_a));
 			}
 			else
-				node_a->edges.push_back(Edge(cp_ptr, &cp_ptr->a, &cp_ptr->b, NULL));
+				node_a->edges.push_back(Edge(constraint, NULL));
 		}
 		else
 		{
@@ -106,7 +111,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionGraph::EmptyRecycleBins()
+	void ConstraintGraph::EmptyRecycleBins()
 	{
 		for(vector<ContactPoint*>::iterator iter = cp_recycle_bin.begin(); iter != cp_recycle_bin.end(); ++iter)
 			delete *iter;

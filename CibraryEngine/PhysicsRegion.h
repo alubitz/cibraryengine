@@ -13,7 +13,7 @@ namespace CibraryEngine
 	using boost::unordered_set;
 
 	class RigidBody;
-	struct CollisionGraph;
+	struct ConstraintGraph;
 	class CollisionCallback;
 	class SceneRenderer;
 

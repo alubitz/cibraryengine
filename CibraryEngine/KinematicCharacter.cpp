@@ -48,12 +48,6 @@ namespace CibraryEngine
 		SetCollisionProxy(rig);
 	}
 
-	Vec3 KinematicCharacterBone::GetLocalVelocity(const Vec3& point)
-	{
-		// TODO: take into account linear and angular velocity of the rig
-		return RigidBody::GetLocalVelocity(point);
-	}
-
 
 
 

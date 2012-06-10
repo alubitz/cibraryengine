@@ -900,8 +900,8 @@ namespace CibraryEngine
 
 			ContactPoint cp;
 
-			cp.a.obj = ibody;
-			cp.b.obj = jbody;
+			cp.obj_a = ibody;
+			cp.obj_b = jbody;
 
 			bool any = false;
 
@@ -977,8 +977,8 @@ namespace CibraryEngine
 				center /= weight;
 
 				result = ContactPoint();
-				result.a.obj = ibody;
-				result.b.obj = jbody;
+				result.obj_a = ibody;
+				result.obj_b = jbody;
 				result.a.pos = center;
 				result.b.pos = center;
 				result.b.norm = plane_norm;
@@ -1030,8 +1030,8 @@ namespace CibraryEngine
 					Vec3 normal = Vec3::Normalize(normal_accum);
 
 					result = ContactPoint();
-					result.a.obj = ibody;
-					result.b.obj = jbody;
+					result.obj_a = ibody;
+					result.obj_b = jbody;
 					result.a.pos = pos;
 					result.b.pos = pos;
 
@@ -1117,8 +1117,8 @@ namespace CibraryEngine
 			{
 				center /= float(weight);
 
-				result.a.obj = ibody;
-				result.b.obj = jbody;
+				result.obj_a = ibody;
+				result.obj_b = jbody;
 				result.a.pos = result.b.pos = center;
 				result.b.norm = tri.plane.normal;
 				result.a.norm = -result.b.norm;

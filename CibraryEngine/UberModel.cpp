@@ -692,7 +692,13 @@ namespace CibraryEngine
 		}
 	};
 
-	struct BonePhysicsHandler : public ChunkTypeFunction { void HandleChunk(BinaryChunk& chunk) { Debug("Found deprecated chunk UberModel::BonePhysics\n"); } };
+	struct BonePhysicsHandler : public ChunkTypeFunction
+	{
+		bool* found_deprecated;
+		BonePhysicsHandler(bool* found_deprecated) : found_deprecated(found_deprecated) { }
+
+		void HandleChunk(BinaryChunk& chunk) { Debug("Found deprecated chunk UberModel::BonePhysics\n"); *found_deprecated = true; }
+	};
 
 	struct SpcChunkHandler : public ChunkTypeFunction
 	{
@@ -801,11 +807,13 @@ namespace CibraryEngine
 
 		// TODO: process additional chunk types here
 
+		bool found_deprecated = false;
+
 		UnrecognizedChunkHandler badchunk;
 		LODSChunkHandler lodchunk(model);
 		MatChunkHandler matchunk(model);
 		BonesChunkHandler bonechunk(model);
-		BonePhysicsHandler bphyschunk;							// deprecated
+		BonePhysicsHandler bphyschunk(&found_deprecated);					// deprecated
 		SpcChunkHandler spcchunk(model);
 
 		indexer.SetDefaultHandler(&badchunk);
@@ -818,6 +826,16 @@ namespace CibraryEngine
 		indexer.HandleChunk(whole);
 
 		file.close();
+
+#if 0			// enable resaving of models, with deprecated chunks removed?
+		if(found_deprecated)
+		{
+			if(unsigned int save_error = SaveZZZ(model, filename))
+				Debug(((stringstream&)(stringstream() << "Failed to resave " << filename << " without deprecated chunks! SaveZZZ returned error code " << save_error << "!" << endl)).str());
+			else
+				Debug(((stringstream&)(stringstream() << "Successfully resaved " << filename << " without the deprecated chunks" << endl)).str());
+		}
+#endif
 
 		return 0;
 	}

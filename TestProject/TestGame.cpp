@@ -999,7 +999,7 @@ namespace Test
 
 			bool OnCollision(const ContactPoint& cp)
 			{
-				if(Entity* entity = cp.b.obj->GetUserEntity())
+				if(Entity* entity = cp.obj_b->GetUserEntity())
 					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
 					{
 						float y = cp.a.pos.y;
@@ -1529,7 +1529,7 @@ namespace Test
 
 			bool OnCollision(const ContactPoint& cp)
 			{
-				if(Entity* entity = cp.b.obj->GetUserEntity())
+				if(Entity* entity = cp.obj_b->GetUserEntity())
 					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
 						results.push_back(cp.a.pos.y);
 				return false;

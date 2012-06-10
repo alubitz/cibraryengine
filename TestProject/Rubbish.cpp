@@ -3,7 +3,8 @@
 #include "Rubbish.h"
 #include "DSNMaterial.h"
 #include "TestGame.h"
-#include "Particle.h"
+
+#include "Spark.h"
 
 namespace Test
 {
@@ -76,20 +77,13 @@ namespace Test
 	{
 #if 1
 	#if 1
-		BillboardMaterial* trail_mat = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("shot");
+		BillboardMaterial* trail_mat = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("spark");
 	#else
 		BillboardMaterial* trail_mat = NULL;
 	#endif
 
 		for (int i = 0; i < 6; ++i)
-		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, trail_mat, 0.05f, 1);
-			p->gravity = 9.8f;
-			p->damp = 2.0f;
-			p->angle = -float(M_PI) * 0.5f;
-
-			game_state->Spawn(p);
-		}
+			game_state->Spawn(new Spark(game_state, poi, trail_mat));
 #endif
 
 		Vec3 pos = xform.TransformVec3_1(0, 0, 0);

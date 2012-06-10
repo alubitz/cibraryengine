@@ -456,8 +456,8 @@ namespace Test
 	Dood::ContactCallback::ContactCallback(Dood* dood) : dood(dood) { }
 	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
 	{
-		ContactPoint::Part self = collision.a.obj->GetUserEntity() == dood ? collision.a : collision.b;
-		ContactPoint::Part other = collision.a.obj->GetUserEntity() == dood ? collision.b : collision.a;
+		ContactPoint::Part self = collision.obj_a->GetUserEntity() == dood ? collision.a : collision.b;
+		ContactPoint::Part other = collision.obj_a->GetUserEntity() == dood ? collision.b : collision.a;
 
 		Vec3 normal = other.norm;
 		if(normal.y > 0.1)

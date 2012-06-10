@@ -36,8 +36,6 @@ namespace CibraryEngine
 		public:
 
 			KinematicCharacterBone(KinematicCharacterRig* rig, CollisionShape* shape, const MassInfo& mass_info, const Vec3& pos, const Quaternion& ori);
-
-			Vec3 GetLocalVelocity(const Vec3& point);							// override of the function in RigidBody
 	};
 
 	class KinematicCharacterShape : public CollisionShape

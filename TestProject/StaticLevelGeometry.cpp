@@ -4,6 +4,7 @@
 #include "DSNMaterial.h"
 #include "TestGame.h"
 #include "Particle.h"
+#include "Spark.h"
 #include "Rubbish.h"
 
 namespace Test
@@ -79,22 +80,23 @@ namespace Test
 		{
 			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(5), dirt_particle, NULL, 0.05f, 1.5f);
 			p->gravity = 9.8f;
-			p->damp = 0.1f;
+			p->damp = 0.2f;
 			p->angle = -float(M_PI) * 0.5f;
 
 			game_state->Spawn(p);
 		}
-		for (int i = 0; i < 16; ++i)
+
+		for (int i = 0; i < 8; ++i)
 		{
-			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(1), dust_particle, NULL, 0.5f, 1.5f);
-			p->gravity = 9.8f * 0.125f;
+			Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(0.25f), dust_particle, NULL, 0.25f, 1.5f);
+			p->gravity = 9.8f / 32.0f;
 			p->damp = 1.0f;
 			p->angle = -float(M_PI) * 0.5f;
 
 			game_state->Spawn(p);
 		}
 
-//		game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromPYR(0, Random3D::Rand(2.0 * M_PI), 0), dirt_particle));
+		//game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), ((TestGame*)game_state)->mphys_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromPYR(0, Random3D::Rand(2.0f * M_PI), 0), dirt_particle));
 
 		return true;
 	}

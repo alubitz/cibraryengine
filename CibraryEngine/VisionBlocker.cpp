@@ -18,7 +18,7 @@ namespace CibraryEngine
 			RayCallback() : result(true) { }
 			bool OnCollision(const ContactPoint& cp)
 			{
-				if(Entity* entity = cp.b.obj->GetUserEntity())
+				if(Entity* entity = cp.obj_b->GetUserEntity())
 					if(VisionBlocker* vision_blocker = dynamic_cast<VisionBlocker*>(entity))
 					{
 						result = false;

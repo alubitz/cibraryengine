@@ -24,7 +24,7 @@ namespace CibraryEngine
 	struct ContactPoint;
 	class RigidBody;
 	class CollisionCallback;
-	struct CollisionGraph;
+	struct ConstraintGraph;
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
@@ -49,15 +49,10 @@ namespace CibraryEngine
 
 			float internal_timer, timer_interval;
 
-			void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
+			void SolveConstraintGraph(ConstraintGraph& graph);
 
-			// returns whether or not a collision response was actually needed (i.e. whether an impulse was applied to prevent interpenetration)
-			bool DoCollisionResponse(const ContactPoint& cp);
-
-			void SolveCollisionGraph(CollisionGraph& graph);
-
-			void InitiateCollisionsForSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph);
-			void InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, CollisionGraph& collision_graph);
+			void InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& contraint_graph);
+			void InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constrain_graph);
 
 			void DoFixedStep();
 
@@ -93,20 +88,34 @@ namespace CibraryEngine
 			void SetGravity(const Vec3& gravity);
 
 			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback);
+
+			static void GetUseMass(const Vec3& direction, const ContactPoint& cp, float& A, float& B);
 	};
 
 	class RigidBody;
 
+	/** Things for the constraint solver to solve */
+	class PhysicsConstraint
+	{
+		public:
+			virtual void DoConstraintAction(set<RigidBody*> wakeup) = 0;
+
+			RigidBody* obj_a;
+			RigidBody* obj_b;
+	};
+
 	/** A point of contact between two physics objects */
-	struct ContactPoint
+	struct ContactPoint : public PhysicsConstraint
 	{
 		struct Part
 		{
-			RigidBody* obj;
 			Vec3 pos, norm;					// both are world coords
 
-			Part() : obj(NULL), pos(), norm() { }
+			Part() : pos(), norm() { }
 		} a, b;
+
+		void DoConstraintAction(set<RigidBody*> wakeup);
+		bool DoCollisionResponse() const;
 	};
 
 	class PhysicsRegionManager

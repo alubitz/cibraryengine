@@ -8,13 +8,11 @@ namespace Test
 
 	class Particle : public Entity
 	{
-		private:
-
-			RigidBody* body;
-
 		protected:
 
 			void InnerDispose();
+
+			RigidBody* body;
 
 		public:
 
@@ -30,7 +28,7 @@ namespace Test
 
 			void Update(TimingInfo time);
 
-			void Spawned();
+			virtual void Spawned();
 			void DeSpawned();
 
 			void Vis(SceneRenderer* scene);
