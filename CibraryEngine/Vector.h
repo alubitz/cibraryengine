@@ -50,10 +50,18 @@ namespace CibraryEngine
 		void operator *=(float b);
 		/** Multiplies a vector by a scalar */
 		Vec2 operator *(float b) const;
+		/** Multiplies the components of two vectors */
+		void operator *=(const Vec2& b);
+		/** Multiplies the components of two vectors */
+		Vec2 operator *(const Vec2& b) const;
 		/** Divides a vector by a scalar */
 		void operator /=(float b);
 		/** Divides a vector by a scalar */
 		Vec2 operator /(float b) const;
+		/** Divide the components of one vector by those of another */
+		void operator /=(const Vec2& b);
+		/** Divide the components of one vector by those of another */
+		Vec2 operator /(const Vec2& b) const;
 		/** Tests whether two vectors are equal */
 		bool operator ==(const Vec2& b) const;
 	};
@@ -117,10 +125,18 @@ namespace CibraryEngine
 		void operator *=(float b);
 		/** Multiplies a vector by a scalar */
 		Vec3 operator *(float b) const;
+		/** Multiplies the components of two vectors */
+		void operator *=(const Vec3& b);
+		/** Multiplies the components of two vectors */
+		Vec3 operator *(const Vec3& b) const;
 		/** Divides a vector by a scalar */
 		void operator /=(float b);
 		/** Divides a vector by a scalar */
 		Vec3 operator /(float b) const;
+		/** Divide the components of one vector by those of another */
+		void operator /=(const Vec3& b);
+		/** Divide the components of one vector by those of another */
+		Vec3 operator /(const Vec3& b) const;
 		/** Tests whether two vectors are equal */
 		bool operator ==(const Vec3& b) const;
 	};
@@ -174,10 +190,18 @@ namespace CibraryEngine
 		void operator *=(float b);
 		/** Multiplies a vector by a scalar */
 		Vec4 operator *(float b) const;
+		/** Multiplies the components of two vectors */
+		void operator *=(const Vec4& b);
+		/** Multiplies the components of two vectors */
+		Vec4 operator *(const Vec4& b) const;
 		/** Divides a vector by a scalar */
 		void operator /=(float b);
 		/** Divides a vector by a scalar */
 		Vec4 operator /(float b) const;
+		/** Divide the components of one vector by those of another */
+		void operator /=(const Vec4& b);
+		/** Divide the components of one vector by those of another */
+		Vec4 operator /(const Vec4& b) const;
 		/** Tests whether two vectors are equal */
 		bool operator ==(const Vec4& b) const;
 	};

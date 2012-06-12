@@ -52,8 +52,8 @@ namespace Test
 		}
 	}
 
-#if 0
-	void SetUberModelBonePhysics(UberModel* uber, vector<BoneEntry>& bone_entries)
+#if 1
+	ModelPhysics* ModelPhysicsFromBoneEntries(vector<BoneEntry>& bone_entries)
 	{
 		unsigned int num_bones = bone_entries.size();
 
@@ -62,49 +62,55 @@ namespace Test
 		for(unsigned int i = 0; i < num_bones; ++i)
 			bone_indices[bone_entries[i].name] = i;
 
-		// now make the changes to the UberModel
-		uber->bone_physics.clear();
+		ModelPhysics result;
 
 		for(vector<BoneEntry>::iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
 		{
-			UberModel::BonePhysics phys;
+			// create the bone
+			ModelPhysics::BonePhysics bone;
 
-			phys.bone_name = iter->name;
-			phys.mass = iter->mass;
-
-			// BonePhysics position is relative to the parent bone's point of attachment
-			phys.pos = iter->pos;
-			if(!iter->parent.empty())
-			{
-				unordered_map<string, unsigned int>::iterator found = bone_indices.find(iter->parent);
-				if(found != bone_indices.end())
-					phys.pos -= bone_entries[found->second].pos;
-			}
+			bone.bone_name = iter->name;
 
 			if(unsigned int n_spheres = iter->spheres.size())
 			{
-				/*
-				btVector3* centers = new btVector3[n_spheres];
-				float* radii = new float[n_spheres];
+				Sphere* spheres = new Sphere[n_spheres];
 
 				for(unsigned int i = 0; i < n_spheres; ++i)
 				{
-					// Collision shape coordinates are relative to this bone's point of attachment
-					Vec3 center_vec = iter->spheres[i].center - iter->pos;
-					centers[i] = btVector3(center_vec.x, center_vec.y, center_vec.z);
-
-					radii[i] = iter->spheres[i].radius;
+					const Sphere& sphere = iter->spheres[i];
+					spheres[i] = Sphere(sphere.center - iter->pos, sphere.radius);			// collision shape coordinates are relative to bone's point of attachment
 				}
 
-				phys.shape = new btMultiSphereShape(centers, radii, n_spheres);
+				bone.collision_shape = new MultiSphereShape(spheres, n_spheres);
 
-				delete[] centers;
-				delete[] radii;
-				*/
+				MassInfo mass_info = bone.collision_shape->ComputeMassInfo();
+
+				bone.mass_info = mass_info * (iter->mass / mass_info.mass);
+
+				delete[] spheres;
 			}
 
-			uber->bone_physics.push_back(phys);
+			bone_indices[iter->name] = result.bones.size();
+			result.bones.push_back(bone);
+
+			// now create the joint that connects it to its parent bone, if there is one
+			if(!iter->parent.empty())
+			{
+				ModelPhysics::JointPhysics joint;
+
+				joint.joint_name = "";
+				joint.bone_a = bone_indices[iter->name] + 1;
+				joint.bone_b = bone_indices[iter->parent] + 1;
+
+				joint.pos = iter->pos;
+
+				// TODO: set the remaining fields
+
+				result.joints.push_back(joint);
+			}
 		}
+
+		return new ModelPhysics(result);
 	}
 #endif
 

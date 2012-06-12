@@ -33,8 +33,12 @@ namespace CibraryEngine
 	Vec2 Vec2::operator -(const Vec2& b) const		{ Vec2 result(*this); result -= b; return result; }
 	void Vec2::operator *=(float b)					{ x *= b; y *= b; }
 	Vec2 Vec2::operator *(float b) const			{ Vec2 result(*this); result *= b; return result; }
+	void Vec2::operator *=(const Vec2& b)			{ x *= b.x; y *= b.y; }
+	Vec2 Vec2::operator *(const Vec2& b) const		{ Vec2 result(*this); result *= b; return result; }
 	void Vec2::operator /=(float b)					{ *this *= 1.0f / b; }
 	Vec2 Vec2::operator /(float b) const			{ Vec2 result(*this); result /= b; return result; }
+	void Vec2::operator /=(const Vec2& b)			{ x /= b.x; y /= b.y; }
+	Vec2 Vec2::operator /(const Vec2& b) const		{ Vec2 result(*this); result /= b; return result; }
 	bool Vec2::operator ==(const Vec2& b) const		{ return x == b.x && y == b.y; }
 
 	Vec2 operator *(float b, const Vec2& a)			{ Vec2 result(a); result *= b; return result; }
@@ -72,8 +76,12 @@ namespace CibraryEngine
 	Vec3 Vec3::operator -(const Vec3& b) const		{ Vec3 result(*this); result -= b; return result; }
 	void Vec3::operator *=(float b)					{ x *= b; y *= b; z *= b; }
 	Vec3 Vec3::operator *(float b) const			{ Vec3 result(*this); result *= b; return result; }
+	void Vec3::operator *=(const Vec3& b)			{ x += b.x; y += b.y; z += b.z; }
+	Vec3 Vec3::operator *(const Vec3& b) const		{ Vec3 result(*this); result *= b; return result; }
 	void Vec3::operator /=(float b)					{ *this *= 1.0f / b; }
 	Vec3 Vec3::operator /(float b) const			{ Vec3 result(*this); result /= b; return result; }
+	void Vec3::operator /=(const Vec3& b)			{ x /= b.x; y /= b.y; z /= b.z; }
+	Vec3 Vec3::operator /(const Vec3& b) const		{ Vec3 result(*this); result /= b; return result; }
 	bool Vec3::operator ==(const Vec3& b) const		{ return x == b.x && y == b.y && z == b.z; }
 
 	Vec3 operator *(float b, const Vec3& a)			{ Vec3 result(a); result *= b; return result; }
@@ -106,8 +114,12 @@ namespace CibraryEngine
 	Vec4 Vec4::operator -(const Vec4& b) const		{ Vec4 result(*this); result -= b; return result; }
 	void Vec4::operator *=(float b)					{ x *= b; y *= b; z *= b; w *= b; }
 	Vec4 Vec4::operator *(float b) const			{ Vec4 result(*this); result *= b; return result; }
+	void Vec4::operator *=(const Vec4& b)			{ x *= b.x; y *= b.y; z *= b.z; w *= b.w; }
+	Vec4 Vec4::operator *(const Vec4& b) const		{ Vec4 result(*this); result *= b; return result; }
 	void Vec4::operator /=(float b)					{ *this *= 1.0f / b; }
 	Vec4 Vec4::operator /(float b) const			{ Vec4 result(*this); result /= b; return result; }
+	void Vec4::operator /=(const Vec4& b)			{ x /= b.x; y /= b.y; z /= b.z; w /= b.w; }
+	Vec4 Vec4::operator /(const Vec4& b) const		{ Vec4 result(*this); result /= b; return result; }
 	bool Vec4::operator ==(const Vec4& b) const		{ return x == b.x && y == b.y && z == b.z && w == b.w; }
 
 	Vec4 operator *(float b, const Vec4& a)			{ Vec4 result(a); result *= b; return result; }

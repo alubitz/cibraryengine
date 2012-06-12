@@ -3,6 +3,8 @@
 #include "Vector.h"
 #include "Quaternion.h"
 
+#include "Serialize.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -344,6 +346,23 @@ namespace CibraryEngine
 		);
 	}
 
+	void Mat4::Decompose(Vec3& translation, Quaternion& orientation, Vec3& scale) const
+	{
+		translation = TransformVec3_1(0, 0, 0);
+		
+		Vec3 x = TransformVec3_0(1, 0, 0), y = TransformVec3_0(0, 1, 0), z = TransformVec3_0(0, 0, 1);
+
+		scale.x = x.ComputeMagnitude();
+		scale.y = y.ComputeMagnitude();
+		scale.z = z.ComputeMagnitude();
+
+		x /= scale.x;
+		y /= scale.y;
+		z /= scale.z;
+
+		orientation = Quaternion::FromRotationMatrix(Mat3(x.x, x.y, x.z, y.x, y.y, y.z, z.x, z.y, z.z));
+	}
+
 
 
 
@@ -403,4 +422,36 @@ namespace CibraryEngine
 	}
 	Mat4 Mat4::operator +(const Mat4& b) const { Mat4 result(*this); result *= b; return result; }
 
+
+
+
+	/*
+	 * Matrix serialization functions
+	 */
+	void WriteMat3(const Mat3& mat, ostream& stream)
+	{
+		for(int i = 0; i < 9; ++i)
+			WriteSingle(mat.values[i], stream);
+	}
+	void WriteMat4(const Mat4& mat, ostream& stream)
+	{
+		for(int i = 0; i < 16; ++i)
+			WriteSingle(mat.values[i], stream);
+	}
+
+	Mat3 ReadMat3(istream& stream)
+	{
+		float values[9];
+		for(int i = 0; i < 9; ++i)
+			values[i] = ReadSingle(stream);
+		return Mat3(values);
+	}
+
+	Mat4 ReadMat4(istream& stream)
+	{
+		float values[16];
+		for(int i = 0; i < 16; ++i)
+			values[i] = ReadSingle(stream);
+		return Mat4(values);
+	}
 }

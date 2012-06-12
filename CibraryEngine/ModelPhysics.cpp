@@ -15,21 +15,12 @@ namespace CibraryEngine
 	 * ModelPhysics methods
 	 */
 	ModelPhysics::ModelPhysics() :
-		skeleton(new Skeleton()),
 		bones(),
 		joints()
 	{
 	}
 
-	void ModelPhysics::InnerDispose()
-	{
-		if(skeleton != NULL)
-		{
-			skeleton->Dispose();
-			delete skeleton;
-			skeleton = NULL;
-		}
-	}
+	void ModelPhysics::InnerDispose() { }
 
 
 
@@ -60,14 +51,20 @@ namespace CibraryEngine
 
 	struct SkelChunkHandler : public ChunkTypeFunction
 	{
+		string filename;
+
 		ModelPhysics* phys;
-		SkelChunkHandler(ModelPhysics* phys) : phys(phys) { }
+		SkelChunkHandler(ModelPhysics* phys, const string& filename) : phys(phys), filename(filename) { }
 
 		void HandleChunk(BinaryChunk& chunk)
 		{
 			istringstream ss(chunk.data);
 
-			Skeleton::ReadSkeleton(ss, &phys->skeleton);
+			Debug(((stringstream&)(stringstream() << "Found deprecated chunk ModelPhysics::Skeleton in file \"" << filename << "\"" << endl)).str());
+
+			Skeleton* ptr;
+			Skeleton::ReadSkeleton(ss, &ptr);
+			delete ptr;
 		}
 	};
 
@@ -82,7 +79,7 @@ namespace CibraryEngine
 
 			ModelPhysics::BonePhysics bone;
 
-			bone.bone_name = ReadUInt32(ss);
+			bone.bone_name = ReadString1(ss);
 
 			bone.collision_shape = NULL;
 			CollisionShape::ReadCollisionShape(bone.collision_shape, ss);
@@ -91,6 +88,14 @@ namespace CibraryEngine
 			
 			phys->bones.push_back(bone);
 		}
+	};
+
+	struct JointChunkHandler : public ChunkTypeFunction
+	{
+		vector<BinaryChunk>& joint_chunks;
+		JointChunkHandler(vector<BinaryChunk>& joint_chunks) : joint_chunks(joint_chunks) { }
+
+		void HandleChunk(BinaryChunk& chunk) { joint_chunks.push_back(chunk); }
 	};
 
 	unsigned int ModelPhysicsLoader::LoadZZP(ModelPhysics*& phys, const string& filename)
@@ -109,20 +114,39 @@ namespace CibraryEngine
 
 		ChunkTypeIndexer indexer;
 
+		vector<BinaryChunk> joint_chunks;
+
 		UnrecognizedChunkHandler badchunk;
 		BoneChunkHandler bonechunk(temp);
-		SkelChunkHandler skelchunk(temp);
+		SkelChunkHandler skelchunk(temp, filename);
+		JointChunkHandler jointchunk(joint_chunks);				// this handler will put all of the joint chunks into a list to be processed at the end
 
 		indexer.SetDefaultHandler(&badchunk);
 		indexer.SetHandler("BONE____", &bonechunk);
 		indexer.SetHandler("SKEL____", &skelchunk);
-
-		// TODO: read joints here
+		indexer.SetHandler("JOINT___", &jointchunk);
 
 		indexer.HandleChunk(whole);
 		file.close();
 
-		// TODO: process bone names after reading them?
+		for(vector<BinaryChunk>::iterator iter = joint_chunks.begin(); iter != joint_chunks.end(); ++iter)
+		{
+			BinaryChunk& joint_chunk = *iter;
+
+			istringstream ss(joint_chunk.data);
+
+			ModelPhysics::JointPhysics joint;
+
+			joint.joint_name = ReadString1(ss);
+			joint.bone_a = ReadUInt32(ss);
+			joint.bone_b = ReadUInt32(ss);
+			joint.pos = ReadVec3(ss);
+			joint.axes = ReadMat3(ss);
+			joint.max_extents = ReadVec3(ss);
+			joint.angular_damp = ReadVec3(ss);
+
+			temp->joints.push_back(joint);
+		}
 
 		phys = temp;
 
@@ -139,18 +163,6 @@ namespace CibraryEngine
 
 		stringstream ss;
 
-		if(phys->skeleton != NULL)
-		{
-			BinaryChunk skel_chunk("SKEL____");
-			stringstream skel_ss;
-
-			if(unsigned int skel_result = Skeleton::WriteSkeleton(skel_ss, phys->skeleton))
-				return 3;
-
-			skel_chunk.data = skel_ss.str();
-			skel_chunk.Write(ss);
-		}
-
 		if(!phys->bones.empty())
 		{
 			for(vector<ModelPhysics::BonePhysics>::iterator iter = phys->bones.begin(); iter != phys->bones.end(); ++iter)
@@ -160,8 +172,7 @@ namespace CibraryEngine
 
 				ModelPhysics::BonePhysics& bone = *iter;
 
-				// TODO: process bone name before writing it?
-				WriteUInt32(bone.bone_name, bone_ss);
+				WriteString1(bone.bone_name, bone_ss);
 
 				CollisionShape::WriteCollisionShape(bone.collision_shape, bone_ss);
 				bone.mass_info.Write(bone_ss);
@@ -171,7 +182,27 @@ namespace CibraryEngine
 			}
 		}
 
-		// TODO: write joints here
+		if(!phys->joints.empty())
+		{
+			for(vector<ModelPhysics::JointPhysics>::iterator iter = phys->joints.begin(); iter != phys->joints.end(); ++iter)
+			{
+				BinaryChunk joint_chunk("JOINT___");
+				stringstream joint_ss;
+
+				ModelPhysics::JointPhysics& joint = *iter;
+
+				WriteString1(joint.joint_name, joint_ss);
+				WriteUInt32(joint.bone_a, joint_ss);
+				WriteUInt32(joint.bone_b, joint_ss);
+				WriteVec3(joint.pos, joint_ss);
+				WriteMat3(joint.axes, joint_ss);
+				WriteVec3(joint.max_extents, joint_ss);
+				WriteVec3(joint.angular_damp, joint_ss);
+
+				joint_chunk.data = joint_ss.str();
+				joint_chunk.Write(ss);
+			}
+		}
 
 		whole.data = ss.str();
 

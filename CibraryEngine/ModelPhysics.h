@@ -6,6 +6,8 @@
 #include "ContentTypeHandler.h"
 #include "Physics.h"
 
+#include "Matrix.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -23,7 +25,7 @@ namespace CibraryEngine
 
 			struct BonePhysics
 			{
-				unsigned int bone_name;			// uh... how should this work?
+				string bone_name;				// renderer will attempt to match this with a name in the UberModel's skeleton
 
 				CollisionShape* collision_shape;
 				MassInfo mass_info;
@@ -31,10 +33,18 @@ namespace CibraryEngine
 
 			struct JointPhysics
 			{
-				// TODO: add some members to this struct
-			};
+				string joint_name;					// only particularly relevant for combination with other objects (i.e. when bone_b is 0)
 
-			Skeleton* skeleton;
+				/** Index into the bones vector + 1; 0 means no bone (joint specification exists for combination with other objects) */
+				unsigned int bone_a;
+				unsigned int bone_b;
+
+				Vec3 pos;
+				Mat3 axes;
+
+				Vec3 max_extents;
+				Vec3 angular_damp;
+			};
 
 			vector<BonePhysics> bones;
 			vector<JointPhysics> joints;

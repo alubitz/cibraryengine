@@ -15,7 +15,7 @@
 
 namespace Test
 {
-	bool enable_ragdolls = false;
+	bool enable_ragdolls = true;
 
 	bool MaybeDoScriptedUpdate(Dood* dood);
 	bool MaybeDoScriptedDeath(Dood* dood);
@@ -39,7 +39,7 @@ namespace Test
 	/*
 	 * Dood methods
 	 */
-	Dood::Dood(GameState* gs, UberModel* model, Vec3 pos, Team& team) :
+	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Pawn(gs),
 		character_pose_time(-1),
 		team(team),
@@ -56,6 +56,7 @@ namespace Test
 		character(NULL),
 		rigid_body(NULL),
 		physics(NULL),
+		mphys(mphys),
 		standing(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),

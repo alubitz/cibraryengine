@@ -29,7 +29,7 @@ namespace Test
 			SoundBuffer* jet_loop_sound;
 			SoundSource* jet_loop;
 
-			Soldier(GameState* game_state, UberModel* model, Vec3 pos, Team& team);
+			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Update(TimingInfo time);
 	};

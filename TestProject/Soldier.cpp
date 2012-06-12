@@ -23,8 +23,8 @@ namespace Test
 	/*
 	 * Soldier methods
 	 */
-	Soldier::Soldier(GameState* game_state, UberModel* model, Vec3 pos, Team& team) :
-		Dood(game_state, model, pos, team),
+	Soldier::Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		jump_fuel(1.0f),

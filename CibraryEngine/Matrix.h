@@ -4,6 +4,8 @@
 
 namespace CibraryEngine
 {
+	using namespace std;
+
 	struct Vec3;
 	struct Vec4;
 	struct Quaternion;
@@ -114,6 +116,9 @@ namespace CibraryEngine
 		/** Returns the matrix inverse of the given matrix */
 		static Mat4 Invert(const Mat4& a);
 
+		/** Decomposes this matrix into a translation, orientation, and scale; assumes no perspective */
+		void Decompose(Vec3& translation, Quaternion& orientation, Vec3& scale) const;
+
 
 
 		/** Transforms a 4-component vector by a 4x4 matrix */
@@ -131,4 +136,13 @@ namespace CibraryEngine
 		/** Adds two matrices */
 		Mat4 operator +(const Mat4& b) const;
 	};
+
+
+
+
+	void WriteMat3(const Mat3& mat, ostream& stream);
+	void WriteMat4(const Mat4& mat, ostream& stream);
+
+	Mat3 ReadMat3(istream& stream);
+	Mat4 ReadMat4(istream& stream);
 }

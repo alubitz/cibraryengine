@@ -6,6 +6,8 @@
 
 namespace Test
 {
+	struct BoneEntry;
+
 	class CrabBug : public Dood
 	{
 		private:
@@ -34,8 +36,10 @@ namespace Test
 
 			IKPose* ik_pose;
 
-			CrabBug(GameState* game_state, UberModel* model, Vec3 pos, Team& team);
+			CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Update(TimingInfo time);
+
+			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
 	};
 }

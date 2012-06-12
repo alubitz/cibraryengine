@@ -70,7 +70,7 @@ namespace CibraryEngine
 
 	void ConstraintGraph::AddConstraint(PhysicsConstraint* constraint)
 	{
-		RigidBody* body_a = constraint->obj_a->GetCollisionProxy();
+		RigidBody* body_a = constraint->obj_a;
 		if(body_a->MergesSubgraphs())
 		{
 			unsigned int cp_index = constraints.size();
@@ -86,7 +86,7 @@ namespace CibraryEngine
 				nodes.insert(pair<RigidBody*, Node*>(body_a, node_a));
 			}
 
-			RigidBody* body_b = constraint->obj_b->GetCollisionProxy();
+			RigidBody* body_b = constraint->obj_b;
 			if(body_b->MergesSubgraphs())
 			{
 				Node* node_b;

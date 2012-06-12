@@ -59,6 +59,7 @@ namespace Test
 
 			RigidBody* rigid_body;
 			PhysicsWorld* physics;
+			ModelPhysics* mphys;
 
 			float mass;
 			Mat3 inverse_moi;
@@ -67,7 +68,7 @@ namespace Test
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
-			Dood(GameState* gs, UberModel* model_, Vec3 pos, Team& team);
+			Dood(GameState* gs, UberModel* model_, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			Vec3 GetPosition();
 			void SetPosition(Vec3 pos);

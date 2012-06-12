@@ -8,8 +8,8 @@ namespace Test
 	/*
 	 * ArtilleryBug methods
 	 */
-	ArtilleryBug::ArtilleryBug(GameState* game_state, UberModel* model, Vec3 pos, Team& team) :
-		Dood(game_state, model, pos, team)
+	ArtilleryBug::ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+		Dood(game_state, model, mphys, pos, team)
 	{
 	}
 

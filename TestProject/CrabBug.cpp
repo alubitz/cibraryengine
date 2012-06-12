@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "CrabBug.h"
 
+#include "ConverterWhiz.h"
+
 namespace Test
 {
 	using namespace std;
@@ -82,8 +84,8 @@ namespace Test
 	/*
 	 * CrabBug methods
 	 */
-	CrabBug::CrabBug(GameState* game_state, UberModel* model, Vec3 pos, Team& team) :
-		Dood(game_state, model, pos, team),
+	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+		Dood(game_state, model, mphys, pos, team),
 		walk_pose()
 	{
 		hp *= 0.5f;
@@ -140,5 +142,13 @@ namespace Test
 		Dood::Update(time);
 
 		ik_pose->SetDesiredState(game_state->ik_solver, pos, pitch, yaw);
+	}
+
+
+
+
+	void GetBoneEntries(vector<BoneEntry>& bone_entries)
+	{
+		// TODO: implement this
 	}
 }

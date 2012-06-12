@@ -7,7 +7,7 @@
 namespace Test
 {
 
-#if 0
+#if 1
 
 	// Each bone is a separate shootable object (and also an Entity for technical reasons, but it's never spawned)
 	struct CorpseBoneShootable : Entity, Shootable
@@ -69,6 +69,7 @@ namespace Test
 		vector<Material*> materials;
 		SkinnedCharacter* character;
 		UberModel* model;
+		ModelPhysics* mphys;
 
 		BillboardMaterial* blood_material;
 
@@ -92,6 +93,7 @@ namespace Test
 			corpse(corpse),
 			character(dood->character),
 			model(dood->model),
+			mphys(dood->mphys),
 			blood_material(dood->blood_material),
 			whole_xform(Mat4::Translation(dood->pos)),
 			origin(dood->pos),
@@ -100,7 +102,9 @@ namespace Test
 			fizzle_time(gs->total_game_time + ttl),
 			physics(NULL),
 			rigid_bodies(),
-			bone_offsets()
+			shootables(),
+			bone_offsets(),
+			bone_indices()
 		{
 			character->active_poses.clear();
 			dood->character = NULL;
@@ -160,6 +164,12 @@ namespace Test
 
 		void Spawned()
 		{
+			if(mphys == NULL)
+			{
+				corpse->is_valid = false;
+				return;
+			}
+
 			physics = corpse->game_state->physics_world;
 
 			// get bone pos/ori info
@@ -173,7 +183,7 @@ namespace Test
 				mats.push_back(whole_xform * bone->GetTransformationMatrix());
 			}
 
-			UberModel::BonePhysics** bone_physes = new UberModel::BonePhysics* [count];
+			ModelPhysics::BonePhysics** bone_physes = new ModelPhysics::BonePhysics* [count];
 
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; ++i)
@@ -186,41 +196,33 @@ namespace Test
 
 				Vec3 bone_pos = mat.TransformVec3_1(bone_offsets[i]);
 
-				UberModel::BonePhysics* phys = NULL;
-				for(unsigned int j = 0; j < model->bone_physics.size(); ++j)
-					if(Bone::string_table[model->bone_physics[j].bone_name] == bone->name)
-						phys = &model->bone_physics[j];
+				ModelPhysics::BonePhysics* phys = NULL;
+				for(unsigned int j = 0; j < mphys->bones.size(); ++j)
+					if(Bone::string_table[mphys->bones[j].bone_name] == bone->name)
+						phys = &mphys->bones[j];
 
 				bone_physes[i] = phys;
 
 				if(phys != NULL)
 				{
-					/*
-					btCollisionShape* shape = phys->shape;
+					CollisionShape* shape = phys->collision_shape;
 					if(shape != NULL)
 					{
-						RigidBody* rigid_body = new RigidBody(shape, MassInfo::FromCollisionShape(shape, phys->mass), bone_pos, bone->ori);
+						RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, bone_pos, bone->ori);
 
 						rigid_body->SetLinearVelocity(initial_vel);
 
-						// these constants taken from the ragdoll demo
-						rigid_body->SetDamping(0.05f, 0.85f);
-						rigid_body->SetDeactivationTime(0.8f);
-						rigid_body->SetSleepingThresholds(1.6f, 2.5f);
-
+						rigid_body->SetDamp(0.05f);
 						rigid_body->SetFriction(1.0f);
-						rigid_body->SetRestitution(0.01f);
 
 						physics->AddRigidBody(rigid_body);
 						rigid_bodies.push_back(rigid_body);
 
 						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
 						shootables.push_back(shootable);
-						rigid_body->SetCustomCollisionEnabled(shootable);
 
 						bone_indices.push_back(i);
 					}
-					*/
 				}
 			}
 
@@ -228,7 +230,7 @@ namespace Test
 			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 			{
 				unsigned int bone_index = bone_indices[i];
-				UberModel::BonePhysics* phys = bone_physes[bone_index];
+				ModelPhysics::BonePhysics* phys = bone_physes[bone_index];
 
 				if(phys != NULL)
 				{
@@ -345,7 +347,7 @@ namespace Test
 
 #else
 
-	Corpse::Corpse(GameState* gs, Dood* dood, float ttl) : Entity(gs) { }
+	Corpse::Corpse(GameState* gs, Dood* dood, float ttl) : Entity(gs) { is_valid = false; }
 	void Corpse::InnerDispose() { Entity::InnerDispose(); }
 	void Corpse::Spawned() { }
 	void Corpse::DeSpawned() { }

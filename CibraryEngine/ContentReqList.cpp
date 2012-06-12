@@ -2,6 +2,7 @@
 #include "ContentReqList.h"
 
 #include "UberModel.h"
+#include "ModelPhysics.h"
 
 namespace CibraryEngine
 {
@@ -15,9 +16,10 @@ namespace CibraryEngine
 		ContentMan* content;
 
 		Cache<UberModel>* ubermodel_cache;
+		Cache<ModelPhysics>* mphys_cache;
 		list<ContentHandle<UberModel> > models;
 
-		Imp(ContentMan* content) : content(content), ubermodel_cache(content->GetCache<UberModel>()), models() { }
+		Imp(ContentMan* content) : content(content), ubermodel_cache(content->GetCache<UberModel>()), mphys_cache(content->GetCache<ModelPhysics>()), models() { }
 	};
 
 
@@ -45,6 +47,7 @@ namespace CibraryEngine
 			*status = "Models... " + handle.GetMetadata().name + ".zzz";
 
 			imp->ubermodel_cache->ForceLoad(handle);
+			imp->mphys_cache->Load(handle.GetMetadata().name);
 		}
 	}
 }

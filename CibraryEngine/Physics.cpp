@@ -180,7 +180,7 @@ namespace CibraryEngine
 						}
 					}
 				}
-				
+
 				return false;
 			}
 
@@ -197,7 +197,7 @@ namespace CibraryEngine
 					x2 = min(x0 + dx - 1, x2);
 					y2 = min(y0 + dy - 1, y2);
 					z2 = min(z0 + dz - 1, z2);
-				
+
 					for(int x = x1; x < x2; ++x)
 						for(int y = y1; y < y2; ++y)
 							for(int z = z1; z < z2; ++z)
@@ -450,11 +450,11 @@ namespace CibraryEngine
 
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
-		
+
 		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
 		{
 			unordered_map<RigidBody*, Subgraph*>::iterator found = body_subgraphs.find(iter->first);
-			
+
 			if(found == body_subgraphs.end())
 			{
 				Subgraph* subgraph = Subgraph::New();
@@ -501,8 +501,8 @@ namespace CibraryEngine
 
 					set<RigidBody*> wakeup_list;
 					constraint.DoConstraintAction(wakeup_list);
-					
-					// constraint says we shoul wake up these rigid bodies
+
+					// constraint says we should wake up these rigid bodies
 					for(set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
 					{
 						ConstraintGraph::Node* node = subgraph.nodes[*kter];
@@ -523,7 +523,7 @@ namespace CibraryEngine
 			Subgraph::Delete(*iter);
 	}
 
-	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph) 
+	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
 	{
 		SphereShape* shape = (SphereShape*)body->GetCollisionShape();
 
@@ -554,7 +554,7 @@ namespace CibraryEngine
 			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
 	}
 
-	void PhysicsWorld::InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph) 
+	void PhysicsWorld::InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
 
@@ -573,7 +573,7 @@ namespace CibraryEngine
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
 			DoMultispherePlane(body, *iter, shape, xform, constraint_graph);
-		
+
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
 			if(*iter < body)
 				DoMultisphereMultisphere(body, *iter, shape, xform, constraint_graph);
@@ -626,7 +626,7 @@ namespace CibraryEngine
 			InitiateCollisionsForSphere(*iter, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(); iter != dynamic_objects[ST_MultiSphere].end(); ++iter)
-			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);	
+			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);
 
 		SolveConstraintGraph(constraint_graph);
 
@@ -724,7 +724,7 @@ namespace CibraryEngine
 		ray.direction = to - from;
 
 		list<RayResult> hits;
-		
+
 		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_Sphere].begin(); jter != relevant_objects[ST_Sphere].end(); ++jter)
 			DoRaySphere(ibody, *jter, ray, max_time, hits);
 
@@ -762,105 +762,92 @@ namespace CibraryEngine
 
 		bool j_can_move = jbody->can_move;
 
-		float m1 = ibody->mass_info.mass;
-		float m2 = jbody->mass_info.mass;
+		Vec3 use_pos = (a.pos + b.pos) * 0.5f;
+		Vec3 dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
+		const Vec3& normal = Vec3::Normalize(a.norm - b.norm);
 
-		if(m1 + m2 > 0)
+		float nvdot = Vec3::Dot(normal, dv);
+		if(nvdot < 0.0f)
 		{
-			Vec3 i_v = ibody->GetLocalVelocity(a.pos);
-			Vec3 j_v = jbody->GetLocalVelocity(b.pos);
-					
-			Vec3 dv = j_v - i_v;
-			const Vec3& normal = Vec3::Normalize(a.norm - b.norm);
+			float A, B;
+			PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, A, B);
 
-			float nvdot = Vec3::Dot(normal, dv);
-			if(nvdot < 0.0f)
+			float use_mass = 1.0f / A;
+			float bounciness = ibody->bounciness * jbody->bounciness;
+			float impulse_mag = -(1.0f + bounciness) * B * use_mass;
+
+			if(impulse_mag < 0)
 			{
-				Vec3 use_pos = (a.pos + b.pos) * 0.5f;
+				Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(a.pos);
+				Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(b.pos);
 
-				float A, B;
-				PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, A, B);
+				Vec3 impulse = normal * impulse_mag;
 
-				float use_mass = 1.0f / A;
-				float bounciness = ibody->bounciness * jbody->bounciness;
-				float impulse_mag = -(1.0f + bounciness) * B * use_mass;
-				
-				if(impulse_mag < 0)
+				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
-					Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(a.pos);
-					Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(b.pos);
-
-					RigidBody* ibody_proxy = ibody->GetCollisionProxy();
-					RigidBody* jbody_proxy = jbody->GetCollisionProxy();
-
-					Vec3 impulse = normal * impulse_mag;
-
-					if(impulse.ComputeMagnitudeSquared() != 0)
-					{
-						ibody_proxy->ApplyImpulse(impulse, i_poi);
-						if(j_can_move)
-							jbody_proxy->ApplyImpulse(-impulse, j_poi);
-
-						// applying this impulse means we need to recompute dv and nvdot!
-						dv = jbody->GetLocalVelocity(b.pos) - ibody->GetLocalVelocity(a.pos);
-						nvdot = Vec3::Dot(normal, dv);
-					}
-
-					float sfric_coeff = ibody->friction * jbody->friction;
-					float kfric_coeff = 0.9f * sfric_coeff;
-
-					Vec3 t_dv = dv - normal * nvdot;
-					float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
-
-					if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
-					{
-						float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
-						Vec3 u_tdv = t_dv * inv_tdmag;
-
-						PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv, A, B);
-						use_mass = 1.0f / A;
-
-						Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
-
-						ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
-						if(j_can_move)
-							jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
-					}
-					else											// object isn't moving; apply static friction
-					{
-						Vec3 df = jbody->applied_force - ibody->applied_force;
-						float nfdot = Vec3::Dot(normal, df);
-
-						Vec3 t_df = df - normal * nfdot;
-						float t_df_mag = t_df.ComputeMagnitude();
-
-						float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
-						if(fric_i_mag > 0)
-						{
-							Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
-
-							ibody_proxy->ApplyImpulse(fric_impulse, i_poi);
-							if(j_can_move)
-								jbody_proxy->ApplyImpulse(-fric_impulse, j_poi);
-						}
-					}
-
+					ibody->ApplyImpulse(impulse, i_poi);
 					if(j_can_move)
-						jbody->active = true;
+						jbody->ApplyImpulse(-impulse, j_poi);
 
-					// because we applied an impulse, we should wake up edges for the rigid bodies involved
-					return true;
+					// applying this impulse means we need to recompute dv and nvdot!
+					dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
+					nvdot = Vec3::Dot(normal, dv);
 				}
+
+				float sfric_coeff = ibody->friction * jbody->friction;
+				float kfric_coeff = 0.9f * sfric_coeff;
+
+				Vec3 t_dv = dv - normal * nvdot;
+				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
+
+				if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
+				{
+					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
+					Vec3 u_tdv = t_dv * inv_tdmag;
+
+					PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv, A, B);
+					use_mass = 1.0f / A;
+
+					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
+
+					ibody->ApplyImpulse(fric_impulse, i_poi);
+					if(j_can_move)
+						jbody->ApplyImpulse(-fric_impulse, j_poi);
+				}
+				else											// object isn't moving; apply static friction
+				{
+					Vec3 df = jbody->applied_force - ibody->applied_force;
+					float nfdot = Vec3::Dot(normal, df);
+
+					Vec3 t_df = df - normal * nfdot;
+					float t_df_mag = t_df.ComputeMagnitude();
+
+					float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
+					if(fric_i_mag > 0)
+					{
+						Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
+
+						ibody->ApplyImpulse(fric_impulse, i_poi);
+						if(j_can_move)
+							jbody->ApplyImpulse(-fric_impulse, j_poi);
+					}
+				}
+
+				if(j_can_move)
+					jbody->active = true;
+
+				return true;
 			}
 		}
 
 		return false;
 	}
 
-	void ContactPoint::DoConstraintAction(set<RigidBody*> wakeup_list)
+	void ContactPoint::DoConstraintAction(set<RigidBody*>& wakeup_list)
 	{
 		if(DoCollisionResponse())
 		{
+			// because we applied an impulse, we should wake up edges for the rigid bodies involved
 			wakeup_list.insert(obj_a);
 			if(obj_b->MergesSubgraphs())
 				wakeup_list.insert(obj_b);
@@ -1008,7 +995,7 @@ namespace CibraryEngine
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
 		{
 			TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
-							
+
 			float dist = tri.DistanceToPoint(pos);
 			if(dist < radius)
 			{

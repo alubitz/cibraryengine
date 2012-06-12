@@ -22,7 +22,7 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_proxy(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
 		regions(),
 		pos(pos),
@@ -46,7 +46,6 @@ namespace CibraryEngine
 		active(can_move),
 		deactivation_timer(0.5f),
 		user_entity(NULL),
-		collision_proxy(NULL),
 		collision_callback(NULL)
 	{
 		Mat3 moi_rm(mass_info.moi);
@@ -225,9 +224,6 @@ namespace CibraryEngine
 	MassInfo RigidBody::GetMassInfo() { return mass_info; }
 
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { shape->DebugDraw(renderer, pos, ori); }
-
-	RigidBody* RigidBody::GetCollisionProxy() { return collision_proxy ? collision_proxy : this; }
-	void RigidBody::SetCollisionProxy(RigidBody* proxy) { collision_proxy = proxy; }
 
 	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { collision_callback = callback; }
 	CollisionCallback* RigidBody::GetCollisionCallback() { return collision_callback; }

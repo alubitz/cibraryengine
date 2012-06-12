@@ -96,7 +96,7 @@ namespace CibraryEngine
 	class PhysicsConstraint
 	{
 		public:
-			virtual void DoConstraintAction(set<RigidBody*> wakeup) = 0;
+			virtual void DoConstraintAction(set<RigidBody*>& wakeup) = 0;
 
 			RigidBody* obj_a;
 			RigidBody* obj_b;
@@ -112,7 +112,7 @@ namespace CibraryEngine
 			Part() : pos(), norm() { }
 		} a, b;
 
-		void DoConstraintAction(set<RigidBody*> wakeup);
+		void DoConstraintAction(set<RigidBody*>& wakeup);
 		bool DoCollisionResponse() const;
 	};
 

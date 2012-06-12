@@ -121,6 +121,10 @@ namespace Test
 		UberModel* crab_bug_model;
 		UberModel* artillery_bug_model;
 
+		ModelPhysics* soldier_physics;
+		ModelPhysics* crab_bug_physics;
+		ModelPhysics* artillery_bug_physics;
+
 		UberModel* gun_model;
 		VertexBuffer* mflash_model;
 		VertexBuffer* shot_model;
@@ -372,7 +376,7 @@ namespace Test
 
 			TriangleMeshShape shape((*ubermodel_cache->Load("nbridge")->lods[0]->GetVBOs())[0].vbo);
 
-			phys.bone_name = 0;
+			phys.bone_name = "main";
 			phys.collision_shape = &shape;
 			phys.mass_info = MassInfo();
 
@@ -444,6 +448,7 @@ namespace Test
 
 		// Dood's model
 		imp->soldier_model = ubermodel_cache->Load("soldier");
+		imp->soldier_physics = mphys_cache->Load("soldier");
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
@@ -462,8 +467,10 @@ namespace Test
 		load_status.task = "crab bug";
 
 		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
+		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
 
 		imp->artillery_bug_model = ubermodel_cache->Load("flea");
+		imp->artillery_bug_physics = mphys_cache->Load("flea");
 		if(imp->artillery_bug_model == NULL)
 		{
 			load_status.task = "artillery bug";
@@ -574,6 +581,7 @@ namespace Test
 			rubbish_phys = new ModelPhysics();
 
 			ModelPhysics::BonePhysics bone;
+			bone.bone_name = "main";
 			bone.collision_shape = shape;
 			bone.mass_info = mass_info;
 
@@ -597,7 +605,7 @@ namespace Test
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
-		player_pawn = new Soldier(this, imp->soldier_model, pos, human_team);
+		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		Spawn(player_pawn);
 
 		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound));
@@ -618,7 +626,7 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(Vec3 pos)
 	{
-		Dood* dood = new CrabBug(this, imp->crab_bug_model, pos, bug_team);
+		Dood* dood = new CrabBug(this, imp->crab_bug_model, imp->crab_bug_physics, pos, bug_team);
 		Spawn(dood);
 
 		dood->blood_material = imp->blood_blue;
@@ -637,7 +645,7 @@ namespace Test
 
 	Dood* TestGame::SpawnArtilleryBug(Vec3 pos)
 	{
-		Dood* dood = new ArtilleryBug(this, imp->artillery_bug_model, pos, bug_team);
+		Dood* dood = new ArtilleryBug(this, imp->artillery_bug_model, imp->artillery_bug_physics, pos, bug_team);
 		Spawn(dood);
 
 		dood->blood_material = imp->blood_blue;

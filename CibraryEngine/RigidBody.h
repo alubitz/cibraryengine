@@ -60,7 +60,6 @@ namespace CibraryEngine
 
 			Entity* user_entity;
 
-			RigidBody* collision_proxy;
 			CollisionCallback* collision_callback;
 
 			Mat3 ComputeInvMoi();
@@ -82,8 +81,6 @@ namespace CibraryEngine
 		protected:
 
 			void InnerDispose();
-
-			void SetCollisionProxy(RigidBody* proxy);
 
 		public:
 
@@ -144,9 +141,6 @@ namespace CibraryEngine
 			void ResetForces();
 
 			void DebugDraw(SceneRenderer* renderer);
-
-			/** If there is a collision proxy, returns it; otherwise returns this */
-			RigidBody* GetCollisionProxy();
 
 			void SetCollisionCallback(CollisionCallback* callback);
 			CollisionCallback* GetCollisionCallback();
