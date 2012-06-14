@@ -76,6 +76,10 @@ namespace CibraryEngine
 		static Quaternion FromPYR(float p, float y, float r);
 		/** Normalizes the given quaternion */
 		static Quaternion Normalize(const Quaternion& q);
+		/** Inverts a quaternion */
+		static Quaternion Invert(const Quaternion& q);
+		/** Reverses a quaternion rotation; like inverting a quaternion which is already normalized */
+		static Quaternion Reverse(const Quaternion& q);
 	};
 
 	void WriteQuaternion(const Quaternion& q, ostream& stream);

@@ -194,6 +194,7 @@ namespace CibraryEngine
 	 */
 	SkinnedCharacter::SkinnedCharacter(SkinnedModel* skin) :
 		bone_matrices(NULL),
+		mat_tex_precision(4096.0f),
 		skin(skin),
 		skeleton(new Skeleton(skeleton)),
 		active_poses()
@@ -202,6 +203,7 @@ namespace CibraryEngine
 
 	SkinnedCharacter::SkinnedCharacter(Skeleton* skeleton) :
 		bone_matrices(NULL),
+		mat_tex_precision(4096.0f),
 		skin(NULL),
 		skeleton(skeleton),
 		active_poses()
@@ -281,12 +283,12 @@ namespace CibraryEngine
 		if(bone_matrices == NULL)
 		{
 			vector<Mat4> matrices = skeleton->GetBoneMatrices();
-			bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices);
+			bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, mat_tex_precision);
 		}
 		return bone_matrices;
 	}
 
-	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices)
+	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices, float precision)
 	{
 		unsigned int matrix_count = matrices.size();
 		const unsigned int max_bones = 128;
@@ -307,11 +309,12 @@ namespace CibraryEngine
 			for(unsigned int j = 0; j < 12; ++j)
 			{
 				float val = mat[j];								// get value from the matrix
-				float expanded = val * 4096.0f + 32768.0f;		// scale to reasonable range
+				float expanded = val * precision + 32768.0f;	// scale to reasonable range
 
-				unsigned int int_val = (unsigned int)(max(0.0, min(65535.0, expanded + 0.5)));			// offset by 0.5 so it rounds nicely
+				unsigned int int_val = (unsigned int)(max(0.0f, min(65535.0f, expanded + 0.5f)));	// offset by 0.5 so it rounds nicely
+
 				for(int k = 0; k < 2; ++k)
-					*(target++) = (unsigned char)((int_val & (0xFF << (k * 8))) >> (k * 8));
+					*(target++) = (unsigned char)((int_val & (0xFF << (k * 8))) >> (k * 8));;
 			}
 		}
 

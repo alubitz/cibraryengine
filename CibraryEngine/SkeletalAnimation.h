@@ -100,6 +100,8 @@ namespace CibraryEngine
 		public:
 
 			Texture1D* bone_matrices;
+			/** Precision scaler; this time any number in the bone matrices should be < 32767 */
+			float mat_tex_precision;
 
 			/** The model for this character */
 			SkinnedModel* skin;
@@ -121,7 +123,7 @@ namespace CibraryEngine
 			Texture1D* GetBoneMatrices();
 
 			/** Static utility function to generate a 1-dimensional texture which encodes several transformation matrices, for use by my awesome vertex shader; remember to dispose of and delete the result! */
-			static Texture1D* MatricesToTexture1D(vector<Mat4>& matrices);
+			static Texture1D* MatricesToTexture1D(vector<Mat4>& matrices, float precision = 4096.0f);
 	};
 
 	/** Class representing how a Pose affects a certain Bone */

@@ -104,6 +104,9 @@ namespace Test
 		int bone_count = 1;
 		use_shader->SetUniform<int>("bone_count", &bone_count);
 
+		float precision = 4096.0f;
+		use_shader->SetUniform<float>("precision_scaler", &precision);
+
 		ShaderProgram::SetActiveProgram(use_shader);
 
 		if(depth)
@@ -148,6 +151,9 @@ namespace Test
 		int bone_count = data->bone_count;
 		use_shader->SetUniform<int>("bone_count", &bone_count);
 
+		float precision = data->precision;
+		use_shader->SetUniform<float>("precision_scaler", &precision);
+
 		use_shader->UpdateUniforms();
 
 		GLDEBUG();
@@ -173,16 +179,18 @@ namespace Test
 		xform(xform),
 		bs(bs),
 		bone_matrices(DSNMaterial::default_bone_matrices),
-		bone_count(1)
+		bone_count(1),
+		precision(4096.0f)
 	{
 	}
 
-	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count) :
+	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count, float precision) :
 		model(model),
 		xform(xform),
 		bs(bs),
 		bone_matrices(bone_matrices),
-		bone_count(bone_count)
+		bone_count(bone_count),
+		precision(precision)
 	{
 	}
 

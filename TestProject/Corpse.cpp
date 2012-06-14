@@ -137,9 +137,7 @@ namespace Test
 			{
 				origin = rigid_bodies[0]->GetPosition();
 
-				// TODO: Fix this:
-				// Sometimes a bone will appear to "slip" from the joint, but in the physics debug view it shows as being in the correct place
-
+				// TODO: Get this working properly!
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
 					RigidBody* body = rigid_bodies[i];
@@ -149,10 +147,10 @@ namespace Test
 					Quaternion rigid_body_ori = body->GetOrientation();
 					Vec3 rigid_body_pos = body->GetPosition();
 
-					bone->ori = rigid_body_ori;
+					bone->ori = Quaternion::Reverse(rigid_body_ori);
 
 					// model origin = rigid body pos - model rot * rest pos
-					Vec3 offset = Mat4::FromQuaternion(rigid_body_ori).TransformVec3_1(bone_offsets[bone_index]);
+					Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(bone_offsets[bone_index]);
 					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 				}
 
@@ -192,14 +190,17 @@ namespace Test
 
 				Mat4 mat = mats[i];
 				float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
-				bone->ori = Quaternion::FromRotationMatrix(Mat3(ori_values));
+				bone->ori = Quaternion::Reverse(Quaternion::FromRotationMatrix(Mat3(ori_values)));
 
 				Vec3 bone_pos = mat.TransformVec3_1(bone_offsets[i]);
 
 				ModelPhysics::BonePhysics* phys = NULL;
 				for(unsigned int j = 0; j < mphys->bones.size(); ++j)
 					if(Bone::string_table[mphys->bones[j].bone_name] == bone->name)
+					{
 						phys = &mphys->bones[j];
+						break;
+					}
 
 				bone_physes[i] = phys;
 
@@ -219,6 +220,8 @@ namespace Test
 						rigid_bodies.push_back(rigid_body);
 
 						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
+						rigid_body->SetUserEntity(shootable);
+
 						shootables.push_back(shootable);
 
 						bone_indices.push_back(i);
@@ -251,6 +254,7 @@ namespace Test
 									RigidBody* my_body = rigid_bodies[i];
 									RigidBody* parent_body = rigid_bodies[j];
 
+									// TODO: create constraints here
 									/*
 									ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
 									c->SetLimit(phys->span);
@@ -287,6 +291,7 @@ namespace Test
 				delete shootables[i];
 			shootables.clear();
 
+			// TODO: clear constraints here
 			/*
 			// clear constraints
 			for(unsigned int i = 0; i < constraints.size(); ++i)

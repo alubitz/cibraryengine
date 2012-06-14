@@ -52,7 +52,6 @@ namespace Test
 		}
 	}
 
-#if 1
 	ModelPhysics* ModelPhysicsFromBoneEntries(vector<BoneEntry>& bone_entries)
 	{
 		unsigned int num_bones = bone_entries.size();
@@ -104,7 +103,10 @@ namespace Test
 
 				joint.pos = iter->pos;
 
-				// TODO: set the remaining fields
+				// some rather arbitrary default values here
+				joint.axes = Mat3::Identity();
+				joint.max_extents = Vec3(1.0f, 1.0f, 1.0f);
+				joint.angular_damp = Vec3(1.0, 1.0f, 1.0f);
 
 				result.joints.push_back(joint);
 			}
@@ -112,6 +114,4 @@ namespace Test
 
 		return new ModelPhysics(result);
 	}
-#endif
-
 }

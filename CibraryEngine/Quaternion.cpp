@@ -137,6 +137,14 @@ namespace CibraryEngine
 
 	Quaternion Quaternion::Normalize(const Quaternion& q) { return q / q.Norm(); }
 
+	Quaternion Quaternion::Invert(const Quaternion& q)
+	{
+		float inv = 1.0f / (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+		return Quaternion(q.w * inv, -q.x * inv, -q.y * inv, -q.z * inv);
+	}
+
+	Quaternion Quaternion::Reverse(const Quaternion& q) { return Quaternion(q.w, -q.x, -q.y, -q.z); }
+
 
 
 

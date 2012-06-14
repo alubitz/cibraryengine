@@ -9,8 +9,11 @@ namespace Test
 	 * ArtilleryBug methods
 	 */
 	ArtilleryBug::ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
-		Dood(game_state, model, mphys, pos, team)
+		Dood(game_state, model, mphys, pos, team),
+		walk_pose()
 	{
+		character->active_poses.push_back(&walk_pose);
+		character->mat_tex_precision = 2048.0f;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
@@ -40,5 +43,11 @@ namespace Test
 		bone_entries.push_back(BoneEntry(	"rlegc1",		"carapace",		Vec3(	-3.39f,		7.23f,	-1.09f	),	1.2f,	Vec3(	-5.12f,		5.71f,	-3.53f	),	0.5f,						100.0f	));
 		bone_entries.push_back(BoneEntry(	"rlegc2",		"rlegc1",		Vec3(	-5.12f,		5.71f,	-3.53f	),	0.5f,	Vec3(	-5.88f,		10.23f,	-7.98f	),	0.5f,						100.0f	));
 		bone_entries.push_back(BoneEntry(	"rlegc3",		"rlegc2",		Vec3(	-5.88f,		10.23f,	-7.98f	),	0.5f,	Vec3(	-7.05f,		0.2f,	-15.31f	),	0.2f,						100.0f	));
+	}
+
+	void ArtilleryBug::PreUpdatePoses(TimingInfo time)
+	{
+		walk_pose.pos = pos;
+		walk_pose.yaw = yaw;
 	}
 }

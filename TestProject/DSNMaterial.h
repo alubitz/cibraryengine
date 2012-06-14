@@ -15,9 +15,10 @@ namespace Test
 
 		Texture1D* bone_matrices;
 		int bone_count;
+		float precision;
 
 		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs);
-		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count);
+		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count, float precision = 4096.0f);
 
 		void Draw();
 	};

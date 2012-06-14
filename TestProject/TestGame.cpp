@@ -481,11 +481,13 @@ namespace Test
 			UberModel* flea_model = AutoSkinUberModel(content, "flea", "flea", bone_entries);
 
 			SetUberModelSkeleton(flea_model, bone_entries);
-//			SetUberModelBonePhysics(flea_model, bone_entries);
+			imp->artillery_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
 
 			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
+			ModelPhysicsLoader::SaveZZP(imp->artillery_bug_physics, "Files/Physics/flea.zzp");
 
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
+			mphys_cache->GetMetadata(mphys_cache->GetHandle("flea").id).fail = false;
 		}
 
 		if(ubermodel_cache->Load("pill") == NULL)
@@ -1093,7 +1095,7 @@ namespace Test
 
 			if(character != NULL)
 			{
-				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, character->GetBoneMatrices(), character->skeleton->bones.size());
+				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, character->GetBoneMatrices(), character->skeleton->bones.size(), character->mat_tex_precision);
 				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
 			}
 			else
