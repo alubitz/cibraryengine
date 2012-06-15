@@ -22,6 +22,7 @@ namespace CibraryEngine
 	struct Mat4;
 
 	class RigidBody;
+	class PhysicsConstraint;
 	class CollisionCallback;
 	struct ConstraintGraph;
 
@@ -39,6 +40,8 @@ namespace CibraryEngine
 			unordered_set<RigidBody*> dynamic_objects[ST_ShapeTypeMax];
 
 			unordered_set<PhysicsRegion*> all_regions;
+
+			unordered_set<PhysicsConstraint*> all_constraints;
 
 			PhysicsRegionManager* region_man;
 
@@ -76,6 +79,9 @@ namespace CibraryEngine
 			/** Removes a rigid body from the simulation */
 			void RemoveRigidBody(RigidBody* r);
 
+			void AddConstraint(PhysicsConstraint* c);
+			void RemoveConstraint(PhysicsConstraint* c);
+
 			/** Steps the simulation */
 			void Update(TimingInfo time);
 
@@ -93,7 +99,7 @@ namespace CibraryEngine
 	class RigidBody;
 
 	/** Things for the constraint solver to solve */
-	class PhysicsConstraint
+	class PhysicsConstraint : public Disposable
 	{
 		public:
 			virtual void DoConstraintAction(set<RigidBody*>& wakeup) = 0;

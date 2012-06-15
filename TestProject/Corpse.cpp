@@ -87,6 +87,7 @@ namespace Test
 		vector<CorpseBoneShootable*> shootables;
 		vector<Vec3> bone_offsets;
 		vector<unsigned int> bone_indices;
+		vector<PhysicsConstraint*> constraints;
 
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
@@ -104,7 +105,8 @@ namespace Test
 			rigid_bodies(),
 			shootables(),
 			bone_offsets(),
-			bone_indices()
+			bone_indices(),
+			constraints()
 		{
 			character->active_poses.clear();
 			dood->character = NULL;
@@ -137,7 +139,6 @@ namespace Test
 			{
 				origin = rigid_bodies[0]->GetPosition();
 
-				// TODO: Get this working properly!
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
 					RigidBody* body = rigid_bodies[i];
@@ -183,6 +184,9 @@ namespace Test
 
 			ModelPhysics::BonePhysics** bone_physes = new ModelPhysics::BonePhysics* [count];
 
+			// given string id, get index of rigid body
+			map<unsigned int, unsigned int> name_indices;
+
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; ++i)
 			{
@@ -222,53 +226,31 @@ namespace Test
 						CorpseBoneShootable* shootable = new CorpseBoneShootable(corpse->game_state, corpse, rigid_body, blood_material);
 						rigid_body->SetUserEntity(shootable);
 
-						shootables.push_back(shootable);
+						name_indices[bone->name] = bone_indices.size();
 
+						shootables.push_back(shootable);
 						bone_indices.push_back(i);
 					}
 				}
 			}
 
 			// create constraints between bones
-			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+			for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
 			{
-				unsigned int bone_index = bone_indices[i];
-				ModelPhysics::BonePhysics* phys = bone_physes[bone_index];
-
-				if(phys != NULL)
+				ModelPhysics::JointPhysics& phys = *iter;
+				
+				if(phys.bone_b != 0)						// don't deal with special attachment points
 				{
-					Bone* bone = character->skeleton->bones[bone_index];
-					Bone* parent = bone->parent;
+					const string& bone_a_name = mphys->bones[phys.bone_a - 1].bone_name;
+					const string& bone_b_name = mphys->bones[phys.bone_b - 1].bone_name;
 
-					if(parent != NULL)
-					{
-						// find index of parent (bone's index is the same as rigid body info's index)
-						for(unsigned int j = 0; j < rigid_bodies.size(); ++j)
-						{
-							unsigned int j_index = bone_indices[j];
+					RigidBody* bone_a = rigid_bodies[name_indices[Bone::string_table[bone_a_name]]];
+					RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
-							if(character->skeleton->bones[j_index] == parent)
-							{
-								if(bone_physes[j_index] != NULL)
-								{
-									RigidBody* my_body = rigid_bodies[i];
-									RigidBody* parent_body = rigid_bodies[j];
+					JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.max_extents, phys.angular_damp);
+					constraints.push_back(c);
 
-									// TODO: create constraints here
-									/*
-									ConeTwistConstraint* c = new ConeTwistConstraint(my_body, parent_body, Quaternion::Identity(), Vec3(), phys->ori, phys->pos);
-									c->SetLimit(phys->span);
-									c->SetDamping(0.1f);							// default is 0.01
-
-									constraints.push_back(c);
-									physics->AddConstraint(c, true);				// true = prevent them from colliding normally
-									*/
-
-									break;
-								}
-							}
-						}
-					}
+					physics->AddConstraint(c);
 				}
 			}
 
@@ -291,19 +273,16 @@ namespace Test
 				delete shootables[i];
 			shootables.clear();
 
-			// TODO: clear constraints here
-			/*
 			// clear constraints
 			for(unsigned int i = 0; i < constraints.size(); ++i)
 			{
-				ConeTwistConstraint* c = constraints[i];
+				PhysicsConstraint* c = constraints[i];
 				physics->RemoveConstraint(c);
 
 				c->Dispose();
 				delete c;
 			}
 			constraints.clear();
-			*/
 
 			// clear rigid bodies
 			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)

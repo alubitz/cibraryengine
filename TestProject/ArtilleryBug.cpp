@@ -13,7 +13,7 @@ namespace Test
 		walk_pose()
 	{
 		character->active_poses.push_back(&walk_pose);
-		character->mat_tex_precision = 2048.0f;
+		character->mat_tex_precision = 1024.0f;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)

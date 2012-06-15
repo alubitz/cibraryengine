@@ -10,6 +10,7 @@
 #include "Physics.h"
 #include "RigidBody.h"
 #include "ModelPhysics.h"
+#include "JointConstraint.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"

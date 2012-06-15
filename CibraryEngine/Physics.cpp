@@ -628,6 +628,9 @@ namespace CibraryEngine
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(); iter != dynamic_objects[ST_MultiSphere].end(); ++iter)
 			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);
 
+		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(); iter != all_constraints.end(); ++iter)
+			constraint_graph.AddConstraint(*iter);
+
 		SolveConstraintGraph(constraint_graph);
 
 		// update positions
@@ -666,6 +669,10 @@ namespace CibraryEngine
 			(*iter)->RemoveRigidBody(r);
 		r->regions.clear();
 	}
+
+	void PhysicsWorld::AddConstraint(PhysicsConstraint* c) { all_constraints.insert(c); }
+
+	void PhysicsWorld::RemoveConstraint(PhysicsConstraint* c) { all_constraints.erase(c); }
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{
