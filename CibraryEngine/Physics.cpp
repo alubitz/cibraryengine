@@ -629,7 +629,10 @@ namespace CibraryEngine
 			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);
 
 		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(); iter != all_constraints.end(); ++iter)
+		{
+			(*iter)->DoUpdateAction(timestep);
 			constraint_graph.AddConstraint(*iter);
+		}
 
 		SolveConstraintGraph(constraint_graph);
 

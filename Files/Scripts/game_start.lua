@@ -60,8 +60,10 @@ function crab_bug_death(dood)
 	dood_properties[dood.id].dood = nil
 	dood_properties[dood.id] = nil
 
-	steering_behaviors[dood.id].owner = nil
-	steering_behaviors[dood.id] = nil
+	if steering_behaviors[dood.id] ~= nil then
+		steering_behaviors[dood.id].owner = nil
+		steering_behaviors[dood.id] = nil
+	end
 end
 
 function levelStartMessage()
@@ -94,8 +96,8 @@ end
 
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
-		local bugs_this_level = 1 --1 + 2 * level + math.floor(math.random() * 3.0)
-		local num_artillery = 6 --6
+		local bugs_this_level = 20 --1 + 2 * level + math.floor(math.random() * 3.0)
+		local num_artillery = 0 --6
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)
 		end

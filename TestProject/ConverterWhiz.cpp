@@ -75,10 +75,7 @@ namespace Test
 				Sphere* spheres = new Sphere[n_spheres];
 
 				for(unsigned int i = 0; i < n_spheres; ++i)
-				{
-					const Sphere& sphere = iter->spheres[i];
-					spheres[i] = Sphere(sphere.center - iter->pos, sphere.radius);			// collision shape coordinates are relative to bone's point of attachment
-				}
+					spheres[i] = iter->spheres[i];
 
 				bone.collision_shape = new MultiSphereShape(spheres, n_spheres);
 

@@ -178,7 +178,7 @@ namespace Test
 			{
 				Bone* bone = character->skeleton->bones[i];
 
-				bone_offsets.push_back(bone->rest_pos);
+				bone_offsets.push_back(Vec3());		//bone->rest_pos);
 				mats.push_back(whole_xform * bone->GetTransformationMatrix());
 			}
 
@@ -310,7 +310,7 @@ namespace Test
 			Vec3 pos = origin;
 			Sphere bs = Sphere(pos, 2.5);
 
-			if(renderer->camera->CheckSphereVisibility(bs))
+			//if(renderer->camera->CheckSphereVisibility(bs))
 				((TestGame*)corpse->game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), character, &materials);
 		}
 	};

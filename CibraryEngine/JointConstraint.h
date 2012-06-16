@@ -13,9 +13,14 @@ namespace CibraryEngine
 
 	class JointConstraint : public PhysicsConstraint
 	{
+		private:
 
 			/** Matrix to transform a point into the coordinate system of the joint */
 			Mat4 inv_a_xform;
+			
+			// temporary variables, reset every tick
+			float dist;
+			Vec3 dir, apply_pos, i_poi, j_poi;
 
 		public:
 
@@ -31,5 +36,7 @@ namespace CibraryEngine
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& max_extents, const Vec3& angular_damp);
 
 			void DoConstraintAction(set<RigidBody*>& wakeup);
+
+			void DoUpdateAction(float timestep);
 	};
 }

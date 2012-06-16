@@ -802,15 +802,11 @@ namespace CibraryEngine
 
 		GridNode LookUpGridNode(const Vec3& point) const
 		{
-			Vec3 xyz = point - aabb.min;
+			Vec3 xyz = (point - aabb.min) * xyz_to_grid_scalers;
 
-			xyz.x *= xyz_to_grid_scalers.x;
-			xyz.y *= xyz_to_grid_scalers.y;
-			xyz.z *= xyz_to_grid_scalers.z;
-
-			int x = max(0, min(int(grid_sx) - 1, (int)floor(xyz.x)));
-			int y = max(0, min(int(grid_sy) - 1, (int)floor(xyz.y)));
-			int z = max(0, min(int(grid_sz) - 1, (int)floor(xyz.z)));
+			int x = max(0, min(int(grid_sx) - 1, int(xyz.x)));
+			int y = max(0, min(int(grid_sy) - 1, int(xyz.y)));
+			int z = max(0, min(int(grid_sz) - 1, int(xyz.z)));
 
 			return grid[x * grid_x_span + y * grid_sz + z];
 		}

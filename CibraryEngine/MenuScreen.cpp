@@ -38,6 +38,9 @@ namespace CibraryEngine
 
 		void Draw(int w, int h)
 		{
+			if(w <= 0 || h <= 0)
+				return;
+
 			GLDEBUG();
 
 			// By overriding MenuScreen::Draw you can prevent this content from being loaded

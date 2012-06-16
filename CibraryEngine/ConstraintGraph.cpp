@@ -49,7 +49,7 @@ namespace CibraryEngine
 	/*
 	 * ConstraintGraph methods
 	 */
-	ConstraintGraph::ConstraintGraph() : nodes(), constraints(), contact_points() { }
+	ConstraintGraph::ConstraintGraph() : nodes(), constraints(), contact_points() { constraints.reserve(1000); contact_points.reserve(1000); }
 	ConstraintGraph::~ConstraintGraph()
 	{
 		for(unordered_map<RigidBody*, Node*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)

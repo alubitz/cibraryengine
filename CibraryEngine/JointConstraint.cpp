@@ -3,6 +3,8 @@
 
 #include "RigidBody.h"
 
+#include "DebugLog.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -22,46 +24,16 @@ namespace CibraryEngine
 
 	void JointConstraint::DoConstraintAction(set<RigidBody*>& wakeup_list)
 	{
-		Mat4 relative_xform = obj_a->GetInvTransform() * obj_b->GetTransformationMatrix();
-
-		relative_xform *= inv_a_xform;
-
-		Vec3 translation, scale;
-		Quaternion ori;
-		relative_xform.Decompose(translation, ori, scale);
-
-		/*
-		Mat3 ori_rm = ori.ToMat3();
-		Mat3 inv_ori = ori_rm.Transpose();
-
-		Vec3 vel = inv_ori * (obj_b->GetLinearVelocity() - obj_a->GetLinearVelocity());
-		Vec3 avel = inv_ori * (obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity());
-
-		Vec3 ori_vector = ori.ToPYR();
-
-		float mag = (ori_vector / max_extents).ComputeMagnitudeSquared();
-		*/
-
-		// TODO: make this awesomer
-
-		float dist_sq = translation.ComputeMagnitudeSquared();
-		if(dist_sq > 0.00001f)
+		if(dist > 0)
 		{
-			translation /= sqrtf(dist_sq);
-
-			Vec3 apply_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
-
 			float A, B;
-			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, translation, A, B);
+			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dir, A, B);
 
 			float bounciness = 0.2f;
 			float impulse_mag = -(1.0f + bounciness) * B / A;
 			if(fabs(impulse_mag) > 0.01f)
 			{
-				Vec3 impulse = translation * impulse_mag;
-
-				Vec3 i_poi = obj_a->GetInvTransform().TransformVec3_1(apply_pos);
-				Vec3 j_poi = obj_b->GetInvTransform().TransformVec3_1(apply_pos);
+				Vec3 impulse = dir * impulse_mag;
 
 				obj_a->ApplyImpulse(impulse, i_poi);
 				obj_b->ApplyImpulse(-impulse, j_poi);
@@ -70,5 +42,32 @@ namespace CibraryEngine
 				wakeup_list.insert(obj_b);
 			}
 		}
+	}
+
+	void JointConstraint::DoUpdateAction(float timestep)
+	{
+		Vec3 offset = obj_b->GetTransformationMatrix().TransformVec3_1(pos) - obj_a->GetTransformationMatrix().TransformVec3_1(pos);
+
+		float dist_sq = offset.ComputeMagnitudeSquared();
+		if(dist_sq > 0.00001f)
+		{
+			dist = sqrtf(dist_sq);
+			dir = offset / dist;
+
+			apply_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
+
+			i_poi = obj_a->GetInvTransform().TransformVec3_1(apply_pos);
+			j_poi = obj_b->GetInvTransform().TransformVec3_1(apply_pos);
+
+			float A, B;
+			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dir, A, B);
+
+			Vec3 impulse = offset * (10.0f * timestep / A);
+
+			obj_a->ApplyImpulse(impulse, i_poi);
+			obj_b->ApplyImpulse(-impulse, j_poi);
+		}
+		else
+			dist = 0.0f;
 	}
 }

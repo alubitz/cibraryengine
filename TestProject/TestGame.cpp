@@ -359,8 +359,6 @@ namespace Test
 
 			SkinnedModel* terrain_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
 			UberModel* terrain_model = UberModelLoader::CopySkinnedModel(terrain_skinny);
-//			terrain_model->bone_physics.push_back(UberModel::BonePhysics());
-//			terrain_model->bone_physics[0].shape = ShapeFromSkinnedModel(terrain_skinny);
 
 			UberModelLoader::SaveZZZ(terrain_model, "Files/Models/nbridge.zzz");
 
@@ -467,26 +465,55 @@ namespace Test
 		load_status.task = "crab bug";
 
 		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
-		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
+		if(imp->crab_bug_model == NULL)
+		{
+			vector<BoneEntry> bone_entries;
+			CrabBug::GetBoneEntries(bone_entries);
 
+			UberModel* crab_bug_model = AutoSkinUberModel(content, "crab_bug", "crab_bug", bone_entries);
+
+			SetUberModelSkeleton(crab_bug_model, bone_entries);
+			UberModelLoader::SaveZZZ(crab_bug_model, "Files/Models/crab_bug.zzz");
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("crab_bug").id).fail = false;
+		}
+		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
+		if(imp->crab_bug_physics == NULL)
+		{
+			vector<BoneEntry> bone_entries;
+			CrabBug::GetBoneEntries(bone_entries);
+
+			imp->crab_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
+			ModelPhysicsLoader::SaveZZP(imp->crab_bug_physics, "Files/Physics/crab_bug.zzp");
+			mphys_cache->GetMetadata(mphys_cache->GetHandle("crab_bug").id).fail = false;
+		}
+
+		if(load_status.HasAborted())
+		{
+			load_status.Stop();
+			return;
+		}
+		load_status.task = "artillery bug";
 		imp->artillery_bug_model = ubermodel_cache->Load("flea");
-		imp->artillery_bug_physics = mphys_cache->Load("flea");
 		if(imp->artillery_bug_model == NULL)
 		{
-			load_status.task = "artillery bug";
-
 			vector<BoneEntry> bone_entries;
 			ArtilleryBug::GetBoneEntries(bone_entries);
 
 			UberModel* flea_model = AutoSkinUberModel(content, "flea", "flea", bone_entries);
 
 			SetUberModelSkeleton(flea_model, bone_entries);
-			imp->artillery_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
-
 			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
-			ModelPhysicsLoader::SaveZZP(imp->artillery_bug_physics, "Files/Physics/flea.zzp");
-
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
+		}
+
+		imp->artillery_bug_physics = mphys_cache->Load("flea");
+		if(imp->artillery_bug_physics == NULL)
+		{
+			vector<BoneEntry> bone_entries;
+			ArtilleryBug::GetBoneEntries(bone_entries);
+
+			imp->artillery_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
+			ModelPhysicsLoader::SaveZZP(imp->artillery_bug_physics, "Files/Physics/flea.zzp");
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("flea").id).fail = false;
 		}
 

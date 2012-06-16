@@ -76,7 +76,7 @@ namespace CibraryEngine
 	Vec3 Vec3::operator -(const Vec3& b) const		{ Vec3 result(*this); result -= b; return result; }
 	void Vec3::operator *=(float b)					{ x *= b; y *= b; z *= b; }
 	Vec3 Vec3::operator *(float b) const			{ Vec3 result(*this); result *= b; return result; }
-	void Vec3::operator *=(const Vec3& b)			{ x += b.x; y += b.y; z += b.z; }
+	void Vec3::operator *=(const Vec3& b)			{ x *= b.x; y *= b.y; z *= b.z; }
 	Vec3 Vec3::operator *(const Vec3& b) const		{ Vec3 result(*this); result *= b; return result; }
 	void Vec3::operator /=(float b)					{ *this *= 1.0f / b; }
 	Vec3 Vec3::operator /(float b) const			{ Vec3 result(*this); result /= b; return result; }
