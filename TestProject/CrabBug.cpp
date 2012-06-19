@@ -135,6 +135,11 @@ namespace Test
 
 	void CrabBug::Update(TimingInfo time)
 	{
+#if 0
+		if(time.total > 5.0f)
+			Die(Damage());
+#endif
+
 		pos = ik_pose->pos;
 		yaw = ik_pose->yaw;
 		pitch = ik_pose->pitch;

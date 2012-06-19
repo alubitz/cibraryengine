@@ -16,6 +16,7 @@ namespace CibraryEngine
 	 */
 	static vector<ContactPoint*> cp_recycle_bin;
 	static vector<ConstraintGraph::Node*> node_recycle_bin;
+	static vector<vector<ConstraintGraph::Edge>*> edges_recycle_bin;
 
 	static ContactPoint* NewCP(const ContactPoint& cp)
 	{
@@ -42,6 +43,30 @@ namespace CibraryEngine
 		}
 	}
 	static void DeleteNode(ConstraintGraph::Node* node) { node_recycle_bin.push_back(node); }
+
+	static vector<ConstraintGraph::Edge>* NewEdgesVector()
+	{
+		if(edges_recycle_bin.empty())
+			return new vector<ConstraintGraph::Edge>();
+		else
+		{
+			vector<ConstraintGraph::Edge>* result = *edges_recycle_bin.rbegin();
+			edges_recycle_bin.pop_back();
+
+			result->clear();
+			return result;
+		}
+	}
+	static void DeleteEdgesVector(vector<ConstraintGraph::Edge>* edges) { edges_recycle_bin.push_back(edges); }
+
+
+
+	/*
+	 * ConstraintGraph::Node methods
+	 */
+	ConstraintGraph::Node::Node(RigidBody* body) : body(body) { edges = NewEdgesVector(); }
+
+	ConstraintGraph::Node::~Node() { DeleteEdgesVector(edges); edges = NULL; }
 
 
 
@@ -99,11 +124,11 @@ namespace CibraryEngine
 					nodes.insert(pair<RigidBody*, Node*>(body_b, node_b));
 				}
 
-				node_a->edges.push_back(Edge(constraint, node_b));
-				node_b->edges.push_back(Edge(constraint, node_a));
+				node_a->edges->push_back(Edge(constraint, node_b));
+				node_b->edges->push_back(Edge(constraint, node_a));
 			}
 			else
-				node_a->edges.push_back(Edge(constraint, NULL));
+				node_a->edges->push_back(Edge(constraint, NULL));
 		}
 		else
 		{
@@ -120,5 +145,9 @@ namespace CibraryEngine
 		for(vector<Node*>::iterator iter = node_recycle_bin.begin(); iter != node_recycle_bin.end(); ++iter)
 			delete *iter;
 		node_recycle_bin.clear();
+
+		for(vector<vector<Edge>*>::iterator iter = edges_recycle_bin.begin(); iter != edges_recycle_bin.end(); ++iter)
+			delete *iter;
+		edges_recycle_bin.clear();
 	}
 }

@@ -24,6 +24,8 @@
 
 #include "DebugDrawMaterial.h"
 
+#include "ProfilingTimer.h"
+
 #define MAX_SEQUENTIAL_SOLVER_ITERATIONS 20
 
 namespace CibraryEngine
@@ -472,7 +474,7 @@ namespace CibraryEngine
 
 					fringe.pop_back();
 
-					for(vector<ConstraintGraph::Edge>::iterator jter = node->edges.begin(); jter != node->edges.end(); ++jter)
+					for(vector<ConstraintGraph::Edge>::iterator jter = node->edges->begin(); jter != node->edges->end(); ++jter)
 					{
 						subgraph->constraints.push_back(jter->constraint);
 
@@ -507,7 +509,7 @@ namespace CibraryEngine
 					{
 						ConstraintGraph::Node* node = subgraph.nodes[*kter];
 
-						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges.begin(); kter != node->edges.end(); ++kter)
+						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges->begin(); kter != node->edges->end(); ++kter)
 							if(kter->constraint != *jter)
 								nu_active.insert(kter->constraint);
 					}
@@ -539,6 +541,8 @@ namespace CibraryEngine
 		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(aabb, relevant_objects);
 
+		body->RemoveConstrainedBodies(relevant_objects);
+
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_Sphere].begin(); iter != relevant_objects[ST_Sphere].end(); ++iter)
 			if(*iter < body)
@@ -566,6 +570,8 @@ namespace CibraryEngine
 
 		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
+
+		body->RemoveConstrainedBodies(relevant_objects);
 
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
@@ -671,11 +677,26 @@ namespace CibraryEngine
 		for(set<PhysicsRegion*>::const_iterator iter = regions.begin(); iter != regions.end(); ++iter)
 			(*iter)->RemoveRigidBody(r);
 		r->regions.clear();
+
+		// TODO: break rigid body's constraints
 	}
 
-	void PhysicsWorld::AddConstraint(PhysicsConstraint* c) { all_constraints.insert(c); }
+	void PhysicsWorld::AddConstraint(PhysicsConstraint* c)
+	{
+		c->obj_a->constraints.insert(c);
+		c->obj_b->constraints.insert(c);
+		all_constraints.insert(c);
+	}
 
-	void PhysicsWorld::RemoveConstraint(PhysicsConstraint* c) { all_constraints.erase(c); }
+	void PhysicsWorld::RemoveConstraint(PhysicsConstraint* c)
+	{
+		if(c->obj_a != NULL)
+			c->obj_a->constraints.erase(c);
+		if(c->obj_b != NULL)
+			c->obj_b->constraints.erase(c);
+
+		all_constraints.erase(c);
+	}
 
 	void PhysicsWorld::Update(TimingInfo time)
 	{

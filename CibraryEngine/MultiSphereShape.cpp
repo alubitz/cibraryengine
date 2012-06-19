@@ -231,6 +231,12 @@ namespace CibraryEngine
 
 				return result;
 			}
+
+			bool CollideSphere(const Sphere& sphere)
+			{
+				// TODO: implement this
+				return false;
+			}
 		};
 
 		vector<SpherePart> spheres;
@@ -800,15 +806,18 @@ namespace CibraryEngine
 					}
 		}
 
-		GridNode LookUpGridNode(const Vec3& point) const
+		inline void LookUpGridNode(const Vec3& point, GridNode& node) const
 		{
-			Vec3 xyz = (point - aabb.min) * xyz_to_grid_scalers;
+			int x = max(0, min(int(grid_sx) - 1, int((point.x - aabb.min.x) * xyz_to_grid_scalers.x)));
+			int y = max(0, min(int(grid_sy) - 1, int((point.y - aabb.min.y) * xyz_to_grid_scalers.y)));
+			int z = max(0, min(int(grid_sz) - 1, int((point.z - aabb.min.z) * xyz_to_grid_scalers.z)));
 
-			int x = max(0, min(int(grid_sx) - 1, int(xyz.x)));
-			int y = max(0, min(int(grid_sy) - 1, int(xyz.y)));
-			int z = max(0, min(int(grid_sz) - 1, int(xyz.z)));
+			GridNode& temp = grid[x * grid_x_span + y * grid_sz + z];
 
-			return grid[x * grid_x_span + y * grid_sz + z];
+			if(temp.solid)
+				node = temp;
+			else
+				node.solid = false;
 		}
 
 		GridNode ComputeGridNode(const Vec3& point) const
@@ -884,7 +893,7 @@ namespace CibraryEngine
 			return result;
 		}
 
-		bool ContainsPoint(const Vec3& point) const { return LookUpGridNode(point).solid; }
+		bool ContainsPoint(const Vec3& point) const { GridNode temp; LookUpGridNode(point, temp); return temp.solid; }
 
 		bool CollisionCheck(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
 		{
@@ -987,7 +996,7 @@ namespace CibraryEngine
 
 		bool CollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			AABB other_aabb = other->imp->aabb.GetTransformedAABB(xform);
+			AABB other_aabb = other->imp->GetTransformedAABB(xform);
 
 			AABB overlap;
 			if(AABB::Intersect(aabb, other_aabb, overlap))
@@ -1005,12 +1014,14 @@ namespace CibraryEngine
 					for(y = 0, pos.y = start.y; y < steps; ++y, pos.y += increment.y)
 						for(z = 0, pos.z = start.z; z < steps; ++z, pos.z += increment.z)
 						{
-							GridNode a = LookUpGridNode(pos);
+							GridNode a;
+							LookUpGridNode(pos, a);
 							if(a.solid)
 							{
 								Vec3 inv_xformed = inv_xform.TransformVec3_1(pos);
 
-								GridNode b = other->imp->LookUpGridNode(inv_xformed);
+								GridNode b;
+								other->imp->LookUpGridNode(inv_xformed, b);
 								if(b.solid)
 								{
 									pos_accum += pos;
@@ -1100,7 +1111,7 @@ namespace CibraryEngine
 					if(u >= 0 && v >= 0 && u + v <= 1)
 					{
 						Vec3 my_pos = inv_xform.TransformVec3_1(pos);
-						if(aabb.ContainsPoint(my_pos) && LookUpGridNode(my_pos).solid)
+						if(aabb.ContainsPoint(my_pos) && ContainsPoint(my_pos))
 						{
 							++weight;
 							center += pos;
@@ -1158,7 +1169,301 @@ namespace CibraryEngine
 
 			return stream.fail() ? 1 : 0;
 		}
+
+		static bool DoPlaneSeparationCheck(const Plane& plane, const vector<SpherePart>& my_spheres, const vector<SpherePart>& other_spheres, const Mat4& xform);
+
+		static bool NuTubeSphereCheck(const Sphere& s1, const Sphere& s2, const Sphere& s3, float tan_12);
+		static bool NuTubeTubeCheck(const Sphere& s1, const Sphere& s2, const Sphere& s3, const Sphere& s4, float tan_12, float tan_34);
+
+		bool NuCollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		{
+			AABB other_aabb = other->imp->GetTransformedAABB(xform);
+
+			AABB overlap;
+			if(AABB::Intersect(aabb, other_aabb, overlap))
+			{
+				MultiSphereShape::Imp* other_imp = other->imp;
+
+				// sphere-sphere
+				for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				{
+					const Sphere& sphere = iter->sphere;
+					for(vector<SpherePart>::iterator jter = other_imp->spheres.begin(); jter != other_imp->spheres.end(); ++jter)
+					{
+						if(Sphere::IntersectTest(sphere, Sphere(xform.TransformVec3_1(jter->sphere.center), jter->sphere.radius)))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+
+				// sphere-tube
+				for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+				{
+					float r1 = iter->r1 / iter->sin_theta;
+					float r2 = iter->r2 / iter->sin_theta;
+					float tan_12 = iter->sin_theta / iter->cos_theta;
+
+					Vec3 p1 = iter->p1 - iter->u * (r1 * iter->cos_theta);
+					Vec3 p2 = iter->p2 - iter->u * (r2 * iter->cos_theta);
+
+					Sphere s1(p1, r1);
+					Sphere s2(p2, r2);
+
+					for(vector<SpherePart>::iterator jter = other_imp->spheres.begin(); jter != other_imp->spheres.end(); ++jter)
+					{
+						if(NuTubeSphereCheck(s1, s2, Sphere(xform.TransformVec3_1(jter->sphere.center), jter->sphere.radius), tan_12))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+
+				for(vector<TubePart>::iterator iter = other_imp->tubes.begin(); iter != other_imp->tubes.end(); ++iter)
+				{
+					float r1 = iter->r1 / iter->sin_theta;
+					float r2 = iter->r2 / iter->sin_theta;
+					float tan_12 = iter->sin_theta / iter->cos_theta;
+
+					Vec3 p1 = iter->p1 - iter->u * (r1 * iter->cos_theta);
+					Vec3 p2 = iter->p2 - iter->u * (r2 * iter->cos_theta);
+
+					Sphere s1(p1, r1);
+					Sphere s2(p2, r2);
+
+					for(vector<SpherePart>::iterator jter = spheres.begin(); jter != spheres.end(); ++jter)
+					{
+						if(NuTubeSphereCheck(s1, s2, Sphere(inv_xform.TransformVec3_1(jter->sphere.center), jter->sphere.radius), tan_12))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+
+				// sphere-plane
+				for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				{
+					Sphere sphere = Sphere(inv_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius);
+					for(vector<PlanePart>::iterator jter = other_imp->planes.begin(); jter != other_imp->planes.end(); ++jter)
+					{
+						if(jter->CollideSphere(sphere))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+
+				for(vector<SpherePart>::iterator iter = other_imp->spheres.begin(); iter != other_imp->spheres.end(); ++iter)
+				{
+					Sphere sphere = Sphere(xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius);
+					for(vector<PlanePart>::iterator jter = planes.begin(); jter != planes.end(); ++jter)
+					{
+						if(jter->CollideSphere(sphere))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+			
+				// tube-tube
+				for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+				{
+					float r1 = iter->r1 / iter->sin_theta;
+					float r2 = iter->r2 / iter->sin_theta;
+					float tan_12 = iter->sin_theta / iter->cos_theta;
+
+					Vec3 p1 = iter->p1 - iter->u * (r1 * iter->cos_theta);
+					Vec3 p2 = iter->p2 - iter->u * (r2 * iter->cos_theta);
+
+					Sphere s1(p1, r1);
+					Sphere s2(p2, r2);
+
+					for(vector<TubePart>::iterator jter = other_imp->tubes.begin(); jter != other_imp->tubes.end(); ++jter)
+					{
+						float r3 = jter->r1 / jter->sin_theta;
+						float r4 = jter->r2 / jter->sin_theta;
+						float tan_34 = jter->sin_theta / jter->cos_theta;
+
+						Vec3 p3 = jter->p1 - jter->u * (r3 * jter->cos_theta);
+						Vec3 p4 = jter->p2 - jter->u * (r4 * jter->cos_theta);
+
+						Sphere s3(p3, r3);
+						Sphere s4(p4, r4);
+
+						if(NuTubeTubeCheck(s1, s2, s3, s4, tan_12, tan_34))
+						{
+							// TODO: return true?
+						}
+					}
+				}
+
+				// TODO: tube-plane
+				// TODO: plane-plane?
+			}
+
+			return false;
+		}
 	};
+
+
+	bool MultiSphereShape::Imp::NuTubeSphereCheck(const Sphere& s1, const Sphere& s2, const Sphere& s3, float tan_12)
+	{
+		Vec3 u = s2.center - s1.center;
+
+		float d = u.ComputeMagnitude();
+		u /= d;
+
+		Vec3 q = s3.center - s1.center;
+		float y = Vec3::Dot(u, q);
+		float x = (q - u * y).ComputeMagnitude();
+		float z = x * tan_12;
+
+		float t = (y - z) / d;
+
+		if(t >= 0.0f && t <= 1.0f)
+		{
+			float r = s3.radius + s1.radius + t * (s2.radius - s1.radius);
+
+			if(r * r > x * x + z * z)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool MultiSphereShape::Imp::NuTubeTubeCheck(const Sphere& s1, const Sphere& s2, const Sphere& s3, const Sphere& s4, float tan_12, float tan_34)
+	{
+		Vec3 u1 = s2.center - s1.center;
+		Vec3 u2 = s4.center - s3.center;
+
+		float d1 = u1.ComputeMagnitude();
+		float d2 = u2.ComputeMagnitude();
+		u1 /= d1;
+		u2 /= d2;
+
+		Plane plane_1(u1, tan_12 / sqrtf(1.0f + tan_12 * tan_12));		// intersect this plane with the unit sphere to find all normal vectors of the first tube
+		Plane plane_2(u2, -tan_34 / sqrtf(1.0f + tan_34 * tan_34));		// similar to the above, except the vectors are backwards
+
+		Line result;
+		if(Plane::Intersect(plane_1, plane_2, result))
+		{
+			Ray ray;
+			ray.origin = result.origin;
+			ray.direction = result.direction;
+
+			float results[2];
+			if(Util::RaySphereIntersect(ray, Sphere(Vec3(), 1.0f), results[0], results[1]))
+			{
+				for(int i = 0; i < 2; ++i)
+				{
+					// here's one of two places where the normal vectors match
+					Vec3 normal = ray.origin + ray.direction * results[i];
+
+					// get the lines along the tubes' surface which have that as their normal vector
+					Ray line_1;
+					line_1.origin = s1.center + normal * s1.radius;
+					line_1.direction = Vec3::Normalize(s2.center - line_1.origin + normal * s2.radius);
+
+					// using opposite normal for the second tube
+					Ray line_2;
+					line_2.origin = s3.center - normal * s3.radius;
+					line_2.direction = Vec3::Normalize(s4.center - line_2.origin - normal * s4.radius);
+
+					// find the point of closest approach
+
+					Vec3 root_a = line_1.direction - line_2.direction * Vec3::Dot(line_1.direction, line_2.direction);
+					Vec3 root_c = line_1.origin - line_2.direction * Vec3::Dot(line_1.origin, line_2.direction);
+					float A = root_a.ComputeMagnitudeSquared();
+					float B = 2.0f * Vec3::Dot(root_a, root_c);
+					float C = root_c.ComputeMagnitudeSquared();
+
+					if(A != 0.0f)
+					{
+						float t1 = -0.5f * B / A;
+						if(t1 >= 0.0f && t1 <= 1.0f)
+						{
+							// point on surface of first tube
+							Vec3 closest_approach = line_1.origin + line_1.direction * t1;
+
+							// this part is basically sphere-tube but with zero radius
+							Vec3 q = closest_approach - s3.center;
+							float y = Vec3::Dot(u2, q);
+							float x = (q - u2 * y).ComputeMagnitude();
+							float z = x * tan_12;
+
+							float t2 = (y - z) / d2;
+
+							if(t2 >= 0.0f && t2 <= 1.0f)
+							{
+								float r = s3.radius + t2 * (s4.radius - s3.radius);
+
+								if(r * r > x * x + z * z)
+									return true;
+							}
+						}
+					}
+					else
+					{
+						// TODO: idk?
+						DEBUG();
+					}
+				}
+			}
+			else
+			{
+				// the tubes have no normal vectors in common... they must be cones which expand in opposite directions
+				// TODO: idk?
+			}
+		}
+		else
+		{
+			// the tubes have no normal vectors in common... they must be cones which expand in opposite directions
+			// TODO: idk?
+		}
+
+		return false;
+	}
+
+	bool MultiSphereShape::Imp::DoPlaneSeparationCheck(const Plane& plane, const vector<SpherePart>& my_spheres, const vector<SpherePart>& other_spheres, const Mat4& xform)
+	{
+		const float threshold = 0.001f;
+
+		int my_side = 0;
+		for(vector<SpherePart>::const_iterator kter = my_spheres.begin(); kter != my_spheres.end(); ++kter)
+		{
+			float d = plane.PointDistance(kter->sphere.center);
+			if(fabs(d) + threshold > kter->sphere.radius)
+			{
+				if(!my_side)
+					my_side = d > 0 ? 1 : -1;
+				else if(my_side == 1 ? d < 0 : d > 0)
+					return false;
+			}
+			else
+				return false;
+		}
+
+		int other_side = 0;
+		for(vector<SpherePart>::const_iterator kter = other_spheres.begin(); kter != other_spheres.end(); ++kter)
+		{
+			float d = plane.PointDistance(xform.TransformVec3_1(kter->sphere.center));
+			if(fabs(d) + threshold > kter->sphere.radius)
+			{
+				if(!other_side)
+				{
+					other_side = d > 0 ? 1 : -1;
+					if(other_side == my_side)
+						return false;
+				}
+				else if(other_side == 1 ? d < 0 : d > 0)
+					return false;
+			}
+			else
+				return false;
+		}
+
+		return true;
+	}
 
 
 
@@ -1184,6 +1489,8 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollisionCheck(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(xform, inv_xform, other, result, ibody, jbody); }
 	bool MultiSphereShape::CollisionCheck(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollisionCheck(my_xform, inv_xform, xformed_aabb, tri, result, ibody, jbody); }
+
+	bool MultiSphereShape::NuCollisionCheck(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->NuCollisionCheck(xform, inv_xform, other, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 

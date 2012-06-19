@@ -27,6 +27,7 @@ namespace CibraryEngine
 		private:
 
 			set<PhysicsRegion*> regions;
+			set<PhysicsConstraint*> constraints;
 
 			Vec3 pos;
 			Vec3 vel;
@@ -77,6 +78,9 @@ namespace CibraryEngine
 			// local_poi is in the coordinate system of the object
 			// returns a world-space direction
 			Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi);
+
+			// removes rigid bodies which are contrained with this one from the collection of eligible bodies
+			void RemoveConstrainedBodies(unordered_set<RigidBody*>* eligible_bodies) const;
 
 		protected:
 

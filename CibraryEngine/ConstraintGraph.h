@@ -24,9 +24,10 @@ namespace CibraryEngine
 		struct Node
 		{
 			RigidBody* body;
-			vector<Edge> edges;
+			vector<Edge>* edges;
 
-			Node(RigidBody* body) : body(body), edges() { }
+			Node(RigidBody* body);
+			~Node();
 		};
 
 		boost::unordered_map<RigidBody*, Node*> nodes;

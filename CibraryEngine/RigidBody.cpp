@@ -22,9 +22,10 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), constraints(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
 		regions(),
+		constraints(),
 		pos(pos),
 		vel(),
 		ori(ori),
@@ -185,6 +186,17 @@ namespace CibraryEngine
 	}
 
 	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { if(active) { vel += impulse * inv_mass; } }
+
+	void RigidBody::RemoveConstrainedBodies(unordered_set<RigidBody*>* eligible_bodies) const
+	{
+		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+		{
+			const PhysicsConstraint* c = *iter;
+			RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a;
+
+			eligible_bodies[other->GetCollisionShape()->GetShapeType()].erase(other);
+		}
+	}
 
 
 
