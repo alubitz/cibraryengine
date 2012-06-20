@@ -492,7 +492,7 @@ namespace CibraryEngine
 			Subgraph& subgraph = **iter;
 
 			vector<PhysicsConstraint*> active(subgraph.constraints);
-			set<PhysicsConstraint*> nu_active;
+			unordered_set<PhysicsConstraint*> nu_active;
 
 			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
 			{
@@ -501,11 +501,11 @@ namespace CibraryEngine
 				{
 					PhysicsConstraint& constraint = **jter;
 
-					set<RigidBody*> wakeup_list;
+					unordered_set<RigidBody*> wakeup_list;
 					constraint.DoConstraintAction(wakeup_list);
 
 					// constraint says we should wake up these rigid bodies
-					for(set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
+					for(unordered_set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
 					{
 						ConstraintGraph::Node* node = subgraph.nodes[*kter];
 
@@ -874,7 +874,7 @@ namespace CibraryEngine
 		return false;
 	}
 
-	void ContactPoint::DoConstraintAction(set<RigidBody*>& wakeup_list)
+	void ContactPoint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
 		if(DoCollisionResponse())
 		{

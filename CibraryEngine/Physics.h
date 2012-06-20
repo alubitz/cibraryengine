@@ -102,7 +102,7 @@ namespace CibraryEngine
 	class PhysicsConstraint : public Disposable
 	{
 		public:
-			virtual void DoConstraintAction(set<RigidBody*>& wakeup) = 0;
+			virtual void DoConstraintAction(unordered_set<RigidBody*>& wakeup) = 0;
 			virtual void DoUpdateAction(float timestep) { }
 
 			RigidBody* obj_a;
@@ -119,7 +119,7 @@ namespace CibraryEngine
 			Part() : pos(), norm() { }
 		} a, b;
 
-		void DoConstraintAction(set<RigidBody*>& wakeup);
+		void DoConstraintAction(unordered_set<RigidBody*>& wakeup);
 		bool DoCollisionResponse() const;
 	};
 

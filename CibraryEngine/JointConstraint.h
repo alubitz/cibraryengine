@@ -35,7 +35,7 @@ namespace CibraryEngine
 
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& max_extents, const Vec3& angular_damp);
 
-			void DoConstraintAction(set<RigidBody*>& wakeup);
+			void DoConstraintAction(unordered_set<RigidBody*>& wakeup);
 
 			void DoUpdateAction(float timestep);
 	};

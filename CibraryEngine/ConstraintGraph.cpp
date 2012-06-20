@@ -42,7 +42,7 @@ namespace CibraryEngine
 			return result;
 		}
 	}
-	static void DeleteNode(ConstraintGraph::Node* node) { node_recycle_bin.push_back(node); }
+	static void DeleteNode(ConstraintGraph::Node* node) { node->~Node(); node_recycle_bin.push_back(node); }
 
 	static vector<ConstraintGraph::Edge>* NewEdgesVector()
 	{
@@ -107,7 +107,7 @@ namespace CibraryEngine
 				node_a = found_a->second;
 			else
 			{
-				node_a = new Node(body_a);
+				node_a = NewNode(body_a);
 				nodes.insert(pair<RigidBody*, Node*>(body_a, node_a));
 			}
 

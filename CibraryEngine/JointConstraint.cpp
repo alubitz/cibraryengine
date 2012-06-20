@@ -22,7 +22,7 @@ namespace CibraryEngine
 		obj_b = jbody;
 	}
 
-	void JointConstraint::DoConstraintAction(set<RigidBody*>& wakeup_list)
+	void JointConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
 		if(dist > 0)
 		{
