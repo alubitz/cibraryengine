@@ -8,10 +8,16 @@ namespace CibraryEngine
 
 	struct ProfilingTimer
 	{
-		string text;
-		unsigned long int start;
+	private:
 
-		ProfilingTimer(string text);
-		~ProfilingTimer();
+		unsigned long int start;
+		unsigned long int stop;
+
+	public:
+
+		void Start();
+		float Stop();
+
+		float GetElapsedTime();
 	};
 }

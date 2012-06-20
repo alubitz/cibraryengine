@@ -10,8 +10,7 @@ namespace CibraryEngine
 	/*
 	 * ProfilingTimer methods
 	 */
-
-	ProfilingTimer::ProfilingTimer(string text) : text(text)
+	void ProfilingTimer::Start()
 	{
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t); 
@@ -19,21 +18,22 @@ namespace CibraryEngine
 		start = (unsigned long int)t.QuadPart;
 	}
 
-	ProfilingTimer::~ProfilingTimer()
+	float ProfilingTimer::Stop()
 	{
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t);
 
-		unsigned long int end = (unsigned long int)t.QuadPart;
+		stop = (unsigned long int)t.QuadPart;
 
+		return GetElapsedTime();
+	}
+
+	float ProfilingTimer::GetElapsedTime()
+	{
+		LARGE_INTEGER t;
 		QueryPerformanceFrequency(&t);
 
 		unsigned long int freq = (unsigned long int)t.QuadPart;
-
-		float elapsed = float(end - start) / freq;
-
-		stringstream ss;
-		ss << "Operation \"" << text << "\" took " << elapsed << " seconds" << endl;
-		Debug(ss.str());
+		return float(stop - start) / freq;
 	}
 }

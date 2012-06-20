@@ -973,7 +973,7 @@ namespace CibraryEngine
 
 		ContactPoint p;
 		float t;
-		if(shape->CollisionCheck(nu_ray, p, t, ibody, jbody))
+		if(shape->CollideRay(nu_ray, p, t, ibody, jbody))
 		{
 			p.a.pos = jbody->GetTransformationMatrix().TransformVec3_1(p.b.pos);
 			hits.push_back(RayResult(t * max_time, p));
@@ -1083,7 +1083,7 @@ namespace CibraryEngine
 		Vec3 nu_pos = inv_xform.TransformVec3_1(pos);
 
 		ContactPoint cp;
-		if(shape->CollisionCheck(Sphere(nu_pos, radius), cp, ibody, jbody))
+		if(shape->CollideSphere(Sphere(nu_pos, radius), cp, ibody, jbody))
 			hits.AddContactPoint(cp);
 	}
 
@@ -1112,7 +1112,7 @@ namespace CibraryEngine
 			TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
 
 			ContactPoint p;
-			if(ishape->CollisionCheck(inv_net_xform, inv_inv_xform, xformed_aabb, tri, p, ibody, jbody))
+			if(ishape->CollideMesh(inv_net_xform, inv_inv_xform, xformed_aabb, tri, p, ibody, jbody))
 			{
 				p.a.pos = p.b.pos = j_xform.TransformVec3_1(p.a.pos);
 				p.a.norm = j_xform.TransformVec3_0(p.a.norm);
@@ -1128,7 +1128,7 @@ namespace CibraryEngine
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 		ContactPoint p;
-		if(ishape->CollisionCheck(xform, jshape->plane, p, ibody, jbody))
+		if(ishape->CollidePlane(xform, jshape->plane, p, ibody, jbody))
 			hits.AddContactPoint(p);
 	}
 
@@ -1140,7 +1140,7 @@ namespace CibraryEngine
 		Mat4 inv_xform = jbody->GetInvTransform() * xform;
 
 		ContactPoint p;
-		if(ishape->CollisionCheck(net_xform, inv_xform, jshape, p, ibody, jbody))
+		if(ishape->CollideMultisphere(net_xform, inv_xform, jshape, p, ibody, jbody))
 		{
 			p.a.pos = p.b.pos = xform.TransformVec3_1(p.a.pos);
 			p.a.norm = xform.TransformVec3_0(p.a.norm);
