@@ -107,7 +107,9 @@ namespace CibraryEngine
 
 			float opzsq, trz;
 
-			TubePart(Vec3 p1, Vec3 p2, float r1, float r2) : Part(), p1(p1), p2(p2), r1(r1), r2(r2)
+			int sphere1, sphere2;
+
+			TubePart(Vec3 p1, Vec3 p2, float r1, float r2, int sphere1, int sphere2) : Part(), p1(p1), p2(p2), r1(r1), r2(r2), sphere1(sphere1), sphere2(sphere2)
 			{
 				Vec3 n = Vec3::Normalize(p2 - p1);
 
@@ -182,7 +184,7 @@ namespace CibraryEngine
 				int result = 0;
 				float t = Util::RayPlaneIntersect(ray, plane);
 				Vec3 pos = ray.origin + ray.direction * t;
-				
+
 				if(IsPointRelevant(pos))
 					if(t >= 0.0f && t <= 1.0f)
 						++result;
@@ -192,7 +194,7 @@ namespace CibraryEngine
 			{
 				float t = Util::RayPlaneIntersect(ray, plane);
 				Vec3 pos = ray.origin + ray.direction * t;
-				
+
 				if(IsPointRelevant(pos))
 					if(t >= 0.0f && t <= 1.0f)
 					{
@@ -216,7 +218,7 @@ namespace CibraryEngine
 					{
 						Line line;
 						Plane::Intersect(planes[i], planes[j], line);
-						
+
 						Ray ray;
 						ray.origin = line.origin;
 						ray.direction = line.direction;
@@ -291,16 +293,16 @@ namespace CibraryEngine
 				for(unsigned int i = 0; i < count; ++i)
 				{
 					const Sphere& a = spheres_temp[i];
-					
+
 					unsigned int j;
 					for(j = 0; j < count; ++j)
 						if(i != j)
-						{					
+						{
 							const Sphere& b = spheres_temp[j];
 
 							float dr = a.radius - b.radius;
 							float dif = (a.center - b.center).ComputeMagnitudeSquared() - dr * dr;
-							
+
 							if(dif <= 0 && (dr < 0 || dr == 0 && i < j))
 								break;
 						}
@@ -346,7 +348,7 @@ namespace CibraryEngine
 						Vec3 p2 = j_center + ud * (j_radius * cos_theta);
 						float r1 = i_radius * sin_theta, r2 = j_radius * sin_theta;			// radii of those circles
 
-						TubePart tube(p1, p2, r1, r2);
+						TubePart tube(p1, p2, r1, r2, i, j);
 
 						// cache some parts of the ray-test formula
 						tube.cos_theta = cos_theta;
@@ -412,7 +414,7 @@ namespace CibraryEngine
 
 										Vec3 normal_1 = Vec3::Normalize(Vec3::Cross(abn, acn));					// normal vectors to first plane
 										Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
-									
+
 										PlanePart plane_parts[] =
 										{
 											PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
@@ -432,7 +434,7 @@ namespace CibraryEngine
 											pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
 
 											Vec3 center = (i_center + j_center + k_center) / 3.0f;
-										
+
 											for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
 												if(iter->PointDistance(center) < 0)
 													*iter = Plane::Reverse(*iter);
@@ -1041,6 +1043,7 @@ namespace CibraryEngine
 				for(vector<SpherePart>::iterator iter = other_imp.spheres.begin(); iter != other_imp.spheres.end(); ++iter)
 					other_spheres.push_back(Sphere(xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 
+#if 1
 				// try to find a separating axis
 				Vec3 direction;
 				float score = -1;
@@ -1078,7 +1081,7 @@ namespace CibraryEngine
 						{
 							best_test = j;
 							best_score = score;
-							
+
 							flip_best = min1 > min2;
 						}
 					}
@@ -1091,8 +1094,202 @@ namespace CibraryEngine
 						score = best_score;
 					}
 				}
+#else
 
-				Vec3 pos = overlap.GetCenterPoint();		// TODO: do this better
+				Vec3 best_dir;
+				float best_score = -1;
+				bool flip_best;
+
+				// look for planes separating spheres
+				for(vector<Sphere>::iterator iter = my_spheres.begin(); iter != my_spheres.end(); ++iter)
+					for(vector<Sphere>::iterator jter = other_spheres.begin(); jter != other_spheres.end(); ++jter)
+					{
+						Vec3 dir = jter->center - iter->center;
+
+						float min1, max1, min2, max2;
+						GetFarthestExtents(dir, my_spheres,		min1, max1);
+						GetFarthestExtents(dir, other_spheres,	min2, max2);
+
+						if(min1 >= max2 || min2 >= max1)							// found a separating plane? go home early
+							return false;
+
+						float score = ((min(max1, max2) - max(min1, min2))) / dir.ComputeMagnitude();
+						if(best_score == -1 || score < best_score)
+						{
+							best_dir = dir;
+							best_score = score;
+
+							flip_best = min1 > min2;
+						}
+					}
+
+#if 0	// tube-sphere normals
+
+				static const float ts_thresh = -0.01f;
+
+				// look for planes separating tubes of my object from spheres of the other
+				for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+				{
+					const Sphere& s1 = my_spheres[iter->sphere1];
+					const Sphere& s2 = my_spheres[iter->sphere2];
+
+					for(vector<Sphere>::iterator jter = other_spheres.begin(); jter != other_spheres.end(); ++jter)
+					{
+						const Sphere& s3 = *jter;
+
+						Vec3 ac = s3.center - s1.center;
+						float ac_magsq = ac.ComputeMagnitudeSquared();
+						float ac_radius = s1.radius + s3.radius;
+						if(ac_radius * ac_radius > ac_magsq)									// equivalent to checking if the cosine is between -1 and 1
+							continue;
+
+						Vec3 bc = s3.center - s2.center;
+						float bc_magsq = bc.ComputeMagnitudeSquared();
+						float bc_radius = s2.radius + s3.radius;
+						if(bc_radius * bc_radius > bc_magsq)									// equivalent to checking if the cosine is between -1 and 1
+							continue;
+
+						float inv_ac = 1.0f / sqrtf(ac_magsq);
+						float ac_cosine = ac_radius * inv_ac;
+						float ac_sine = sqrtf(1.0f - ac_cosine * ac_cosine);
+
+						float inv_bc = 1.0f / sqrtf(bc_magsq);
+						float bc_cosine = bc_radius * inv_bc;
+						float bc_sine = sqrtf(1.0f - bc_cosine * bc_cosine);
+						
+						Vec3 cross = Vec3::Cross(ac, bc);
+						float cross_magsq = cross.ComputeMagnitudeSquared();
+						if(cross_magsq == 0)
+							continue;
+
+						Vec3 n = cross / sqrtf(cross_magsq);									// normal to plane containing the spheres' centers
+
+						Vec3 acn = ac * (ac_sine * inv_ac) - n * ac_cosine;						// point of tangency in plane of a, c, and n
+						Vec3 bcn = bc * (bc_sine * inv_bc) - n * bc_cosine;						// point of tangency in plane of b, c, and n
+
+						Vec3 normal_1 = Vec3::Cross(acn, bcn);									// normal vectors for first plane (not normalized yet!)
+						Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
+
+						float min1, max1, min2, max2, score;
+
+						// check if normal 1 is a separating axis
+						GetFarthestExtents(normal_1, my_spheres,	min1, max1);
+						GetFarthestExtents(normal_1, other_spheres,	min2, max2);
+
+						if(min1 - max2 >= ts_thresh || min2 - max1 >= ts_thresh)					// found a separating plane? go home early
+							return false;
+
+						score = ((min(max1, max2) - max(min1, min2))) / normal_1.ComputeMagnitude();
+						if(best_score == -1 || score < best_score)
+						{
+							best_dir = normal_1;
+							best_score = score;
+
+							flip_best = min1 > min2;
+						}
+
+						// check if normal 2 is a separating axis
+						GetFarthestExtents(normal_2, my_spheres,	min1, max1);
+						GetFarthestExtents(normal_2, other_spheres,	min2, max2);
+
+						if(min1 - max2 >= ts_thresh || min2 - max1 >= ts_thresh)					// found a separating plane? go home early
+							return false;
+
+						score = ((min(max1, max2) - max(min1, min2))) / normal_2.ComputeMagnitude();
+						if(best_score == -1 || score < best_score)
+						{
+							best_dir = normal_2;
+							best_score = score;
+
+							flip_best = min1 > min2;
+						}
+					}
+				}
+
+				// look for planes separating spheres of my object from tubes of the other
+				for(vector<TubePart>::iterator iter = other_imp.tubes.begin(); iter != other_imp.tubes.end(); ++iter)
+				{
+					const Sphere& s1 = other_spheres[iter->sphere1];
+					const Sphere& s2 = other_spheres[iter->sphere2];
+
+					for(vector<Sphere>::iterator jter = my_spheres.begin(); jter != my_spheres.end(); ++jter)
+					{
+						const Sphere& s3 = *jter;
+
+						Vec3 ac = s3.center - s1.center;
+						float ac_magsq = ac.ComputeMagnitudeSquared();
+						float ac_radius = s1.radius + s3.radius;
+						if(ac_radius * ac_radius > ac_magsq)									// equivalent to checking if the cosine is between -1 and 1
+							continue;
+
+						Vec3 bc = s3.center - s2.center;
+						float bc_magsq = bc.ComputeMagnitudeSquared();
+						float bc_radius = s2.radius + s3.radius;
+						if(bc_radius * bc_radius > bc_magsq)									// equivalent to checking if the cosine is between -1 and 1
+							continue;
+
+						float inv_ac = 1.0f / sqrtf(ac_magsq);
+						float ac_cosine = ac_radius * inv_ac;
+						float ac_sine = sqrtf(1.0f - ac_cosine * ac_cosine);
+
+						float inv_bc = 1.0f / sqrtf(bc_magsq);
+						float bc_cosine = bc_radius * inv_bc;
+						float bc_sine = sqrtf(1.0f - bc_cosine * bc_cosine);
+						
+						Vec3 cross = Vec3::Cross(ac, bc);
+						float cross_magsq = cross.ComputeMagnitudeSquared();
+						if(cross_magsq == 0)
+							continue;
+
+						Vec3 n = cross / sqrtf(cross_magsq);									// normal to plane containing the spheres' centers
+
+						Vec3 acn = ac * (ac_sine * inv_ac) - n * ac_cosine;						// point of tangency in plane of a, c, and n
+						Vec3 bcn = bc * (bc_sine * inv_bc) - n * bc_cosine;						// point of tangency in plane of b, c, and n
+
+						Vec3 normal_1 = Vec3::Cross(acn, bcn);									// normal vectors for first plane (not normalized yet!)
+						Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
+
+						float min1, max1, min2, max2, score;
+
+						// check if normal 1 is a separating axis
+						GetFarthestExtents(normal_1, my_spheres,	min1, max1);
+						GetFarthestExtents(normal_1, other_spheres,	min2, max2);
+
+						if(min1 - max2 >= ts_thresh || min2 - max1 >= ts_thresh)					// found a separating plane? go home early
+							return false;
+
+						score = ((min(max1, max2) - max(min1, min2))) / normal_1.ComputeMagnitude();
+						if(best_score == -1 || score < best_score)
+						{
+							best_dir = normal_1;
+							best_score = score;
+
+							flip_best = min1 > min2;
+						}
+
+						// check if normal 2 is a separating axis
+						GetFarthestExtents(normal_2, my_spheres,	min1, max1);
+						GetFarthestExtents(normal_2, other_spheres,	min2, max2);
+
+						if(min1 - max2 >= ts_thresh || min2 - max1 >= ts_thresh)					// found a separating plane? go home early
+							return false;
+
+						score = ((min(max1, max2) - max(min1, min2))) / normal_2.ComputeMagnitude();
+						if(best_score == -1 || score < best_score)
+						{
+							best_dir = normal_2;
+							best_score = score;
+
+							flip_best = min1 > min2;
+						}
+					}
+				}
+
+#endif	// tube-sphere normals
+
+				Vec3 direction = Vec3::Normalize(flip_best ? -best_dir : best_dir);
+#endif
+				Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
 
 				result = ContactPoint();
 				result.obj_a = ibody;
@@ -1100,7 +1297,7 @@ namespace CibraryEngine
 
 				result.a.norm = direction;
 				result.b.norm = -direction;
-				
+
 				result.a.pos = pos;
 				result.b.pos = pos;
 
@@ -1123,7 +1320,7 @@ namespace CibraryEngine
 
 			// figure out which of the cardinal axes the normal vector most closely matches (x = 0, y = 1, z = 2)
 			int n_axis = fabs(tri.plane.normal.x) > fabs(tri.plane.normal.y) ? fabs(tri.plane.normal.x) > fabs(tri.plane.normal.z) ? 0 : 2 : fabs(tri.plane.normal.y) > fabs(tri.plane.normal.z) ? 1 : 2;
-			
+
 			Ray ray;
 			ray.direction = n_axis == 0 ? Vec3(dim.x, 0, 0) : n_axis == 1 ? Vec3(0, dim.y, 0) : Vec3(0, 0, dim.z);
 			ray.origin = xformed_aabb.min;
@@ -1161,7 +1358,7 @@ namespace CibraryEngine
 							ray.origin.y += increment.y;
 							break;
 					}
-					
+
 					Vec3 pos = ray.origin + ray.direction * Util::RayPlaneIntersect(ray, tri.plane);
 
 					float u = Vec3::Dot(tri.p, pos) - tri.u_offset;

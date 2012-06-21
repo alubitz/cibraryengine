@@ -30,10 +30,10 @@ namespace CibraryEngine
 			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dir, A, B);
 
 			float bounciness = 0.2f;
-			float impulse_mag = -(1.0f + bounciness) * B / A;
-			if(fabs(impulse_mag) > 0.01f)
+			float dv_mag = -(1.0f + bounciness) * B;
+			if(fabs(dv_mag) > 0.05f)
 			{
-				Vec3 impulse = dir * impulse_mag;
+				Vec3 impulse = dir * (dv_mag / A);
 
 				obj_a->ApplyImpulse(impulse, i_poi);
 				obj_b->ApplyImpulse(-impulse, j_poi);

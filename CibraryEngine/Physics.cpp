@@ -625,7 +625,7 @@ namespace CibraryEngine
 			RayTestPrivate(body->pos, body->pos + body->vel, ray_callback, timestep, body);
 		}
 
-		// populate a collision graph with all the collisions that are going on
+		// populate a constraint graph with all the collisions that are going on
 		ConstraintGraph constraint_graph;
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_Sphere].begin(); iter != dynamic_objects[ST_Sphere].end(); ++iter)
