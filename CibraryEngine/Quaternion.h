@@ -22,12 +22,12 @@ namespace CibraryEngine
 		float z;
 
 		/** Initializes a zero quaternion. CAUTION! This is not the same as the identity quaternion! */
-		Quaternion();
+		Quaternion() : x(0), y(0), z(0), w(0) { }
 		/** Initializes a quaternion with the specified w, x, y, and z values */
-		Quaternion(float w, float x, float y, float z);
+		Quaternion(float w, float x, float y, float z) : w(w), x(x), y(y), z(z) { }
 
 		/** Returns the norm (comparable to magnitude) of this quaternion */
-		float Norm() const;
+		float Norm() const										{ return sqrtf(w * w + x * x + y * y + z * z); }
 		/** Returns a 3-component vector parallel to the axis of rotation represented by this quaternion, whose magnitude is the angle of rotation */
 		Vec3 ToPYR() const;
 
@@ -35,51 +35,51 @@ namespace CibraryEngine
 		Mat3 ToMat3() const;
 
 		/** Returns the opposite of this quaternion */
-		Quaternion operator -() const;
+		Quaternion operator -() const							{ return Quaternion(-w, -x, -y, -z); }
 		/** Transforms (rotates) a 3-component vector by this quaternion */
 		Vec3 operator *(const Vec3& right) const;
 
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
-		Quaternion operator *(const Quaternion& right) const;
+		Quaternion operator *(const Quaternion& right) const	{ Quaternion temp(*this); temp *= right; return temp; }
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
 		void operator *=(const Quaternion& right);
 
 		/** Scales this quaternion by the specified amount */
-		Quaternion operator *(float right) const;
+		Quaternion operator *(float right) const				{ Quaternion temp(*this); temp *= right; return temp; }
 		/** Scales this quaternion by the specified amount */
-		void operator *=(float right);
+		void operator *=(float right)							{ w *= right; x *= right; y *= right; z *= right; }
 
 		/** Inversely scales this quaternion by the specified amount */
-		Quaternion operator /(float right) const;
+		Quaternion operator /(float right) const				{ Quaternion temp(*this); temp /= right; return temp; }
 		/** Inversely scales this quaternion by the specified amount */
-		void operator /=(float right);
+		void operator /=(float right)							{ *this *= (1.0f / right); }
 
 		/** Adds two quaternions */
-		Quaternion operator +(const Quaternion& right) const;
+		Quaternion operator +(const Quaternion& right) const	{ Quaternion temp(*this); temp += right; return temp; }
 		/** Adds two quaternions */
-		void operator +=(const Quaternion& right);
+		void operator +=(const Quaternion& right)				{ w += right.w; x += right.x; y += right.y; z += right.z; }
 
 		/** Subtracts two quaternions */
-		Quaternion operator -(const Quaternion& right) const;
+		Quaternion operator -(const Quaternion& right) const	{ Quaternion temp(*this); temp -= right; return temp; }
 		/** Subtracts two quaternions */
-		void operator -=(const Quaternion& right);
+		void operator -=(const Quaternion& right)				{ w -= right.w; x -= right.x; y -= right.y; z -= right.z; }
 
 		/** Returns the identity quaternion */
-		static Quaternion Identity();
+		static Quaternion Identity()							{ return Quaternion(1.0f, 0.0, 0.0, 0.0); }
 		/** Returns a quaternion representing the same rotation as the specified 3x3 rotation matrix */
 		static Quaternion FromRotationMatrix(const Mat3& mat);
 		/** Returns a quaternion representing a rotation about the specified axis (should be a unit vector) with the specified magnitude */
-		static Quaternion FromAxisAngle(float x, float y, float z, float angle);
+		static Quaternion FromAxisAngle(float x, float y, float z, float angle)		{ float half = angle * 0.5f, sine = sin(half); return Quaternion(cos(half), x * sine, y * sine, z * sine); }
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
 		static Quaternion FromPYR(const Vec3& pyrVector);
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
 		static Quaternion FromPYR(float p, float y, float r);
 		/** Normalizes the given quaternion */
-		static Quaternion Normalize(const Quaternion& q);
+		static Quaternion Normalize(const Quaternion& q)							{ return q / q.Norm(); }
 		/** Inverts a quaternion */
-		static Quaternion Invert(const Quaternion& q);
+		static Quaternion Invert(const Quaternion& q)								{ float inv = 1.0f / (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z); return Quaternion(q.w * inv, -q.x * inv, -q.y * inv, -q.z * inv); }
 		/** Reverses a quaternion rotation; like inverting a quaternion which is already normalized */
-		static Quaternion Reverse(const Quaternion& q);
+		static Quaternion Reverse(const Quaternion& q)								{ return Quaternion(q.w, -q.x, -q.y, -q.z); }
 	};
 
 	void WriteQuaternion(const Quaternion& q, ostream& stream);

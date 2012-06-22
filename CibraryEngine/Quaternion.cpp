@@ -7,11 +7,9 @@
 
 namespace CibraryEngine
 {
-	Quaternion::Quaternion() { x = y = z = w = 0.0; }
-	Quaternion::Quaternion(float w_, float x_, float y_, float z_) {w = w_;  x = x_; y = y_; z = z_; }
-
-	float Quaternion::Norm() const { return sqrtf(w * w + x * x + y * y + z * z); }
-
+	/*
+	 * Quaternion methods
+	 */
 	Vec3 Quaternion::ToPYR() const
 	{
 		Vec3 axis(x, y, z);
@@ -39,10 +37,6 @@ namespace CibraryEngine
 		);
 	}
 
-	Vec3 Quaternion::operator *(const Vec3& right) const { return ToMat3() * right; }
-	Quaternion Quaternion::operator -() const { return Quaternion(-w, -x, -y, -z); }
-
-	Quaternion Quaternion::operator *(const Quaternion& right) const { Quaternion temp(*this); temp *= right; return temp; }
 	void Quaternion::operator *=(const Quaternion& right)
 	{
 		float w_ = w * right.w - x * right.x - y * right.y - z * right.z;
@@ -52,20 +46,7 @@ namespace CibraryEngine
 
 		w = w_; x = x_; y = y_; z = z_;
 	}
-
-	Quaternion Quaternion::operator *(float right) const { Quaternion temp(*this); temp *= right; return temp; }
-	void Quaternion::operator *=(float right) { w *= right; x *= right; y *= right; z *= right; }
-
-	Quaternion Quaternion::operator /(float right) const { Quaternion temp(*this); temp /= right; return temp; }
-	void Quaternion::operator /=(float right) { *this *= (1.0f / right); }
-
-	Quaternion Quaternion::operator +(const Quaternion& right) const { Quaternion temp(*this); temp += right; return temp; }
-	void Quaternion::operator +=(const Quaternion& right) { w += right.w; x += right.x; y += right.y; z += right.z; }
-
-	Quaternion Quaternion::operator -(const Quaternion& right) const { Quaternion temp(*this); temp -= right; return temp; }
-	void Quaternion::operator -=(const Quaternion& right) { w -= right.w; x -= right.x; y -= right.y; z -= right.z; }
-
-	Quaternion Quaternion::Identity() { return Quaternion(1.0f, 0.0, 0.0, 0.0); }
+	Vec3 Quaternion::operator *(const Vec3& right) const { return ToMat3() * right; }
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
 	{
@@ -117,33 +98,12 @@ namespace CibraryEngine
 		}
 	}
 
-	Quaternion Quaternion::FromAxisAngle(float x, float y, float z, float angle)
-	{
-		float half = angle * 0.5f, sine = sin(half);
-		return Quaternion(
-			cos(half),
-			x * sine,
-			y * sine,
-			z * sine
-		);
-	}
-
 	Quaternion Quaternion::FromPYR(const Vec3& pyrVector) { return Quaternion::FromPYR(pyrVector.x, pyrVector.y, pyrVector.z); }
 	Quaternion Quaternion::FromPYR(float p, float y, float r)
 	{
 		float mag = Vec3::Magnitude(p, y, r), inv = (mag == 0 ? 1.0f : 1.0f / mag);
 		return Quaternion::FromAxisAngle(p * inv, y * inv, r * inv, mag);
 	}
-
-	Quaternion Quaternion::Normalize(const Quaternion& q) { return q / q.Norm(); }
-
-	Quaternion Quaternion::Invert(const Quaternion& q)
-	{
-		float inv = 1.0f / (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
-		return Quaternion(q.w * inv, -q.x * inv, -q.y * inv, -q.z * inv);
-	}
-
-	Quaternion Quaternion::Reverse(const Quaternion& q) { return Quaternion(q.w, -q.x, -q.y, -q.z); }
 
 
 
@@ -158,6 +118,7 @@ namespace CibraryEngine
 		WriteSingle(q.y, stream);
 		WriteSingle(q.z, stream);
 	}
+
 	Quaternion ReadQuaternion(istream& stream)
 	{
 		float w = ReadSingle(stream);

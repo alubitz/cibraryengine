@@ -22,23 +22,6 @@ namespace CibraryEngine
 	/*
 	 * PhysicsRegion methods
 	 */
-	PhysicsRegion::PhysicsRegion() :
-		Disposable(),
-		orphan_callback(NULL),
-		all_objects(),
-		active_objects(),
-		inactive_objects(),
-		static_objects()
-	{
-		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
-		{
-			all_objects[i] = unordered_set<RigidBody*>();
-			active_objects[i] = unordered_set<RigidBody*>();
-			inactive_objects[i] = unordered_set<RigidBody*>();
-			static_objects[i] = unordered_set<RigidBody*>();
-		}
-	}
-
 	PhysicsRegion::PhysicsRegion(ObjectOrphanedCallback* orphan_callback) :
 		Disposable(),
 		orphan_callback(orphan_callback),
@@ -124,7 +107,6 @@ namespace CibraryEngine
 	void PhysicsRegion::GetRelevantObjects(const AABB& aabb, unordered_set<RigidBody*>* results)
 	{
 		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)						// skip past ST_Ray
-		//	if(i != ST_MultiSphere)
 		{
 			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
 			{
@@ -134,5 +116,23 @@ namespace CibraryEngine
 					results[i].insert(object);
 			}
 		}
+	}
+
+	unsigned int PhysicsRegion::NumObjects() const
+	{
+		unsigned int tot = 0;
+		for(int i = ST_Ray; i < ST_ShapeTypeMax; ++i)
+			tot += all_objects[i].size();
+		return tot;
+	}
+	unsigned int PhysicsRegion::NumRays() const { return all_objects[ST_Ray].size(); }
+	unsigned int PhysicsRegion::NumDynamicObjects() const { return inactive_objects[ST_Sphere].size() + active_objects[ST_Sphere].size() + inactive_objects[ST_MultiSphere].size() + active_objects[ST_MultiSphere].size(); }
+	unsigned int PhysicsRegion::NumStaticObjects() const
+	{
+		unsigned int tot = 0;
+		for(int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)
+			tot += static_objects[i].size();
+
+		return tot;
 	}
 }

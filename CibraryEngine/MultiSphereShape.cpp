@@ -732,7 +732,7 @@ namespace CibraryEngine
 
 		AABB GetTransformedAABB(const Mat4& xform)
 		{
-#if 0
+#if 1
 			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(xform), but it may be slower (especially if there are more than 8 spheres!)
 			AABB xformed_aabb;
 			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
@@ -1021,7 +1021,7 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollideMultisphere(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			Imp& other_imp = *other->imp;
 			AABB other_aabb = other_imp.GetTransformedAABB(xform);
@@ -1051,7 +1051,6 @@ namespace CibraryEngine
 
 				char best_test;
 				Vec3 test_dir[8];
-				bool flip_best;
 
 				static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
 				static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
@@ -1059,30 +1058,27 @@ namespace CibraryEngine
 
 				for(char i = 0; i < 20; ++i)
 				{
-					float best_score = -1;
-					flip_best = false;
+					float best_score;
 
 					for(char j = 0; j < 8; ++j)
 					{
-						Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
+						Vec3& dir = test_dir[j] = Vec3(
 							direction.x + x_offsets[j] * search_scale,
 							direction.y + y_offsets[j] * search_scale,
-							direction.z + z_offsets[j] * search_scale));
+							direction.z + z_offsets[j] * search_scale);
 
-						float min1, max1, min2, max2;
-						GetFarthestExtents(dir, my_spheres,		min1, max1);
-						GetFarthestExtents(dir, other_spheres,	min2, max2);
+						float score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
 
-						if(min1 > max2 || min2 > max1)							// found a separating plane? go home early
+						if(score < 0)							// found a separating plane? go home early
 							return false;
-
-						float score = min(max1, max2) - max(min1, min2);
-						if(j == 0 || score < best_score)
+						else
 						{
-							best_test = j;
-							best_score = score;
-
-							flip_best = min1 > min2;
+							float mag = dir.ComputeMagnitude();
+							if(j == 0 || score < best_score * mag)
+							{
+								best_test = j;
+								best_score = score / mag;
+							}
 						}
 					}
 
@@ -1090,7 +1086,7 @@ namespace CibraryEngine
 						search_scale *= 0.5f;
 					else
 					{
-						direction = flip_best ? -test_dir[best_test] : test_dir[best_test];
+						direction = Vec3::Normalize(test_dir[best_test]);
 						score = best_score;
 					}
 				}
@@ -1489,6 +1485,38 @@ namespace CibraryEngine
 				++iter;
 			}
 		}
+
+		static float GetMaximumExtent(const Vec3& direction, const vector<Sphere>& spheres)
+		{
+			vector<Sphere>::const_iterator iter = spheres.begin();
+
+			float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
+			++iter;
+
+			while(iter != spheres.end())
+			{
+				maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
+				++iter;
+			}
+
+			return maximum;
+		}
+
+		static float GetMinimumExtent(const Vec3& direction, const vector<Sphere>& spheres)
+		{
+			vector<Sphere>::const_iterator iter = spheres.begin();
+
+			float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
+			++iter;
+
+			while(iter != spheres.end())
+			{
+				minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
+				++iter;
+			}
+
+			return minimum;
+		}
 	};
 
 
@@ -1513,7 +1541,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, result, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
-	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const Mat4& inv_xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, inv_xform, other, result, ibody, jbody); }
+	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, other, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, inv_xform, xformed_aabb, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }

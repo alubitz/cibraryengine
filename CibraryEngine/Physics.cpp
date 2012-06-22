@@ -27,6 +27,7 @@
 #include "ProfilingTimer.h"
 
 #define MAX_SEQUENTIAL_SOLVER_ITERATIONS 20
+#define MAX_FIXED_STEPS_PER_UPDATE 1
 
 namespace CibraryEngine
 {
@@ -44,9 +45,9 @@ namespace CibraryEngine
 	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, ConstraintGraph& hits);
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits);
 	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits);
 
 
 
@@ -319,38 +320,55 @@ namespace CibraryEngine
 	 */
 	struct Subgraph
 	{
-		static vector<Subgraph*> recycle_bin;
+		static vector<Subgraph*> subgraph_recycle_bin;
+		static vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*> nodemaps_recycle_bin;
 
-		unordered_map<RigidBody*, ConstraintGraph::Node*> nodes;
+		unordered_map<RigidBody*, ConstraintGraph::Node*>* nodes;
 		vector<PhysicsConstraint*> constraints;
 
-		Subgraph() : nodes(), constraints() { }
+		Subgraph() : constraints()
+		{
+			if(nodemaps_recycle_bin.empty())
+				nodes = new unordered_map<RigidBody*, ConstraintGraph::Node*>();
+			else
+			{
+				unordered_map<RigidBody*, ConstraintGraph::Node*>* result = *nodemaps_recycle_bin.rbegin();
+				nodemaps_recycle_bin.pop_back();
 
-		bool ContainsNode(ConstraintGraph::Node* node) { return nodes.find(node->body) != nodes.end(); }
+				nodes = new (result) unordered_map<RigidBody*, ConstraintGraph::Node*>();
+			}
+		}
+		~Subgraph() { nodemaps_recycle_bin.push_back(nodes); nodes = NULL; }
+
+		bool ContainsNode(ConstraintGraph::Node* node) { return nodes->find(node->body) != nodes->end(); }
 
 		static Subgraph* New()
 		{
-			if(recycle_bin.empty())
+			if(subgraph_recycle_bin.empty())
 				return new Subgraph();
 			else
 			{
-				Subgraph* result = *recycle_bin.rbegin();
-				recycle_bin.pop_back();
+				Subgraph* result = *subgraph_recycle_bin.rbegin();
+				subgraph_recycle_bin.pop_back();
 
 				return new (result) Subgraph();
 			}
 		}
-		static void Delete(Subgraph* s) { s->~Subgraph(); recycle_bin.push_back(s); }
+		static void Delete(Subgraph* s) { s->~Subgraph(); subgraph_recycle_bin.push_back(s); }
 
-		static void EmptyRecycleBin()
+		static void EmptyRecycleBins()
 		{
-			for(vector<Subgraph*>::iterator iter = recycle_bin.begin(); iter != recycle_bin.end(); ++iter)
+			for(vector<Subgraph*>::iterator iter = subgraph_recycle_bin.begin(); iter != subgraph_recycle_bin.end(); ++iter)
 				delete *iter;
-			recycle_bin.clear();
+			subgraph_recycle_bin.clear();
+
+			for(vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*>::iterator iter = nodemaps_recycle_bin.begin(); iter != nodemaps_recycle_bin.end(); ++iter)
+				delete *iter;
+			nodemaps_recycle_bin.clear();
 		}
 	};
-	vector<Subgraph*> Subgraph::recycle_bin = vector<Subgraph*>();
-
+	vector<Subgraph*> Subgraph::subgraph_recycle_bin = vector<Subgraph*>();
+	vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*> Subgraph::nodemaps_recycle_bin = vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*>();
 
 
 
@@ -401,7 +419,7 @@ namespace CibraryEngine
 		delete orphan_callback;
 		orphan_callback = NULL;
 
-		Subgraph::EmptyRecycleBin();
+		Subgraph::EmptyRecycleBins();
 		ConstraintGraph::EmptyRecycleBins();
 	}
 
@@ -455,9 +473,7 @@ namespace CibraryEngine
 
 		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
 		{
-			unordered_map<RigidBody*, Subgraph*>::iterator found = body_subgraphs.find(iter->first);
-
-			if(found == body_subgraphs.end())
+			if(body_subgraphs.find(iter->first) == body_subgraphs.end())
 			{
 				Subgraph* subgraph = Subgraph::New();
 				subgraphs.insert(subgraph);
@@ -468,19 +484,24 @@ namespace CibraryEngine
 				while(!fringe.empty())
 				{
 					ConstraintGraph::Node* node = *fringe.rbegin();
-
-					subgraph->nodes[node->body] = node;
-					body_subgraphs.insert(pair<RigidBody*, Subgraph*>(node->body, subgraph));
-
 					fringe.pop_back();
 
-					for(vector<ConstraintGraph::Edge>::iterator jter = node->edges->begin(); jter != node->edges->end(); ++jter)
+					if(!subgraph->ContainsNode(node))
 					{
-						subgraph->constraints.push_back(jter->constraint);
+						subgraph->nodes->operator[](node->body) = node;
+						body_subgraphs[node->body] = subgraph;
 
-						if(ConstraintGraph::Node* other = jter->other_node)
-							if(!subgraph->ContainsNode(other))
-								fringe.push_back(other);
+						for(vector<ConstraintGraph::Edge>::iterator jter = node->edges->begin(); jter != node->edges->end(); ++jter)
+						{
+							ConstraintGraph::Node* other = jter->other_node;
+							if(other == NULL || !subgraph->ContainsNode(other))
+							{
+								subgraph->constraints.push_back(jter->constraint);
+
+								if(other != NULL)
+									fringe.push_back(other);
+							}
+						}
 					}
 				}
 			}
@@ -507,7 +528,7 @@ namespace CibraryEngine
 					// constraint says we should wake up these rigid bodies
 					for(unordered_set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
 					{
-						ConstraintGraph::Node* node = subgraph.nodes[*kter];
+						ConstraintGraph::Node* node = subgraph.nodes->operator[](*kter);
 
 						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges->begin(); kter != node->edges->end(); ++kter)
 							if(kter->constraint != *jter)
@@ -563,6 +584,7 @@ namespace CibraryEngine
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
 
 		Mat4 xform = body->GetTransformationMatrix();
+		Mat4 inv_xform = body->GetInvTransform();
 		AABB xformed_aabb = shape->GetTransformedAABB(xform);
 
 		// find out what might be colliding with us
@@ -575,14 +597,14 @@ namespace CibraryEngine
 
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoMultisphereMesh(body, *iter, shape, constraint_graph);
+			DoMultisphereMesh(body, *iter, shape, xform, inv_xform, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
 			DoMultispherePlane(body, *iter, shape, xform, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
 			if(*iter < body)
-				DoMultisphereMultisphere(body, *iter, shape, xform, constraint_graph);
+				DoMultisphereMultisphere(body, *iter, shape, xform, inv_xform, constraint_graph);
 
 		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)
 			relevant_objects[i].clear();
@@ -701,7 +723,7 @@ namespace CibraryEngine
 	void PhysicsWorld::Update(TimingInfo time)
 	{
 		internal_timer += time.elapsed;
-		while(internal_timer >= timer_interval)
+		for(int i = 0; internal_timer >= timer_interval && i < MAX_FIXED_STEPS_PER_UPDATE; ++i)
 		{
 			DoFixedStep();
 			internal_timer -= timer_interval;
@@ -1093,13 +1115,14 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape collision functions
 	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, ConstraintGraph& hits)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
 
-		Mat4 inv_net_xform = jbody->GetInvTransform() * ibody->GetTransformationMatrix();
-		Mat4 inv_inv_xform = ibody->GetInvTransform() * j_xform;
+		Mat4 inv_net_xform = jbody->GetInvTransform() * xform;
+		Mat4 inv_inv_xform = inv_xform * j_xform;
+
 		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
 
 		vector<unsigned int> relevant_triangles = jshape->GetRelevantTriangles(xformed_aabb);
@@ -1132,15 +1155,14 @@ namespace CibraryEngine
 			hits.AddContactPoint(p);
 	}
 
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits)
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits)
 	{
 		MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
 
-		Mat4 net_xform = ibody->GetInvTransform() * jbody->GetTransformationMatrix();
-		Mat4 inv_xform = jbody->GetInvTransform() * xform;
+		Mat4 net_xform = inv_xform * jbody->GetTransformationMatrix();
 
 		ContactPoint p;
-		if(ishape->CollideMultisphere(net_xform, inv_xform, jshape, p, ibody, jbody))
+		if(ishape->CollideMultisphere(net_xform, jshape, p, ibody, jbody))
 		{
 			p.a.pos = p.b.pos = xform.TransformVec3_1(p.a.pos);
 			p.a.norm = xform.TransformVec3_0(p.a.norm);

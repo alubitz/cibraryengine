@@ -37,8 +37,7 @@ namespace CibraryEngine
 
 		public:
 
-			PhysicsRegion();
-			PhysicsRegion(ObjectOrphanedCallback* orphan_callback);
+			PhysicsRegion(ObjectOrphanedCallback* orphan_callback = NULL);
 
 
 
@@ -55,8 +54,12 @@ namespace CibraryEngine
 			void Disown(RigidBody* body);
 
 
-			/** Override this! Default implementation returns all objects owned by this region */
 			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);
+
+			unsigned int NumObjects() const;
+			unsigned int NumRays() const;
+			unsigned int NumDynamicObjects() const;			// NOTE: doesn't include rays!
+			unsigned int NumStaticObjects() const;
 	};
 
 	class ObjectOrphanedCallback

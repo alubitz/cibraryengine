@@ -736,7 +736,7 @@ namespace Test
 	{
 		NGDEBUG();
 
-		float elapsed = min((float)time.elapsed, 0.1f);
+		float elapsed = min((float)time.elapsed, 1.0f / 60.0f);
 		total_game_time += elapsed;
 		elapsed_game_time = elapsed;
 
