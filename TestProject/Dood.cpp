@@ -362,7 +362,7 @@ namespace Test
 		// let's transfer us some momentum!
 
 		// character controllers are special cases where angular momentum doesn't get applied the same way...
-		rigid_body->ApplyCentralForce(momentum);
+		rigid_body->ApplyCentralImpulse(momentum);
 
 		Vec3 radius_vec = poi - pos;						// now for the angular part...
 		double radius = radius_vec.ComputeMagnitude();
@@ -415,7 +415,7 @@ namespace Test
 
 		if(enable_ragdolls)
 		{
-			Corpse* corpse = new Corpse(game_state, this, 10.0f);
+			Corpse* corpse = new Corpse(game_state, this, 60.0f);
 			game_state->Spawn(corpse);
 		}
 

@@ -16,23 +16,29 @@ namespace CibraryEngine
 	/*
 	 * Bone methods
 	 */
-	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori), rest_pos(pos) { }
+	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori), rest_pos(pos), cache_valid(false) { }
 
 	Mat4 Bone::GetTransformationMatrix()
 	{
-		Quaternion rotation = rest_ori * ori;
-
-		if (parent == NULL)
-			return Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);
-		else
+		if(!cache_valid)
 		{
-			Mat4 parent_xform = parent->GetTransformationMatrix();
-			Mat4 to_rest_pos = Mat4::Translation(rest_pos);
-			Mat4 from_rest_pos = Mat4::Translation(-rest_pos);
-			Mat4 rotation_mat = Mat4::FromQuaternion(rotation);
-			Mat4 offset = Mat4::Translation(pos);
-			return parent_xform * to_rest_pos * rotation_mat * offset * from_rest_pos;
+			Quaternion rotation = rest_ori * ori;
+
+			if (parent == NULL)
+				cached_xform = Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);
+			else
+			{
+				Mat4 to_rest_pos = Mat4::Translation(rest_pos);
+				Mat4 from_rest_pos = Mat4::Translation(-rest_pos);
+				Mat4 rotation_mat = Mat4::FromQuaternion(rotation);
+				Mat4 offset = Mat4::Translation(pos);
+				cached_xform = parent->GetTransformationMatrix() * to_rest_pos * rotation_mat * offset * from_rest_pos;
+			}
+
+			cache_valid = true;
 		}
+
+		return cached_xform;
 	}
 
 	StringTable Bone::string_table = StringTable();
@@ -102,16 +108,19 @@ namespace CibraryEngine
 
 	vector<Mat4> Skeleton::GetBoneMatrices()
 	{
-		vector<Mat4> matrices = vector<Mat4>();
-
 		unsigned int bones_count = bones.size();
-		for(unsigned int i = 0; i < bones_count; ++i)
-		{
-			Mat4 mat = bones[i]->GetTransformationMatrix();
-			matrices.push_back(mat);
-		}
+
+		vector<Mat4> matrices = vector<Mat4>();
+		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+			matrices.push_back((*iter)->GetTransformationMatrix());
 
 		return matrices;
+	}
+
+	void Skeleton::InvalidateCachedBoneXforms()
+	{
+		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+			(*iter)->cache_valid = false;
 	}
 
 	int Skeleton::ReadSkeleton(istream& file, Skeleton** skeleton)
@@ -226,6 +235,8 @@ namespace CibraryEngine
 
 	void SkinnedCharacter::UpdatePoses(TimingInfo time)
 	{
+		skeleton->InvalidateCachedBoneXforms();
+
 		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end();)
 		{
 			Pose* pose = *iter;
@@ -276,6 +287,8 @@ namespace CibraryEngine
 
 			bone_matrices = NULL;
 		}
+
+		skeleton->InvalidateCachedBoneXforms();
 	}
 
 	Texture1D* SkinnedCharacter::GetBoneMatrices()

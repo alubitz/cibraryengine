@@ -40,13 +40,13 @@ namespace CibraryEngine
 			/** The default position of this bone */
 			Vec3 rest_pos;
 
+			Mat4 cached_xform;
+			bool cache_valid;
+
 			Bone(unsigned int, Bone* parent, Quaternion ori, Vec3 pos);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this bone, computing the transformation matrices of its ancestors in the parent hierarchy as necessary */
 			Mat4 GetTransformationMatrix();
-
-
-
 
 			static StringTable string_table;
 	};
@@ -83,6 +83,8 @@ namespace CibraryEngine
 			static int WriteSkeleton(ostream& file, Skeleton* skeleton);
 
 			vector<Mat4> GetBoneMatrices();
+
+			void InvalidateCachedBoneXforms();
 	};
 
 	class SkinnedModel;

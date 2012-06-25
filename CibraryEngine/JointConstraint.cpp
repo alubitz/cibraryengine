@@ -24,14 +24,15 @@ namespace CibraryEngine
 
 	void JointConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
+		/*
 		if(dist > 0)
 		{
 			float A, B;
 			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dir, A, B);
 
-			float bounciness = 0.2f;
+			float bounciness = 0.0f;
 			float dv_mag = -(1.0f + bounciness) * B;
-			if(fabs(dv_mag) > 0.05f)
+			if(fabs(dv_mag) > 0.0f)
 			{
 				Vec3 impulse = dir * (dv_mag / A);
 
@@ -42,6 +43,7 @@ namespace CibraryEngine
 				wakeup_list.insert(obj_b);
 			}
 		}
+		*/
 	}
 
 	void JointConstraint::DoUpdateAction(float timestep)
@@ -62,7 +64,7 @@ namespace CibraryEngine
 			float A, B;
 			PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dir, A, B);
 
-			Vec3 impulse = offset * (10.0f * timestep / A);
+			Vec3 impulse = offset * ((1000.0f * timestep - B / offset.ComputeMagnitude()) / A);
 
 			obj_a->ApplyImpulse(impulse, i_poi);
 			obj_b->ApplyImpulse(-impulse, j_poi);
