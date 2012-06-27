@@ -13,12 +13,12 @@ namespace CibraryEngine
 	Vec3 Quaternion::ToPYR() const
 	{
 		Vec3 axis(x, y, z);
-		float sine = axis.ComputeMagnitude();			// doesn't cover the possibility of a negative sine
-		if(sine == 0.0)
+		float sine_sq = axis.ComputeMagnitudeSquared();			// doesn't cover the possibility of a negative sine
+		if(sine_sq == 0.0)
 			return Vec3();
 		else
 		{
-			float half = asin(sine);
+			float half = asin(sqrtf(sine_sq));
 			float angle = half * 2.0f;
 			return Vec3::Normalize(axis, angle);
 		}

@@ -187,6 +187,8 @@ namespace CibraryEngine
 
 	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { if(active) { vel += impulse * inv_mass; } }
 
+	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse) { rot += inv_moi * angular_impulse; }
+
 	void RigidBody::RemoveConstrainedBodies(unordered_set<RigidBody*>* eligible_bodies) const
 	{
 		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
@@ -234,6 +236,8 @@ namespace CibraryEngine
 	void RigidBody::SetDamp(float damp) { linear_damp = damp; }
 
 	MassInfo RigidBody::GetMassInfo() { return mass_info; }
+
+	Mat3 RigidBody::GetInvMoI() { return inv_moi; }
 
 	void RigidBody::DebugDraw(SceneRenderer* renderer) { shape->DebugDraw(renderer, pos, ori); }
 

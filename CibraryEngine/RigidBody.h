@@ -125,6 +125,9 @@ namespace CibraryEngine
 
 			MassInfo GetMassInfo();
 
+			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
+			Mat3 GetInvMoI();
+
 			void SetBounciness(float bounciness);
 			void SetFriction(float friction);
 			float GetBounciness();
@@ -141,6 +144,8 @@ namespace CibraryEngine
 			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);
 			void ApplyCentralForce(const Vec3& force);
 			void ApplyCentralImpulse(const Vec3& impulse);
+
+			void ApplyAngularImpulse(const Vec3& angular_impulse);
 
 			void ResetForces();
 

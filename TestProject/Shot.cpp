@@ -18,7 +18,7 @@ namespace Test
 		physics(NULL),
 		origin(origin),
 		initial_vel(initial_vel),
-		mass(0.05f),
+		mass(1.05f),
 		body(NULL),
 		causer(firer),
 		firer(firer),

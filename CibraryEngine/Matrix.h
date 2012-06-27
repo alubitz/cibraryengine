@@ -131,6 +131,14 @@ namespace CibraryEngine
 		}
 		/** Transforms a 3x3 matrix by another 3x3 matrix */
 		Mat3 operator *(const Mat3& b) const { Mat3 result(*this); result *= b; return result; }
+		/** Scales the components of a 3x3 matrix by the specified amount */
+		void operator *=(float b)						{ for(int i = 0; i < 9; ++i) { values[i] *= b; } }
+		/** Scales the components of a 3x3 matrix by the specified amount */
+		Mat3 operator *(float b) const					{ Mat3 result(*this); result *= b; return result; }
+		/** Adds two matrices */
+		void operator +=(const Mat3& b)					{ const float* bvals = b.values; for(int i = 0; i < 9; ++i) { values[i] += bvals[i]; } }
+		/** Adds two matrices */
+		Mat3 operator +(const Mat3& b) const			{ Mat3 result(*this); result += b; return result; }
 	};
 
 	/** Class representing a 4x4 matrix */
@@ -311,7 +319,7 @@ namespace CibraryEngine
 		/** Adds two matrices */
 		void operator +=(const Mat4& b)					{ const float* bvals = b.values; for(int i = 0; i < 16; ++i) { values[i] += bvals[i]; } }
 		/** Adds two matrices */
-		Mat4 operator +(const Mat4& b) const			{ Mat4 result(*this); result *= b; return result; }
+		Mat4 operator +(const Mat4& b) const			{ Mat4 result(*this); result += b; return result; }
 	};
 
 
