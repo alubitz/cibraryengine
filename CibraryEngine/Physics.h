@@ -102,6 +102,10 @@ namespace CibraryEngine
 	class PhysicsConstraint : public Disposable
 	{
 		public:
+
+			PhysicsConstraint() : obj_a(NULL), obj_b(NULL) { }
+			PhysicsConstraint(RigidBody* obj_a, RigidBody* obj_b) : obj_a(obj_a), obj_b(obj_b) { }
+
 			virtual void DoConstraintAction(unordered_set<RigidBody*>& wakeup) = 0;
 			virtual void DoUpdateAction(float timestep) { }
 

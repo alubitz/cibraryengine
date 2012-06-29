@@ -1050,7 +1050,7 @@ namespace Test
 			}
 		} ray_callback;
 
-		physics_world->RayTest(Vec3(x, 0, z), Vec3(x, 1000, z), ray_callback);
+		physics_world->RayTest(Vec3(x, 1000, z), Vec3(x, 0, z), ray_callback);
 
 		return ray_callback.max_y;
 	}

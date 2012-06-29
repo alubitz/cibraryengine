@@ -3,6 +3,8 @@
 
 #include "RigidBody.h"
 
+#include "Random3D.h"
+
 #include "DebugLog.h"
 
 namespace CibraryEngine
@@ -11,41 +13,40 @@ namespace CibraryEngine
 	 * JointConstraint methods
 	 */
 	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& max_extents, const Vec3& angular_damp) :
+		PhysicsConstraint(ibody, jbody),
 		pos(pos),
 		axes(axes),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
-		enable_motor(true)
+		enable_motor(false)
 	{
-		obj_a = ibody;
-		obj_b = jbody;
 	}
 
 	void JointConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
 		// motor constants
-		static const float pyr_coeff =			45.0f;
-		static const float angular_vel_coeff =	0.75f;
+		static const float pyr_coeff =			60.0f;
+		static const float angular_vel_coeff =	1.0f;
 
 		// ball-and-socket constants
-		static const float spring_coeff =		15.0f;
-		static const float dv_coeff =			0.25f;
+		static const float spring_coeff =		60.0f;
+		static const float dv_coeff =			1.0f;
 
 		bool wakeup = false;
 
 		if(enable_motor)
 		{
 			// torque to make the joint conform to a pose
-			Quaternion a_ori = obj_a->GetOrientation();
-			Quaternion b_ori = obj_b->GetOrientation();
-			Quaternion a_to_b = a_ori * 2.0f - b_ori;
+			Mat3 a_ori = obj_a->GetOrientation().ToMat3();
+			Mat3 b_ori = obj_b->GetOrientation().ToMat3();
+			Mat3 a_to_b = Mat3::Invert(a_ori) * b_ori;				// b_ori = a_ori * a_to_b
 
-			Vec3 pyr = Quaternion::Normalize(a_to_b).ToPYR();
+			Vec3 pyr = -Quaternion::FromRotationMatrix(a_to_b).ToPYR();
 			Vec3 desired_av = pyr * pyr_coeff;
 			Vec3 current_av = obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity();
 
 			Vec3 alpha = (desired_av - current_av) * -angular_vel_coeff;
-			if(alpha.ComputeMagnitudeSquared() > 0.0001f)
+			if(alpha.ComputeMagnitudeSquared() > 0.0f)
 			{
 				Mat3 moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 				Vec3 angular_impulse = moi * alpha;
@@ -59,7 +60,6 @@ namespace CibraryEngine
 
 		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
 		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
-		Vec3 offset = b_pos - a_pos;
 
 		// force to keep the two halves of the joint together
 		Vec3 apply_pos = (a_pos + b_pos) * 0.5f;
@@ -67,7 +67,7 @@ namespace CibraryEngine
 		Vec3 i_poi = obj_a->GetInvTransform().TransformVec3_1(apply_pos);
 		Vec3 j_poi = obj_b->GetInvTransform().TransformVec3_1(apply_pos);
 
-		Vec3 desired_dv = offset * -spring_coeff;
+		Vec3 desired_dv = (b_pos - a_pos) * -spring_coeff;
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
 
 		Vec3 dv = desired_dv - current_dv;

@@ -415,7 +415,7 @@ namespace Test
 
 		if(enable_ragdolls)
 		{
-			Corpse* corpse = new Corpse(game_state, this, 60.0f);
+			Corpse* corpse = new Corpse(game_state, this, 10.0f);
 			game_state->Spawn(corpse);
 		}
 

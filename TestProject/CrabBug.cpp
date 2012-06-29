@@ -135,7 +135,7 @@ namespace Test
 
 	void CrabBug::Update(TimingInfo time)
 	{
-#if 1
+#if 0
 		if(time.total > 5.0f)
 			Die(Damage());
 #endif

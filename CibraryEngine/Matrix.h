@@ -85,24 +85,7 @@ namespace CibraryEngine
 		}
 
 		/** Returns the matrix inverse of the given matrix */
-		static Mat3 Invert(const Mat3& a)
-		{
-			float inv = 1.0f / a.Determinant();
-			const float* avals = a.values;
-			Vec3 x0(avals[0], avals[3], avals[6]);
-			Vec3 x1(avals[1], avals[4], avals[7]);
-			Vec3 x2(avals[2], avals[5], avals[8]);
-			Vec3 y0 = Vec3::Cross(x1, x2);
-			Vec3 y1 = Vec3::Cross(x2, x0);
-			Vec3 y2 = Vec3::Cross(x0, x1);
-			return Mat3(
-				y0.x * inv, y0.y * inv, y0.z * inv,
-				y1.x * inv, y1.y * inv, y1.z * inv,
-				y2.x * inv, y2.y * inv, y2.z * inv
-			);
-		}
-
-
+		static Mat3 Invert(const Mat3& a);
 
 		/** Transforms a 3-component vector by this matrix (i.e. matrix multiplication) */
 		Vec3 operator *(const Vec3& b) const
