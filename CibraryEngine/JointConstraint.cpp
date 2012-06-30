@@ -18,7 +18,7 @@ namespace CibraryEngine
 		axes(axes),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
-		enable_motor(false)
+		enable_motor(true)
 	{
 	}
 
@@ -37,11 +37,11 @@ namespace CibraryEngine
 		if(enable_motor)
 		{
 			// torque to make the joint conform to a pose
-			Mat3 a_ori = obj_a->GetOrientation().ToMat3();
-			Mat3 b_ori = obj_b->GetOrientation().ToMat3();
-			Mat3 a_to_b = Mat3::Invert(a_ori) * b_ori;				// b_ori = a_ori * a_to_b
+			Quaternion a_ori = obj_a->GetOrientation();
+			Quaternion b_ori = obj_b->GetOrientation();
+			Quaternion a_to_b = Quaternion::Invert(a_ori) * b_ori;
 
-			Vec3 pyr = -Quaternion::FromRotationMatrix(a_to_b).ToPYR();
+			Vec3 pyr = -a_to_b.ToPYR();
 			Vec3 desired_av = pyr * pyr_coeff;
 			Vec3 current_av = obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity();
 
@@ -92,6 +92,4 @@ namespace CibraryEngine
 			wakeup_list.insert(obj_b);
 		}
 	}
-
-	void JointConstraint::DoUpdateAction(float timestep) { }
 }
