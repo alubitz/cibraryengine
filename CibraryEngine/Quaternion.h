@@ -64,6 +64,11 @@ namespace CibraryEngine
 		/** Subtracts two quaternions */
 		void operator -=(const Quaternion& right)				{ w -= right.w; x -= right.x; y -= right.y; z -= right.z; }
 
+		/** Test whether two quaternions are equal */
+		bool operator ==(const Quaternion& b) const				{ return w == b.w && x == b.x && y == b.y && z == b.z; }
+		/** Test whether two quaternions are unequal */
+		bool operator !=(const Quaternion& b) const				{ return w != b.w || x != b.x || y != b.y || z != b.z; }
+
 		/** Returns the identity quaternion */
 		static Quaternion Identity()							{ return Quaternion(1.0f, 0.0, 0.0, 0.0); }
 		/** Returns a quaternion representing the same rotation as the specified 3x3 rotation matrix */

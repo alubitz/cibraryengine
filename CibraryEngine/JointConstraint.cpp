@@ -14,6 +14,8 @@ namespace CibraryEngine
 	 */
 	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& max_extents, const Vec3& angular_damp) :
 		PhysicsConstraint(ibody, jbody),
+		desired_ori(Quaternion::Identity()),
+		inv_desired(Quaternion::Identity()),
 		pos(pos),
 		axes(axes),
 		max_extents(max_extents),
@@ -37,7 +39,7 @@ namespace CibraryEngine
 		if(enable_motor)
 		{
 			// torque to make the joint conform to a pose
-			Quaternion a_ori = obj_a->GetOrientation();
+			Quaternion a_ori = inv_desired * obj_a->GetOrientation();
 			Quaternion b_ori = obj_b->GetOrientation();
 			Quaternion a_to_b = Quaternion::Invert(a_ori) * b_ori;
 
@@ -92,4 +94,14 @@ namespace CibraryEngine
 			wakeup_list.insert(obj_b);
 		}
 	}
+
+	void JointConstraint::SetDesiredOrientation(const Quaternion& ori)
+	{
+		if(ori != desired_ori)
+		{
+			desired_ori = ori;
+			inv_desired = Quaternion::Invert(desired_ori);
+		}
+	}
+	Quaternion JointConstraint::GetDesiredOrientation() const { return desired_ori; }
 }

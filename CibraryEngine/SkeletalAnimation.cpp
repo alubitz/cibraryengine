@@ -237,6 +237,7 @@ namespace CibraryEngine
 	{
 		skeleton->InvalidateCachedBoneXforms();
 
+		// update poses and throw out ones which are no longer active
 		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end();)
 		{
 			Pose* pose = *iter;
@@ -248,6 +249,7 @@ namespace CibraryEngine
 				iter = active_poses.erase(iter);
 		}
 
+		// add up bone influences
 		unordered_map<unsigned int, BoneInfluence> bone_states;
 
 		for(list<Pose*>::iterator iter = active_poses.begin(); iter != active_poses.end(); ++iter)
@@ -264,6 +266,7 @@ namespace CibraryEngine
 			}
 		}
 
+		// done adding; apply them to the bones
 		int i = 0;
 		for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); ++iter, ++i)
 		{
@@ -280,6 +283,7 @@ namespace CibraryEngine
 			}
 		}
 
+		// throw out the cachced bone matrix texture, if it exists
 		if(bone_matrices != NULL)
 		{
 			bone_matrices->Dispose();

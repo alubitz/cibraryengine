@@ -6,9 +6,6 @@
 
 namespace Test
 {
-
-#if 1
-
 	// Each bone is a separate shootable object (and also an Entity for technical reasons, but it's never spawned)
 	struct CorpseBoneShootable : Entity, Shootable
 	{
@@ -248,6 +245,8 @@ namespace Test
 					RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
 					JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.max_extents, phys.angular_damp);
+					c->SetDesiredOrientation(Quaternion::Invert(bone_a->GetOrientation()) * bone_b->GetOrientation());
+
 					constraints.push_back(c);
 
 					physics->AddConstraint(c);
@@ -328,17 +327,4 @@ namespace Test
 	void Corpse::Update(TimingInfo time) { imp->Update(time); }
 	void Corpse::Vis(SceneRenderer* renderer) { imp->Vis(renderer); }
 	Vec3 Corpse::GetPosition() { return imp->origin; }
-
-#else
-
-	Corpse::Corpse(GameState* gs, Dood* dood, float ttl) : Entity(gs) { is_valid = false; }
-	void Corpse::InnerDispose() { Entity::InnerDispose(); }
-	void Corpse::Spawned() { }
-	void Corpse::DeSpawned() { }
-	void Corpse::Update(TimingInfo time) { }
-	void Corpse::Vis(SceneRenderer* renderer) { }
-	Vec3 Corpse::GetPosition() { return Vec3(); }
-
-#endif
-
 }
