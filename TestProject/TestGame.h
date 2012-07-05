@@ -46,7 +46,8 @@ namespace Test
 			HUD* hud;
 
 			ScriptedController* player_controller;
-			Soldier* player_pawn;
+			//Soldier* player_pawn;
+			Dood* player_pawn;
 
 			string debug_text;
 
@@ -93,7 +94,7 @@ namespace Test
 
 			void Load();
 
-			Soldier* SpawnPlayer(Vec3 pos);
+			Dood* SpawnPlayer(Vec3 pos);
 			Dood* SpawnBot(Vec3 pos);
 			Dood* SpawnArtilleryBug(Vec3 pos);
 			unsigned int GetNumberOfBugs();

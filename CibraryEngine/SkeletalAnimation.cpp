@@ -16,13 +16,13 @@ namespace CibraryEngine
 	/*
 	 * Bone methods
 	 */
-	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori), rest_pos(pos), cache_valid(false) { }
+	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori_, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori_), rest_pos(pos), cache_valid(false) { }
 
 	Mat4 Bone::GetTransformationMatrix()
 	{
 		if(!cache_valid)
 		{
-			Quaternion rotation = rest_ori * ori;
+			Quaternion rotation = ori * rest_ori;
 
 			if (parent == NULL)
 				cached_xform = Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);

@@ -114,18 +114,18 @@ namespace CibraryEngine
 				for(set_iter = cur_names.begin(); set_iter != cur_names.end(); ++set_iter)
 				{
 					BoneInfluence vec = cur.values[*set_iter];
-					SetBonePose(*set_iter, vec.ori * a_frac, vec.pos * a_frac, vec.div * a_frac);
+					SetBonePose(*set_iter, vec.ori * a_frac, vec.pos * a_frac);
 				}
 				for(set_iter = next_names.begin(); set_iter != next_names.end(); ++set_iter)
 				{
 					BoneInfluence vec = nxt.values[*set_iter];
-					SetBonePose(*set_iter, vec.ori * b_frac, vec.pos * b_frac, vec.div * b_frac);
+					SetBonePose(*set_iter, vec.ori * b_frac, vec.pos * b_frac);
 				}
 				for(set_iter = shared_names.begin(); set_iter != shared_names.end(); ++set_iter)
 				{
 					BoneInfluence cur_vec = cur.values[*set_iter];
 					BoneInfluence next_vec = nxt.values[*set_iter];
-					SetBonePose(*set_iter, cur_vec.ori * a_frac + next_vec.ori * b_frac, cur_vec.pos * a_frac + next_vec.pos * b_frac, cur_vec.div * a_frac + next_vec.div * b_frac);
+					SetBonePose(*set_iter, cur_vec.ori * a_frac + next_vec.ori * b_frac, cur_vec.pos * a_frac + next_vec.pos * b_frac);
 				}
 			}
 			else
@@ -134,7 +134,7 @@ namespace CibraryEngine
 				for(unordered_map<unsigned int, BoneInfluence>::iterator iter = cur.values.begin(); iter != cur.values.end(); ++iter)
 				{
 					BoneInfluence vec = cur.values[iter->first];
-					SetBonePose(iter->first, vec.ori, vec.pos, vec.div);
+					SetBonePose(iter->first, vec.ori, vec.pos);
 				}
 			}
 		}

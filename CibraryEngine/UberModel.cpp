@@ -199,15 +199,16 @@ namespace CibraryEngine
 		{
 			CibraryEngine::Bone* bone = skel->bones[i];
 
-			string name = bone->name;
 			float x = bone->rest_pos.x;
 			float y = bone->rest_pos.y;
 			float z = bone->rest_pos.z;
-			string parent_name = bone->parent == NULL ? "root" : "parent is \"" + bone->parent->name + "\"";
+			Debug(((stringstream&)(stringstream() << "Bone \"" << CibraryEngine::Bone::string_table[bone->name] << "\" at (" << x << ", " << y << ", " << z << ") ")).str());
+			
+			if(bone->parent == NULL)
+				Debug("root\n");
+			else
+				Debug(((stringstream&)(stringstream() << "parent is \"" << CibraryEngine::Bone::string_table[bone->parent->name] + "\"\n")).str());
 
-			char str[150];
-			sprintf(str, "Bone \"%s\" at (%f, %f, %f), %s\n", name.c_str(), x, y, z, parent_name.c_str());
-			Debug(str);
 		}
 		*/
 

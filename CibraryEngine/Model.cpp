@@ -128,7 +128,7 @@ namespace CibraryEngine
 
 		struct MyOctreeNode { vector<SubmodelVert> verts; };
 
-		static const float vert_radius = 0.1f;								// add this much leeway when processing verts
+		static const float vert_radius = 0.02f;								// add this much leeway when processing verts
 		static const float vert_rsquared = vert_radius * vert_radius;
 
 		Octree<MyOctreeNode> octree(oct_bounds.min, oct_bounds.max);
@@ -138,51 +138,51 @@ namespace CibraryEngine
 		unsigned int submodel_num = 0;
 		for(vector<VertexBuffer*>::iterator iter = submodels.begin(); iter != submodels.end(); ++iter, ++submodel_num)
 		{
-			VertexBuffer* vbo = *iter;
-			assert(vbo != NULL);
-
-			if(unsigned int num_verts = vbo->GetNumVerts())
+			if(VertexBuffer* vbo = *iter)
 			{
-				float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
-				assert(vertex_ptr != NULL);
-		
-				unsigned int items_per = vbo->GetAttribNPerVertex("gl_Vertex");				// number of floats per vertex
-
-				assert(items_per == 3 || items_per == 4);
-
-				for(unsigned int i = 0; i < num_verts; ++i)
+				if(unsigned int num_verts = vbo->GetNumVerts())
 				{
-					float x = *(vertex_ptr++);
-					float y = *(vertex_ptr++);
-					float z = *(vertex_ptr++);
+					float* vertex_ptr = vbo->GetFloatPointer("gl_Vertex");
+					assert(vertex_ptr != NULL);
+		
+					unsigned int items_per = vbo->GetAttribNPerVertex("gl_Vertex");				// number of floats per vertex
 
-					if(items_per == 4)
-						++vertex_ptr;
+					assert(items_per == 3 || items_per == 4);
 
-					// functor(?) to recursively add this vert to octree elements
-					struct InsertAction
+					for(unsigned int i = 0; i < num_verts; ++i)
 					{
-						Vec3 vert;
-						AABB vert_bounds;
-						unsigned int submodel_num;
+						float x = *(vertex_ptr++);
+						float y = *(vertex_ptr++);
+						float z = *(vertex_ptr++);
 
-						void operator() (Octree<MyOctreeNode>* node)
+						if(items_per == 4)
+							++vertex_ptr;
+
+						// functor(?) to recursively add this vert to octree elements
+						struct InsertAction
 						{
-							if(AABB::IntersectTest(node->bounds, vert_bounds))
+							Vec3 vert;
+							AABB vert_bounds;
+							unsigned int submodel_num;
+
+							void operator() (Octree<MyOctreeNode>* node)
 							{
-								if(node->IsLeaf())
-									node->contents.verts.push_back(SubmodelVert(vert, submodel_num));
-								else
-									node->ForEach(*this);
+								if(AABB::IntersectTest(node->bounds, vert_bounds))
+								{
+									if(node->IsLeaf())
+										node->contents.verts.push_back(SubmodelVert(vert, submodel_num));
+									else
+										node->ForEach(*this);
+								}
 							}
-						}
-					} action;
+						} action;
 
-					action.vert = Vec3(x, y, z);
-					action.vert_bounds = AABB(Vec3(x - vert_radius, y - vert_radius, z - vert_radius), Vec3(x + vert_radius, y + vert_radius, z + vert_radius));
-					action.submodel_num = submodel_num;
+						action.vert = Vec3(x, y, z);
+						action.vert_bounds = AABB(Vec3(x - vert_radius, y - vert_radius, z - vert_radius), Vec3(x + vert_radius, y + vert_radius, z + vert_radius));
+						action.submodel_num = submodel_num;
 
-					action(&octree);								// let the recursion begin!
+						action(&octree);								// let the recursion begin!
+					}
 				}
 			}
 		}

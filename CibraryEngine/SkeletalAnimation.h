@@ -102,7 +102,7 @@ namespace CibraryEngine
 		public:
 
 			Texture1D* bone_matrices;
-			/** Precision scaler; this time any number in the bone matrices should be < 32767 */
+			/** Precision scaler; this times any number in the bone matrices should be < 32767 */
 			float mat_tex_precision;
 
 			/** The model for this character */
@@ -135,16 +135,14 @@ namespace CibraryEngine
 		Vec3 ori;
 		/** How to translate the bone relative to its attachment position */
 		Vec3 pos;
-		/** I don't remember? */
-		float div;
 
 		/** Initializes a default BoneInfluence which does nothing */
-		BoneInfluence() : ori(), pos(), div(0) { }
+		BoneInfluence() : ori(), pos() { }
 		/** Initializes a BoneInfluence, specifying the rotation, translation, and idr */
-		BoneInfluence(Vec3 ori, Vec3 pos, float div) : ori(ori), pos(pos), div(div) { }
+		BoneInfluence(Vec3 ori, Vec3 pos) : ori(ori), pos(pos) { }
 
 		/** Adds two bone influences */
-		void operator +=(BoneInfluence& other) { ori += other.ori; pos += other.pos; div += other.div; }
+		void operator +=(BoneInfluence& other) { ori += other.ori; pos += other.pos; }
 		/** Adds two bone influences */
 		BoneInfluence operator +(BoneInfluence& other) { BoneInfluence temp = *this; temp += other; return temp; }
 	};
@@ -164,7 +162,7 @@ namespace CibraryEngine
 			Pose() : active(true), bones() { }
 
 			/** Sets how this Pose will affect the specified bone, by modifying the bones map */
-			void SetBonePose(unsigned int which, Vec3 ori, Vec3 pos, float weight) { bones[which] = BoneInfluence(ori, pos, weight); }
+			void SetBonePose(unsigned int which, Vec3 ori, Vec3 pos) { bones[which] = BoneInfluence(ori, pos); }
 
 			/** Abstract function where you can call SetBonePose */
 			virtual void UpdatePose(TimingInfo time) = 0;

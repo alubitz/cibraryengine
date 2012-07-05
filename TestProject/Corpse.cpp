@@ -64,7 +64,8 @@ namespace Test
 		Corpse* corpse;
 
 		vector<Material*> materials;
-		SkinnedCharacter* character;
+		SkinnedCharacter* draw_phys_character;
+		SkinnedCharacter* pose_character;
 		UberModel* model;
 		ModelPhysics* mphys;
 
@@ -89,7 +90,8 @@ namespace Test
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
 			corpse(corpse),
-			character(dood->character),
+			draw_phys_character(dood->draw_phys_character),
+			pose_character(dood->pose_character),
 			model(dood->model),
 			mphys(dood->mphys),
 			blood_material(dood->blood_material),
@@ -105,8 +107,10 @@ namespace Test
 			bone_indices(),
 			constraints()
 		{
-			character->active_poses.clear();
-			dood->character = NULL;
+			pose_character->active_poses = draw_phys_character->active_poses;
+			draw_phys_character->active_poses.clear();
+
+			//dood->character = NULL;
 
 			for(unsigned int i = 0; i < model->materials.size(); ++i)
 			{
@@ -120,9 +124,17 @@ namespace Test
 		{
 			DeSpawned();
 
-			character->Dispose();
-			delete character;
-			character = NULL;
+			for(list<Pose*>::iterator iter = pose_character->active_poses.begin(); iter != pose_character->active_poses.end(); ++iter)
+				delete *iter;
+			pose_character->active_poses.clear();
+
+			pose_character->Dispose();
+			delete pose_character;
+			pose_character = NULL;
+
+			draw_phys_character->Dispose();
+			delete draw_phys_character;
+			draw_phys_character = NULL;
 		}
 
 		// position of the drawn bones
@@ -140,7 +152,7 @@ namespace Test
 				{
 					RigidBody* body = rigid_bodies[i];
 					unsigned int bone_index = bone_indices[i];
-					Bone* bone = character->skeleton->bones[bone_index];
+					Bone* bone = draw_phys_character->skeleton->bones[bone_index];
 
 					Quaternion rigid_body_ori = body->GetOrientation();
 					Vec3 rigid_body_pos = body->GetPosition();
@@ -152,7 +164,10 @@ namespace Test
 					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 				}
 
-				character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+				draw_phys_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+				pose_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+
+				// TODO: tell constraints to match orientations of pose_character
 
 				character_pose_time = now;
 			}
@@ -170,10 +185,10 @@ namespace Test
 
 			// get bone pos/ori info
 			vector<Mat4> mats = vector<Mat4>();
-			unsigned int count = character->skeleton->bones.size();
+			unsigned int count = draw_phys_character->skeleton->bones.size();
 			for(unsigned int i = 0; i < count; ++i)
 			{
-				Bone* bone = character->skeleton->bones[i];
+				Bone* bone = draw_phys_character->skeleton->bones[i];
 
 				bone_offsets.push_back(Vec3());		//bone->rest_pos);
 				mats.push_back(whole_xform * bone->GetTransformationMatrix());
@@ -187,7 +202,7 @@ namespace Test
 			// create rigid bodies
 			for(unsigned int i = 0; i < count; ++i)
 			{
-				Bone* bone = character->skeleton->bones[i];
+				Bone* bone = draw_phys_character->skeleton->bones[i];
 
 				Mat4 mat = mats[i];
 				float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
@@ -256,7 +271,7 @@ namespace Test
 			// emancipate bones
 			for(unsigned int i = 0; i < count; ++i)
 			{
-				Bone* bone = character->skeleton->bones[i];
+				Bone* bone = draw_phys_character->skeleton->bones[i];
 				bone->parent = NULL;									// orientation and position are no longer relative to a parent!
 			}
 
@@ -310,7 +325,7 @@ namespace Test
 			Sphere bs = Sphere(pos, 2.5);
 
 			//if(renderer->camera->CheckSphereVisibility(bs))
-				((TestGame*)corpse->game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), character, &materials);
+				((TestGame*)corpse->game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), draw_phys_character, &materials);
 		}
 	};
 

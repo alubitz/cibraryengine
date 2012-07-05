@@ -194,9 +194,8 @@ namespace CibraryEngine
 		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 		{
 			const PhysicsConstraint* c = *iter;
-			RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a;
-
-			eligible_bodies[other->GetCollisionShape()->GetShapeType()].erase(other);
+			if(RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a)
+				eligible_bodies[other->GetCollisionShape()->GetShapeType()].erase(other);
 		}
 	}
 
@@ -236,6 +235,17 @@ namespace CibraryEngine
 	void RigidBody::SetDamp(float damp) { linear_damp = damp; }
 
 	MassInfo RigidBody::GetMassInfo() { return mass_info; }
+	MassInfo RigidBody::GetTransformedMassInfo()
+	{
+		MassInfo result;
+		result.mass = mass_info.mass;
+		result.com = ori_rm.Transpose() * mass_info.com;
+		Mat3 moi_data = Mat3::Invert(inv_moi);
+		for(int i = 0; i < 9; ++i)
+			result.moi[i] = moi_data[i];
+
+		return result;
+	}
 
 	Mat3 RigidBody::GetInvMoI() { return inv_moi; }
 

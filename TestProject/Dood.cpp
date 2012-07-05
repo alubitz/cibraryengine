@@ -13,9 +13,11 @@
 #include "Particle.h"
 #include "Corpse.h"
 
+#include "DoodOrientationConstraint.h"
+
 namespace Test
 {
-	bool enable_ragdolls = true;
+	bool enable_ragdolls = false;
 
 	bool MaybeDoScriptedUpdate(Dood* dood);
 	bool MaybeDoScriptedDeath(Dood* dood);
@@ -37,6 +39,40 @@ namespace Test
 
 
 	/*
+	 * Dood::BoneShootable methods
+	 */
+	bool Dood::BoneShootable::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+	{
+		Vec3 from_dir = Vec3::Normalize(shot->origin - dood->pos);
+		dood->TakeDamage(shot->GetDamage(), from_dir);
+
+		dood->Splatter(shot, poi, momentum);
+
+		Mat4 xform;
+		{
+			xform = rbi->GetTransformationMatrix();
+			float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
+			Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
+			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
+			xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
+		}
+
+		Vec3 pos = xform.TransformVec3_1(0, 0, 0);
+		Vec3 x_axis = xform.TransformVec3_0(1, 0, 0);
+		Vec3 y_axis = xform.TransformVec3_0(0, 1, 0);
+		Vec3 z_axis = xform.TransformVec3_0(0, 0, 1);
+
+		Vec3 local_poi;
+		local_poi = poi - pos;
+		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
+		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
+
+		rbi->ApplyImpulse(momentum, local_poi);
+		return true;
+	}
+
+
+	/*
 	 * Dood methods
 	 */
 	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
@@ -53,8 +89,15 @@ namespace Test
 		hp(1.0f),
 		eye_bone(NULL),
 		model(model),
-		character(NULL),
-		rigid_body(NULL),
+		draw_phys_character(NULL),
+		pose_character(NULL),
+		root_rigid_body(NULL),
+		rigid_bodies(),
+		shootables(),
+		bone_offsets(),
+		bone_indices(),
+		constraints(),
+		orientation_constraint(NULL),
 		physics(NULL),
 		mphys(mphys),
 		standing(0),
@@ -67,9 +110,10 @@ namespace Test
 		OnDeath()
 	{
 		// creating character
-		character = new SkinnedCharacter(model->CreateSkeleton());
+		draw_phys_character = new SkinnedCharacter(model->CreateSkeleton());
+		pose_character = new SkinnedCharacter(new Skeleton(draw_phys_character->skeleton));
 
-		eye_bone = character->skeleton->GetNamedBone("eye");
+		eye_bone = draw_phys_character->skeleton->GetNamedBone("eye");
 
 		// too bad this isn't saved somewhere?
 		MassInfo mass_info = MassInfo();
@@ -92,11 +136,19 @@ namespace Test
 
 	void Dood::InnerDispose()
 	{
-		if(rigid_body != NULL)
-		{
-			rigid_body->Dispose();
-			delete rigid_body;
-		}
+		DeSpawned();
+
+		for(list<Pose*>::iterator iter = pose_character->active_poses.begin(); iter != pose_character->active_poses.end(); ++iter)
+			delete *iter;
+		pose_character->active_poses.clear();
+
+		pose_character->Dispose();
+		delete pose_character;
+		pose_character = NULL;
+
+		draw_phys_character->Dispose();
+		delete draw_phys_character;
+		draw_phys_character = NULL;
 
 		Pawn::InnerDispose();
 	}
@@ -117,9 +169,9 @@ namespace Test
 				timestep = 0.01f;
 
 			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
-
-			Vec3 impulse = (desired_vel - vel) * mass;
-			rigid_body->ApplyCentralImpulse(impulse);
+			Vec3 dv = desired_vel - vel;
+			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+				(*iter)->ApplyCentralImpulse(dv * (*iter)->GetMassInfo().mass);
 		}
 	}
 
@@ -133,7 +185,7 @@ namespace Test
 			control_state->SetBoolControl("reload", false);
 		}
 
-		if(character != NULL)
+		if(draw_phys_character != NULL)
 		{
 			PoseCharacter(time);
 
@@ -148,7 +200,7 @@ namespace Test
 				intrinsic_weapon->OwnerUpdate(time);
 			}
 
-			character->UpdatePoses(time);
+			draw_phys_character->UpdatePoses(time);
 		}
 	}
 
@@ -163,15 +215,17 @@ namespace Test
 		Vec3 forward = Vec3(-sin(yaw), 0, cos(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-		rigid_body->Activate();
+		// rigid_body->Activate();		// TODO: reimplement this
 
-		Vec3 vel = rigid_body->GetLinearVelocity();												// velocity prior to forces being applied
+		Vec3 vel = root_rigid_body->GetLinearVelocity();												// velocity prior to forces being applied
 
 		Vec3 delta_v = vel - this->vel;
 		// collision damage!
-		float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
-		if (falling_damage_base > 0)
-			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
+		//float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
+		//if (falling_damage_base > 0)
+		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
+
+		orientation_constraint->desired_ori = Quaternion::FromPYR(0, -yaw, 0);
 
 #if 0
 		TestGame* test_game = (TestGame*)game_state;
@@ -255,12 +309,12 @@ namespace Test
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
-	Vec3 Dood::GetPosition() { return rigid_body->GetPosition(); }
-	void Dood::SetPosition(Vec3 pos) { rigid_body->SetPosition(pos); }
+	Vec3 Dood::GetPosition() { return root_rigid_body->GetPosition(); }
+	void Dood::SetPosition(Vec3 pos) { root_rigid_body->SetPosition(pos); }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		if(character != NULL)		// character will be null right when it becomes dead
+		if(draw_phys_character != NULL)		// character will be null right when it becomes dead
 		{
 			Sphere bs = Sphere(pos, 2.5);
 			if(renderer->camera->CheckSphereVisibility(bs))
@@ -268,7 +322,7 @@ namespace Test
 				double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
 				int use_lod = dist < 45.0f ? 0 : 1;
 
-				((TestGame*)game_state)->VisUberModel(renderer, model, use_lod, Mat4::Translation(pos), character, &materials);
+				((TestGame*)game_state)->VisUberModel(renderer, model, use_lod, Mat4::Translation(pos), draw_phys_character, &materials);
 			}
 		}
 	}
@@ -292,9 +346,9 @@ namespace Test
 			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
 			Vec3 left		= eye_xform.TransformVec3_0(1, 0, 0);
 			Vec3 up			= eye_xform.TransformVec3_0(0, 1, 0);
-			Vec3 forward	= eye_xform.TransformVec3_0(0, 0, 1);
+			Vec3 backward	= eye_xform.TransformVec3_0(0, 0, 1);
 
-			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, forward.x, forward.y, forward.z);
+			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, backward.x, backward.y, backward.z);
 			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec));
 		}
 	}
@@ -314,68 +368,224 @@ namespace Test
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
 	{
-		if(character == NULL)			// the moment a Dood dies this will fail
+		if(!is_valid)
 			return;
-
-		if (time.total > character_pose_time)
+		float now = time.total;
+		if (now > character_pose_time)
 		{
 			PreUpdatePoses(time);
-			character->UpdatePoses(time);
+
+			origin = rigid_bodies[0]->GetPosition();
+
+			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+			{
+				RigidBody* body = rigid_bodies[i];
+				unsigned int bone_index = bone_indices[i];
+				Bone* bone = draw_phys_character->skeleton->bones[bone_index];
+
+				Quaternion rigid_body_ori = body->GetOrientation();
+				Vec3 rigid_body_pos = body->GetPosition();
+
+				bone->ori = Quaternion::Reverse(rigid_body_ori);
+
+				// model origin = rigid body pos - model rot * rest pos
+				Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(bone_offsets[bone_index]);
+				bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
+			}
+
+			draw_phys_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+			pose_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+
+			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			{
+				JointConstraint* constraint = (JointConstraint*)(*iter);
+				
+				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+				{
+					RigidBody* ibody = rigid_bodies[i];
+					if(ibody == constraint->obj_a)
+					{
+						for(unsigned int j = i + 1; j < rigid_bodies.size(); ++j)
+						{
+							RigidBody* jbody = rigid_bodies[j];
+							if(jbody == constraint->obj_b)
+							{
+								Bone* i_bone = pose_character->skeleton->bones[bone_indices[i]];
+								Bone* j_bone = pose_character->skeleton->bones[bone_indices[j]];
+
+								constraint->SetDesiredOrientation(j_bone->ori);
+
+								i = j = rigid_bodies.size();			// skip to end of these two for loops
+							}
+						}
+					}
+				}
+			}
+
 			PostUpdatePoses(time);
 
-			character_pose_time = time.total;
+			character_pose_time = now;
 		}
 	}
 
 	void Dood::Spawned()
 	{
+		if(mphys == NULL)
+		{
+			Debug("Dood's mphys is NULL; this Dood will be removed!\n");
+
+			is_valid = false;
+			return;
+		}
+
+		whole_xform = Mat4::Translation(pos);
+
 		physics = game_state->physics_world;
 
-		Sphere spheres[] = { Sphere(Vec3(0, 0.5f, 0), 0.5f), Sphere(Vec3(0, 1.5f, 0), 0.5f) };
-		CollisionShape* shape = new MultiSphereShape(spheres, 2);
+		// get bone pos/ori info
+		vector<Mat4> mats = vector<Mat4>();
+		unsigned int count = draw_phys_character->skeleton->bones.size();
+		for(unsigned int i = 0; i < count; ++i)
+		{
+			Bone* bone = draw_phys_character->skeleton->bones[i];
 
-		MassInfo mass_info = MassInfo(Vec3(0, 1, 0), mass);			// point mass; has zero MoI, which Bullet treats like infinite MoI
+			bone_offsets.push_back(Vec3());		//bone->rest_pos);
+			mats.push_back(whole_xform * bone->GetTransformationMatrix());
+		}
 
-		RigidBody* rigid_body = new RigidBody(shape, mass_info, pos);
-		rigid_body->SetUserEntity(this);
-		rigid_body->SetCollisionCallback(&collision_callback);
+		ModelPhysics::BonePhysics** bone_physes = new ModelPhysics::BonePhysics* [count];
 
-		physics->AddRigidBody(rigid_body);
-		this->rigid_body = rigid_body;
+		// given string id, get index of rigid body
+		map<unsigned int, unsigned int> name_indices;
+
+		// create rigid bodies
+		for(unsigned int i = 0; i < count; ++i)
+		{
+			Bone* bone = draw_phys_character->skeleton->bones[i];
+
+			Mat4 mat = mats[i];
+			float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
+			bone->ori = Quaternion::Reverse(Quaternion::FromRotationMatrix(Mat3(ori_values)));
+
+			Vec3 bone_pos = mat.TransformVec3_1(bone_offsets[i]);
+
+			ModelPhysics::BonePhysics* phys = NULL;
+			for(unsigned int j = 0; j < mphys->bones.size(); ++j)
+				if(Bone::string_table[mphys->bones[j].bone_name] == bone->name)
+				{
+					phys = &mphys->bones[j];
+					break;
+				}
+
+			bone_physes[i] = phys;
+
+			if(phys != NULL)
+			{
+				CollisionShape* shape = phys->collision_shape;
+				if(shape != NULL)
+				{
+					RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, bone_pos, bone->ori);
+
+					rigid_body->SetDamp(0.05f);
+					rigid_body->SetFriction(1.0f);
+
+					physics->AddRigidBody(rigid_body);
+					rigid_bodies.push_back(rigid_body);
+
+					BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
+					rigid_body->SetUserEntity(shootable);
+					rigid_body->SetCollisionCallback(&collision_callback);
+
+					name_indices[bone->name] = bone_indices.size();
+
+					shootables.push_back(shootable);
+					bone_indices.push_back(i);
+
+					if(bone->name == Bone::string_table["carapace"] || bone->name == Bone::string_table["pelvis"])
+						root_rigid_body = rigid_body;
+				}
+			}
+		}
+
+		// create constraints between bones
+		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
+		{
+			ModelPhysics::JointPhysics& phys = *iter;
+				
+			if(phys.bone_b != 0)						// don't deal with special attachment points
+			{
+				const string& bone_a_name = mphys->bones[phys.bone_a - 1].bone_name;
+				const string& bone_b_name = mphys->bones[phys.bone_b - 1].bone_name;
+
+				RigidBody* bone_a = rigid_bodies[name_indices[Bone::string_table[bone_a_name]]];
+				RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
+
+				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.max_extents, phys.angular_damp);
+
+				constraints.push_back(c);
+
+				physics->AddConstraint(c);
+			}
+		}
+
+		// emancipate bones
+		for(unsigned int i = 0; i < count; ++i)
+		{
+			Bone* bone = draw_phys_character->skeleton->bones[i];
+
+			if(name_indices.find(bone->name) != name_indices.end())		// only emancipate bones which have rigid bodies!
+				bone->parent = NULL;									// orientation and position are no longer relative to a parent!
+		}
+
+		// if(rigid_bodies.size() == 0)
+		//	corpse->is_valid = false;
+
+		delete[] bone_physes;
+
+		orientation_constraint = new DoodOrientationConstraint(this);
+		physics->AddConstraint(orientation_constraint);
 	}
 
 	void Dood::DeSpawned()
 	{
-		physics->RemoveRigidBody(rigid_body);
+		for(unsigned int i = 0; i < shootables.size(); ++i)
+			delete shootables[i];
+		shootables.clear();
+
+		// clear constraints
+		for(unsigned int i = 0; i < constraints.size(); ++i)
+		{
+			PhysicsConstraint* c = constraints[i];
+			physics->RemoveConstraint(c);
+
+			c->Dispose();
+			delete c;
+		}
+		constraints.clear();
+
+		if(orientation_constraint != NULL)
+		{
+			physics->RemoveConstraint(orientation_constraint);
+			delete orientation_constraint;
+			orientation_constraint = NULL;
+		}
+
+		// clear rigid bodies
+		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+		{
+			RigidBody* body = rigid_bodies[i];
+			if(physics != NULL)
+				physics->RemoveRigidBody(body);
+
+			body->DisposePreservingCollisionShape();
+			delete body;
+		}
+		rigid_bodies.clear();
 
 		if(equipped_weapon != NULL)
 			equipped_weapon->is_valid = false;
 		if(intrinsic_weapon != NULL)
 			intrinsic_weapon->is_valid = false;
-	}
-
-	bool Dood::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
-	{
-		Vec3 from_dir = Vec3::Normalize(shot->origin - pos);
-		TakeDamage(shot->GetDamage(), from_dir);
-
-		// let's transfer us some momentum!
-
-		// character controllers are special cases where angular momentum doesn't get applied the same way...
-		rigid_body->ApplyCentralImpulse(momentum);
-
-		Vec3 radius_vec = poi - pos;						// now for the angular part...
-		double radius = radius_vec.ComputeMagnitude();
-		if (radius > 0)
-		{
-			Vec3 angular_impulse = Vec3::Cross(momentum, radius_vec);
-			Vec3 angular_delta_v = inverse_moi * angular_impulse;
-
-			angular_vel += angular_delta_v;
-		}
-
-		Splatter(shot, poi, momentum);
-		return true;
 	}
 
 	void Dood::TakeDamage(Damage damage, Vec3 from_dir)
@@ -451,12 +661,22 @@ namespace Test
 	Dood::ContactCallback::ContactCallback(Dood* dood) : dood(dood) { }
 	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
 	{
-		ContactPoint::Part self = collision.obj_a->GetUserEntity() == dood ? collision.a : collision.b;
-		ContactPoint::Part other = collision.obj_a->GetUserEntity() == dood ? collision.b : collision.a;
+		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
+			if(collision.obj_a == *iter || collision.obj_b == *iter)
+			{
+				ContactPoint::Part self = collision.obj_a == *iter ? collision.a : collision.b;
+				ContactPoint::Part other = collision.obj_a == *iter ? collision.b : collision.a;
 
-		Vec3 normal = other.norm;
-		if(normal.y > 0.1)
-			dood->standing = 1;
+				for(vector<RigidBody*>::iterator jter = dood->rigid_bodies.begin(); jter != dood->rigid_bodies.end(); ++jter)
+					if(iter != jter && collision.obj_a == *jter || collision.obj_b == *jter)
+						return true;			// collisions between bones of the same dood don't count as "standing"
+
+				Vec3 normal = other.norm;
+				if(normal.y > 0.1)
+					dood->standing = 1;
+
+				return true;
+			}
 
 		return true;
 	}

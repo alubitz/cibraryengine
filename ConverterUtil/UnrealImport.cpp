@@ -306,7 +306,7 @@ namespace ConverterUtil
 					string bone_name = bones[j].Name;
 					bone_name.erase(bone_name.find_last_not_of(" ") + 1);				   // trim trailing spaces
 
-					keyframe_animation.frames[k].values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos, 1.0f);
+					keyframe_animation.frames[k].values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos);
 
 					++key_pointer;
 				}

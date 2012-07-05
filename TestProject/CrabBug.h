@@ -21,12 +21,11 @@ namespace Test
 
 					WalkPose() : Pose(), yaw(), pos() { }
 
-					void UpdatePose(TimingInfo time) { SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3(), 1.0f); }
-			} walk_pose;
+					void UpdatePose(TimingInfo time) { SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3()); }
+			};
+			WalkPose* walk_pose;
 
 		protected:
-
-			void InnerDispose();
 
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 

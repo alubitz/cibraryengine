@@ -6,11 +6,11 @@
 
 namespace Test
 {
+	struct BoneEntry;
+
 	class Soldier : public Dood
 	{
 		protected:
-
-			void InnerDispose();
 
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			void DoWeaponControls(TimingInfo time);
@@ -32,5 +32,7 @@ namespace Test
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Update(TimingInfo time);
+
+			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
 	};
 }

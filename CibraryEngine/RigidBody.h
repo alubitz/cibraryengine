@@ -124,6 +124,7 @@ namespace CibraryEngine
 			Mat4 GetInvTransform();
 
 			MassInfo GetMassInfo();
+			MassInfo GetTransformedMassInfo();
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
 			Mat3 GetInvMoI();

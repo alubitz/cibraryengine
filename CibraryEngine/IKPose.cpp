@@ -102,7 +102,7 @@ namespace CibraryEngine
 		for(unordered_map<unsigned int, BoneInfluence>::iterator iter = keyframe_animation->bones.begin(); iter != keyframe_animation->bones.end(); ++iter)
 		{
 			BoneInfluence& binf = iter->second;
-			SetBonePose(iter->first, binf.ori, binf.pos, binf.div);
+			SetBonePose(iter->first, binf.ori, binf.pos);
 		}
 	}
 

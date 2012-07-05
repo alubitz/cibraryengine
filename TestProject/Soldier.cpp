@@ -4,6 +4,8 @@
 #include "PoseAimingGun.h"
 #include "WeaponEquip.h"
 
+#include "ConverterWhiz.h"
+
 namespace Test
 {
 	/*
@@ -33,24 +35,20 @@ namespace Test
 		jet_loop(NULL)
 	{
 		p_ag = new PoseAimingGun();
-		character->active_poses.push_back(p_ag);
-		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
+		pose_character->active_poses.push_back(p_ag);
+		gun_hand_bone = draw_phys_character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
 		jet_loop_sound = sound_cache->Load("jet_loop");
 	}
 
-	void Soldier::InnerDispose()
-	{
-		delete p_ag;
-		p_ag = NULL;
-
-		Dood::InnerDispose();
-	}
-
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
+		mass = 0.0f;
+		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			mass += (*iter)->GetMassInfo().mass;
+
 		float timestep = time.elapsed;
 
 		bool can_recharge = true;
@@ -60,7 +58,8 @@ namespace Test
 			if (standing > 0)
 			{
 				//jump off the ground
-				rigid_body->ApplyCentralImpulse(Vec3(0, jump_speed * mass, 0));
+				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+					(*iter)->ApplyCentralImpulse(Vec3(0, jump_speed * (*iter)->GetMassInfo().mass, 0));
 				jump_start_timer = time.total + jump_to_fly_delay;
 			}
 			else
@@ -91,9 +90,8 @@ namespace Test
 						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
 						jump_accel_vec += lateral_accel * (flying_accel);
 
-						Vec3 jump_force = jump_accel_vec * mass;
-
-						rigid_body->ApplyCentralForce(jump_force);
+						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+							(*iter)->ApplyCentralForce(jump_accel_vec * (*iter)->GetMassInfo().mass);
 					}
 				}
 				else
@@ -136,11 +134,42 @@ namespace Test
 	{
 		if(equipped_weapon != NULL && gun_hand_bone != NULL)
 		{
-			equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos) /* * Mat4::Translation(-0.3, 1.3, 0.08) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -0.75) * Quaternion::FromPYR(1.5, 0.0, 0.0) * Quaternion::FromPYR(0, 0.1, 0) * Quaternion::FromPYR(0.1, 0, 0)) * Mat4::Translation(0, 0.05, 0.35) */;
+			equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos);
 			equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
 	}
 
 	void Soldier::Update(TimingInfo time) { Dood::Update(time); }
+
+	void Soldier::GetBoneEntries(vector<BoneEntry>& bone_entries)
+	{
+		bone_entries.push_back(BoneEntry("pelvis",		"",				Vec3(	0,		1.12f,	-0.09f	)));
+		bone_entries.push_back(BoneEntry("torso 1",		"pelvis",		Vec3(	0,		1.34f,	-0.2f	)));
+		bone_entries.push_back(BoneEntry("torso 2",		"torso 1",		Vec3(	0,		1.57f,	-0.2f	)));
+		bone_entries.push_back(BoneEntry("head",		"torso 2",		Vec3(	0,		1.73f,	0.0f	)));
+
+		bone_entries.push_back(BoneEntry("l shoulder",	"torso 2",		Vec3(	0.27f,	1.69f,	0.0f	)));
+		bone_entries.push_back(BoneEntry("l arm 1",		"l shoulder",	Vec3(	0.28f,	1.52f,	-0.05f	)));
+		bone_entries.push_back(BoneEntry("l arm 2",		"l arm 1",		Vec3(	0.53f,	1.4f,	-0.06f	)));
+		bone_entries.push_back(BoneEntry("l hand",		"l arm 2",		Vec3(	0.82f,	1.25f,	0.01f	)));
+		bone_entries.push_back(BoneEntry("l leg 1",		"pelvis",		Vec3(	0.15f,	1.04f,	-0.02f	)));
+		bone_entries.push_back(BoneEntry("l leg 2",		"l leg 1",		Vec3(	0.19f,	0.64f,	0.01f	)));
+		bone_entries.push_back(BoneEntry("l foot",		"l leg 2",		Vec3(	0.27f,	0.14f,	-0.11f	)));
+
+		bone_entries.push_back(BoneEntry("r shoulder",	"torso 2",		Vec3(	-0.27f,	1.69f,	0.0f	)));
+		bone_entries.push_back(BoneEntry("r arm 1",		"r shoulder",	Vec3(	-0.28f,	1.52f,	-0.05f	)));
+		bone_entries.push_back(BoneEntry("r arm 2",		"r arm 1",		Vec3(	-0.53f,	1.4f,	-0.06f	)));
+		bone_entries.push_back(BoneEntry("r hand",		"r arm 2",		Vec3(	-0.82f,	1.25f,	0.01f	)));
+		bone_entries.push_back(BoneEntry("r leg 1",		"pelvis",		Vec3(	-0.15f,	1.04f,	-0.02f	)));
+		bone_entries.push_back(BoneEntry("r leg 2",		"r leg 1",		Vec3(	-0.19f,	0.64f,	0.01f	)));
+		bone_entries.push_back(BoneEntry("r foot",		"r leg 2",		Vec3(	-0.27f,	0.14f,	-0.11f	)));
+
+		bone_entries.push_back(BoneEntry("eye",			"head",			Vec3(	0,		1.80f,	0.18f	)));
+		bone_entries.push_back(BoneEntry("l grip",		"l hand",		Vec3(	0.9f,	1.15f,	0.04f	)));
+		bone_entries.push_back(BoneEntry("r grip",		"r hand",		Quaternion::Reverse(Quaternion::FromPYR(1.47884f, -0.625244f, -0.625244f)) * Vec3(	-0.9f,	1.15f,	0.04f	)));
+
+		for(vector<BoneEntry>::iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
+			iter->mass = 98.0f / bone_entries.size();
+	}
 }

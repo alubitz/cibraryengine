@@ -446,7 +446,35 @@ namespace Test
 
 		// Dood's model
 		imp->soldier_model = ubermodel_cache->Load("soldier");
+		if(imp->soldier_model == NULL)
+		{
+			vector<BoneEntry> bone_entries;
+			Soldier::GetBoneEntries(bone_entries);
+
+			UberModel* soldier_model = imp->soldier_model = AutoSkinUberModel(content, "nuarmor", "soldier", bone_entries);
+
+			SetUberModelSkeleton(soldier_model, bone_entries);
+			for(vector<UberModel::Bone>::iterator iter = soldier_model->bones.begin(); iter != soldier_model->bones.end(); ++iter)
+			{
+				if(iter->name == "r grip")
+					iter->ori = Quaternion::FromPYR(float(M_PI / 2), 0, 0) * Quaternion::FromPYR(0, -0.8f, 0);
+			}
+
+			UberModelLoader::SaveZZZ(soldier_model, "Files/Models/soldier.zzz");
+			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("soldier").id).fail = false;
+		}
 		imp->soldier_physics = mphys_cache->Load("soldier");
+		if(imp->soldier_physics == NULL)
+		{
+			vector<BoneEntry> bone_entries;
+			Soldier::GetBoneEntries(bone_entries);
+
+			imp->soldier_physics = ModelPhysicsFromBoneEntries(bone_entries);
+
+			ModelPhysicsLoader::SaveZZP(imp->soldier_physics, "Files/Physics/soldier.zzp");
+			mphys_cache->GetMetadata(mphys_cache->GetHandle("soldier").id).fail = false;
+		}
+		
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
@@ -627,7 +655,7 @@ namespace Test
 		load_status.Stop();
 	}
 
-	Soldier* TestGame::SpawnPlayer(Vec3 pos)
+	Dood* TestGame::SpawnPlayer(Vec3 pos)
 	{
 		if(player_pawn != NULL)
 			player_pawn->is_valid = false;

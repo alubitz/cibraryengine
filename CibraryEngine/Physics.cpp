@@ -26,7 +26,7 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 20
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 30
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
 namespace CibraryEngine
@@ -705,8 +705,10 @@ namespace CibraryEngine
 
 	void PhysicsWorld::AddConstraint(PhysicsConstraint* c)
 	{
-		c->obj_a->constraints.insert(c);
-		c->obj_b->constraints.insert(c);
+		if(c->obj_a != NULL)
+			c->obj_a->constraints.insert(c);
+		if(c->obj_b != NULL)
+			c->obj_b->constraints.insert(c);
 		all_constraints.insert(c);
 	}
 

@@ -19,13 +19,28 @@ namespace Test
 
 	struct Damage;
 
-	class Dood : public Pawn, public Shootable
+	class DoodOrientationConstraint;
+
+	class Dood : public Pawn
 	{
 		private:
 
 			float character_pose_time;
 
 		protected:
+
+			struct BoneShootable : Entity, Shootable
+			{
+				Dood* dood;
+				RigidBody* rbi;
+
+				BillboardMaterial* blood_material;
+
+				BoneShootable(GameState* gs, Dood* dood, RigidBody* rbi, BillboardMaterial* blood_material) : Entity(gs), dood(dood), rbi(rbi), blood_material(blood_material) { }
+				~BoneShootable() { }
+
+				bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
+			};
 
 			virtual void InnerDispose();
 
@@ -55,9 +70,21 @@ namespace Test
 			Bone* eye_bone;
 
 			UberModel* model;
-			SkinnedCharacter* character;
+			SkinnedCharacter* draw_phys_character;
+			SkinnedCharacter* pose_character;
 
-			RigidBody* rigid_body;
+			Mat4 whole_xform;
+			Vec3 origin;
+
+			RigidBody* root_rigid_body;
+			vector<RigidBody*> rigid_bodies;
+			vector<BoneShootable*> shootables;
+			vector<Vec3> bone_offsets;
+			vector<unsigned int> bone_indices;
+			vector<PhysicsConstraint*> constraints;
+
+			DoodOrientationConstraint* orientation_constraint;
+
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
 
@@ -86,7 +113,6 @@ namespace Test
 			virtual void Spawned();
 			virtual void DeSpawned();
 
-			bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
 			void TakeDamage(Damage damage, Vec3 from_dir);
 			void Splatter(Shot* shot, Vec3 poi, Vec3 momentum);
 			void Die(Damage cause);

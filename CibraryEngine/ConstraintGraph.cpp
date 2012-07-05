@@ -112,7 +112,7 @@ namespace CibraryEngine
 			}
 
 			RigidBody* body_b = constraint->obj_b;
-			if(body_b->MergesSubgraphs())
+			if(body_b && body_b->MergesSubgraphs())
 			{
 				Node* node_b;
 				unordered_map<RigidBody*, Node*>::iterator found_b = nodes.find(body_b);

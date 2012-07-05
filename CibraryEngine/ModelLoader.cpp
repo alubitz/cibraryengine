@@ -678,7 +678,7 @@ namespace CibraryEngine
 				pos.y = ReadSingle(file);
 				pos.z = ReadSingle(file);
 
-				frame.values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos, 1.0f);
+				frame.values[Bone::string_table[bone_name]] = BoneInfluence(ori, pos);
 			}
 
 			frames.push_back(frame);
