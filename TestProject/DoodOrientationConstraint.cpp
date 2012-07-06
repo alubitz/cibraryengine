@@ -10,7 +10,7 @@ namespace Test
 	void DoodOrientationConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
 		// motor constants
-		static const float pyr_coeff =			60.0f;
+		static const float pyr_coeff =			30.0f;
 		static const float angular_vel_coeff =	1.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();

@@ -88,8 +88,6 @@ namespace Test
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
 
-			float mass;
-			Mat3 inverse_moi;
 			float standing;
 
 			WeaponEquip* equipped_weapon;

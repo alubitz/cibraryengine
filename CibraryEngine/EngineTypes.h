@@ -19,9 +19,6 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
-#include "IKSolver.h"
-#include "IKPose.h"
-
 #include "NavGraph.h"
 #include "VisionBlocker.h"
 #include "Pathfinding.h"

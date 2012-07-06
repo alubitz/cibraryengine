@@ -45,10 +45,6 @@ namespace Test
 
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		mass = 0.0f;
-		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			mass += (*iter)->GetMassInfo().mass;
-
 		float timestep = time.elapsed;
 
 		bool can_recharge = true;
@@ -139,8 +135,6 @@ namespace Test
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
 	}
-
-	void Soldier::Update(TimingInfo time) { Dood::Update(time); }
 
 	void Soldier::GetBoneEntries(vector<BoneEntry>& bone_entries)
 	{

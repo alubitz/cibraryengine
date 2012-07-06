@@ -33,8 +33,6 @@ namespace Test
 
 		public:
 
-			IKPose* ik_pose;
-
 			CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Update(TimingInfo time);

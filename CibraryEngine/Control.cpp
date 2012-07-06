@@ -163,7 +163,7 @@ namespace CibraryEngine
 			if(lua_isnumber(L, 3))
 				control_state->SetFloatControl(key, (float)lua_tonumber(L, 3));
 			else if(lua_isboolean(L, 3))
-				control_state->SetBoolControl(key, (bool)lua_toboolean(L, 3));
+				control_state->SetBoolControl(key, lua_toboolean(L, 3) != 0);
 		}
 
 		return 0;

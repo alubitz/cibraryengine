@@ -115,15 +115,6 @@ namespace Test
 
 		eye_bone = draw_phys_character->skeleton->GetNamedBone("eye");
 
-		// too bad this isn't saved somewhere?
-		MassInfo mass_info = MassInfo();
-		for(int i = -3; i <= 3; ++i)
-			for(int j = 0; j <= 20; ++j)
-				for(int k = -3; k <= 3; ++k)
-					mass_info += MassInfo(Vec3(i * 0.1f, j * 0.1f, k * 0.1f), 0.09523809523809523809523809523808f);
-		mass = mass_info.mass;
-		inverse_moi = Mat3::Invert(Mat3(mass_info.moi));
-
 		// look up all the materials the model uses in advance
 		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
 		for(unsigned int i = 0; i < model->materials.size(); ++i)

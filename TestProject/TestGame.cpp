@@ -784,7 +784,6 @@ namespace Test
 		ScriptSystem::GetGlobalState().DoString(script_string);
 
 		GameState::Update(clamped_time);
-		ik_solver->Update(clamped_time);
 
 		NGDEBUG();
 	}
@@ -1108,13 +1107,6 @@ namespace Test
 		sound_system->StopAll();
 
 		GameState::InnerDispose();
-
-		if(ik_solver != NULL)
-		{
-			ik_solver->Dispose();
-			delete ik_solver;
-			ik_solver = NULL;
-		}
 	}
 
 	void TestGame::VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character, vector<Material*>* materials)
@@ -1489,7 +1481,7 @@ namespace Test
 		{
 			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
 
-			gs->god_mode = (bool)lua_toboolean(L, 1);
+			gs->god_mode = lua_toboolean(L, 1) != 0;
 
 			lua_settop(L, 0);
 			return 0;
@@ -1506,7 +1498,7 @@ namespace Test
 		{
 			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
 
-			gs->nav_editor = (bool)lua_toboolean(L, 1);
+			gs->nav_editor = lua_toboolean(L, 1) != 0;
 
 			lua_settop(L, 0);
 			return 0;
@@ -1523,7 +1515,7 @@ namespace Test
 		{
 			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
 
-			gs->debug_draw = (bool)lua_toboolean(L, 1);
+			gs->debug_draw = lua_toboolean(L, 1) != 0;
 
 			lua_settop(L, 0);
 			return 0;

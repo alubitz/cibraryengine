@@ -16,10 +16,8 @@ namespace Test
 
 
 
-	void GenerateHardCodedWalkAnimation(IKPose* ik_pose)
+	void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
-		KeyframeAnimation* ka = ik_pose->keyframe_animation;
-
 		{
 			Keyframe kf(0.5f);
 			kf.next = 1;
@@ -93,17 +91,12 @@ namespace Test
 		// character animation stuff
 		pose_character->active_poses.push_back(walk_pose);
 
-		ik_pose = new IKPose(game_state, pose_character->skeleton, pos, pitch, yaw);
-		GenerateHardCodedWalkAnimation(ik_pose);
-
-		ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
-		ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);
-		ik_pose->AddEndEffector("l leg b 3", Vec3(	1.98f,	0,	0.44f	), false);
-		ik_pose->AddEndEffector("r leg b 3", Vec3(	-1.98f,	0,	0.44f	), true);
-		ik_pose->AddEndEffector("l leg c 3", Vec3(	0.80f,	0,	-1.36f	), true);
-		ik_pose->AddEndEffector("r leg c 3", Vec3(	-0.80f,	0,	-1.36f	), false);
-
-		pose_character->active_poses.push_back(ik_pose);
+		// ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
+		// ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);
+		// ik_pose->AddEndEffector("l leg b 3", Vec3(	1.98f,	0,	0.44f	), false);
+		// ik_pose->AddEndEffector("r leg b 3", Vec3(	-1.98f,	0,	0.44f	), true);
+		// ik_pose->AddEndEffector("l leg c 3", Vec3(	0.80f,	0,	-1.36f	), true);
+		// ik_pose->AddEndEffector("r leg c 3", Vec3(	-0.80f,	0,	-1.36f	), false);
 	}
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
@@ -112,8 +105,9 @@ namespace Test
 		{
 			// crab bug leaps forward
 			float leap_angle = 0.4f;
-			Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0)) * (mass * bug_leap_speed);
-			root_rigid_body->ApplyCentralImpulse(leap_vector);
+			Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0));
+			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+				root_rigid_body->ApplyCentralImpulse(leap_vector * ((*iter)->GetMassInfo().mass) * bug_leap_speed);
 
 			jump_start_timer = time.total + bug_leap_duration;
 		}
@@ -132,13 +126,7 @@ namespace Test
 			Die(Damage());
 #endif
 
-		pos = ik_pose->pos;
-		yaw = ik_pose->yaw;
-		pitch = ik_pose->pitch;
-
 		Dood::Update(time);
-
-		ik_pose->SetDesiredState(game_state->ik_solver, pos, pitch, yaw);
 	}
 
 
