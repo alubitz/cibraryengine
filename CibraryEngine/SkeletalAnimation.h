@@ -92,6 +92,27 @@ namespace CibraryEngine
 
 	class Pose;
 
+	class PosedCharacter : public Disposable
+	{
+		protected:
+
+			void InnerDispose();
+
+		public:
+
+			/** A skeleton with orientations and offsets specified by the character's active poses */
+			Skeleton* skeleton;
+
+			/** The poses affecting this character's skeleton */
+			list<Pose*> active_poses;
+
+			/** Initializes a new PosedCharacter with the given skeleton */
+			PosedCharacter(Skeleton* skeleton);
+
+			/** Updates the poses of this character */
+			void UpdatePoses(TimingInfo time);
+	};
+
 	/** Class containing a skinned model, a skeleton, and a collection of active poses affecting it */
 	class SkinnedCharacter : public Disposable
 	{
@@ -101,28 +122,26 @@ namespace CibraryEngine
 
 		public:
 
-			Texture1D* bone_matrices;
+			struct RenderInfo
+			{
+				Texture1D* bone_matrices;
+				unsigned int num_bones;
+				float mat_tex_precision;
+
+				RenderInfo() : bone_matrices(NULL), num_bones(0), mat_tex_precision(4096.0f) { }
+				void Invalidate();
+			} render_info;
+
 			/** Precision scaler; this times any number in the bone matrices should be < 32767 */
 			float mat_tex_precision;
 
-			/** The model for this character */
-			SkinnedModel* skin;
-			/** A copy of the Skeleton from the SkinnedModel, with orientations and offsets specified by the character's active poses */
+			/** A skeleton with orientations and offsets ready for display */
 			Skeleton* skeleton;
 
-			/** The poses affecting this character's skeleton */
-			list<Pose*> active_poses;
-
-			/** Initializes a new SkinnedCharacter with the given skin */
-			SkinnedCharacter(SkinnedModel* skin);
-
-			/** Initializess a new SkinnedCharacter, passing the skeleton as parameter; no copying here */
+			/** Initializes a new SkinnedCharacter with the given skeleton */
 			SkinnedCharacter(Skeleton* skeleton);
 
-			/** Updates the poses of this character */
-			void UpdatePoses(TimingInfo time);
-
-			Texture1D* GetBoneMatrices();
+			RenderInfo GetRenderInfo();
 
 			/** Static utility function to generate a 1-dimensional texture which encodes several transformation matrices, for use by my awesome vertex shader; remember to dispose of and delete the result! */
 			static Texture1D* MatricesToTexture1D(vector<Mat4>& matrices, float precision = 4096.0f);

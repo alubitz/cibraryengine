@@ -65,7 +65,7 @@ namespace Test
 
 		vector<Material*> materials;
 		SkinnedCharacter* draw_phys_character;
-		SkinnedCharacter* pose_character;
+		PosedCharacter* pose_character;
 		UberModel* model;
 		ModelPhysics* mphys;
 
@@ -90,8 +90,8 @@ namespace Test
 		// constructor with big long initializer list
 		Imp(Corpse* corpse, GameState* gs, Dood* dood, float ttl) : 
 			corpse(corpse),
-			draw_phys_character(dood->draw_phys_character),
-			pose_character(dood->pose_character),
+			draw_phys_character(dood->character),
+			pose_character(dood->posey),
 			model(dood->model),
 			mphys(dood->mphys),
 			blood_material(dood->blood_material),
@@ -107,11 +107,6 @@ namespace Test
 			bone_indices(),
 			constraints()
 		{
-			pose_character->active_poses = draw_phys_character->active_poses;
-			draw_phys_character->active_poses.clear();
-
-			//dood->character = NULL;
-
 			for(unsigned int i = 0; i < model->materials.size(); ++i)
 			{
 				string material_name = model->materials[i];
@@ -164,10 +159,8 @@ namespace Test
 					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 				}
 
-				draw_phys_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+				draw_phys_character->render_info.Invalidate();
 				pose_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
-
-				// TODO: tell constraints to match orientations of pose_character
 
 				character_pose_time = now;
 			}
@@ -325,7 +318,10 @@ namespace Test
 			Sphere bs = Sphere(pos, 2.5);
 
 			//if(renderer->camera->CheckSphereVisibility(bs))
-				((TestGame*)corpse->game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), draw_phys_character, &materials);
+			{
+				SkinnedCharacter::RenderInfo render_info = draw_phys_character->GetRenderInfo();
+				((TestGame*)corpse->game_state)->VisUberModel(renderer, model, 0, Mat4::Translation(pos), &render_info, &materials);
+			}
 		}
 	};
 

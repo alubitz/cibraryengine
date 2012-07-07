@@ -29,10 +29,6 @@ namespace Test
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
 
-	float movement_damp = 0.2f;
-
-	float air_spin_fix = 100;
-
 	float yaw_rate = 10.0f, pitch_rate = 10.0f;
 
 
@@ -84,17 +80,15 @@ namespace Test
 		vel(),
 		yaw(0),
 		pitch(0),
-		angular_vel(),
 		jump_start_timer(0),
 		hp(1.0f),
 		eye_bone(NULL),
 		model(model),
-		draw_phys_character(NULL),
-		pose_character(NULL),
+		character(NULL),
+		posey(NULL),
 		root_rigid_body(NULL),
 		rigid_bodies(),
 		shootables(),
-		bone_offsets(),
 		bone_indices(),
 		constraints(),
 		orientation_constraint(NULL),
@@ -110,10 +104,10 @@ namespace Test
 		OnDeath()
 	{
 		// creating character
-		draw_phys_character = new SkinnedCharacter(model->CreateSkeleton());
-		pose_character = new SkinnedCharacter(new Skeleton(draw_phys_character->skeleton));
+		character = new SkinnedCharacter(model->CreateSkeleton());
+		posey = new PosedCharacter(new Skeleton(character->skeleton));
 
-		eye_bone = draw_phys_character->skeleton->GetNamedBone("eye");
+		eye_bone = character->skeleton->GetNamedBone("eye");
 
 		// look up all the materials the model uses in advance
 		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
@@ -129,17 +123,23 @@ namespace Test
 	{
 		DeSpawned();
 
-		for(list<Pose*>::iterator iter = pose_character->active_poses.begin(); iter != pose_character->active_poses.end(); ++iter)
-			delete *iter;
-		pose_character->active_poses.clear();
+		if(posey)
+		{
+			for(list<Pose*>::iterator iter = posey->active_poses.begin(); iter != posey->active_poses.end(); ++iter)
+				delete *iter;
+			posey->active_poses.clear();
 
-		pose_character->Dispose();
-		delete pose_character;
-		pose_character = NULL;
+			posey->Dispose();
+			delete posey;
+			posey = NULL;
+		}
 
-		draw_phys_character->Dispose();
-		delete draw_phys_character;
-		draw_phys_character = NULL;
+		if(character)
+		{
+			character->Dispose();
+			delete character;
+			character = NULL;
+		}
 
 		Pawn::InnerDispose();
 	}
@@ -176,7 +176,7 @@ namespace Test
 			control_state->SetBoolControl("reload", false);
 		}
 
-		if(draw_phys_character != NULL)
+		if(character != NULL)
 		{
 			PoseCharacter(time);
 
@@ -191,7 +191,7 @@ namespace Test
 				intrinsic_weapon->OwnerUpdate(time);
 			}
 
-			draw_phys_character->UpdatePoses(time);
+			posey->UpdatePoses(time);
 		}
 	}
 
@@ -236,20 +236,7 @@ namespace Test
 
 		DoMovementControls(time, forward, rightward);
 		DoJumpControls(time, forward, rightward);
-
 		DoPitchAndYawControls(time);
-
-		// uncontrolled spinning!
-		angular_vel *= exp(-(standing) * 200 * timestep);
-
-		float angular_speed = angular_vel.ComputeMagnitude();
-		if (angular_speed > 0)
-		{
-			float new_speed = max(0.0f, angular_speed - air_spin_fix * timestep);
-			angular_vel = angular_vel * new_speed / angular_speed;
-
-			yaw += angular_vel.y * timestep;
-		}
 
 		MaybeDoScriptedUpdate(this);
 
@@ -305,7 +292,7 @@ namespace Test
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		if(draw_phys_character != NULL)		// character will be null right when it becomes dead
+		if(character != NULL)		// character will be null right when it becomes dead
 		{
 			Sphere bs = Sphere(pos, 2.5);
 			if(renderer->camera->CheckSphereVisibility(bs))
@@ -313,7 +300,8 @@ namespace Test
 				double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
 				int use_lod = dist < 45.0f ? 0 : 1;
 
-				((TestGame*)game_state)->VisUberModel(renderer, model, use_lod, Mat4::Translation(pos), draw_phys_character, &materials);
+				SkinnedCharacter::RenderInfo render_info = character->GetRenderInfo();
+				((TestGame*)game_state)->VisUberModel(renderer, model, use_lod, Mat4::Translation(pos), &render_info, &materials);
 			}
 		}
 	}
@@ -372,7 +360,7 @@ namespace Test
 			{
 				RigidBody* body = rigid_bodies[i];
 				unsigned int bone_index = bone_indices[i];
-				Bone* bone = draw_phys_character->skeleton->bones[bone_index];
+				Bone* bone = character->skeleton->bones[bone_index];
 
 				Quaternion rigid_body_ori = body->GetOrientation();
 				Vec3 rigid_body_pos = body->GetPosition();
@@ -380,12 +368,13 @@ namespace Test
 				bone->ori = Quaternion::Reverse(rigid_body_ori);
 
 				// model origin = rigid body pos - model rot * rest pos
-				Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(bone_offsets[bone_index]);
+				Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(0, 0, 0);
 				bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
 			}
 
-			draw_phys_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
-			pose_character->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+			character->render_info.Invalidate();
+			character->skeleton->InvalidateCachedBoneXforms();
+			posey->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
 
 			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 			{
@@ -401,8 +390,8 @@ namespace Test
 							RigidBody* jbody = rigid_bodies[j];
 							if(jbody == constraint->obj_b)
 							{
-								Bone* i_bone = pose_character->skeleton->bones[bone_indices[i]];
-								Bone* j_bone = pose_character->skeleton->bones[bone_indices[j]];
+								Bone* i_bone = posey->skeleton->bones[bone_indices[i]];
+								Bone* j_bone = posey->skeleton->bones[bone_indices[j]];
 
 								constraint->SetDesiredOrientation(j_bone->ori);
 
@@ -433,17 +422,7 @@ namespace Test
 
 		physics = game_state->physics_world;
 
-		// get bone pos/ori info
-		vector<Mat4> mats = vector<Mat4>();
-		unsigned int count = draw_phys_character->skeleton->bones.size();
-		for(unsigned int i = 0; i < count; ++i)
-		{
-			Bone* bone = draw_phys_character->skeleton->bones[i];
-
-			bone_offsets.push_back(Vec3());		//bone->rest_pos);
-			mats.push_back(whole_xform * bone->GetTransformationMatrix());
-		}
-
+		unsigned int count = mphys->bones.size();
 		ModelPhysics::BonePhysics** bone_physes = new ModelPhysics::BonePhysics* [count];
 
 		// given string id, get index of rigid body
@@ -452,30 +431,14 @@ namespace Test
 		// create rigid bodies
 		for(unsigned int i = 0; i < count; ++i)
 		{
-			Bone* bone = draw_phys_character->skeleton->bones[i];
-
-			Mat4 mat = mats[i];
-			float ori_values[] = {mat[0], mat[1], mat[2], mat[4], mat[5], mat[6], mat[8], mat[9], mat[10]};
-			bone->ori = Quaternion::Reverse(Quaternion::FromRotationMatrix(Mat3(ori_values)));
-
-			Vec3 bone_pos = mat.TransformVec3_1(bone_offsets[i]);
-
-			ModelPhysics::BonePhysics* phys = NULL;
-			for(unsigned int j = 0; j < mphys->bones.size(); ++j)
-				if(Bone::string_table[mphys->bones[j].bone_name] == bone->name)
-				{
-					phys = &mphys->bones[j];
-					break;
-				}
-
-			bone_physes[i] = phys;
-
-			if(phys != NULL)
+			if(ModelPhysics::BonePhysics* phys = &mphys->bones[i])
 			{
+				bone_physes[i] = phys;
+
 				CollisionShape* shape = phys->collision_shape;
 				if(shape != NULL)
 				{
-					RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, bone_pos, bone->ori);
+					RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, pos);
 
 					rigid_body->SetDamp(0.05f);
 					rigid_body->SetFriction(1.0f);
@@ -487,12 +450,14 @@ namespace Test
 					rigid_body->SetUserEntity(shootable);
 					rigid_body->SetCollisionCallback(&collision_callback);
 
-					name_indices[bone->name] = bone_indices.size();
+
+					unsigned int bone_name = Bone::string_table[phys->bone_name];
+					name_indices[bone_name] = bone_indices.size();
 
 					shootables.push_back(shootable);
 					bone_indices.push_back(i);
 
-					if(bone->name == Bone::string_table["carapace"] || bone->name == Bone::string_table["pelvis"])
+					if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
 						root_rigid_body = rigid_body;
 				}
 			}
@@ -522,14 +487,17 @@ namespace Test
 		// emancipate bones
 		for(unsigned int i = 0; i < count; ++i)
 		{
-			Bone* bone = draw_phys_character->skeleton->bones[i];
+			Bone* bone = character->skeleton->bones[i];
 
 			if(name_indices.find(bone->name) != name_indices.end())		// only emancipate bones which have rigid bodies!
 				bone->parent = NULL;									// orientation and position are no longer relative to a parent!
 		}
 
-		// if(rigid_bodies.size() == 0)
-		//	corpse->is_valid = false;
+		if(rigid_bodies.size() == 0)
+		{
+			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
+			is_valid = false;
+		}
 
 		delete[] bone_physes;
 

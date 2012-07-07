@@ -35,8 +35,8 @@ namespace Test
 		jet_loop(NULL)
 	{
 		p_ag = new PoseAimingGun();
-		pose_character->active_poses.push_back(p_ag);
-		gun_hand_bone = draw_phys_character->skeleton->GetNamedBone("r grip");
+		posey->active_poses.push_back(p_ag);
+		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
@@ -158,10 +158,6 @@ namespace Test
 		bone_entries.push_back(BoneEntry("r leg 1",		"pelvis",		Vec3(	-0.15f,	1.04f,	-0.02f	)));
 		bone_entries.push_back(BoneEntry("r leg 2",		"r leg 1",		Vec3(	-0.19f,	0.64f,	0.01f	)));
 		bone_entries.push_back(BoneEntry("r foot",		"r leg 2",		Vec3(	-0.27f,	0.14f,	-0.11f	)));
-
-		bone_entries.push_back(BoneEntry("eye",			"head",			Vec3(	0,		1.80f,	0.18f	)));
-		bone_entries.push_back(BoneEntry("l grip",		"l hand",		Vec3(	0.9f,	1.15f,	0.04f	)));
-		bone_entries.push_back(BoneEntry("r grip",		"r hand",		Quaternion::Reverse(Quaternion::FromPYR(1.47884f, -0.625244f, -0.625244f)) * Vec3(	-0.9f,	1.15f,	0.04f	)));
 
 		for(vector<BoneEntry>::iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
 			iter->mass = 98.0f / bone_entries.size();

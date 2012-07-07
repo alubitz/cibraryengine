@@ -89,7 +89,7 @@ namespace Test
 		hp *= 0.5f;
 
 		// character animation stuff
-		pose_character->active_poses.push_back(walk_pose);
+		posey->active_poses.push_back(walk_pose);
 
 		// ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
 		// ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);

@@ -95,6 +95,8 @@ namespace Test
 		Mat4 shot_mat = gun_xform * Mat4::Translation(0, 0.03f, 0.5f);
 
 		Vec3 origin = shot_mat.TransformVec3_1(0, 0, 0);
+		
+		//Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
 		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
 
 		Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f)));

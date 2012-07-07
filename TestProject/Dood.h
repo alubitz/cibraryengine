@@ -61,7 +61,6 @@ namespace Test
 			Vec3 pos;
 			Vec3 vel;
 			float yaw, pitch;
-			Vec3 angular_vel;
 
 			float jump_start_timer;
 
@@ -70,8 +69,8 @@ namespace Test
 			Bone* eye_bone;
 
 			UberModel* model;
-			SkinnedCharacter* draw_phys_character;
-			SkinnedCharacter* pose_character;
+			SkinnedCharacter* character;
+			PosedCharacter* posey;
 
 			Mat4 whole_xform;
 			Vec3 origin;
@@ -79,7 +78,6 @@ namespace Test
 			RigidBody* root_rigid_body;
 			vector<RigidBody*> rigid_bodies;
 			vector<BoneShootable*> shootables;
-			vector<Vec3> bone_offsets;
 			vector<unsigned int> bone_indices;
 			vector<PhysicsConstraint*> constraints;
 

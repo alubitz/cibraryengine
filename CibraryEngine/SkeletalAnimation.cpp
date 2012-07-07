@@ -199,41 +199,12 @@ namespace CibraryEngine
 
 
 	/*
-	 * SkinnedCharacter methods
+	 * PosedCharacter methods
 	 */
-	SkinnedCharacter::SkinnedCharacter(SkinnedModel* skin) :
-		bone_matrices(NULL),
-		mat_tex_precision(4096.0f),
-		skin(skin),
-		skeleton(new Skeleton(skeleton)),
-		active_poses()
-	{
-	}
+	PosedCharacter::PosedCharacter(Skeleton* skeleton) : skeleton(skeleton), active_poses() { }
+	void PosedCharacter::InnerDispose() { if(skeleton) { skeleton->Dispose(); delete skeleton; skeleton = NULL; } }
 
-	SkinnedCharacter::SkinnedCharacter(Skeleton* skeleton) :
-		bone_matrices(NULL),
-		mat_tex_precision(4096.0f),
-		skin(NULL),
-		skeleton(skeleton),
-		active_poses()
-	{
-	}
-
-	void SkinnedCharacter::InnerDispose()
-	{
-		skeleton->Dispose();
-		delete skeleton;
-
-		if(bone_matrices != NULL)
-		{
-			bone_matrices->Dispose();
-			delete bone_matrices;
-
-			bone_matrices = NULL;
-		}
-	}
-
-	void SkinnedCharacter::UpdatePoses(TimingInfo time)
+	void PosedCharacter::UpdatePoses(TimingInfo time)
 	{
 		skeleton->InvalidateCachedBoneXforms();
 
@@ -283,7 +254,20 @@ namespace CibraryEngine
 			}
 		}
 
-		// throw out the cachced bone matrix texture, if it exists
+		// force recomputation of bone transformation matrices
+		skeleton->InvalidateCachedBoneXforms();
+	}
+
+
+
+
+	/*
+	 * SkinnedCharacter methods
+	 */
+	SkinnedCharacter::SkinnedCharacter(Skeleton* skeleton) : render_info(), mat_tex_precision(4096.0f), skeleton(skeleton) { }
+
+	void SkinnedCharacter::RenderInfo::Invalidate()
+	{
 		if(bone_matrices != NULL)
 		{
 			bone_matrices->Dispose();
@@ -291,18 +275,33 @@ namespace CibraryEngine
 
 			bone_matrices = NULL;
 		}
-
-		skeleton->InvalidateCachedBoneXforms();
 	}
 
-	Texture1D* SkinnedCharacter::GetBoneMatrices()
+	void SkinnedCharacter::InnerDispose()
 	{
-		if(bone_matrices == NULL)
+		if(skeleton)
+		{
+			skeleton->Dispose();
+
+			delete skeleton;
+			skeleton = NULL;
+		}
+
+		render_info.Invalidate();
+	}
+
+	SkinnedCharacter::RenderInfo SkinnedCharacter::GetRenderInfo()
+	{
+		if(render_info.bone_matrices == NULL)
 		{
 			vector<Mat4> matrices = skeleton->GetBoneMatrices();
-			bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, mat_tex_precision);
+
+			render_info.bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, mat_tex_precision);
+			render_info.mat_tex_precision = mat_tex_precision;
+			render_info.num_bones = matrices.size();
 		}
-		return bone_matrices;
+
+		return render_info;
 	}
 
 	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices, float precision)

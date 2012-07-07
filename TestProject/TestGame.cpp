@@ -451,6 +451,12 @@ namespace Test
 			vector<BoneEntry> bone_entries;
 			Soldier::GetBoneEntries(bone_entries);
 
+			// non-physical bones... bleh
+			bone_entries.push_back(BoneEntry("eye",		"head",		Vec3(	0,		1.80f,	0.18f	)));
+			bone_entries.push_back(BoneEntry("l grip",	"l hand",	Vec3(	0.9f,	1.15f,	0.04f	)));
+			//Quaternion rgrip_ori = Quaternion::FromPYR(1.47884f, -0.625244f, -0.625244f);
+			bone_entries.push_back(BoneEntry("r grip",	"r hand",	/*Quaternion::Reverse(rgrip_ori) **/ Vec3(	-0.9f,	1.15f,	0.04f	)));
+
 			UberModel* soldier_model = imp->soldier_model = AutoSkinUberModel(content, "nuarmor", "soldier", bone_entries);
 
 			SetUberModelSkeleton(soldier_model, bone_entries);
@@ -1109,7 +1115,7 @@ namespace Test
 		GameState::InnerDispose();
 	}
 
-	void TestGame::VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter* character, vector<Material*>* materials)
+	void TestGame::VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter::RenderInfo* char_render_info, vector<Material*>* materials)
 	{
 		if(model == NULL)
 			return;
@@ -1140,9 +1146,9 @@ namespace Test
 			DSNMaterial* material = (DSNMaterial*)use_materials[mmp.material_index];
 			VertexBuffer* vbo = mmp.vbo;
 
-			if(character != NULL)
+			if(char_render_info != NULL)
 			{
-				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, character->GetBoneMatrices(), character->skeleton->bones.size(), character->mat_tex_precision);
+				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, char_render_info->bone_matrices, char_render_info->num_bones, char_render_info->mat_tex_precision);
 				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
 			}
 			else

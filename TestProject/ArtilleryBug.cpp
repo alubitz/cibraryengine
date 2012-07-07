@@ -12,8 +12,8 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		walk_pose(new WalkPose())
 	{
-		pose_character->active_poses.push_back(walk_pose);
-		draw_phys_character->mat_tex_precision = 1024.0f;
+		posey->active_poses.push_back(walk_pose);
+		character->mat_tex_precision = 1024.0f;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
