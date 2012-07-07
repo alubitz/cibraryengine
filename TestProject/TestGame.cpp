@@ -22,7 +22,6 @@
 
 #include "MaterialLoader.h"
 
-#include "Corpse.h"
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
 

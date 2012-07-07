@@ -11,17 +11,11 @@
 #include "Damage.h"
 
 #include "Particle.h"
-#include "Corpse.h"
 
 #include "DoodOrientationConstraint.h"
 
 namespace Test
 {
-	bool enable_ragdolls = false;
-
-	bool MaybeDoScriptedUpdate(Dood* dood);
-	bool MaybeDoScriptedDeath(Dood* dood);
-
 	/*
 	 * Dood constants
 	 */
@@ -68,9 +62,14 @@ namespace Test
 	}
 
 
+
+
 	/*
 	 * Dood methods
 	 */
+	bool MaybeDoScriptedUpdate(Dood* dood);
+	bool MaybeDoScriptedDeath(Dood* dood);
+
 	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Pawn(gs),
 		character_pose_time(-1),
@@ -206,31 +205,21 @@ namespace Test
 		Vec3 forward = Vec3(-sin(yaw), 0, cos(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-		// rigid_body->Activate();		// TODO: reimplement this
+		// prevent bones from falling asleep (not yet possible, but whatever)
+		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			(*iter)->Activate();
 
-		Vec3 vel = root_rigid_body->GetLinearVelocity();												// velocity prior to forces being applied
+		Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
 
 		Vec3 delta_v = vel - this->vel;
+
+		// TODO: make this work again sometime
 		// collision damage!
 		//float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
 		//if (falling_damage_base > 0)
 		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
 		orientation_constraint->desired_ori = Quaternion::FromPYR(0, -yaw, 0);
-
-#if 0
-		TestGame* test_game = (TestGame*)game_state;
-		if(this == test_game->player_pawn)
-		{
-			float speed = vel.ComputeMagnitude();
-			int i = (int)floor(speed);
-			int j = (int)(10.0f * (speed - i));
-
-			stringstream ss;
-			ss << "Speed = " << i << "." << j << " m/s";
-			test_game->debug_text = ss.str();
-		}
-#endif
 
 		this->vel = vel;
 
@@ -582,11 +571,7 @@ namespace Test
 
 		MaybeDoScriptedDeath(this);
 
-		if(enable_ragdolls)
-		{
-			Corpse* corpse = new Corpse(game_state, this, 10.0f);
-			game_state->Spawn(corpse);
-		}
+		// TODO: revise this; we don't have a Corpse class anymore; a ragdoll is just a dead Dood
 
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;

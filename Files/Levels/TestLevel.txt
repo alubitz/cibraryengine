@@ -40,3 +40,9 @@
 : world_boundary				~ floor
 :: normal
 ::: y 1
+
+: world_boundary				~ceiling
+:: pos
+::: y 300
+:: normal
+::: y -1
