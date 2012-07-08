@@ -714,6 +714,20 @@ namespace CibraryEngine
 			Vec3 y = Vec3(rm[3], rm[4], rm[5]);
 			Vec3 z = Vec3(rm[6], rm[7], rm[8]);
 
+			// generate and cache a unit circle with 64 edges
+			static Vec2 unit_circle[64];
+			static bool unit_circle_generated = false;
+			if(!unit_circle_generated)
+			{
+				for(int i = 0; i < 64; ++i)
+				{
+					float theta = i * 2.0f * float(M_PI) / 64.0f;
+					unit_circle[i] = Vec2(cosf(theta), sinf(theta));
+				}
+
+				unit_circle_generated = true;
+			}
+
 			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
 				const Sphere& sphere = iter->sphere;
@@ -724,9 +738,38 @@ namespace CibraryEngine
 				Vec3 use_pos = pos + x * cen.x + y * cen.y + z * cen.z;
 				Vec3 xr = x * r, yr = y * r, zr = z * r;
 
-				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - xr, use_pos + xr, white), 1.0f));
-				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - yr, use_pos + yr, white), 1.0f));
-				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(use_pos - zr, use_pos + zr, white), 1.0f));
+				for(int i = 0; i < 3; ++i)
+				{
+					const Vec3* use_x;
+					const Vec3* use_y;
+
+					switch(i)
+					{
+						case 0:
+							use_x = &xr;
+							use_y = &yr;
+							break;
+
+						case 1:
+							use_x = &xr;
+							use_y = &zr;
+							break;
+
+						case 2:
+							use_x = &yr;
+							use_y = &zr;
+							break;
+					}
+
+					Vec3 temp;
+					for(int j = 0; j <= 64; ++j)
+					{
+						Vec3 cur = use_pos + *use_x * unit_circle[j % 64].x  + *use_y * unit_circle[j % 64].y;
+						if(j != 0)
+							renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(cur, temp, white), 1.0f));
+						temp = cur;
+					}
+				}
 			}
 		}
 
