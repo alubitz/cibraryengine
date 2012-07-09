@@ -9,6 +9,7 @@
 #include "TriangleMeshShape.h"
 
 #include "SceneRenderer.h"
+#include "CameraView.h"
 #include "RenderNode.h"
 #include "DebugDrawMaterial.h"
 
@@ -708,68 +709,103 @@ namespace CibraryEngine
 		{
 			static const Vec3 red(1, 0, 0), green(0, 1, 0), blue(0, 0, 1), white(1, 1, 1);
 
-			Mat3 rm = ori.ToMat3();
+			Mat4 model_mat = Mat4::FromPositionAndOrientation(pos, ori);
+			const Vec3& eye = renderer->camera->GetPosition();
+			const Vec3& forward = renderer->camera->GetForward();
 
-			Vec3 x = Vec3(rm[0], rm[1], rm[2]);
-			Vec3 y = Vec3(rm[3], rm[4], rm[5]);
-			Vec3 z = Vec3(rm[6], rm[7], rm[8]);
-
-			// generate and cache a unit circle with 64 edges
-			static Vec2 unit_circle[64];
-			static bool unit_circle_generated = false;
-			if(!unit_circle_generated)
+			struct Circle
 			{
-				for(int i = 0; i < 64; ++i)
+				Vec3 wc, wn, eye;
+				float wr;
+
+				Circle() { }
+				Circle(const Vec3& eye, const Mat4& model_mat, const Sphere& sphere) : eye(eye)
 				{
-					float theta = i * 2.0f * float(M_PI) / 64.0f;
-					unit_circle[i] = Vec2(cosf(theta), sinf(theta));
+					Vec3 center = model_mat.TransformVec3_1(sphere.center);
+					Vec3 d = center - eye;
+					float dist_sq = d.ComputeMagnitudeSquared();
+
+					float radius = sphere.radius, radius_sq = radius * radius;
+					if(radius_sq <= dist_sq)
+					{
+						float inv_dist = 1.0f / sqrtf(dist_sq);
+						float offset = radius_sq * inv_dist;
+
+						wr = sqrtf(radius_sq - offset * offset);		// the expression under the radical is guaranteed to be positive if the above condition passed
+						wn = d * inv_dist;
+						wc = center + wn * offset;
+					}
+					else
+						wr = -1;
 				}
 
-				unit_circle_generated = true;
-			}
+				void SetFarthestExtent(const Vec3& dir, const Vec3& eye, const Vec3& forward, float& farthest, Vec3& pos) const
+				{
+					Vec3 on_plane = dir - wn * Vec3::Dot(dir, wn);
+					float mag = on_plane.ComputeMagnitude(), inv_mag = 1.0f / mag;
+					
+					pos = wc + on_plane * (wr * inv_mag);
 
+					Vec3 from_eye = pos - eye;
+					farthest = Vec3::Dot(dir, from_eye) / Vec3::Dot(from_eye, forward);
+				}
+
+				void MaybeSetFarthestExtent(const Vec3& dir, const Vec3& eye, const Vec3& forward, float& farthest, Vec3& pos) const
+				{
+					Vec3 on_plane = dir - wn * Vec3::Dot(dir, wn);
+					float mag = on_plane.ComputeMagnitude(), inv_mag = 1.0f / mag;
+					
+					Vec3 temp_pos = wc + on_plane * (wr * inv_mag);
+
+					Vec3 from_eye = temp_pos - eye;
+					float extent = Vec3::Dot(dir, from_eye) / Vec3::Dot(from_eye, forward);
+					if(extent > farthest)
+					{
+						pos = temp_pos;
+						farthest = extent;
+					}
+				}
+			};
+
+			bool any = false;
+
+			vector<Circle> circles;
 			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 			{
-				const Sphere& sphere = iter->sphere;
+				if(!any && renderer->camera->CheckSphereVisibility(Sphere(model_mat.TransformVec3_1(iter->sphere.center), iter->sphere.radius)))
+					any = true;
+				Circle circle = Circle(eye, model_mat, iter->sphere);
+				if(circle.wr >= 0)
+					circles.push_back(Circle(eye, model_mat, iter->sphere));
+			}
 
-				float r = sphere.radius;
-				Vec3 cen = sphere.center;
+			if(circles.empty() || !any)
+				return;
 
-				Vec3 use_pos = pos + x * cen.x + y * cen.y + z * cen.z;
-				Vec3 xr = x * r, yr = y * r, zr = z * r;
+			Vec3 right = renderer->camera->GetRight(), up = renderer->camera->GetUp();
 
-				for(int i = 0; i < 3; ++i)
-				{
-					const Vec3* use_x;
-					const Vec3* use_y;
+			// now get the points on the silhouette edge
+			const int num_edges = 32;
+			const float theta_coeff = 2.0f * float(M_PI) / num_edges;
 
-					switch(i)
-					{
-						case 0:
-							use_x = &xr;
-							use_y = &yr;
-							break;
+			Vec3 temp;
+			for(int i = 0; i <= num_edges; ++i)
+			{
+				float theta = i * theta_coeff;
+				Vec3 world_dir = right * -cosf(theta) + up * sinf(theta);
 
-						case 1:
-							use_x = &xr;
-							use_y = &zr;
-							break;
+				float farthest;
+				Vec3 cur;
 
-						case 2:
-							use_x = &yr;
-							use_y = &zr;
-							break;
-					}
+				vector<Circle>::iterator iter = circles.begin();
+				iter->SetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
-					Vec3 temp;
-					for(int j = 0; j <= 64; ++j)
-					{
-						Vec3 cur = use_pos + *use_x * unit_circle[j % 64].x  + *use_y * unit_circle[j % 64].y;
-						if(j != 0)
-							renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(cur, temp, white), 1.0f));
-						temp = cur;
-					}
-				}
+				for(++iter; iter != circles.end(); ++iter)
+					iter->MaybeSetFarthestExtent(world_dir, eye, forward, farthest, cur);
+
+				if(i != 0)
+					renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(cur, temp, white), 1.0f));
+				temp = cur;
 			}
 		}
 

@@ -5,17 +5,17 @@
 
 namespace CibraryEngine
 {
-	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float left_, float right_, float top_, float bottom_, float near_, float far_) : position(position_), forward(forward_), up(up_), left(left_), right(right_), top(top_), bottom(bottom_), _near(near_), _far(far_), view_valid(false), proj_valid(false) { }
-	CameraView::CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float zoom, float aspect_ratio) : position(position_), forward(forward_), up(up_), view_valid(false), proj_valid(false) { SetProjection(zoom, aspect_ratio); }
-	CameraView::CameraView(Mat4 view_, float zoom, float aspect_ratio) : view_valid(false), proj_valid(false) { SetViewMatrix(view_); SetProjection(zoom, aspect_ratio); }
+	CameraView::CameraView(const Vec3& position, const Vec3& forward, const Vec3& up, float left, float right, float top, float bottom, float near_, float far_) : position(position), forward(forward), up(up), left(left), right(right), top(top), bottom(bottom), _near(near_), _far(far_), view_valid(false), proj_valid(false) { }
+	CameraView::CameraView(const Vec3& position, const Vec3& forward, const Vec3& up, float zoom, float aspect_ratio) : position(position), forward(forward), up(up), view_valid(false), proj_valid(false) { SetProjection(zoom, aspect_ratio); }
+	CameraView::CameraView(const Mat4& view, float zoom, float aspect_ratio) : view_valid(false), proj_valid(false) { SetViewMatrix(view); SetProjection(zoom, aspect_ratio); }
 
 	void CameraView::InvalidatePlanes() { planes_valid[0] = planes_valid[1] = planes_valid[2] = planes_valid[3] = planes_valid[4] = planes_valid[5] = false; }
 
-	Vec3 CameraView::GetPosition() { return position; }
-	Vec3 CameraView::GetForward() { return forward; }
-	Vec3 CameraView::GetUp() { return up; }
+	Vec3 CameraView::GetPosition() const { return position; }
+	Vec3 CameraView::GetForward() const { return forward; }
+	Vec3 CameraView::GetUp() const { return up; }
 
-	Vec3 CameraView::GetRight() { return Vec3::Normalize(Vec3::Cross(forward, up)); }
+	Vec3 CameraView::GetRight() const { return Vec3::Normalize(Vec3::Cross(forward, up)); }
 
 	Mat4 CameraView::GetViewMatrix()
 	{
@@ -122,14 +122,14 @@ namespace CibraryEngine
 		return planes[5];
 	}
 
-	void CameraView::GetRayFromDimCoeffs(float xfrac, float yfrac, Vec3& origin, Vec3& direction)
+	void CameraView::GetRayFromDimCoeffs(float xfrac, float yfrac, Vec3& origin, Vec3& direction) const
 	{
 		direction = GetRight() * (right * xfrac + left * (1.0f - xfrac)) + GetUp() * (top * yfrac + bottom * (1.0f - yfrac)) + forward * _near;
 		origin = position + direction;
 		direction = Vec3::Normalize(direction);
 	}
 
-	bool CameraView::CheckSphereVisibility(Vec3 center, float radius)
+	bool CameraView::CheckSphereVisibility(const Vec3& center, float radius)
 	{
 		float n_radius = -radius;
 		if (GetNearPlane().PointDistance(center) > n_radius)
@@ -141,32 +141,32 @@ namespace CibraryEngine
 								return true;
 		return false;
 	}
-	bool CameraView::CheckSphereVisibility(Sphere sphere) { return CheckSphereVisibility(sphere.center, sphere.radius); }
+	bool CameraView::CheckSphereVisibility(const Sphere& sphere) { return CheckSphereVisibility(sphere.center, sphere.radius); }
 
-	void CameraView::SetPosition(Vec3 position_)
+	void CameraView::SetPosition(const Vec3& position_)
 	{
 		position = position_;
 		view_valid = false;
 		InvalidatePlanes();
 	}
-	void CameraView::SetForward(Vec3 forward_)
+	void CameraView::SetForward(const Vec3& forward_)
 	{
 		forward = Vec3::Normalize(forward_);
 		view_valid = false;
 		InvalidatePlanes();
 	}
-	void CameraView::SetUp(Vec3 up_)
+	void CameraView::SetUp(const Vec3& up_)
 	{
 		up = Vec3::Normalize(up_);
 		view_valid = false;
 		InvalidatePlanes();
 	}
 
-	void CameraView::SetViewMatrix(Mat4 view_)
+	void CameraView::SetViewMatrix(const Mat4& view_)
 	{
-		position = Vec3(-view_[3], -view_[7], -view_[11]);
-		forward = Vec3(-view_[8], -view_[9], -view_[10]);
-		up = Vec3(view_[4], view_[5], view_[6]);
+		position = Vec3(-view_.values[3], -view_.values[7], -view_.values[11]);
+		forward = Vec3(-view_.values[8], -view_.values[9], -view_.values[10]);
+		up = Vec3(view_.values[4], view_.values[5], view_.values[6]);
 		Vec3 right = GetRight();
 
 		Mat3 rm(right.x, up.x, -forward.x, right.y, up.y, -forward.y, right.z, up.z, -forward.z);
@@ -177,9 +177,9 @@ namespace CibraryEngine
 
 		InvalidatePlanes();
 	}
-	void CameraView::SetProjectionMatrix(Mat4 proj_)
+	void CameraView::SetProjectionMatrix(const Mat4& proj_)
 	{
-		float a = proj_[2], b = proj_[6], c = proj_[10], d = proj_[11], e = proj_[0], f = proj[5];
+		float a = proj_.values[2], b = proj_.values[6], c = proj_.values[10], d = proj_.values[11], e = proj_.values[0], f = proj.values[5];
 		float alpha = (a + 1) / (a - 1), bravo = (b + 1) / (b - 1), charlie = (c + 1) / (c - 1);
 
 		_near = (d * charlie - d) / (2 * charlie);

@@ -23,20 +23,20 @@ namespace CibraryEngine
 		public:
 
 			/** Initialize a CameraView specifying the positon, forward and up vectors, and floats for each of the planes of the frustum */
-			CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float left_, float right_, float top_, float bottom_, float near_, float far_);
+			CameraView(const Vec3& position_, const Vec3& forward_, const Vec3& up_, float left_, float right_, float top_, float bottom_, float near_, float far_);
 			/** Initialize a CameraView specifying the positon, forward and up vectors, and floats for zoom and aspect ratio */
-			CameraView(Vec3 position_, Vec3 forward_, Vec3 up_, float zoom, float aspect_ratio);
+			CameraView(const Vec3& position_, const Vec3& forward_, const Vec3& up_, float zoom, float aspect_ratio);
 			/** Initialize a CameraView specifying the view matrix and floats for each of the planes of the frustum */
-			CameraView(Mat4 view_, float zoom, float aspect_ratio);
+			CameraView(const Mat4& view_, float zoom, float aspect_ratio);
 
 			/** Get the position of the camera */
-			Vec3 GetPosition();
+			Vec3 GetPosition() const;
 			/** Get the forward vector of the camera */
-			Vec3 GetForward();
+			Vec3 GetForward() const;
 			/** Get the up vector of the camera */
-			Vec3 GetUp();
+			Vec3 GetUp() const;
 			/** Get the right vector of the camera */
-			Vec3 GetRight();
+			Vec3 GetRight() const;
 			/** Get the view matrix */
 			Mat4 GetViewMatrix();
 			/** Get the projection matrix */
@@ -56,26 +56,26 @@ namespace CibraryEngine
 			Plane GetFarPlane();
 
 			/** Get the origin and direction of a ray which is fired from the position, through a position in the frustum which is the specified horizontal and vertical fractions of its size */
-			void GetRayFromDimCoeffs(float xfrac, float yfrac, Vec3& origin, Vec3& direction);
+			void GetRayFromDimCoeffs(float xfrac, float yfrac, Vec3& origin, Vec3& direction) const;
 
 			/** Check whether any part of the given sphere is within the camera's frustum */
-			bool CheckSphereVisibility(Vec3 center, float radius);
+			bool CheckSphereVisibility(const Vec3& center, float radius);
 			/** Check whether any part of the given sphere is within the camera's frustum */
-			bool CheckSphereVisibility(Sphere sphere);
+			bool CheckSphereVisibility(const Sphere& sphere);
 
 			// setters may (in)validate matrices and/or planes!
 
 			/** Set the position of the camera */
-			void SetPosition(Vec3 position_);
+			void SetPosition(const Vec3& position);
 			/** Set the forward vector of the camera */
-			void SetForward(Vec3 forward_);
+			void SetForward(const Vec3& forward);
 			/** Set the up vector of the camera */
-			void SetUp(Vec3 up_);
+			void SetUp(const Vec3& up);
 			/** Set the view matrix  */
-			void SetViewMatrix(Mat4 view_);
+			void SetViewMatrix(const Mat4& view);
 
 			/** Set the projection based on a 4x4 projection matrix */
-			void SetProjectionMatrix(Mat4 proj_);
+			void SetProjectionMatrix(const Mat4& proj);
 			/** Set the projection based on a zoom and aspect ratio */
 			void SetProjection(float zoom, float aspect_ratio);
 	};

@@ -778,8 +778,9 @@ namespace CibraryEngine
 		}
 
 		if(model != NULL)
-			for(unsigned int i = 0; i < model->materials.size(); ++i)
-				man->GetCache<Material>()->Load(model->materials[i]);
+			if(Cache<Material>* mat_cache = man->GetCache<Material>())
+				for(unsigned int i = 0; i < model->materials.size(); ++i)
+					mat_cache->Load(model->materials[i]);
 
 		return model;
 	}

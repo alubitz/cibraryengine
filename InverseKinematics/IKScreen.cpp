@@ -12,9 +12,7 @@ namespace InverseKinematics
 		Bone* bone;
 		MultiSphereShape* shape;
 
-		Vec3 vel;
-
-		IKBone() : bone(NULL), shape(NULL), vel() { }
+		IKBone() : bone(NULL), shape(NULL) { }
 		~IKBone() { if(shape) { shape->Dispose(); delete shape; shape = NULL; } }
 
 		void Vis(SceneRenderer* renderer)
@@ -34,58 +32,12 @@ namespace InverseKinematics
 	{
 		public:
 
-			Skeleton* skeleton;
-			vector<IKBone*> ik_bones;
-
-			DerpPose(Skeleton* skeleton) : skeleton(skeleton) { }
-			~DerpPose()
-			{
-				for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
-					delete *iter;
-				ik_bones.clear();
-			}
-
 			void UpdatePose(TimingInfo time)
 			{
-				float timestep = time.elapsed;
+				// TODO: implement this
 
-				for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
-				{
-					IKBone* ik_bone = *iter;
-
-					Vec3& vel = ik_bone->vel;
-					vel = (vel + Random3D::RandomNormalizedVector(timestep)) * exp(-1.0f * timestep);
-
-					SetBonePose(ik_bone->bone->name, ik_bone->bone->ori.ToPYR() + vel * timestep, Vec3());
-				}
-			}
-
-			void Vis(SceneRenderer* renderer)
-			{
-				for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
-					(*iter)->Vis(renderer);
-			}
-
-			IKBone* AddRootBone(const string& name, const Vec3& pos, MultiSphereShape* shape)
-			{
-				IKBone* result = new IKBone();
-				result->bone = skeleton->AddBone(Bone::string_table[name], Quaternion::Identity(), pos);
-				result->shape = shape;
-
-				ik_bones.push_back(result);
-
-				return result;	
-			}
-
-			IKBone* AddChildBone(IKBone* parent, const string& name, const Vec3& pos, MultiSphereShape* shape)
-			{
-				IKBone* result = new IKBone();
-				result->bone = skeleton->AddBone(Bone::string_table[name], parent->bone, Quaternion::Identity(), pos);
-				result->shape = shape;
-
-				ik_bones.push_back(result);
-
-				return result;
+				SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
+				SetBonePose(Bone::string_table["torso 1"], Vec3(sinf(time.total * 0.5f) * 0.1f, 0, 0), Vec3());
 			}
 	};
 
@@ -101,42 +53,56 @@ namespace InverseKinematics
 		ProgramWindow* window;
 		InputState* input_state;
 
-		PosedCharacter* posey;
+		PosedCharacter* character;
 		DerpPose* pose;
+
+		Skeleton* skeleton;
+		vector<IKBone*> ik_bones;
 
 		CameraView* camera;
 		SceneRenderer* renderer;
 
-		Imp(ProgramWindow* window) : next_screen(NULL), window(window), input_state(window->input_state), posey(NULL), pose(NULL), camera(NULL), renderer(NULL)
+		BitmapFont* font;
+
+		float now;
+		float yaw, pitch;
+
+		Imp(ProgramWindow* window) : next_screen(NULL), window(window), input_state(window->input_state), character(NULL), pose(NULL), skeleton(NULL), ik_bones(), camera(NULL), renderer(NULL)
 		{
-			Sphere spheres[] =
-			{
-				Sphere(Vec3(),			0.5f),
-				Sphere(Vec3(0, 1, 0),	0.5f),
-				Sphere(Vec3(0, 2, 0),	0.5f),
-				Sphere(Vec3(0, 3, 0),	0.5f)
-			};
+			string filename = "soldier";
+			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
+			UberModel* uber = window->content->GetCache<UberModel>()->Load(filename);
 
-			Skeleton* skeleton = new Skeleton();
+			skeleton = uber->CreateSkeleton();
 
-			pose = new DerpPose(skeleton);
-			IKBone* A =	pose->AddRootBone	(	"A", Vec3(),		new MultiSphereShape(&spheres[0], 2));
-			IKBone* B =	pose->AddChildBone	(A,	"B", Vec3(0, 1, 0),	new MultiSphereShape(&spheres[1], 2));
-			IKBone* C =	pose->AddChildBone	(B,	"C", Vec3(0, 2, 0),	new MultiSphereShape(&spheres[2], 2));
+			for(vector<ModelPhysics::BonePhysics>::iterator iter = mphys->bones.begin(); iter != mphys->bones.end(); ++iter)
+				if(Bone* bone = skeleton->GetNamedBone(iter->bone_name))
+					WrapBone(bone, (MultiSphereShape*)iter->collision_shape);
 
-			posey = new PosedCharacter(skeleton);
-			posey->active_poses.push_back(pose);
+			character = new PosedCharacter(skeleton);
+
+			pose = new DerpPose();
+			character->active_poses.push_back(pose);
 
 			camera = new CameraView(Mat4::Identity(), 1.0f, 1.0f);		// these values don't matter; they will be overwritten every frame
 			renderer = new SceneRenderer(camera);
+
+			now = 0.0f;
+			yaw = 0.0f;
+			pitch = 0.0f;
+
+			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 		}
 
 		~Imp()
 		{
 			if(renderer) { delete renderer; renderer = NULL; }
 			if(camera) { delete camera; camera = NULL; }
-			if(posey) { posey->Dispose(); delete posey; posey = NULL; pose = NULL; }
-			if(pose) { delete pose; pose = NULL; }
+			if(character) { character->Dispose(); delete character; character = NULL; pose = NULL; }
+
+			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
+				delete *iter;
+			ik_bones.clear();
 		}
 
 		void Update(TimingInfo& time)
@@ -147,9 +113,53 @@ namespace InverseKinematics
 				return;
 			}
 
+			if(input_state->keys[VK_LEFT])
+				yaw -= time.elapsed;
+			if(input_state->keys[VK_RIGHT])
+				yaw += time.elapsed;
+			if(input_state->keys[VK_UP])
+				pitch -= time.elapsed;
+			if(input_state->keys[VK_DOWN])
+				pitch += time.elapsed;
+
 			// TODO: set inputs for poses?
 
-			posey->UpdatePoses(time);
+			now = time.total;
+
+			character->UpdatePoses(time);
+		}
+
+		IKBone* AddRootBone(const string& name, const Vec3& pos, MultiSphereShape* shape)
+		{
+			IKBone* result = new IKBone();
+			result->bone = skeleton->AddBone(Bone::string_table[name], Quaternion::Identity(), pos);
+			result->shape = shape;
+
+			ik_bones.push_back(result);
+
+			return result;	
+		}
+
+		IKBone* AddChildBone(IKBone* parent, const string& name, const Vec3& pos, MultiSphereShape* shape)
+		{
+			IKBone* result = new IKBone();
+			result->bone = skeleton->AddBone(Bone::string_table[name], parent->bone, Quaternion::Identity(), pos);
+			result->shape = shape;
+
+			ik_bones.push_back(result);
+
+			return result;
+		}
+
+		IKBone* WrapBone(Bone* bone, MultiSphereShape* shape)
+		{
+			IKBone* result = new IKBone();
+
+			result->bone = bone;
+			result->shape = shape;
+			ik_bones.push_back(result);
+
+			return result;
 		}
 
 		void Draw(int width, int height)
@@ -165,7 +175,7 @@ namespace InverseKinematics
 			// set up camera
 			float zoom = 2.0f;
 			float aspect_ratio = (float)width / height;
-			Mat4 view_matrix = Mat4::Translation(0, 0, -10);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0);
 
 			*camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
@@ -175,10 +185,22 @@ namespace InverseKinematics
 			glLoadMatrixf(camera->GetViewMatrix().Transpose().values);
 
 			// draw stuff
-			pose->Vis(renderer);
+			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
+				(*iter)->Vis(renderer);
+
+			renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2, 0, 0), Vec3(2, 0, 0)), 0));
+			renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(0, 0, -2), Vec3(0, 0, 2)), 0));
 
 			renderer->Render();
 			renderer->Cleanup();
+
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, width, height, 0, -1, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			font->Print(((stringstream&)(stringstream() << "time:  " << now)).str(), 0, 0);
 		}
 	};
 
