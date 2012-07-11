@@ -6,10 +6,6 @@ namespace Test
 {
 	using namespace CibraryEngine;
 
-	class DSNMaterial;
-	struct DSNMaterialNodeData;
-	class GlowyModelMaterial;
-	struct GlowyModelMaterialNodeData;
 	class Dood;
 	class TestGame;
 	class Shot;

@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "Shot.h"
 
-#include "GlowyModelMaterial.h"
 #include "Damage.h"
 #include "Shootable.h"
 #include "Dood.h"

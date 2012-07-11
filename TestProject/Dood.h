@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 
-#include "DSNMaterial.h"
 #include "Shootable.h"
 #include "Damage.h"
 

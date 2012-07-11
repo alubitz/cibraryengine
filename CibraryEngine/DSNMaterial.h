@@ -2,9 +2,19 @@
 
 #include "StdAfx.h"
 
-namespace Test
+#include "Material.h"
+#include "Matrix.h"
+#include "Sphere.h"
+
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
+	struct VertexBuffer;
+
+	class Texture1D;
+	class Texture2D;
+	class ShaderProgram;
+
+	class SceneRenderer;
 
 	struct DSNMaterialNodeData
 	{

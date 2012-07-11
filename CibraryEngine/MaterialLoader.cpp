@@ -2,10 +2,18 @@
 #include "MaterialLoader.h"
 
 #include "DSNLoader.h"
+
 #include "DSNMaterial.h"
 #include "GlowyModelMaterial.h"
+#include "ParticleMaterial.h"
+#include "BillboardMaterial.h"
 
-namespace Test
+#include "Shader.h"
+#include "UniformVariables.h"
+
+#include "TableParse.h"
+
+namespace CibraryEngine
 {
 	/*
 	 * MaterialLoader methods

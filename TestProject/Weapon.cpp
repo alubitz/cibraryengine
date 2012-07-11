@@ -1,8 +1,6 @@
 #include "StdAfx.h"
 #include "Weapon.h"
 
-#include "DSNMaterial.h"
-#include "GlowyModelMaterial.h"
 #include "Dood.h"
 #include "TestGame.h"
 #include "Shot.h"

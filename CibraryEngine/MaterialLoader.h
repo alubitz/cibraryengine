@@ -2,11 +2,17 @@
 
 #include "StdAfx.h"
 
-namespace Test
-{
-	using namespace CibraryEngine;
+#include "Content.h"
 
+namespace CibraryEngine
+{
+	using namespace std;
+
+	class Material;
 	class DSNLoader;
+	class ShaderProgram;
+	class Shader;
+	class Texture2D;
 
 	class MaterialLoader : public ContentTypeHandler<Material>
 	{

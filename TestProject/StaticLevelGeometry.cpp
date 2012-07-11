@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "StaticLevelGeometry.h"
 
-#include "DSNMaterial.h"
 #include "TestGame.h"
 #include "Particle.h"
 #include "Spark.h"

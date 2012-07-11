@@ -1,7 +1,15 @@
 #include "StdAfx.h"
 #include "GlowyModelMaterial.h"
 
-namespace Test
+#include "VertexBuffer.h"
+
+#include "Texture2D.h"
+#include "Texture3D.h"
+#include "Shader.h"
+
+#include "RenderNode.h"
+
+namespace CibraryEngine
 {
 	/*
 	 * GlowyModelMaterialNodeData methods

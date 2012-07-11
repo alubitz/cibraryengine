@@ -4,7 +4,6 @@
 #include "Shot.h"
 
 #include "TestGame.h"
-#include "DSNMaterial.h"
 
 namespace Test
 {

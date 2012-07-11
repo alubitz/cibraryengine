@@ -1,7 +1,16 @@
 #include "StdAfx.h"
 #include "DSNMaterial.h"
 
-namespace Test
+#include "Texture2D.h"
+#include "VertexBuffer.h"
+#include "Shader.h"
+
+#include "SceneRenderer.h"
+#include "RenderNode.h"
+
+#include "SkeletalAnimation.h"
+
+namespace CibraryEngine
 {
 	/*
 	 * Static stuff...

@@ -10,8 +10,6 @@ namespace Test
 
 	class Shootable;
 	class Dood;
-	class GlowyModelMaterial;
-	struct GlowyModelMaterialNodeData;
 
 	class Shot : public Entity
 	{

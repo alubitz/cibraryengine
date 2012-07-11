@@ -16,6 +16,7 @@
 #include "SoundBuffer.h"
 #include "UberModel.h"
 #include "ModelPhysics.h"
+#include "MaterialLoader.h"
 
 namespace CibraryEngine
 {
@@ -34,5 +35,6 @@ namespace CibraryEngine
 		CreateCache<SoundBuffer>(new SoundBufferLoader(this));
 		CreateCache<UberModel>(new UberModelLoader(this));
 		CreateCache<ModelPhysics>(new ModelPhysicsLoader(this));
+		CreateCache<Material>(new MaterialLoader(this));
 	}
 }

@@ -3,7 +3,7 @@
 
 #include "DSNMaterial.h"
 
-namespace Test
+namespace CibraryEngine
 {
 	/*
 	 * DSNLoader methods

@@ -2,11 +2,16 @@
 
 #include "StdAfx.h"
 
-namespace Test
+#include "Content.h"
+
+namespace CibraryEngine
 {
 	using namespace std;
-	using namespace CibraryEngine;
 
+	class Texture2D;
+	class ShaderProgram;
+
+	enum BlendStyle;
 	class DSNMaterial;
 
 	class DSNLoader

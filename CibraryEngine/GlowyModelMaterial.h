@@ -2,9 +2,16 @@
 
 #include "StdAfx.h"
 
-namespace Test
+#include "Matrix.h"
+#include "Material.h"
+
+namespace CibraryEngine
 {
-	using namespace CibraryEngine;
+	struct VertexBuffer;
+
+	class Texture2D;
+	class Texture3D;
+	class ShaderProgram;
 
 	struct GlowyModelMaterialNodeData
 	{

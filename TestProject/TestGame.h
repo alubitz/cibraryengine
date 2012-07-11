@@ -12,8 +12,6 @@ namespace Test
 	class HUD;
 	class Dood;
 	class Soldier;
-	class DSNMaterial;
-	class GlowyModelMaterial;
 	class Sun;
 	class Rubbish;
 

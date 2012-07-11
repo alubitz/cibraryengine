@@ -31,5 +31,7 @@
 #include "ParticleMaterial.h"
 #include "BillboardTrail.h"
 #include "BillboardMaterial.h"
+#include "DSNMaterial.h"
+#include "GlowyModelMaterial.h"
 
 #include "UnclampedVertexBoneWeightInfo.h"

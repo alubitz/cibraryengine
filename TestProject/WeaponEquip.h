@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Weapon.h"
-#include "GlowyModelMaterial.h"
 
 namespace Test
 {

@@ -8,8 +8,6 @@ namespace Test
 {
 	using namespace CibraryEngine;
 
-	class GlowyModelMaterial;
-
 	class DefaultWeapon : public Gun
 	{
 		public:

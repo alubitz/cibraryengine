@@ -7,8 +7,6 @@
 #include "Soldier.h"
 #include "CrabBug.h"
 #include "ArtilleryBug.h"
-#include "DSNMaterial.h"
-#include "GlowyModelMaterial.h"
 #include "Sun.h"
 #include "Weapon.h"
 
@@ -19,8 +17,6 @@
 #include "WorldBoundary.h"
 
 #include "LevelLoad.h"
-
-#include "MaterialLoader.h"
 
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
@@ -328,8 +324,6 @@ namespace Test
 
 		// setting the content loader for materials if it hasn't been set already
 		mat_cache = content->GetCache<Material>();
-		if(mat_cache == NULL)
-			mat_cache = content->CreateCache<Material>(new MaterialLoader(content));
 
 		ScriptSystem::SetGS(this);
 

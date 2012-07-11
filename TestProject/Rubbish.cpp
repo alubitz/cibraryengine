@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 
 #include "Rubbish.h"
-#include "DSNMaterial.h"
 #include "TestGame.h"
 
 #include "Spark.h"
