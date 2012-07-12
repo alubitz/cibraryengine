@@ -16,8 +16,15 @@ namespace CibraryEngine
 	class BinaryChunk;
 	struct MaterialModelPair;
 
-	class SkinnedModel;
 	class Skeleton;
+	class SkinnedModel;
+	class SkinnedCharacter;
+	struct SkinnedCharacterRenderInfo;
+	
+	class Material;
+	class SceneRenderer;
+
+	struct Mat4;
 
 	class CollisionShape;
 
@@ -135,6 +142,9 @@ namespace CibraryEngine
 			Sphere GetBoundingSphere();
 
 			Skeleton* CreateSkeleton();
+
+			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, Cache<Material>* mat_cache);
+			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials);
 	};
 
 	struct UberModelLoader : public ContentTypeHandler<UberModel>

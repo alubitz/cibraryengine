@@ -103,8 +103,6 @@ namespace Test
 
 			// Drawing-related functions...
 			void Draw(int width, int height);
-			// Call this from within an object's Vis function to draw an UberModel
-			void VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter::RenderInfo* char_render_info = NULL,  vector<Material*>* materials = NULL);
 
 			void ShowChapterText(string title, string subtitle, float duration);
 

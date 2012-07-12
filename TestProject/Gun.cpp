@@ -149,7 +149,7 @@ namespace Test
 		if (renderer->camera->CheckSphereVisibility(bs))
 		{
 			if(gun_model != NULL)
-				((TestGame*)game_state)->VisUberModel(renderer, gun_model, 0, gun_xform, NULL, &gun_materials);
+				gun_model->Vis(renderer, 0, gun_xform, NULL, &gun_materials);
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{

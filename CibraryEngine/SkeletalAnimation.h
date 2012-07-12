@@ -113,6 +113,16 @@ namespace CibraryEngine
 			void UpdatePoses(TimingInfo time);
 	};
 
+	struct SkinnedCharacterRenderInfo
+	{
+		Texture1D* bone_matrices;
+		unsigned int num_bones;
+		float mat_tex_precision;
+
+		SkinnedCharacterRenderInfo() : bone_matrices(NULL), num_bones(0), mat_tex_precision(4096.0f) { }
+		void Invalidate();
+	};
+
 	/** Class containing a skinned model, a skeleton, and a collection of active poses affecting it */
 	class SkinnedCharacter : public Disposable
 	{
@@ -122,15 +132,7 @@ namespace CibraryEngine
 
 		public:
 
-			struct RenderInfo
-			{
-				Texture1D* bone_matrices;
-				unsigned int num_bones;
-				float mat_tex_precision;
-
-				RenderInfo() : bone_matrices(NULL), num_bones(0), mat_tex_precision(4096.0f) { }
-				void Invalidate();
-			} render_info;
+			SkinnedCharacterRenderInfo render_info;
 
 			/** Precision scaler; this times any number in the bone matrices should be < 32767 */
 			float mat_tex_precision;
@@ -141,7 +143,7 @@ namespace CibraryEngine
 			/** Initializes a new SkinnedCharacter with the given skeleton */
 			SkinnedCharacter(Skeleton* skeleton);
 
-			RenderInfo GetRenderInfo();
+			SkinnedCharacterRenderInfo GetRenderInfo();
 
 			/** Static utility function to generate a 1-dimensional texture which encodes several transformation matrices, for use by my awesome vertex shader; remember to dispose of and delete the result! */
 			static Texture1D* MatricesToTexture1D(vector<Mat4>& matrices, float precision = 4096.0f);

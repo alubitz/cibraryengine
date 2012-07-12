@@ -28,16 +28,40 @@ namespace InverseKinematics
 		}
 	};
 
-	class DerpPose : public Pose
+	class BreathingPose : public Pose
 	{
 		public:
 
 			void UpdatePose(TimingInfo time)
 			{
-				// TODO: implement this
-
-				SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
 				SetBonePose(Bone::string_table["torso 1"], Vec3(sinf(time.total * 0.5f) * 0.1f, 0, 0), Vec3());
+			}
+	};
+
+	class AimingPose : public Pose
+	{
+		public:
+
+			Bone* bone;					// bone which should be aimed
+
+			Quaternion desired_ori;
+
+
+			AimingPose(Bone* bone) : bone(bone), desired_ori(Quaternion::Identity()) { }
+
+			void UpdatePose(TimingInfo time)
+			{
+				// TODO: implement this for real
+				SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
+			}
+
+			void Vis(SceneRenderer* renderer)
+			{
+				// draw actual aiming line
+				Mat4 bone_xform = bone->GetTransformationMatrix();
+				Vec3 origin = bone_xform.TransformVec3_1(bone->rest_pos);
+				Vec3 direction = bone_xform.TransformVec3_0(Vec3(0, 0, 1));
+				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(origin, origin + direction * 1000, Vec3(1, 0, 0)), 0));
 			}
 	};
 
@@ -54,11 +78,13 @@ namespace InverseKinematics
 		InputState* input_state;
 
 		PosedCharacter* character;
-		DerpPose* pose;
+		AimingPose* aiming_pose;
 
 		Skeleton* skeleton;
 		vector<IKBone*> ik_bones;
 		IKBone* selection;
+
+		UberModel* uber;
 
 		CameraView camera;
 		SceneRenderer renderer;
@@ -73,9 +99,10 @@ namespace InverseKinematics
 			window(window),
 			input_state(window->input_state),
 			character(NULL),
-			pose(NULL),
+			aiming_pose(NULL),
 			skeleton(NULL),
 			selection(NULL),
+			uber(NULL),
 			ik_bones(),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
@@ -87,7 +114,7 @@ namespace InverseKinematics
 
 			string filename = "soldier";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
-			UberModel* uber = window->content->GetCache<UberModel>()->Load(filename);
+			uber = window->content->GetCache<UberModel>()->Load(filename);
 
 			skeleton = uber->CreateSkeleton();
 
@@ -100,9 +127,13 @@ namespace InverseKinematics
 				}
 
 			character = new PosedCharacter(skeleton);
+			character->active_poses.push_back(new BreathingPose());
 
-			pose = new DerpPose();
-			character->active_poses.push_back(pose);
+			if(Bone* aim_bone = skeleton->GetNamedBone("r grip"))
+			{
+				aiming_pose = new AimingPose(aim_bone);
+				character->active_poses.push_back(aiming_pose);
+			}
 
 			now = 0.0f;
 			yaw = 0.0f;
@@ -115,7 +146,7 @@ namespace InverseKinematics
 		{
 			input_state->KeyStateChanged -= &key_listener;
 
-			if(character) { character->Dispose(); delete character; character = NULL; pose = NULL; }
+			if(character) { character->Dispose(); delete character; character = NULL; }
 
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				delete *iter;
@@ -130,6 +161,7 @@ namespace InverseKinematics
 				return;
 			}
 
+			// rotate the camera around the dood based on keyboard input
 			if(input_state->keys[VK_LEFT])
 				yaw -= time.elapsed;
 			if(input_state->keys[VK_RIGHT])
@@ -139,9 +171,9 @@ namespace InverseKinematics
 			if(input_state->keys[VK_DOWN])
 				pitch += time.elapsed;
 
-			// TODO: set inputs for poses?
-
 			now = time.total;
+
+			aiming_pose->desired_ori = Quaternion::Identity();
 
 			character->UpdatePoses(time);
 		}
@@ -201,6 +233,7 @@ namespace InverseKinematics
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
 
+			/*
 			// draw bones
 			float flash_rate = 4.0f;
 			float flash_on = 0.5f;
@@ -212,8 +245,22 @@ namespace InverseKinematics
 			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2, 0, 0), Vec3(2, 0, 0)), 0));
 			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(0, 0, -2), Vec3(0, 0, 2)), 0));
 
+			// aiming pose has some info it can display, too
+			aiming_pose->Vis(&renderer);
+			*/
+
+			SkinnedCharacterRenderInfo sk_rinfo;
+
+			vector<Mat4> bone_matrices = skeleton->GetBoneMatrices();
+			sk_rinfo.num_bones = bone_matrices.size();
+			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices);
+
+			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, window->content->GetCache<Material>());
+
 			renderer.Render();
 			renderer.Cleanup();
+
+			sk_rinfo.Invalidate();
 
 			// 2d overlay
 			glMatrixMode(GL_PROJECTION);

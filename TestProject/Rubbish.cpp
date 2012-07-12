@@ -42,7 +42,7 @@ namespace Test
 	void Rubbish::Vis(SceneRenderer* renderer)
 	{
 		if(renderer->camera->CheckSphereVisibility(Sphere(xform.TransformVec3_1(bs.center), bs.radius)))
-			((TestGame*)game_state)->VisUberModel(renderer, model, 0, xform, NULL, &materials);
+			model->Vis(renderer, 0, xform, NULL, &materials);
 	}
 
 	void Rubbish::Spawned()

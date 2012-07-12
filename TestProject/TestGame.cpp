@@ -1108,50 +1108,6 @@ namespace Test
 		GameState::InnerDispose();
 	}
 
-	void TestGame::VisUberModel(SceneRenderer* renderer, UberModel* model, int lod, Mat4 xform, SkinnedCharacter::RenderInfo* char_render_info, vector<Material*>* materials)
-	{
-		if(model == NULL)
-			return;
-
-		vector<Material*> use_materials;
-		if(materials != NULL)
-			use_materials = *materials;
-		else
-		{
-			for(unsigned int i = 0; i < model->materials.size(); ++i)
-				use_materials.push_back(mat_cache->Load(model->materials[i]));
-		}
-
-		int num_lods = model->lods.size();
-		if(lod >= num_lods)
-			lod = num_lods - 1;
-		UberModel::LOD* use_lod = model->lods[lod];
-
-		Sphere bs = model->GetBoundingSphere();
-		bs.center = xform.TransformVec3_1(bs.center);
-
-		vector<MaterialModelPair>* mmps = use_lod->GetVBOs();
-
-		for(vector<MaterialModelPair>::iterator iter = mmps->begin(); iter != mmps->end(); ++iter)
-		{
-			MaterialModelPair& mmp = *iter;
-
-			DSNMaterial* material = (DSNMaterial*)use_materials[mmp.material_index];
-			VertexBuffer* vbo = mmp.vbo;
-
-			if(char_render_info != NULL)
-			{
-				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, char_render_info->bone_matrices, char_render_info->num_bones, char_render_info->mat_tex_precision);
-				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
-			}
-			else
-			{
-				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs);
-				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
-			}
-		}
-	}
-
 	int gs_spawnBot(lua_State* L);
 	int gs_spawnArtilleryBug(lua_State* L);
 	int gs_spawnPlayer(lua_State* L);

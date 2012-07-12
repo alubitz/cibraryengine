@@ -14,6 +14,11 @@
 
 #include "CollisionShape.h"
 
+#include "DSNMaterial.h"
+#include "SceneRenderer.h"
+#include "CameraView.h"
+#include "RenderNode.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -213,6 +218,47 @@ namespace CibraryEngine
 		*/
 
 		return skel;
+	}
+
+	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, Cache<Material>* mat_cache)
+	{
+		vector<Material*> use_materials;
+		for(unsigned int i = 0; i < materials.size(); ++i)
+			use_materials.push_back(mat_cache->Load(materials[i]));
+
+		Vis(renderer, lod, xform, char_render_info, &use_materials);
+	}
+
+	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials)
+	{
+		int num_lods = lods.size();
+		if(lod >= num_lods)
+			lod = num_lods - 1;
+		UberModel::LOD* use_lod = lods[lod];
+
+		Sphere bs = GetBoundingSphere();
+		bs.center = xform.TransformVec3_1(bs.center);
+
+		vector<MaterialModelPair>* mmps = use_lod->GetVBOs();
+
+		for(vector<MaterialModelPair>::iterator iter = mmps->begin(); iter != mmps->end(); ++iter)
+		{
+			MaterialModelPair& mmp = *iter;
+
+			DSNMaterial* material = (DSNMaterial*)use_materials->operator[](mmp.material_index);
+			VertexBuffer* vbo = mmp.vbo;
+
+			if(char_render_info != NULL)
+			{
+				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs, char_render_info->bone_matrices, char_render_info->num_bones, char_render_info->mat_tex_precision);
+				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
+			}
+			else
+			{
+				DSNMaterialNodeData* node_data = new DSNMaterialNodeData(vbo, xform, bs);
+				renderer->objects.push_back(RenderNode(material, node_data, Vec3::Dot(renderer->camera->GetForward(), bs.center)));
+			}
+		}
 	}
 
 

@@ -90,17 +90,8 @@ namespace CibraryEngine
 		
 		GLDEBUG();
 
-		map<LightSource*, vector<DSNMaterialNodeData*> > light_effects = map<LightSource*, vector<DSNMaterialNodeData*> >();
 		if(!depth)
 		{
-			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); ++iter)
-			{
-				light_effects[*iter] = vector<DSNMaterialNodeData*>();
-				for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
-					if ((*iter)->IsWithinLightingRange((*jter)->bs))
-						light_effects[*iter].push_back(*jter);
-			}
-
 			use_shader->SetUniform<Texture2D>("diffuse", diffuse);
 			use_shader->SetUniform<Texture2D>("specular", specular);
 			use_shader->SetUniform<Texture2D>("normal_map", normal);
@@ -118,29 +109,8 @@ namespace CibraryEngine
 
 		ShaderProgram::SetActiveProgram(use_shader);
 
-		if(depth)
-		{
-			for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
-				DrawNodeData(*jter, use_shader);
-		}
-		else
-		{
-			for (vector<LightSource*>::iterator iter = scene->lights.begin(); iter != scene->lights.end(); ++iter)
-			{
-				glPushMatrix();
-				glLoadIdentity();
-
-				(*iter)->SetLight(0);
-
-				glPopMatrix();
-				GLDEBUG();
-
-				for(vector<DSNMaterialNodeData*>::iterator jter = light_effects[*iter].begin(); jter != light_effects[*iter].end(); ++jter)
-					DrawNodeData(*jter, use_shader);
-
-				(*iter)->UnsetLight(0);
-			}
-		}
+		for(vector<DSNMaterialNodeData*>::iterator jter = node_data.begin(); jter != node_data.end(); ++jter)
+			DrawNodeData(*jter, use_shader);
 
 		ShaderProgram::SetActiveProgram(NULL);
 

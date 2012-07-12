@@ -261,12 +261,7 @@ namespace CibraryEngine
 
 
 
-	/*
-	 * SkinnedCharacter methods
-	 */
-	SkinnedCharacter::SkinnedCharacter(Skeleton* skeleton) : render_info(), mat_tex_precision(4096.0f), skeleton(skeleton) { }
-
-	void SkinnedCharacter::RenderInfo::Invalidate()
+	void SkinnedCharacterRenderInfo::Invalidate()
 	{
 		if(bone_matrices != NULL)
 		{
@@ -276,6 +271,14 @@ namespace CibraryEngine
 			bone_matrices = NULL;
 		}
 	}
+
+
+
+
+	/*
+	 * SkinnedCharacter methods
+	 */
+	SkinnedCharacter::SkinnedCharacter(Skeleton* skeleton) : render_info(), mat_tex_precision(4096.0f), skeleton(skeleton) { }
 
 	void SkinnedCharacter::InnerDispose()
 	{
@@ -290,7 +293,7 @@ namespace CibraryEngine
 		render_info.Invalidate();
 	}
 
-	SkinnedCharacter::RenderInfo SkinnedCharacter::GetRenderInfo()
+	SkinnedCharacterRenderInfo SkinnedCharacter::GetRenderInfo()
 	{
 		if(render_info.bone_matrices == NULL)
 		{
