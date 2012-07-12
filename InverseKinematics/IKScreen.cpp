@@ -34,7 +34,7 @@ namespace InverseKinematics
 
 			void UpdatePose(TimingInfo time)
 			{
-				SetBonePose(Bone::string_table["torso 1"], Vec3(sinf(time.total * 0.5f) * 0.1f, 0, 0), Vec3());
+				//SetBonePose(Bone::string_table["torso 1"], Vec3(sinf(time.total * 0.5f) * 0.1f, 0, 0), Vec3());
 			}
 	};
 
@@ -52,7 +52,7 @@ namespace InverseKinematics
 			void UpdatePose(TimingInfo time)
 			{
 				// TODO: implement this for real
-				SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
+				//SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
 			}
 
 			void Vis(SceneRenderer* renderer)
@@ -62,6 +62,110 @@ namespace InverseKinematics
 				Vec3 origin = bone_xform.TransformVec3_1(bone->rest_pos);
 				Vec3 direction = bone_xform.TransformVec3_0(Vec3(0, 0, 1));
 				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(origin, origin + direction * 1000, Vec3(1, 0, 0)), 0));
+			}
+	};
+
+	class StepPose : public Pose
+	{
+		public:
+
+			Bone* end;
+			Bone* base;
+
+			struct ChainNode
+			{
+				Bone* from;
+				Bone* to;
+				Bone* child;					// parent can be determined using child->parent
+
+				Quaternion ori;
+				Vec3 rot;
+
+				// TODO: add joint orientation info somehow
+
+				ChainNode() : from(NULL), to(NULL), child(NULL) { }
+				ChainNode(Bone* from, Bone* to, Bone* child) : from(from), to(to), child(child), ori(Quaternion::Identity())
+				{
+					rot = Random3D::RandomNormalizedVector(Random3D::Rand(1.0f));
+				}
+			};
+			vector<ChainNode> chain;				// chain of bones from base to end (including both)
+
+			Quaternion desired_base_ori, desired_end_ori;
+			Vec3 desired_base_pos, desired_end_pos;
+			float arrive_time;
+
+			StepPose(Bone* end, Bone* base) : end(end), base(base), chain()
+			{
+				// desired state defaults to initial state
+				Mat4 end_xform = end->GetTransformationMatrix(), base_xform = base->GetTransformationMatrix();
+				end_xform.Decompose(desired_end_pos, desired_end_ori);
+				base_xform.Decompose(desired_base_pos, desired_base_ori);
+
+				arrive_time = -1.0f;
+
+				// enumerate the chain of bones to go from "base" to "end"
+				vector<Bone*> end_chain, base_chain;
+				Bone* cur = end;
+				while(cur)
+				{
+					end_chain.push_back(cur);
+					cur = cur->parent;
+				}
+
+				cur = base;
+				while(cur)
+				{
+					bool any = false;
+					for(vector<Bone*>::reverse_iterator iter = end_chain.rbegin(); iter != end_chain.rend(); ++iter)
+						if(*iter == cur)
+						{
+							base_chain.insert(base_chain.end(), iter, end_chain.rend());
+
+							any = true;
+							break;
+						}
+
+					if(any)
+						break;
+					else
+					{
+						base_chain.push_back(cur);
+						cur = cur->parent;
+					}
+				}
+
+				// we've figured out what bones are in the chain... now to actually create it
+				Bone* prev = NULL;
+				for(vector<Bone*>::iterator iter = base_chain.begin(); iter != base_chain.end(); ++iter)
+				{
+					Bone* cur = *iter;
+					if(prev)
+					{
+						if(prev == cur->parent)
+							chain.push_back(ChainNode(prev, cur, cur));
+						else if(cur == prev->parent)
+							chain.push_back(ChainNode(prev, cur, prev));
+						else
+							Debug("ERROR! Sequential bones don't have a parent-child relationship!\n");
+					}
+
+					prev = *iter;
+				}
+			}
+
+			void UpdatePose(TimingInfo time)
+			{
+				float timestep = time.elapsed;
+
+				// apply velocity
+				for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
+				{
+					Quaternion& ori = iter->ori;
+					ori *= Quaternion::FromPYR(iter->rot * timestep);
+
+					SetBonePose(iter->child->name, ori.ToPYR(), Vec3());
+				}
 			}
 	};
 
@@ -135,6 +239,14 @@ namespace InverseKinematics
 				character->active_poses.push_back(aiming_pose);
 			}
 
+			if(Bone* pelvis = skeleton->GetNamedBone("pelvis"))
+			{
+				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
+					character->active_poses.push_back(new StepPose(l_foot, pelvis));
+				//if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
+				//	character->active_poses.push_back(new StepPose(r_foot, pelvis));
+			}
+
 			now = 0.0f;
 			yaw = 0.0f;
 			pitch = 0.0f;
@@ -176,28 +288,6 @@ namespace InverseKinematics
 			aiming_pose->desired_ori = Quaternion::Identity();
 
 			character->UpdatePoses(time);
-		}
-
-		IKBone* AddRootBone(const string& name, const Vec3& pos, MultiSphereShape* shape)
-		{
-			IKBone* result = new IKBone();
-			result->bone = skeleton->AddBone(Bone::string_table[name], Quaternion::Identity(), pos);
-			result->shape = shape;
-
-			ik_bones.push_back(result);
-
-			return result;	
-		}
-
-		IKBone* AddChildBone(IKBone* parent, const string& name, const Vec3& pos, MultiSphereShape* shape)
-		{
-			IKBone* result = new IKBone();
-			result->bone = skeleton->AddBone(Bone::string_table[name], parent->bone, Quaternion::Identity(), pos);
-			result->shape = shape;
-
-			ik_bones.push_back(result);
-
-			return result;
 		}
 
 		IKBone* WrapBone(Bone* bone, MultiSphereShape* shape)
@@ -244,10 +334,10 @@ namespace InverseKinematics
 			// draw axis lines
 			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2, 0, 0), Vec3(2, 0, 0)), 0));
 			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(0, 0, -2), Vec3(0, 0, 2)), 0));
+			*/
 
 			// aiming pose has some info it can display, too
 			aiming_pose->Vis(&renderer);
-			*/
 
 			SkinnedCharacterRenderInfo sk_rinfo;
 

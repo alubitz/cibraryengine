@@ -122,6 +122,10 @@ namespace CibraryEngine
 		void operator +=(const Mat3& b)					{ const float* bvals = b.values; for(int i = 0; i < 9; ++i) { values[i] += bvals[i]; } }
 		/** Adds two matrices */
 		Mat3 operator +(const Mat3& b) const			{ Mat3 result(*this); result += b; return result; }
+		/** Subtracts two matrices */
+		void operator -=(const Mat3& b)					{ const float* bvals = b.values; for(int i = 0; i < 9; ++i) { values[i] -= bvals[i]; } }
+		/** Subtractss two matrices */
+		Mat3 operator -(const Mat3& b) const			{ Mat3 result(*this); result -= b; return result; }
 	};
 
 	/** Class representing a 4x4 matrix */
@@ -306,6 +310,10 @@ namespace CibraryEngine
 		void operator +=(const Mat4& b)					{ const float* bvals = b.values; for(int i = 0; i < 16; ++i) { values[i] += bvals[i]; } }
 		/** Adds two matrices */
 		Mat4 operator +(const Mat4& b) const			{ Mat4 result(*this); result += b; return result; }
+		/** Subtracts two matrices */
+		void operator -=(const Mat4& b)					{ const float* bvals = b.values; for(int i = 0; i < 16; ++i) { values[i] -= bvals[i]; } }
+		/** Subtracts two matrices */
+		Mat4 operator -(const Mat4& b) const			{ Mat4 result(*this); result -= b; return result; }
 	};
 
 

@@ -924,19 +924,22 @@ namespace Test
 			glViewport(0, 0, width, height);
 			glColorMask(true, true, true, false);
 
+			float light_pos[] = { imp->sun->position.x, imp->sun->position.y, imp->sun->position.z, 0.0f };
+			glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+
 			ShaderProgram* deferred_lighting = imp->deferred_lighting;
-			deferred_lighting->SetUniform<Texture2D>("diffuse", render_target->GetColorBufferTex(0));
-			deferred_lighting->SetUniform<Texture2D>("normal", render_target->GetColorBufferTex(1));
-			deferred_lighting->SetUniform<Texture2D>("specular", render_target->GetColorBufferTex(2));
-			deferred_lighting->SetUniform<Texture2D>("depth", render_target->GetColorBufferTex(3));
+			deferred_lighting->SetUniform<Texture2D>	("diffuse",				render_target->GetColorBufferTex(0));
+			deferred_lighting->SetUniform<Texture2D>	("normal",				render_target->GetColorBufferTex(1));
+			deferred_lighting->SetUniform<Texture2D>	("specular",			render_target->GetColorBufferTex(2));
+			deferred_lighting->SetUniform<Texture2D>	("depth",				render_target->GetColorBufferTex(3));
 #if ENABLE_SHADOWS
-			deferred_lighting->SetUniform<Texture2D>("shadow_depth", shadow_texture);
-			deferred_lighting->SetUniform<Mat4>("shadow_matrix", &shadow_matrix);
-			deferred_lighting->SetUniform<Mat4>("inv_shadow_matrix", &inv_shadow_matrix);
+			deferred_lighting->SetUniform<Texture2D>	("shadow_depth",		shadow_texture);
+			deferred_lighting->SetUniform<Mat4>			("shadow_matrix",		&shadow_matrix);
+			deferred_lighting->SetUniform<Mat4>			("inv_shadow_matrix",	&inv_shadow_matrix);
 #endif
-			deferred_lighting->SetUniform<Mat4>("inv_view_matrix", &inv_view_matrix);
-			deferred_lighting->SetUniform<float>("aspect_ratio", &aspect_ratio);
-			deferred_lighting->SetUniform<float>("zoom", &zoom);
+			deferred_lighting->SetUniform<Mat4>			("inv_view_matrix",		&inv_view_matrix);
+			deferred_lighting->SetUniform<float>		("aspect_ratio",		&aspect_ratio);
+			deferred_lighting->SetUniform<float>		("zoom",				&zoom);
 
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 

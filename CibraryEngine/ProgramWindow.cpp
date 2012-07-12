@@ -43,6 +43,7 @@ namespace CibraryEngine
 			window_handle(window_handle),
 			program_instance(program_instance)
 		{
+			srand((unsigned int)time(NULL));
 		}
 
 		~Imp() { }
@@ -233,13 +234,11 @@ namespace CibraryEngine
 		{
 			SetActive(true);
 
-			srand((unsigned int)time(NULL));
 			total_game_time = -1.0f;
 
 			UpdateDimensions();
 
 			glShadeModel(GL_SMOOTH);
-
 			glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 		}
 
