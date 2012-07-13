@@ -81,13 +81,8 @@ namespace InverseKinematics
 				Quaternion ori;
 				Vec3 rot;
 
-				// TODO: add joint orientation info somehow
-
 				ChainNode() : from(NULL), to(NULL), child(NULL) { }
-				ChainNode(Bone* from, Bone* to, Bone* child) : from(from), to(to), child(child), ori(Quaternion::Identity())
-				{
-					rot = Random3D::RandomNormalizedVector(Random3D::Rand(1.0f));
-				}
+				ChainNode(Bone* from, Bone* to, Bone* child) : from(from), to(to), child(child), ori(Quaternion::Identity()), rot() { }
 			};
 			vector<ChainNode> chain;				// chain of bones from base to end (including both)
 
@@ -95,14 +90,12 @@ namespace InverseKinematics
 			Vec3 desired_base_pos, desired_end_pos;
 			float arrive_time;
 
-			StepPose(Bone* end, Bone* base) : end(end), base(base), chain()
+			StepPose(Bone* end, Bone* base) : end(end), base(base), chain(), arrive_time(-1)
 			{
 				// desired state defaults to initial state
 				Mat4 end_xform = end->GetTransformationMatrix(), base_xform = base->GetTransformationMatrix();
 				end_xform.Decompose(desired_end_pos, desired_end_ori);
 				base_xform.Decompose(desired_base_pos, desired_base_ori);
-
-				arrive_time = -1.0f;
 
 				// enumerate the chain of bones to go from "base" to "end"
 				vector<Bone*> end_chain, base_chain;
@@ -157,15 +150,115 @@ namespace InverseKinematics
 			void UpdatePose(TimingInfo time)
 			{
 				float timestep = time.elapsed;
+				float foresight = timestep * 5.0f;
 
-				// apply velocity
+				// find the velocities which will best get us to the destination pos/ori
+
+				int num_floats = chain.size() * 3;
+				float* rot = new float[num_floats];
+				float* best = new float[num_floats];
+				float* guess = new float[num_floats];
+				float* rot_end = &rot[num_floats];
+				float* best_end = &best[num_floats];
+				float* guess_end = &guess[num_floats];
+
+				float* rot_ptr = rot;
+				float* best_ptr = best;
+				float* guess_ptr = guess;
+
 				for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
 				{
+					//Vec3& vec = iter->rot;
+					Vec3 vec;
+					
+					*(best_ptr++) = *(rot_ptr++) = vec.x;
+					*(best_ptr++) = *(rot_ptr++) = vec.y;
+					*(best_ptr++) = *(rot_ptr++) = vec.z;
+				}
+
+				float best_score;
+				for(int i = 0; i < 50; ++i)
+				{
+					guess_ptr = guess;
+					rot_ptr = rot;
+					best_ptr = best;
+
+					if(i == 0)
+						while(guess_ptr != guess_end)
+							*(guess_ptr++) = 0.0f;
+					else if(i == 1)
+						while(guess_ptr != guess_end)
+							*(guess_ptr++) = *(rot_ptr++);
+					else
+					{
+						float* ptr = &guess_ptr[Random3D::RandInt(num_floats)];
+						while(best_ptr != best_end)	
+							if(guess_ptr == ptr)
+								*(guess_ptr++) = *(best_ptr++) + Random3D::Rand(-1, 1);
+							else
+								*(guess_ptr++) = *(best_ptr++);
+					}
+
+					// figure out where this arrangement puts our end effector
+					Mat4 xform = Mat4::Identity();
+
+					guess_ptr = guess;
+					for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
+					{
+						Bone* child = iter->child;
+
+						float x = *(guess_ptr++), y = *(guess_ptr++), z = *(guess_ptr++);
+						Quaternion ori = iter->ori * Quaternion::FromPYR(x * foresight, y * foresight, z * foresight);
+
+						Mat4 to_rest_pos = Mat4::Translation(child->rest_pos);
+						Mat4 from_rest_pos = Mat4::Translation(-child->rest_pos);
+						Mat4 rotation_mat = Mat4::FromQuaternion(ori * child->rest_ori);
+						Mat4 offset = Mat4::Translation(child->pos);
+
+						Mat4 net = to_rest_pos * rotation_mat * offset * from_rest_pos;
+						if(iter->to != iter->child)
+							net = Mat4::Invert(net);
+
+						xform *= net;
+					}
+
+					// score based on how closely it matches what we're after
+					Quaternion end_ori;
+					Vec3 end_pos;
+					xform.Decompose(end_pos, end_ori);
+					end_pos -= desired_end_pos;
+					end_ori -= desired_end_ori;
+
+					float score = end_pos.ComputeMagnitudeSquared() + end_ori.w * end_ori.w + end_ori.x * end_ori.x + end_ori.y * end_ori.y + end_ori.z * end_ori.z;
+
+					Debug(((stringstream&)(stringstream() << "score = " << score << endl)).str());
+
+					if(i == 0 || score < best_score)
+					{
+						best_score = score;
+
+						best_ptr = best;
+						guess_ptr = guess;
+						while(best_ptr != best_end)
+							*(best_ptr++) = *(guess_ptr++);
+					}
+				}
+
+				// now apply those velocities, and set the bones' poses accordingly
+				best_ptr = best;
+				for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
+				{
+					float x = *(best_ptr++), y = *(best_ptr++), z = *(best_ptr++);
+					iter->rot = Vec3(x, y, z);
+
 					Quaternion& ori = iter->ori;
 					ori *= Quaternion::FromPYR(iter->rot * timestep);
 
-					SetBonePose(iter->child->name, ori.ToPYR(), Vec3());
+					SetBonePose(iter->to->name, ori.ToPYR(), Vec3());
 				}
+
+				delete[] rot;
+				delete[] guess;
 			}
 	};
 
@@ -242,9 +335,21 @@ namespace InverseKinematics
 			if(Bone* pelvis = skeleton->GetNamedBone("pelvis"))
 			{
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
-					character->active_poses.push_back(new StepPose(l_foot, pelvis));
-				//if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
-				//	character->active_poses.push_back(new StepPose(r_foot, pelvis));
+				{
+					StepPose* step = new StepPose(l_foot, pelvis);
+					step->desired_end_pos += Vec3(0, 0.1f, -0.35f);
+					step->arrive_time = 1.0f;
+
+					character->active_poses.push_back(step);
+				}
+				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
+				{
+					StepPose* step = new StepPose(r_foot, pelvis);
+					step->desired_end_pos += Vec3(0, 0.3f, 0.1f);
+					step->arrive_time = 1.0f;
+
+					character->active_poses.push_back(step);
+				}
 			}
 
 			now = 0.0f;
@@ -273,21 +378,24 @@ namespace InverseKinematics
 				return;
 			}
 
+			float timestep = min(time.elapsed, 1.0f / 60.0f);
+			now += timestep;
+
+			TimingInfo use_time = TimingInfo(timestep, now);
+
 			// rotate the camera around the dood based on keyboard input
 			if(input_state->keys[VK_LEFT])
-				yaw -= time.elapsed;
+				yaw -= timestep;
 			if(input_state->keys[VK_RIGHT])
-				yaw += time.elapsed;
+				yaw += timestep;
 			if(input_state->keys[VK_UP])
-				pitch -= time.elapsed;
+				pitch -= timestep;
 			if(input_state->keys[VK_DOWN])
-				pitch += time.elapsed;
-
-			now = time.total;
+				pitch += timestep;
 
 			aiming_pose->desired_ori = Quaternion::Identity();
 
-			character->UpdatePoses(time);
+			character->UpdatePoses(use_time);
 		}
 
 		IKBone* WrapBone(Bone* bone, MultiSphereShape* shape)
