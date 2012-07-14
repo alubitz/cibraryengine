@@ -12,12 +12,13 @@ namespace CibraryEngine
 	/*
 	 * JointConstraint methods
 	 */
-	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& max_extents, const Vec3& angular_damp) :
+	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp) :
 		PhysicsConstraint(ibody, jbody),
 		desired_ori(Quaternion::Identity()),
 		inv_desired(Quaternion::Identity()),
 		pos(pos),
 		axes(axes),
+		min_extents(min_extents),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
 		enable_motor(true)

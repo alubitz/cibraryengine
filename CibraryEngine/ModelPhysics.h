@@ -42,7 +42,7 @@ namespace CibraryEngine
 				Vec3 pos;
 				Mat3 axes;
 
-				Vec3 max_extents;
+				Vec3 min_extents, max_extents;
 				Vec3 angular_damp;
 			};
 

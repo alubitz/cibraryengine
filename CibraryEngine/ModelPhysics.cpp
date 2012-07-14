@@ -142,6 +142,7 @@ namespace CibraryEngine
 			joint.bone_b = ReadUInt32(ss);
 			joint.pos = ReadVec3(ss);
 			joint.axes = ReadMat3(ss);
+			joint.min_extents = ReadVec3(ss);
 			joint.max_extents = ReadVec3(ss);
 			joint.angular_damp = ReadVec3(ss);
 
@@ -196,6 +197,7 @@ namespace CibraryEngine
 				WriteUInt32(joint.bone_b, joint_ss);
 				WriteVec3(joint.pos, joint_ss);
 				WriteMat3(joint.axes, joint_ss);
+				WriteVec3(joint.min_extents, joint_ss);
 				WriteVec3(joint.max_extents, joint_ss);
 				WriteVec3(joint.angular_damp, joint_ss);
 

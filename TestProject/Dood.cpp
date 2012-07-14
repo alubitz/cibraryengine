@@ -465,7 +465,7 @@ namespace Test
 				RigidBody* bone_a = rigid_bodies[name_indices[Bone::string_table[bone_a_name]]];
 				RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
-				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.max_extents, phys.angular_damp);
+				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents, phys.angular_damp);
 
 				constraints.push_back(c);
 

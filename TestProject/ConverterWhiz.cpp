@@ -102,6 +102,7 @@ namespace Test
 
 				// some rather arbitrary default values here
 				joint.axes = Mat3::Identity();
+				joint.min_extents = Vec3(-1.0f, -1.0f, -1.0f);
 				joint.max_extents = Vec3(1.0f, 1.0f, 1.0f);
 				joint.angular_damp = Vec3(1.0, 1.0f, 1.0f);
 
