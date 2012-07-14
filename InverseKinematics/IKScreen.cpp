@@ -3,6 +3,8 @@
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
+#include "StepPose.h"
+
 namespace InverseKinematics
 {
 	using namespace CibraryEngine;
@@ -65,206 +67,6 @@ namespace InverseKinematics
 			}
 	};
 
-	class StepPose : public Pose
-	{
-		public:
-
-			Bone* end;
-			Bone* base;
-
-			struct ChainNode
-			{
-				Bone* from;
-				Bone* to;
-				Bone* child;					// parent can be determined using child->parent
-
-				Quaternion ori;
-				Vec3 rot;
-
-				ChainNode() : from(NULL), to(NULL), child(NULL) { }
-				ChainNode(Bone* from, Bone* to, Bone* child) : from(from), to(to), child(child), ori(Quaternion::Identity()), rot() { }
-			};
-			vector<ChainNode> chain;				// chain of bones from base to end (including both)
-
-			Quaternion desired_base_ori, desired_end_ori;
-			Vec3 desired_base_pos, desired_end_pos;
-			float arrive_time;
-
-			StepPose(Bone* end, Bone* base) : end(end), base(base), chain(), arrive_time(-1)
-			{
-				// desired state defaults to initial state
-				Mat4 end_xform = end->GetTransformationMatrix(), base_xform = base->GetTransformationMatrix();
-				end_xform.Decompose(desired_end_pos, desired_end_ori);
-				base_xform.Decompose(desired_base_pos, desired_base_ori);
-
-				// enumerate the chain of bones to go from "base" to "end"
-				vector<Bone*> end_chain, base_chain;
-				Bone* cur = end;
-				while(cur)
-				{
-					end_chain.push_back(cur);
-					cur = cur->parent;
-				}
-
-				cur = base;
-				while(cur)
-				{
-					bool any = false;
-					for(vector<Bone*>::reverse_iterator iter = end_chain.rbegin(); iter != end_chain.rend(); ++iter)
-						if(*iter == cur)
-						{
-							base_chain.insert(base_chain.end(), iter, end_chain.rend());
-
-							any = true;
-							break;
-						}
-
-					if(any)
-						break;
-					else
-					{
-						base_chain.push_back(cur);
-						cur = cur->parent;
-					}
-				}
-
-				// we've figured out what bones are in the chain... now to actually create it
-				Bone* prev = NULL;
-				for(vector<Bone*>::iterator iter = base_chain.begin(); iter != base_chain.end(); ++iter)
-				{
-					Bone* cur = *iter;
-					if(prev)
-					{
-						if(prev == cur->parent)
-							chain.push_back(ChainNode(prev, cur, cur));
-						else if(cur == prev->parent)
-							chain.push_back(ChainNode(prev, cur, prev));
-						else
-							Debug("ERROR! Sequential bones don't have a parent-child relationship!\n");
-					}
-
-					prev = *iter;
-				}
-			}
-
-			void UpdatePose(TimingInfo time)
-			{
-				float timestep = time.elapsed;
-				float foresight = timestep * 5.0f;
-
-				// find the velocities which will best get us to the destination pos/ori
-
-				int num_floats = chain.size() * 3;
-				float* rot = new float[num_floats];
-				float* best = new float[num_floats];
-				float* guess = new float[num_floats];
-				float* rot_end = &rot[num_floats];
-				float* best_end = &best[num_floats];
-				float* guess_end = &guess[num_floats];
-
-				float* rot_ptr = rot;
-				float* best_ptr = best;
-				float* guess_ptr = guess;
-
-				for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
-				{
-					//Vec3& vec = iter->rot;
-					Vec3 vec;
-					
-					*(best_ptr++) = *(rot_ptr++) = vec.x;
-					*(best_ptr++) = *(rot_ptr++) = vec.y;
-					*(best_ptr++) = *(rot_ptr++) = vec.z;
-				}
-
-				float best_score;
-				for(int i = 0; i < 50; ++i)
-				{
-					guess_ptr = guess;
-					rot_ptr = rot;
-					best_ptr = best;
-
-					if(i == 0)
-						while(guess_ptr != guess_end)
-							*(guess_ptr++) = 0.0f;
-					else if(i == 1)
-						while(guess_ptr != guess_end)
-							*(guess_ptr++) = *(rot_ptr++);
-					else
-					{
-						float* ptr = &guess_ptr[Random3D::RandInt(num_floats)];
-						while(best_ptr != best_end)	
-							if(guess_ptr == ptr)
-								*(guess_ptr++) = *(best_ptr++) + Random3D::Rand(-1, 1);
-							else
-								*(guess_ptr++) = *(best_ptr++);
-					}
-
-					// figure out where this arrangement puts our end effector
-					Mat4 xform = Mat4::Identity();
-
-					guess_ptr = guess;
-					for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
-					{
-						Bone* child = iter->child;
-
-						float x = *(guess_ptr++), y = *(guess_ptr++), z = *(guess_ptr++);
-						Quaternion ori = iter->ori * Quaternion::FromPYR(x * foresight, y * foresight, z * foresight);
-
-						Mat4 to_rest_pos = Mat4::Translation(child->rest_pos);
-						Mat4 from_rest_pos = Mat4::Translation(-child->rest_pos);
-						Mat4 rotation_mat = Mat4::FromQuaternion(ori * child->rest_ori);
-						Mat4 offset = Mat4::Translation(child->pos);
-
-						Mat4 net = to_rest_pos * rotation_mat * offset * from_rest_pos;
-						if(iter->to != iter->child)
-							net = Mat4::Invert(net);
-
-						xform *= net;
-					}
-
-					// score based on how closely it matches what we're after
-					Quaternion end_ori;
-					Vec3 end_pos;
-					xform.Decompose(end_pos, end_ori);
-					end_pos -= desired_end_pos;
-					end_ori -= desired_end_ori;
-
-					float score = end_pos.ComputeMagnitudeSquared() + end_ori.w * end_ori.w + end_ori.x * end_ori.x + end_ori.y * end_ori.y + end_ori.z * end_ori.z;
-
-					Debug(((stringstream&)(stringstream() << "score = " << score << endl)).str());
-
-					if(i == 0 || score < best_score)
-					{
-						best_score = score;
-
-						best_ptr = best;
-						guess_ptr = guess;
-						while(best_ptr != best_end)
-							*(best_ptr++) = *(guess_ptr++);
-					}
-				}
-
-				// now apply those velocities, and set the bones' poses accordingly
-				best_ptr = best;
-				for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
-				{
-					float x = *(best_ptr++), y = *(best_ptr++), z = *(best_ptr++);
-					iter->rot = Vec3(x, y, z);
-
-					Quaternion& ori = iter->ori;
-					ori *= Quaternion::FromPYR(iter->rot * timestep);
-
-					SetBonePose(iter->to->name, ori.ToPYR(), Vec3());
-				}
-
-				delete[] rot;
-				delete[] guess;
-			}
-	};
-
-
-
-
 	/*
 	 * IKScreen private implementation struct
 	 */
@@ -276,6 +78,8 @@ namespace InverseKinematics
 
 		PosedCharacter* character;
 		AimingPose* aiming_pose;
+		StepPose* left_foot_pose;
+		StepPose* right_foot_pose;
 
 		Skeleton* skeleton;
 		vector<IKBone*> ik_bones;
@@ -286,10 +90,14 @@ namespace InverseKinematics
 		CameraView camera;
 		SceneRenderer renderer;
 
+		Cursor* cursor;
 		BitmapFont* font;
 
 		float now;
 		float yaw, pitch;
+
+		Vec3 pos, vel;
+		bool stepper;
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
@@ -297,17 +105,25 @@ namespace InverseKinematics
 			input_state(window->input_state),
 			character(NULL),
 			aiming_pose(NULL),
+			left_foot_pose(NULL),
+			right_foot_pose(NULL),
 			skeleton(NULL),
-			selection(NULL),
 			uber(NULL),
 			ik_bones(),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
+			cursor(NULL),
 			font(NULL),
-			key_listener()
+			pos(),
+			vel(),
+			key_listener(),
+			mouse_listener()
 		{
 			key_listener.imp = this;
 			input_state->KeyStateChanged += &key_listener;
+
+			mouse_listener.imp = this;
+			input_state->MouseButtonStateChanged += &mouse_listener;
 
 			string filename = "soldier";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
@@ -317,11 +133,7 @@ namespace InverseKinematics
 
 			for(vector<ModelPhysics::BonePhysics>::iterator iter = mphys->bones.begin(); iter != mphys->bones.end(); ++iter)
 				if(Bone* bone = skeleton->GetNamedBone(iter->bone_name))
-				{
-					IKBone* ik_bone = WrapBone(bone, (MultiSphereShape*)iter->collision_shape);
-					if(!selection)
-						selection = ik_bone;
-				}
+					WrapBone(bone, (MultiSphereShape*)iter->collision_shape);
 
 			character = new PosedCharacter(skeleton);
 			character->active_poses.push_back(new BreathingPose());
@@ -336,19 +148,15 @@ namespace InverseKinematics
 			{
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
 				{
-					StepPose* step = new StepPose(l_foot, pelvis);
-					step->desired_end_pos += Vec3(0, 0.1f, -0.35f);
-					step->arrive_time = 1.0f;
-
-					character->active_poses.push_back(step);
+					left_foot_pose = new StepPose(l_foot, pelvis);
+					left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
+					character->active_poses.push_back(left_foot_pose);
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
-					StepPose* step = new StepPose(r_foot, pelvis);
-					step->desired_end_pos += Vec3(0, 0.3f, 0.1f);
-					step->arrive_time = 1.0f;
-
-					character->active_poses.push_back(step);
+					right_foot_pose = new StepPose(r_foot, pelvis);
+					right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
+					character->active_poses.push_back(right_foot_pose);
 				}
 			}
 
@@ -357,13 +165,22 @@ namespace InverseKinematics
 			pitch = 0.0f;
 
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
+
+			cursor = window->content->GetCache<Cursor>()->Load("Cursor");
 		}
 
 		~Imp()
 		{
 			input_state->KeyStateChanged -= &key_listener;
+			input_state->MouseButtonStateChanged -= &mouse_listener;
 
-			if(character) { character->Dispose(); delete character; character = NULL; }
+			character->Dispose();
+			delete character;
+			character = NULL;
+
+			// these will have been deleted by the above
+			aiming_pose = NULL;
+			left_foot_pose = right_foot_pose = NULL;
 
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				delete *iter;
@@ -394,6 +211,25 @@ namespace InverseKinematics
 				pitch += timestep;
 
 			aiming_pose->desired_ori = Quaternion::Identity();
+
+			/*
+			if(input_state->keys['A'])
+				vel.x -= timestep * 5.0f;
+			if(input_state->keys['D'])
+				vel.x += timestep * 5.0f;
+			if(input_state->keys['W'])
+				vel.z += timestep * 5.0f;
+			if(input_state->keys['S'])
+				vel.z -= timestep * 5.0f;
+
+			pos += vel * timestep;
+			vel *= exp(-timestep);
+			*/
+
+			skeleton->GetNamedBone("pelvis")->pos = pos;
+			skeleton->InvalidateCachedBoneXforms();
+
+			// TODO: make it walk
 
 			character->UpdatePoses(use_time);
 		}
@@ -431,29 +267,37 @@ namespace InverseKinematics
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
 
-			/*
-			// draw bones
+			// draw bones' collision shapes
 			float flash_rate = 4.0f;
 			float flash_on = 0.5f;
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
-				if(*iter != selection || (now * flash_rate - (int)(now * flash_rate)) < flash_on)
-					(*iter)->Vis(&renderer);
+				(*iter)->Vis(&renderer);
 
-			// draw axis lines
-			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2, 0, 0), Vec3(2, 0, 0)), 0));
-			renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(0, 0, -2), Vec3(0, 0, 2)), 0));
-			*/
+			// draw grid (ground plane)
+			for(short i = -2; i <= 2; ++i)
+			{
+				renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2,	0, i),	Vec3(2, 0, i)),	0));
+				renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(i,	0, -2),	Vec3(i, 0, 2)),	0));
+			}
 
 			// aiming pose has some info it can display, too
-			aiming_pose->Vis(&renderer);
+			//aiming_pose->Vis(&renderer);
 
 			SkinnedCharacterRenderInfo sk_rinfo;
 
+			Bone* pelvis = skeleton->GetNamedBone("pelvis");
+			Vec3 offset = pelvis->pos;
+			pelvis->pos = Vec3();
+			skeleton->InvalidateCachedBoneXforms();
+			
 			vector<Mat4> bone_matrices = skeleton->GetBoneMatrices();
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices);
 
-			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, window->content->GetCache<Material>());
+			uber->Vis(&renderer, 0, Mat4::Translation(offset), &sk_rinfo, window->content->GetCache<Material>());
+
+			pelvis->pos = offset;
+			skeleton->InvalidateCachedBoneXforms();
 
 			renderer.Render();
 			renderer.Cleanup();
@@ -468,6 +312,8 @@ namespace InverseKinematics
 			glLoadIdentity();
 
 			font->Print(((stringstream&)(stringstream() << "time:  " << now)).str(), 0, 0);
+
+			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
 
 		struct KeyListener : public EventHandler
@@ -477,52 +323,33 @@ namespace InverseKinematics
 			void HandleEvent(Event* evt)
 			{
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
-				if(kse->state)
-				{
-					switch(kse->key)
-					{
-						case VK_OEM_4:	// [
-						{
-							vector<IKBone*>::reverse_iterator iter = imp->ik_bones.rbegin();
-							while(iter != imp->ik_bones.rend())
-								if(*iter == imp->selection)
-								{
-									++iter;
-									if(iter != imp->ik_bones.rend())
-										imp->selection = *iter;
-									break;
-								}
-								else
-									++iter;
-
-							break;
-						}
-
-						case VK_OEM_6:		// ]
-						{
-							vector<IKBone*>::iterator iter = imp->ik_bones.begin();
-							while(iter != imp->ik_bones.end())
-								if(*iter == imp->selection)
-								{
-									++iter;
-									if(iter != imp->ik_bones.end())
-										imp->selection = *iter;
-									break;
-								}
-								else
-									++iter;
-
-							break;
-						}
-
-					}
-				}
-				else
-				{
-					// TODO: implement this
-				}
+				// TODO: maybe revive this?
 			}
 		} key_listener;
+
+		struct MouseListener : public EventHandler
+		{
+			Imp* imp;
+
+			void HandleEvent(Event* evt)
+			{
+				/*
+				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
+				if(mbse->state)
+				{
+					if(StepPose* pose = mbse->button == 0 ? imp->left_foot_pose : mbse->button == 2 ? imp->right_foot_pose : NULL)
+					{
+						Ray ray;
+						imp->camera.GetRayFromDimCoeffs((float)imp->input_state->mx / imp->window->GetWidth(), 1.0f - (float)imp->input_state->my / imp->window->GetHeight(), ray.origin, ray.direction);
+						
+						float hit = Util::RayPlaneIntersect(ray, Plane(Vec3(0, 1, 0), 0));
+						if(hit > 0 && hit < 16384)
+							pose->SetDestination(ray.origin + ray.direction * hit - pose->end->rest_pos, Quaternion::Identity(), imp->now + 1.0f);
+					}
+				}
+				*/
+			}
+		} mouse_listener;
 	};
 
 
