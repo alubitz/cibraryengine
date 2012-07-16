@@ -77,7 +77,8 @@ namespace Test
 			RigidBody* root_rigid_body;
 			vector<RigidBody*> rigid_bodies;
 			vector<BoneShootable*> shootables;
-			vector<unsigned int> bone_indices;
+			vector<Bone*> rbody_to_posey;
+			vector<RigidBody*> bone_to_rbody;
 			vector<PhysicsConstraint*> constraints;
 
 			DoodOrientationConstraint* orientation_constraint;

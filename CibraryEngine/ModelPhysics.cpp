@@ -9,6 +9,10 @@
 #include "Serialize.h"
 #include "BinaryChunk.h"
 
+// for lua-to-file converter function
+#include "Sphere.h"
+#include "MultiSphereShape.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -214,6 +218,240 @@ namespace CibraryEngine
 
 		whole.Write(file);
 
+		return 0;
+	}
+
+
+
+	/*
+	 * ModelPhysics scripting stuff
+	 */
+	int ba_saveModelPhysics(lua_State* L)
+	{
+		int n = lua_gettop(L);
+
+		if(n == 3 && lua_istable(L, 1) && lua_istable(L, 2) && lua_isstring(L, 3))
+		{
+			vector<CollisionShape*> shapes_created;
+			ModelPhysics mphys;
+
+			string short_name = lua_tostring(L, 3);
+			string filename = "Files/Physics/" + short_name + ".zzp";
+
+			// adding bones...
+			unsigned int num_bones = lua_objlen(L, 1);
+			for(unsigned int i = 1; i <= num_bones; ++i)
+			{
+				lua_pushnumber(L, i);
+				lua_gettable(L, 1);				// puts the i-th element of the bones table on top of the stack
+
+				if(lua_istable(L, -1))
+				{
+					ModelPhysics::BonePhysics bone;
+					bone.collision_shape = NULL;
+
+					int top;
+					top = lua_gettop(L);
+
+					lua_pushstring(L, "name");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						bone.bone_name = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					top = lua_gettop(L);
+
+					lua_pushstring(L, "shape");
+					lua_gettable(L, -2);
+
+					top = lua_gettop(L);
+
+					if(lua_istable(L, -1))
+					{
+						// load a multisphereshape
+						unsigned int num_spheres = lua_objlen(L, -1);
+
+						Sphere* spheres = new Sphere[num_spheres];
+						for(unsigned int j = 0; j < num_spheres; ++j)
+						{
+							lua_pushnumber(L, j + 1);
+							lua_gettable(L, -2);
+
+							if(lua_istable(L, -1))
+							{
+								// load a sphere
+
+								lua_pushstring(L, "center");
+								lua_gettable(L, -2);
+								if(lua_isuserdata(L, -1))
+									spheres[j].center = *(Vec3*)lua_touserdata(L, -1);
+								lua_pop(L, 1);
+
+								lua_pushstring(L, "radius");
+								lua_gettable(L, -2);
+								if(lua_isnumber(L, -1))
+									spheres[j].radius = (float)lua_tonumber(L, -1);
+								lua_pop(L, 1);
+							}
+
+							lua_pop(L, 1);
+						}
+
+						bone.collision_shape = new MultiSphereShape(spheres, num_spheres);
+						shapes_created.push_back(bone.collision_shape);
+
+						delete[] spheres;
+
+					}
+					lua_pop(L, 1);
+
+					bool mass_info = false;				// if we don't find a mass_info we will look for a mass, and generate a mass_info from the collision shape if possible
+					lua_pushstring(L, "mass_info");
+					lua_gettable(L, -2);
+					if(lua_istable(L, -1))
+					{
+						mass_info = true;
+
+						lua_pushstring(L, "mass");
+						lua_gettable(L, -2);
+						if(lua_isnumber(L, -1))
+							bone.mass_info.mass = (float)lua_tonumber(L, -1);
+						lua_pop(L, 1);
+
+						lua_pushstring(L, "com");
+						lua_gettable(L, -2);
+						if(lua_isuserdata(L, -1))
+							bone.mass_info.com = *(Vec3*)lua_touserdata(L, -1);
+						lua_pop(L, 1);
+
+						lua_pushstring(L, "moi");
+						lua_gettable(L, -2);
+						if(lua_istable(L, -1))
+						{
+							unsigned int array_len = lua_objlen(L, -1);
+							if(array_len >= 9)
+								for(unsigned int j = 0; j < 9; ++j)
+								{
+									lua_pushnumber(L, j + 1);
+									lua_gettable(L, -2);
+									if(lua_isnumber(L, -1))
+										bone.mass_info.moi[j] = (float)lua_tonumber(L, -1);
+									lua_pop(L, 1);
+								}
+						}
+						lua_pop(L, 1);
+					}
+					lua_pop(L, 1);
+
+					if(!mass_info)
+					{
+						lua_pushstring(L, "mass");
+						lua_gettable(L, -2);
+						if(lua_isnumber(L, -1))
+						{
+							float mass = (float)lua_tonumber(L, -1);
+
+							if(bone.collision_shape != NULL)
+							{
+								bone.mass_info = bone.collision_shape->ComputeMassInfo();
+								bone.mass_info *= mass / bone.mass_info.mass;
+							}
+							else
+								bone.mass_info.mass = mass;
+						}
+						lua_pop(L, 1);
+					}
+
+					mphys.bones.push_back(bone);
+				}
+
+				lua_pop(L, 1);
+			}
+
+			// adding joints...
+			unsigned int num_joints = lua_objlen(L, 2);
+			for(unsigned int i = 1; i <= num_joints; ++i)
+			{
+				lua_pushnumber(L, i);
+				lua_gettable(L, 2);				// puts the i-th element of the joints table on top of the stack
+
+				if(lua_istable(L, -1))
+				{
+					ModelPhysics::JointPhysics joint;
+					joint.axes = Mat3::Identity();
+					joint.min_extents = Vec3(-1, -1, -1);
+					joint.max_extents = Vec3(1, 1, 1);
+					joint.angular_damp = Vec3(1, 1, 1);
+
+					lua_pushstring(L, "name");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						joint.joint_name = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "bone_a");
+					lua_gettable(L, -2);
+					if(lua_isnumber(L, -1))
+						joint.bone_a = (unsigned int)lua_tointeger(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "bone_b");
+					lua_gettable(L, -2);
+					if(lua_isnumber(L, -1))
+						joint.bone_b = (unsigned int)lua_tointeger(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "pos");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+						joint.pos = *vec;
+					}
+					lua_pop(L, 1);
+
+					// TODO: get axes matrix from lua table
+
+					lua_pushstring(L, "min_extents");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+						joint.min_extents = *vec;
+					}
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "max_extents");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+						joint.max_extents = *vec;
+					}
+					lua_pop(L, 1);
+
+					// TODO: get angular damp from lua table (maybe?)
+
+					mphys.joints.push_back(joint);
+				}
+
+				lua_pop(L, 1);
+			}
+
+			if(unsigned int error = ModelPhysicsLoader::SaveZZP(&mphys, filename))
+				Debug(((stringstream&)(stringstream() << "SaveZZP returned status " << error << "!" << endl)).str());
+			else
+				Debug("Successfully saved ModelPhysics as \"" + filename + "\"\n");
+
+			for(vector<CollisionShape*>::iterator iter = shapes_created.begin(); iter != shapes_created.end(); ++iter)
+				delete *iter;
+			shapes_created.clear();
+
+			mphys.Dispose();
+			return 0;
+		}
+
+		Debug("ba.saveModelPhysics takes 3 parameters: a table of bones, a table of joints, and a string (the \"short name\" of the object to save)\n");
 		return 0;
 	}
 }

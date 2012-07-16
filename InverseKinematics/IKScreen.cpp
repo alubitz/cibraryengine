@@ -94,10 +94,9 @@ namespace InverseKinematics
 		BitmapFont* font;
 
 		float now;
-		float yaw, pitch;
 
-		Vec3 pos, vel;
-		bool stepper;
+		Vec3 pos;
+		float yaw, pitch;
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
@@ -115,7 +114,6 @@ namespace InverseKinematics
 			cursor(NULL),
 			font(NULL),
 			pos(),
-			vel(),
 			key_listener(),
 			mouse_listener()
 		{
@@ -149,13 +147,13 @@ namespace InverseKinematics
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
 				{
 					left_foot_pose = new StepPose(l_foot, pelvis);
-					left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
+					//left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(left_foot_pose);
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
 					right_foot_pose = new StepPose(r_foot, pelvis);
-					right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
+					//right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(right_foot_pose);
 				}
 			}
@@ -189,12 +187,6 @@ namespace InverseKinematics
 
 		void Update(TimingInfo& time)
 		{
-			if(input_state->keys[VK_ESCAPE])
-			{
-				next_screen = NULL;
-				return;
-			}
-
 			float timestep = min(time.elapsed, 1.0f / 60.0f);
 			now += timestep;
 
@@ -211,20 +203,6 @@ namespace InverseKinematics
 				pitch += timestep;
 
 			aiming_pose->desired_ori = Quaternion::Identity();
-
-			/*
-			if(input_state->keys['A'])
-				vel.x -= timestep * 5.0f;
-			if(input_state->keys['D'])
-				vel.x += timestep * 5.0f;
-			if(input_state->keys['W'])
-				vel.z += timestep * 5.0f;
-			if(input_state->keys['S'])
-				vel.z -= timestep * 5.0f;
-
-			pos += vel * timestep;
-			vel *= exp(-timestep);
-			*/
 
 			skeleton->GetNamedBone("pelvis")->pos = pos;
 			skeleton->InvalidateCachedBoneXforms();
@@ -268,8 +246,6 @@ namespace InverseKinematics
 			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
 
 			// draw bones' collision shapes
-			float flash_rate = 4.0f;
-			float flash_on = 0.5f;
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				(*iter)->Vis(&renderer);
 
@@ -283,6 +259,7 @@ namespace InverseKinematics
 			// aiming pose has some info it can display, too
 			//aiming_pose->Vis(&renderer);
 
+			// draw the skinned character
 			SkinnedCharacterRenderInfo sk_rinfo;
 
 			Bone* pelvis = skeleton->GetNamedBone("pelvis");
@@ -323,6 +300,11 @@ namespace InverseKinematics
 			void HandleEvent(Event* evt)
 			{
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
+				if(kse->state)
+				{
+					if(kse->key == VK_ESCAPE)
+						imp->next_screen = NULL;
+				}
 				// TODO: maybe revive this?
 			}
 		} key_listener;
@@ -361,7 +343,13 @@ namespace InverseKinematics
 	IKScreen::IKScreen(ProgramWindow* win) : ProgramScreen(win), imp(new Imp(win)) { imp->next_screen = this; }
 	IKScreen::~IKScreen() { if(imp) { delete imp; imp = NULL; } }
 
-	ProgramScreen* IKScreen::Update(TimingInfo time) { imp->Update(time); return imp->next_screen; }
+	ProgramScreen* IKScreen::Update(TimingInfo time)
+	{
+		if(imp->next_screen == this)
+			imp->Update(time);
+
+		return imp->next_screen;
+	}
 
 	void IKScreen::Draw(int width, int height) { if(width > 0 && height > 0) { imp->Draw(width, height); } }
 }

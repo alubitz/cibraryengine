@@ -88,7 +88,8 @@ namespace Test
 		root_rigid_body(NULL),
 		rigid_bodies(),
 		shootables(),
-		bone_indices(),
+		rbody_to_posey(),
+		bone_to_rbody(),
 		constraints(),
 		orientation_constraint(NULL),
 		physics(NULL),
@@ -345,20 +346,20 @@ namespace Test
 
 			origin = rigid_bodies[0]->GetPosition();
 
-			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+			for(unsigned int i = 0; i < bone_to_rbody.size(); ++i)
 			{
-				RigidBody* body = rigid_bodies[i];
-				unsigned int bone_index = bone_indices[i];
-				Bone* bone = character->skeleton->bones[bone_index];
+				Bone* bone = character->skeleton->bones[i];
+				if(RigidBody* body = bone_to_rbody[i])
+				{
+					Quaternion rigid_body_ori = body->GetOrientation();
+					Vec3 rigid_body_pos = body->GetPosition();
 
-				Quaternion rigid_body_ori = body->GetOrientation();
-				Vec3 rigid_body_pos = body->GetPosition();
+					bone->ori = Quaternion::Reverse(rigid_body_ori);
 
-				bone->ori = Quaternion::Reverse(rigid_body_ori);
-
-				// model origin = rigid body pos - model rot * rest pos
-				Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(0, 0, 0);
-				bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Corpse::Imp::Vis
+					// model origin = rigid body pos - model rot * rest pos
+					Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(0, 0, 0);
+					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
+				}
 			}
 
 			character->render_info.Invalidate();
@@ -379,8 +380,8 @@ namespace Test
 							RigidBody* jbody = rigid_bodies[j];
 							if(jbody == constraint->obj_b)
 							{
-								Bone* i_bone = posey->skeleton->bones[bone_indices[i]];
-								Bone* j_bone = posey->skeleton->bones[bone_indices[j]];
+								Bone* i_bone = rbody_to_posey[i];
+								Bone* j_bone = rbody_to_posey[j];
 
 								constraint->SetDesiredOrientation(j_bone->ori);
 
@@ -412,7 +413,6 @@ namespace Test
 		physics = game_state->physics_world;
 
 		unsigned int count = mphys->bones.size();
-		ModelPhysics::BonePhysics** bone_physes = new ModelPhysics::BonePhysics* [count];
 
 		// given string id, get index of rigid body
 		map<unsigned int, unsigned int> name_indices;
@@ -422,8 +422,6 @@ namespace Test
 		{
 			if(ModelPhysics::BonePhysics* phys = &mphys->bones[i])
 			{
-				bone_physes[i] = phys;
-
 				CollisionShape* shape = phys->collision_shape;
 				if(shape != NULL)
 				{
@@ -432,6 +430,9 @@ namespace Test
 					rigid_body->SetDamp(0.05f);
 					rigid_body->SetFriction(1.0f);
 
+					unsigned int bone_name = Bone::string_table[phys->bone_name];
+					name_indices[bone_name] = rigid_bodies.size();
+
 					physics->AddRigidBody(rigid_body);
 					rigid_bodies.push_back(rigid_body);
 
@@ -439,12 +440,9 @@ namespace Test
 					rigid_body->SetUserEntity(shootable);
 					rigid_body->SetCollisionCallback(&collision_callback);
 
-
-					unsigned int bone_name = Bone::string_table[phys->bone_name];
-					name_indices[bone_name] = bone_indices.size();
-
 					shootables.push_back(shootable);
-					bone_indices.push_back(i);
+
+					rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
 
 					if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
 						root_rigid_body = rigid_body;
@@ -473,13 +471,19 @@ namespace Test
 			}
 		}
 
-		// emancipate bones
-		for(unsigned int i = 0; i < count; ++i)
+		// populate bone to rigid body table, and emancipate bones which have rigid bodies
+		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
 		{
-			Bone* bone = character->skeleton->bones[i];
+			Bone* bone = *iter;
 
-			if(name_indices.find(bone->name) != name_indices.end())		// only emancipate bones which have rigid bodies!
+			map<unsigned int, unsigned int>::iterator found = name_indices.find(bone->name);
+			if(found != name_indices.end())
+			{
 				bone->parent = NULL;									// orientation and position are no longer relative to a parent!
+				bone_to_rbody.push_back(rigid_bodies[found->second]);
+			}
+			else
+				bone_to_rbody.push_back(NULL);
 		}
 
 		if(rigid_bodies.size() == 0)
@@ -487,8 +491,6 @@ namespace Test
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
 		}
-
-		delete[] bone_physes;
 
 		orientation_constraint = new DoodOrientationConstraint(this);
 		physics->AddConstraint(orientation_constraint);

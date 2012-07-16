@@ -531,7 +531,7 @@ namespace CibraryEngine
 					PushNavNodeHandle(L, node->graph, *iter);
 					lua_pushnumber(L, NavGraph::GetEdgeCost(node->graph, node->node, *iter));
 					lua_settable(L, 1);
-					}
+				}
 
 				return 1;
 			}

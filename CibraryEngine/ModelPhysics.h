@@ -12,8 +12,6 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	class Skeleton;
-
 	/** Physics data to go alongside a model */
 	struct ModelPhysics : public Disposable
 	{
@@ -62,4 +60,6 @@ namespace CibraryEngine
 		static unsigned int LoadZZP(ModelPhysics*& phys, const string& filename);
 		static unsigned int SaveZZP(ModelPhysics* phys, const string& filename);
 	};
+
+	int ba_saveModelPhysics(lua_State* L);
 }

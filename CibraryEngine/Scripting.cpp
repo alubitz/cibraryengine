@@ -7,6 +7,8 @@
 #include "Content.h"
 #include "GameState.h"
 
+#include "ModelPhysics.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -231,6 +233,8 @@ namespace CibraryEngine
 		lua_setfield(L, 1, "createVector");			// set field of 1; pop; top = 1
 		lua_pushcclosure(L, ba_loadModel, 0);
 		lua_setfield(L, 1, "loadModel");
+		lua_pushcclosure(L, ba_saveModelPhysics, 0);
+		lua_setfield(L, 1, "saveModelPhysics");
 
 		lua_setglobal(L, "ba");						// pop; top = 0
 	}
