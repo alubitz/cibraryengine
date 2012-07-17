@@ -474,7 +474,7 @@ namespace CibraryEngine
 							{
 								const Sphere& sphere = spheres[j].sphere;
 								float dist = Vec3::Dot(normal, sphere.center) + sphere.radius;
-								if(dist > my_dist + 0.0000001f)
+								if(dist > my_dist + 0.000001f)
 								{
 									worthy = false;
 									planes_valid[i] = false;

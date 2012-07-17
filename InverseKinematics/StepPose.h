@@ -21,8 +21,21 @@ namespace InverseKinematics
 				Quaternion ori;
 				Vec3 rot;
 
+				Mat3 axes;
+				Vec3 min_extents, max_extents;
+
 				ChainNode() : from(NULL), to(NULL), child(NULL) { }
-				ChainNode(Bone* from, Bone* to, Bone* child) : from(from), to(to), child(child), ori(Quaternion::Identity()), rot() { }
+				ChainNode(Bone* from, Bone* to, Bone* child) :
+					from(from),
+					to(to),
+					child(child),
+					ori(Quaternion::Identity()),
+					rot(),
+					axes(Mat3::Identity()),
+					min_extents(-2, -2, -2),
+					max_extents(2, 2, 2)
+				{
+				}
 			};
 			vector<ChainNode> chain;				// chain of bones from base to end (including both)
 
@@ -32,7 +45,7 @@ namespace InverseKinematics
 
 			bool arrived;
 
-			StepPose(Bone* end, Bone* base);
+			StepPose(Bone* end, Bone* base, ModelPhysics* mphys);
 
 			void UpdatePose(TimingInfo time);
 

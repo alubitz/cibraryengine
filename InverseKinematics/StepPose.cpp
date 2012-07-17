@@ -6,7 +6,7 @@ namespace InverseKinematics
 	/*
 	 * StepPose methods
 	 */
-	StepPose::StepPose(Bone* end, Bone* base) : end(end), base(base), chain(), arrive_time(-1), arrived(true)
+	StepPose::StepPose(Bone* end, Bone* base, ModelPhysics* mphys) : end(end), base(base), chain(), arrive_time(-1), arrived(true)
 	{
 		// desired state defaults to initial state
 		Mat4 end_xform = end->GetTransformationMatrix();
@@ -50,12 +50,31 @@ namespace InverseKinematics
 			Bone* cur = *iter;
 			if(prev)
 			{
+				ChainNode node;
 				if(prev == cur->parent)
-					chain.push_back(ChainNode(prev, cur, cur));
+					node = ChainNode(prev, cur, cur);
 				else if(cur == prev->parent)
-					chain.push_back(ChainNode(prev, cur, prev));
+					node = ChainNode(prev, cur, prev);
 				else
-					Debug("ERROR! Sequential bones don't have a parent-child relationship!\n");
+					throw exception("ERROR! Sequential bones don't have a parent-child relationship!\n");
+
+				// find the joint which governs these two bones...
+				for(vector<ModelPhysics::JointPhysics>::iterator jter = mphys->joints.begin(); jter != mphys->joints.end(); ++jter)
+				{
+					unsigned int bone_a = Bone::string_table[mphys->bones[jter->bone_a - 1].bone_name];
+					unsigned int bone_b = Bone::string_table[mphys->bones[jter->bone_b - 1].bone_name];
+					
+					if(bone_a == cur->name && bone_b == prev->name || bone_a == prev->name && bone_b == cur->name)
+					{
+						node.axes = jter->axes;
+						node.min_extents = jter->min_extents;
+						node.max_extents = jter->max_extents;
+
+						break;
+					}
+				}
+
+				chain.push_back(node);
 			}
 
 			prev = *iter;
@@ -145,8 +164,9 @@ namespace InverseKinematics
 			*(best_ptr++) = 0.0f;
 		}
 
-		float best_score;
-		for(int i = 0; i < 20; ++i)
+		float best_score = -1;
+		int invalid_guesses = 0;
+		for(int i = 0; i < 100; ++i)
 		{
 			if(i == 0)
 				guess = RotValues(num_floats);					// all values = 0.0f
@@ -156,13 +176,15 @@ namespace InverseKinematics
 			{
 				guess = best;
 
-				int mutations = Random3D::RandInt(1, 3);		// a situation may arise where a single mutation may hurt, but two or three may help
+				int mutations = Random3D::RandInt(1, 3);		// situations may arise where a single mutation may hurt, but two or three may help
 				for(int j = 0; j < mutations; ++j)
-					guess[Random3D::RandInt(num_floats)] += Random3D::Rand(-1, 1);
+					guess[Random3D::RandInt(num_floats)] += Random3D::Rand(-0.1f, 0.1f);
 			}
 
 			// figure out where this arrangement puts our end effector
 			Mat4 xform = base->GetTransformationMatrix();
+
+			bool guess_valid = true;
 
 			guess_ptr = guess.begin;
 			for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
@@ -171,6 +193,16 @@ namespace InverseKinematics
 
 				float x = *(guess_ptr++), y = *(guess_ptr++), z = *(guess_ptr++);
 				Quaternion ori = iter->ori * Quaternion::FromPYR(x * foresight, y * foresight, z * foresight);
+
+				// verify that the orientation is within the range of motion
+				Vec3 pyr = iter->axes * (ori * child->rest_ori).ToPYR();
+				if(pyr.x < iter->min_extents.x || pyr.y < iter->min_extents.y || pyr.z < iter->min_extents.z || pyr.x > iter->max_extents.x || pyr.y > iter->max_extents.y || pyr.z > iter->max_extents.z)
+				{
+					guess_valid = false;
+					++invalid_guesses;
+
+					break;
+				}
 
 				Mat4 to_rest_pos = Mat4::Translation(child->rest_pos);
 				Mat4 from_rest_pos = Mat4::Translation(-child->rest_pos);
@@ -184,6 +216,14 @@ namespace InverseKinematics
 				xform *= net;
 			}
 
+			// this guess was thrown out because it exceeded a joint's bounds
+			if(!guess_valid)
+			{
+				if(i > 1)
+					--i;
+				continue;
+			}
+
 			// score based on how closely it matches what we're after
 			Quaternion end_ori;
 			Vec3 end_pos;
@@ -192,14 +232,18 @@ namespace InverseKinematics
 			end_ori -= desired_end_ori;
 
 			float score = end_pos.ComputeMagnitudeSquared() + end_ori.w * end_ori.w + end_ori.x * end_ori.x + end_ori.y * end_ori.y + end_ori.z * end_ori.z;
-			if(i == 0 || score < best_score)
+			if(best_score == -1 || score < best_score)
 			{
 				best_score = score;
 				best = guess;
+
+				// stop iterating once score is "good enough"
+				if(score < 0.0001f)
+					break;
 			}
 		}
 
-		Debug(((stringstream&)(stringstream() << "best score = " << sqrtf(best_score) << endl)).str());
+		Debug(((stringstream&)(stringstream() << "best score = " << sqrtf(best_score) << ", reached after " << invalid_guesses << " invalid guesses" << endl)).str());
 
 		// now apply those velocities, and set the bones' poses accordingly
 		best_ptr = best.begin;

@@ -300,6 +300,8 @@ namespace Test
 	{
 		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
 
+		float third_person_distance = 0.0f;
+
 		if(eye_bone == NULL)
 		{	
 			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	-pitch,	0,		0 ));
@@ -318,7 +320,7 @@ namespace Test
 			Vec3 backward	= eye_xform.TransformVec3_0(0, 0, 1);
 
 			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, backward.x, backward.y, backward.z);
-			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec));
+			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec - backward * third_person_distance));
 		}
 	}
 

@@ -123,6 +123,9 @@ namespace InverseKinematics
 			mouse_listener.imp = this;
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
+			ScriptSystem::Init();
+			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/savezzp.lua");
+
 			string filename = "soldier";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
 			uber = window->content->GetCache<UberModel>()->Load(filename);
@@ -146,14 +149,14 @@ namespace InverseKinematics
 			{
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
 				{
-					left_foot_pose = new StepPose(l_foot, pelvis);
-					//left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
+					left_foot_pose = new StepPose(l_foot, pelvis, mphys);
+					left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(left_foot_pose);
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
-					right_foot_pose = new StepPose(r_foot, pelvis);
-					//right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
+					right_foot_pose = new StepPose(r_foot, pelvis, mphys);
+					right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(right_foot_pose);
 				}
 			}
@@ -236,7 +239,7 @@ namespace InverseKinematics
 			// set up camera
 			float zoom = 2.0f;
 			float aspect_ratio = (float)width / height;
-			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -3) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0);
 
 			camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
@@ -271,7 +274,10 @@ namespace InverseKinematics
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices);
 
-			uber->Vis(&renderer, 0, Mat4::Translation(offset), &sk_rinfo, window->content->GetCache<Material>());
+			float blink_speed = 4.0f;
+			float blink_on = 1.0;
+			if(now * blink_speed - (int)(now * blink_speed) < blink_on)
+				uber->Vis(&renderer, 0, Mat4::Translation(offset), &sk_rinfo, window->content->GetCache<Material>());
 
 			pelvis->pos = offset;
 			skeleton->InvalidateCachedBoneXforms();

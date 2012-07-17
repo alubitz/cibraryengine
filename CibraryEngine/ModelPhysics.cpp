@@ -242,7 +242,7 @@ namespace CibraryEngine
 			unsigned int num_bones = lua_objlen(L, 1);
 			for(unsigned int i = 1; i <= num_bones; ++i)
 			{
-				lua_pushnumber(L, i);
+				lua_pushinteger(L, i);
 				lua_gettable(L, 1);				// puts the i-th element of the bones table on top of the stack
 
 				if(lua_istable(L, -1))
@@ -274,7 +274,7 @@ namespace CibraryEngine
 						Sphere* spheres = new Sphere[num_spheres];
 						for(unsigned int j = 0; j < num_spheres; ++j)
 						{
-							lua_pushnumber(L, j + 1);
+							lua_pushinteger(L, j + 1);
 							lua_gettable(L, -2);
 
 							if(lua_istable(L, -1))
@@ -332,7 +332,7 @@ namespace CibraryEngine
 							if(array_len >= 9)
 								for(unsigned int j = 0; j < 9; ++j)
 								{
-									lua_pushnumber(L, j + 1);
+									lua_pushinteger(L, j + 1);
 									lua_gettable(L, -2);
 									if(lua_isnumber(L, -1))
 										bone.mass_info.moi[j] = (float)lua_tonumber(L, -1);
@@ -372,13 +372,12 @@ namespace CibraryEngine
 			unsigned int num_joints = lua_objlen(L, 2);
 			for(unsigned int i = 1; i <= num_joints; ++i)
 			{
-				lua_pushnumber(L, i);
+				lua_pushinteger(L, i);
 				lua_gettable(L, 2);				// puts the i-th element of the joints table on top of the stack
 
 				if(lua_istable(L, -1))
 				{
 					ModelPhysics::JointPhysics joint;
-					joint.axes = Mat3::Identity();
 					joint.min_extents = Vec3(-1, -1, -1);
 					joint.max_extents = Vec3(1, 1, 1);
 					joint.angular_damp = Vec3(1, 1, 1);
@@ -410,7 +409,37 @@ namespace CibraryEngine
 					}
 					lua_pop(L, 1);
 
-					// TODO: get axes matrix from lua table
+					lua_pushstring(L, "axes");
+					lua_gettable(L, -2);
+					if(lua_istable(L, -1))
+					{
+						// get up to 3 axis vectors and store them in a Mat3
+						unsigned int count = min(3u, lua_objlen(L, -1));
+						for(unsigned int i = 0; i < count; ++i)
+						{
+							lua_pushinteger(L, i + 1);
+							lua_gettable(L, -2);
+							if(lua_isuserdata(L, -1))
+							{
+								Vec3 axis = *(Vec3*)lua_touserdata(L, -1);
+
+								float magsq = axis.ComputeMagnitudeSquared();
+								if(magsq > 0)
+								{
+									axis /= sqrtf(magsq);
+									joint.axes[i * 3    ] = axis.x;
+									joint.axes[i * 3 + 1] = axis.y;
+									joint.axes[i * 3 + 2] = axis.z;
+								}
+							}
+							lua_pop(L, 1);
+						}
+
+						joint.axes = Quaternion::FromRotationMatrix(joint.axes).ToMat3();			// handles degenerate matrices just fine
+					}
+					else
+						joint.axes = Mat3::Identity();
+					lua_pop(L, 1);
 
 					lua_pushstring(L, "min_extents");
 					lua_gettable(L, -2);
