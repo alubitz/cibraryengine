@@ -145,21 +145,31 @@ namespace InverseKinematics
 				character->active_poses.push_back(aiming_pose);
 			}
 
+			bool left_fwd = true;
+
 			if(Bone* pelvis = skeleton->GetNamedBone("pelvis"))
 			{
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
 				{
 					left_foot_pose = new StepPose(l_foot, pelvis, mphys);
-					left_foot_pose->SetDestination(Vec3(0, 0.2f, -0.45f), Quaternion::Identity(), 1.0f);
+					if(left_fwd)
+						left_foot_pose->SetDestination(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
+					else
+						left_foot_pose->SetDestination(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(left_foot_pose);
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
 					right_foot_pose = new StepPose(r_foot, pelvis, mphys);
-					right_foot_pose->SetDestination(Vec3(0, 0.2f, 0.15f), Quaternion::Identity(), 1.0f);
+					if(left_fwd)
+						right_foot_pose->SetDestination(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
+					else
+						right_foot_pose->SetDestination(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(right_foot_pose);
 				}
 			}
+
+			pos.y = -0.2f;				// otherwise feet would be at 0.2
 
 			now = 0.0f;
 			yaw = 0.0f;
@@ -321,7 +331,6 @@ namespace InverseKinematics
 
 			void HandleEvent(Event* evt)
 			{
-				/*
 				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
 				if(mbse->state)
 				{
@@ -332,10 +341,15 @@ namespace InverseKinematics
 						
 						float hit = Util::RayPlaneIntersect(ray, Plane(Vec3(0, 1, 0), 0));
 						if(hit > 0 && hit < 16384)
-							pose->SetDestination(ray.origin + ray.direction * hit - pose->end->rest_pos, Quaternion::Identity(), imp->now + 1.0f);
+						{
+							Vec3 point_on_ground = ray.origin + ray.direction * hit;
+							Vec3 point_on_foot = pose->end->rest_pos;
+							point_on_foot.y = 0.0f;
+
+							pose->SetDestination(point_on_ground - point_on_foot, Quaternion::Identity(), imp->now + 1.0f);
+						}
 					}
 				}
-				*/
 			}
 		} mouse_listener;
 	};

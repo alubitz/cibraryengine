@@ -19,6 +19,7 @@ namespace InverseKinematics
 				Bone* child;						// parent can be determined using child->parent
 
 				Quaternion ori;
+				Quaternion target_ori;
 				Vec3 rot;
 
 				Mat3 axes;
@@ -30,6 +31,7 @@ namespace InverseKinematics
 					to(to),
 					child(child),
 					ori(Quaternion::Identity()),
+					target_ori(Quaternion::Identity()),
 					rot(),
 					axes(Mat3::Identity()),
 					min_extents(-2, -2, -2),

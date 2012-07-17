@@ -96,7 +96,7 @@ namespace InverseKinematics
 
 	void StepPose::SeekPosition(TimingInfo& time)
 	{
-		if(time.total > arrive_time)			// TODO: actually check for arrival instead
+		if(time.total >= arrive_time)			// TODO: actually check for arrival instead
 		{
 			arrived = true;
 			return;
@@ -141,32 +141,42 @@ namespace InverseKinematics
 			~RotValues() { delete[] begin; begin = end = NULL; }
 		};
 
-		// find the velocities which will best get us to the destination pos/ori
-
+		// find a set of joint orientations which will best satisfy our goal...
 		int num_floats = chain.size() * 3;
 		RotValues rot = RotValues(num_floats);
 		RotValues best = RotValues(num_floats);
 		RotValues guess = RotValues(num_floats);
+		RotValues min_extents = RotValues(num_floats);
+		RotValues max_extents = RotValues(num_floats);
 
 		float* rot_ptr = rot.begin;
 		float* best_ptr = best.begin;
 		float* guess_ptr = guess.begin;
+		float* min_ptr = min_extents.begin;
+		float* max_ptr = max_extents.begin;
 
 		for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
 		{
-			Vec3& vec = iter->rot;					
-			*(rot_ptr++) = vec.x;
-			*(rot_ptr++) = vec.y;
-			*(rot_ptr++) = vec.z;
+			*(best_ptr++) = 0.0f;
+			*(best_ptr++) = 0.0f;
+			*(best_ptr++) = 0.0f;
 
-			*(best_ptr++) = 0.0f;
-			*(best_ptr++) = 0.0f;
-			*(best_ptr++) = 0.0f;
+			*(min_ptr++) = iter->min_extents.x;
+			*(min_ptr++) = iter->min_extents.y;
+			*(min_ptr++) = iter->min_extents.z;
+			
+			*(max_ptr++) = iter->max_extents.x;
+			*(max_ptr++) = iter->max_extents.y;
+			*(max_ptr++) = iter->max_extents.z;
+
+			Vec3& vec = Mat3::Invert(iter->axes) * iter->target_ori.ToPYR();
+			*(rot_ptr++) = max(iter->min_extents.x, min(iter->max_extents.x, vec.x));
+			*(rot_ptr++) = max(iter->min_extents.y, min(iter->max_extents.y, vec.y));
+			*(rot_ptr++) = max(iter->min_extents.z, min(iter->max_extents.z, vec.z));
 		}
 
 		float best_score = -1;
-		int invalid_guesses = 0;
-		for(int i = 0; i < 100; ++i)
+		for(int i = 0; i < 20; ++i)
 		{
 			if(i == 0)
 				guess = RotValues(num_floats);					// all values = 0.0f
@@ -178,7 +188,12 @@ namespace InverseKinematics
 
 				int mutations = Random3D::RandInt(1, 3);		// situations may arise where a single mutation may hurt, but two or three may help
 				for(int j = 0; j < mutations; ++j)
-					guess[Random3D::RandInt(num_floats)] += Random3D::Rand(-0.1f, 0.1f);
+				{
+					int mutate = Random3D::RandInt(num_floats);
+					float minimum = min_extents[mutate], maximum = max_extents[mutate], range = maximum - minimum;
+
+					guess[mutate] = min(maximum, max(minimum, guess[mutate] + Random3D::Rand(-0.01f * range, 0.01f * range)));
+				}
 			}
 
 			// figure out where this arrangement puts our end effector
@@ -192,17 +207,7 @@ namespace InverseKinematics
 				Bone* child = iter->child;
 
 				float x = *(guess_ptr++), y = *(guess_ptr++), z = *(guess_ptr++);
-				Quaternion ori = iter->ori * Quaternion::FromPYR(x * foresight, y * foresight, z * foresight);
-
-				// verify that the orientation is within the range of motion
-				Vec3 pyr = iter->axes * (ori * child->rest_ori).ToPYR();
-				if(pyr.x < iter->min_extents.x || pyr.y < iter->min_extents.y || pyr.z < iter->min_extents.z || pyr.x > iter->max_extents.x || pyr.y > iter->max_extents.y || pyr.z > iter->max_extents.z)
-				{
-					guess_valid = false;
-					++invalid_guesses;
-
-					break;
-				}
+				Quaternion ori = Quaternion::FromPYR(iter->axes * Vec3(x, y, z));
 
 				Mat4 to_rest_pos = Mat4::Translation(child->rest_pos);
 				Mat4 from_rest_pos = Mat4::Translation(-child->rest_pos);
@@ -214,14 +219,6 @@ namespace InverseKinematics
 					net = Mat4::Invert(net);
 
 				xform *= net;
-			}
-
-			// this guess was thrown out because it exceeded a joint's bounds
-			if(!guess_valid)
-			{
-				if(i > 1)
-					--i;
-				continue;
 			}
 
 			// score based on how closely it matches what we're after
@@ -243,14 +240,17 @@ namespace InverseKinematics
 			}
 		}
 
-		Debug(((stringstream&)(stringstream() << "best score = " << sqrtf(best_score) << ", reached after " << invalid_guesses << " invalid guesses" << endl)).str());
+		Debug(((stringstream&)(stringstream() << "best sqrtf(score) = " << sqrtf(best_score) << endl)).str());
 
-		// now apply those velocities, and set the bones' poses accordingly
+		// now compute velocities to achieve that set of orientations, and set the bones' poses accordingly
 		best_ptr = best.begin;
 		for(vector<ChainNode>::iterator iter = chain.begin(); iter != chain.end(); ++iter)
 		{
 			float x = *(best_ptr++), y = *(best_ptr++), z = *(best_ptr++);
-			iter->rot = Vec3(x, y, z);
+			iter->target_ori = Quaternion::FromPYR(iter->axes * Vec3(x, y, z));
+
+			Vec3 angle = (Quaternion::Invert(iter->ori) * iter->target_ori).ToPYR();
+			iter->rot = angle / (arrive_time - time.total);
 
 			Quaternion& ori = iter->ori;
 			ori *= Quaternion::FromPYR(iter->rot * timestep);

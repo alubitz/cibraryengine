@@ -33,22 +33,16 @@ local function add_single_joint(add_to, bones_list, parent, child, pos, name, ax
 	return joint
 end
 
--- must have both min and max extents in order for any to be copied to the right-side joint
-local function add_symmetric_joints(add_to, bones_list, parent, child, left_pos, name, left_axes, left_min_extents, left_max_extents)
+local function add_symmetric_joints(add_to, bones_list, parent, child, left_pos, name, left_axes, min_extents, max_extents)
 
-	local left_joint = { pos = left_pos, axes = left_axes, min_extents = left_min_extents, max_extents = left_max_extents }
-	local right_joint = { pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z) }
+	local left_joint = { pos = left_pos, axes = left_axes, min_extents = min_extents, max_extents = max_extents }
+	local right_joint = { pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z), min_extents = min_extents, max_extents = max_extents }
 
 	if left_axes ~= nil then
 		right_joint.axes = { }
 		for i, axis in ipairs(left_axes) do
-			right_joint.axes[i] = ba.createVector(-axis.x, axis.y, axis.z)
+			right_joint.axes[i] = ba.createVector(axis.x, -axis.y, -axis.z)
 		end
-	end
-
-	if left_min_extents and left_max_extents then
-		right_joint.min_extents = ba.createVector(left_min_extents.x, -left_max_extents.y, -left_max_extents.z)
-		right_joint.max_extents = ba.createVector(left_max_extents.x, -left_min_extents.y, -left_min_extents.z)
 	end
 
 	if name ~= nil then
@@ -113,7 +107,7 @@ add_symmetric_joints(joints, bones,	"arm 1",	"arm 2",	ba.createVector(0.53,	1.4,
 add_symmetric_joints(joints, bones,	"arm 2",	"hand",		ba.createVector(0.82,	1.25,	0.01))
 
 add_symmetric_joints(joints, bones,	"pelvis",	"leg 1",	ba.createVector(0.15,	1.04,	-0.02))
-add_symmetric_joints(joints, bones,	"leg 1",	"leg 2",	ba.createVector(0.19,	0.65,	0.01),	nil, {	ba.createVector(28.2,	2.5,	0.0) },	ba.createVector(-2.618,	-0.02,	-0.02),	ba.createVector(0.02,	0.02,	0.02))
+add_symmetric_joints(joints, bones,	"leg 1",	"leg 2",	ba.createVector(0.19,	0.65,	0.01),	nil, {	ba.createVector(28.2,	2.5,	0.0) },	ba.createVector(-0.02,	-0.02,	-0.02),	ba.createVector(2.618,	0.02,	0.02))
 add_symmetric_joints(joints, bones,	"leg 2",	"foot",		ba.createVector(0.27,	0.14,	-0.11),	nil, {	ba.createVector(1.0,	0.0,	0.0) },	ba.createVector(-1.0,	-0.3,	-0.3),	ba.createVector(1.0,	0.3,	0.3))
 
 ba.saveModelPhysics(bones, joints, "soldier")
