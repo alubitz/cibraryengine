@@ -3,6 +3,7 @@
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
+#include "IKChain.h"
 #include "StepPose.h"
 
 namespace InverseKinematics
@@ -93,9 +94,9 @@ namespace InverseKinematics
 		Cursor* cursor;
 		BitmapFont* font;
 
-		float now;
+		float now, buffered_time;
 
-		Vec3 pos;
+		Vec3 pos, vel;
 		float yaw, pitch;
 
 		Imp(ProgramWindow* window) :
@@ -114,6 +115,7 @@ namespace InverseKinematics
 			cursor(NULL),
 			font(NULL),
 			pos(),
+			vel(),
 			key_listener(),
 			mouse_listener()
 		{
@@ -123,8 +125,8 @@ namespace InverseKinematics
 			mouse_listener.imp = this;
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
-			ScriptSystem::Init();
-			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/savezzp.lua");
+			//ScriptSystem::Init();
+			//ScriptSystem::GetGlobalState().DoFile("Files/Scripts/savezzp.lua");
 
 			string filename = "soldier";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
@@ -151,7 +153,7 @@ namespace InverseKinematics
 			{
 				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
 				{
-					left_foot_pose = new StepPose(l_foot, pelvis, mphys);
+					left_foot_pose = new StepPose(pelvis, l_foot, mphys);
 					if(left_fwd)
 						left_foot_pose->SetDestination(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
 					else
@@ -160,7 +162,7 @@ namespace InverseKinematics
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
-					right_foot_pose = new StepPose(r_foot, pelvis, mphys);
+					right_foot_pose = new StepPose(pelvis, r_foot, mphys);
 					if(left_fwd)
 						right_foot_pose->SetDestination(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
 					else
@@ -171,7 +173,7 @@ namespace InverseKinematics
 
 			pos.y = -0.2f;				// otherwise feet would be at 0.2
 
-			now = 0.0f;
+			now = buffered_time = 0.0f;
 			yaw = 0.0f;
 			pitch = 0.0f;
 
@@ -200,29 +202,89 @@ namespace InverseKinematics
 
 		void Update(TimingInfo& time)
 		{
-			float timestep = min(time.elapsed, 1.0f / 60.0f);
-			now += timestep;
+			if(time.elapsed)
+			{
+				buffered_time += time.elapsed;
+				float timestep = 1.0f / 60.0f;
+				while(buffered_time >= timestep)
+				{
+					now += timestep;
+					buffered_time -= timestep;
 
-			TimingInfo use_time = TimingInfo(timestep, now);
+					TimingInfo use_time = TimingInfo(timestep, now);
 
-			// rotate the camera around the dood based on keyboard input
-			if(input_state->keys[VK_LEFT])
-				yaw -= timestep;
-			if(input_state->keys[VK_RIGHT])
-				yaw += timestep;
-			if(input_state->keys[VK_UP])
-				pitch -= timestep;
-			if(input_state->keys[VK_DOWN])
-				pitch += timestep;
+					// rotate the camera around the dood based on keyboard input
+					if(input_state->keys[VK_LEFT])
+						yaw -= timestep;
+					if(input_state->keys[VK_RIGHT])
+						yaw += timestep;
+					if(input_state->keys[VK_UP])
+						pitch -= timestep;
+					if(input_state->keys[VK_DOWN])
+						pitch += timestep;
 
-			aiming_pose->desired_ori = Quaternion::Identity();
+					aiming_pose->desired_ori = Quaternion::Identity();
 
-			skeleton->GetNamedBone("pelvis")->pos = pos;
-			skeleton->InvalidateCachedBoneXforms();
+					if(input_state->keys['A'])
+						vel.x += 5.0f * timestep;
+					if(input_state->keys['D'])
+						vel.x -= 5.0f * timestep;
+					if(input_state->keys['W'])
+						vel.z += 5.0f * timestep;
+					if(input_state->keys['S'])
+						vel.z -= 5.0f * timestep;
 
-			// TODO: make it walk
+					pos += vel * timestep;
+					vel *= exp(-2.0f * timestep);
 
-			character->UpdatePoses(use_time);
+					skeleton->GetNamedBone("pelvis")->pos = pos;
+					skeleton->InvalidateCachedBoneXforms();
+
+					float speed = vel.ComputeMagnitude();
+					Vec3 u_vel = vel / speed;
+
+					Vec3 left_foot_pos = left_foot_pose->chain->end->GetTransformationMatrix().TransformVec3_1(0, 0, 0);
+					Vec3 right_foot_pos = right_foot_pose->chain->end->GetTransformationMatrix().TransformVec3_1(0, 0, 0);
+				
+					Vec3 l_to_r = right_foot_pos - left_foot_pos;
+					float fwd = Vec3::Dot(l_to_r, vel);
+
+					StepPose* stepper;
+					StepPose* nonstep;
+					Vec3 stepper_pos;
+					Vec3 nonstep_pos;
+					if(fwd > 0)
+					{
+						stepper = left_foot_pose;
+						stepper_pos = left_foot_pos;
+
+						nonstep = right_foot_pose;
+						nonstep_pos = right_foot_pos;
+					}
+					else
+					{
+						stepper = right_foot_pose;
+						stepper_pos = right_foot_pos;
+
+						nonstep = left_foot_pose;
+						nonstep_pos = left_foot_pos;
+					}
+
+					const float step_size = 0.5f;							// distance past the centerpoint to place the foot when stepping
+					const Vec3 step_elevation = Vec3(0, 0.0f, 0);			// amount the pelvis sinks when in a stepping pose versus when standing erect
+				
+					float stepper_dist = Vec3::Dot(pos - stepper_pos, u_vel), nonstep_dist = Vec3::Dot(pos - nonstep_pos, u_vel);
+					if(stepper_dist > step_size && stepper->arrived && nonstep->arrived)
+						stepper->Step(pos + Vec3::Normalize(vel, step_size) + step_elevation, Quaternion::Identity(), now, now + min(0.5f, 0.5f * (step_size + stepper_dist) / speed));
+
+				
+				
+					// TODO: make it walk
+
+					left_foot_pose->dood_vel = right_foot_pose->dood_vel = vel;
+					character->UpdatePoses(use_time);
+				}
+			}
 		}
 
 		IKBone* WrapBone(Bone* bone, MultiSphereShape* shape)
@@ -249,7 +311,7 @@ namespace InverseKinematics
 			// set up camera
 			float zoom = 2.0f;
 			float aspect_ratio = (float)width / height;
-			Mat4 view_matrix = Mat4::Translation(0, 0, -3) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0) * Mat4::Translation(-pos);
 
 			camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
@@ -343,7 +405,7 @@ namespace InverseKinematics
 						if(hit > 0 && hit < 16384)
 						{
 							Vec3 point_on_ground = ray.origin + ray.direction * hit;
-							Vec3 point_on_foot = pose->end->rest_pos;
+							Vec3 point_on_foot = pose->chain->end->rest_pos;
 							point_on_foot.y = 0.0f;
 
 							pose->SetDestination(point_on_ground - point_on_foot, Quaternion::Identity(), imp->now + 1.0f);
