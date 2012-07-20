@@ -300,7 +300,7 @@ namespace Test
 	{
 		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
 
-		float third_person_distance = 0.0f;
+		float third_person_distance = 5.0f;
 
 		if(eye_bone == NULL)
 		{	
@@ -314,10 +314,12 @@ namespace Test
 		{
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 
+			Mat4 ori_derp = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
+
 			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
-			Vec3 left		= eye_xform.TransformVec3_0(1, 0, 0);
-			Vec3 up			= eye_xform.TransformVec3_0(0, 1, 0);
-			Vec3 backward	= eye_xform.TransformVec3_0(0, 0, 1);
+			Vec3 left		= ori_derp.TransformVec3_0(1, 0, 0);
+			Vec3 up			= ori_derp.TransformVec3_0(0, 1, 0);
+			Vec3 backward	= ori_derp.TransformVec3_0(0, 0, 1);
 
 			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, backward.x, backward.y, backward.z);
 			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec - backward * third_person_distance));
@@ -495,7 +497,7 @@ namespace Test
 		}
 
 		orientation_constraint = new DoodOrientationConstraint(this);
-		physics->AddConstraint(orientation_constraint);
+		//physics->AddConstraint(orientation_constraint);
 	}
 
 	void Dood::DeSpawned()

@@ -12,7 +12,6 @@ namespace Test
 	using namespace std;
 	using namespace CibraryEngine;
 
-	class PoseAimingGun;
 	class WeaponEquip;
 	class WeaponIntrinsic;
 

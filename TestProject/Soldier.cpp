@@ -2,6 +2,8 @@
 #include "Soldier.h"
 
 #include "PoseAimingGun.h"
+#include "PoseStanding.h"
+
 #include "WeaponEquip.h"
 
 #include "ConverterWhiz.h"
@@ -29,6 +31,7 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
+		p_s(NULL),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -36,7 +39,11 @@ namespace Test
 	{
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
+
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
+
+		p_s = new PoseStanding(this);
+		posey->active_poses.push_back(p_s);
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
@@ -112,7 +119,6 @@ namespace Test
 
 	void Soldier::DoWeaponControls(TimingInfo time)
 	{
-		p_ag->pos = pos;
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
 
@@ -121,7 +127,6 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(TimingInfo time)
 	{
-		p_ag->pos = pos;
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
 	}

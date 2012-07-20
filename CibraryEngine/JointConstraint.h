@@ -18,6 +18,11 @@ namespace CibraryEngine
 			Quaternion desired_ori;
 			Quaternion inv_desired;
 
+			// some values that are set by DoUpdateAction and which should only be used for the duration of a single physics tick
+			Mat3 moi;
+			Vec3 apply_pos, i_poi, j_poi;
+			Vec3 desired_av, desired_dv;
+
 		public:
 
 			/** Position of the joint in the coordinate system of the first bone */
@@ -38,6 +43,7 @@ namespace CibraryEngine
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp);
 
 			void DoConstraintAction(unordered_set<RigidBody*>& wakeup);
+			void DoUpdateAction(float timestep);
 
 
 

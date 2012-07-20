@@ -26,8 +26,8 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 30
-#define MAX_FIXED_STEPS_PER_UPDATE 1
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 200
+#define MAX_FIXED_STEPS_PER_UPDATE 6
 
 namespace CibraryEngine
 {
@@ -382,7 +382,7 @@ namespace CibraryEngine
 		region_man(NULL),
 		gravity(0, -9.8f, 0),
 		internal_timer(),
-		timer_interval(1.0f / 60.0f),
+		timer_interval(1.0f / 360.0f),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
@@ -425,11 +425,10 @@ namespace CibraryEngine
 
 
 
-	void PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& A, float& B)
+	float PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B)
 	{
-		float m1 = ibody->mass_info.mass, m2 = jbody->mass_info.mass;
-
-		A = B = 0;
+		float A;
+		B = 0;
 
 		if(jbody->can_move)
 		{
@@ -457,6 +456,27 @@ namespace CibraryEngine
 			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
 			B -= Vec3::Dot(jbody->rot, nr2);
 		}
+
+		return 1.0f / A;
+	}
+
+	float PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction)
+	{
+		float A = jbody->can_move ? ibody->inv_mass + jbody->inv_mass : ibody->inv_mass;
+
+		if(ibody->can_rotate)
+		{
+			Vec3 nr1 = Vec3::Cross(direction, position - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
+			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
+		}
+
+		if(jbody->can_rotate)
+		{
+			Vec3 nr2 = Vec3::Cross(direction, position - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
+			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
+		}
+
+		return 1.0f / A;
 	}
 
 	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
@@ -798,8 +818,11 @@ namespace CibraryEngine
 			hits.sort();
 
 			for(list<RayResult>::iterator jter = hits.begin(); jter != hits.end(); ++jter)
+			{
+				jter->p.BuildCache();
 				if(callback.OnCollision(jter->p))
 					break;
+			}
 		}
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
@@ -810,32 +833,44 @@ namespace CibraryEngine
 	/*
 	 * ContactPoint methods
 	 */
+	void ContactPoint::BuildCache()
+	{
+		if(!cache_valid)
+		{
+			use_pos = (a.pos + b.pos) * 0.5f;
+			normal = Vec3::Normalize(a.norm - b.norm);
+
+			i_poi = obj_a->GetInvTransform().TransformVec3_1(a.pos);
+			j_poi = obj_b->GetInvTransform().TransformVec3_1(b.pos);
+
+			bounciness = obj_a->bounciness * obj_b->bounciness;	
+			sfric_coeff = obj_a->friction * obj_b->friction;
+			kfric_coeff = 0.9f * sfric_coeff;
+
+			cache_valid = true;
+		}
+	}
+
 	bool ContactPoint::DoCollisionResponse() const
 	{
+		assert(cache_valid);
+
 		RigidBody* ibody = obj_a;
 		RigidBody* jbody = obj_b;
 
 		bool j_can_move = jbody->can_move;
 
-		Vec3 use_pos = (a.pos + b.pos) * 0.5f;
 		Vec3 dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
-		const Vec3& normal = Vec3::Normalize(a.norm - b.norm);
-
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot < 0.0f)
 		{
-			float A, B;
-			PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, A, B);
-
-			float use_mass = 1.0f / A;
+			float B;
+			float use_mass = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, B);
 			float bounciness = ibody->bounciness * jbody->bounciness;
 			float impulse_mag = -(1.0f + bounciness) * B * use_mass;
 
 			if(impulse_mag < 0)
 			{
-				Vec3 i_poi = ibody->GetInvTransform().TransformVec3_1(a.pos);
-				Vec3 j_poi = jbody->GetInvTransform().TransformVec3_1(b.pos);
-
 				Vec3 impulse = normal * impulse_mag;
 
 				if(impulse.ComputeMagnitudeSquared() != 0)
@@ -849,19 +884,15 @@ namespace CibraryEngine
 					nvdot = Vec3::Dot(normal, dv);
 				}
 
-				float sfric_coeff = ibody->friction * jbody->friction;
-				float kfric_coeff = 0.9f * sfric_coeff;
-
 				Vec3 t_dv = dv - normal * nvdot;
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
 
-				if(t_dv_magsq > 0.001f)							// object is moving; apply kinetic friction
+				if(t_dv_magsq > 0)								// object is moving; apply kinetic friction
 				{
 					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
 					Vec3 u_tdv = t_dv * inv_tdmag;
 
-					PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv, A, B);
-					use_mass = 1.0f / A;
+					use_mass = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv);
 
 					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
 
@@ -900,6 +931,8 @@ namespace CibraryEngine
 
 	void ContactPoint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
 	{
+		BuildCache();
+
 		if(DoCollisionResponse())
 		{
 			// because we applied an impulse, we should wake up edges for the rigid bodies involved

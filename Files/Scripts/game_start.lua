@@ -7,8 +7,8 @@ function player_death(dood)
 end
 
 -- figure out which dood is the player, and remember that
---player = gs.spawnPlayer(ba.createVector(0, 1, 0))
-player = gs.spawnPlayer(ba.createVector(8.3, 149.2 + 1, 69.5))
+player = gs.spawnPlayer(ba.createVector(0, 0, 0))
+--player = gs.spawnPlayer(ba.createVector(8.3, 149.2, 69.5))
 player.death_callback = player_death
 
 dood_properties = {}

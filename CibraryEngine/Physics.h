@@ -92,8 +92,10 @@ namespace CibraryEngine
 
 			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback);
 
-			/** Hard to explain... A is like inverse of mass, and B is like inward velocity */
-			static void GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& A, float& B);
+			/** Hard to explain... return value is like mass, and B is like inward velocity */
+			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B);
+
+			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction);
 	};
 
 	class RigidBody;
@@ -122,6 +124,17 @@ namespace CibraryEngine
 
 			Part() : pos(), norm() { }
 		} a, b;
+
+		bool cache_valid;
+		// cached values (must be computed if cache_valid is false)
+		Vec3 use_pos;
+		Vec3 normal;
+		Vec3 i_poi, j_poi;
+		float bounciness, sfric_coeff, kfric_coeff;
+
+		ContactPoint() : cache_valid(false) { }
+
+		void BuildCache();
 
 		void DoConstraintAction(unordered_set<RigidBody*>& wakeup);
 		bool DoCollisionResponse() const;

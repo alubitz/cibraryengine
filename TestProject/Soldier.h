@@ -8,6 +8,9 @@ namespace Test
 {
 	struct BoneEntry;
 
+	class PoseAimingGun;
+	class PoseStanding;
+
 	class Soldier : public Dood
 	{
 		protected:
@@ -22,6 +25,7 @@ namespace Test
 			Bone* gun_hand_bone;
 
 			PoseAimingGun* p_ag;
+			PoseStanding* p_s;
 
 			float jump_fuel;
 
