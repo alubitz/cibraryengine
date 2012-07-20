@@ -50,6 +50,7 @@ namespace CibraryEngine
 			Mat3 ori_rm;
 			Mat4 xform, inv_xform;
 			AABB cached_aabb;
+			Vec3 cached_com;
 
 			float bounciness;
 			float friction;
@@ -142,7 +143,11 @@ namespace CibraryEngine
 
 			// impulse is a world-space direction
 			// local_poi is in the coordinate system of the object
-			void ApplyImpulse(const Vec3& impulse, const Vec3& local_poi);
+			void ApplyLocalImpulse(const Vec3& impulse, const Vec3& local_poi);
+
+			// like the above, but the position is in world coords
+			void ApplyWorldImpulse(const Vec3& impulse, const Vec3& poi);
+
 			void ApplyCentralForce(const Vec3& force);
 			void ApplyCentralImpulse(const Vec3& impulse);
 

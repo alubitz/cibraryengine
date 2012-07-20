@@ -85,8 +85,7 @@ namespace Test
 			game_state->Spawn(new Spark(game_state, poi, trail_mat));
 #endif
 
-		Vec3 pos = xform.TransformVec3_1(0, 0, 0);
-		rigid_body->ApplyImpulse(momentum, poi - pos);
+		rigid_body->ApplyWorldImpulse(momentum, poi);
 		return true;
 
 	}

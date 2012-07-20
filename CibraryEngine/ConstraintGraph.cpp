@@ -66,7 +66,7 @@ namespace CibraryEngine
 	 */
 	ConstraintGraph::Node::Node(RigidBody* body) : body(body) { edges = NewEdgesVector(); }
 
-	ConstraintGraph::Node::~Node() { DeleteEdgesVector(edges); edges = NULL; }
+	ConstraintGraph::Node::~Node() { if(edges) { DeleteEdgesVector(edges); edges = NULL; } }
 
 
 
@@ -83,6 +83,8 @@ namespace CibraryEngine
 
 		for(vector<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
 			DeleteCP(*iter);
+		contact_points.clear();
+
 		constraints.clear();
 	}
 

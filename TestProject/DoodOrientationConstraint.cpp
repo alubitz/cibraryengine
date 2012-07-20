@@ -7,7 +7,7 @@ namespace Test
 {
 	DoodOrientationConstraint::DoodOrientationConstraint(Dood* dood) : PhysicsConstraint(dood->root_rigid_body, NULL), dood(dood), desired_ori(Quaternion::Identity()) { }
 
-	void DoodOrientationConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
+	void DoodOrientationConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
 	{
 		// motor constants
 		static const float pyr_coeff =			30.0f;
@@ -29,7 +29,7 @@ namespace Test
 
 			obj_a->ApplyAngularImpulse(angular_impulse);
 
-			wakeup_list.insert(obj_a);
+			wakeup_list.push_back(obj_a);
 		}
 	}
 }

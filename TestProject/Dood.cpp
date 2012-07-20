@@ -34,30 +34,12 @@ namespace Test
 	bool Dood::BoneShootable::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
 		Vec3 from_dir = Vec3::Normalize(shot->origin - dood->pos);
-		dood->TakeDamage(shot->GetDamage(), from_dir);
 
+		dood->TakeDamage(shot->GetDamage(), from_dir);
 		dood->Splatter(shot, poi, momentum);
 
-		Mat4 xform;
-		{
-			xform = rbi->GetTransformationMatrix();
-			float ori_values[] = {xform[0], xform[1], xform[2], xform[4], xform[5], xform[6], xform[8], xform[9], xform[10]};
-			Quaternion rigid_body_ori = Quaternion::FromRotationMatrix(Mat3(ori_values).Transpose());
-			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
-			xform = Mat4::FromPositionAndOrientation(pos, rigid_body_ori.ToMat3().Transpose());
-		}
+		rbi->ApplyWorldImpulse(momentum, poi);
 
-		Vec3 pos = xform.TransformVec3_1(0, 0, 0);
-		Vec3 x_axis = xform.TransformVec3_0(1, 0, 0);
-		Vec3 y_axis = xform.TransformVec3_0(0, 1, 0);
-		Vec3 z_axis = xform.TransformVec3_0(0, 0, 1);
-
-		Vec3 local_poi;
-		local_poi = poi - pos;
-		local_poi = Vec3(Vec3::Dot(local_poi, x_axis), Vec3::Dot(local_poi, y_axis), Vec3::Dot(local_poi, z_axis));
-		local_poi = local_poi.x * x_axis + local_poi.y * y_axis + local_poi.z * z_axis;
-
-		rbi->ApplyImpulse(momentum, local_poi);
 		return true;
 	}
 

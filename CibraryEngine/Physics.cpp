@@ -338,7 +338,7 @@ namespace CibraryEngine
 				nodes = new (result) unordered_map<RigidBody*, ConstraintGraph::Node*>();
 			}
 		}
-		~Subgraph() { nodemaps_recycle_bin.push_back(nodes); nodes = NULL; }
+		~Subgraph() { if(nodes) { nodes->~unordered_map(); nodemaps_recycle_bin.push_back(nodes); nodes = NULL; } }
 
 		bool ContainsNode(ConstraintGraph::Node* node) { return nodes->find(node->body) != nodes->end(); }
 
@@ -433,9 +433,7 @@ namespace CibraryEngine
 		if(jbody->can_move)
 		{
 			A = ibody->inv_mass + jbody->inv_mass;
-
-			Vec3 i_lvel = ibody->vel, j_lvel = jbody->vel;
-			B = Vec3::Dot(i_lvel, direction) - Vec3::Dot(j_lvel, direction);
+			B = Vec3::Dot(ibody->vel, direction) - Vec3::Dot(jbody->vel, direction);
 		}
 		else
 		{
@@ -445,14 +443,14 @@ namespace CibraryEngine
 
 		if(ibody->can_rotate)
 		{
-			Vec3 nr1 = Vec3::Cross(direction, position - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
+			Vec3 nr1 = Vec3::Cross(direction, position - ibody->cached_com);
 			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
 			B += Vec3::Dot(ibody->rot, nr1);
 		}
 
 		if(jbody->can_rotate)
 		{
-			Vec3 nr2 = Vec3::Cross(direction, position - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
+			Vec3 nr2 = Vec3::Cross(direction, position - jbody->cached_com);
 			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
 			B -= Vec3::Dot(jbody->rot, nr2);
 		}
@@ -466,13 +464,13 @@ namespace CibraryEngine
 
 		if(ibody->can_rotate)
 		{
-			Vec3 nr1 = Vec3::Cross(direction, position - ibody->GetTransformationMatrix().TransformVec3_1(ibody->mass_info.com));
+			Vec3 nr1 = Vec3::Cross(direction, position - ibody->cached_com);
 			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
 		}
 
 		if(jbody->can_rotate)
 		{
-			Vec3 nr2 = Vec3::Cross(direction, position - jbody->GetTransformationMatrix().TransformVec3_1(jbody->mass_info.com));
+			Vec3 nr2 = Vec3::Cross(direction, position - jbody->cached_com);
 			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
 		}
 
@@ -481,15 +479,16 @@ namespace CibraryEngine
 
 	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
 	{
-		// break the graph into separate subgraphs
-
 		unsigned int graph_nodes = graph.nodes.size();
 
+		// break the graph into separate subgraphs
 		unordered_set<Subgraph*> subgraphs;
 		subgraphs.rehash((int)ceil(graph_nodes / subgraphs.max_load_factor()));
 
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
+
+		vector<ConstraintGraph::Node*> fringe;
 
 		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
 		{
@@ -498,7 +497,7 @@ namespace CibraryEngine
 				Subgraph* subgraph = Subgraph::New();
 				subgraphs.insert(subgraph);
 
-				vector<ConstraintGraph::Node*> fringe;
+				fringe.clear();
 				fringe.push_back(iter->second);
 
 				while(!fringe.empty())
@@ -511,7 +510,8 @@ namespace CibraryEngine
 						subgraph->nodes->operator[](node->body) = node;
 						body_subgraphs[node->body] = subgraph;
 
-						for(vector<ConstraintGraph::Edge>::iterator jter = node->edges->begin(); jter != node->edges->end(); ++jter)
+						const vector<ConstraintGraph::Edge>& edges = *node->edges;
+						for(vector<ConstraintGraph::Edge>::const_iterator jter = edges.begin(); jter != edges.end(); ++jter)
 						{
 							ConstraintGraph::Node* other = jter->other_node;
 							if(other == NULL || !subgraph->ContainsNode(other))
@@ -527,13 +527,16 @@ namespace CibraryEngine
 			}
 		}
 
+		vector<PhysicsConstraint*> active;
+		unordered_set<PhysicsConstraint*> nu_active;
+		vector<RigidBody*> wakeup_list;
+
 		// now go through each subgraph and do as many iterations as are necessary
 		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
 		{
 			Subgraph& subgraph = **iter;
 
-			vector<PhysicsConstraint*> active(subgraph.constraints);
-			unordered_set<PhysicsConstraint*> nu_active;
+			active.assign(subgraph.constraints.begin(), subgraph.constraints.end());
 
 			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
 			{
@@ -542,11 +545,11 @@ namespace CibraryEngine
 				{
 					PhysicsConstraint& constraint = **jter;
 
-					unordered_set<RigidBody*> wakeup_list;
+					wakeup_list.clear();
 					constraint.DoConstraintAction(wakeup_list);
 
 					// constraint says we should wake up these rigid bodies
-					for(unordered_set<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
+					for(vector<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
 					{
 						ConstraintGraph::Node* node = subgraph.nodes->operator[](*kter);
 
@@ -556,8 +559,7 @@ namespace CibraryEngine
 					}
 				}
 
-				active.clear();
-				active.insert(active.end(), nu_active.begin(), nu_active.end());
+				active.assign(nu_active.begin(), nu_active.end());
 			}
 		}
 
@@ -840,9 +842,6 @@ namespace CibraryEngine
 			use_pos = (a.pos + b.pos) * 0.5f;
 			normal = Vec3::Normalize(a.norm - b.norm);
 
-			i_poi = obj_a->GetInvTransform().TransformVec3_1(a.pos);
-			j_poi = obj_b->GetInvTransform().TransformVec3_1(b.pos);
-
 			bounciness = obj_a->bounciness * obj_b->bounciness;	
 			sfric_coeff = obj_a->friction * obj_b->friction;
 			kfric_coeff = 0.9f * sfric_coeff;
@@ -875,9 +874,9 @@ namespace CibraryEngine
 
 				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
-					ibody->ApplyImpulse(impulse, i_poi);
+					ibody->ApplyWorldImpulse(impulse, use_pos);
 					if(j_can_move)
-						jbody->ApplyImpulse(-impulse, j_poi);
+						jbody->ApplyWorldImpulse(-impulse, use_pos);
 
 					// applying this impulse means we need to recompute dv and nvdot!
 					dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
@@ -896,9 +895,9 @@ namespace CibraryEngine
 
 					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
 
-					ibody->ApplyImpulse(fric_impulse, i_poi);
+					ibody->ApplyWorldImpulse(fric_impulse, use_pos);
 					if(j_can_move)
-						jbody->ApplyImpulse(-fric_impulse, j_poi);
+						jbody->ApplyWorldImpulse(-fric_impulse, use_pos);
 				}
 				else											// object isn't moving; apply static friction
 				{
@@ -913,9 +912,9 @@ namespace CibraryEngine
 					{
 						Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
 
-						ibody->ApplyImpulse(fric_impulse, i_poi);
+						ibody->ApplyWorldImpulse(fric_impulse, use_pos);
 						if(j_can_move)
-							jbody->ApplyImpulse(-fric_impulse, j_poi);
+							jbody->ApplyWorldImpulse(-fric_impulse, use_pos);
 					}
 				}
 
@@ -929,16 +928,16 @@ namespace CibraryEngine
 		return false;
 	}
 
-	void ContactPoint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
+	void ContactPoint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
 	{
 		BuildCache();
 
 		if(DoCollisionResponse())
 		{
 			// because we applied an impulse, we should wake up edges for the rigid bodies involved
-			wakeup_list.insert(obj_a);
+			wakeup_list.push_back(obj_a);
 			if(obj_b->MergesSubgraphs())
-				wakeup_list.insert(obj_b);
+				wakeup_list.push_back(obj_b);
 
 			if(obj_a->collision_callback)
 				obj_a->collision_callback->OnCollision(*this);

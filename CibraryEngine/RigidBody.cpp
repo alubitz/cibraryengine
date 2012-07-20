@@ -135,6 +135,8 @@ namespace CibraryEngine
 
 		cached_aabb = shape->GetTransformedAABB(xform);
 
+		cached_com = xform.TransformVec3_1(mass_info.com);
+
 		xform_valid = true;
 	}
 
@@ -164,23 +166,24 @@ namespace CibraryEngine
 		return Vec3::Cross(force, radius_vector);
 	}
 
-	Vec3 RigidBody::GetLocalVelocity(const Vec3& point)
-	{
-		ComputeXformAsNeeded();
-		Vec3 radius_vector(
-			point.x - pos.x - mass_info.com.x * ori_rm.values[0] - mass_info.com.y * ori_rm.values[3] - mass_info.com.z * ori_rm.values[6],
-			point.y - pos.y - mass_info.com.x * ori_rm.values[1] - mass_info.com.y * ori_rm.values[4] - mass_info.com.z * ori_rm.values[7],
-			point.z - pos.z - mass_info.com.x * ori_rm.values[2] - mass_info.com.y * ori_rm.values[5] - mass_info.com.z * ori_rm.values[8]
-		);
-		return vel + Vec3::Cross(radius_vector, rot);
-	}
+	Vec3 RigidBody::GetLocalVelocity(const Vec3& point) { ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
 
-	void RigidBody::ApplyImpulse(const Vec3& impulse, const Vec3& local_poi)
+	void RigidBody::ApplyLocalImpulse(const Vec3& impulse, const Vec3& local_poi)
 	{
 		if(active)
 		{
 			if(can_rotate)
 				rot += inv_moi * LocalForceToTorque(impulse, local_poi);
+			vel += impulse * inv_mass;
+		}
+	}
+
+	void RigidBody::ApplyWorldImpulse(const Vec3& impulse, const Vec3& poi)
+	{
+		if(active)
+		{
+			if(can_rotate)
+				rot += inv_moi * Vec3::Cross(impulse, poi - cached_com);
 			vel += impulse * inv_mass;
 		}
 	}

@@ -108,7 +108,7 @@ namespace CibraryEngine
 			PhysicsConstraint() : obj_a(NULL), obj_b(NULL) { }
 			PhysicsConstraint(RigidBody* obj_a, RigidBody* obj_b) : obj_a(obj_a), obj_b(obj_b) { }
 
-			virtual void DoConstraintAction(unordered_set<RigidBody*>& wakeup) = 0;
+			virtual void DoConstraintAction(vector<RigidBody*>& wakeup) = 0;
 			virtual void DoUpdateAction(float timestep) { }
 
 			RigidBody* obj_a;
@@ -129,14 +129,13 @@ namespace CibraryEngine
 		// cached values (must be computed if cache_valid is false)
 		Vec3 use_pos;
 		Vec3 normal;
-		Vec3 i_poi, j_poi;
 		float bounciness, sfric_coeff, kfric_coeff;
 
 		ContactPoint() : cache_valid(false) { }
 
 		void BuildCache();
 
-		void DoConstraintAction(unordered_set<RigidBody*>& wakeup);
+		void DoConstraintAction(vector<RigidBody*>& wakeup);
 		bool DoCollisionResponse() const;
 	};
 

@@ -25,7 +25,7 @@ namespace CibraryEngine
 	{
 	}
 
-	void JointConstraint::DoConstraintAction(unordered_set<RigidBody*>& wakeup_list)
+	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
 	{
 		static const float angular_vel_coeff =	1.0f;
 		static const float dv_coeff =			1.0f;
@@ -59,16 +59,16 @@ namespace CibraryEngine
 			dv /= mag;
 
 			Vec3 impulse = dv * (-mag * dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv));
-			obj_a->ApplyImpulse(impulse, i_poi);
-			obj_b->ApplyImpulse(-impulse, j_poi);
+			obj_a->ApplyWorldImpulse(impulse, apply_pos);
+			obj_b->ApplyWorldImpulse(-impulse, apply_pos);
 
 			wakeup = true;
 		}
 
 		if(wakeup)
 		{
-			wakeup_list.insert(obj_a);
-			wakeup_list.insert(obj_b);
+			wakeup_list.push_back(obj_a);
+			wakeup_list.push_back(obj_b);
 		}
 	}
 
@@ -95,10 +95,6 @@ namespace CibraryEngine
 
 		// force to keep the two halves of the joint together
 		apply_pos = (a_pos + b_pos) * 0.5f;
-
-		i_poi = obj_a->GetInvTransform().TransformVec3_1(apply_pos);
-		j_poi = obj_b->GetInvTransform().TransformVec3_1(apply_pos);
-
 		desired_dv = (b_pos - a_pos) * -spring_coeff;
 	}
 

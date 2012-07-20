@@ -17,7 +17,7 @@ namespace Test
 
 			DoodOrientationConstraint(Dood* dood);
 
-			void DoConstraintAction(unordered_set<RigidBody*>& wakeup_list);
+			void DoConstraintAction(vector<RigidBody*>& wakeup_list);
 
 			Quaternion desired_ori;
 	};
