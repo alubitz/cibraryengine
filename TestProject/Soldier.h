@@ -4,12 +4,13 @@
 
 #include "Dood.h"
 
+#include "../CibraryEngine/StepPose.h"
+
 namespace Test
 {
 	struct BoneEntry;
 
 	class PoseAimingGun;
-	class PoseStanding;
 
 	class Soldier : public Dood
 	{
@@ -25,7 +26,8 @@ namespace Test
 			Bone* gun_hand_bone;
 
 			PoseAimingGun* p_ag;
-			PoseStanding* p_s;
+			StepPose* lfoot_pose;
+			StepPose* rfoot_pose;
 
 			float jump_fuel;
 

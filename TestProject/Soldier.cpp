@@ -2,7 +2,6 @@
 #include "Soldier.h"
 
 #include "PoseAimingGun.h"
-#include "PoseStanding.h"
 
 #include "WeaponEquip.h"
 
@@ -31,7 +30,8 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
-		p_s(NULL),
+		lfoot_pose(NULL),
+		rfoot_pose(NULL),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -40,10 +40,21 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
-		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
+		if(Bone* pelvis = posey->skeleton->GetNamedBone("pelvis"))
+		{
+			if(Bone* lfoot = posey->skeleton->GetNamedBone("l foot"))
+			{
+				lfoot_pose = new StepPose(lfoot, pelvis, mphys);
+				posey->active_poses.push_back(lfoot_pose);
+			}
+			if(Bone* rfoot = posey->skeleton->GetNamedBone("r foot"))
+			{
+				rfoot_pose = new StepPose(rfoot, pelvis, mphys);
+				posey->active_poses.push_back(rfoot_pose);
+			}
+		}
 
-		p_s = new PoseStanding(this);
-		posey->active_poses.push_back(p_s);
+		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");

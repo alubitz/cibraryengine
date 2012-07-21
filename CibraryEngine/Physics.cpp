@@ -27,6 +27,8 @@
 #include "ProfilingTimer.h"
 
 #define MAX_SEQUENTIAL_SOLVER_ITERATIONS 200
+
+#define PHYSICS_TICK_FREQUENCY 360
 #define MAX_FIXED_STEPS_PER_UPDATE 6
 
 namespace CibraryEngine
@@ -382,7 +384,7 @@ namespace CibraryEngine
 		region_man(NULL),
 		gravity(0, -9.8f, 0),
 		internal_timer(),
-		timer_interval(1.0f / 360.0f),
+		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);

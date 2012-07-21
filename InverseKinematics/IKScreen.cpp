@@ -3,8 +3,8 @@
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
-#include "IKChain.h"
-#include "StepPose.h"
+#include "../CibraryEngine/IKChain.h"
+#include "../CibraryEngine/StepPose.h"
 
 namespace InverseKinematics
 {
