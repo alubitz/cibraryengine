@@ -2,9 +2,6 @@
 #include "Dood.h"
 #include "TestGame.h"
 
-#include "Soldier.h"
-
-#include "PoseAimingGun.h"
 #include "WeaponEquip.h"
 #include "WeaponIntrinsic.h"
 #include "Shot.h"
@@ -185,7 +182,7 @@ namespace Test
 
 		float timestep = time.elapsed;
 
-		Vec3 forward = Vec3(-sin(yaw), 0, cos(yaw));
+		Vec3 forward = Vec3(-sinf(yaw), 0, cosf(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
 		// prevent bones from falling asleep (not yet possible, but whatever)
@@ -282,8 +279,6 @@ namespace Test
 	{
 		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
 
-		float third_person_distance = 5.0f;
-
 		if(eye_bone == NULL)
 		{	
 			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	-pitch,	0,		0 ));
@@ -294,9 +289,14 @@ namespace Test
 		}
 		else
 		{
+			float third_person_distance = 5.0f;
+			
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
-
+#if 1
 			Mat4 ori_derp = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
+#else
+			Mat4& ori_derp = eye_xform;
+#endif
 
 			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
 			Vec3 left		= ori_derp.TransformVec3_0(1, 0, 0);
@@ -319,6 +319,25 @@ namespace Test
 	// overridden by subclasses
 	void Dood::PreUpdatePoses(TimingInfo time) { }
 	void Dood::PostUpdatePoses(TimingInfo time) { }
+
+	void Dood::UpdateIKChain(IKChain* chain)
+	{
+		for(vector<IKChain::ChainNode>::iterator iter = chain->bones.begin(); iter != chain->bones.end(); ++iter)
+		{
+			IKChain::ChainNode& node = *iter;
+
+			// get the bones from the character's skeleton which correspond to these bones from posey's skeleton
+			Bone* parent = character->skeleton->GetNamedBone(node.from->name);
+			Bone* child = character->skeleton->GetNamedBone(node.to->name);
+
+			if(node.from == node.child)
+				swap(parent, child);
+			
+			Mat4 relative = child->GetTransformationMatrix() * Mat4::Invert(parent->GetTransformationMatrix());
+			Vec3 junk;
+			relative.Decompose(junk, node.ori);
+		}
+	}
 
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)

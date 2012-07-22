@@ -7,6 +7,8 @@
 
 #include "Team.h"
 
+#include "../CibraryEngine/IKChain.h"
+
 namespace Test
 {
 	using namespace std;
@@ -48,6 +50,8 @@ namespace Test
 			virtual void DoWeaponControls(TimingInfo time);
 			virtual void PreUpdatePoses(TimingInfo time);
 			virtual void PostUpdatePoses(TimingInfo time);
+
+			void UpdateIKChain(IKChain* chain);
 
 		public:
 

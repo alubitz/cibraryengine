@@ -11,8 +11,8 @@ namespace CibraryEngine
 	/*
 	 * StepPose methods
 	 */
-	StepPose::StepPose(Bone* end, Bone* base, ModelPhysics* mphys) :
-		chain(new IKChain(end, base, mphys)),
+	StepPose::StepPose(Bone* base, Bone* end, ModelPhysics* mphys) :
+		chain(new IKChain(base, end, mphys)),
 		arrive_time(-1),
 		arrived(true),
 		lifting(false),
@@ -162,7 +162,7 @@ namespace CibraryEngine
 
 		lifting = true;
 
-		desired_end_pos = desired_end_pos * 0.15f + step_pos * 0.85f + Vec3(0, 0.3f, 0);
+		desired_end_pos = desired_end_pos * 0.15f + step_pos * 0.85f + Vec3(0, 0.2f, 0);
 		desired_end_ori = ((desired_end_ori + step_ori) * 0.5f) * Quaternion::FromPYR(0, 0, 0);
 
 		arrive_time = (step_arrive + now) * 0.5f;

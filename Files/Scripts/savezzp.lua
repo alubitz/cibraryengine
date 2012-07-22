@@ -97,8 +97,8 @@ add_symetric_bones(bones,	"foot",		mass, { sphere(0.27,	0.11,	-0.11,	0.11),	sphe
 
 local joints = { }
 
-add_single_joint(joints, bones,		"pelvis",	"torso 1",	ba.createVector(0.0,	1.34,	-0.2))
-add_single_joint(joints, bones,		"torso 1",	"torso 2",	ba.createVector(0.0,	1.57,	-0.2))
+add_single_joint(joints, bones,		"pelvis",	"torso 1",	ba.createVector(0.0,	1.34,	-0.1))
+add_single_joint(joints, bones,		"torso 1",	"torso 2",	ba.createVector(0.0,	1.57,	0.0))
 add_single_joint(joints, bones,		"torso 2",	"head",		ba.createVector(0.0,	1.73,	0.0))
 
 add_symmetric_joints(joints, bones,	"torso 2",	"shoulder",	ba.createVector(0.27,	1.69,	0.0))

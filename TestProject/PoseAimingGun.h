@@ -17,6 +17,9 @@ namespace Test
 
 		void UpdatePose(TimingInfo time)
 		{
+			SetBonePose(Bone::string_table["torso 1"],		Vec3(0,	-yaw * 0.5f, 0),	Vec3());
+			SetBonePose(Bone::string_table["torso 2"],		Vec3(0,	-yaw * 0.5f, 0),	Vec3());
+
 			return;
 
 			// whichever it has, we use...

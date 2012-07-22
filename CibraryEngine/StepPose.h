@@ -27,7 +27,7 @@ namespace CibraryEngine
 
 			Vec3 dood_vel;
 
-			StepPose(Bone* end, Bone* base, ModelPhysics* mphys);
+			StepPose(Bone* base, Bone* end, ModelPhysics* mphys);
 			~StepPose();
 
 			void UpdatePose(TimingInfo time);

@@ -6,6 +6,7 @@
 #include "WeaponEquip.h"
 
 #include "ConverterWhiz.h"
+#include "TestGame.h"
 
 namespace Test
 {
@@ -44,12 +45,12 @@ namespace Test
 		{
 			if(Bone* lfoot = posey->skeleton->GetNamedBone("l foot"))
 			{
-				lfoot_pose = new StepPose(lfoot, pelvis, mphys);
+				lfoot_pose = new StepPose(pelvis, lfoot, mphys);
 				posey->active_poses.push_back(lfoot_pose);
 			}
 			if(Bone* rfoot = posey->skeleton->GetNamedBone("r foot"))
 			{
-				rfoot_pose = new StepPose(rfoot, pelvis, mphys);
+				rfoot_pose = new StepPose(pelvis, rfoot, mphys);
 				posey->active_poses.push_back(rfoot_pose);
 			}
 		}
@@ -128,6 +129,11 @@ namespace Test
 			jump_fuel = min(jump_fuel + jump_fuel_refill_rate * timestep, 1.0f);
 	}
 
+	void Soldier::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
+	{
+		// TODO: implement this
+	}
+
 	void Soldier::DoWeaponControls(TimingInfo time)
 	{
 		p_ag->yaw = yaw;
@@ -138,7 +144,39 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(TimingInfo time)
 	{
-		p_ag->yaw = yaw;
+		UpdateIKChain(lfoot_pose->chain);
+		UpdateIKChain(rfoot_pose->chain);
+
+		// turning in place
+		Vec3 yaw_fwd = Vec3(-sinf(yaw), 0, cosf(yaw));
+		Vec3 yaw_left = Vec3(yaw_fwd.z, 0, -yaw_fwd.x);
+
+		Mat4 pelvis_xform = Mat4::Translation(pos) * character->skeleton->GetNamedBone("pelvis")->GetTransformationMatrix();
+
+		Vec3 pelvis_fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
+		pelvis_fwd.y = 0;
+		pelvis_fwd /= pelvis_fwd.ComputeMagnitude();				// HEADS UP! this is unstable when the forward vector is nearly vertical
+
+		float fwd_dot = Vec3::Dot(yaw_fwd, pelvis_fwd);
+		float side_dot = Vec3::Dot(yaw_left, pelvis_fwd);
+
+		float angle = asinf(side_dot);
+		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "angle = " << angle)).str();
+
+		const float max_torso_twist = float(M_PI) / 3.0f;
+
+		if(angle < -max_torso_twist)
+		{
+			// TODO: rotate left
+			lfoot_pose->Step(Vec3(), Quaternion::FromPYR(0, angle, 0), time.total, time.total + 0.25f);
+		}
+		else if(angle > max_torso_twist)
+		{
+			// TODO: rotate right
+		}
+
+		// tilt head and aim gun
+		p_ag->yaw = max(-max_torso_twist, min(max_torso_twist, angle));
 		p_ag->pitch = pitch;
 	}
 
@@ -151,6 +189,9 @@ namespace Test
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
 	}
+
+
+
 
 	void Soldier::GetBoneEntries(vector<BoneEntry>& bone_entries)
 	{

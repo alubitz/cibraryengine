@@ -4,6 +4,7 @@
 
 #include "Dood.h"
 
+#include "../CibraryEngine/IKChain.h"
 #include "../CibraryEngine/StepPose.h"
 
 namespace Test
@@ -17,6 +18,7 @@ namespace Test
 		protected:
 
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
+			void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			void DoWeaponControls(TimingInfo time);
 			void PreUpdatePoses(TimingInfo time);
 			void PostUpdatePoses(TimingInfo time);

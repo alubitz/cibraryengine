@@ -1,11 +1,7 @@
 #include "StdAfx.h"
 #include "Weapon.h"
 
-#include "Dood.h"
 #include "TestGame.h"
-#include "Shot.h"
-
-#include "Soldier.h"
 
 namespace Test
 {
