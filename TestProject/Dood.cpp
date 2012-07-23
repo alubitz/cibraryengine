@@ -332,8 +332,8 @@ namespace Test
 
 			if(node.from == node.child)
 				swap(parent, child);
-			
-			Mat4 relative = child->GetTransformationMatrix() * Mat4::Invert(parent->GetTransformationMatrix());
+
+			Mat4 relative = Mat4::Invert(child->GetTransformationMatrix()) * parent->GetTransformationMatrix();
 			Vec3 junk;
 			relative.Decompose(junk, node.ori);
 		}
@@ -347,8 +347,6 @@ namespace Test
 		float now = time.total;
 		if (now > character_pose_time)
 		{
-			PreUpdatePoses(time);
-
 			origin = rigid_bodies[0]->GetPosition();
 
 			for(unsigned int i = 0; i < bone_to_rbody.size(); ++i)
@@ -369,6 +367,8 @@ namespace Test
 
 			character->render_info.Invalidate();
 			character->skeleton->InvalidateCachedBoneXforms();
+
+			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
 
 			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)

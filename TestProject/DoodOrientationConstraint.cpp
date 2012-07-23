@@ -14,8 +14,8 @@ namespace Test
 		static const float angular_vel_coeff =	1.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
-		Quaternion b_ori = Quaternion::Invert(desired_ori);
-		Quaternion a_to_b = Quaternion::Invert(a_ori) * b_ori;
+		Quaternion b_ori = Quaternion::Reverse(desired_ori);
+		Quaternion a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 
 		Vec3 pyr = -a_to_b.ToPYR();
 		Vec3 desired_av = pyr * pyr_coeff;

@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 			void UpdatePose(TimingInfo time);
 
-			void SeekPosition(TimingInfo& time);
+			void SeekPosition(float timestep, float foresight);
 
 			void SetDestination(const Vec3& pos, const Quaternion& ori, float time);
 			void Step(const Vec3& pos, const Quaternion& ori, float now, float time);

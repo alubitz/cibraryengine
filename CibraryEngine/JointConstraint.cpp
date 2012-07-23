@@ -74,15 +74,15 @@ namespace CibraryEngine
 
 	void JointConstraint::DoUpdateAction(float timestep)
 	{
-		static const float pyr_coeff =			60.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
-		static const float spring_coeff =		60.0f;
+		static const float pyr_coeff =			360.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
+		static const float spring_coeff =		360.0f;
 
 		if(enable_motor)
 		{
 			// torque to make the joint conform to a pose
 			Quaternion a_ori = inv_desired * obj_a->GetOrientation();
 			Quaternion b_ori = obj_b->GetOrientation();
-			Quaternion a_to_b = Quaternion::Invert(a_ori) * b_ori;
+			Quaternion a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 
 			Vec3 pyr = -a_to_b.ToPYR();
 			desired_av = pyr * pyr_coeff;
@@ -103,7 +103,7 @@ namespace CibraryEngine
 		if(ori != desired_ori)
 		{
 			desired_ori = ori;
-			inv_desired = Quaternion::Invert(desired_ori);
+			inv_desired = Quaternion::Reverse(desired_ori);
 		}
 	}
 	Quaternion JointConstraint::GetDesiredOrientation() const { return desired_ori; }

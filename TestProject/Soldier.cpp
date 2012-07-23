@@ -163,21 +163,20 @@ namespace Test
 		float angle = asinf(side_dot);
 		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "angle = " << angle)).str();
 
-		const float max_torso_twist = float(M_PI) / 3.0f;
+		const float max_torso_twist = 1.0f;
 
 		if(angle < -max_torso_twist)
 		{
-			// TODO: rotate left
-			lfoot_pose->Step(Vec3(), Quaternion::FromPYR(0, angle, 0), time.total, time.total + 0.25f);
+			// rotate left
+			if(lfoot_pose->arrived)
+				lfoot_pose->Step(Vec3(), Quaternion::FromPYR(0, angle, 0), time.total, time.total + 0.25f);
+
+			// TODO: make both feet step in succession
 		}
 		else if(angle > max_torso_twist)
 		{
 			// TODO: rotate right
 		}
-
-		// tilt head and aim gun
-		p_ag->yaw = max(-max_torso_twist, min(max_torso_twist, angle));
-		p_ag->pitch = pitch;
 	}
 
 	void Soldier::PostUpdatePoses(TimingInfo time)

@@ -25,30 +25,34 @@ namespace CibraryEngine
 
 	StepPose::~StepPose() { delete chain; chain = NULL; }
 
-	void StepPose::UpdatePose(TimingInfo time) { if(time.elapsed > 0) { SeekPosition(time); } }
-
-	void StepPose::SeekPosition(TimingInfo& time)
+	void StepPose::UpdatePose(TimingInfo time)
 	{
-		if(time.total >= arrive_time)			// TODO: actually check for arrival instead
-		{
-			if(lifting)
-			{
-				lifting = false;
-
-				desired_end_pos = step_pos;
-				desired_end_ori = step_ori;
-				arrive_time = step_arrive;
-				arrived = false;
-			}
-			else
-				arrived = true;
-		}
-
 		float timestep = time.elapsed;
-		float foresight = max(timestep, arrive_time - time.total);
+		if(timestep > 0)
+		{
+			float now = time.total;
+			if(now >= arrive_time)			// TODO: actually check for arrival instead
+			{
+				if(lifting)
+				{
+					lifting = false;
 
+					desired_end_pos = step_pos;
+					desired_end_ori = step_ori;
+					arrive_time = step_arrive;
+					arrived = false;
+				}
+				else
+					arrived = true;	
+			}
+
+			SeekPosition(timestep, max(timestep, arrive_time - now));
+		}
+	}
+
+	void StepPose::SeekPosition(float timestep, float foresight)
+	{
 		// find a set of joint orientations which will best satisfy our goal...
-		int num_floats = chain->bones.size() * 3;
 		IKChain::ChainValues rot =			chain->CreateChainValues();
 		IKChain::ChainValues best =			chain->CreateChainValues();
 		IKChain::ChainValues guess =		chain->CreateChainValues();
@@ -96,7 +100,7 @@ namespace CibraryEngine
 				int mutations = Random3D::RandInt(1, 3);		// situations may arise where a single mutation may hurt, but two or three may help
 				for(int j = 0; j < mutations; ++j)
 				{
-					int mutate = Random3D::RandInt(num_floats);
+					int mutate = Random3D::RandInt(guess.size);
 					float minimum = min_extents[mutate], maximum = max_extents[mutate], range = maximum - minimum;
 
 					guess[mutate] = min(maximum, max(minimum, guess[mutate] + Random3D::Rand(-0.01f * range, 0.01f * range)));
@@ -135,10 +139,11 @@ namespace CibraryEngine
 			float x = *(best_ptr++), y = *(best_ptr++), z = *(best_ptr++);
 			iter->target_ori = Quaternion::FromPYR(node.axes * Vec3(x, y, z));
 
-			Vec3 angle = (Quaternion::Invert(node.ori) * node.target_ori).ToPYR();
+			Quaternion& ori = node.ori;
+
+			Vec3 angle = (Quaternion::Reverse(ori) * node.target_ori).ToPYR();
 			node.rot = angle / foresight;
 
-			Quaternion& ori = node.ori;
 			ori *= Quaternion::FromPYR(node.rot * timestep);
 
 			SetBonePose(node.to->name, ori.ToPYR(), Vec3());
@@ -162,7 +167,7 @@ namespace CibraryEngine
 
 		lifting = true;
 
-		desired_end_pos = desired_end_pos * 0.15f + step_pos * 0.85f + Vec3(0, 0.2f, 0);
+		desired_end_pos = desired_end_pos * 0.5f + step_pos * 0.5f + Vec3(0, 0.1f, 0);
 		desired_end_ori = ((desired_end_ori + step_ori) * 0.5f) * Quaternion::FromPYR(0, 0, 0);
 
 		arrive_time = (step_arrive + now) * 0.5f;
