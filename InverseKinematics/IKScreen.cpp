@@ -155,18 +155,18 @@ namespace InverseKinematics
 				{
 					left_foot_pose = new StepPose(pelvis, l_foot, mphys);
 					if(left_fwd)
-						left_foot_pose->SetDestination(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
+						left_foot_pose->Slide(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
 					else
-						left_foot_pose->SetDestination(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
+						left_foot_pose->Slide(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(left_foot_pose);
 				}
 				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
 				{
 					right_foot_pose = new StepPose(pelvis, r_foot, mphys);
 					if(left_fwd)
-						right_foot_pose->SetDestination(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
+						right_foot_pose->Slide(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
 					else
-						right_foot_pose->SetDestination(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
+						right_foot_pose->Slide(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
 					character->active_poses.push_back(right_foot_pose);
 				}
 			}
@@ -408,7 +408,7 @@ namespace InverseKinematics
 							Vec3 point_on_foot = pose->chain->end->rest_pos;
 							point_on_foot.y = 0.0f;
 
-							pose->SetDestination(point_on_ground - point_on_foot, Quaternion::Identity(), imp->now + 1.0f);
+							pose->Step(point_on_ground - point_on_foot, Quaternion::Identity(), imp->now, imp->now + 1.0f);
 						}
 					}
 				}

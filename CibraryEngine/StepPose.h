@@ -34,7 +34,7 @@ namespace CibraryEngine
 
 			void SeekPosition(float timestep, float foresight);
 
-			void SetDestination(const Vec3& pos, const Quaternion& ori, float time);
+			void Slide(const Vec3& pos, const Quaternion& ori, float time);
 			void Step(const Vec3& pos, const Quaternion& ori, float now, float time);
 	};
 }

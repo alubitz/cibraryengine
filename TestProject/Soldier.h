@@ -31,6 +31,15 @@ namespace Test
 			StepPose* lfoot_pose;
 			StepPose* rfoot_pose;
 
+			enum StepState
+			{
+				Stand,
+				TurnLeftA,
+				TurnLeftB,
+				TurnRightA,
+				TurnRightB
+			} step_state;
+
 			float jump_fuel;
 
 			SoundBuffer* jet_start_sound;

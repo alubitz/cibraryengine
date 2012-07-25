@@ -33,6 +33,7 @@ namespace Test
 		p_ag(NULL),
 		lfoot_pose(NULL),
 		rfoot_pose(NULL),
+		step_state(Stand),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -154,8 +155,12 @@ namespace Test
 		Mat4 pelvis_xform = Mat4::Translation(pos) * character->skeleton->GetNamedBone("pelvis")->GetTransformationMatrix();
 
 		Vec3 pelvis_fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
+		Vec3 pelvis_left = pelvis_xform.TransformVec3_0(1, 0, 0);
 		pelvis_fwd.y = 0;
+		pelvis_left.y = 0;
 		pelvis_fwd /= pelvis_fwd.ComputeMagnitude();				// HEADS UP! this is unstable when the forward vector is nearly vertical
+		pelvis_left /= pelvis_left.ComputeMagnitude();
+
 
 		float fwd_dot = Vec3::Dot(yaw_fwd, pelvis_fwd);
 		float side_dot = Vec3::Dot(yaw_left, pelvis_fwd);
@@ -164,19 +169,70 @@ namespace Test
 		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "angle = " << angle)).str();
 
 		const float max_torso_twist = 1.0f;
+		const float step_duration = 0.5f;
+		const float between_steps = 0.0f;
 
-		if(angle < -max_torso_twist)
-		{
-			// rotate left
-			if(lfoot_pose->arrived)
-				lfoot_pose->Step(Vec3(), Quaternion::FromPYR(0, angle, 0), time.total, time.total + 0.25f);
+		float now = time.total, finish = time.total + step_duration;
 
-			// TODO: make both feet step in succession
-		}
-		else if(angle > max_torso_twist)
+		switch(step_state)
 		{
-			// TODO: rotate right
+			case Stand:
+
+				if(angle < -max_torso_twist)
+				{
+					step_state = TurnLeftA;
+
+					lfoot_pose->Step(Vec3(0.1f, 0.05f, -0.25f), Quaternion::FromPYR(0, angle * 0.5f, 0), now, finish);
+					rfoot_pose->Slide(Vec3(-0.1f, 0.05f, 0.2f), Quaternion::FromPYR(0, -angle * 0.5f, 0), finish);
+				}
+				else if(angle > max_torso_twist)
+				{
+					step_state = TurnRightA;
+
+					rfoot_pose->Step(Vec3(-0.1f, 0.05f, -0.25f), Quaternion::FromPYR(0, angle * 0.5f, 0), now, finish);
+					lfoot_pose->Slide(Vec3(0.1f, 0.05f, 0.2f), Quaternion::FromPYR(0, -angle * 0.5f, 0), finish);
+				}
+
+				break;
+
+			case TurnLeftA:
+
+				if(lfoot_pose->arrived && now > lfoot_pose->arrive_time + between_steps)
+				{
+					step_state = TurnLeftB;
+					
+					lfoot_pose->Slide(Vec3(), Quaternion::Identity(), finish);
+					rfoot_pose->Step(Vec3(), Quaternion::Identity(), now, finish);
+				}
+
+				break;
+
+			case TurnLeftB:
+
+				if(rfoot_pose->arrived)
+					step_state = Stand;
+				break;
+
+			case TurnRightA:
+
+				if(rfoot_pose->arrived && now > rfoot_pose->arrive_time + between_steps)
+				{
+					step_state = TurnRightB;
+					
+					rfoot_pose->Slide(Vec3(), Quaternion::Identity(), finish);
+					lfoot_pose->Step(Vec3(), Quaternion::Identity(), now, finish);
+				}
+
+				break;
+
+			case TurnRightB:
+
+				if(lfoot_pose->arrived)
+					step_state = Stand;
+				break;
 		}
+
+		//p_ag->yaw = angle;
 	}
 
 	void Soldier::PostUpdatePoses(TimingInfo time)

@@ -150,7 +150,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void StepPose::SetDestination(const Vec3& pos, const Quaternion& ori, float time)
+	void StepPose::Slide(const Vec3& pos, const Quaternion& ori, float time)
 	{
 		desired_end_pos = pos;
 		desired_end_ori = ori;
@@ -167,7 +167,7 @@ namespace CibraryEngine
 
 		lifting = true;
 
-		desired_end_pos = desired_end_pos * 0.5f + step_pos * 0.5f + Vec3(0, 0.1f, 0);
+		desired_end_pos = desired_end_pos * 0.5f + step_pos * 0.5f + Vec3(0, 0.15f, 0);
 		desired_end_ori = ((desired_end_ori + step_ori) * 0.5f) * Quaternion::FromPYR(0, 0, 0);
 
 		arrive_time = (step_arrive + now) * 0.5f;
