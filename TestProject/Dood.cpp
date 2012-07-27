@@ -433,7 +433,6 @@ namespace Test
 					RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, pos);
 
 					rigid_body->SetDamp(0.05f);
-					rigid_body->SetFriction(1.0f);
 
 					unsigned int bone_name = Bone::string_table[phys->bone_name];
 					name_indices[bone_name] = rigid_bodies.size();

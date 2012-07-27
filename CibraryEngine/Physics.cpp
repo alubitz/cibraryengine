@@ -848,6 +848,8 @@ namespace CibraryEngine
 			sfric_coeff = obj_a->friction * obj_b->friction;
 			kfric_coeff = 0.9f * sfric_coeff;
 
+			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
+
 			cache_valid = true;
 		}
 	}
@@ -874,6 +876,7 @@ namespace CibraryEngine
 			{
 				Vec3 impulse = normal * impulse_mag;
 
+				// normal force
 				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
 					ibody->ApplyWorldImpulse(impulse, use_pos);
@@ -888,6 +891,7 @@ namespace CibraryEngine
 				Vec3 t_dv = dv - normal * nvdot;
 				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
 
+				// linear friction
 				if(t_dv_magsq > 0)								// object is moving; apply kinetic friction
 				{
 					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
@@ -918,6 +922,17 @@ namespace CibraryEngine
 						if(j_can_move)
 							jbody->ApplyWorldImpulse(-fric_impulse, use_pos);
 					}
+				}
+
+				// angular friction (wip; currently completely undoes angular velocity around the normal vector)
+				float angular_dv = Vec3::Dot(normal, obj_b->rot - obj_a->rot);
+				if(fabs(angular_dv) > 0)
+				{
+					Vec3 angular_impulse = moi_n * angular_dv;
+
+					ibody->ApplyAngularImpulse(angular_impulse);
+					if(j_can_move && jbody->can_rotate)
+						jbody->ApplyAngularImpulse(-angular_impulse);
 				}
 
 				if(j_can_move)

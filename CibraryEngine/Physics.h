@@ -130,6 +130,7 @@ namespace CibraryEngine
 		Vec3 use_pos;
 		Vec3 normal;
 		float bounciness, sfric_coeff, kfric_coeff;
+		Vec3 moi_n;
 
 		ContactPoint() : cache_valid(false) { }
 

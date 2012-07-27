@@ -183,7 +183,7 @@ namespace CibraryEngine
 			Pose() : active(true), bones() { }
 
 			/** Sets how this Pose will affect the specified bone, by modifying the bones map */
-			void SetBonePose(unsigned int which, Vec3 ori, Vec3 pos) { bones[which] = BoneInfluence(ori, pos); }
+			void SetBonePose(unsigned int which, const Vec3& ori, const Vec3& pos) { bones[which] = BoneInfluence(ori, pos); }
 
 			/** Abstract function where you can call SetBonePose */
 			virtual void UpdatePose(TimingInfo time) = 0;

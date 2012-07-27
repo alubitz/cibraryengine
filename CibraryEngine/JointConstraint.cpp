@@ -21,7 +21,8 @@ namespace CibraryEngine
 		min_extents(min_extents),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
-		enable_motor(true)
+		enable_motor(true),
+		orient_absolute(false)
 	{
 	}
 
@@ -35,7 +36,7 @@ namespace CibraryEngine
 		if(enable_motor)
 		{
 			// torque to make the joint conform to a pose
-			Vec3 current_av = obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity();
+			Vec3 current_av = orient_absolute ? obj_b->GetAngularVelocity() : obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity();
 
 			Vec3 alpha = (desired_av - current_av) * -angular_vel_coeff;
 			if(alpha.ComputeMagnitudeSquared() > 0.0f)
@@ -79,13 +80,18 @@ namespace CibraryEngine
 
 		if(enable_motor)
 		{
-			// torque to make the joint conform to a pose
-			Quaternion a_ori = inv_desired * obj_a->GetOrientation();
-			Quaternion b_ori = obj_b->GetOrientation();
-			Quaternion a_to_b = Quaternion::Reverse(a_ori) * b_ori;
+			if(orient_absolute)
+				desired_av = (inv_desired * obj_b->GetOrientation()).ToPYR() * (-pyr_coeff);
+			else
+			{
+				// torque to make the joint conform to a pose
+				Quaternion a_ori = inv_desired * obj_a->GetOrientation();
+				Quaternion b_ori = obj_b->GetOrientation();
+				Quaternion a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 
-			Vec3 pyr = -a_to_b.ToPYR();
-			desired_av = pyr * pyr_coeff;
+				Vec3 pyr = -a_to_b.ToPYR();
+				desired_av = pyr * pyr_coeff;
+			}
 
 			moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		}

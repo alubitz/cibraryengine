@@ -51,8 +51,6 @@ namespace Test
 			virtual void PreUpdatePoses(TimingInfo time);
 			virtual void PostUpdatePoses(TimingInfo time);
 
-			void UpdateIKChain(IKChain* chain);
-
 		public:
 
 			Team team;
@@ -106,6 +104,8 @@ namespace Test
 
 			void PoseCharacter();
 			void PoseCharacter(TimingInfo time);
+
+			void UpdateIKChain(IKChain* chain);
 
 			virtual void Update(TimingInfo time);
 

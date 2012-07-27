@@ -2,6 +2,9 @@
 #include "Soldier.h"
 
 #include "PoseAimingGun.h"
+#include "IKAnimationPose.h"
+
+#include "DoodOrientationConstraint.h"
 
 #include "WeaponEquip.h"
 
@@ -24,6 +27,87 @@ namespace Test
 
 
 	
+	IKAnimation* MakeTurnLeft()
+	{
+		IKAnimation* result = new IKAnimation();
+
+		result->bones.push_back("pelvis");
+		result->bones.push_back("l foot");
+		result->bones.push_back("r foot");
+
+		result->chains.push_back(IKAnimation::Chain(0, 1));
+		result->chains.push_back(IKAnimation::Chain(0, 2));
+
+		float frame_duration = 0.6f;
+
+		{	// frame 0
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 1);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.1f,	-0.1f),		Quaternion::FromPYR(0,		-0.5f,		0),		1.0f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.1f,	0.25f,	0.1f),		Quaternion::FromPYR(0,		-0.5f,		0.25f),	0.0f));
+			result->frames.push_back(kf);
+		}
+
+		{	// frame 1
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 2);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.1f,	-0.2f),		Quaternion::FromPYR(0,		-1.0f,		0),	0.5f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.2f,	0.1f,	0.15f),		Quaternion::FromPYR(0,		-1.0f,		0),	0.5f));
+			result->frames.push_back(kf);
+		}
+
+		{	// frame 2
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, -1);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(),							Quaternion::Identity(),						0.5f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(),							Quaternion::Identity(),						0.5f));
+			result->frames.push_back(kf);
+		}
+
+
+
+		/*
+		{	// frame 0
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 1);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.25f,	-0.1f),		Quaternion::FromPYR(0,		-0.5f,		0),	0.0f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(0,		0.05f,	0.05f),		Quaternion::FromPYR(0,		0.5f,		0),	1.0f));
+			result->frames.push_back(kf);
+		}
+
+		{	// frame 1
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 2);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.1f,	0,		-0.2f),		Quaternion::FromPYR(0,		-1,			0),	0.5f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.1f,	0,		0.05f),		Quaternion::FromPYR(0,		1,			0),	0.5f));
+			result->frames.push_back(kf);
+		}
+
+		{	// frame 2
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 3);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.05f,	-0.05f),	Quaternion::FromPYR(0,		-0.5f,		0),	1.0f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.05f,	0.25f,	0.05f),		Quaternion::FromPYR(0,		0.5f,		0),	0.0f));
+			result->frames.push_back(kf);
+		}
+
+		{	// frame 3
+			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, -1);
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(),							Quaternion::Identity(),						0.5f));
+			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(),							Quaternion::Identity(),						0.5f));
+			result->frames.push_back(kf);
+		}
+		*/
+
+		return result;
+	}
+
+	IKAnimation* MakeTurnRight()
+	{
+		IKAnimation* result = new IKAnimation();
+
+		// TODO: implement this
+
+		return result;
+	}
+
+
+
+
 	/*
 	 * Soldier methods
 	 */
@@ -31,9 +115,9 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
-		lfoot_pose(NULL),
-		rfoot_pose(NULL),
-		step_state(Stand),
+		ik_pose(NULL),
+		turn_left(NULL),
+		turn_right(NULL),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -42,25 +126,22 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
-		if(Bone* pelvis = posey->skeleton->GetNamedBone("pelvis"))
-		{
-			if(Bone* lfoot = posey->skeleton->GetNamedBone("l foot"))
-			{
-				lfoot_pose = new StepPose(pelvis, lfoot, mphys);
-				posey->active_poses.push_back(lfoot_pose);
-			}
-			if(Bone* rfoot = posey->skeleton->GetNamedBone("r foot"))
-			{
-				rfoot_pose = new StepPose(pelvis, rfoot, mphys);
-				posey->active_poses.push_back(rfoot_pose);
-			}
-		}
-
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
 		jet_loop_sound = sound_cache->Load("jet_loop");
+
+		turn_left = MakeTurnLeft();
+		turn_right = MakeTurnRight();
+	}
+
+	void Soldier::InnerDispose()
+	{
+		delete turn_left;
+		delete turn_right;
+
+		Dood::InnerDispose();
 	}
 
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
@@ -132,7 +213,7 @@ namespace Test
 
 	void Soldier::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		// TODO: implement this
+		Dood::DoMovementControls(time, forward, rightward);
 	}
 
 	void Soldier::DoWeaponControls(TimingInfo time)
@@ -145,8 +226,7 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(TimingInfo time)
 	{
-		UpdateIKChain(lfoot_pose->chain);
-		UpdateIKChain(rfoot_pose->chain);
+		return;
 
 		// turning in place
 		Vec3 yaw_fwd = Vec3(-sinf(yaw), 0, cosf(yaw));
@@ -174,62 +254,24 @@ namespace Test
 
 		float now = time.total, finish = time.total + step_duration;
 
-		switch(step_state)
+		if(ik_pose == NULL || ik_pose->dead)
 		{
-			case Stand:
+			if(ik_pose)
+			{
+				ik_pose->SetActive(false);			// this will ensure it gets deleted
+				ik_pose = NULL;
+			}
 
-				if(angle < -max_torso_twist)
-				{
-					step_state = TurnLeftA;
+			//if(time.total > 0.5f)
+			//	ik_pose = new IKAnimationPose(turn_left, this);
 
-					lfoot_pose->Step(Vec3(0.1f, 0.05f, -0.25f), Quaternion::FromPYR(0, angle * 0.5f, 0), now, finish);
-					rfoot_pose->Slide(Vec3(-0.1f, 0.05f, 0.2f), Quaternion::FromPYR(0, -angle * 0.5f, 0), finish);
-				}
-				else if(angle > max_torso_twist)
-				{
-					step_state = TurnRightA;
+			if(angle < -max_torso_twist && turn_left)
+				ik_pose = new IKAnimationPose(turn_left, this);
+			//else if(angle > max_torso_twist && turn_right)
+			//	ik_pose = new IKAnimationPose(turn_right, this);
 
-					rfoot_pose->Step(Vec3(-0.1f, 0.05f, -0.25f), Quaternion::FromPYR(0, angle * 0.5f, 0), now, finish);
-					lfoot_pose->Slide(Vec3(0.1f, 0.05f, 0.2f), Quaternion::FromPYR(0, -angle * 0.5f, 0), finish);
-				}
-
-				break;
-
-			case TurnLeftA:
-
-				if(lfoot_pose->arrived && now > lfoot_pose->arrive_time + between_steps)
-				{
-					step_state = TurnLeftB;
-					
-					lfoot_pose->Slide(Vec3(), Quaternion::Identity(), finish);
-					rfoot_pose->Step(Vec3(), Quaternion::Identity(), now, finish);
-				}
-
-				break;
-
-			case TurnLeftB:
-
-				if(rfoot_pose->arrived)
-					step_state = Stand;
-				break;
-
-			case TurnRightA:
-
-				if(rfoot_pose->arrived && now > rfoot_pose->arrive_time + between_steps)
-				{
-					step_state = TurnRightB;
-					
-					rfoot_pose->Slide(Vec3(), Quaternion::Identity(), finish);
-					lfoot_pose->Step(Vec3(), Quaternion::Identity(), now, finish);
-				}
-
-				break;
-
-			case TurnRightB:
-
-				if(lfoot_pose->arrived)
-					step_state = Stand;
-				break;
+			if(ik_pose)
+				posey->active_poses.push_back(ik_pose);
 		}
 
 		//p_ag->yaw = angle;
@@ -243,6 +285,47 @@ namespace Test
 			equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
+	}
+
+	void Soldier::Spawned()
+	{
+		Dood::Spawned();
+
+		unsigned int torso_1 = Bone::string_table["torso 1"];
+		unsigned int torso_2 = Bone::string_table["torso 2"];
+
+		RigidBody* body_1 = NULL;
+		RigidBody* body_2 = NULL;
+
+		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+		{
+			if(rbody_to_posey[i]->name == torso_1)
+				body_1 = rigid_bodies[i];
+			else if(rbody_to_posey[i]->name == torso_2)
+				body_2 = rigid_bodies[i];
+
+			if(body_1 && body_2)
+			{
+				for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				{
+					if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
+					{
+						if(jc->obj_a == body_1 && jc->obj_b == body_2 || jc->obj_a == body_2 && jc->obj_b == body_1)
+						{
+							jc->orient_absolute = true;
+							break;
+						}
+					}
+				}
+
+				break;
+			}
+		}
+	}
+
+	void Soldier::DeSpawned()
+	{
+		Dood::DeSpawned();
 	}
 
 
