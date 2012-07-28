@@ -82,8 +82,6 @@ namespace Test
 			vector<RigidBody*> bone_to_rbody;
 			vector<PhysicsConstraint*> constraints;
 
-			DoodOrientationConstraint* orientation_constraint;
-
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
 
@@ -92,7 +90,7 @@ namespace Test
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
-			Dood(GameState* gs, UberModel* model_, ModelPhysics* mphys, Vec3 pos, Team& team);
+			Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			Vec3 GetPosition();
 			void SetPosition(Vec3 pos);

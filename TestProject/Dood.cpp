@@ -70,7 +70,6 @@ namespace Test
 		rbody_to_posey(),
 		bone_to_rbody(),
 		constraints(),
-		orientation_constraint(NULL),
 		physics(NULL),
 		mphys(mphys),
 		standing(0),
@@ -178,6 +177,11 @@ namespace Test
 	{
 		Pawn::Update(time);
 
+		if(time.total > 1.0f)
+		{
+			Die(Damage());
+		}
+
 		pos = GetPosition();
 
 		float timestep = time.elapsed;
@@ -191,15 +195,12 @@ namespace Test
 
 		Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
 
-		Vec3 delta_v = vel - this->vel;
-
 		// TODO: make this work again sometime
 		// collision damage!
+		//Vec3 delta_v = vel - this->vel;
 		//float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
 		//if (falling_damage_base > 0)
 		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
-
-		orientation_constraint->desired_ori = Quaternion::FromPYR(0, -yaw, 0);
 
 		this->vel = vel;
 
@@ -374,26 +375,36 @@ namespace Test
 			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 			{
 				JointConstraint* constraint = (JointConstraint*)(*iter);
+				RigidBody* obj_a = constraint->obj_a;
+				RigidBody* obj_b = constraint->obj_b;
 				
+				int a_index = 0, b_index = 0;					// actually stores index + 1; this way we can use them as conditions for if statements
+
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 				{
-					RigidBody* ibody = rigid_bodies[i];
-					if(ibody == constraint->obj_a)
+					if(rigid_bodies[i] == obj_a)
 					{
-						for(unsigned int j = i + 1; j < rigid_bodies.size(); ++j)
-						{
-							RigidBody* jbody = rigid_bodies[j];
-							if(jbody == constraint->obj_b)
-							{
-								Bone* i_bone = rbody_to_posey[i];
-								Bone* j_bone = rbody_to_posey[j];
-
-								constraint->SetDesiredOrientation(j_bone->ori);
-
-								i = j = rigid_bodies.size();			// skip to end of these two for loops
-							}
-						}
+						a_index = i + 1;
+						if(b_index)
+							break;
 					}
+					else if(rigid_bodies[i] == obj_b)
+					{
+						b_index = i + 1;
+						if(a_index)
+							break;
+					}
+				}
+
+				if(a_index && b_index)
+				{
+					Bone* i_bone = rbody_to_posey[a_index - 1];
+					Bone* j_bone = rbody_to_posey[b_index - 1];
+
+					if(i_bone == j_bone->parent)
+						constraint->SetDesiredOrientation(j_bone->ori);
+					else
+						constraint->SetDesiredOrientation(Quaternion::Reverse(i_bone->ori));
 				}
 			}
 
@@ -422,35 +433,37 @@ namespace Test
 		// given string id, get index of rigid body
 		map<unsigned int, unsigned int> name_indices;
 
-		// create rigid bodies
+		// create rigid bodies and shootables
 		for(unsigned int i = 0; i < count; ++i)
 		{
-			if(ModelPhysics::BonePhysics* phys = &mphys->bones[i])
+			ModelPhysics::BonePhysics& phys = mphys->bones[i];
+
+			CollisionShape* shape = phys.collision_shape;
+			if(shape != NULL)
 			{
-				CollisionShape* shape = phys->collision_shape;
-				if(shape != NULL)
-				{
-					RigidBody* rigid_body = new RigidBody(shape, phys->mass_info, pos);
+				RigidBody* rigid_body = new RigidBody(shape, phys.mass_info, pos);
 
-					rigid_body->SetDamp(0.05f);
+				rigid_body->SetDamp(0.05f);
 
-					unsigned int bone_name = Bone::string_table[phys->bone_name];
-					name_indices[bone_name] = rigid_bodies.size();
+				unsigned int bone_name = Bone::string_table[phys.bone_name];
+				name_indices[bone_name] = rigid_bodies.size();
 
-					physics->AddRigidBody(rigid_body);
-					rigid_bodies.push_back(rigid_body);
+				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+					rigid_body->SetCollisionEnabled(*iter, false);		// disables collisions both ways
 
-					BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
-					rigid_body->SetUserEntity(shootable);
-					rigid_body->SetCollisionCallback(&collision_callback);
+				physics->AddRigidBody(rigid_body);
+				rigid_bodies.push_back(rigid_body);
 
-					shootables.push_back(shootable);
+				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
+				rigid_body->SetUserEntity(shootable);
+				rigid_body->SetCollisionCallback(&collision_callback);
 
-					rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
+				shootables.push_back(shootable);
 
-					if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
-						root_rigid_body = rigid_body;
-				}
+				rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
+
+				if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
+					root_rigid_body = rigid_body;
 			}
 		}
 
@@ -475,7 +488,7 @@ namespace Test
 			}
 		}
 
-		// populate bone to rigid body table, and emancipate bones which have rigid bodies
+		// populate bone-to-rigid-body table, and emancipate bones which have rigid bodies
 		for(vector<Bone*>::iterator iter = character->skeleton->bones.begin(); iter != character->skeleton->bones.end(); ++iter)
 		{
 			Bone* bone = *iter;
@@ -495,9 +508,6 @@ namespace Test
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
 		}
-
-		orientation_constraint = new DoodOrientationConstraint(this);
-		//physics->AddConstraint(orientation_constraint);
 	}
 
 	void Dood::DeSpawned()
@@ -516,13 +526,6 @@ namespace Test
 			delete c;
 		}
 		constraints.clear();
-
-		if(orientation_constraint != NULL)
-		{
-			physics->RemoveConstraint(orientation_constraint);
-			delete orientation_constraint;
-			orientation_constraint = NULL;
-		}
 
 		// clear rigid bodies
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
@@ -578,10 +581,18 @@ namespace Test
 		MaybeDoScriptedDeath(this);
 
 		// TODO: revise this; we don't have a Corpse class anymore; a ragdoll is just a dead Dood
+		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
+				jc->enable_motor = false;
+
+		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			for(vector<RigidBody*>::iterator jter = iter; jter != rigid_bodies.end(); ++jter)
+				if(iter != jter)
+					(*iter)->SetCollisionEnabled(*jter, true);
 
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
-		is_valid = false;
+		//is_valid = false;
 	}
 
 	bool Dood::GetAmmoFraction(float& result)

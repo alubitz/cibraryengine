@@ -28,6 +28,7 @@ namespace CibraryEngine
 
 			set<PhysicsRegion*> regions;
 			set<PhysicsConstraint*> constraints;
+			set<RigidBody*> disabled_collisions;
 
 			Vec3 pos;
 			Vec3 vel;
@@ -161,6 +162,8 @@ namespace CibraryEngine
 			CollisionCallback* GetCollisionCallback();
 
 			CollisionShape* GetCollisionShape();
+
+			void SetCollisionEnabled(RigidBody* other, bool enabled);
 
 			/** Gets AABB to be used for collision detection for this object. Timestep is only really relevant for rays and spheres */
 			AABB GetAABB(float timestep);

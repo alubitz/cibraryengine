@@ -724,6 +724,11 @@ namespace CibraryEngine
 			(*iter)->RemoveRigidBody(r);
 		r->regions.clear();
 
+		const set<RigidBody*>& disabled_collisions = r->disabled_collisions;
+		for(set<RigidBody*>::iterator iter = disabled_collisions.begin(); iter != disabled_collisions.end(); ++iter)
+			(*iter)->disabled_collisions.erase(r);
+		r->disabled_collisions.clear();
+
 		// TODO: break rigid body's constraints
 	}
 

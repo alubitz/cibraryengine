@@ -187,8 +187,20 @@ namespace Test
 						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
 						jump_accel_vec += lateral_accel * (flying_accel);
 
+						float total_mass = 0.0f;
+
 						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-							(*iter)->ApplyCentralForce(jump_accel_vec * (*iter)->GetMassInfo().mass);
+							total_mass += (*iter)->GetMassInfo().mass;
+
+						Vec3 apply_force = jump_accel_vec * total_mass;
+						
+						vector<RigidBody*> jet_bones;
+						for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
+							if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
+								jet_bones.push_back(bone_to_rbody[i]);
+
+						for(vector<RigidBody*>::iterator iter = jet_bones.begin(); iter != jet_bones.end(); ++iter)
+							(*iter)->ApplyCentralForce(apply_force / float(jet_bones.size()));
 					}
 				}
 				else
@@ -312,7 +324,7 @@ namespace Test
 					{
 						if(jc->obj_a == body_1 && jc->obj_b == body_2 || jc->obj_a == body_2 && jc->obj_b == body_1)
 						{
-							jc->orient_absolute = true;
+							//jc->orient_absolute = true;
 							break;
 						}
 					}

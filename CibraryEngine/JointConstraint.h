@@ -22,6 +22,8 @@ namespace CibraryEngine
 			Mat3 moi;
 			Vec3 apply_pos;
 			Vec3 desired_av, desired_dv;
+			unsigned int rot_limits;
+			Vec3 oriented_axes[3];
 
 		public:
 
