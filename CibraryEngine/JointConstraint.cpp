@@ -35,7 +35,8 @@ namespace CibraryEngine
 
 		bool wakeup = false;
 
-		// force to keep the two halves of the joint together
+
+		// linear stuff
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
 
 		Vec3 dv = desired_dv - current_dv;
@@ -52,37 +53,41 @@ namespace CibraryEngine
 		}
 
 
+		// angular stuff
+		Vec3 a_avel = obj_a->GetAngularVelocity();
+		Vec3 b_avel = obj_b->GetAngularVelocity();
+		Vec3 current_av = b_avel - a_avel;
+		Vec3 alpha;				// delta-angular-velocity
+
 		// torque to make the joint conform to a pose
-		Vec3 alpha;
-
-		// TODO: instead of enforcing joint limits AFTER the motor does its thing, don't let the motor try to violate joint limits
 		if(enable_motor)
-		{
-			Vec3 current_av = orient_absolute ? obj_b->GetAngularVelocity() : obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity();
-
-			alpha = (desired_av - current_av) * -angular_vel_coeff;
-		}
-
+			alpha = (desired_av - (orient_absolute ? b_avel : current_av)) * -angular_vel_coeff;
 
 		// enforce joint rotation limits
-		if(rot_limits)
+		const float inv_foresight = 360.0f;
+		const float foresight = 1.0f / inv_foresight;
+
+		Vec3 proposed_av = current_av - alpha;
+		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av * foresight);
+		Vec3 proposed_pyr = oriented_axes * proposed_ori.ToPYR();
+
+		bool any_changes = false;
+		if(proposed_pyr.x < min_extents.x)		{ proposed_pyr.x = min_extents.x; any_changes = true; }
+		else if(proposed_pyr.x > max_extents.x)	{ proposed_pyr.x = max_extents.x; any_changes = true; }
+		if(proposed_pyr.y < min_extents.y)		{ proposed_pyr.y = min_extents.y; any_changes = true; }
+		else if(proposed_pyr.y > max_extents.y)	{ proposed_pyr.y = max_extents.y; any_changes = true; }
+		if(proposed_pyr.z < min_extents.z)		{ proposed_pyr.z = min_extents.z; any_changes = true; }
+		else if(proposed_pyr.z > max_extents.z)	{ proposed_pyr.z = max_extents.z; any_changes = true; }
+
+		if(any_changes)
 		{
-			Vec3 current_av = (obj_b->GetAngularVelocity() - obj_a->GetAngularVelocity()) - alpha;
+			// at least one rotation limit was violated, so we must recompute alpha
+			Vec3 actual_pyr = reverse_oriented_axes * proposed_pyr;
+			Quaternion actual_ori = Quaternion::FromPYR(actual_pyr);
+			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_foresight;
 
-			const unsigned int oxo1[] = { 0x01, 0x04, 0x10 };
-			const unsigned int oxo3[] = { 0x03, 0x0C, 0x18 };
-
-			for(int i = 0; i < 3; ++i)			// go through limits for each axis
-				if(rot_limits & oxo3[i])
-				{
-					const Vec3& axis = oriented_axes[i];
-					float dot = Vec3::Dot(current_av, axis);
-
-					if((rot_limits & oxo1[i]) ? dot < 0.0f : dot > 0.0f)
-						alpha += axis * dot;
-				}
+			alpha = current_av - actual_av;
 		}
-
 
 		// apply angular velocity changes
 		if(alpha.ComputeMagnitudeSquared() > 0.0f)
@@ -108,46 +113,27 @@ namespace CibraryEngine
 		static const float pyr_coeff =			360.0f;			// based on the assumption of physics running at 360hz (maybe requires changing?)
 		static const float spring_coeff =		360.0f;
 
+		Quaternion a_ori = obj_a->GetOrientation();
+		Quaternion b_ori = obj_b->GetOrientation();
+
+		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
+		b_to_a = Quaternion::Reverse(a_to_b);
+
 		// torque to make the joint conform to a pose
 		if(enable_motor)
 		{
 			if(orient_absolute)
-				desired_av = (inv_desired * obj_b->GetOrientation()).ToPYR() * (-pyr_coeff);
+				desired_av = (inv_desired * b_ori).ToPYR() * (-pyr_coeff);
 			else
-			{
-				Quaternion a_ori = inv_desired * obj_a->GetOrientation();
-				Quaternion b_ori = obj_b->GetOrientation();
-				Quaternion a_to_b = Quaternion::Reverse(a_ori) * b_ori;
-				Vec3 pyr = -a_to_b.ToPYR();
-
-				desired_av = pyr * pyr_coeff;
-			}
+				desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * -pyr_coeff;
 
 			moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		}
 
 
 		// enforce joint rotation limits
-		Quaternion a_to_b = Quaternion::Reverse(obj_a->GetOrientation()) * obj_b->GetOrientation();
-
-		Mat3 oriented_axes = obj_a->GetOrientation().ToMat3() * axes;
-		this->oriented_axes[0] = Vec3(oriented_axes[0], oriented_axes[1], oriented_axes[2]);
-		this->oriented_axes[1] = Vec3(oriented_axes[3], oriented_axes[4], oriented_axes[5]);
-		this->oriented_axes[2] = Vec3(oriented_axes[6], oriented_axes[7], oriented_axes[8]);
-		
-		Vec3 pyr = oriented_axes * a_to_b.ToPYR();
-
-		rot_limits = 0;
-
-		if(pyr.x < min_extents.x)		{ rot_limits |= 0x01; }
-		else if(pyr.x > max_extents.x)	{ rot_limits |= 0x02; }
-
-		if(pyr.y < min_extents.y)		{ rot_limits |= 0x04; }
-		else if(pyr.y > max_extents.y)	{ rot_limits |= 0x08; }
-
-		if(pyr.z < min_extents.z)		{ rot_limits |= 0x10; }
-		else if(pyr.z > max_extents.z)	{ rot_limits |= 0x20; }
-
+		oriented_axes = a_ori.ToMat3() * axes;
+		reverse_oriented_axes = oriented_axes.Transpose();
 
 		// force to keep the two halves of the joint together
 		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
