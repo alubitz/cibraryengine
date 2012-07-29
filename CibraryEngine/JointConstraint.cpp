@@ -24,8 +24,6 @@ namespace CibraryEngine
 		enable_motor(true),
 		orient_absolute(false)
 	{
-		this->min_extents = Vec3(-0.01f, -0.01f, -0.01f);
-		this->max_extents = Vec3(0.01f, 0.01f, 0.01f);
 	}
 
 	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
@@ -40,12 +38,10 @@ namespace CibraryEngine
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
 
 		Vec3 dv = desired_dv - current_dv;
-		float mag = dv.ComputeMagnitude();
-		if(mag > 0)
+		float magsq = dv.ComputeMagnitudeSquared();
+		if(magsq > 0.0f)
 		{
-			dv /= mag;
-
-			Vec3 impulse = dv * (-mag * dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv));
+			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
 			obj_a->ApplyWorldImpulse(impulse, apply_pos);
 			obj_b->ApplyWorldImpulse(-impulse, apply_pos);
 
@@ -57,7 +53,8 @@ namespace CibraryEngine
 		Vec3 a_avel = obj_a->GetAngularVelocity();
 		Vec3 b_avel = obj_b->GetAngularVelocity();
 		Vec3 current_av = b_avel - a_avel;
-		Vec3 alpha;				// delta-angular-velocity
+
+		Vec3 alpha;												// delta-angular-velocity
 
 		// torque to make the joint conform to a pose
 		if(enable_motor)
@@ -68,8 +65,8 @@ namespace CibraryEngine
 		const float foresight = 1.0f / inv_foresight;
 
 		Vec3 proposed_av = current_av - alpha;
-		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av * foresight);
-		Vec3 proposed_pyr = oriented_axes * proposed_ori.ToPYR();
+		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * foresight, proposed_av.y * foresight, proposed_av.z * foresight);
+		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
 
 		bool any_changes = false;
 		if(proposed_pyr.x < min_extents.x)		{ proposed_pyr.x = min_extents.x; any_changes = true; }
@@ -83,7 +80,7 @@ namespace CibraryEngine
 		{
 			// at least one rotation limit was violated, so we must recompute alpha
 			Vec3 actual_pyr = reverse_oriented_axes * proposed_pyr;
-			Quaternion actual_ori = Quaternion::FromPYR(actual_pyr);
+			Quaternion actual_ori = Quaternion::FromPYR(-actual_pyr);
 			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_foresight;
 
 			alpha = current_av - actual_av;
@@ -125,15 +122,15 @@ namespace CibraryEngine
 			if(orient_absolute)
 				desired_av = (inv_desired * b_ori).ToPYR() * (-pyr_coeff);
 			else
-				desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * -pyr_coeff;
+				desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * (-pyr_coeff);
 
 			moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		}
 
 
-		// enforce joint rotation limits
 		oriented_axes = a_ori.ToMat3() * axes;
 		reverse_oriented_axes = oriented_axes.Transpose();
+
 
 		// force to keep the two halves of the joint together
 		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);

@@ -145,8 +145,9 @@ namespace CibraryEngine
 
 		Vec3 cam_right = camera_view->GetRight() * radius;
 		Vec3 cam_up = camera_view->GetUp() * radius;
-		Vec3 use_right = cam_right * cos(angle) + cam_up * sin(angle);
-		Vec3 use_up = cam_right * -sin(angle) + cam_up * cos(angle);
+		float cos_val = cosf(angle), sin_val = sinf(angle);
+		Vec3 use_right = cam_right * cos_val + cam_up * sin_val;
+		Vec3 use_up = cam_right * -sin_val + cam_up * cos_val;
 
 		glTexCoord3f(0, 0, third_coord);
 		PMNDVert(pos - use_right - use_up);

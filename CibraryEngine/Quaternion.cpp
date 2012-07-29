@@ -10,20 +10,6 @@ namespace CibraryEngine
 	/*
 	 * Quaternion methods
 	 */
-	Vec3 Quaternion::ToPYR() const
-	{
-		Vec3 axis(x, y, z);
-		float sine_sq = axis.ComputeMagnitudeSquared();
-		if(sine_sq == 0.0)
-			return Vec3();
-		else
-		{
-			float half = atan2f(sqrtf(sine_sq), w);
-			float angle = half * 2.0f;
-			return Vec3::Normalize(axis, angle);
-		}
-	}
-
 	Mat3 Quaternion::ToMat3() const
 	{
 		Quaternion n = Normalize(*this);				// normalized copy
@@ -37,15 +23,6 @@ namespace CibraryEngine
 		);
 	}
 
-	void Quaternion::operator *=(const Quaternion& right)
-	{
-		float w_ = w * right.w - x * right.x - y * right.y - z * right.z;
-		float x_ = w * right.x + x * right.w + y * right.z - z * right.y;
-		float y_ = w * right.y + y * right.w + z * right.x - x * right.z;
-		float z_ = w * right.z + z * right.w + x * right.y - y * right.x;
-
-		w = w_; x = x_; y = y_; z = z_;
-	}
 	Vec3 Quaternion::operator *(const Vec3& right) const { return ToMat3() * right; }
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
@@ -55,7 +32,7 @@ namespace CibraryEngine
 		float t = arr[0] + arr[4] + arr[8] + 1.0f;
 		if (t > 0)
 		{
-			float s = 0.5f / sqrt(t);
+			float s = 0.5f / sqrtf(t);
 			return Quaternion::Normalize(Quaternion(
 				0.25f / s,
 				(arr[7] - arr[5]) * s,
@@ -67,7 +44,7 @@ namespace CibraryEngine
 		{
 			if (arr[0] > arr[4] && arr[0] > arr[8])
 			{
-				float s = 2.0f * sqrt(1.0f + arr[0] - arr[4] - arr[8]);
+				float s = 2.0f * sqrtf(1.0f + arr[0] - arr[4] - arr[8]);
 				return Quaternion::Normalize(Quaternion(
 					(arr[5] + arr[7]) / s,
 					0.25f * s,
@@ -77,7 +54,7 @@ namespace CibraryEngine
 			}
 			else if (arr[4] > arr[0] && arr[4] > arr[8])
 			{
-				float s = 2.0f * sqrt(1.0f + arr[4] - arr[0] - arr[8]);
+				float s = 2.0f * sqrtf(1.0f + arr[4] - arr[0] - arr[8]);
 				return Quaternion::Normalize(Quaternion(
 					(arr[2] + arr[6]) / s,
 					(arr[1] + arr[3]) / s,
@@ -87,7 +64,7 @@ namespace CibraryEngine
 			}
 			else
 			{
-				float s = 2.0f * sqrt(1.0f + arr[8] - arr[0] - arr[4]);
+				float s = 2.0f * sqrtf(1.0f + arr[8] - arr[0] - arr[4]);
 				return Quaternion::Normalize(Quaternion(
 					(arr[1] + arr[3]) / s,
 					(arr[2] + arr[6]) / s,
@@ -96,13 +73,6 @@ namespace CibraryEngine
 				));
 			}
 		}
-	}
-
-	Quaternion Quaternion::FromPYR(const Vec3& pyrVector) { return Quaternion::FromPYR(pyrVector.x, pyrVector.y, pyrVector.z); }
-	Quaternion Quaternion::FromPYR(float p, float y, float r)
-	{
-		float mag = Vec3::Magnitude(p, y, r), inv = (mag == 0 ? 1.0f : 1.0f / mag);
-		return Quaternion::FromAxisAngle(p * inv, y * inv, r * inv, mag);
 	}
 
 

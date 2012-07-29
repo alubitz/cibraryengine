@@ -118,7 +118,7 @@ namespace CibraryEngine
 			end_pos -= desired_end_pos;
 			end_ori -= desired_end_ori;
 
-			float score = end_pos.ComputeMagnitudeSquared() + end_ori.w * end_ori.w + end_ori.x * end_ori.x + end_ori.y * end_ori.y + end_ori.z * end_ori.z;
+			float score = end_pos.ComputeMagnitudeSquared() + end_ori.NormSquared();
 			if(best_score == -1 || score < best_score)
 			{
 				best_score = score;

@@ -25,7 +25,7 @@ namespace CibraryEngine
 			float mag_sq = x * x + y * y + z * z;
 			if (mag_sq == 0 || mag_sq > 1)
 				continue;
-			float inv = len / sqrt(mag_sq);
+			float inv = len / sqrtf(mag_sq);
 			return Vec3(x * inv, y * inv, z * inv);
 		}
 	}
@@ -38,7 +38,7 @@ namespace CibraryEngine
 			float mag_sq = x * x + y * y;
 			if (mag_sq == 0 || mag_sq > 1)
 				continue;
-			float inv = len / sqrt(mag_sq);
+			float inv = len / sqrtf(mag_sq);
 			return Vec2(x * inv, y * inv);
 		}
 	}

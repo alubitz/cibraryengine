@@ -92,7 +92,7 @@ namespace CibraryEngine
 		{
 			return Vec3(
 				b.x * values[0] + b.y * values[1] + b.z * values[2],
-				b.x * values[3] +b.y * values[4] + b.z * values[5],
+				b.x * values[3] + b.y * values[4] + b.z * values[5],
 				b.x * values[6] + b.y * values[7] + b.z * values[8]);
 		}
 		/** Transforms a 3x3 matrix by another 3x3 matrix */

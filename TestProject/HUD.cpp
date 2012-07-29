@@ -308,7 +308,7 @@ namespace Test
 		for (int i = 0; i <= ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
-			glVertex2f(cos(theta), sin(theta));
+			glVertex2f(cosf(theta), sinf(theta));
 		}
 		glEnd();
 
@@ -375,7 +375,7 @@ namespace Test
 		for (int i = 0; i < ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
-			glVertex2f(cos(theta), sin(theta));
+			glVertex2f(cosf(theta), sinf(theta));
 		}
 		glEnd();
 	}
@@ -612,7 +612,7 @@ namespace Test
 		{
 			from_direction = from_direction / mag;
 
-			Vec3 forward = Vec3(-sin(hud->player->yaw), 0, cos(hud->player->yaw));
+			Vec3 forward = Vec3(-sinf(hud->player->yaw), 0, cosf(hud->player->yaw));
 			Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
 			for (int i = 0; i < 8; ++i)

@@ -25,7 +25,7 @@ namespace CibraryEngine
 	{
 		float magprodsq = a.normal.ComputeMagnitudeSquared() * b.normal.ComputeMagnitudeSquared();		// although the magnitude of the normals SHOULD be 1... maybe somebody did something funky
 		float dot = Vec3::Dot(a.normal, b.normal);
-		float aparallelness = 1.0f - sqrt((dot * dot) / magprodsq);								// closer to parallel yields smaller values of this
+		float aparallelness = 1.0f - sqrtf((dot * dot) / magprodsq);								// closer to parallel yields smaller values of this
 		aparallelness *= aparallelness;
 
 		float a_from_b = b.PointDistance(a.normal * a.offset);
@@ -48,7 +48,7 @@ namespace CibraryEngine
 			result = Line(Vec3(), Vec3());					// not a valid line!
 			return false;
 		}
-		float invmag = 1.0f / sqrt(magsq);
+		float invmag = 1.0f / sqrtf(magsq);
 		Vec3 line_direction = cross * invmag;
 		// using plane a to find intersection (also could try b?)
 		Vec3 in_a_toward_edge = Vec3::Normalize(Vec3::Cross(a.normal, line_direction));

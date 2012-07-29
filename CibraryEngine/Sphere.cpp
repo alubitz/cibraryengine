@@ -70,11 +70,11 @@ namespace CibraryEngine
 		Vec3 to_occluding = occluding.center - viewer;
 		Vec3 to_hidden = hidden.center - viewer;
 		float occluding_mag = to_occluding.ComputeMagnitude(), hidden_mag = to_hidden.ComputeMagnitude();
-		float occluding_subtended_angle = asin(occluding.radius / occluding_mag);
-		float hidden_subtended_angle = asin(hidden.radius / hidden_mag);
+		float occluding_subtended_angle = asinf(occluding.radius / occluding_mag);
+		float hidden_subtended_angle = asinf(hidden.radius / hidden_mag);
 		if (occluding_subtended_angle < hidden_subtended_angle)
 			return false;
 		else
-			return (acos(Vec3::Dot(to_occluding, to_hidden) / (occluding_mag * hidden_mag))) < occluding_subtended_angle - hidden_subtended_angle;
+			return (acosf(Vec3::Dot(to_occluding, to_hidden) / (occluding_mag * hidden_mag))) < occluding_subtended_angle - hidden_subtended_angle;
 	}
 }

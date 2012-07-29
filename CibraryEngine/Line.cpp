@@ -12,7 +12,7 @@ namespace CibraryEngine
 	{
 		float magprodsq = a.direction.ComputeMagnitudeSquared() * b.direction.ComputeMagnitudeSquared();
 		float dot = Vec3::Dot(a.direction, b.direction);
-		float aparallelness = 1.0f - sqrt((dot * dot) / magprodsq);					// closer to parallel yields smaller values of this
+		float aparallelness = 1.0f - sqrtf((dot * dot) / magprodsq);					// closer to parallel yields smaller values of this
 		aparallelness *= aparallelness;
 
 		Plane plane_a = Plane::FromPositionNormal(a.origin, a.direction);

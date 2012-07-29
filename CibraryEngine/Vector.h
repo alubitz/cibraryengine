@@ -24,13 +24,13 @@ namespace CibraryEngine
 		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
 		float ComputeMagnitudeSquared()						{ return x * x + y * y; }
 		/** Returns the magnitude of the vector */
-		float ComputeMagnitude()							{ return sqrt(x * x + y * y); }
+		float ComputeMagnitude()							{ return sqrtf(x * x + y * y); }
 
 		/** Computes the dot product of two vectors */
 		static float Dot(const Vec2& a, const Vec2& b)		{ return a.x * b.x + a.y * b.y; }
 
 		/** Computes the magnitude of a vector with the given x and y components */
-		static float Magnitude(float x, float y)			{ return sqrt(x * x + y * y); }
+		static float Magnitude(float x, float y)			{ return sqrtf(x * x + y * y); }
 		/** Computes the square of the magnitude of a vector with the given x and y components (one less step than taking a square root) */
 		static float MagnitudeSquared(float x, float y)		{ return x * x + y * y; }
 
@@ -89,7 +89,7 @@ namespace CibraryEngine
 		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
 		float ComputeMagnitudeSquared() const				{ return x * x + y * y + z * z; }
 		/** Returns the magnitude of the vector */
-		float ComputeMagnitude() const						{ return sqrt(x * x + y * y + z * z); }
+		float ComputeMagnitude() const						{ return sqrtf(x * x + y * y + z * z); }
 
 		
 
@@ -104,7 +104,7 @@ namespace CibraryEngine
 		static Vec3 Normalize(const Vec3& a, float len)		{ return a * (len / a.ComputeMagnitude()); }
 
 		/** Computes the magnitude of a vector with the given x, y, and z components */
-		static float Magnitude(float x, float y, float z)				{ return sqrt(x * x + y * y + z * z); }
+		static float Magnitude(float x, float y, float z)				{ return sqrtf(x * x + y * y + z * z); }
 		/** Computes the square of the magnitude of a vector with the given x, y, and z components (one less step than taking a square root) */
 		static float MagnitudeSquared(float x, float y, float z)		{ return x * x + y * y + z * z; }
 
@@ -167,7 +167,7 @@ namespace CibraryEngine
 		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
 		float ComputeMagnitudeSquared()						{ return x * x + y * y + z * z + w * w; }
 		/** Returns the magnitude of the vector */
-		float ComputeMagnitude()							{ return sqrt(x * x + y * y + z * z + w * w); }
+		float ComputeMagnitude()							{ return sqrtf(x * x + y * y + z * z + w * w); }
 
 		
 		/** Computes the dot product of two vectors */
