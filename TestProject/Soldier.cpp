@@ -26,87 +26,6 @@ namespace Test
 
 
 
-	
-	IKAnimation* MakeTurnLeft()
-	{
-		IKAnimation* result = new IKAnimation();
-
-		result->bones.push_back("pelvis");
-		result->bones.push_back("l foot");
-		result->bones.push_back("r foot");
-
-		result->chains.push_back(IKAnimation::Chain(0, 1));
-		result->chains.push_back(IKAnimation::Chain(0, 2));
-
-		float frame_duration = 0.6f;
-
-		{	// frame 0
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 1);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.1f,	-0.1f),		Quaternion::FromPYR(0,		-0.5f,		0),		1.0f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.1f,	0.25f,	0.1f),		Quaternion::FromPYR(0,		-0.5f,		0.25f),	0.0f));
-			result->frames.push_back(kf);
-		}
-
-		{	// frame 1
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 2);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.1f,	-0.2f),		Quaternion::FromPYR(0,		-1.0f,		0),	0.5f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.2f,	0.1f,	0.15f),		Quaternion::FromPYR(0,		-1.0f,		0),	0.5f));
-			result->frames.push_back(kf);
-		}
-
-		{	// frame 2
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, -1);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(),							Quaternion::Identity(),						0.5f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(),							Quaternion::Identity(),						0.5f));
-			result->frames.push_back(kf);
-		}
-
-
-
-		/*
-		{	// frame 0
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 1);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.25f,	-0.1f),		Quaternion::FromPYR(0,		-0.5f,		0),	0.0f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(0,		0.05f,	0.05f),		Quaternion::FromPYR(0,		0.5f,		0),	1.0f));
-			result->frames.push_back(kf);
-		}
-
-		{	// frame 1
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 2);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.1f,	0,		-0.2f),		Quaternion::FromPYR(0,		-1,			0),	0.5f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.1f,	0,		0.05f),		Quaternion::FromPYR(0,		1,			0),	0.5f));
-			result->frames.push_back(kf);
-		}
-
-		{	// frame 2
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, 3);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(0.05f,	0.05f,	-0.05f),	Quaternion::FromPYR(0,		-0.5f,		0),	1.0f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(-0.05f,	0.25f,	0.05f),		Quaternion::FromPYR(0,		0.5f,		0),	0.0f));
-			result->frames.push_back(kf);
-		}
-
-		{	// frame 3
-			IKAnimation::Keyframe kf = IKAnimation::Keyframe(frame_duration, -1);
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(0, Vec3(),							Quaternion::Identity(),						0.5f));
-			kf.chain_states.push_back(IKAnimation::Keyframe::ChainState(1, Vec3(),							Quaternion::Identity(),						0.5f));
-			result->frames.push_back(kf);
-		}
-		*/
-
-		return result;
-	}
-
-	IKAnimation* MakeTurnRight()
-	{
-		IKAnimation* result = new IKAnimation();
-
-		// TODO: implement this
-
-		return result;
-	}
-
-
-
 
 	/*
 	 * Soldier methods
@@ -116,8 +35,6 @@ namespace Test
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		ik_pose(NULL),
-		turn_left(NULL),
-		turn_right(NULL),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -126,21 +43,20 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
+		ik_pose = new IKWalkPose(posey->skeleton, character->skeleton, Bone::string_table["pelvis"], mphys);
+		ik_pose->AddEndEffector(Bone::string_table["l foot"]);
+		ik_pose->AddEndEffector(Bone::string_table["r foot"]);
+		posey->active_poses.push_back(ik_pose);
+
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
 		jet_loop_sound = sound_cache->Load("jet_loop");
-
-		turn_left = MakeTurnLeft();
-		turn_right = MakeTurnRight();
 	}
 
 	void Soldier::InnerDispose()
 	{
-		delete turn_left;
-		delete turn_right;
-
 		Dood::InnerDispose();
 	}
 
@@ -265,26 +181,6 @@ namespace Test
 		const float between_steps = 0.0f;
 
 		float now = time.total, finish = time.total + step_duration;
-
-		if(ik_pose == NULL || ik_pose->dead)
-		{
-			if(ik_pose)
-			{
-				ik_pose->SetActive(false);			// this will ensure it gets deleted
-				ik_pose = NULL;
-			}
-
-			//if(time.total > 0.5f)
-			//	ik_pose = new IKAnimationPose(turn_left, this);
-
-			if(angle < -max_torso_twist && turn_left)
-				ik_pose = new IKAnimationPose(turn_left, this);
-			//else if(angle > max_torso_twist && turn_right)
-			//	ik_pose = new IKAnimationPose(turn_right, this);
-
-			if(ik_pose)
-				posey->active_poses.push_back(ik_pose);
-		}
 
 		//p_ag->yaw = angle;
 	}

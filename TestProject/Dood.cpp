@@ -177,9 +177,6 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		if(time.total > 1.0f && hp > 0)
-			TakeDamage(Damage(NULL, hp + 1.0f), Vec3());
-
 		pos = GetPosition();
 
 		float timestep = time.elapsed;

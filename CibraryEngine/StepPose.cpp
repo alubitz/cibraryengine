@@ -80,7 +80,7 @@ namespace CibraryEngine
 			*(max_ptr++) = node.max_extents.y;
 			*(max_ptr++) = node.max_extents.z;
 
-			Vec3& vec = Mat3::Invert(node.axes) * node.target_ori.ToPYR();
+			Vec3 vec = Mat3::Invert(node.axes) * node.target_ori.ToPYR();
 			*(rot_ptr++) = max(node.min_extents.x, min(node.max_extents.x, vec.x));
 			*(rot_ptr++) = max(node.min_extents.y, min(node.max_extents.y, vec.y));
 			*(rot_ptr++) = max(node.min_extents.z, min(node.max_extents.z, vec.z));

@@ -6,6 +6,7 @@
 
 #include "../CibraryEngine/IKChain.h"
 #include "../CibraryEngine/IKAnimation.h"
+#include "../CibraryEngine/IKWalkPose.h"
 #include "../CibraryEngine/StepPose.h"
 
 namespace Test
@@ -13,8 +14,6 @@ namespace Test
 	struct BoneEntry;
 
 	class PoseAimingGun;
-
-	class IKAnimationPose;
 
 	class Soldier : public Dood
 	{
@@ -33,10 +32,7 @@ namespace Test
 			Bone* gun_hand_bone;
 
 			PoseAimingGun* p_ag;
-			IKAnimationPose* ik_pose;
-
-			IKAnimation* turn_left;
-			IKAnimation* turn_right;
+			IKWalkPose* ik_pose;
 
 			float jump_fuel;
 
