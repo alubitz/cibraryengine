@@ -85,7 +85,7 @@ namespace CibraryEngine
 	struct UTypeInfoComp { bool operator ()(const type_info* L , const type_info* R) { return L->before(*R) != 0; } };
 
 	/** Class representing a linked shader program, which exposes the uniform variables of that shader program */
-	class ShaderProgram
+	class ShaderProgram : public Disposable
 	{
 		private:
 
@@ -94,6 +94,10 @@ namespace CibraryEngine
 			void LinkProgram();
 
 			void Build();
+
+		protected:
+
+			void InnerDispose();
 
 		public:
 

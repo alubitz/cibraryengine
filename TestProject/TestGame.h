@@ -37,6 +37,8 @@ namespace Test
 			bool god_mode;
 			bool debug_draw;
 
+			bool quit;
+
 			BitmapFont* font;
 
 			int width, height;

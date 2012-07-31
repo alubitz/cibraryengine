@@ -74,6 +74,26 @@ namespace CibraryEngine
 	{
 	}
 
+	void ShaderProgram::InnerDispose()
+	{
+		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		{
+			boost::unordered_map<string, UniformVariable*>& m = iter->second;
+			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+				delete jter->second;
+
+			m.clear();
+		}
+		type_caches.clear();
+
+		glDeleteProgram(program_id);
+		program_id = 0;
+
+		// not deleting these because they are a separate Content item and may still be used elsewhere
+		vertex_shader = NULL;
+		fragment_shader = NULL;
+	}
+
 	void ShaderProgram::Build()
 	{
 		if(program_id != 0)

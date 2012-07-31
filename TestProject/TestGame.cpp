@@ -176,6 +176,20 @@ namespace Test
 				delete shadow_render_target;
 				shadow_render_target = NULL;
 			}
+
+			if(deferred_ambient != NULL)
+			{
+				deferred_ambient->Dispose();
+				delete deferred_ambient;
+				deferred_ambient = NULL;
+			}
+
+			if(deferred_lighting != NULL)
+			{
+				deferred_lighting->Dispose();
+				delete deferred_lighting;
+				deferred_lighting = NULL;
+			}
 		}
 
 		void DrawBackground(Mat4 view_matrix)
@@ -283,6 +297,7 @@ namespace Test
 		nav_editor(false),
 		god_mode(false),
 		debug_draw(false),
+		quit(false),
 		hud(NULL),
 		player_controller(NULL),
 		player_pawn(NULL),
@@ -409,7 +424,7 @@ namespace Test
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));	
+		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
 #if ENABLE_SHADOWS
 		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));
 		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
@@ -783,6 +798,11 @@ namespace Test
 		ScriptSystem::GetGlobalState().DoString(script_string);
 
 		GameState::Update(clamped_time);
+
+		if(total_game_time >= 1.0f)
+		{
+			quit = true;
+		}
 
 		NGDEBUG();
 	}

@@ -50,7 +50,7 @@ namespace CibraryEngine
 	}
 
 	void IKWalkPose::Seek(float timestep, float foresight)
-	{		
+	{
 		unsigned int num_variables = 0;
 		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 			num_variables += (*iter)->chain->bones.size();

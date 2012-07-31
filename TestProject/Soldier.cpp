@@ -9,7 +9,8 @@
 #include "WeaponEquip.h"
 
 #include "ConverterWhiz.h"
-#include "TestGame.h"
+
+#include "../CibraryEngine/NeuralNet.h"
 
 namespace Test
 {
@@ -25,6 +26,175 @@ namespace Test
 	float flying_accel = 8.0f;
 
 
+	struct MyNeuralNet
+	{
+		struct Data
+		{
+			unsigned int num_bones;
+			unsigned int num_end_effectors;
+			unsigned int num_joints;
+
+			NeuralNet ee_net;
+			NeuralNet bodies_and_ee;
+			NeuralNet hidden_layer_a;
+			NeuralNet hidden_layer_b;
+
+			Data(unsigned int num_bones, unsigned int num_end_effectors, unsigned int num_joints) : 
+				num_bones(num_bones),
+				num_end_effectors(num_end_effectors),
+				num_joints(num_joints),
+				ee_net			(1 + 8,												8),
+				bodies_and_ee	(1 + num_end_effectors * 8 + num_bones * 13 + 4,	num_joints * 3),
+				hidden_layer_a	(1 + num_joints * 3,								num_joints * 3),
+				hidden_layer_b	(1 + num_joints * 3,								num_joints * 3)
+			{
+			}
+
+			Data(const Data& other) :
+				num_bones(other.num_bones),
+				num_end_effectors(other.num_end_effectors),
+				num_joints(other.num_joints),
+				ee_net(other.ee_net),
+				bodies_and_ee(other.bodies_and_ee),
+				hidden_layer_a(other.hidden_layer_a),
+				hidden_layer_b(other.hidden_layer_b)
+			{
+
+			}
+
+			void Mutate(int count)
+			{
+				// each float across all 4 NNs has the same probability of being mutated
+				unsigned int ee = ee_net.num_inputs * ee_net.num_outputs;
+				unsigned int bodies = ee + bodies_and_ee.num_inputs * bodies_and_ee.num_outputs;
+				unsigned int ha = bodies + hidden_layer_a.num_inputs * hidden_layer_a.num_outputs;
+				unsigned int hb = ha + hidden_layer_a.num_inputs * hidden_layer_a.num_outputs;
+
+				if(count < 0)
+					count = Random3D::RandInt(1, 5);
+
+				for(int i = 0; i < count; ++i)
+				{
+					unsigned int muta = Random3D::RandInt(hb);
+
+					if(muta < ee)
+						ee_net.matrix[muta]						+= Random3D::Rand(-0.1f, 0.1f);
+					else if(muta < bodies)
+						bodies_and_ee.matrix[muta - ee]			+= Random3D::Rand(-0.1f, 0.1f);
+					else if(muta < ha)
+						hidden_layer_a.matrix[muta - bodies]	+= Random3D::Rand(-0.1f, 0.1f);
+					else
+						hidden_layer_b.matrix[muta - ha]		+= Random3D::Rand(-0.1f, 0.1f);
+				}
+			}
+		};
+		Data* data;
+
+		vector<RigidBody*> rigid_bodies;
+
+		struct EndEffector
+		{
+			Vec3 desired_pos;
+			Quaternion desired_ori;
+			float arrival_time;
+
+			EndEffector() : desired_pos(), desired_ori(Quaternion::Identity()), arrival_time(-1) { }
+		};
+		vector<EndEffector> ee_goals;
+
+		float arrival_time;
+		Vec3 carry_vel;
+
+		MyNeuralNet(unsigned int num_bones, unsigned int num_end_effectors, unsigned int num_joints, const vector<RigidBody*>& rigid_bodies) :
+			data(new Data(num_bones, num_end_effectors, num_joints)),
+			rigid_bodies(rigid_bodies),
+			ee_goals(),
+			arrival_time(-1)
+		{
+			for(unsigned int i = 0; i < num_end_effectors; ++i)
+				ee_goals.push_back(EndEffector());
+		}
+
+		void Solve(float now, const Vec3& pos_ref, float* outputs)
+		{
+			float* bodies_and_ee_inputs = new float[data->bodies_and_ee.num_inputs];
+			bodies_and_ee_inputs[0] = 1.0f;
+
+			float* ee_inputs = new float[data->ee_net.num_inputs];
+
+			unsigned int i = 0;
+			for(vector<EndEffector>::iterator iter = ee_goals.begin(); iter != ee_goals.end() && i < data->num_end_effectors; ++iter, ++i)
+			{
+				float* input_ptr = ee_inputs;
+
+				*(input_ptr++) = 1.0f;
+				*(input_ptr++) = iter->arrival_time - now;
+
+				Vec3 desired_pos = iter->desired_pos - pos_ref;
+				*(input_ptr++) = desired_pos.x;
+				*(input_ptr++) = desired_pos.y;
+				*(input_ptr++) = desired_pos.z;
+
+				*(input_ptr++) = iter->desired_ori.w;
+				*(input_ptr++) = iter->desired_ori.x;
+				*(input_ptr++) = iter->desired_ori.y;
+				*(input_ptr++) = iter->desired_ori.z;
+
+				data->ee_net.Multiply(ee_inputs, &bodies_and_ee_inputs[1 + 8 * i]);
+			}
+
+			delete[] ee_inputs;
+
+			float* bodies_ptr = &bodies_and_ee_inputs[1 + 8 * data->num_end_effectors];
+			i = 0;
+			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end() && i < data->num_bones; ++iter, ++i)
+			{
+				RigidBody* body = *iter;
+
+				Vec3 pos = body->GetPosition() - pos_ref;
+				*(bodies_ptr++) = pos.x;
+				*(bodies_ptr++) = pos.y;
+				*(bodies_ptr++) = pos.z;
+
+				Vec3 vel = body->GetLinearVelocity();
+				*(bodies_ptr++) = vel.x;
+				*(bodies_ptr++) = vel.y;
+				*(bodies_ptr++) = vel.z;
+
+				Quaternion ori = body->GetOrientation();
+				*(bodies_ptr++) = ori.w;
+				*(bodies_ptr++) = ori.x;
+				*(bodies_ptr++) = ori.y;
+				*(bodies_ptr++) = ori.z;
+
+				Vec3 rot = body->GetAngularVelocity();
+				*(bodies_ptr++) = rot.x;
+				*(bodies_ptr++) = rot.y;
+				*(bodies_ptr++) = rot.z;
+			}
+
+			*(bodies_ptr++) = arrival_time - now;
+			*(bodies_ptr++) = carry_vel.x;
+			*(bodies_ptr++) = carry_vel.y;
+			*(bodies_ptr++) = carry_vel.z;
+
+			float* hidden_layer_inputs = new float[data->hidden_layer_a.num_inputs];
+			hidden_layer_inputs[0] = 1.0f;
+
+			data->bodies_and_ee.Multiply(bodies_and_ee_inputs, &hidden_layer_inputs[1]);
+
+			delete[] bodies_and_ee_inputs;
+
+			data->hidden_layer_a.Multiply(hidden_layer_inputs, &hidden_layer_inputs[1]);
+			data->hidden_layer_b.Multiply(hidden_layer_inputs, outputs);
+
+			delete[] hidden_layer_inputs;
+		}
+	};
+
+	MyNeuralNet* my_neural_net = NULL;
+
+	vector<MyNeuralNet::Data*> gene_pool;
 
 
 	/*
@@ -154,39 +324,55 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(TimingInfo time)
 	{
-		return;
-
-		// turning in place
-		Vec3 yaw_fwd = Vec3(-sinf(yaw), 0, cosf(yaw));
-		Vec3 yaw_left = Vec3(yaw_fwd.z, 0, -yaw_fwd.x);
-
-		Mat4 pelvis_xform = Mat4::Translation(pos) * character->skeleton->GetNamedBone("pelvis")->GetTransformationMatrix();
-
-		Vec3 pelvis_fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
-		Vec3 pelvis_left = pelvis_xform.TransformVec3_0(1, 0, 0);
-		pelvis_fwd.y = 0;
-		pelvis_left.y = 0;
-		pelvis_fwd /= pelvis_fwd.ComputeMagnitude();				// HEADS UP! this is unstable when the forward vector is nearly vertical
-		pelvis_left /= pelvis_left.ComputeMagnitude();
-
-
-		float fwd_dot = Vec3::Dot(yaw_fwd, pelvis_fwd);
-		float side_dot = Vec3::Dot(yaw_left, pelvis_fwd);
-
-		float angle = asinf(side_dot);
-		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "angle = " << angle)).str();
-
-		const float max_torso_twist = 1.0f;
-		const float step_duration = 0.5f;
-		const float between_steps = 0.0f;
-
-		float now = time.total, finish = time.total + step_duration;
-
-		//p_ag->yaw = angle;
 	}
 
 	void Soldier::PostUpdatePoses(TimingInfo time)
 	{
+		// if he's ever upside-down, he fails
+		Bone* head = character->skeleton->GetNamedBone("head");
+		Vec3 head_pos = head->GetTransformationMatrix().TransformVec3_1(head->rest_pos);
+
+		Vec3 actual_com;
+		float mass = 0.0f;
+
+		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+		{
+			RigidBody* body = *iter;
+			MassInfo mass_info = body->GetTransformedMassInfo();
+
+			mass += mass_info.mass;
+			actual_com += mass_info.com * mass_info.mass;
+		}
+
+		actual_com /= mass;
+
+		if(head_pos.y < actual_com.y + 0.15f)
+		{
+			delete my_neural_net;
+			my_neural_net = NULL;
+		}
+
+
+		// if neural net hasn't been disqualified, have it process inputs and produce outputs
+		if(my_neural_net != NULL)
+		{
+			float* outputs = new float[rigid_bodies.size() * 3];
+
+			my_neural_net->Solve(time.total, pos, outputs);
+
+			float* ptr = outputs;
+			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			{
+				float x = *(ptr++), y = *(ptr++), z = *(ptr++);
+
+				if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
+					jc->SetDesiredOrientation(Quaternion::FromPYR(x, y, z));
+			}
+
+			delete[] outputs;
+		}
+
+		// position and orient the gun; DON'T DELETE THIS!
 		if(equipped_weapon != NULL && gun_hand_bone != NULL)
 		{
 			equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos);
@@ -199,40 +385,102 @@ namespace Test
 	{
 		Dood::Spawned();
 
-		unsigned int torso_1 = Bone::string_table["torso 1"];
-		unsigned int torso_2 = Bone::string_table["torso 2"];
 
-		RigidBody* body_1 = NULL;
-		RigidBody* body_2 = NULL;
 
-		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+		my_neural_net = new MyNeuralNet(rigid_bodies.size(), 2, constraints.size(), rigid_bodies);
+		my_neural_net->ee_goals[0].desired_ori = Quaternion::FromPYR(0, 1, 0);
+		my_neural_net->ee_goals[1].desired_ori = Quaternion::FromPYR(0, 1, 0);
+		if(!gene_pool.empty())
 		{
-			if(rbody_to_posey[i]->name == torso_1)
-				body_1 = rigid_bodies[i];
-			else if(rbody_to_posey[i]->name == torso_2)
-				body_2 = rigid_bodies[i];
+			delete my_neural_net->data;
 
-			if(body_1 && body_2)
-			{
-				for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				{
-					if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
-					{
-						if(jc->obj_a == body_1 && jc->obj_b == body_2 || jc->obj_a == body_2 && jc->obj_b == body_1)
-						{
-							//jc->orient_absolute = true;
-							break;
-						}
-					}
-				}
-
-				break;
-			}
+			// select a species randomly from the gene pool
+			my_neural_net->data = new MyNeuralNet::Data(*gene_pool[Random3D::RandInt(gene_pool.size())]);
 		}
+		my_neural_net->data->Mutate(1000);
 	}
 
 	void Soldier::DeSpawned()
 	{
+		if(my_neural_net != NULL)
+		{
+			// find how badly this neural net scored
+			float fail = 0.0f;
+
+			Vec3 lfoot, rfoot;
+			
+			for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
+				if(character->skeleton->bones[i]->name == Bone::string_table["l foot"])
+				{
+					RigidBody* rbody = bone_to_rbody[i];
+					lfoot = rbody->GetPosition();
+					
+					fail += (Quaternion::Reverse(my_neural_net->ee_goals[0].desired_ori) * rbody->GetOrientation()).NormSquared();
+					fail += (lfoot - my_neural_net->ee_goals[0].desired_pos).ComputeMagnitudeSquared();
+				}
+				else if(character->skeleton->bones[i]->name == Bone::string_table["r foot"])
+				{
+					RigidBody* rbody = bone_to_rbody[i];
+					rfoot = rbody->GetPosition();
+					
+					fail += (Quaternion::Reverse(my_neural_net->ee_goals[1].desired_ori) * rbody->GetOrientation()).NormSquared();
+					fail += (rfoot - my_neural_net->ee_goals[1].desired_pos).ComputeMagnitudeSquared();
+				}
+
+			Vec3 desired_com = (lfoot + rfoot) * 0.5f;
+			desired_com.y += 1.5f;
+
+			Vec3 actual_com, actual_vel;
+			float mass = 0.0f;
+
+			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+			{
+				RigidBody* body = *iter;
+				MassInfo mass_info = body->GetTransformedMassInfo();
+
+				mass += mass_info.mass;
+				actual_com += mass_info.com * mass_info.mass;
+				actual_vel += body->GetLinearVelocity() * mass_info.mass;
+			}
+
+			actual_com /= mass;
+			actual_vel /= mass;
+
+			float com_fail = (actual_com - desired_com).ComputeMagnitudeSquared();
+			fail += com_fail * com_fail;
+
+			fail += (actual_vel - my_neural_net->carry_vel).ComputeMagnitudeSquared();
+
+
+
+			// maybe add a few instances of this species to the gene pool
+			float score = min(10.0f, 5.0f / (fail + 0.02f));
+
+			int n = (int)score;
+			for(int i = 0; i < n; ++i)
+			{
+				MyNeuralNet::Data* data = new MyNeuralNet::Data(*my_neural_net->data);
+				gene_pool.push_back(data);
+			}
+
+			vector<MyNeuralNet::Data*> nu_gene_pool;
+			while(gene_pool.size() > 200)
+			{
+				unsigned int remove = Random3D::RandInt(gene_pool.size());
+				nu_gene_pool.clear();
+				for(unsigned int i = 0; i < gene_pool.size(); ++i)
+					if(i != remove)
+						nu_gene_pool.push_back(gene_pool[i]);
+					else
+						delete gene_pool[i];
+				gene_pool.assign(nu_gene_pool.begin(), nu_gene_pool.end());
+			}
+
+			delete my_neural_net->data;
+			delete my_neural_net;
+			my_neural_net = NULL;
+		}
+
 		Dood::DeSpawned();
 	}
 

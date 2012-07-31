@@ -40,7 +40,12 @@ namespace CibraryEngine
 		glDeleteFramebuffers(1, &my_fbo);
 
 		for(vector<Texture2D*>::iterator iter = my_textures.begin(); iter != my_textures.end(); ++iter)
-			delete *iter;
+		{
+			Texture2D* texture = *iter;
+
+			texture->Dispose();
+			delete texture;
+		}
 		my_textures.clear();
 
 		if(my_color_buffers.size() > 0)
