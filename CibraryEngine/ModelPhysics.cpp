@@ -435,6 +435,20 @@ namespace CibraryEngine
 							lua_pop(L, 1);
 						}
 
+						// special case where quaternion-and-back may break down
+						if(count == 2)
+						{
+							Vec3 cross = Vec3::Cross(Vec3(joint.axes[0], joint.axes[1], joint.axes[2]), Vec3(joint.axes[3], joint.axes[4], joint.axes[5]));
+
+							float magsq = cross.ComputeMagnitudeSquared();
+							if(magsq > 0.0f)
+								cross /= sqrtf(magsq);
+
+							joint.axes[6] = cross.x;
+							joint.axes[7] = cross.y;
+							joint.axes[8] = cross.z;
+						}
+
 						joint.axes = Quaternion::FromRotationMatrix(joint.axes).ToMat3();			// handles degenerate matrices just fine
 					}
 					else

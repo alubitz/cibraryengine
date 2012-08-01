@@ -19,5 +19,7 @@ namespace CibraryEngine
 		void Multiply(float* inputs, float* outputs);
 		void ClampInputs(float* inputs);							// clamp inputs to the range [-1, 1]
 		void ClampOutputs(float* outputs);							// clamp outputs to the range [-1, 1]
+
+		void SigmoidOutputs(float* outputs);						// like ClampOutputs, but smoothly
 	};
 }

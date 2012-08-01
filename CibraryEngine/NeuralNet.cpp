@@ -13,7 +13,7 @@ namespace CibraryEngine
 		num_outputs(num_outputs),
 		matrix(new float[num_inputs * num_outputs])
 	{
-		for(float *ptr = matrix, *end = &matrix[num_inputs * num_outputs]; ptr != end; ++ptr)
+		for(float *ptr = matrix, *end = matrix + num_inputs * num_outputs; ptr != end; ++ptr)
 			*ptr = 0.0f;
 	}
 
@@ -22,7 +22,7 @@ namespace CibraryEngine
 		num_outputs(other.num_outputs),
 		matrix(new float[num_inputs * num_outputs])
 	{
-		float* my_end = &matrix[num_inputs * num_outputs];
+		float* my_end = matrix + num_inputs * num_outputs;
 		for(float *my_ptr = matrix, *other_ptr = other.matrix; my_ptr != my_end; ++my_ptr, ++other_ptr)
 			*my_ptr = *other_ptr;
 	}
@@ -39,7 +39,7 @@ namespace CibraryEngine
 			num_outputs = other.num_outputs;
 			matrix = new float[num_inputs * num_outputs];
 
-			float* my_end = &matrix[num_inputs * num_outputs];
+			float* my_end = matrix + num_inputs * num_outputs;
 			for(float *my_ptr = matrix, *other_ptr = other.matrix; my_ptr != my_end; ++my_ptr, ++other_ptr)
 				*my_ptr = *other_ptr;
 		}
@@ -52,8 +52,8 @@ namespace CibraryEngine
 		{
 			float* temp = new float[num_outputs];
 
-			float* input_end = &inputs[num_inputs];
-			float* temp_end = &temp[num_outputs];
+			float* input_end = inputs + num_inputs;
+			float* temp_end = temp + num_outputs;
 
 			float* matrix_ptr = matrix;
 			for(float* temp_ptr = temp; temp_ptr != temp_end; ++temp_ptr)
@@ -74,8 +74,8 @@ namespace CibraryEngine
 		}
 		else
 		{
-			float* input_end = &inputs[num_inputs];
-			float* output_end = &outputs[num_outputs];
+			float* input_end = inputs + num_inputs;
+			float* output_end = outputs + num_outputs;
 
 			float* matrix_ptr = matrix;
 			for(float* output_ptr = outputs; output_ptr != output_end; ++output_ptr)
@@ -93,15 +93,25 @@ namespace CibraryEngine
 
 	void NeuralNet::ClampInputs(float* inputs)
 	{
-		float* end = &inputs[num_inputs];
+		float* end = inputs + num_inputs;
 		for(float* ptr = inputs; ptr != end; ++ptr)
 			*ptr = max(-1.0f, min(1.0f, *ptr));
 	}
 
 	void NeuralNet::ClampOutputs(float* outputs)
 	{
-		float* end = &outputs[num_outputs];
+		float* end = outputs + num_outputs;
 		for(float* ptr = outputs; ptr != end; ++ptr)
 			*ptr = max(-1.0f, min(1.0f, *ptr));
+	}
+
+	void NeuralNet::SigmoidOutputs(float* outputs)
+	{
+		float* end = outputs + num_outputs;
+		for(float* ptr = outputs; ptr != end; ++ptr)
+		{
+			float value = *ptr;
+			*ptr = value / sqrtf(1.0f + value * value);
+		}
 	}
 }
