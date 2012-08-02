@@ -3,6 +3,8 @@
 
 namespace CibraryEngine
 {
+	using namespace std;
+
 	struct NeuralNet
 	{
 		unsigned int num_inputs;					// columns in matrix
@@ -16,10 +18,25 @@ namespace CibraryEngine
 
 		void operator =(const NeuralNet& other);
 
-		void Multiply(float* inputs, float* outputs);
-		void ClampInputs(float* inputs);							// clamp inputs to the range [-1, 1]
-		void ClampOutputs(float* outputs);							// clamp outputs to the range [-1, 1]
+		void Multiply(const float* inputs, float* outputs);
 
-		void SigmoidOutputs(float* outputs);						// like ClampOutputs, but smoothly
+		void SigmoidOutputs(float* outputs);						// applies a function to outputs to make them range from [-1, 1], smoothly
+	};
+
+	struct MultiLayerPerceptron
+	{
+		vector<NeuralNet*> neural_nets;
+
+		MultiLayerPerceptron();
+		MultiLayerPerceptron(unsigned int num_layers, unsigned int* layer_sizes);			// num_layers should be >= 2
+		MultiLayerPerceptron(const MultiLayerPerceptron& other);
+
+		~MultiLayerPerceptron();
+
+		void operator =(const MultiLayerPerceptron& other);
+
+		void Process(const float* inputs, float* outputs);										// use this once the MLP is trained
+
+		void Train(const float* inputs, float* correct_outputs, float learning_rate);
 	};
 }

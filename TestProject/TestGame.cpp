@@ -799,11 +799,6 @@ namespace Test
 
 		GameState::Update(clamped_time);
 
-		if(total_game_time >= 1.0f)
-		{
-			quit = true;
-		}
-
 		NGDEBUG();
 	}
 

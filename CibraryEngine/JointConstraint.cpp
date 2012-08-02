@@ -21,8 +21,7 @@ namespace CibraryEngine
 		min_extents(min_extents),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
-		enable_motor(true),
-		orient_absolute(false)
+		enable_motor(true)
 	{
 	}
 
@@ -58,7 +57,7 @@ namespace CibraryEngine
 
 		// torque to make the joint conform to a pose
 		if(enable_motor)
-			alpha = (desired_av - (orient_absolute ? b_avel : current_av)) * -angular_vel_coeff;
+			alpha = (desired_av - current_av) * -angular_vel_coeff;
 
 		// enforce joint rotation limits
 		const float inv_foresight = 360.0f;
@@ -119,10 +118,7 @@ namespace CibraryEngine
 		// torque to make the joint conform to a pose
 		if(enable_motor)
 		{
-			if(orient_absolute)
-				desired_av = (inv_desired * b_ori).ToPYR() * (-pyr_coeff);
-			else
-				desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * (-pyr_coeff);
+			desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * (-pyr_coeff);
 
 			moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		}

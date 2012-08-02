@@ -2,7 +2,7 @@
 
 #ifdef WIN32
 	#ifndef WIN32_LEAN_AND_MEAN
-	#define WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
 	#endif
 
 	#define _USE_MATH_DEFINES				// math constants like M_PI
@@ -40,7 +40,6 @@
 #include <map>
 #include <set>
 #include <cmath>
-#include <stack>
 #include <cassert>
 #include <string>
 

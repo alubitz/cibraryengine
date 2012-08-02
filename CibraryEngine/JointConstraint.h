@@ -43,8 +43,6 @@ namespace CibraryEngine
 
 			bool enable_motor;
 
-			bool orient_absolute;
-
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp);
 
 			void DoConstraintAction(vector<RigidBody*>& wakeup);

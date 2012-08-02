@@ -1,7 +1,5 @@
 #include "StdAfx.h"
 
-#include <ctime>
-
 #include "TestScreen.h"
 #include "TestGame.h"
 
@@ -25,17 +23,16 @@ namespace Test
 
 	ProgramScreen* TestScreen::Update(TimingInfo time)
 	{
-		test_game->Update(time);
-
-		if(test_game->quit)
-		{
-			finished = true;
-			return new LoadingScreen(window, NULL, NR_Server);
-		}
-
-
 		if(input_state->keys[VK_ESCAPE])
 			finished = true;
+
+		if(!finished)
+		{
+			test_game->Update(time);
+
+			if(test_game->quit)
+				finished = true;
+		}
 
 		if(finished)
 			return new MainMenu(window, NULL);
