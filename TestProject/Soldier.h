@@ -43,7 +43,16 @@ namespace Test
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Spawned();
-			void DeSpawned();
+
+			void Die(Damage cause);
+
+			struct ContactCallback : public CollisionCallback
+			{
+				Soldier* soldier;
+				bool OnCollision(const ContactPoint& cp);
+			} soldier_collision_callback;
+
+
 
 			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
 	};

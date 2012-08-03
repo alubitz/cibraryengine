@@ -15,9 +15,6 @@ namespace CibraryEngine
 	{
 		protected:
 
-			Quaternion desired_ori;
-			Quaternion inv_desired;
-
 			// some values that are set by DoUpdateAction and which should only be used for the duration of a single physics tick
 			Mat3 moi;
 			Vec3 apply_pos;
@@ -39,18 +36,12 @@ namespace CibraryEngine
 
 			Vec3 angular_damp;
 
-
-
+			Quaternion desired_ori;
 			bool enable_motor;
 
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp);
 
 			void DoConstraintAction(vector<RigidBody*>& wakeup);
 			void DoUpdateAction(float timestep);
-
-
-
-			void SetDesiredOrientation(const Quaternion& ori);
-			Quaternion GetDesiredOrientation() const;
 	};
 }

@@ -41,13 +41,10 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
+		soldier_collision_callback.soldier = this;
+
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
-
-		ik_pose = new IKWalkPose(posey->skeleton, character->skeleton, Bone::string_table["pelvis"], mphys);
-		ik_pose->AddEndEffector(Bone::string_table["l foot"]);
-		ik_pose->AddEndEffector(Bone::string_table["r foot"]);
-		posey->active_poses.push_back(ik_pose);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
@@ -160,9 +157,68 @@ namespace Test
 		}
 	}
 
-	void Soldier::Spawned() { Dood::Spawned(); }
+	void Soldier::Spawned()
+	{
+		Dood::Spawned();
 
-	void Soldier::DeSpawned() { Dood::DeSpawned(); }
+		vector<JointConstraint*> joint_constraints;
+		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
+			{
+				joint_constraints.push_back(jc);
+				jc->enable_motor = false;
+			}
+
+		ik_pose = new IKWalkPose(physics, rigid_bodies, joint_constraints, rbody_to_posey);
+		ik_pose->AddEndEffector(RigidBodyForNamedBone("l foot"));
+		ik_pose->AddEndEffector(RigidBodyForNamedBone("r foot"));
+		posey->active_poses.push_back(ik_pose);
+
+		RigidBodyForNamedBone("l foot")->SetCollisionCallback(&soldier_collision_callback);
+		RigidBodyForNamedBone("r foot")->SetCollisionCallback(&soldier_collision_callback);
+	}
+
+	void Soldier::Die(Damage cause)
+	{
+		Dood::Die(cause);
+
+		for(list<Pose*>::iterator iter = posey->active_poses.begin(); iter != posey->active_poses.end(); ++iter)
+			if(*iter == ik_pose)
+			{
+				posey->active_poses.erase(iter);
+
+				delete ik_pose;
+				ik_pose = NULL;
+
+				break;
+			}
+
+		RigidBodyForNamedBone("l foot")->SetCollisionCallback(&collision_callback);
+		RigidBodyForNamedBone("r foot")->SetCollisionCallback(&collision_callback);
+	}
+
+
+
+
+	/*
+	 * Soldier::ContactCallback methods
+	 */
+	bool Soldier::ContactCallback::OnCollision(const ContactPoint& cp)
+	{	
+#if 0
+		for(vector<IKWalkPose::EndEffector*>::iterator iter = soldier->ik_pose->end_effectors.begin(); iter != soldier->ik_pose->end_effectors.end(); ++iter)
+		{
+			IKWalkPose::EndEffector& ee = **iter;
+
+			if(ee.foot == cp.obj_a)
+				ee.LockPlacedFoot(cp.obj_b);
+			else if(ee.foot == cp.obj_b)
+				ee.LockPlacedFoot(cp.obj_a);
+		}
+#endif
+
+		return soldier->collision_callback.OnCollision(cp);
+	}
 
 
 

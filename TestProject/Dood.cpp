@@ -75,12 +75,13 @@ namespace Test
 		standing(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
-		collision_callback(this),
 		OnAmmoFailure(),
 		OnDamageTaken(),
 		OnJumpFailure(),
 		OnDeath()
 	{
+		collision_callback.dood = this;
+
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
 		posey = new PosedCharacter(new Skeleton(character->skeleton));
@@ -171,6 +172,17 @@ namespace Test
 
 			posey->UpdatePoses(time);
 		}
+	}
+
+	RigidBody* Dood::RigidBodyForNamedBone(const string& name)
+	{
+		unsigned int id = Bone::string_table[name];
+
+		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
+			if(character->skeleton->bones[i]->name == id)
+				return bone_to_rbody[i];
+
+		return NULL;
 	}
 
 	void Dood::Update(TimingInfo time)
@@ -397,9 +409,9 @@ namespace Test
 					Bone* j_bone = rbody_to_posey[b_index - 1];
 
 					if(i_bone == j_bone->parent)
-						constraint->SetDesiredOrientation(j_bone->ori);
+						constraint->desired_ori = j_bone->ori;
 					else
-						constraint->SetDesiredOrientation(Quaternion::Reverse(i_bone->ori));
+						constraint->desired_ori = Quaternion::Reverse(i_bone->ori);
 				}
 			}
 
@@ -426,7 +438,7 @@ namespace Test
 		unsigned int count = mphys->bones.size();
 
 		// given string id, get index of rigid body
-		map<unsigned int, unsigned int> name_indices;
+		map<unsigned int, unsigned int> name_indices;			
 
 		// create rigid bodies and shootables
 		for(unsigned int i = 0; i < count; ++i)
@@ -575,7 +587,6 @@ namespace Test
 
 		MaybeDoScriptedDeath(this);
 
-		// TODO: revise this; we don't have a Corpse class anymore; a ragdoll is just a dead Dood
 		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
 				jc->enable_motor = false;
@@ -614,7 +625,6 @@ namespace Test
 	/*
 	 * Dood::ContactCallback methods
 	 */
-	Dood::ContactCallback::ContactCallback(Dood* dood) : dood(dood) { }
 	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
 	{
 		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)

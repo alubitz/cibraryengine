@@ -8,22 +8,37 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	struct ModelPhysics;
+	class PhysicsWorld;
+	class RigidBody;
+	class JointConstraint;
+	class PlacedFootConstraint;
 
 	class IKWalkPose : public Pose
 	{
 		public:
 
-			ModelPhysics* mphys;
+			PhysicsWorld* physics;
 
-			Skeleton* pose_skel;
-			Skeleton* physics_skel;
+			vector<RigidBody*> rigid_bodies;
 
-			unsigned int root_bone;
+			struct Joint
+			{
+				JointConstraint* constraint;
+
+				Quaternion target_ori;
+				unsigned int set_pose_id;
+				bool invert;
+
+				Joint(JointConstraint* constraint, const Quaternion& target_ori, unsigned int set_pose_id, bool invert) : constraint(constraint), target_ori(target_ori), set_pose_id(set_pose_id), invert(invert) { }
+			};
+			vector<Joint> joints;
 
 			struct EndEffector
 			{
-				IKChain* chain;
+				PhysicsWorld* physics;
+
+				RigidBody* foot;
+				PlacedFootConstraint* placed;
 
 				Vec3 desired_pos;
 				Quaternion desired_ori;
@@ -32,8 +47,11 @@ namespace CibraryEngine
 
 				bool arrived;			// might want more than two states?
 
-				EndEffector(Bone* from, Bone* to, ModelPhysics* mphys) : chain(new IKChain(from, to, mphys)) { }
-				~EndEffector() { delete chain; chain = NULL; }
+				EndEffector(PhysicsWorld* physics, RigidBody* foot);
+				~EndEffector();
+
+				void LockPlacedFoot(RigidBody* base);
+				void UnlockPlacedFoot();
 			};
 			vector<EndEffector*> end_effectors;
 
@@ -45,16 +63,14 @@ namespace CibraryEngine
 
 			float arrive_time;
 
-			IKWalkPose(Skeleton* pose_skel, Skeleton* physics_skel, unsigned int root_bone, ModelPhysics* mphys);
+			IKWalkPose(PhysicsWorld* physics, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
 			~IKWalkPose();
 
 			void UpdatePose(TimingInfo time);
 
+			void AddEndEffector(RigidBody* foot);
+
 			void Seek(float timestep, float foresight);
-
-			void AddEndEffector(unsigned int from, unsigned int to);
-			void AddEndEffector(unsigned int to) { AddEndEffector(root_bone, to); }
-
 			float EvaluateSolution(const vector<float>& values);
 	};
 }

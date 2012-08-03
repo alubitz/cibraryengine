@@ -3,20 +3,83 @@
 
 #include "Random3D.h"
 
+#include "Physics.h"
+
+#include "RigidBody.h"
+#include "JointConstraint.h"
+#include "PlacedFootConstraint.h"
+
 namespace CibraryEngine
 {
 	/*
+	 * IKWalkPose::EndEffector methods
+	 */
+	IKWalkPose::EndEffector::EndEffector(PhysicsWorld* physics, RigidBody* foot) : physics(physics), foot(foot), placed(NULL), desired_pos(), desired_ori(Quaternion::Identity()), arrive_time(-1), arrived(true) { }
+	IKWalkPose::EndEffector::~EndEffector() { UnlockPlacedFoot(); }
+
+	void IKWalkPose::EndEffector::LockPlacedFoot(RigidBody* base)
+	{
+		if(placed)
+		{
+			if(placed->obj_a == foot && placed->obj_b == base)
+				return;
+			else
+				UnlockPlacedFoot();
+		}
+
+		placed = new PlacedFootConstraint(foot, base, Vec3());			// TODO: use a real position
+		physics->AddConstraint(placed);
+	}
+
+	void IKWalkPose::EndEffector::UnlockPlacedFoot()
+	{
+		if(placed)
+		{
+			physics->RemoveConstraint(placed);
+
+			placed->Dispose();
+			delete placed;
+			placed = NULL;
+		}
+	}
+
+
+
+
+	/*
 	 * IKWalkPose methods
 	 */
-	IKWalkPose::IKWalkPose(Skeleton* pose_skel, Skeleton* physics_skel, unsigned int root_bone, ModelPhysics* mphys) :
+	IKWalkPose::IKWalkPose(PhysicsWorld* physics, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey) :
 		Pose(),
-		mphys(mphys),
-		pose_skel(pose_skel),
-		physics_skel(physics_skel),
-		root_bone(root_bone),
+		physics(physics),
+		rigid_bodies(rigid_bodies),
+		joints(),
 		end_effectors(),
 		arrive_time(-1)
 	{
+		for(vector<JointConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+		{
+			JointConstraint* constraint = *iter;
+
+			Bone *bone_a = NULL, *bone_b = NULL;
+
+			unsigned int i = 0;
+			for(vector<RigidBody*>::const_iterator jter = rigid_bodies.begin(); jter != rigid_bodies.end(); ++jter, ++i)
+			{
+				if(*jter == constraint->obj_a)
+					bone_a = rbody_to_posey[i];
+				else if(*jter == constraint->obj_b)
+					bone_b = rbody_to_posey[i];
+			}
+
+			if(bone_a && bone_b)
+			{
+				if(bone_a == bone_b->parent)
+					joints.push_back(Joint(constraint, constraint->desired_ori, bone_b->name, false));
+				else if(bone_b == bone_a->parent)
+					joints.push_back(Joint(constraint, constraint->desired_ori, bone_a->name, true));
+			}
+		}
 	}
 
 	IKWalkPose::~IKWalkPose()
@@ -49,12 +112,11 @@ namespace CibraryEngine
 		}
 	}
 
+	void IKWalkPose::AddEndEffector(RigidBody* foot) { end_effectors.push_back(new EndEffector(physics, foot)); }
+
 	void IKWalkPose::Seek(float timestep, float foresight)
 	{
-		unsigned int num_variables = 0;
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-			num_variables += (*iter)->chain->bones.size();
-		num_variables *= 3;
+		unsigned int num_variables = joints.size() * 3;
 
 		vector<float> best =		vector<float>(num_variables);
 		vector<float> guess =		vector<float>(num_variables);
@@ -69,27 +131,24 @@ namespace CibraryEngine
 		vector<float>::iterator max_iter =		max_extents.begin();
 
 		// rot = the solution we came up with last time
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
+		for(vector<Joint>::iterator iter = joints.begin(); iter != joints.end(); ++iter)
 		{
-			const vector<IKChain::ChainNode>& bones = (*iter)->chain->bones;
-			
-			for(vector<IKChain::ChainNode>::const_iterator jter = bones.begin(); jter != bones.end(); ++jter)
-			{
-				const IKChain::ChainNode& node = *jter;
+			const Joint& joint = *iter;
+			const JointConstraint& constraint = *joint.constraint;
 
-				*(min_iter++) = jter->min_extents.x;
-				*(min_iter++) = jter->min_extents.y;
-				*(min_iter++) = jter->min_extents.z;
+			*(min_iter++) = constraint.min_extents.x;
+			*(min_iter++) = constraint.min_extents.y;
+			*(min_iter++) = constraint.min_extents.z;
 
-				*(max_iter++) = jter->max_extents.x;
-				*(max_iter++) = jter->max_extents.y;
-				*(max_iter++) = jter->max_extents.z;
+			*(max_iter++) = constraint.max_extents.x;
+			*(max_iter++) = constraint.max_extents.y;
+			*(max_iter++) = constraint.max_extents.z;
 
-				Vec3 vec = Mat3::Invert(node.axes) * node.target_ori.ToPYR();
-				*(rot_iter++) = max(node.min_extents.x, min(node.max_extents.x, vec.x));
-				*(rot_iter++) = max(node.min_extents.y, min(node.max_extents.y, vec.y));
-				*(rot_iter++) = max(node.min_extents.z, min(node.max_extents.z, vec.z));
-			}
+			Quaternion target_ori = joint.target_ori;
+			Vec3 vec = Mat3::Invert(constraint.axes) * target_ori.ToPYR();
+			*(rot_iter++) = max(constraint.min_extents.x, min(constraint.max_extents.x, vec.x));
+			*(rot_iter++) = max(constraint.min_extents.y, min(constraint.max_extents.y, vec.y));
+			*(rot_iter++) = max(constraint.min_extents.z, min(constraint.max_extents.z, vec.z));
 		}
 
 		float best_score = -1;
@@ -132,44 +191,27 @@ namespace CibraryEngine
 
 		// apply the best solution we came up with
 		best_iter = best.begin();
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
+		for(vector<Joint>::iterator iter = joints.begin(); iter != joints.end(); ++iter)
 		{
-			for(vector<IKChain::ChainNode>::iterator jter = (*iter)->chain->bones.begin(); jter != (*iter)->chain->bones.end(); ++jter)
-			{
-				IKChain::ChainNode& node = *jter;
+			Joint& joint = *iter;
+			JointConstraint& constraint = *joint.constraint;
 
-				float x = *(best_iter++), y = *(best_iter++), z = *(best_iter++);
-				node.target_ori = Quaternion::FromPYR(node.axes * Vec3(x, y, z));
+			float x = *(best_iter++), y = *(best_iter++), z = *(best_iter++);
+			joint.target_ori = Quaternion::FromPYR(constraint.axes * Vec3(x, y, z));
 
-				Quaternion& ori = node.ori;
+			Quaternion ori = Quaternion::Reverse(constraint.obj_a->GetOrientation()) * constraint.obj_b->GetOrientation();
 
-				Vec3 angle = (Quaternion::Reverse(ori) * node.target_ori).ToPYR();
-				node.rot = angle / foresight;
+			Quaternion target_relative = Quaternion::Reverse(ori) * joint.target_ori;
+			float a_coeff = timestep / foresight, b_coeff = 1.0f - a_coeff;
 
-				ori *= Quaternion::FromPYR(node.rot * timestep);
+			ori *= target_relative * a_coeff + Quaternion::Identity() * b_coeff;
 
-				SetBonePose(node.to->name, ori.ToPYR(), Vec3());
-			}
+			SetBonePose(joint.set_pose_id, ori.ToPYR(), Vec3());
 		}
 	}
 
-	void IKWalkPose::AddEndEffector(unsigned int from, unsigned int to) { end_effectors.push_back(new EndEffector(pose_skel->GetNamedBone(from), pose_skel->GetNamedBone(to), mphys)); }
-
 	float IKWalkPose::EvaluateSolution(const vector<float>& values)
 	{
-		// TODO: implement this
-		map<unsigned int, Mat4> bone_matrices;
-
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-		{
-			EndEffector* ee = *iter;
-			for(vector<IKChain::ChainNode>::iterator jter = ee->chain->bones.begin(); jter != ee->chain->bones.end(); ++jter)
-			{
-				// TODO: idk :(
-			}
-		}
-
-		// TODO: return an actual score instead of just 1 all the time
-		return 1.0f;
+		return 1.0f;					// TODO: implement this for real
 	}
 }

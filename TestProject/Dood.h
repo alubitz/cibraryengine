@@ -51,6 +51,8 @@ namespace Test
 			virtual void PreUpdatePoses(TimingInfo time);
 			virtual void PostUpdatePoses(TimingInfo time);
 
+			RigidBody* RigidBodyForNamedBone(const string& name);
+
 		public:
 
 			Team team;
@@ -112,7 +114,8 @@ namespace Test
 
 			void TakeDamage(Damage damage, Vec3 from_dir);
 			void Splatter(Shot* shot, Vec3 poi, Vec3 momentum);
-			void Die(Damage cause);
+
+			virtual void Die(Damage cause);
 
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
@@ -120,7 +123,6 @@ namespace Test
 			struct ContactCallback : public CollisionCallback
 			{
 				Dood* dood;
-				ContactCallback(Dood* dood);
 				bool OnCollision(const ContactPoint& collision);
 			} collision_callback;
 

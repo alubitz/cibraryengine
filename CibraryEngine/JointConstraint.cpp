@@ -5,8 +5,6 @@
 
 #include "Random3D.h"
 
-#include "DebugLog.h"
-
 namespace CibraryEngine
 {
 	/*
@@ -15,7 +13,6 @@ namespace CibraryEngine
 	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp) :
 		PhysicsConstraint(ibody, jbody),
 		desired_ori(Quaternion::Identity()),
-		inv_desired(Quaternion::Identity()),
 		pos(pos),
 		axes(axes),
 		min_extents(min_extents),
@@ -78,8 +75,7 @@ namespace CibraryEngine
 		if(any_changes)
 		{
 			// at least one rotation limit was violated, so we must recompute alpha
-			Vec3 actual_pyr = reverse_oriented_axes * proposed_pyr;
-			Quaternion actual_ori = Quaternion::FromPYR(-actual_pyr);
+			Quaternion actual_ori = Quaternion::FromPYR(reverse_oriented_axes * -proposed_pyr);
 			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_foresight;
 
 			alpha = current_av - actual_av;
@@ -115,16 +111,14 @@ namespace CibraryEngine
 		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 		b_to_a = Quaternion::Reverse(a_to_b);
 
+
 		// torque to make the joint conform to a pose
 		if(enable_motor)
-		{
-			desired_av = (Quaternion::Reverse(inv_desired * a_ori) * b_ori).ToPYR() * (-pyr_coeff);
+			desired_av = (Quaternion::Reverse(a_ori) * desired_ori * b_ori).ToPYR() * (-pyr_coeff);
 
-			moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
-		}
+		moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 
-
-		oriented_axes = a_ori.ToMat3() * axes;
+		oriented_axes = axes.Transpose() * a_ori.ToMat3();
 		reverse_oriented_axes = oriented_axes.Transpose();
 
 
@@ -135,14 +129,4 @@ namespace CibraryEngine
 		apply_pos = (a_pos + b_pos) * 0.5f;
 		desired_dv = (b_pos - a_pos) * -spring_coeff;
 	}
-
-	void JointConstraint::SetDesiredOrientation(const Quaternion& ori)
-	{
-		if(ori != desired_ori)
-		{
-			desired_ori = ori;
-			inv_desired = Quaternion::Reverse(desired_ori);
-		}
-	}
-	Quaternion JointConstraint::GetDesiredOrientation() const { return desired_ori; }
 }
