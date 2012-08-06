@@ -62,6 +62,15 @@ namespace CibraryEngine
 
 
 	/*
+	 * IKWalkPose::SkeletonSpanOp methods
+	 */
+	IKWalkPose::SkeletonSpanOp::SkeletonSpanOp(RigidBody* body) : from(NULL), to(body), joint(NULL), invert(false), values_index(-1) { }
+	IKWalkPose::SkeletonSpanOp::SkeletonSpanOp(JointConstraint* joint, bool invert, int values_index) : from(invert ? joint->obj_b : joint->obj_a), to(invert ? joint->obj_a : joint->obj_b), joint(joint), invert(invert), values_index(values_index) { }
+
+
+
+
+	/*
 	 * IKWalkPose methods
 	 */
 	IKWalkPose::IKWalkPose(PhysicsWorld* physics, ModelPhysics* mphys, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey) :
@@ -72,6 +81,7 @@ namespace CibraryEngine
 		all_joints(all_joints),
 		joints(),
 		end_effectors(),
+		span_ops(),
 		rbody_to_posey(rbody_to_posey),
 		arrive_time(-1)
 	{
@@ -98,6 +108,8 @@ namespace CibraryEngine
 					joints.push_back(Joint(constraint, constraint->desired_ori, bone_a->name, true));
 			}
 		}
+
+		DiscoverSpanOps();
 	}
 
 	IKWalkPose::~IKWalkPose()
@@ -105,6 +117,54 @@ namespace CibraryEngine
 		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 			delete *iter;
 		end_effectors.clear();
+	}
+
+	void IKWalkPose::DiscoverSpanOps()
+	{
+		span_ops.clear();
+
+		set<RigidBody*> fringe;
+		map<JointConstraint*, int> constraint_indices;
+
+		for(unsigned int i = 0; i < joints.size(); ++i)
+			constraint_indices[joints[i].constraint] = (int)i;
+
+		for(vector<JointConstraint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+			if(constraint_indices.find(*iter) == constraint_indices.end())
+				constraint_indices[*iter] = -1;
+
+		fringe.insert(rigid_bodies[0]);
+		span_ops.push_back(SkeletonSpanOp(rigid_bodies[0]));
+
+		while(!fringe.empty())
+		{
+			set<RigidBody*>::iterator fringe_iter = fringe.begin();
+			RigidBody* body = *fringe_iter;
+
+			fringe.erase(fringe_iter);
+
+			for(map<JointConstraint*, int>::iterator iter = constraint_indices.begin(); iter != constraint_indices.end();)
+			{
+				JointConstraint* jc = iter->first;
+
+				if(jc->obj_a == body)
+				{
+					span_ops.push_back(SkeletonSpanOp(jc, false, iter->second));
+
+					iter = constraint_indices.erase(iter);
+					fringe.insert(jc->obj_b);
+				}
+				else if(jc->obj_b == body)
+				{
+					span_ops.push_back(SkeletonSpanOp(jc, true, iter->second));
+
+					iter = constraint_indices.erase(iter);
+					fringe.insert(jc->obj_a);
+				}
+				else
+					++iter;
+			}
+		}
 	}
 
 	void IKWalkPose::UpdatePose(TimingInfo time)
@@ -264,194 +324,69 @@ namespace CibraryEngine
 
 	float IKWalkPose::EvaluateSolution(const vector<float>& values)
 	{
-#if 1
-		return 0.0f;
-#else
 		map<RigidBody*, Mat4> bone_xforms;
 
-		Vec3 feet_pos;
-
-		// find out positions of feet for balancing purposes... also get xforms of placed feet
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
+		for(vector<SkeletonSpanOp>::iterator iter = span_ops.begin(); iter != span_ops.end(); ++iter)
 		{
-			RigidBody* foot = (*iter)->foot;
-
-			if((*iter)->placed)
-				bone_xforms[foot] = foot->GetTransformationMatrix();
-
-			feet_pos += foot->GetTransformationMatrix().TransformVec3_1(foot->GetMassInfo().com);
-		}
-
-		if(bone_xforms.empty())
-			return 0.0f;				// oops? first argument passed will be rest pose, so give it a perfect score
-
-		feet_pos /= (float)end_effectors.size();
-
-		// find xforms for all the other bones
-		bool progress;
-		do
-		{
-			progress = false;
-
-			vector<float>::const_iterator value_iter = values.begin();
-			vector<Joint>::iterator joint_iter = joints.begin();
-			for(vector<JointConstraint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+			RigidBody* body = iter->to;
+			
+			if(iter->from == NULL)
+				bone_xforms[body] = body->GetTransformationMatrix();
+			else
 			{
-				Vec3 pyr;
+				JointConstraint& jc = *iter->joint;
 
-				JointConstraint* jc = *iter;
-				if(joint_iter != joints.end() && joint_iter->constraint == jc)
-				{
-					float x = *(value_iter++), y = *(value_iter++), z = *(value_iter++);
-					pyr = Vec3(x, y, z);
-				}
-
-				RigidBody* a = jc->obj_a;
-				RigidBody* b = jc->obj_b;
-
-				map<RigidBody*, Mat4>::iterator found_a = bone_xforms.find(a);
-				map<RigidBody*, Mat4>::iterator found_b = bone_xforms.find(b);
-				map<RigidBody*, Mat4>::iterator found;
-				
-
-				RigidBody* looking_for = NULL;
-				if(found_a == bone_xforms.end())
-				{
-					if(found_b == bone_xforms.end())
-						continue;
-					else
-					{
-						looking_for = a;
-						found = found_b;
-					}
-				}
+				Quaternion ori;
+				if(iter->values_index == -1)
+					ori = Quaternion::Identity();
 				else
 				{
-					if(found_b == bone_xforms.end())
-					{
-						looking_for = b;
-						found = found_a;
-					}
-					else
-						continue;
+					const float* ptr = &values[iter->values_index * 3];
+					float x = *(ptr++), y = *(ptr++), z = *ptr;
+
+					ori = Quaternion::FromPYR(jc.axes * Vec3(x, y, z));
 				}
 
-				unsigned a_index = 0, b_index = 0;
-				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
-				{
-					if(rigid_bodies[i] == a)
-					{
-						a_index = i + 1;
-						if(b_index)
-							break;
-					}
-					else if(rigid_bodies[i] == b)
-					{
-						b_index = i + 1;
-						if(a_index)
-							break;
-					}
-				}
+				Mat4 to_rest_pos = Mat4::Translation(jc.pos);
+				Mat4 from_rest_pos = Mat4::Translation(-jc.pos);
+				Mat4 rotation_mat = Mat4::FromQuaternion(ori);
 
-				if(a_index && b_index)
-				{
-					const Mat4& known_matrix = found->second;
-
-					Quaternion ori = Quaternion::FromPYR(jc->axes * pyr);
-
-					Bone* a_bone = rbody_to_posey[a_index - 1];
-					Bone* b_bone = rbody_to_posey[b_index - 1];
-					Bone& child = *(a_bone->parent == b_bone ? a_bone : b_bone);
-
-					Mat4 to_rest_pos = Mat4::Translation(child.rest_pos);
-					Mat4 from_rest_pos = Mat4::Translation(-child.rest_pos);
-					Mat4 rotation_mat = Mat4::FromQuaternion(ori * child.rest_ori);
-					Mat4 offset = Mat4::Translation(child.pos);
-
-					Mat4 net = to_rest_pos * rotation_mat * offset * from_rest_pos;
-					if((b_bone->parent == a_bone) ^ (looking_for == b))
-						net = Mat4::Invert(net);
-
-					bone_xforms[looking_for] = known_matrix * net;
-
-					Vec3 com = looking_for->GetMassInfo().com;
-					Vec3 xformed = bone_xforms[looking_for].TransformVec3_1(com);
-
-					progress = true;								// keep iterating as long as we're finding new bone xforms
-				}
+				Mat4 net = to_rest_pos * rotation_mat * from_rest_pos;
+				if(iter->invert)
+					bone_xforms[iter->to] = Mat4::Invert(net) * bone_xforms[iter->from];
+				else
+					bone_xforms[iter->to] = bone_xforms[iter->from] * net;
 			}
-		} while(progress);
+		}
 
 		Vec3 com;
 		float total_weight = 0.0f;
 
-		float bad_match_penalty = 0.0f;
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-		{
-			EndEffector& ee = **iter;
-			if(ee.placed)
-			{
-				vector<float> ee_values;				// TODO: get these values
-				for(vector<IKChain::ChainNode>::iterator bone_iter = ee.chain->bones.begin(); bone_iter != ee.chain->bones.end(); ++bone_iter)
-				{
-					
-				}
-				Mat4 pelvis_mat = ee.foot->GetTransformationMatrix() * Mat4::Invert(ee.chain->GetEndTransformRelative(ee_values.data()));
-
-				for(vector<EndEffector*>::iterator jter = iter; jter != end_effectors.end(); ++jter)
-					if(iter != jter)
-					{
-						EndEffector& ee2 = **jter;
-						if(ee2.placed)
-						{
-							vector<float> ee2_values;	// TODO: get these values
-							Mat4 pelvis_2 = ee2.foot->GetTransformationMatrix() * Mat4::Invert(ee2.chain->GetEndTransformRelative(ee2_values.data()));
-
-							Mat4 dif = pelvis_mat * Mat4::Invert(pelvis_2);
-							Vec3 pos;
-							Quaternion ori;
-							dif.Decompose(pos, ori);
-
-							bad_match_penalty += pos.ComputeMagnitudeSquared();
-							bad_match_penalty += ori.NormSquared();
-						}
-					}
-			}
-		}
-
-		// compute offset of com
 		for(map<RigidBody*, Mat4>::iterator iter = bone_xforms.begin(); iter != bone_xforms.end(); ++iter)
 		{
 			MassInfo mass_info = iter->first->GetMassInfo();
 
 			float weight = mass_info.mass;
 
-			com += iter->second.TransformVec3_1(mass_info.com) * weight;
 			total_weight += weight;
+			com += iter->second.TransformVec3_1(mass_info.com) * weight;
 		}
 
 		com /= total_weight;
 
 
-		com -= feet_pos;
-		float score = Vec2::MagnitudeSquared(com.x, com.z);
+		float score = 0.0f;
 
-		// TODO: make sure all end effectors think bones are in the same places; penalize score if they disagree
-
-		// TODO: penalize score for not having the torso upright and facing the correct direction
-
-		/*
-		float min_com_elevation = 0.9f;
-		if(com.y < min_com_elevation)
+		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
-			float bad = min_com_elevation - com.y;
-			score += bad * bad * 2.0f;
-		}
-		*/
+			RigidBody* foot = (*iter)->foot;
 
-		score += bad_match_penalty;
+			Vec3 foot_pos = bone_xforms[foot].TransformVec3_1(foot->GetMassInfo().com);
+		
+			float dy = com.y - foot_pos.y - 1.0f;
+			score += dy * dy;
+		}
 
 		return score;
-#endif
 	}
 }

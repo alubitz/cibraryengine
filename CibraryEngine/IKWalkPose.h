@@ -60,6 +60,19 @@ namespace CibraryEngine
 			};
 			vector<EndEffector*> end_effectors;
 
+			struct SkeletonSpanOp
+			{
+				RigidBody *from, *to;
+				JointConstraint* joint;
+				bool invert;
+
+				int values_index;					// -1 = doesn't correspond to a value we can set; 0+ = corresponds to index n*3
+
+				SkeletonSpanOp(RigidBody* body);
+				SkeletonSpanOp(JointConstraint* joint, bool invert, int values_index);
+			};
+			vector<SkeletonSpanOp> span_ops;		// process these in order to get the xforms of all bones in the skeleton
+
 			vector<Bone*> rbody_to_posey;
 
 			// root bone desired state info
@@ -72,6 +85,8 @@ namespace CibraryEngine
 
 			IKWalkPose(PhysicsWorld* physics, ModelPhysics* mphys, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
 			~IKWalkPose();
+
+			void DiscoverSpanOps();
 
 			void UpdatePose(TimingInfo time);
 

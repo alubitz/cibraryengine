@@ -408,10 +408,7 @@ namespace Test
 					Bone* i_bone = rbody_to_posey[a_index - 1];
 					Bone* j_bone = rbody_to_posey[b_index - 1];
 
-					if(i_bone == j_bone->parent)
-						constraint->desired_ori = j_bone->ori;
-					else
-						constraint->desired_ori = Quaternion::Reverse(i_bone->ori);
+					constraint->desired_ori = i_bone == j_bone->parent ? j_bone->ori : Quaternion::Reverse(i_bone->ori);
 				}
 			}
 

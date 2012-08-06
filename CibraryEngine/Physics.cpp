@@ -861,7 +861,8 @@ namespace CibraryEngine
 				sfric_coeff = obj_b->friction;
 				moi_n = Mat3::Invert(obj_b->inv_moi) * normal;
 			}
-			kfric_coeff = 0.9f * sfric_coeff;
+
+			kfric_coeff = sfric_coeff;			// would be * 0.9f but in practice the sim treats everything as kinetic anyway
 
 			cache_valid = true;
 		}
