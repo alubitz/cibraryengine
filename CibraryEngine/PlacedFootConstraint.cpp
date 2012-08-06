@@ -23,6 +23,7 @@ namespace CibraryEngine
 
 		bool wakeup = false;
 
+		// TODO: detect a situation that should break the constraint, and act accordingly
 
 		// linear stuff
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
@@ -67,8 +68,8 @@ namespace CibraryEngine
 
 	void PlacedFootConstraint::DoUpdateAction(float timestep)
 	{
-		static const float pyr_coeff =			360.0f;			// based on the assumption of physics running at 360hz (maybe requires changing?)
-		static const float spring_coeff =		360.0f;
+		static const float pyr_coeff =			60.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
+		static const float spring_coeff =		60.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();

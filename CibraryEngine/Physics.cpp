@@ -28,8 +28,8 @@
 
 #define MAX_SEQUENTIAL_SOLVER_ITERATIONS 200
 
-#define PHYSICS_TICK_FREQUENCY 360
-#define MAX_FIXED_STEPS_PER_UPDATE 6
+#define PHYSICS_TICK_FREQUENCY 60
+#define MAX_FIXED_STEPS_PER_UPDATE 1
 
 namespace CibraryEngine
 {
@@ -849,11 +849,19 @@ namespace CibraryEngine
 			use_pos = (a.pos + b.pos) * 0.5f;
 			normal = Vec3::Normalize(a.norm - b.norm);
 
-			bounciness = obj_a->bounciness * obj_b->bounciness;	
-			sfric_coeff = obj_a->friction * obj_b->friction;
+			if(obj_a)
+			{
+				bounciness = obj_a->bounciness * obj_b->bounciness;	
+				sfric_coeff = obj_a->friction * obj_b->friction;
+				moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
+			}
+			else
+			{
+				bounciness = obj_b->bounciness;	
+				sfric_coeff = obj_b->friction;
+				moi_n = Mat3::Invert(obj_b->inv_moi) * normal;
+			}
 			kfric_coeff = 0.9f * sfric_coeff;
-
-			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
 
 			cache_valid = true;
 		}

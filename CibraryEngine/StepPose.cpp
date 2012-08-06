@@ -107,7 +107,7 @@ namespace CibraryEngine
 				}
 			}
 
-			Mat4 xform = chain->GetEndTransform(guess);
+			Mat4 xform = chain->GetEndTransform(guess.begin);
 
 			// score based on how closely it matches what we're after
 			Quaternion end_ori;

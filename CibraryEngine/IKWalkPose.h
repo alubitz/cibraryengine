@@ -19,7 +19,10 @@ namespace CibraryEngine
 
 			PhysicsWorld* physics;
 
+			ModelPhysics* mphys;
+
 			vector<RigidBody*> rigid_bodies;
+			vector<JointConstraint*> all_joints;
 
 			struct Joint
 			{
@@ -40,6 +43,8 @@ namespace CibraryEngine
 				RigidBody* foot;
 				PlacedFootConstraint* placed;
 
+				IKChain* chain;
+
 				Vec3 desired_pos;
 				Quaternion desired_ori;
 
@@ -47,13 +52,15 @@ namespace CibraryEngine
 
 				bool arrived;			// might want more than two states?
 
-				EndEffector(PhysicsWorld* physics, RigidBody* foot);
+				EndEffector(PhysicsWorld* physics, ModelPhysics* mphys, Bone* from, Bone* to, RigidBody* foot);
 				~EndEffector();
 
 				void LockPlacedFoot(RigidBody* base);
 				void UnlockPlacedFoot();
 			};
 			vector<EndEffector*> end_effectors;
+
+			vector<Bone*> rbody_to_posey;
 
 			// root bone desired state info
 			Vec3 desired_pos;
@@ -63,7 +70,7 @@ namespace CibraryEngine
 
 			float arrive_time;
 
-			IKWalkPose(PhysicsWorld* physics, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
+			IKWalkPose(PhysicsWorld* physics, ModelPhysics* mphys, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
 			~IKWalkPose();
 
 			void UpdatePose(TimingInfo time);

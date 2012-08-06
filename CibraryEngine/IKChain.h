@@ -87,6 +87,9 @@ namespace CibraryEngine
 		ChainValues CreateChainValues();
 
 		/** Figure out where this arrangement puts our end effector */
-		Mat4 GetEndTransform(const ChainValues& values) const;
+		Mat4 GetEndTransform(const float* values) const;
+
+		/** Figure out where this arrangement puts our end effector relative to the root bone */
+		Mat4 GetEndTransformRelative(const float* values) const;
 	};
 }

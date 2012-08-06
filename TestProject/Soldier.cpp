@@ -161,15 +161,29 @@ namespace Test
 	{
 		Dood::Spawned();
 
-		vector<JointConstraint*> joint_constraints;
+		set<RigidBody*> joint_bodies;
+		joint_bodies.insert(RigidBodyForNamedBone("pelvis"));
+		joint_bodies.insert(RigidBodyForNamedBone("l leg 1"));
+		joint_bodies.insert(RigidBodyForNamedBone("l leg 2"));
+		joint_bodies.insert(RigidBodyForNamedBone("l foot"));
+		joint_bodies.insert(RigidBodyForNamedBone("r leg 1"));
+		joint_bodies.insert(RigidBodyForNamedBone("r leg 2"));
+		joint_bodies.insert(RigidBodyForNamedBone("r foot"));
+
+
+		vector<JointConstraint*> use_joints;
+		vector<JointConstraint*> all_joints;
 		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
 			{
-				joint_constraints.push_back(jc);
-				jc->enable_motor = false;
+				all_joints.push_back(jc);
+				//jc->enable_motor = false;
+
+				if(joint_bodies.find(jc->obj_a) != joint_bodies.end() || joint_bodies.find(jc->obj_b) != joint_bodies.end())
+					use_joints.push_back(jc);
 			}
 
-		ik_pose = new IKWalkPose(physics, rigid_bodies, joint_constraints, rbody_to_posey);
+		ik_pose = new IKWalkPose(physics, mphys, rigid_bodies, all_joints, use_joints, rbody_to_posey);
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("l foot"));
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("r foot"));
 		posey->active_poses.push_back(ik_pose);

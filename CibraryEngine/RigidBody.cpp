@@ -243,18 +243,20 @@ namespace CibraryEngine
 	void RigidBody::SetGravity(const Vec3& grav) { gravity = grav; }
 	void RigidBody::SetDamp(float damp) { linear_damp = damp; }
 
-	MassInfo RigidBody::GetMassInfo() { return mass_info; }
-	MassInfo RigidBody::GetTransformedMassInfo()
+	MassInfo RigidBody::GetMassInfo() const { return mass_info; }
+	MassInfo RigidBody::GetTransformedMassInfo() const
 	{
 		MassInfo result;
 		result.mass = mass_info.mass;
-		result.com = ori_rm.Transpose() * mass_info.com;
+		result.com = ori_rm.Transpose() * mass_info.com + pos;
 		Mat3 moi_data = Mat3::Invert(inv_moi);
 		for(int i = 0; i < 9; ++i)
 			result.moi[i] = moi_data[i];
 
 		return result;
 	}
+
+	Vec3 RigidBody::GetCenterOfMass() { ComputeXformAsNeeded(); return cached_com; }
 
 	Mat3 RigidBody::GetInvMoI() { return inv_moi; }
 

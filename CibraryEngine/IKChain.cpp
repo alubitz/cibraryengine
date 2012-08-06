@@ -82,11 +82,13 @@ namespace CibraryEngine
 
 	IKChain::ChainValues IKChain::CreateChainValues() { return ChainValues(bones.size() * 3); }
 
-	Mat4 IKChain::GetEndTransform(const IKChain::ChainValues& values) const
-	{
-		Mat4 xform = begin->GetTransformationMatrix();
+	Mat4 IKChain::GetEndTransform(const float* values) const { return begin->GetTransformationMatrix() * GetEndTransformRelative(values); }
 
-		const float* value_ptr = values.begin;
+	Mat4 IKChain::GetEndTransformRelative(const float* values) const
+	{
+		Mat4 xform(Mat4::Identity());
+
+		const float* value_ptr = values;
 		for(vector<ChainNode>::const_iterator iter = bones.begin(); iter != bones.end(); ++iter)
 		{
 			const ChainNode& node = *iter;

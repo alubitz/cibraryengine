@@ -125,8 +125,10 @@ namespace CibraryEngine
 			Mat4 GetTransformationMatrix();			
 			Mat4 GetInvTransform();
 
-			MassInfo GetMassInfo();
-			MassInfo GetTransformedMassInfo();
+			MassInfo GetMassInfo() const;
+			MassInfo GetTransformedMassInfo() const;
+
+			Vec3 GetCenterOfMass();
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
 			Mat3 GetInvMoI();

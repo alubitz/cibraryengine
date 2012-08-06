@@ -95,8 +95,8 @@ add_symetric_bones(bones,	"arm 1",	mass, { sphere(0.28,	1.54,	-0.05,	0.13),	sphe
 add_symetric_bones(bones,	"arm 2",	mass, { sphere(0.53,	1.4,	-0.06,	0.11),	sphere(0.82,	1.25,	0.01,	0.08) } )
 add_symetric_bones(bones,	"hand",		mass, { sphere(0.92,	1.2,	0.01,	0.08),	sphere(0.9,		1.21,	0.1,	0.08),	sphere(1.08,	1.08,	0.09,	0.07) } )
 add_symetric_bones(bones,	"leg 1",	mass, { sphere(0.15,	1.04,	0.0,	0.15),	sphere(0.19,	0.65,	0.01,	0.12),	sphere(0.15,	1.04,	-0.09,	0.15) } )
-add_symetric_bones(bones,	"leg 2",	mass, { sphere(0.19,	0.65,	0.01,	0.13),	sphere(0.27,	0.11,	-0.11,	0.11),	sphere(0.23,	0.4,	-0.11,	0.13) } )
-add_symetric_bones(bones,	"foot",		mass, { sphere(0.27,	0.11,	-0.11,	0.11),	sphere(0.27,	0.06,	0.25,	0.06) } )
+add_symetric_bones(bones,	"leg 2",	mass, { sphere(0.19,	0.65,	0.01,	0.13),	sphere(0.27,	0.11,	-0.11,	0.09),	sphere(0.23,	0.4,	-0.11,	0.13) } )
+add_symetric_bones(bones,	"foot",		mass, { sphere(0.27,	0.11,	-0.11,	0.11),	sphere(0.22,	0.06,	0.25,	0.06),	sphere(0.32,	0.06,	0.25,	0.06) } )
 
 local joints = { }
 

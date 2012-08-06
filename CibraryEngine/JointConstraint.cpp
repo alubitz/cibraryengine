@@ -27,6 +27,9 @@ namespace CibraryEngine
 		static const float angular_vel_coeff =	1.0f;
 		static const float dv_coeff =			1.0f;
 
+		static const float inv_foresight =		60.0f;
+		static const float foresight =			1.0f / inv_foresight;
+
 		bool wakeup = false;
 
 
@@ -34,8 +37,7 @@ namespace CibraryEngine
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
 
 		Vec3 dv = desired_dv - current_dv;
-		float magsq = dv.ComputeMagnitudeSquared();
-		if(magsq > 0.0f)
+		if(float magsq = dv.ComputeMagnitudeSquared())
 		{
 			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
 			obj_a->ApplyWorldImpulse(impulse, apply_pos);
@@ -57,9 +59,6 @@ namespace CibraryEngine
 			alpha = (desired_av - current_av) * -angular_vel_coeff;
 
 		// enforce joint rotation limits
-		const float inv_foresight = 360.0f;
-		const float foresight = 1.0f / inv_foresight;
-
 		Vec3 proposed_av = current_av - alpha;
 		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * foresight, proposed_av.y * foresight, proposed_av.z * foresight);
 		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
@@ -82,7 +81,7 @@ namespace CibraryEngine
 		}
 
 		// apply angular velocity changes
-		if(alpha.ComputeMagnitudeSquared() > 0.0f)
+		if(alpha.ComputeMagnitudeSquared())
 		{
 			Vec3 angular_impulse = moi * alpha;
 
@@ -102,8 +101,8 @@ namespace CibraryEngine
 
 	void JointConstraint::DoUpdateAction(float timestep)
 	{
-		static const float pyr_coeff =			360.0f;			// based on the assumption of physics running at 360hz (maybe requires changing?)
-		static const float spring_coeff =		360.0f;
+		static const float pyr_coeff =			60.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
+		static const float spring_coeff =		60.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();
