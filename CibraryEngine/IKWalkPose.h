@@ -11,15 +11,12 @@ namespace CibraryEngine
 	class PhysicsWorld;
 	class RigidBody;
 	class JointConstraint;
-	class PlacedFootConstraint;
 
 	class IKWalkPose : public Pose
 	{
 		public:
 
 			PhysicsWorld* physics;
-
-			ModelPhysics* mphys;
 
 			vector<RigidBody*> rigid_bodies;
 			vector<JointConstraint*> all_joints;
@@ -38,42 +35,32 @@ namespace CibraryEngine
 
 			struct EndEffector
 			{
-				PhysicsWorld* physics;
-
+				RigidBody* pelvis;
+				RigidBody* upper_leg;
+				RigidBody* lower_leg;
 				RigidBody* foot;
-				PlacedFootConstraint* placed;
 
-				IKChain* chain;
+				JointConstraint* hip;
+				JointConstraint* knee;
+				JointConstraint* ankle;
 
-				Vec3 desired_pos;
-				Quaternion desired_ori;
+				float upper_leg_length, lower_leg_length;
+				float asq, bsq;			// leg lengths squared
+				float asqmbsq;			// upper_leg_length squared - lower_leg_length squared
 
-				float arrive_time;
+				int hip_values_index;
+				int knee_values_index;
+				int ankle_values_index;
 
-				bool arrived;			// might want more than two states?
+				bool arrived;
 
-				EndEffector(PhysicsWorld* physics, ModelPhysics* mphys, Bone* from, Bone* to, RigidBody* foot);
-				~EndEffector();
+				EndEffector(JointConstraint* hip, JointConstraint* knee, JointConstraint* ankle);
 
-				void LockPlacedFoot(RigidBody* base);
-				void UnlockPlacedFoot();
+				// false = no solution!
+				// assigns to appropriate indices of joint values array the proper orientations for those joints
+				bool Extend(const Mat4& pelvis_xform, const Mat4& foot_xform, float* values);
 			};
-			vector<EndEffector*> end_effectors;
-
-			struct SkeletonSpanOp
-			{
-				RigidBody *from, *to;
-				JointConstraint* joint;
-				bool invert;
-
-				int values_index;					// -1 = doesn't correspond to a value we can set; 0+ = corresponds to index n*3
-
-				SkeletonSpanOp(RigidBody* body);
-				SkeletonSpanOp(JointConstraint* joint, bool invert, int values_index);
-			};
-			vector<SkeletonSpanOp> span_ops;		// process these in order to get the xforms of all bones in the skeleton
-
-			vector<Bone*> rbody_to_posey;
+			vector<EndEffector> end_effectors;
 
 			// root bone desired state info
 			Vec3 desired_pos;
@@ -83,16 +70,13 @@ namespace CibraryEngine
 
 			float arrive_time;
 
-			IKWalkPose(PhysicsWorld* physics, ModelPhysics* mphys, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
+			IKWalkPose(PhysicsWorld* physics, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey);
 			~IKWalkPose();
-
-			void DiscoverSpanOps();
 
 			void UpdatePose(TimingInfo time);
 
 			void AddEndEffector(RigidBody* foot);
 
 			void Seek(float timestep, float foresight);
-			float EvaluateSolution(const vector<float>& values);
 	};
 }

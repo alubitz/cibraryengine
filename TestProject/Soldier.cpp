@@ -41,8 +41,6 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
-		soldier_collision_callback.soldier = this;
-
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
@@ -183,13 +181,10 @@ namespace Test
 					use_joints.push_back(jc);
 			}
 
-		ik_pose = new IKWalkPose(physics, mphys, rigid_bodies, all_joints, use_joints, rbody_to_posey);
+		ik_pose = new IKWalkPose(physics, rigid_bodies, all_joints, use_joints, rbody_to_posey);
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("l foot"));
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("r foot"));
 		posey->active_poses.push_back(ik_pose);
-
-		RigidBodyForNamedBone("l foot")->SetCollisionCallback(&soldier_collision_callback);
-		RigidBodyForNamedBone("r foot")->SetCollisionCallback(&soldier_collision_callback);
 	}
 
 	void Soldier::Die(Damage cause)
@@ -206,32 +201,6 @@ namespace Test
 
 				break;
 			}
-
-		RigidBodyForNamedBone("l foot")->SetCollisionCallback(&collision_callback);
-		RigidBodyForNamedBone("r foot")->SetCollisionCallback(&collision_callback);
-	}
-
-
-
-
-	/*
-	 * Soldier::ContactCallback methods
-	 */
-	bool Soldier::ContactCallback::OnCollision(const ContactPoint& cp)
-	{	
-#if 0
-		for(vector<IKWalkPose::EndEffector*>::iterator iter = soldier->ik_pose->end_effectors.begin(); iter != soldier->ik_pose->end_effectors.end(); ++iter)
-		{
-			IKWalkPose::EndEffector& ee = **iter;
-
-			if(ee.foot == cp.obj_a)
-				ee.LockPlacedFoot(cp.obj_b);
-			else if(ee.foot == cp.obj_b)
-				ee.LockPlacedFoot(cp.obj_a);
-		}
-#endif
-
-		return soldier->collision_callback.OnCollision(cp);
 	}
 
 

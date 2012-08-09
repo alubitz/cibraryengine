@@ -7,65 +7,137 @@
 
 #include "RigidBody.h"
 #include "JointConstraint.h"
-#include "PlacedFootConstraint.h"
+
+#include "Util.h"
 
 namespace CibraryEngine
 {
 	/*
 	 * IKWalkPose::EndEffector methods
 	 */
-	IKWalkPose::EndEffector::EndEffector(PhysicsWorld* physics, ModelPhysics* mphys, Bone* from, Bone* to, RigidBody* foot) :
-		physics(physics),
-		foot(foot),
-		placed(NULL),
-		chain(new IKChain(from, to, mphys)),
-		desired_pos(),
-		desired_ori(Quaternion::Identity()),
-		arrive_time(-1),
-		arrived(true)
-	{
+	IKWalkPose::EndEffector::EndEffector(JointConstraint* hip, JointConstraint* knee, JointConstraint* ankle) :
+		pelvis(hip->obj_a),
+		upper_leg(knee->obj_a),
+		lower_leg(knee->obj_b),
+		foot(ankle->obj_b),
+		hip(hip),
+		knee(knee),
+		ankle(ankle),
+		upper_leg_length((hip->pos - knee->pos).ComputeMagnitude()),
+		lower_leg_length((ankle->pos - knee->pos).ComputeMagnitude()),
+		asq(upper_leg_length * upper_leg_length),
+		bsq(lower_leg_length * lower_leg_length),
+		asqmbsq(asq - bsq),
+		hip_values_index(-1),
+		knee_values_index(-1),
+		ankle_values_index(-1),
+		arrived(false)
+	{	
 	}
 
-	IKWalkPose::EndEffector::~EndEffector()
-	{
-		UnlockPlacedFoot();
-		if(chain) { delete chain; chain = NULL; }
-	}
 
-	void IKWalkPose::EndEffector::LockPlacedFoot(RigidBody* base)
+	bool IKWalkPose::EndEffector::Extend(const Mat4& pelvis_xform, const Mat4& foot_xform, float* values)
 	{
-		if(placed)
+		Vec3 hip_pos = pelvis_xform.TransformVec3_1(hip->pos);
+		Vec3 ankle_pos = foot_xform.TransformVec3_1(ankle->pos);
+
+		Vec3 hip_to_ankle = ankle_pos - hip_pos;
+		float dist_sq = hip_to_ankle.ComputeMagnitudeSquared();
+		if(dist_sq == 0.0f)
+			return false;													// NOTE: if the leg lengths are equal this is still solvable!
+
+		float dist = sqrtf(dist_sq), inv_dist = 1.0f / dist;
+
+		float y = 0.5f * (dist_sq - asqmbsq) * inv_dist;					// distance along vector from ankle to hip to reach knee joint
+
+		float rad = bsq - y * y;
+		if(rad < 0.0f)
 		{
-			if(placed->obj_a == foot && placed->obj_b == base)
-				return;
-			else
-				UnlockPlacedFoot();
+			Debug(((stringstream&)(stringstream() << "c = " << dist << "; a + b = " << upper_leg_length + lower_leg_length << "; |a - b| = " << fabs(upper_leg_length - lower_leg_length) << endl)).str());
+			return false;
 		}
 
-		placed = new PlacedFootConstraint(foot, base, foot->GetTransformationMatrix().TransformVec3_1(foot->GetMassInfo().com));
-		physics->AddConstraint(placed);
-	}
+		Vec3 n = hip_to_ankle * inv_dist;									// normal to plane of solution circle (locus on which the knee joint must lie)
+		Vec3 c = ankle_pos + y * n;											// center of solution circle
+		float r = sqrtf(rad);												// radius of solution circle
 
-	void IKWalkPose::EndEffector::UnlockPlacedFoot()
-	{
-		if(placed)
+		// figure out where things are now so we can pick a solution that is changed minimally
+		Mat4 cur_lleg_xform = lower_leg->GetTransformationMatrix();			// this will be used twice, so might as well cache it
+		Vec3 current_hip_pos =		pelvis->GetTransformationMatrix().TransformVec3_1(hip->pos);
+		Vec3 current_knee_pos =		cur_lleg_xform.TransformVec3_1(knee->pos);
+		Vec3 current_ankle_pos =	cur_lleg_xform.TransformVec3_1(ankle->pos);
+
+		// find point on circle closest to current position of knee
+		Vec3 knee_pos = current_knee_pos - c;
+		knee_pos -= n * Vec3::Dot(n, knee_pos);
+		knee_pos = c + Vec3::Normalize(knee_pos, r);
+
+		Quaternion uleg_ori = upper_leg->GetOrientation();
+		Quaternion lleg_ori = lower_leg->GetOrientation();
+
+		Vec3 cur_uleg_vec = current_hip_pos - current_knee_pos, uleg_vec = hip_pos - knee_pos;
+		Vec3 uleg_cross = Vec3::Cross(cur_uleg_vec, uleg_vec);
+		if(float cross_sq = uleg_cross.ComputeMagnitudeSquared())
 		{
-			physics->RemoveConstraint(placed);
+			float angle = asinf(sqrtf(cross_sq / (cur_uleg_vec.ComputeMagnitudeSquared() * uleg_vec.ComputeMagnitudeSquared())));
+			uleg_cross /= sqrtf(cross_sq);
 
-			placed->Dispose();
-			delete placed;
-			placed = NULL;
+			uleg_ori *= Quaternion::FromAxisAngle(uleg_cross.x, uleg_cross.y, uleg_cross.z, angle);
 		}
+
+		Vec3 cur_lleg_vec = current_knee_pos - current_ankle_pos, lleg_vec = knee_pos - ankle_pos;
+		Vec3 lleg_cross = Vec3::Cross(cur_lleg_vec, lleg_vec);
+		if(float cross_sq = lleg_cross.ComputeMagnitudeSquared())
+		{
+			float angle = asinf(sqrtf(cross_sq / (cur_lleg_vec.ComputeMagnitudeSquared() * lleg_vec.ComputeMagnitudeSquared())));
+			lleg_cross /= sqrtf(cross_sq);
+
+			lleg_ori *= Quaternion::FromAxisAngle(lleg_cross.x, lleg_cross.y, lleg_cross.z, angle);
+		}
+
+
+		Quaternion pelvis_ori;
+		Quaternion foot_ori;
+		Vec3 dummy;
+		pelvis_xform.Decompose(	dummy, pelvis_ori);
+		foot_xform.Decompose(	dummy, foot_ori);
+
+		Quaternion hip_ori =	Quaternion::Reverse(pelvis_ori)	* uleg_ori;
+		Quaternion knee_ori =	Quaternion::Reverse(uleg_ori)	* lleg_ori;
+		Quaternion ankle_ori =	Quaternion::Reverse(lleg_ori)	* foot_ori;
+
+		if(hip_values_index >= 0)
+		{
+			float* val_ptr = values + hip_values_index * 3;
+
+			Vec3 pyr = hip_ori.ToPYR();
+			*(val_ptr++) =	pyr.x;
+			*(val_ptr++) =	pyr.y;
+			*val_ptr =		pyr.z;
+		}
+
+		if(knee_values_index >= 0)
+		{
+			float* val_ptr = values + knee_values_index * 3;
+		
+			Vec3 pyr = knee_ori.ToPYR();
+			*(val_ptr++) =	pyr.x;
+			*(val_ptr++) =	pyr.y;
+			*val_ptr =		pyr.z;
+		}
+
+		if(ankle_values_index >= 0)
+		{
+			float* val_ptr = values + ankle_values_index * 3;
+			
+			Vec3 pyr = ankle_ori.ToPYR();
+			*(val_ptr++) =	pyr.x;
+			*(val_ptr++) =	pyr.y;
+			*val_ptr =		pyr.z;
+		}
+
+		return true;
 	}
-
-
-
-
-	/*
-	 * IKWalkPose::SkeletonSpanOp methods
-	 */
-	IKWalkPose::SkeletonSpanOp::SkeletonSpanOp(RigidBody* body) : from(NULL), to(body), joint(NULL), invert(false), values_index(-1) { }
-	IKWalkPose::SkeletonSpanOp::SkeletonSpanOp(JointConstraint* joint, bool invert, int values_index) : from(invert ? joint->obj_b : joint->obj_a), to(invert ? joint->obj_a : joint->obj_b), joint(joint), invert(invert), values_index(values_index) { }
 
 
 
@@ -73,16 +145,13 @@ namespace CibraryEngine
 	/*
 	 * IKWalkPose methods
 	 */
-	IKWalkPose::IKWalkPose(PhysicsWorld* physics, ModelPhysics* mphys, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey) :
+	IKWalkPose::IKWalkPose(PhysicsWorld* physics, const vector<RigidBody*>& rigid_bodies, const vector<JointConstraint*>& all_joints, const vector<JointConstraint*>& constraints, const vector<Bone*>& rbody_to_posey) :
 		Pose(),
 		physics(physics),
-		mphys(mphys),
 		rigid_bodies(rigid_bodies),
 		all_joints(all_joints),
 		joints(),
 		end_effectors(),
-		span_ops(),
-		rbody_to_posey(rbody_to_posey),
 		arrive_time(-1)
 	{
 		for(vector<JointConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
@@ -108,64 +177,9 @@ namespace CibraryEngine
 					joints.push_back(Joint(constraint, constraint->desired_ori, bone_a->name, true));
 			}
 		}
-
-		DiscoverSpanOps();
 	}
 
-	IKWalkPose::~IKWalkPose()
-	{
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-			delete *iter;
-		end_effectors.clear();
-	}
-
-	void IKWalkPose::DiscoverSpanOps()
-	{
-		span_ops.clear();
-
-		set<RigidBody*> fringe;
-		map<JointConstraint*, int> constraint_indices;
-
-		for(unsigned int i = 0; i < joints.size(); ++i)
-			constraint_indices[joints[i].constraint] = (int)i;
-
-		for(vector<JointConstraint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
-			if(constraint_indices.find(*iter) == constraint_indices.end())
-				constraint_indices[*iter] = -1;
-
-		fringe.insert(rigid_bodies[0]);
-		span_ops.push_back(SkeletonSpanOp(rigid_bodies[0]));
-
-		while(!fringe.empty())
-		{
-			set<RigidBody*>::iterator fringe_iter = fringe.begin();
-			RigidBody* body = *fringe_iter;
-
-			fringe.erase(fringe_iter);
-
-			for(map<JointConstraint*, int>::iterator iter = constraint_indices.begin(); iter != constraint_indices.end();)
-			{
-				JointConstraint* jc = iter->first;
-
-				if(jc->obj_a == body)
-				{
-					span_ops.push_back(SkeletonSpanOp(jc, false, iter->second));
-
-					iter = constraint_indices.erase(iter);
-					fringe.insert(jc->obj_b);
-				}
-				else if(jc->obj_b == body)
-				{
-					span_ops.push_back(SkeletonSpanOp(jc, true, iter->second));
-
-					iter = constraint_indices.erase(iter);
-					fringe.insert(jc->obj_a);
-				}
-				else
-					++iter;
-			}
-		}
-	}
+	IKWalkPose::~IKWalkPose() { }
 
 	void IKWalkPose::UpdatePose(TimingInfo time)
 	{
@@ -173,18 +187,7 @@ namespace CibraryEngine
 		if(timestep > 0)
 		{
 			float now = time.total;
-			float next_arrival = -1;
-
-			// find the soonest upcoming arrival time
-			if(now < arrive_time)
-				next_arrival = arrive_time;
-			for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-			{
-				EndEffector* ee = *iter;
-				if(now < ee->arrive_time)
-					if(next_arrival == -1 || ee->arrive_time < next_arrival)
-						next_arrival = ee->arrive_time;
-			}
+			float next_arrival = arrive_time;
 
 			Seek(timestep, max(timestep, next_arrival - now));
 		}
@@ -192,21 +195,50 @@ namespace CibraryEngine
 
 	void IKWalkPose::AddEndEffector(RigidBody* foot)
 	{
-		Bone* from = rbody_to_posey[0];				// TODO: maybe have a way to select which bone to use?
-		Bone* to = NULL;
+		JointConstraint *ankle = NULL, *knee = NULL, *hip = NULL;
 
-		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
-			if(rigid_bodies[i] == foot)
-				to = rbody_to_posey[i];
+		for(unsigned int i = 0; i < joints.size(); ++i)
+		{
+			JointConstraint* jc = joints[i].constraint;
+			if(jc->obj_b == foot)
+			{
+				ankle = jc;
+				for(unsigned int j = 0; j < joints.size(); ++j)
+				{
+					JointConstraint* jc = joints[j].constraint;
+					if(jc->obj_b == ankle->obj_a)
+					{
+						knee = jc;
+						for(unsigned int k = 0; k < joints.size(); ++k)
+						{
+							JointConstraint* jc = joints[k].constraint;
+							if(jc->obj_b == knee->obj_a)
+							{
+								hip = jc;
 
-		end_effectors.push_back(new EndEffector(physics, mphys, from, to, foot));
+								EndEffector ee(hip, knee, ankle);
+
+								ee.hip_values_index = k;
+								ee.knee_values_index = j;
+								ee.ankle_values_index = i;
+
+								end_effectors.push_back(ee);
+
+								return;
+							}
+						}
+					}
+				}
+				break;
+			}
+		}
 	}
 
 	void IKWalkPose::Seek(float timestep, float foresight)
 	{
 		// compute position and velocity of the dood's center of mass
 		Vec3 com, com_vel;
-		float total_weight;
+		float total_weight = 0.0f;
 
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 		{
@@ -228,165 +260,35 @@ namespace CibraryEngine
 
 
 
-		unsigned int num_variables = joints.size() * 3;
+		vector<float> joint_values(joints.size() * 3);
 
-		vector<float> best =		vector<float>(num_variables);
-		vector<float> guess =		vector<float>(num_variables);
-		vector<float> rot =			vector<float>(num_variables);
-		vector<float> min_extents =	vector<float>(num_variables);
-		vector<float> max_extents =	vector<float>(num_variables);
-
-		vector<float>::iterator best_iter =		best.begin();
-		vector<float>::iterator guess_iter =	guess.begin();
-		vector<float>::iterator rot_iter =		rot.begin();
-		vector<float>::iterator min_iter =		min_extents.begin();
-		vector<float>::iterator max_iter =		max_extents.begin();
-
-		// rot = the solution we came up with last time
-		for(vector<Joint>::iterator iter = joints.begin(); iter != joints.end(); ++iter)
+		Mat4 pelvis_xform = rigid_bodies[0]->GetTransformationMatrix();
+		for(vector<EndEffector>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
-			const Joint& joint = *iter;
-			const JointConstraint& constraint = *joint.constraint;
+			Mat4 foot_xform = iter->foot->GetTransformationMatrix();
 
-			*(min_iter++) = constraint.min_extents.x;
-			*(min_iter++) = constraint.min_extents.y;
-			*(min_iter++) = constraint.min_extents.z;
-
-			*(max_iter++) = constraint.max_extents.x;
-			*(max_iter++) = constraint.max_extents.y;
-			*(max_iter++) = constraint.max_extents.z;
-
-			Quaternion target_ori = joint.target_ori;
-			Vec3 vec = Mat3::Invert(constraint.axes) * target_ori.ToPYR();
-			*(rot_iter++) = max(constraint.min_extents.x, min(constraint.max_extents.x, vec.x));
-			*(rot_iter++) = max(constraint.min_extents.y, min(constraint.max_extents.y, vec.y));
-			*(rot_iter++) = max(constraint.min_extents.z, min(constraint.max_extents.z, vec.z));
-		}
-
-		float best_score = -1;
-
-		// look for incrementally better solutions
-		for(int i = 0; i < 100; ++i)
-		{
-			if(i == 0)
-				guess = vector<float>(num_variables);			// initialize all to 0.0f
-			else if(i == 1)
-				guess = rot;									// try the solution we came up with last time
-			else
+			if(!iter->Extend(pelvis_xform, foot_xform, joint_values.data()))
 			{
-				guess = best;									// mutations off of the best solution so far
-
-				int num_mutations = Random3D::RandInt(1, 3);
-				for(int i = 0; i < num_mutations; ++i)
-				{
-					int index = Random3D::RandInt(num_variables);
-
-					float min_val = min_extents[index], max_val = max_extents[index];
-					float range = max_val - min_val;
-
-					guess[index] = max(min_val, min(max_val, guess[index] + Random3D::Rand(-0.1f * range, 0.1f * range)));
-				}
-			}
-
-			float score = EvaluateSolution(guess);
-
-			if(best_score == -1 || score < best_score)
-			{
-				best = guess;
-				best_score = score;
-
-				// stop iterating once score is "good enough"
-				if(score < 0.0001f)
-					break;
+				Debug("invalid inputs!\n");
+				return;
 			}
 		}
 
-		// apply the best solution we came up with
-		best_iter = best.begin();
+		Debug("valid inputs\n");
+
+
+
+
+		// apply the solution we came up with
+		float* val_iter = joint_values.data();
 		for(vector<Joint>::iterator iter = joints.begin(); iter != joints.end(); ++iter)
 		{
 			Joint& joint = *iter;
 			JointConstraint& constraint = *joint.constraint;
 
-			float x = *(best_iter++), y = *(best_iter++), z = *(best_iter++);
+			float x = *(val_iter++), y = *(val_iter++), z = *(val_iter++);
 			joint.target_ori = Quaternion::FromPYR(constraint.axes * Vec3(x, y, z));
-
-			Quaternion ori = Quaternion::Reverse(constraint.obj_a->GetOrientation()) * constraint.obj_b->GetOrientation();
-
-			Quaternion target_relative = Quaternion::Reverse(ori) * joint.target_ori;
-			float a_coeff = timestep / foresight, b_coeff = 1.0f - a_coeff;
-
-			ori *= target_relative * a_coeff + Quaternion::Identity() * b_coeff;
-
-			SetBonePose(joint.set_pose_id, ori.ToPYR(), Vec3());
+			SetBonePose(joint.set_pose_id, joint.target_ori.ToPYR(), Vec3());
 		}
-	}
-
-	float IKWalkPose::EvaluateSolution(const vector<float>& values)
-	{
-		map<RigidBody*, Mat4> bone_xforms;
-
-		for(vector<SkeletonSpanOp>::iterator iter = span_ops.begin(); iter != span_ops.end(); ++iter)
-		{
-			RigidBody* body = iter->to;
-			
-			if(iter->from == NULL)
-				bone_xforms[body] = body->GetTransformationMatrix();
-			else
-			{
-				JointConstraint& jc = *iter->joint;
-
-				Quaternion ori;
-				if(iter->values_index == -1)
-					ori = Quaternion::Identity();
-				else
-				{
-					const float* ptr = &values[iter->values_index * 3];
-					float x = *(ptr++), y = *(ptr++), z = *ptr;
-
-					ori = Quaternion::FromPYR(jc.axes * Vec3(x, y, z));
-				}
-
-				Mat4 to_rest_pos = Mat4::Translation(jc.pos);
-				Mat4 from_rest_pos = Mat4::Translation(-jc.pos);
-				Mat4 rotation_mat = Mat4::FromQuaternion(ori);
-
-				Mat4 net = to_rest_pos * rotation_mat * from_rest_pos;
-				if(iter->invert)
-					bone_xforms[iter->to] = Mat4::Invert(net) * bone_xforms[iter->from];
-				else
-					bone_xforms[iter->to] = bone_xforms[iter->from] * net;
-			}
-		}
-
-		Vec3 com;
-		float total_weight = 0.0f;
-
-		for(map<RigidBody*, Mat4>::iterator iter = bone_xforms.begin(); iter != bone_xforms.end(); ++iter)
-		{
-			MassInfo mass_info = iter->first->GetMassInfo();
-
-			float weight = mass_info.mass;
-
-			total_weight += weight;
-			com += iter->second.TransformVec3_1(mass_info.com) * weight;
-		}
-
-		com /= total_weight;
-
-
-		float score = 0.0f;
-
-		for(vector<EndEffector*>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
-		{
-			RigidBody* foot = (*iter)->foot;
-
-			Vec3 foot_pos = bone_xforms[foot].TransformVec3_1(foot->GetMassInfo().com);
-		
-			float dy = com.y - foot_pos.y - 1.0f;
-			score += dy * dy;
-		}
-
-		return score;
 	}
 }
