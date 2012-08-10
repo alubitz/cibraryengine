@@ -27,8 +27,8 @@ namespace CibraryEngine
 		static const float angular_vel_coeff =	1.0f;
 		static const float dv_coeff =			1.0f;
 
-		static const float inv_foresight =		60.0f;
-		static const float foresight =			1.0f / inv_foresight;
+		const float inv_foresight =				inv_timestep;
+		const float foresight =					timestep;
 
 		bool wakeup = false;
 
@@ -99,10 +99,13 @@ namespace CibraryEngine
 		}
 	}
 
-	void JointConstraint::DoUpdateAction(float timestep)
+	void JointConstraint::DoUpdateAction(float timestep_)
 	{
-		static const float pyr_coeff =			60.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
-		static const float spring_coeff =		60.0f;
+		timestep = timestep_;
+		inv_timestep = 1.0f / timestep;
+
+		const float pyr_coeff =					inv_timestep;
+		const float spring_coeff =				inv_timestep;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();

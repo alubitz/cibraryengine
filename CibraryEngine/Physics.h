@@ -137,6 +137,8 @@ namespace CibraryEngine
 		void BuildCache();
 
 		void DoConstraintAction(vector<RigidBody*>& wakeup);
+		void DoUpdateAction(float timestep);
+
 		bool DoCollisionResponse() const;
 	};
 

@@ -68,8 +68,10 @@ namespace CibraryEngine
 
 	void PlacedFootConstraint::DoUpdateAction(float timestep)
 	{
-		static const float pyr_coeff =			60.0f;			// based on the assumption of physics running at 60hz (maybe requires changing?)
-		static const float spring_coeff =		60.0f;
+		float inv_timestep = 1.0f / timestep;
+
+		const float pyr_coeff =			inv_timestep;
+		const float spring_coeff =		inv_timestep;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();

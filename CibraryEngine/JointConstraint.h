@@ -23,6 +23,8 @@ namespace CibraryEngine
 			Mat3 oriented_axes, reverse_oriented_axes;
 			Quaternion a_to_b, b_to_a;
 
+			float timestep, inv_timestep;
+
 		public:
 
 			/** Position of the joint in the coordinate system of the first bone */

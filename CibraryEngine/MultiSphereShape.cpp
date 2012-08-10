@@ -1040,13 +1040,8 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody)
 		{
-			bool any = false;
-
-			Vec3 center;
-			float weight = 0.0f;
-
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
 
@@ -1059,29 +1054,20 @@ namespace CibraryEngine
 
 				if(dist < 0.0f)
 				{
-					float cur_w = -dist;
-					weight += cur_w;
-					center += (sphere_pos - plane_norm * (Vec3::Dot(sphere_pos, plane_norm) - plane_offset)) * cur_w;
+					ContactPoint result;
 
-					any = true;
+					result.obj_a = ibody;
+					result.obj_b = jbody;
+					result.a.pos = sphere_pos + plane_norm * radius;
+					result.b.pos = sphere_pos + plane_norm * (radius + dist);
+					result.b.norm = plane_norm;
+					result.a.norm = -plane_norm;
+
+					results.push_back(result);
 				}
 			}
 
-			if(any)
-			{
-				center /= weight;
-
-				result = ContactPoint();
-				result.obj_a = ibody;
-				result.obj_b = jbody;
-				result.a.pos = center;
-				result.b.pos = center;
-				result.b.norm = plane_norm;
-				result.a.norm = -plane_norm;
-
-				return true;
-			}
-			return false;
+			return !results.empty();
 		}
 
 		bool CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
@@ -1153,8 +1139,6 @@ namespace CibraryEngine
 					}
 				}
 
-				Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
-
 				result = ContactPoint();
 				result.obj_a = ibody;
 				result.obj_b = jbody;
@@ -1162,8 +1146,8 @@ namespace CibraryEngine
 				result.a.norm = direction;
 				result.b.norm = -direction;
 
-				result.a.pos = pos;
-				result.b.pos = pos;
+				Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
+				result.a.pos = result.b.pos = pos;
 
 				return true;
 			}
@@ -1346,7 +1330,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::ContainsPoint(const Vec3& point) const { return imp->ContainsPoint(point); }
 
 	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
-	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, result, ibody, jbody); }
+	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, other, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, inv_xform, xformed_aabb, tri, result, ibody, jbody); }

@@ -26,10 +26,10 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 200
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 150
 
-#define PHYSICS_TICK_FREQUENCY 60
-#define MAX_FIXED_STEPS_PER_UPDATE 1
+#define PHYSICS_TICK_FREQUENCY 360
+#define MAX_FIXED_STEPS_PER_UPDATE 6
 
 namespace CibraryEngine
 {
@@ -680,6 +680,9 @@ namespace CibraryEngine
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(); iter != dynamic_objects[ST_MultiSphere].end(); ++iter)
 			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);
 
+		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(); iter != constraint_graph.contact_points.end(); ++iter)
+			(*iter)->DoUpdateAction(timestep);
+
 		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(); iter != all_constraints.end(); ++iter)
 		{
 			(*iter)->DoUpdateAction(timestep);
@@ -977,6 +980,32 @@ namespace CibraryEngine
 		}
 	}
 
+	void ContactPoint::DoUpdateAction(float timestep)
+	{
+#if 0
+		Vec3 dx = b.pos - a.pos;
+
+		if(float magsq = dx.ComputeMagnitude())
+		{
+			if(!obj_b->can_move)
+			{
+				obj_a->pos -= dx;
+				obj_a->xform_valid = false;
+			}
+			else
+			{
+				float total = 1.0f / obj_a->mass_info.mass + 1.0f / obj_b->mass_info.mass, inv_total = 1.0f / total;
+
+				obj_a->pos -= dx * (inv_total / obj_a->mass_info.mass);
+				obj_b->pos += dx * (inv_total / obj_b->mass_info.mass);
+
+				obj_a->xform_valid = false;
+				obj_b->xform_valid = false;
+			}
+		}
+#endif
+	}
+
 
 
 
@@ -1215,9 +1244,10 @@ namespace CibraryEngine
 	{
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
-		ContactPoint p;
-		if(ishape->CollidePlane(xform, jshape->plane, p, ibody, jbody))
-			hits.AddContactPoint(p);
+		vector<ContactPoint> results;
+		if(ishape->CollidePlane(xform, jshape->plane, results, ibody, jbody))
+			for(vector<ContactPoint>::iterator iter = results.begin(); iter != results.end(); ++iter)
+				hits.AddContactPoint(*iter);
 	}
 
 	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits)
@@ -1229,7 +1259,8 @@ namespace CibraryEngine
 		ContactPoint p;
 		if(ishape->CollideMultisphere(net_xform, jshape, p, ibody, jbody))
 		{
-			p.a.pos = p.b.pos = xform.TransformVec3_1(p.a.pos);
+			p.a.pos = xform.TransformVec3_1(p.a.pos);
+			p.b.pos = xform.TransformVec3_1(p.b.pos);
 			p.a.norm = xform.TransformVec3_0(p.a.norm);
 			p.b.norm = -p.a.norm;
 

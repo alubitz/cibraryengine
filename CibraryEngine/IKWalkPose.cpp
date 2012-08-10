@@ -48,18 +48,18 @@ namespace CibraryEngine
 
 		float dist = sqrtf(dist_sq), inv_dist = 1.0f / dist;
 
-		float y = 0.5f * (dist_sq - asqmbsq) * inv_dist;					// distance along vector from ankle to hip to reach knee joint
+		float y = 0.5f * (dist_sq + asqmbsq) * inv_dist;					// distance along vector from ankle to hip to reach knee joint
 
-		float rad = bsq - y * y;
-		if(rad < 0.0f)
+		float r_sq = asq - y * y;
+		if(r_sq < 0.0f)
 		{
 			Debug(((stringstream&)(stringstream() << "c = " << dist << "; a + b = " << upper_leg_length + lower_leg_length << "; |a - b| = " << fabs(upper_leg_length - lower_leg_length) << endl)).str());
 			return false;
 		}
 
 		Vec3 n = hip_to_ankle * inv_dist;									// normal to plane of solution circle (locus on which the knee joint must lie)
-		Vec3 c = ankle_pos + y * n;											// center of solution circle
-		float r = sqrtf(rad);												// radius of solution circle
+		Vec3 c = hip_pos + y * n;											// center of solution circle
+		float r = sqrtf(r_sq);												// radius of solution circle
 
 		// figure out where things are now so we can pick a solution that is changed minimally
 		Mat4 cur_lleg_xform = lower_leg->GetTransformationMatrix();			// this will be used twice, so might as well cache it
@@ -82,7 +82,7 @@ namespace CibraryEngine
 			float angle = asinf(sqrtf(cross_sq / (cur_uleg_vec.ComputeMagnitudeSquared() * uleg_vec.ComputeMagnitudeSquared())));
 			uleg_cross /= sqrtf(cross_sq);
 
-			uleg_ori *= Quaternion::FromAxisAngle(uleg_cross.x, uleg_cross.y, uleg_cross.z, angle);
+			uleg_ori *= Quaternion::FromAxisAngle(uleg_cross.x, uleg_cross.y, uleg_cross.z, -angle);
 		}
 
 		Vec3 cur_lleg_vec = current_knee_pos - current_ankle_pos, lleg_vec = knee_pos - ankle_pos;
@@ -92,9 +92,8 @@ namespace CibraryEngine
 			float angle = asinf(sqrtf(cross_sq / (cur_lleg_vec.ComputeMagnitudeSquared() * lleg_vec.ComputeMagnitudeSquared())));
 			lleg_cross /= sqrtf(cross_sq);
 
-			lleg_ori *= Quaternion::FromAxisAngle(lleg_cross.x, lleg_cross.y, lleg_cross.z, angle);
+			lleg_ori *= Quaternion::FromAxisAngle(lleg_cross.x, lleg_cross.y, lleg_cross.z, -angle);
 		}
-
 
 		Quaternion pelvis_ori;
 		Quaternion foot_ori;
@@ -265,16 +264,11 @@ namespace CibraryEngine
 		Mat4 pelvis_xform = rigid_bodies[0]->GetTransformationMatrix();
 		for(vector<EndEffector>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
-			Mat4 foot_xform = iter->foot->GetTransformationMatrix();
+			Mat4 foot_xform = pelvis_xform;
 
 			if(!iter->Extend(pelvis_xform, foot_xform, joint_values.data()))
-			{
-				Debug("invalid inputs!\n");
 				return;
-			}
 		}
-
-		Debug("valid inputs\n");
 
 
 
