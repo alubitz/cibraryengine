@@ -261,10 +261,18 @@ namespace CibraryEngine
 
 		vector<float> joint_values(joints.size() * 3);
 
+		bool first = true;
+
 		Mat4 pelvis_xform = rigid_bodies[0]->GetTransformationMatrix();
 		for(vector<EndEffector>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
 			Mat4 foot_xform = pelvis_xform;
+
+			if(first)
+			{
+				foot_xform *= Mat4::Translation(0, 0.0f, 0);
+				first = false;
+			}
 
 			if(!iter->Extend(pelvis_xform, foot_xform, joint_values.data()))
 				return;
@@ -281,8 +289,7 @@ namespace CibraryEngine
 			JointConstraint& constraint = *joint.constraint;
 
 			float x = *(val_iter++), y = *(val_iter++), z = *(val_iter++);
-			joint.target_ori = Quaternion::FromPYR(constraint.axes * Vec3(x, y, z));
-			SetBonePose(joint.set_pose_id, joint.target_ori.ToPYR(), Vec3());
+			SetBonePose(joint.set_pose_id, Vec3(x, y, z), Vec3());
 		}
 	}
 }

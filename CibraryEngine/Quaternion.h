@@ -34,14 +34,13 @@ namespace CibraryEngine
 		/** Returns a 3-component vector parallel to the axis of rotation represented by this quaternion, whose magnitude is the angle of rotation */
 		Vec3 ToPYR() const
 		{
-			float magsq = Vec3::MagnitudeSquared(x, y, z);
-			if(magsq == 0.0)
-				return Vec3();
-			else
+			if(float magsq = Vec3::MagnitudeSquared(x, y, z))
 			{
-				float mag = sqrtf(magsq), half = atan2f(mag, w), coeff = 2.0f * half / mag;
+				float mag = sqrtf(magsq), half = atanf(mag / w), coeff = 2.0f * half / mag;
 				return Vec3(x * coeff, y * coeff, z * coeff);
 			}
+			else
+				return Vec3();
 		}
 
 		/** Returns a 3x3 rotation matrix representing the same rotation as this quaternion */
