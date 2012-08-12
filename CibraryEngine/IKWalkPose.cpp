@@ -41,6 +41,11 @@ namespace CibraryEngine
 		Vec3 hip_pos = pelvis_xform.TransformVec3_1(hip->pos);
 		Vec3 ankle_pos = foot_xform.TransformVec3_1(ankle->pos);
 
+		Vec3 dummy;
+		Quaternion pelvis_ori, foot_ori;
+		pelvis_xform.Decompose(	dummy, pelvis_ori);
+		foot_xform.Decompose(	dummy, foot_ori);
+
 		Vec3 hip_to_ankle = ankle_pos - hip_pos;
 		float dist_sq = hip_to_ankle.ComputeMagnitudeSquared();
 		if(dist_sq == 0.0f)
@@ -61,49 +66,40 @@ namespace CibraryEngine
 		Vec3 c = hip_pos + y * n;											// center of solution circle
 		float r = sqrtf(r_sq);												// radius of solution circle
 
-		// figure out where things are now so we can pick a solution that is changed minimally
-		Mat4 cur_lleg_xform = lower_leg->GetTransformationMatrix();			// this will be used twice, so might as well cache it
-		Vec3 current_hip_pos =		pelvis->GetTransformationMatrix().TransformVec3_1(hip->pos);
-		Vec3 current_knee_pos =		cur_lleg_xform.TransformVec3_1(knee->pos);
-		Vec3 current_ankle_pos =	cur_lleg_xform.TransformVec3_1(ankle->pos);
-
-		// find point on circle closest to current position of knee
-		Vec3 knee_pos = current_knee_pos - c;
-		knee_pos -= n * Vec3::Dot(n, knee_pos);
+		// select position for the knee
+		Vec3 knee_forward = pelvis_xform.TransformVec3_0(0, 0, 1) + foot_xform.TransformVec3_0(0, 0, 1);
+		Vec3 knee_pos = knee_forward - n * Vec3::Dot(n, knee_forward);
 		knee_pos = c + Vec3::Normalize(knee_pos, r);
 
-		Quaternion uleg_ori = upper_leg->GetOrientation();
-		Quaternion lleg_ori = lower_leg->GetOrientation();
+		Vec3 uleg_length = knee_pos - hip_pos;
+		Vec3 lleg_length = ankle_pos - knee_pos;
 
-		Vec3 cur_uleg_vec = current_hip_pos - current_knee_pos, uleg_vec = hip_pos - knee_pos;
-		Vec3 uleg_cross = Vec3::Cross(cur_uleg_vec, uleg_vec);
-		if(float cross_sq = uleg_cross.ComputeMagnitudeSquared())
-		{
-			float angle = asinf(sqrtf(cross_sq / (cur_uleg_vec.ComputeMagnitudeSquared() * uleg_vec.ComputeMagnitudeSquared())));
-			uleg_cross /= sqrtf(cross_sq);
+		Vec3 rest_uleg_vec = Vec3::Normalize(pelvis_xform.TransformVec3_0(knee->pos - hip->pos));
+		Vec3 rest_lleg_vec = Vec3::Normalize(pelvis_xform.TransformVec3_0(ankle->pos - knee->pos));
 
-			uleg_ori *= Quaternion::FromAxisAngle(uleg_cross.x, uleg_cross.y, uleg_cross.z, -angle);
-		}
+		// uleg_ori * knee_x = knee_axis
+		// uleg_ori * rest_uleg_vec = uleg_length
+		// third component = cross product of the first two
 
-		Vec3 cur_lleg_vec = current_knee_pos - current_ankle_pos, lleg_vec = knee_pos - ankle_pos;
-		Vec3 lleg_cross = Vec3::Cross(cur_lleg_vec, lleg_vec);
-		if(float cross_sq = lleg_cross.ComputeMagnitudeSquared())
-		{
-			float angle = asinf(sqrtf(cross_sq / (cur_lleg_vec.ComputeMagnitudeSquared() * lleg_vec.ComputeMagnitudeSquared())));
-			lleg_cross /= sqrtf(cross_sq);
+		Vec3 knee_x = Vec3::Normalize(Vec3::Cross(rest_lleg_vec,	rest_uleg_vec));
+		Vec3 knee_axis = Vec3::Normalize(Vec3::Cross(lleg_length,	uleg_length));
 
-			lleg_ori *= Quaternion::FromAxisAngle(lleg_cross.x, lleg_cross.y, lleg_cross.z, -angle);
-		}
+		Vec3 a_cross = Vec3::Normalize(Vec3::Cross(knee_x,		rest_uleg_vec));
+		Vec3 b_cross = Vec3::Normalize(Vec3::Cross(knee_axis,	uleg_length));
+		Mat3 ma = Mat3(knee_x.x,	knee_x.y,		knee_x.z,		rest_uleg_vec.x,	rest_uleg_vec.y,	rest_uleg_vec.z,	a_cross.x, a_cross.y, a_cross.z);
+		Mat3 mb = Mat3(knee_axis.x,	knee_axis.y,	knee_axis.z,	uleg_length.x,		uleg_length.y,		uleg_length.z,		b_cross.x, b_cross.y, b_cross.z);
+		Quaternion uleg_ori = Quaternion::FromRotationMatrix(mb * Mat3::Invert(ma));
 
-		Quaternion pelvis_ori;
-		Quaternion foot_ori;
-		Vec3 dummy;
-		pelvis_xform.Decompose(	dummy, pelvis_ori);
-		foot_xform.Decompose(	dummy, foot_ori);
+		Vec3 c_cross = Vec3::Normalize(Vec3::Cross(knee_x,		rest_lleg_vec));
+		Vec3 d_cross = Vec3::Normalize(Vec3::Cross(knee_axis,	lleg_length));
+		Mat3 mc = Mat3(knee_x.x,	knee_x.y,		knee_x.z,		rest_lleg_vec.x,	rest_lleg_vec.y,	rest_lleg_vec.z,	c_cross.x, c_cross.y, c_cross.z);
+		Mat3 md = Mat3(knee_axis.x,	knee_axis.y,	knee_axis.z,	lleg_length.x,		lleg_length.y,		lleg_length.z,		d_cross.x, d_cross.y, d_cross.z);
+		Quaternion lleg_ori = Quaternion::FromRotationMatrix(md * Mat3::Invert(mc));
 
-		Quaternion hip_ori =	Quaternion::Reverse(pelvis_ori)	* uleg_ori;
-		Quaternion knee_ori =	Quaternion::Reverse(uleg_ori)	* lleg_ori;
-		Quaternion ankle_ori =	Quaternion::Reverse(lleg_ori)	* foot_ori;
+		// presence/absence of "Quaternion::Reverse(pelvis_ori) *" is due to weird business with transforming earlier
+		Quaternion hip_ori =	uleg_ori;
+		Quaternion knee_ori =	Quaternion::Reverse(uleg_ori) * lleg_ori;
+		Quaternion ankle_ori =	Quaternion::Reverse(pelvis_ori * lleg_ori) * foot_ori;
 
 		if(hip_values_index >= 0)
 		{
@@ -261,18 +257,10 @@ namespace CibraryEngine
 
 		vector<float> joint_values(joints.size() * 3);
 
-		bool first = true;
-
 		Mat4 pelvis_xform = rigid_bodies[0]->GetTransformationMatrix();
 		for(vector<EndEffector>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
 			Mat4 foot_xform = pelvis_xform;
-
-			if(first)
-			{
-				foot_xform *= Mat4::Translation(0, 0.0f, 0);
-				first = false;
-			}
 
 			if(!iter->Extend(pelvis_xform, foot_xform, joint_values.data()))
 				return;
