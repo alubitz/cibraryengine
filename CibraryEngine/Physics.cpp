@@ -941,6 +941,7 @@ namespace CibraryEngine
 					}
 				}
 
+#if 0
 				// angular friction (wip; currently completely undoes angular velocity around the normal vector)
 				float angular_dv = Vec3::Dot(normal, obj_b->rot - obj_a->rot);
 				if(fabs(angular_dv) > 0)
@@ -951,6 +952,7 @@ namespace CibraryEngine
 					if(j_can_move && jbody->can_rotate)
 						jbody->ApplyAngularImpulse(-angular_impulse);
 				}
+#endif
 
 				if(j_can_move)
 					jbody->active = true;
@@ -982,19 +984,30 @@ namespace CibraryEngine
 
 	void ContactPoint::DoUpdateAction(float timestep)
 	{
-#if 0
+#if 1
 		Vec3 dx = b.pos - a.pos;
+
+		static const float undo_penetration_coeff = 8.0f;
 
 		if(float magsq = dx.ComputeMagnitude())
 		{
+			static float saved_timestep = timestep - 1;				// make sure first initialization triggers the if... could instead init move_frac in two places?
+			static float move_frac;
+
+			if(timestep != saved_timestep)
+			{
+				saved_timestep = timestep;
+				move_frac = 1.0f - exp(-undo_penetration_coeff * timestep);
+			}
+
 			if(!obj_b->can_move)
 			{
-				obj_a->pos -= dx;
+				obj_a->pos -= dx * move_frac;
 				obj_a->xform_valid = false;
 			}
 			else
 			{
-				float total = 1.0f / obj_a->mass_info.mass + 1.0f / obj_b->mass_info.mass, inv_total = 1.0f / total;
+				float total = 1.0f / obj_a->mass_info.mass + 1.0f / obj_b->mass_info.mass, inv_total = move_frac / total;
 
 				obj_a->pos -= dx * (inv_total / obj_a->mass_info.mass);
 				obj_b->pos += dx * (inv_total / obj_b->mass_info.mass);

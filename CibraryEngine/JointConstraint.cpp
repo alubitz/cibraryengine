@@ -18,7 +18,7 @@ namespace CibraryEngine
 		min_extents(min_extents),
 		max_extents(max_extents),
 		angular_damp(angular_damp),
-		enable_motor(true)
+		enable_motor(false)
 	{
 	}
 

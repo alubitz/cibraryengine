@@ -31,7 +31,8 @@ namespace CibraryEngine
 		hip_values_index(-1),
 		knee_values_index(-1),
 		ankle_values_index(-1),
-		arrived(false)
+		arrived(true),
+		goal_xform(Mat4::Identity())
 	{	
 	}
 
@@ -257,15 +258,11 @@ namespace CibraryEngine
 
 		vector<float> joint_values(joints.size() * 3);
 
-		Mat4 pelvis_xform = rigid_bodies[0]->GetTransformationMatrix();
 		for(vector<EndEffector>::iterator iter = end_effectors.begin(); iter != end_effectors.end(); ++iter)
 		{
-			Mat4 foot_xform = pelvis_xform;
-
-			if(!iter->Extend(pelvis_xform, foot_xform, joint_values.data()))
+			if(!iter->Extend(Mat4::Identity(), iter->goal_xform, joint_values.data()))
 				return;
 		}
-
 
 
 

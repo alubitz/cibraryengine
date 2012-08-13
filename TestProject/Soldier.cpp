@@ -2,7 +2,6 @@
 #include "Soldier.h"
 
 #include "PoseAimingGun.h"
-#include "IKAnimationPose.h"
 
 #include "DoodOrientationConstraint.h"
 
@@ -138,6 +137,8 @@ namespace Test
 	{
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
+
+		p_ag->pos = pos;
 
 		Dood::DoWeaponControls(time);
 	}

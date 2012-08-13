@@ -189,7 +189,7 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		pos = GetPosition();
+		//pos = GetPosition();
 
 		float timestep = time.elapsed;
 
@@ -200,7 +200,7 @@ namespace Test
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			(*iter)->Activate();
 
-		Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
+		// Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
 
 		// TODO: make this work again sometime
 		// collision damage!
@@ -209,7 +209,7 @@ namespace Test
 		//if (falling_damage_base > 0)
 		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
-		this->vel = vel;
+		// this->vel = vel;
 
 		DoMovementControls(time, forward, rightward);
 		DoJumpControls(time, forward, rightward);
@@ -352,9 +352,12 @@ namespace Test
 	{
 		if(!is_valid)
 			return;
+
 		float now = time.total;
 		if (now > character_pose_time)
 		{
+			float timestep = character_pose_time >= 0 ? now - character_pose_time : 0;
+
 			origin = rigid_bodies[0]->GetPosition();
 
 			for(unsigned int i = 0; i < bone_to_rbody.size(); ++i)
@@ -377,8 +380,35 @@ namespace Test
 			character->skeleton->InvalidateCachedBoneXforms();
 
 			PreUpdatePoses(time);
-			posey->UpdatePoses(TimingInfo(character_pose_time >= 0 ? now - character_pose_time : 0, now));
+			posey->UpdatePoses(TimingInfo(timestep, now));
 
+			// make bones conform to pose
+			if(hp > 0)
+				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+					MassInfo mass_info = body->GetMassInfo();
+					float mass = mass_info.mass;
+
+					Bone* bone = rbody_to_posey[i];
+
+					Mat4 bone_xform = bone->GetTransformationMatrix();
+					Vec3 bone_pos;
+					Quaternion bone_ori;
+					bone_xform.Decompose(bone_pos, bone_ori);			// not actually going to use the value we compute for bone_pos :|
+
+					bone_pos = bone_xform.TransformVec3_1(mass_info.com);
+
+					float time_coeff = 10.0f;							// TODO: figure out a correct formula for this
+
+					Vec3 dv = -body->GetLinearVelocity() + (bone_pos - body->GetCenterOfMass()) * time_coeff;
+					body->ApplyCentralImpulse(dv * mass);
+
+					Vec3 d_av = -body->GetAngularVelocity() + (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
+					body->ApplyAngularImpulse(Mat3(body->GetTransformedMassInfo().moi) * d_av);
+				}
+
+#if 0
 			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 			{
 				JointConstraint* constraint = (JointConstraint*)(*iter);
@@ -411,6 +441,7 @@ namespace Test
 					constraint->desired_ori = i_bone == j_bone->parent ? j_bone->ori : Quaternion::Reverse(i_bone->ori);
 				}
 			}
+#endif
 
 			PostUpdatePoses(time);
 
@@ -485,6 +516,7 @@ namespace Test
 				RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
 				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents, phys.angular_damp);
+				//c->enable_motor = true;
 
 				constraints.push_back(c);
 

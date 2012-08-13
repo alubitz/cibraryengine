@@ -53,6 +53,7 @@ namespace CibraryEngine
 				int ankle_values_index;
 
 				bool arrived;
+				Mat4 goal_xform;
 
 				EndEffector(JointConstraint* hip, JointConstraint* knee, JointConstraint* ankle);
 
