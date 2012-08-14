@@ -11,15 +11,14 @@ namespace Test
 
 	public:
 
-		Vec3 pos;
 		float yaw, pitch;
 
-		PoseAimingGun() : Pose(), pos(), yaw(), pitch() { }
+		PoseAimingGun() : Pose(), yaw(), pitch() { }
 
 		void UpdatePose(TimingInfo time)
 		{
 			// whichever it has, we use...
-			SetBonePose(Bone::string_table["pelvis"],		Vec3(0, -yaw, 0),			pos);
+			SetBonePose(Bone::string_table["pelvis"],		Vec3(0, -yaw, 0),			Vec3());
 
 			SetBonePose(Bone::string_table["torso 1"],		Vec3(pitch * 0.4f,	0, 0),	Vec3());
 			SetBonePose(Bone::string_table["torso 2"],		Vec3(pitch * 0.4f,	0, 0),	Vec3());

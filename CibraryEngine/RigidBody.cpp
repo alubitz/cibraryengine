@@ -256,6 +256,7 @@ namespace CibraryEngine
 		return result;
 	}
 
+	float RigidBody::GetMass() const { return mass_info.mass; }
 	Vec3 RigidBody::GetCenterOfMass() { ComputeXformAsNeeded(); return cached_com; }
 
 	Mat3 RigidBody::GetInvMoI() { return inv_moi; }

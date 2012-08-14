@@ -35,7 +35,7 @@ namespace Test
 		dood->TakeDamage(shot->GetDamage(), from_dir);
 		dood->Splatter(shot, poi, momentum);
 
-		rbi->ApplyWorldImpulse(momentum, poi);
+		body->ApplyWorldImpulse(momentum, poi);
 
 		return true;
 	}
@@ -189,7 +189,7 @@ namespace Test
 	{
 		Pawn::Update(time);
 
-		//pos = GetPosition();
+		pos = GetPosition();
 
 		float timestep = time.elapsed;
 
@@ -200,7 +200,7 @@ namespace Test
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			(*iter)->Activate();
 
-		// Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
+		Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
 
 		// TODO: make this work again sometime
 		// collision damage!
@@ -209,7 +209,9 @@ namespace Test
 		//if (falling_damage_base > 0)
 		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 
-		// this->vel = vel;
+		this->vel = vel;
+
+
 
 		DoMovementControls(time, forward, rightward);
 		DoJumpControls(time, forward, rightward);
@@ -382,6 +384,23 @@ namespace Test
 			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(timestep, now));
 
+			Vec3 net_vel;
+			Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin
+			float net_mass = 0.0f;
+			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+			{
+				RigidBody* body = rigid_bodies[i];
+
+				float mass = body->GetMass();
+				net_vel += body->GetLinearVelocity() * mass;
+				com += body->GetCenterOfMass() * mass;
+				rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * mass;
+				net_mass += mass;
+			}
+			net_vel /= net_mass;
+			com /= net_mass;
+			rest_com /= net_mass;
+
 			// make bones conform to pose
 			if(hp > 0)
 				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
@@ -393,55 +412,22 @@ namespace Test
 					Bone* bone = rbody_to_posey[i];
 
 					Mat4 bone_xform = bone->GetTransformationMatrix();
-					Vec3 bone_pos;
+					Vec3 dummy;
 					Quaternion bone_ori;
-					bone_xform.Decompose(bone_pos, bone_ori);			// not actually going to use the value we compute for bone_pos :|
+					bone_xform.Decompose(dummy, bone_ori);
 
-					bone_pos = bone_xform.TransformVec3_1(mass_info.com);
+					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
 					float time_coeff = 10.0f;							// TODO: figure out a correct formula for this
 
-					Vec3 dv = -body->GetLinearVelocity() + (bone_pos - body->GetCenterOfMass()) * time_coeff;
+					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
+					Vec3 dv = nu_v - body->GetLinearVelocity();
 					body->ApplyCentralImpulse(dv * mass);
 
-					Vec3 d_av = -body->GetAngularVelocity() + (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
+					Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
+					Vec3 d_av = nu_av - body->GetAngularVelocity();
 					body->ApplyAngularImpulse(Mat3(body->GetTransformedMassInfo().moi) * d_av);
 				}
-
-#if 0
-			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-			{
-				JointConstraint* constraint = (JointConstraint*)(*iter);
-				RigidBody* obj_a = constraint->obj_a;
-				RigidBody* obj_b = constraint->obj_b;
-				
-				int a_index = 0, b_index = 0;					// actually stores index + 1; this way we can use them as conditions for if statements
-
-				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
-				{
-					if(rigid_bodies[i] == obj_a)
-					{
-						a_index = i + 1;
-						if(b_index)
-							break;
-					}
-					else if(rigid_bodies[i] == obj_b)
-					{
-						b_index = i + 1;
-						if(a_index)
-							break;
-					}
-				}
-
-				if(a_index && b_index)
-				{
-					Bone* i_bone = rbody_to_posey[a_index - 1];
-					Bone* j_bone = rbody_to_posey[b_index - 1];
-
-					constraint->desired_ori = i_bone == j_bone->parent ? j_bone->ori : Quaternion::Reverse(i_bone->ori);
-				}
-			}
-#endif
 
 			PostUpdatePoses(time);
 
@@ -663,7 +649,7 @@ namespace Test
 				ContactPoint::Part other = collision.obj_a == *iter ? collision.b : collision.a;
 
 				for(vector<RigidBody*>::iterator jter = dood->rigid_bodies.begin(); jter != dood->rigid_bodies.end(); ++jter)
-					if(iter != jter && collision.obj_a == *jter || collision.obj_b == *jter)
+					if(iter != jter && (collision.obj_a == *jter || collision.obj_b == *jter))
 						return true;			// collisions between bones of the same dood don't count as "standing"
 
 				Vec3 normal = other.norm;

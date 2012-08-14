@@ -32,11 +32,11 @@ namespace Test
 			struct BoneShootable : Entity, Shootable
 			{
 				Dood* dood;
-				RigidBody* rbi;
+				RigidBody* body;
 
 				BillboardMaterial* blood_material;
 
-				BoneShootable(GameState* gs, Dood* dood, RigidBody* rbi, BillboardMaterial* blood_material) : Entity(gs), dood(dood), rbi(rbi), blood_material(blood_material) { }
+				BoneShootable(GameState* gs, Dood* dood, RigidBody* body, BillboardMaterial* blood_material) : Entity(gs), dood(dood), body(body), blood_material(blood_material) { }
 				~BoneShootable() { }
 
 				bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);

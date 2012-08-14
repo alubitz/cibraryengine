@@ -1147,7 +1147,9 @@ namespace CibraryEngine
 				result.b.norm = -direction;
 
 				Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
-				result.a.pos = result.b.pos = pos;
+				Vec3 offset = direction * (score * 0.5f);
+				result.a.pos = pos - offset;
+				result.b.pos = pos + offset;
 
 				return true;
 			}

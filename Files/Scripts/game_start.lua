@@ -23,11 +23,11 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = true
+disable_enemies = false
 disable_waves = false
 disable_ai = false
 
-num_boxes = 20
+num_boxes = 0
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false

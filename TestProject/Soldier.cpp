@@ -138,8 +138,6 @@ namespace Test
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
 
-		p_ag->pos = pos;
-
 		Dood::DoWeaponControls(time);
 	}
 

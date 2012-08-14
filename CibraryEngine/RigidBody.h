@@ -128,6 +128,7 @@ namespace CibraryEngine
 			MassInfo GetMassInfo() const;
 			MassInfo GetTransformedMassInfo() const;
 
+			float GetMass() const;
 			Vec3 GetCenterOfMass();
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
