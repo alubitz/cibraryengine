@@ -14,6 +14,13 @@ namespace Test
 	{
 		posey->active_poses.push_back(walk_pose);
 		character->mat_tex_precision = 1024.0f;
+
+		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
+		foot_bones[Bone::string_table["l leg b 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
+		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)

@@ -941,6 +941,7 @@ namespace CibraryEngine
 					}
 				}
 
+				// TODO: make angular friction less wrong
 #if 0
 				// angular friction (wip; currently completely undoes angular velocity around the normal vector)
 				float angular_dv = Vec3::Dot(normal, obj_b->rot - obj_a->rot);

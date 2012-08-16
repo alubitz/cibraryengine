@@ -91,6 +91,13 @@ namespace Test
 		// character animation stuff
 		posey->active_poses.push_back(walk_pose);
 
+		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
+		foot_bones[Bone::string_table["l leg b 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
+		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
+		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
+
 		// ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
 		// ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);
 		// ik_pose->AddEndEffector("l leg b 3", Vec3(	1.98f,	0,	0.44f	), false);
@@ -101,13 +108,13 @@ namespace Test
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		if (standing > 0 && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
+		if(standing_callback.standing > 0 && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
 		{
 			// crab bug leaps forward
 			float leap_angle = 0.4f;
 			Vec3 leap_vector = (forward * (cosf(leap_angle)) + Vec3(0, sinf(leap_angle), 0));
-			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-				root_rigid_body->ApplyCentralImpulse(leap_vector * ((*iter)->GetMassInfo().mass) * bug_leap_speed);
+
+			standing_callback.ApplyVelocityChange(leap_vector * bug_leap_speed);
 
 			jump_start_timer = time.total + bug_leap_duration;
 		}

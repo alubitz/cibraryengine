@@ -84,10 +84,10 @@ namespace Test
 			vector<RigidBody*> bone_to_rbody;
 			vector<PhysicsConstraint*> constraints;
 
+			map<unsigned int, RigidBody*> foot_bones;				// names of bones which should count for "standing"; put pairs with NULL in the constructor and they will be populated in Spawned
+
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
-
-			float standing;
 
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
@@ -120,11 +120,18 @@ namespace Test
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
 
-			struct ContactCallback : public CollisionCallback
+			struct StandingCallback : public CollisionCallback
 			{
 				Dood* dood;
+				vector<RigidBody*> standing_on;
+				float standing;
+
 				bool OnCollision(const ContactPoint& collision);
-			} collision_callback;
+
+				void Reset();
+				void ApplyVelocityChange(const Vec3& dv);
+
+			} standing_callback;
 
 			struct AmmoFailureEvent : public Event
 			{

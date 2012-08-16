@@ -70,9 +70,9 @@ namespace Test
 		rbody_to_posey(),
 		bone_to_rbody(),
 		constraints(),
+		foot_bones(),
 		physics(NULL),
 		mphys(mphys),
-		standing(0),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
 		OnAmmoFailure(),
@@ -80,7 +80,7 @@ namespace Test
 		OnJumpFailure(),
 		OnDeath()
 	{
-		collision_callback.dood = this;
+		standing_callback.dood = this;
 
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
@@ -128,20 +128,22 @@ namespace Test
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
+		float standing = standing_callback.standing;
+
 		float timestep = time.elapsed;
 		float traction = standing * ground_traction + (1 - standing) * air_traction;
 
 		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep"))));
 
-		if (timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
+		if(timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
 			if(timestep < 0.01f)			// bit of hackery here to make stuff work properly with extremely high framerates
 				timestep = 0.01f;
 
 			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
 			Vec3 dv = desired_vel - vel;
-			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-				(*iter)->ApplyCentralImpulse(dv * (*iter)->GetMassInfo().mass);
+
+			standing_callback.ApplyVelocityChange(dv);
 		}
 	}
 
@@ -221,7 +223,7 @@ namespace Test
 
 		DoWeaponControls(time);
 
-		standing = 0;				// reset this after everything that needs to use it has used it
+		standing_callback.Reset();
 	}
 
 	void Dood::DoPitchAndYawControls(TimingInfo time)
@@ -477,11 +479,20 @@ namespace Test
 
 				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
 				rigid_body->SetUserEntity(shootable);
-				rigid_body->SetCollisionCallback(&collision_callback);
 
 				shootables.push_back(shootable);
 
 				rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
+
+				// give feet a collision callback
+				for(map<unsigned int, RigidBody*>::iterator iter = foot_bones.begin(); iter != foot_bones.end(); ++iter)
+					if(bone_name == iter->first)
+					{
+						iter->second = rigid_body;
+						rigid_body->SetCollisionCallback(&standing_callback);
+
+						break;
+					}
 
 				if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
 					root_rigid_body = rigid_body;
@@ -638,9 +649,9 @@ namespace Test
 
 
 	/*
-	 * Dood::ContactCallback methods
+	 * Dood::StandingCallback methods
 	 */
-	bool Dood::ContactCallback::OnCollision(const ContactPoint& collision)
+	bool Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
 		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
 			if(collision.obj_a == *iter || collision.obj_b == *iter)
@@ -653,13 +664,26 @@ namespace Test
 						return true;			// collisions between bones of the same dood don't count as "standing"
 
 				Vec3 normal = other.norm;
-				if(normal.y > 0.1)
-					dood->standing = 1;
+				if(normal.y > 0.1f)
+				{
+					standing_on.push_back(collision.obj_a == *iter ? collision.obj_b : collision.obj_a);
+					standing = 1.0f;
+				}
 
 				return true;
 			}
 
 		return true;
+	}
+
+	void Dood::StandingCallback::Reset() { standing_on.clear(); standing = 0; }
+
+	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
+	{
+		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
+			(*iter)->ApplyCentralImpulse(dv * (*iter)->GetMassInfo().mass);
+
+		// TODO: apply opposite impulse to what we're standing on
 	}
 
 

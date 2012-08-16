@@ -48,6 +48,9 @@ namespace Test
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
 		jet_loop_sound = sound_cache->Load("jet_loop");
+
+		foot_bones[Bone::string_table["l foot"]] = NULL;
+		foot_bones[Bone::string_table["r foot"]] = NULL;
 	}
 
 	void Soldier::InnerDispose() { Dood::InnerDispose(); }
@@ -58,23 +61,21 @@ namespace Test
 
 		bool can_recharge = true;
 		bool jetted = false;
-		if (control_state->GetBoolControl("jump"))
+		if(control_state->GetBoolControl("jump"))
 		{
-			if (standing > 0)
+			if(standing_callback.standing > 0)							//jump off the ground
 			{
-				//jump off the ground
-				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-					(*iter)->ApplyCentralImpulse(Vec3(0, jump_speed * (*iter)->GetMassInfo().mass, 0));
+				standing_callback.ApplyVelocityChange(Vec3(0, jump_speed, 0));
 				jump_start_timer = time.total + jump_to_fly_delay;
 			}
 			else
 			{
 				can_recharge = false;
 
-				if (jump_fuel > 0)
+				if(jump_fuel > 0)
 				{
 					// jetpacking
-					if (time.total > jump_start_timer)
+					if(time.total > jump_start_timer)
 					{
 						jetted = true;
 
@@ -127,7 +128,7 @@ namespace Test
 			jet_loop = NULL;
 		}
 
-		if (can_recharge)
+		if(can_recharge)
 			jump_fuel = min(jump_fuel + jump_fuel_refill_rate * timestep, 1.0f);
 	}
 
