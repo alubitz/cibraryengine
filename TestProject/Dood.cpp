@@ -151,28 +151,22 @@ namespace Test
 	{
 		if(control_state->GetBoolControl("reload"))
 		{
-			if(dynamic_cast<WeaponEquip*>(equipped_weapon) != NULL)
-				((WeaponEquip*)equipped_weapon)->BeginReload();
+			if(WeaponEquip* we = dynamic_cast<WeaponEquip*>(equipped_weapon))
+				we->BeginReload();
 
 			control_state->SetBoolControl("reload", false);
 		}
 
-		if(character != NULL)
+		if(equipped_weapon != NULL)
 		{
-			PoseCharacter(time);
+			equipped_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
+			equipped_weapon->OwnerUpdate(time);
+		}
 
-			if(equipped_weapon != NULL)
-			{
-				equipped_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
-				equipped_weapon->OwnerUpdate(time);
-			}
-			if(intrinsic_weapon != NULL)
-			{
-				intrinsic_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
-				intrinsic_weapon->OwnerUpdate(time);
-			}
-
-			posey->UpdatePoses(time);
+		if(intrinsic_weapon != NULL)
+		{
+			intrinsic_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
+			intrinsic_weapon->OwnerUpdate(time);
 		}
 	}
 
@@ -214,14 +208,21 @@ namespace Test
 		this->vel = vel;
 
 
-
-		DoMovementControls(time, forward, rightward);
-		DoJumpControls(time, forward, rightward);
-		DoPitchAndYawControls(time);
+		if(hp > 0)
+		{
+			DoMovementControls(time, forward, rightward);
+			DoJumpControls(time, forward, rightward);
+			DoPitchAndYawControls(time);
+		}
 
 		MaybeDoScriptedUpdate(this);
 
-		DoWeaponControls(time);
+		PoseCharacter(time);
+
+		if(hp > 0)
+			DoWeaponControls(time);
+
+		posey->UpdatePoses(time);
 
 		standing_callback.Reset();
 	}
@@ -273,17 +274,14 @@ namespace Test
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		if(character != NULL)		// character will be null right when it becomes dead
+		Sphere bs = Sphere(pos, 2.5);
+		if(renderer->camera->CheckSphereVisibility(bs))
 		{
-			Sphere bs = Sphere(pos, 2.5);
-			if(renderer->camera->CheckSphereVisibility(bs))
-			{
-				double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
-				int use_lod = dist < 45.0f ? 0 : 1;
+			double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
+			int use_lod = dist < 45.0f ? 0 : 1;
 
-				SkinnedCharacterRenderInfo render_info = character->GetRenderInfo();
-				model->Vis(renderer, use_lod, Mat4::Translation(pos), &render_info, &materials);
-			}
+			SkinnedCharacterRenderInfo render_info = character->GetRenderInfo();
+			model->Vis(renderer, use_lod, Mat4::Translation(pos), &render_info, &materials);
 		}
 	}
 
@@ -680,10 +678,20 @@ namespace Test
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
 	{
+		Vec3 net_impulse;
 		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
-			(*iter)->ApplyCentralImpulse(dv * (*iter)->GetMassInfo().mass);
+		{
+			Vec3 impulse = dv * (*iter)->GetMassInfo().mass;
+			(*iter)->ApplyCentralImpulse(impulse);
 
-		// TODO: apply opposite impulse to what we're standing on
+			net_impulse += impulse;
+		}
+
+		// TODO: divide impulse somehow weighted-ish, instead of evenly? and maybe don't apply these as central impulses?
+
+		Vec3 use_impulse = -net_impulse / float(standing_on.size());
+		for(vector<RigidBody*>::iterator iter = standing_on.begin(); iter != standing_on.end(); ++iter)
+			(*iter)->ApplyCentralImpulse(use_impulse);
 	}
 
 

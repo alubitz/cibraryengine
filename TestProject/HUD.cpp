@@ -337,8 +337,15 @@ namespace Test
 		glPointSize(10);
 		glBegin(GL_POINTS);
 
-		struct : EntityQualifier { bool Accept(Entity* ent) { return (dynamic_cast<Dood*>(ent)) != NULL; } } predicate;
+		struct : EntityQualifier { bool Accept(Entity* ent)
+		{
+			if(Dood* dood = dynamic_cast<Dood*>(ent))
+				return dood->hp > 0;
+			else
+				return false;
+		} } predicate;
 		EntityList doods = game->GetQualifyingEntities(predicate);
+
 		for(unsigned int i = 0; i < doods.Count(); ++i)
 		{
 			Dood* dood = (Dood*)doods[i];

@@ -72,7 +72,7 @@ namespace Test
 		bool Accept(Entity* ent)
 		{
 			Dood* dood = dynamic_cast<Dood*>(ent);
-			if(dood != NULL && dood->team == TestGame::bug_team)
+			if(dood != NULL && dood->team == TestGame::bug_team && dood->hp > 0)
 				return true;
 			else
 				return false;
@@ -163,6 +163,19 @@ namespace Test
 
 		~Imp()
 		{
+			if(sun != NULL)
+			{
+				delete sun;
+				sun = NULL;
+			}
+
+			if(sky_shader != NULL)
+			{
+				sky_shader->Dispose();
+				delete sky_shader;
+				sky_shader = NULL;
+			}
+
 			if(render_target != NULL)
 			{
 				render_target->Dispose();
@@ -1589,14 +1602,6 @@ namespace Test
 			return valid_floors;
 		else
 			return valid_floors;
-	}
-
-	template<class T> bool list_contains(list<T>& l, T& item)
-	{
-		for(list<T>::iterator iter = l.begin(); iter != l.end(); ++iter)
-			if(*iter == item)
-				return true;
-		return false;
 	}
 
 	unsigned int BuildNavGraph(TestGame* test_game)

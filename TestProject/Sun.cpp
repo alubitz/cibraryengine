@@ -1,8 +1,6 @@
 #include "StdAfx.h"
 #include "Sun.h"
 
-#include "Shot.h"
-
 namespace Test
 {
 	Sun::Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture) : position(position), color(color), view_matrix(Mat4::Identity()), model(model), texture(texture)
