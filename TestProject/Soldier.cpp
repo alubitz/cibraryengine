@@ -3,8 +3,6 @@
 
 #include "PoseAimingGun.h"
 
-#include "DoodOrientationConstraint.h"
-
 #include "WeaponEquip.h"
 
 #include "ConverterWhiz.h"

@@ -64,17 +64,17 @@ namespace Test
 		mflash_size *= exp(-16.0f * timestep);
 		mflash_size -= 0.05f * timestep;
 
-		if (reloading)
+		if(reloading)
 		{
 			reload_wait -= timestep;
-			if (reload_wait <= 0)
+			if(reload_wait <= 0)
 				FinishReload();
 		}
 
-		if (IsFiring(1))
-			if (fire_wait <= 0 && !reloading)
+		if(IsFiring(1))
+			if(fire_wait <= 0 && !reloading)
 			{
-				if (clip > 0)
+				if(clip > 0)
 					Fire(total_inaccuracy, time.total);
 				else
 				{
@@ -98,8 +98,7 @@ namespace Test
 		//Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
 		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
 
-		Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f)));
-		if(shot != NULL)
+		if(Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f))))
 			game_state->Spawn(shot);
 
 		inaccuracy.push_back(Inaccuracy(0.015f, now + 0.1f));
@@ -118,7 +117,7 @@ namespace Test
 
 	void Gun::BeginReload()
 	{
-		if (clip < clip_size && reload_wait <= 0)
+		if(clip < clip_size && reload_wait <= 0)
 		{
 			reload_wait = reload_time;
 			reloading = true;
@@ -146,7 +145,7 @@ namespace Test
 	void Gun::Vis(SceneRenderer* renderer)
 	{
 		Sphere bs = Sphere(pos, 3);
-		if (renderer->camera->CheckSphereVisibility(bs))
+		if(renderer->camera->CheckSphereVisibility(bs))
 		{
 			if(gun_model != NULL)
 				gun_model->Vis(renderer, 0, gun_xform, NULL, &gun_materials);

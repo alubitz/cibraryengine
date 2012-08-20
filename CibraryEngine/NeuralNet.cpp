@@ -175,47 +175,67 @@ namespace CibraryEngine
 
 	void MultiLayerPerceptron::Train(const float* inputs, float* correct_outputs, float learning_rate)
 	{
-		unsigned int num_outputs = (*neural_nets.rbegin())->num_outputs;
-		float* outputs = new float[num_outputs];
-
-		Process(inputs, outputs);
-
-		unsigned int nets = neural_nets.size();
-
-		unsigned int biggest = neural_nets[0]->num_outputs;			// size of the biggest output array
-		for(unsigned int i = 1; i < nets; ++i)
-			biggest = max(biggest, neural_nets[i]->num_outputs);
-
-		vector<NeuralNet*> nu_networks;
-
-		for(vector<NeuralNet*>::reverse_iterator iter = neural_nets.rbegin(); iter != neural_nets.rend(); ++iter)
+		if(unsigned int nets = neural_nets.size())
 		{
-			NeuralNet* net = *iter;
-			NeuralNet* nu_net = new NeuralNet(*net);
+			unsigned int row_size = neural_nets[0]->num_inputs;				// size of the biggest row of values
+			for(unsigned int i = 0; i < nets; ++i)
+				row_size = max(row_size, neural_nets[i]->num_outputs);
 
-			float* mat_ptr = net->matrix;
-			float* numat_ptr = nu_net->matrix;
-			for(unsigned int i = 0; i < net->num_outputs; ++i)
-				for(unsigned int j = 0; j < net->num_inputs; ++j, ++numat_ptr, ++mat_ptr)
+			float* computed_values = new float[(nets + 1) * row_size];
+
+			// first row of computed values = inputs 
+			for(unsigned int i = 0; i < neural_nets[0]->num_inputs; ++i)
+				computed_values[i] = inputs[i];
+
+			// process each layer, outputting results to levels of outputs array
+			{			// curly braces just for scope
+				float* my_inputs = computed_values + row_size;
+				for(unsigned int i = 0; i < nets; ++i)
 				{
-					float weight = *mat_ptr;
+					float* my_outputs = my_inputs + row_size;
 
-					float herp = 0.0f, derp = 0.0f;
-					// TODO: do backpropagation here!
-					//
-					// herp = partial derivative of error with respect to the value of "local induced field" ... WAT
-					// derp = the output of the previous neuron (???)
+					neural_nets[i]->Multiply(my_inputs, my_outputs);
+					neural_nets[i]->SigmoidOutputs(my_outputs);						// not sure about this!
 
-					*numat_ptr -= learning_rate * herp * derp;
+					my_inputs = my_outputs;
 				}
+			}
 
-			nu_networks.push_back(nu_net);
-		}
+			// backpropagation time!
+			vector<NeuralNet*> nu_networks;
+
+			for(unsigned int layer = nets - 1; layer >= 0; --layer)
+			{
+				float* my_inputs = computed_values + row_size * layer;
+				float* my_outputs = my_inputs + row_size;
+
+				NeuralNet* net = neural_nets[layer];
+				NeuralNet* nu_net = new NeuralNet(*net);
+
+				float* input_ptr = my_inputs;
+				float* mat_ptr = net->matrix;
+				float* numat_ptr = nu_net->matrix;
+				for(unsigned int i = 0; i < net->num_outputs; ++i)
+					for(unsigned int j = 0; j < net->num_inputs; ++j, ++numat_ptr, ++mat_ptr, ++input_ptr)
+					{
+						float weight = *mat_ptr;
+
+						// TODO: compute partial derivative of error wrt weighted sum of inputs (it's not supposed to be zero)
+						float partial_derivative = 0.0f;
+
+						*numat_ptr -= learning_rate * partial_derivative * *input_ptr;
+					}
+
+				nu_networks.push_back(nu_net);				// yes it's in reverse order; we'll take care of that after this loop finishes
+
+				// TODO: recompute outputs between here and final output layer? (if it affects the partial derivatives)
+			}
 		
-		for(vector<NeuralNet*>::iterator iter = neural_nets.begin(); iter != neural_nets.end(); ++iter)
-			delete *iter;
-		neural_nets.assign(nu_networks.rbegin(), nu_networks.rend());
+			for(vector<NeuralNet*>::iterator iter = neural_nets.begin(); iter != neural_nets.end(); ++iter)
+				delete *iter;
+			neural_nets.assign(nu_networks.rbegin(), nu_networks.rend());
 
-		delete[] outputs;
+			delete[] computed_values;
+		}
 	}
 }

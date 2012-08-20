@@ -9,8 +9,6 @@
 
 #include "Particle.h"
 
-#include "DoodOrientationConstraint.h"
-
 namespace Test
 {
 	/*
@@ -299,7 +297,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 5.0f;
+			float third_person_distance = 0.0f;
 			
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1

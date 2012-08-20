@@ -19,8 +19,6 @@ namespace Test
 
 	struct Damage;
 
-	class DoodOrientationConstraint;
-
 	class Dood : public Pawn
 	{
 		private:

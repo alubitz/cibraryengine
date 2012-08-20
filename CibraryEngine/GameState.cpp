@@ -67,16 +67,16 @@ namespace CibraryEngine
 			}
 		}
 
-		physics_world->Update(time);
-
-		spawn_directly = true;
-
 		for(list<Entity*>::iterator jter = spawning.begin(); jter != spawning.end(); ++jter)
 		{
 			(*jter)->Spawned();
 			entities.push_back(*jter);
 		}
 		spawning.clear();
+
+		physics_world->Update(time);
+
+		spawn_directly = true;
 
 		if(sound_system != NULL)
 			sound_system->Update(time);
