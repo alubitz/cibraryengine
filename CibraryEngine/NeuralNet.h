@@ -39,6 +39,6 @@ namespace CibraryEngine
 
 		void Process(const float* inputs, float* outputs);										// use this once the MLP is trained
 
-		void Train(const float* inputs, float* correct_outputs, float learning_rate);
+		void Train(const float* inputs, const float* correct_outputs, float learning_rate);
 	};
 }

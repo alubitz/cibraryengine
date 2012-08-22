@@ -182,10 +182,12 @@ namespace CibraryEngine
 		}
 	}
 
-	void MultiLayerPerceptron::Train(const float* inputs, float* correct_outputs, float learning_rate)
+	void MultiLayerPerceptron::Train(const float* inputs, const float* correct_outputs, float learning_rate)
 	{
 		if(unsigned int nets = neural_nets.size())
 		{
+			unsigned int nm1 = nets - 1;
+
 			unsigned int row_size = neural_nets[0]->num_inputs;				// size of the biggest row of values
 			for(unsigned int i = 0; i < nets; ++i)
 				row_size = max(row_size, neural_nets[i]->num_outputs);
@@ -204,11 +206,20 @@ namespace CibraryEngine
 				float* my_sums = weighted_sums;
 				for(unsigned int i = 0; i < nets; ++i)
 				{
+					NeuralNet* net = neural_nets[i];
+
 					float* my_outputs = my_inputs + row_size;
 
-					neural_nets[i]->Multiply(my_inputs, my_sums);
-					memcpy(my_outputs, my_sums, neural_nets[i]->num_outputs * sizeof(float));
-					neural_nets[i]->SigmoidOutputs(my_outputs);
+					net->Multiply(my_inputs, my_sums);
+
+					// copy from my_sums to my_outputs
+					for(float	*from_ptr = my_sums,						
+								*from_end = my_sums + net->num_outputs,
+								*to_ptr = my_outputs;					from_ptr != from_end;	++from_ptr, ++to_ptr)
+					{
+						*to_ptr = *from_ptr;
+					}
+					net->SigmoidOutputs(my_outputs);
 
 					my_inputs = my_outputs;
 					my_sums += row_size;
@@ -216,50 +227,45 @@ namespace CibraryEngine
 			}
 
 			// backpropagation time!
-			unsigned int nm1 = nets - 1;
-
 			vector<NeuralNet*> nu_nets(nets);
-
 			for(int layer = nm1; layer >= 0; --layer)
 			{
+				NeuralNet* net = neural_nets[layer];
+				NeuralNet* nu_net = nu_nets[layer] = new NeuralNet(*net);
+
+				NeuralNet* net_below = layer == nm1 ? NULL : neural_nets[layer + 1];
+				float* numat_ptr = nu_net->matrix;
 				unsigned int layer_rows = row_size * layer;
 
-				// curly brace for scope
+				for(unsigned int i = 0; i < net->num_outputs; ++i)
 				{
-					NeuralNet* net = neural_nets[layer];
-					NeuralNet* nu_net = nu_nets[layer] = new NeuralNet(*net);
-
-					NeuralNet* net_below = layer == nm1 ? NULL : neural_nets[layer + 1];
-
-					float* numat_ptr = nu_net->matrix;
-					for(unsigned int i = 0; i < net->num_outputs; ++i)
+					for(float	*input_ptr = computed_values + layer_rows,
+								*input_end = input_ptr + net->num_inputs,
+								*sum_ptr = weighted_sums + layer_rows,
+								*deds_ptr = derrordsum + layer_rows;		input_ptr != input_end;		++numat_ptr, ++input_ptr, ++sum_ptr, ++deds_ptr)
 					{
-						float* input_ptr = computed_values + layer_rows;
-						float* sum_ptr = weighted_sums + layer_rows;
-						float* deds_ptr = derrordsum + layer_rows;
-						for(unsigned int j = 0; j < net->num_inputs; ++j, ++numat_ptr, ++input_ptr, ++sum_ptr, ++deds_ptr)
+						float sum = *sum_ptr;
+
+						float tanh_val = tanhf(sum);
+						float dtanh = 1.0f - tanh_val * tanh_val;
+
+						float other_term;			// the term in the partial derivative formula which isn't the derivative of tanh
+						if(layer == nm1)
+							other_term = computed_values[nets * row_size + i] - correct_outputs[i];
+						else
 						{
-							float sum = *sum_ptr;
-
-							float tanh_val = tanhf(sum);
-							float dtanh = 1.0f - tanh_val * tanh_val;
-
-							float other_term;			// the term in the partial derivative formula which isn't the derivative of tanh
-							if(layer == nm1)
-								other_term = computed_values[nets * row_size + i] - correct_outputs[i];
-							else
+							other_term = 0;			// start a running total
+							unsigned below_inputs = net_below->num_inputs, below_outputs = net_below->num_outputs;
+							for(float	*ch_deds = derrordsum + layer_rows + row_size,
+										*ch_deds_end = ch_deds + below_outputs,
+										*bmat_ptr = net_below->matrix + i;				ch_deds != ch_deds_end;		++ch_deds, bmat_ptr += below_inputs)
 							{
-								other_term = 0;
-								float* child_deds_ptr = derrordsum + (layer + 1) * row_size;
-								float* bmat_ptr = net_below->matrix + i;
-								unsigned below_inputs = net_below->num_inputs, below_outputs = net_below->num_outputs;
-								for(unsigned int k = 0; k < below_outputs; ++k, ++child_deds_ptr, bmat_ptr += below_inputs)
-									other_term += (*child_deds_ptr) * (*bmat_ptr);
+								other_term += (*ch_deds) * (*bmat_ptr);
 							}
-							*deds_ptr = dtanh * other_term;
-
-							*numat_ptr -= learning_rate * (*deds_ptr) * (*input_ptr);
 						}
+						*deds_ptr = dtanh * other_term;
+
+						*numat_ptr -= learning_rate * (*deds_ptr) * (*input_ptr);
 					}
 				}
 			}
