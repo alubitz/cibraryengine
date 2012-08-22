@@ -18,6 +18,8 @@ namespace CibraryEngine
 
 		void operator =(const NeuralNet& other);
 
+		void Randomize();
+
 		void Multiply(const float* inputs, float* outputs);
 
 		void SigmoidOutputs(float* outputs);						// applies a function to outputs to make them range from [-1, 1], smoothly

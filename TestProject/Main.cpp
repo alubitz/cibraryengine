@@ -3,16 +3,72 @@
 #include "MainMenu.h"
 #include "LoadingScreen.h"
 
+#include "../CibraryEngine/NeuralNet.h"
+
 using namespace std;
 
 using namespace CibraryEngine;
 using namespace Test;
+
+float fofx(float x)
+{
+	return 2.0f * x * x - 0.25f;
+}
+
+void DoNNStuff()
+{
+	srand((unsigned int)time(NULL));
+
+	unsigned int layer_sizes[] = { 2, 6, 6, 6, 4, 1 };
+	MultiLayerPerceptron* nn = new MultiLayerPerceptron(6, layer_sizes);
+
+	for(unsigned int i = 0; i < nn->neural_nets.size(); ++i)
+		nn->neural_nets[i]->Randomize();
+
+	const float learning_rate = 0.01f;
+	const float min_x = -0.75f, max_x = 0.75f;
+
+	for(int i = 0; i < 2500; ++i)
+	{
+		const int per_round = 100;
+		for(int j = 0; j < per_round; ++j)
+		{
+			float x = Random3D::Rand(min_x, max_x);
+			float y = fofx(x);
+
+			float inputs[] = { x, 1.0f };
+
+			nn->Train(inputs, &y, learning_rate);
+		}
+
+		float error = 0;
+		for(int j = 0; j < per_round; ++j)
+		{
+			float x = j * (max_x - min_x) / (per_round - 1) + min_x;
+			float y = fofx(x);
+			float z;
+
+			float inputs[] = { x, 1.0f };
+
+			nn->Process(inputs, &z);
+
+			float dif = z - y;
+			error += dif * dif;
+		}
+
+		Debug(((stringstream&)(stringstream() << "iteration " << (i + 1) * per_round << "; error = " << sqrtf(error / per_round) << endl)).str());
+	}
+
+	delete nn;
+}
 
 int main(int argc, char** argv)
 {
 	ScriptSystem::Init();
 
 	InitEndianness();
+
+	// DoNNStuff();
 
 	// Network::DoTestProgram();
 

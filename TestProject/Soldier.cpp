@@ -7,8 +7,6 @@
 
 #include "ConverterWhiz.h"
 
-#include "../CibraryEngine/NeuralNet.h"
-
 namespace Test
 {
 	/*

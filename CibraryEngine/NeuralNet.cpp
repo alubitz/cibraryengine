@@ -1,6 +1,9 @@
 #include "StdAfx.h"
 #include "NeuralNet.h"
 
+#include "DebugLog.h"
+#include "Random3D.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -43,6 +46,12 @@ namespace CibraryEngine
 			for(float *my_ptr = matrix, *other_ptr = other.matrix; my_ptr != my_end; ++my_ptr, ++other_ptr)
 				*my_ptr = *other_ptr;
 		}
+	}
+
+	void NeuralNet::Randomize()
+	{
+		for(float *ptr = matrix, *end = matrix + num_inputs * num_outputs; ptr != end; ++ptr)
+			*ptr = Random3D::Rand(-1, 1);
 	}
 
 	void NeuralNet::Multiply(const float* inputs, float* outputs)
@@ -181,7 +190,9 @@ namespace CibraryEngine
 			for(unsigned int i = 0; i < nets; ++i)
 				row_size = max(row_size, neural_nets[i]->num_outputs);
 
+			float* weighted_sums = new float[nets * row_size];
 			float* computed_values = new float[(nets + 1) * row_size];
+			float* derrordsum = new float[nets * row_size];
 
 			// first row of computed values = inputs 
 			for(unsigned int i = 0; i < neural_nets[0]->num_inputs; ++i)
@@ -189,53 +200,77 @@ namespace CibraryEngine
 
 			// process each layer, outputting results to levels of outputs array
 			{			// curly braces just for scope
-				float* my_inputs = computed_values + row_size;
+				float* my_inputs = computed_values;
+				float* my_sums = weighted_sums;
 				for(unsigned int i = 0; i < nets; ++i)
 				{
 					float* my_outputs = my_inputs + row_size;
 
-					neural_nets[i]->Multiply(my_inputs, my_outputs);
-					neural_nets[i]->SigmoidOutputs(my_outputs);						// not sure about this!
+					neural_nets[i]->Multiply(my_inputs, my_sums);
+					memcpy(my_outputs, my_sums, neural_nets[i]->num_outputs * sizeof(float));
+					neural_nets[i]->SigmoidOutputs(my_outputs);
 
 					my_inputs = my_outputs;
+					my_sums += row_size;
 				}
 			}
 
 			// backpropagation time!
-			vector<NeuralNet*> nu_networks;
+			unsigned int nm1 = nets - 1;
 
-			for(unsigned int layer = nets - 1; layer >= 0; --layer)
+			vector<NeuralNet*> nu_nets(nets);
+
+			for(int layer = nm1; layer >= 0; --layer)
 			{
-				float* my_inputs = computed_values + row_size * layer;
-				float* my_outputs = my_inputs + row_size;
+				unsigned int layer_rows = row_size * layer;
 
-				NeuralNet* net = neural_nets[layer];
-				NeuralNet* nu_net = new NeuralNet(*net);
+				// curly brace for scope
+				{
+					NeuralNet* net = neural_nets[layer];
+					NeuralNet* nu_net = nu_nets[layer] = new NeuralNet(*net);
 
-				float* input_ptr = my_inputs;
-				float* mat_ptr = net->matrix;
-				float* numat_ptr = nu_net->matrix;
-				for(unsigned int i = 0; i < net->num_outputs; ++i)
-					for(unsigned int j = 0; j < net->num_inputs; ++j, ++numat_ptr, ++mat_ptr, ++input_ptr)
+					NeuralNet* net_below = layer == nm1 ? NULL : neural_nets[layer + 1];
+
+					float* numat_ptr = nu_net->matrix;
+					for(unsigned int i = 0; i < net->num_outputs; ++i)
 					{
-						float weight = *mat_ptr;
+						float* input_ptr = computed_values + layer_rows;
+						float* sum_ptr = weighted_sums + layer_rows;
+						float* deds_ptr = derrordsum + layer_rows;
+						for(unsigned int j = 0; j < net->num_inputs; ++j, ++numat_ptr, ++input_ptr, ++sum_ptr, ++deds_ptr)
+						{
+							float sum = *sum_ptr;
 
-						// TODO: compute partial derivative of error wrt weighted sum of inputs (it's not supposed to be zero)
-						float partial_derivative = 0.0f;
+							float tanh_val = tanhf(sum);
+							float dtanh = 1.0f - tanh_val * tanh_val;
 
-						*numat_ptr -= learning_rate * partial_derivative * *input_ptr;
+							float other_term;			// the term in the partial derivative formula which isn't the derivative of tanh
+							if(layer == nm1)
+								other_term = computed_values[nets * row_size + i] - correct_outputs[i];
+							else
+							{
+								other_term = 0;
+								float* child_deds_ptr = derrordsum + (layer + 1) * row_size;
+								float* bmat_ptr = net_below->matrix + i;
+								unsigned below_inputs = net_below->num_inputs, below_outputs = net_below->num_outputs;
+								for(unsigned int k = 0; k < below_outputs; ++k, ++child_deds_ptr, bmat_ptr += below_inputs)
+									other_term += (*child_deds_ptr) * (*bmat_ptr);
+							}
+							*deds_ptr = dtanh * other_term;
+
+							*numat_ptr -= learning_rate * (*deds_ptr) * (*input_ptr);
+						}
 					}
-
-				nu_networks.push_back(nu_net);				// yes it's in reverse order; we'll take care of that after this loop finishes
-
-				// TODO: recompute outputs between here and final output layer? (if it affects the partial derivatives)
+				}
 			}
-		
+
 			for(vector<NeuralNet*>::iterator iter = neural_nets.begin(); iter != neural_nets.end(); ++iter)
 				delete *iter;
-			neural_nets.assign(nu_networks.rbegin(), nu_networks.rend());
+			neural_nets.assign(nu_nets.begin(), nu_nets.end());
 
 			delete[] computed_values;
+			delete[] weighted_sums;
+			delete[] derrordsum;
 		}
 	}
 }
