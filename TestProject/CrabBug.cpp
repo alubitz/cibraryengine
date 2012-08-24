@@ -16,7 +16,7 @@ namespace Test
 
 
 
-	void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
+	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
 		{
 			Keyframe kf(0.5f);
@@ -90,6 +90,11 @@ namespace Test
 
 		// character animation stuff
 		posey->active_poses.push_back(walk_pose);
+
+		KeyframeAnimation ka;
+		GenerateHardCodedWalkAnimation(&ka);
+
+		posey->active_poses.push_back(new Dood::WalkPose(this, &ka));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;

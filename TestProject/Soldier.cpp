@@ -23,6 +23,60 @@ namespace Test
 
 
 
+	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
+	{
+		{
+			Keyframe kf(0.5f);
+			kf.next = 1;
+
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+
+
+
 	/*
 	 * Soldier methods
 	 */
@@ -38,6 +92,11 @@ namespace Test
 	{
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
+
+		KeyframeAnimation ka;
+		GenerateHardCodedWalkAnimation(&ka);
+
+		posey->active_poses.push_back(new WalkPose(this, &ka));
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
@@ -155,6 +214,7 @@ namespace Test
 	{
 		Dood::Spawned();
 
+#if 0
 		set<RigidBody*> joint_bodies;
 		joint_bodies.insert(RigidBodyForNamedBone("pelvis"));
 		joint_bodies.insert(RigidBodyForNamedBone("l leg 1"));
@@ -163,7 +223,6 @@ namespace Test
 		joint_bodies.insert(RigidBodyForNamedBone("r leg 1"));
 		joint_bodies.insert(RigidBodyForNamedBone("r leg 2"));
 		joint_bodies.insert(RigidBodyForNamedBone("r foot"));
-
 
 		vector<JointConstraint*> use_joints;
 		vector<JointConstraint*> all_joints;
@@ -181,6 +240,7 @@ namespace Test
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("l foot"));
 		ik_pose->AddEndEffector(RigidBodyForNamedBone("r foot"));
 		posey->active_poses.push_back(ik_pose);
+#endif
 	}
 
 	void Soldier::Die(Damage cause)

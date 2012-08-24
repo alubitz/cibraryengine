@@ -51,7 +51,7 @@ namespace CibraryEngine
 	void NeuralNet::Randomize()
 	{
 		for(float *ptr = matrix, *end = matrix + num_inputs * num_outputs; ptr != end; ++ptr)
-			*ptr = Random3D::Rand(-1, 1);
+			*ptr = Random3D::Rand(-2, 2);
 	}
 
 	void NeuralNet::Multiply(const float* inputs, float* outputs)
@@ -246,10 +246,10 @@ namespace CibraryEngine
 					{
 						float sum = *sum_ptr;
 
-						float tanh_val = tanhf(sum);
-						float dtanh = 1.0f - tanh_val * tanh_val;
+						float actf_val = tanhf(sum);
+						float dactf = 1.0f - actf_val * actf_val;
 
-						float other_term;			// the term in the partial derivative formula which isn't the derivative of tanh
+						float other_term;			// the term in the partial derivative formula which isn't the derivative of the activation function
 						if(layer == nm1)
 							other_term = computed_values[nets * row_size + i] - correct_outputs[i];
 						else
@@ -263,7 +263,7 @@ namespace CibraryEngine
 								other_term += (*ch_deds) * (*bmat_ptr);
 							}
 						}
-						*deds_ptr = dtanh * other_term;
+						*deds_ptr = dactf * other_term;
 
 						*numat_ptr -= learning_rate * (*deds_ptr) * (*input_ptr);
 					}

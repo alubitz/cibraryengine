@@ -118,6 +118,22 @@ namespace Test
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
 
+
+			class WalkPose : public Pose
+			{
+				public:
+
+					float anim_timer;
+					Dood* dood;
+					KeyframeAnimation* keyframe_anim;
+
+					WalkPose(Dood* dood, const KeyframeAnimation* keyframe_anim);
+					~WalkPose();
+
+					void UpdatePose(TimingInfo time);
+			};
+
+
 			struct StandingCallback : public CollisionCallback
 			{
 				Dood* dood;

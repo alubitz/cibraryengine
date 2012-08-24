@@ -190,18 +190,29 @@ namespace Test
 		Vec3 forward = Vec3(-sinf(yaw), 0, cosf(yaw));
 		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-		// prevent bones from falling asleep (not yet possible, but whatever)
+		// compute com vel, and also prevent bones from falling asleep (not yet possible, but whatever)
+		Vec3 com_vel;
+		float total_mass = 0.0f;
+
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+		{
 			(*iter)->Activate();
+			
+			float mass = (*iter)->GetMass();
+			com_vel += (*iter)->GetLinearVelocity() * mass;
+			total_mass += mass;
+		}
 
-		Vec3 vel = root_rigid_body->GetLinearVelocity();										// velocity prior to forces being applied
+		Vec3 vel = com_vel / total_mass;														// velocity prior to forces being applied
 
-		// TODO: make this work again sometime
+#if 0
+		// TODO: make this work again; problem now is that collisions are "padded" too much
 		// collision damage!
-		//Vec3 delta_v = vel - this->vel;
-		//float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
-		//if (falling_damage_base > 0)
-		//	TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
+		Vec3 delta_v = vel - this->vel;
+		float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
+		if(falling_damage_base > 0)
+			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
+#endif
 
 		this->vel = vel;
 
@@ -232,12 +243,12 @@ namespace Test
 		float desired_yaw = max(-1.0f, min(1.0f, control_state->GetFloatControl("yaw")));
 		float desired_pitch = max(-1.0f, min(1.0f, control_state->GetFloatControl("pitch")));
 
-		if (abs(desired_yaw) <= timestep * yaw_rate)
+		if(abs(desired_yaw) <= timestep * yaw_rate)
 		{
 			yaw += desired_yaw;
 			control_state->SetFloatControl("yaw", 0.0f);
 		}
-		else if (desired_yaw < 0)
+		else if(desired_yaw < 0)
 		{
 			yaw -= timestep * yaw_rate;
 			control_state->SetFloatControl("yaw", desired_yaw + timestep * yaw_rate);
@@ -248,12 +259,12 @@ namespace Test
 			control_state->SetFloatControl("yaw", desired_yaw - timestep * yaw_rate);
 		}
 
-		if (abs(desired_pitch) <= timestep * pitch_rate)
+		if(abs(desired_pitch) <= timestep * pitch_rate)
 		{
 			pitch += desired_pitch;
 			control_state->SetFloatControl("pitch", 0.0f);
 		}
-		else if (desired_pitch < 0)
+		else if(desired_pitch < 0)
 		{
 			pitch -= timestep * pitch_rate;
 			control_state->SetFloatControl("pitch", desired_pitch + timestep * pitch_rate);
@@ -297,7 +308,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 0.0f;
+			float third_person_distance = 5.0f;
 			
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -354,7 +365,7 @@ namespace Test
 			return;
 
 		float now = time.total;
-		if (now > character_pose_time)
+		if(now > character_pose_time)
 		{
 			float timestep = character_pose_time >= 0 ? now - character_pose_time : 0;
 
@@ -592,7 +603,7 @@ namespace Test
 	void Dood::Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
 		if(blood_material != NULL)
-			for (int i = 0; i < 8; ++i)
+			for(int i = 0; i < 8; ++i)
 			{
 				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
 				p->gravity = 9.8f;
@@ -639,6 +650,41 @@ namespace Test
 		if(intrinsic_weapon != NULL && intrinsic_weapon->GetAmmoCount(result))
 			return true;
 		return false;
+	}
+
+
+
+
+	/*
+	 * Dood::WalkPose methods
+	 */
+	Dood::WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* keyframe_anim) :
+		Pose(),
+		anim_timer(-1),
+		dood(dood),
+		keyframe_anim(new KeyframeAnimation(*keyframe_anim))
+	{
+	}
+
+	Dood::WalkPose::~WalkPose() { if(keyframe_anim) { delete keyframe_anim; keyframe_anim = NULL; } }
+
+	void Dood::WalkPose::UpdatePose(TimingInfo time)
+	{
+		Vec3 vel = dood->vel;
+		//vel.y = 0;
+		float speed = vel.ComputeMagnitude();
+
+		float dt = speed < 0.2f ? 0 : 1.0f - exp(-speed * 0.25f * time.elapsed);
+
+		if(anim_timer < 0)
+			anim_timer = 0;
+		else
+			anim_timer += dt;
+
+		keyframe_anim->UpdatePose(TimingInfo(dt, anim_timer));
+
+		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = keyframe_anim->bones.begin(); iter != keyframe_anim->bones.end(); ++iter)
+			SetBonePose(iter->first, iter->second.ori, iter->second.pos);
 	}
 
 
@@ -744,7 +790,7 @@ namespace Test
 			if(lua_isstring(L, 2))
 			{
 				string key = lua_tostring(L, 2);
-				if (key == "update_callback")
+				if(key == "update_callback")
 				{
 					if(lua_isfunction(L, 3))
 					{
@@ -758,7 +804,7 @@ namespace Test
 						return 0;
 					}
 				}
-				else if (key == "death_callback")
+				else if(key == "death_callback")
 				{
 					if(lua_isfunction(L, 3))
 					{
