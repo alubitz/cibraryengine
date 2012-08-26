@@ -25,14 +25,23 @@ namespace Test
 
 	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
-		{
+		const float A = 0.65f;
+		const float B = 1.5f;
+
+		ka->frames.clear();
+		ka->name = "walk forward/backward";
+
+		{	// right foot forward
 			Keyframe kf(0.5f);
 			kf.next = 1;
 
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -41,22 +50,28 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 2;
 
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
 
-		{
+		{	// left foot forward
 			Keyframe kf(0.5f);
 			kf.next = 3;
 
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -65,12 +80,138 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 0;
 
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(	1,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(	-1,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
 
 			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateRightWalkAnimation(KeyframeAnimation* ka)
+	{
+		const float A = 0.5f;			// sidestep
+		const float B = 1.5f;			// knee bend
+		const float C = -0.65f;			// leg bend to match knees
+		const float D = B + C;
+		const float E = -0.2f;			// left foot past center
+
+		ka->frames.clear();
+		ka->name = "walk right";
+
+		{	// right foot forward
+			Keyframe kf(0.5f);
+			kf.next = 1;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	C,	0,	A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-D,	0,	-A), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{	// left foot forward
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	C,	0,	-A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-D,	0,	A), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateLeftWalkAnimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateRightWalkAnimation(&kb);
+
+		ka->frames.clear();
+		ka->name = "walk left";
+
+		for(int i = 0; i < 4; ++i)
+		{
+			const Keyframe& frame = kb.frames[(i + 2) % 4];
+			Keyframe nu_frame;
+			nu_frame.duration = frame.duration;
+			nu_frame.next = (i + 1) % 4;
+
+			for(boost::unordered_map<unsigned int, BoneInfluence>::const_iterator jter = frame.values.begin(); jter != frame.values.end(); ++jter)
+			{
+				string original_name = Bone::string_table[jter->first];
+				string changed_name = original_name;
+
+				if(original_name.size() > 2 && original_name[1] == ' ')
+					switch(original_name[0])
+					{
+						case 'l':
+							changed_name[0] = 'r';
+							break;
+
+						case 'L':
+							changed_name[0] = 'R';
+							break;
+
+						case 'r':
+							changed_name[0] = 'l';
+							break;
+
+						case 'R':
+							changed_name[0] = 'L';
+							break;
+					}
+
+				BoneInfluence inf = jter->second;
+				const Vec3& pos = inf.pos;
+				const Vec3& ori = inf.ori;
+
+				nu_frame.values[Bone::string_table[changed_name]] = BoneInfluence(Vec3(ori.x, -ori.y, -ori.z), Vec3(-pos.x, pos.y, pos.z));
+			}
+
+			ka->frames.push_back(nu_frame);
 		}
 	}
 
@@ -84,7 +225,6 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
-		ik_pose(NULL),
 		jump_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -93,10 +233,12 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
-		KeyframeAnimation ka;
-		GenerateHardCodedWalkAnimation(&ka);
+		KeyframeAnimation kf, kr, kl;
+		GenerateHardCodedWalkAnimation(&kf);
+		GenerateRightWalkAnimation(&kr);
+		GenerateLeftWalkAnimation(&kl);
 
-		posey->active_poses.push_back(new WalkPose(this, &ka));
+		posey->active_poses.push_back(new WalkPose(this, &kf, &kf, &kl, &kr, NULL, NULL));
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
@@ -107,8 +249,6 @@ namespace Test
 		foot_bones[Bone::string_table["l foot"]] = NULL;
 		foot_bones[Bone::string_table["r foot"]] = NULL;
 	}
-
-	void Soldier::InnerDispose() { Dood::InnerDispose(); }
 
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
@@ -187,8 +327,6 @@ namespace Test
 			jump_fuel = min(jump_fuel + jump_fuel_refill_rate * timestep, 1.0f);
 	}
 
-	void Soldier::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward) { Dood::DoMovementControls(time, forward, rightward); }
-
 	void Soldier::DoWeaponControls(TimingInfo time)
 	{
 		p_ag->yaw = yaw;
@@ -196,8 +334,6 @@ namespace Test
 
 		Dood::DoWeaponControls(time);
 	}
-
-	void Soldier::PreUpdatePoses(TimingInfo time) { }
 
 	void Soldier::PostUpdatePoses(TimingInfo time)
 	{
@@ -208,55 +344,6 @@ namespace Test
 			equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
-	}
-
-	void Soldier::Spawned()
-	{
-		Dood::Spawned();
-
-#if 0
-		set<RigidBody*> joint_bodies;
-		joint_bodies.insert(RigidBodyForNamedBone("pelvis"));
-		joint_bodies.insert(RigidBodyForNamedBone("l leg 1"));
-		joint_bodies.insert(RigidBodyForNamedBone("l leg 2"));
-		joint_bodies.insert(RigidBodyForNamedBone("l foot"));
-		joint_bodies.insert(RigidBodyForNamedBone("r leg 1"));
-		joint_bodies.insert(RigidBodyForNamedBone("r leg 2"));
-		joint_bodies.insert(RigidBodyForNamedBone("r foot"));
-
-		vector<JointConstraint*> use_joints;
-		vector<JointConstraint*> all_joints;
-		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
-			{
-				all_joints.push_back(jc);
-				//jc->enable_motor = false;
-
-				if(joint_bodies.find(jc->obj_a) != joint_bodies.end() || joint_bodies.find(jc->obj_b) != joint_bodies.end())
-					use_joints.push_back(jc);
-			}
-
-		ik_pose = new IKWalkPose(physics, rigid_bodies, all_joints, use_joints, rbody_to_posey);
-		ik_pose->AddEndEffector(RigidBodyForNamedBone("l foot"));
-		ik_pose->AddEndEffector(RigidBodyForNamedBone("r foot"));
-		posey->active_poses.push_back(ik_pose);
-#endif
-	}
-
-	void Soldier::Die(Damage cause)
-	{
-		Dood::Die(cause);
-
-		for(list<Pose*>::iterator iter = posey->active_poses.begin(); iter != posey->active_poses.end(); ++iter)
-			if(*iter == ik_pose)
-			{
-				posey->active_poses.erase(iter);
-
-				delete ik_pose;
-				ik_pose = NULL;
-
-				break;
-			}
 	}
 
 

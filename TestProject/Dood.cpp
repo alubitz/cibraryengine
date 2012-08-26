@@ -16,7 +16,7 @@ namespace Test
 	 */
 	float ground_traction = 20.0f, air_traction = 0.1f;
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	float top_speed_sideways = 5.0f;
+	float top_speed_sideways = 3.0f;
 
 	float yaw_rate = 10.0f, pitch_rate = 10.0f;
 
@@ -131,7 +131,15 @@ namespace Test
 		float timestep = time.elapsed;
 		float traction = standing * ground_traction + (1 - standing) * air_traction;
 
-		Vec3 desired_vel = forward * (top_speed_forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward")))) + rightward * (top_speed_sideways * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep"))));
+		Vec2 control_vec = Vec2(control_state->GetFloatControl("sidestep"), control_state->GetFloatControl("forward"));
+		if(float magsq = control_vec.ComputeMagnitudeSquared())
+		{
+			float inv = 1.0f / sqrtf(magsq);
+			control_vec.x *= inv * top_speed_sideways;
+			control_vec.y *= inv * top_speed_forward;
+		}
+
+		Vec3 desired_vel = forward * control_vec.y + rightward * control_vec.x;
 
 		if(timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
@@ -427,7 +435,7 @@ namespace Test
 
 					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
-					float time_coeff = 10.0f;							// TODO: figure out a correct formula for this
+					float time_coeff = 20.0f;							// TODO: figure out a correct formula for this
 
 					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
 					Vec3 dv = nu_v - body->GetLinearVelocity();
@@ -658,33 +666,91 @@ namespace Test
 	/*
 	 * Dood::WalkPose methods
 	 */
-	Dood::WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* keyframe_anim) :
+	Dood::WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* up_anim, const KeyframeAnimation* down_anim) :
 		Pose(),
-		anim_timer(-1),
+		anim_timer(0),
 		dood(dood),
-		keyframe_anim(new KeyframeAnimation(*keyframe_anim))
+		forward_anim(	forward_anim == NULL ?	NULL : new KeyframeAnimation(*forward_anim)),
+		backward_anim(	backward_anim == NULL ?	NULL : new KeyframeAnimation(*backward_anim)),
+		left_anim(		left_anim == NULL ?		NULL : new KeyframeAnimation(*left_anim)),
+		right_anim(		right_anim == NULL ?	NULL : new KeyframeAnimation(*right_anim)),
+		up_anim(		up_anim == NULL ?		NULL : new KeyframeAnimation(*up_anim)),
+		down_anim(		down_anim == NULL ?		NULL : new KeyframeAnimation(*down_anim))
 	{
 	}
 
-	Dood::WalkPose::~WalkPose() { if(keyframe_anim) { delete keyframe_anim; keyframe_anim = NULL; } }
+	Dood::WalkPose::~WalkPose()
+	{
+		if(forward_anim)	{ delete forward_anim;	forward_anim = NULL; }
+		if(backward_anim)	{ delete backward_anim;	backward_anim = NULL; }
+		if(left_anim)		{ delete left_anim;		left_anim = NULL; }
+		if(right_anim)		{ delete right_anim;	right_anim = NULL; }
+		if(up_anim)			{ delete up_anim;		up_anim = NULL; }
+		if(down_anim)		{ delete down_anim;		down_anim = NULL; }
+	}
 
 	void Dood::WalkPose::UpdatePose(TimingInfo time)
 	{
+		Vec3 forward = Vec3(-sinf(dood->yaw), 0, cosf(dood->yaw));
+		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
+
 		Vec3 vel = dood->vel;
-		//vel.y = 0;
-		float speed = vel.ComputeMagnitude();
 
-		float dt = speed < 0.2f ? 0 : 1.0f - exp(-speed * 0.25f * time.elapsed);
+		float forward_speed = Vec3::Dot(vel, forward);
+		float rightward_speed = Vec3::Dot(vel, rightward) * 2.0f;
+		float upward_speed = vel.y;
 
-		if(anim_timer < 0)
-			anim_timer = 0;
-		else
+		float use_speed = 0.0f;
+		if(forward_anim)
+			use_speed = fabs(forward_speed);
+		if(right_anim)
+			use_speed = max(fabs(rightward_speed), use_speed);
+		if(up_anim)
+			use_speed = max(fabs(upward_speed), use_speed);
+
+		if(use_speed >= 0.2f)
+		{
+			float dt = 1.0f - exp(-use_speed * 0.25f * time.elapsed);
+
 			anim_timer += dt;
 
-		keyframe_anim->UpdatePose(TimingInfo(dt, anim_timer));
+			KeyframeAnimation* anims[] =	{ forward_anim,		backward_anim,	left_anim,			right_anim,			up_anim,		down_anim };
+			float anim_coeffs[] =			{ forward_speed,	-forward_speed,	-rightward_speed,	rightward_speed,	upward_speed,	-upward_speed};
 
-		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = keyframe_anim->bones.begin(); iter != keyframe_anim->bones.end(); ++iter)
-			SetBonePose(iter->first, iter->second.ori, iter->second.pos);
+			float total = 0.0f;
+			for(int i = 0; i < 6; ++i)
+			{
+				if(anim_coeffs[i] < 0)
+					anim_coeffs[i] = 0;
+
+				total += anim_coeffs[i];
+			}
+			if(total == 0)
+				total = anim_coeffs[0] = 1.0f;
+
+			float inv_total = 1.0f / total;
+
+			boost::unordered_map<unsigned int, BoneInfluence> all_bones;
+
+			for(int i = 0; i < 6; ++i)
+				if(KeyframeAnimation* anim = anims[i])
+					if(float coeff = anim_coeffs[i] * inv_total)
+					{
+						anim->JumpToTime(anim_timer);
+						anim->UpdatePose(TimingInfo(0, anim_timer));
+
+						for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = anim->bones.begin(); iter != anim->bones.end(); ++iter)
+						{
+							if(all_bones.find(iter->first) == all_bones.end())
+								all_bones[iter->first] = BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
+							else
+								all_bones[iter->first] += BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
+						}
+					}
+
+			for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+				SetBonePose(iter->first, iter->second.ori, iter->second.pos);
+		}
 	}
 
 

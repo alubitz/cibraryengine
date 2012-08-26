@@ -50,5 +50,7 @@ namespace CibraryEngine
 			bool Advance(TimingInfo time);
 			/** Advances the animation and poses bones */
 			virtual void UpdatePose(TimingInfo time);
+
+			void JumpToTime(float time);
 	};
 }

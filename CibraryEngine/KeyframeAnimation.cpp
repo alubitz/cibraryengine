@@ -141,4 +141,46 @@ namespace CibraryEngine
 		else
 			SetActive(false);
 	}
+	
+	void KeyframeAnimation::JumpToTime(float time)
+	{
+		if(time >= 0)
+		{
+			current_index = 0;
+			while(true)
+			{
+				if(frames[current_index].duration > time)
+				{
+					current_time = time;
+					break;
+				}
+				else
+				{
+					time -= frames[current_index].duration;
+					++current_index;
+					if(current_index == frames.size())
+						current_index = 0;
+				}
+			};
+		}
+		else if(time < 0)
+		{
+			current_index = frames.size() - 1;
+			while(true)
+			{
+				if(frames[current_index].duration > -time)
+				{
+					current_time = frames[current_index].duration + time;
+					break;
+				}
+				else
+				{
+					time += frames[current_index].duration;
+					--current_index;
+					if(current_index < 0)
+						current_index = frames.size() - 1;
+				}
+			}
+		}
+	}
 }

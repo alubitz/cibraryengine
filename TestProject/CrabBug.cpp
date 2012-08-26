@@ -94,7 +94,7 @@ namespace Test
 		KeyframeAnimation ka;
 		GenerateHardCodedWalkAnimation(&ka);
 
-		posey->active_poses.push_back(new Dood::WalkPose(this, &ka));
+		posey->active_poses.push_back(new Dood::WalkPose(this, &ka, &ka, &ka, &ka, &ka, &ka));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
