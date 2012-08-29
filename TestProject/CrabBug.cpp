@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "CrabBug.h"
 
+#include "WalkPose.h"
+
 #include "ConverterWhiz.h"
 
 namespace Test
@@ -84,17 +86,17 @@ namespace Test
 	 */
 	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		walk_pose(new WalkPose())
+		crab_walk(new CrabWalk())
 	{
 		hp *= 0.5f;
 
 		// character animation stuff
-		posey->active_poses.push_back(walk_pose);
+		posey->active_poses.push_back(crab_walk);
 
 		KeyframeAnimation ka;
 		GenerateHardCodedWalkAnimation(&ka);
 
-		posey->active_poses.push_back(new Dood::WalkPose(this, &ka, &ka, &ka, &ka, &ka, &ka));
+		posey->active_poses.push_back(new WalkPose(this, &ka, &ka, &ka, &ka, &ka, &ka, NULL));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
@@ -102,13 +104,6 @@ namespace Test
 		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
 		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
-
-		// ik_pose->AddEndEffector("l leg a 3", Vec3(	0.27f,	0,	1.29f	), true);
-		// ik_pose->AddEndEffector("r leg a 3", Vec3(	-0.27f,	0,	1.29f	), false);
-		// ik_pose->AddEndEffector("l leg b 3", Vec3(	1.98f,	0,	0.44f	), false);
-		// ik_pose->AddEndEffector("r leg b 3", Vec3(	-1.98f,	0,	0.44f	), true);
-		// ik_pose->AddEndEffector("l leg c 3", Vec3(	0.80f,	0,	-1.36f	), true);
-		// ik_pose->AddEndEffector("r leg c 3", Vec3(	-0.80f,	0,	-1.36f	), false);
 	}
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
@@ -127,8 +122,8 @@ namespace Test
 
 	void CrabBug::PreUpdatePoses(TimingInfo time)
 	{
-		walk_pose->pos = pos;
-		walk_pose->yaw = yaw;
+		crab_walk->pos = pos;
+		crab_walk->yaw = yaw;
 	}
 
 	void CrabBug::Update(TimingInfo time)
@@ -146,7 +141,6 @@ namespace Test
 
 	void CrabBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
 	{
-		//push bones here
 		vector<Sphere> carapace_spheres;
 		carapace_spheres.push_back(Sphere(	Vec3(	0.0f,	1.07f,	0.56f),		0.10f));
 		carapace_spheres.push_back(Sphere(	Vec3(	0.0f,	1.18f,	-0.34f),	0.15f));

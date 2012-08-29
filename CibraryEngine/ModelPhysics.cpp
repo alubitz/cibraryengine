@@ -473,8 +473,6 @@ namespace CibraryEngine
 					}
 					lua_pop(L, 1);
 
-					// TODO: get angular damp from lua table (maybe?)
-
 					mphys.joints.push_back(joint);
 				}
 

@@ -2,6 +2,7 @@
 #include "Soldier.h"
 
 #include "PoseAimingGun.h"
+#include "WalkPose.h"
 
 #include "WeaponEquip.h"
 
@@ -29,7 +30,7 @@ namespace Test
 		const float B = 1.5f;
 
 		ka->frames.clear();
-		ka->name = "walk forward/backward";
+		ka->name = "soldier walk forward/backward";
 
 		{	// right foot forward
 			Keyframe kf(0.5f);
@@ -101,7 +102,7 @@ namespace Test
 		const float E = -0.2f;			// left foot past center
 
 		ka->frames.clear();
-		ka->name = "walk right";
+		ka->name = "soldier walk right";
 
 		{	// right foot forward
 			Keyframe kf(0.5f);
@@ -170,7 +171,7 @@ namespace Test
 		GenerateRightWalkAnimation(&kb);
 
 		ka->frames.clear();
-		ka->name = "walk left";
+		ka->name = "soldier walk left";
 
 		for(int i = 0; i < 4; ++i)
 		{
@@ -238,7 +239,7 @@ namespace Test
 		GenerateRightWalkAnimation(&kr);
 		GenerateLeftWalkAnimation(&kl);
 
-		posey->active_poses.push_back(new WalkPose(this, &kf, &kf, &kl, &kr, NULL, NULL));
+		posey->active_poses.push_back(new WalkPose(this, &kf, &kf, &kl, &kr, NULL, NULL, NULL));
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 

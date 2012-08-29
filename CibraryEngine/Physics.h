@@ -76,7 +76,10 @@ namespace CibraryEngine
 
 			/** Adds a rigid body to the simulation */
 			void AddRigidBody(RigidBody* r);
-			/** Removes a rigid body from the simulation */
+			/**
+			 * Removes a rigid body from the simulation.
+			 * This will also remove any constraints with other objects, and it's up to you to know when to delete them!
+			 */
 			void RemoveRigidBody(RigidBody* r);
 
 			void AddConstraint(PhysicsConstraint* c);
