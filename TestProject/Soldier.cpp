@@ -30,7 +30,7 @@ namespace Test
 		const float B = 1.5f;
 
 		ka->frames.clear();
-		ka->name = "soldier walk forward/backward";
+		ka->name = "soldier walk forward";
 
 		{	// right foot forward
 			Keyframe kf(0.5f);
@@ -88,6 +88,25 @@ namespace Test
 			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
 			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
 			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateReverseWalkanimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateHardCodedWalkAnimation(&kb);
+		
+		ka->frames.clear();
+		ka->name = "soldier walk backward";
+
+		int frame_order[] = { 3, 2, 1, 0 };
+
+		for(int i = 0; i < 4; ++i)
+		{
+			Keyframe kf = kb.frames[frame_order[i]];
+			kf.next = (i + 1) % 4;
 
 			ka->frames.push_back(kf);
 		}
@@ -234,12 +253,13 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
-		KeyframeAnimation kf, kr, kl;
+		KeyframeAnimation kf, kb, kr, kl;
 		GenerateHardCodedWalkAnimation(&kf);
+		GenerateReverseWalkanimation(&kb);
 		GenerateRightWalkAnimation(&kr);
 		GenerateLeftWalkAnimation(&kl);
 
-		posey->active_poses.push_back(new WalkPose(this, &kf, &kf, &kl, &kr, NULL, NULL, NULL));
+		posey->active_poses.push_back(new WalkPose(this, NULL, &kf, &kb, &kl, &kr, NULL, NULL));
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 

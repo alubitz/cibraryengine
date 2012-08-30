@@ -16,7 +16,7 @@ namespace Test
 	 */
 	float ground_traction = 20.0f, air_traction = 0.1f;
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	float top_speed_sideways = 3.0f;
+	float top_speed_sideways = 5.0f;
 
 	float yaw_rate = 10.0f, pitch_rate = 10.0f;
 

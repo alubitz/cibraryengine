@@ -8,32 +8,31 @@ namespace Test
 	/*
 	 * WalkPose methods
 	 */
-	WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* up_anim, const KeyframeAnimation* down_anim, const KeyframeAnimation* rest_anim) :
+	WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* rest_anim, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* l_turn_anim, const KeyframeAnimation* r_turn_anim) :
 		Pose(),
 		anim_timer(0),
 		dood(dood),
+		rest_anim(		rest_anim == NULL ?		NULL : new KeyframeAnimation(*rest_anim)),
 		forward_anim(	forward_anim == NULL ?	NULL : new KeyframeAnimation(*forward_anim)),
 		backward_anim(	backward_anim == NULL ?	NULL : new KeyframeAnimation(*backward_anim)),
 		left_anim(		left_anim == NULL ?		NULL : new KeyframeAnimation(*left_anim)),
 		right_anim(		right_anim == NULL ?	NULL : new KeyframeAnimation(*right_anim)),
-		up_anim(		up_anim == NULL ?		NULL : new KeyframeAnimation(*up_anim)),
-		down_anim(		down_anim == NULL ?		NULL : new KeyframeAnimation(*down_anim)),
-		rest_anim(		rest_anim == NULL ?		NULL : new KeyframeAnimation(*rest_anim))
+		l_turn_anim(	l_turn_anim == NULL ?	NULL : new KeyframeAnimation(*l_turn_anim)),
+		r_turn_anim(	r_turn_anim == NULL ?	NULL : new KeyframeAnimation(*r_turn_anim))
 	{
 	}
 
 	WalkPose::~WalkPose()
 	{
+		if(rest_anim)		{ delete rest_anim;		rest_anim = NULL; }
 		if(forward_anim)	{ delete forward_anim;	forward_anim = NULL; }
 		if(backward_anim)	{ delete backward_anim;	backward_anim = NULL; }
 		if(left_anim)		{ delete left_anim;		left_anim = NULL; }
 		if(right_anim)		{ delete right_anim;	right_anim = NULL; }
-		if(up_anim)			{ delete up_anim;		up_anim = NULL; }
-		if(down_anim)		{ delete down_anim;		down_anim = NULL; }
-		if(rest_anim)		{ delete rest_anim;		rest_anim = NULL; }
+		if(l_turn_anim)		{ delete l_turn_anim;	l_turn_anim = NULL; }
+		if(r_turn_anim)		{ delete r_turn_anim;	r_turn_anim = NULL; }
 	}
 
-	// TODO: add support for stepping to turn in place?
 	// TODO: prevent accidentally stepping when moving to rest animation
 	void WalkPose::UpdatePose(TimingInfo time)
 	{
@@ -47,16 +46,15 @@ namespace Test
 		Vec3 vel = dood->vel;
 
 		float forward_speed = Vec3::Dot(vel, forward);
-		float rightward_speed = Vec3::Dot(vel, rightward) * 2.0f;			// TODO: do this more elegantly
-		float upward_speed = vel.y;
+		float rightward_speed = Vec3::Dot(vel, rightward) * 2.5f;			// TODO: do this more elegantly
+		float turn_right = 0.0f;											// TODO: compute this for real somehow
 
 		// figure out the fastest axial speed we have an animation for (used to control animation speed)
 		float use_speed = 0.0f;
 		if(forward_speed > 0		&& forward_anim)	{ use_speed = forward_speed; }						else if(forward_speed < 0	&& backward_anim)	{ use_speed = -forward_speed; }
 		if(rightward_speed > 0		&& right_anim)		{ use_speed = max(rightward_speed,	use_speed); }	else if(rightward_speed < 0	&& left_anim)		{ use_speed = max(-rightward_speed,	use_speed); }
-		if(upward_speed > 0			&& up_anim)			{ use_speed = max(upward_speed,		use_speed); }	else if(upward_speed < 0	&& down_anim)		{ use_speed = max(-upward_speed,	use_speed); }
 		if(use_speed < 0.2f)
-			use_speed = forward_speed = rightward_speed = upward_speed = 0.0f;
+			use_speed = forward_speed = rightward_speed = turn_right = 0.0f;
 
 		float dt = 1.0f - exp(-use_speed * 0.25f * time.elapsed);
 		anim_timer += dt;
@@ -70,8 +68,8 @@ namespace Test
 			AnimWithCoeff(backward_anim,	-forward_speed),
 			AnimWithCoeff(left_anim,		-rightward_speed),
 			AnimWithCoeff(right_anim,		rightward_speed),
-			AnimWithCoeff(up_anim,			upward_speed),
-			AnimWithCoeff(down_anim,		-upward_speed)
+			AnimWithCoeff(l_turn_anim,		-turn_right),
+			AnimWithCoeff(r_turn_anim,		turn_right)
 		};
 		int num_anims = sizeof(anims) / sizeof(AnimWithCoeff);
 
@@ -81,6 +79,8 @@ namespace Test
 			float& coeff = anims[i].coeff;
 			if(coeff < 0)
 				coeff = 0;
+
+			// TODO: don't sum coeffs for NULL animations?
 
 			coeffs_total += coeff;
 		}

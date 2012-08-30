@@ -86,17 +86,17 @@ namespace Test
 	 */
 	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		crab_walk(new CrabWalk())
+		crab_heading(new CrabHeading())
 	{
 		hp *= 0.5f;
 
 		// character animation stuff
-		posey->active_poses.push_back(crab_walk);
+		posey->active_poses.push_back(crab_heading);
 
 		KeyframeAnimation ka;
 		GenerateHardCodedWalkAnimation(&ka);
 
-		posey->active_poses.push_back(new WalkPose(this, &ka, &ka, &ka, &ka, &ka, &ka, NULL));
+		posey->active_poses.push_back(new WalkPose(this, NULL, &ka, &ka, &ka, &ka, NULL, NULL));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
@@ -120,11 +120,7 @@ namespace Test
 		}
 	}
 
-	void CrabBug::PreUpdatePoses(TimingInfo time)
-	{
-		crab_walk->pos = pos;
-		crab_walk->yaw = yaw;
-	}
+	void CrabBug::PreUpdatePoses(TimingInfo time) { crab_heading->yaw = yaw; }
 
 	void CrabBug::Update(TimingInfo time)
 	{

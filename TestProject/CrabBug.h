@@ -12,18 +12,17 @@ namespace Test
 	{
 		private:
 
-			class CrabWalk : public Pose
+			class CrabHeading: public Pose
 			{
 				public:
 
 					float yaw;
-					Vec3 pos;
 
-					CrabWalk() : Pose(), yaw(), pos() { }
+					CrabHeading() : Pose(), yaw() { }
 
 					void UpdatePose(TimingInfo time) { SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3()); }
 			};
-			CrabWalk* crab_walk;
+			CrabHeading* crab_heading;
 
 		protected:
 
