@@ -9,6 +9,7 @@ namespace Test
 	struct BoneEntry;
 
 	class PoseAimingGun;
+	class WalkPose;
 
 	class Soldier : public Dood
 	{
@@ -23,8 +24,9 @@ namespace Test
 			Bone* gun_hand_bone;
 
 			PoseAimingGun* p_ag;
+			WalkPose* walk_pose;
 
-			float jump_fuel;
+			float jet_fuel;
 
 			SoundBuffer* jet_start_sound;
 			SoundBuffer* jet_loop_sound;

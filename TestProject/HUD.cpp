@@ -168,7 +168,7 @@ namespace Test
 
 		glBegin(GL_QUADS);
 
-		if (ammo_frac > 0)
+		if(ammo_frac > 0)
 		{
 			no_ammo_dim = false;
 			no_ammo_flash_timer = 0.0;
@@ -230,7 +230,7 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, jumpbar_tex->GetGLName());
 
-		float jump_frac = ((Soldier*)player)->jump_fuel;
+		float jump_frac = ((Soldier*)player)->jet_fuel;
 		float unjump = 1.0f - jump_frac;
 
 		float red = min(2.0f - 2.0f * jump_frac, 1.0f);
@@ -247,7 +247,7 @@ namespace Test
 
 		glBegin(GL_QUADS);
 
-		if (jump_frac > 0)
+		if(jump_frac > 0)
 		{
 			no_jump_dim = false;
 			no_jump_flash_timer = 0.0f;
@@ -305,7 +305,7 @@ namespace Test
 
 		int ring_steps = 128;
 		float ring_coeff = float(M_PI) * 2.0f / ring_steps;
-		for (int i = 0; i <= ring_steps; ++i)
+		for(int i = 0; i <= ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
 			glVertex2f(cosf(theta), sinf(theta));
@@ -321,7 +321,7 @@ namespace Test
 
 		int fan_steps = 32;
 		float fan_coeff = float(M_PI) * 0.25f / fan_steps;
-		for (int i = -fan_steps; i <= fan_steps; ++i)
+		for(int i = -fan_steps; i <= fan_steps; ++i)
 		{
 			float theta = i * fan_coeff + player->yaw + float(M_PI) * 0.5f;
 			glVertex2f(cosf(theta), sinf(theta));
@@ -350,7 +350,7 @@ namespace Test
 		{
 			Dood* dood = (Dood*)doods[i];
 
-			if (player->team.Attacks(dood->team))
+			if(player->team.Attacks(dood->team))
 				glColor4f(1, 0, 0, 0.5);
 			else
 				glColor4f(0.5, 0.5, 1, 0.5);
@@ -360,7 +360,7 @@ namespace Test
 			dy *= inv_radar_scale;
 			float dist = sqrtf(dx * dx + dy * dy);
 
-			if (dist > 1.0f)
+			if(dist > 1.0f)
 			{
 				float inv_dist = 1.0f / dist;
 				dx *= inv_dist;
@@ -379,7 +379,7 @@ namespace Test
 		glColor4f(0.5, 0.5, 1.0, 0.5);
 
 		glBegin(GL_LINE_LOOP);
-		for (int i = 0; i < ring_steps; ++i)
+		for(int i = 0; i < ring_steps; ++i)
 		{
 			float theta = i * ring_coeff;
 			glVertex2f(cosf(theta), sinf(theta));
@@ -468,7 +468,7 @@ namespace Test
 
 		// Drawing the reticle
 
-		if (player->hp > 0)
+		if(player->hp > 0)
 		{
 			glBindTexture(GL_TEXTURE_2D, reticle_tex->GetGLName());
 			glBegin(GL_QUADS);
@@ -496,7 +496,7 @@ namespace Test
 
 		SetOrtho(w, h);
 
-		if (game->debug_text != "")
+		if(game->debug_text != "")
 			Print(0, 0, game->debug_text);
 
 		if(game->total_game_time < game->chapter_text_end || game->chapter_text_end < game->chapter_text_start)
@@ -553,33 +553,33 @@ namespace Test
 	{
 		float timestep = time.elapsed;
 		hud_flash_timer -= timestep;
-		if (hud_flash_timer < 0)
+		if(hud_flash_timer < 0)
 		{
 			no_ammo_flash_timer -= timestep;
 			no_jump_flash_timer -= timestep;
 
-			if (player->hp < 0.1)
+			if(player->hp < 0.1)
 				low_hp_dim = !low_hp_dim;
 			else
 				low_hp_dim = false;
 
-			if (no_ammo_flash_timer > 0)
+			if(no_ammo_flash_timer > 0)
 				no_ammo_dim = !no_ammo_dim;
 			else
 				no_ammo_dim = false;
 
-			if (no_jump_flash_timer > 0)
+			if(no_jump_flash_timer > 0)
 				no_jump_dim = !no_jump_dim;
 			else
 				no_jump_dim = false;
 
 			float ammo_frac;
-			if (player->GetAmmoFraction(ammo_frac) && ammo_frac < 0.2)
+			if(player->GetAmmoFraction(ammo_frac) && ammo_frac < 0.2)
 				low_ammo_dim = !low_ammo_dim;
 			else
 				low_ammo_dim = false;
 
-			if (((Soldier*)player)->jump_fuel < 0.25f)
+			if(((Soldier*)player)->jet_fuel < 0.25f)
 				low_jump_dim = !low_jump_dim;
 			else
 				low_jump_dim = false;
@@ -587,7 +587,7 @@ namespace Test
 			hud_flash_timer = 0.08f;
 		}
 
-		for (unsigned int i = 0; i < directional_damage.size(); ++i)
+		for(unsigned int i = 0; i < directional_damage.size(); ++i)
 			directional_damage[i] = max(0.0f, directional_damage[i] - timestep);
 	}
 
@@ -612,8 +612,8 @@ namespace Test
 		Vec3 from_direction = ((Dood::DamageTakenEvent*)evt)->from_dir;
 
 		float mag = from_direction.ComputeMagnitude();
-		if (mag == 0)
-			for (int i = 0; i < 8; ++i)
+		if(mag == 0)
+			for(int i = 0; i < 8; ++i)
 				hud->directional_damage[i] = 1.0;
 		else
 		{
@@ -622,7 +622,7 @@ namespace Test
 			Vec3 forward = Vec3(-sinf(hud->player->yaw), 0, cosf(hud->player->yaw));
 			Vec3 rightward = Vec3(-forward.z, 0, forward.x);
 
-			for (int i = 0; i < 8; ++i)
+			for(int i = 0; i < 8; ++i)
 			{
 				float theta = (i + 5) * float(M_PI) * 2.0f / 8.0f;           // 8 is the number of steps in our "circle"
 				Vec3 vec = rightward * cosf(theta) - forward * sinf(theta);

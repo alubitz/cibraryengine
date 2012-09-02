@@ -10,15 +10,21 @@ namespace Test
 	 */
 	WalkPose::WalkPose(Dood* dood, const KeyframeAnimation* rest_anim, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* l_turn_anim, const KeyframeAnimation* r_turn_anim) :
 		Pose(),
-		anim_timer(0),
 		dood(dood),
+		anim_timer(0),
+		forward_v(0),
+		leftward_v(0),
+		yaw_v(0),
 		rest_anim(		rest_anim == NULL ?		NULL : new KeyframeAnimation(*rest_anim)),
 		forward_anim(	forward_anim == NULL ?	NULL : new KeyframeAnimation(*forward_anim)),
 		backward_anim(	backward_anim == NULL ?	NULL : new KeyframeAnimation(*backward_anim)),
 		left_anim(		left_anim == NULL ?		NULL : new KeyframeAnimation(*left_anim)),
 		right_anim(		right_anim == NULL ?	NULL : new KeyframeAnimation(*right_anim)),
 		l_turn_anim(	l_turn_anim == NULL ?	NULL : new KeyframeAnimation(*l_turn_anim)),
-		r_turn_anim(	r_turn_anim == NULL ?	NULL : new KeyframeAnimation(*r_turn_anim))
+		r_turn_anim(	r_turn_anim == NULL ?	NULL : new KeyframeAnimation(*r_turn_anim)),
+		yaw_bone(0),
+		yaw(0),
+		target_yaw(0)
 	{
 	}
 
@@ -36,40 +42,92 @@ namespace Test
 	// TODO: prevent accidentally stepping when moving to rest animation
 	void WalkPose::UpdatePose(TimingInfo time)
 	{
+		const float vsmooth_exp_coeff = 4.0f;
+		const float min_speed = 0.9f;
+		const float playback_exp_coeff = 0.25f;
+
+		const float left_speed_coeff = 2.5f;
+
+		const float max_standing_yaw = 1.0f;
+		const float max_moving_yaw = 0.1f;
+		const float turn_rate = 4.0f;
+
 		// make sure we reset to the rest pose if we aren't doing anything
 		bones.clear();
 
+		Vec3 forward = Vec3(-sinf(yaw), 0, cosf(yaw));
+		Vec3 leftward = Vec3(forward.z, 0, -forward.x);
+
 		// find speeds along each of the dood's axes of movement
-		Vec3 forward = Vec3(-sinf(dood->yaw), 0, cosf(dood->yaw));
-		Vec3 rightward = Vec3(-forward.z, 0, forward.x);
-
 		Vec3 vel = dood->vel;
+		float m_forward_v = Vec3::Dot(vel, forward);			// measured speeds
+		float m_leftward_v = Vec3::Dot(vel, leftward);
 
-		float forward_speed = Vec3::Dot(vel, forward);
-		float rightward_speed = Vec3::Dot(vel, rightward) * 2.5f;			// TODO: do this more elegantly
-		float turn_right = 0.0f;											// TODO: compute this for real somehow
 
-		// figure out the fastest axial speed we have an animation for (used to control animation speed)
+		// do yaw stuff
+		Vec3 desired_fwd = Vec3(-sinf(dood->yaw), 0, cosf(dood->yaw));
+		Vec3 desired_left = Vec3(desired_fwd.z, 0, -desired_fwd.x);
+
+		Vec3 target_fwd = Vec3(-sinf(target_yaw), 0, cosf(target_yaw));
+
+		float desired_from_target = atan2f(Vec3::Dot(target_fwd, desired_left), Vec3::Dot(target_fwd, desired_fwd));
+		if(fabs(desired_from_target) > max_standing_yaw || max(fabs(m_forward_v), fabs(m_leftward_v)) >= min_speed)
+		{
+			target_yaw += desired_from_target;
+			target_fwd = Vec3(-sinf(target_yaw), 0, cosf(target_yaw));			// recompute!
+		}
+		float target_from_yaw = atan2f(Vec3::Dot(target_fwd, leftward), Vec3::Dot(target_fwd, forward));
+
+		float m_yaw_v;						// measured (computed?) yaw speed
+		if(fabs(target_from_yaw) > max_moving_yaw)
+		{
+			if(target_from_yaw > 0)
+				m_yaw_v = 1.0f;
+			else
+				m_yaw_v = -1.0f;
+		}
+		else
+			m_yaw_v = 0.0f;
+
+		// rather than use instantaneous velocity values, approach the velocities gradually over time
+		float old_coeff = exp(-vsmooth_exp_coeff * time.elapsed), nu_coeff = 1.0f - old_coeff;
+		forward_v =		old_coeff * forward_v	+ nu_coeff * m_forward_v;
+		leftward_v =	old_coeff * leftward_v	+ nu_coeff * m_leftward_v;
+		yaw_v =			old_coeff * yaw_v		+ nu_coeff * m_yaw_v;
+
+		// figure out the fastest playback speed we have an animation for (used as master playback speed)
 		float use_speed = 0.0f;
-		if(forward_speed > 0		&& forward_anim)	{ use_speed = forward_speed; }						else if(forward_speed < 0	&& backward_anim)	{ use_speed = -forward_speed; }
-		if(rightward_speed > 0		&& right_anim)		{ use_speed = max(rightward_speed,	use_speed); }	else if(rightward_speed < 0	&& left_anim)		{ use_speed = max(-rightward_speed,	use_speed); }
-		if(use_speed < 0.2f)
-			use_speed = forward_speed = rightward_speed = turn_right = 0.0f;
+		if(forward_v > 0		&& forward_anim)	{ use_speed = forward_v; }										else if(forward_v < 0	&& backward_anim)	{ use_speed = -forward_v; }
+		if(leftward_v > 0		&& left_anim)		{ use_speed = max(use_speed, leftward_v * left_speed_coeff); }	else if(leftward_v < 0	&& right_anim)		{ use_speed = max(use_speed, -leftward_v * left_speed_coeff); }
+		if(yaw_v > 0			&& l_turn_anim)		{ use_speed = max(use_speed, yaw_v * turn_rate); }				else if(yaw_v < 0		&& r_turn_anim)		{ use_speed = max(use_speed, -yaw_v * turn_rate); }
 
-		float dt = 1.0f - exp(-use_speed * 0.25f * time.elapsed);
-		anim_timer += dt;
+		float forward_speed, leftward_speed, yaw_speed;
+		if(use_speed < min_speed)			// if none of the animations are moving fast enough to warrant stepping, set all speeds to zero and reset the timer
+		{
+			use_speed = forward_speed = leftward_speed = yaw_speed = 0.0f;
+			anim_timer = 0.0f;
+		}
+		else
+		{
+			forward_speed =		forward_v;
+			leftward_speed =	leftward_v	* left_speed_coeff;
+			yaw_speed =			yaw_v		* turn_rate;
+
+			float dt = 1.0f - exp(-use_speed * playback_exp_coeff * time.elapsed);
+			anim_timer += dt;
+		}
 
 		// negative coefficients are ignored (set to 0)
 		struct AnimWithCoeff { KeyframeAnimation* anim; float coeff; AnimWithCoeff(KeyframeAnimation* anim, float coeff) : anim(anim), coeff(coeff) { } };
 		AnimWithCoeff anims[] =
 		{
-			AnimWithCoeff(rest_anim,		2.0f * (0.5f - use_speed)),
+			AnimWithCoeff(rest_anim,		1.0f - use_speed),
 			AnimWithCoeff(forward_anim,		forward_speed),
 			AnimWithCoeff(backward_anim,	-forward_speed),
-			AnimWithCoeff(left_anim,		-rightward_speed),
-			AnimWithCoeff(right_anim,		rightward_speed),
-			AnimWithCoeff(l_turn_anim,		-turn_right),
-			AnimWithCoeff(r_turn_anim,		turn_right)
+			AnimWithCoeff(left_anim,		leftward_speed),
+			AnimWithCoeff(right_anim,		-leftward_speed),
+			AnimWithCoeff(l_turn_anim,		yaw_speed),
+			AnimWithCoeff(r_turn_anim,		-yaw_speed)
 		};
 		int num_anims = sizeof(anims) / sizeof(AnimWithCoeff);
 
@@ -77,12 +135,10 @@ namespace Test
 		for(int i = 0; i < num_anims; ++i)
 		{
 			float& coeff = anims[i].coeff;
-			if(coeff < 0)
+			if(coeff > 0)
+				coeffs_total += coeff;
+			else
 				coeff = 0;
-
-			// TODO: don't sum coeffs for NULL animations?
-
-			coeffs_total += coeff;
 		}
 
 		// if the total is somehow zero, default to the rest anim
@@ -112,5 +168,10 @@ namespace Test
 		// apply the pose we computed
 		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 			SetBonePose(iter->first, iter->second.ori, iter->second.pos);
+
+		// apply yaw changes
+		yaw -= yaw_speed * time.elapsed;
+		if(yaw_bone)
+			SetBonePose(yaw_bone, Vec3(0, -yaw, 0), Vec3());
 	}
 }

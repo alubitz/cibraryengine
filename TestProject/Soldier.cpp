@@ -13,16 +13,34 @@ namespace Test
 	/*
 	 * Soldier constants
 	 */ 
-	float jump_pack_accel = 15.0f;
+	float fly_accel_up = 15.0f;
 
 	float jump_to_fly_delay = 0.3f;
 	float jump_speed = 4.0f;
 
-	float jump_fuel_spend_rate = 0.5f, jump_fuel_refill_rate = 0.4f;
+	float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
 	float flying_accel = 8.0f;
 
 
 
+
+	static void GenerateRestPose(KeyframeAnimation* ka)
+	{
+		ka->frames.clear();
+		ka->name = "soldier rest pose";
+
+		Keyframe kf;
+		kf.duration = 2.0f;
+		kf.next = 0;
+		kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence();
+		kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence();
+		kf.values[Bone::string_table["l foot"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r foot"]] =	BoneInfluence();
+
+		ka->frames.push_back(kf);
+	}
 
 	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
@@ -184,17 +202,13 @@ namespace Test
 		}
 	}
 
-	static void GenerateLeftWalkAnimation(KeyframeAnimation* ka)
+	static void MakeMirrorAnimation(KeyframeAnimation* original, KeyframeAnimation* copy)
 	{
-		KeyframeAnimation kb;
-		GenerateRightWalkAnimation(&kb);
-
-		ka->frames.clear();
-		ka->name = "soldier walk left";
+		copy->frames.clear();
 
 		for(int i = 0; i < 4; ++i)
 		{
-			const Keyframe& frame = kb.frames[(i + 2) % 4];
+			const Keyframe& frame = original->frames[(i + 2) % 4];
 			Keyframe nu_frame;
 			nu_frame.duration = frame.duration;
 			nu_frame.next = (i + 1) % 4;
@@ -231,8 +245,97 @@ namespace Test
 				nu_frame.values[Bone::string_table[changed_name]] = BoneInfluence(Vec3(ori.x, -ori.y, -ori.z), Vec3(-pos.x, pos.y, pos.z));
 			}
 
-			ka->frames.push_back(nu_frame);
+			copy->frames.push_back(nu_frame);
 		}
+	}
+
+	static void GenerateTurnRightAnimation(KeyframeAnimation* ka)
+	{
+		const float A = 1.0f;				// foot rotation from center
+		const float B = A / 2;
+		const float C = 1.5f;				// knee bend
+		const float D = 0.65f;				// leg forward/backward
+
+		ka->frames.clear();
+		ka->name = "soldier turn right";
+
+		{	// right foot leading
+			Keyframe kf(0.5f);
+			kf.next = 1;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	A,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-D,	-A,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{	// left foot leading
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-D,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateLeftWalkAnimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateRightWalkAnimation(&kb);
+
+		MakeMirrorAnimation(&kb, ka);
+		ka->name = "soldier walk left";
+	}
+
+	static void GenerateTurnLeftAnimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateTurnRightAnimation(&kb);
+
+		MakeMirrorAnimation(&kb, ka);
+		ka->name = "soldier turn left";
 	}
 
 
@@ -245,7 +348,8 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
-		jump_fuel(1.0f),
+		walk_pose(NULL),
+		jet_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
@@ -253,13 +357,18 @@ namespace Test
 		p_ag = new PoseAimingGun();
 		posey->active_poses.push_back(p_ag);
 
-		KeyframeAnimation kf, kb, kr, kl;
+		KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
+		GenerateRestPose(&rest);
 		GenerateHardCodedWalkAnimation(&kf);
 		GenerateReverseWalkanimation(&kb);
 		GenerateRightWalkAnimation(&kr);
 		GenerateLeftWalkAnimation(&kl);
+		GenerateTurnLeftAnimation(&turnl);
+		GenerateTurnRightAnimation(&turnr);
 
-		posey->active_poses.push_back(new WalkPose(this, NULL, &kf, &kb, &kl, &kr, NULL, NULL));
+		walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
+		walk_pose->yaw_bone = Bone::string_table["pelvis"];
+		posey->active_poses.push_back(walk_pose);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
@@ -288,7 +397,7 @@ namespace Test
 			{
 				can_recharge = false;
 
-				if(jump_fuel > 0)
+				if(jet_fuel > 0)
 				{
 					// jetpacking
 					if(time.total > jump_start_timer)
@@ -306,18 +415,18 @@ namespace Test
 							jet_loop->vel = vel;
 						}
 
-						jump_fuel -= timestep * (jump_fuel_spend_rate);
+						jet_fuel -= timestep * (fuel_spend_rate);
 
-						Vec3 jump_accel_vec = Vec3(0, jump_pack_accel, 0);
-						Vec3 lateral_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
-						jump_accel_vec += lateral_accel * (flying_accel);
+						Vec3 fly_accel_vec = Vec3(0, fly_accel_up, 0);
+						Vec3 horizontal_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
+						fly_accel_vec += horizontal_accel * (flying_accel);
 
 						float total_mass = 0.0f;
 
 						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 							total_mass += (*iter)->GetMassInfo().mass;
 
-						Vec3 apply_force = jump_accel_vec * total_mass;
+						Vec3 apply_force = fly_accel_vec * total_mass;
 						
 						vector<RigidBody*> jet_bones;
 						for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
@@ -345,12 +454,18 @@ namespace Test
 		}
 
 		if(can_recharge)
-			jump_fuel = min(jump_fuel + jump_fuel_refill_rate * timestep, 1.0f);
+			jet_fuel = min(jet_fuel + fuel_refill_rate * timestep, 1.0f);
 	}
 
 	void Soldier::DoWeaponControls(TimingInfo time)
 	{
-		p_ag->yaw = yaw;
+		// TODO: figure out a way to make this less jerky
+		// rotation of upper body relative to torso
+		float fx = cosf(walk_pose->yaw), fy = sinf(walk_pose->yaw);			// torso
+		float rx = -fy, ry = fx;
+		float dx = cosf(yaw), dy = sinf(yaw);								// desired
+
+		p_ag->yaw = atan2f(dx * rx + dy * ry, dx * fx + dy * fy);
 		p_ag->pitch = pitch;
 
 		Dood::DoWeaponControls(time);
