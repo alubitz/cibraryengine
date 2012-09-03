@@ -22,26 +22,26 @@ namespace CibraryEngine
 		{
 			for(unsigned int i = 0; i < len; ++i)
 				to_be_assigned.push_back(incoming[i]);
-                
-            list<ReceivedPacket> newly_received;
-            while (true)         // not really infinite, see below
-            {
+
+			list<ReceivedPacket> newly_received;
+			while(true)         // not really infinite, see below
+			{
 				Packet packet;
 
-                if (!Packet::MaybeExtractPacket(to_be_assigned, to_be_assigned, packet))
-                    break;
-                else
-                {
-                    ReceivedPacket received_packet(packet, next_packet++);
-                    collection.push_back(received_packet);
-                    newly_received.push_back(received_packet);
-                }
-            }
+				if(!Packet::MaybeExtractPacket(to_be_assigned, to_be_assigned, packet))
+					break;
+				else
+				{
+					ReceivedPacket received_packet(packet, next_packet++);
+					collection.push_back(received_packet);
+					newly_received.push_back(received_packet);
+				}
+			}
 
-            return newly_received;
-        }
-        else
-            return list<ReceivedPacket>();
+			return newly_received;
+		}
+		else
+			return list<ReceivedPacket>();
 	}
 
 	list<ReceivedPacket> Inbox::GetPackets()

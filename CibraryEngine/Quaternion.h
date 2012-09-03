@@ -104,8 +104,7 @@ namespace CibraryEngine
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
 		static Quaternion FromPYR(float p, float y, float r)
 		{
-			float magsq = p * p + y * y + r * r;
-			if(magsq > 0.0f)
+			if(float magsq = Vec3::MagnitudeSquared(p, y, r))
 			{
 				float mag = sqrtf(magsq), half = mag * 0.5f, coeff = sinf(half) / mag;
 				return Quaternion(cosf(half), p * coeff, y * coeff, r * coeff);

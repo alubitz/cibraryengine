@@ -42,7 +42,7 @@ namespace CibraryEngine
 	{
 		Vec3 cross = Vec3::Cross(a.normal, b.normal);
 		float magsq = cross.ComputeMagnitudeSquared();
-		if (magsq == 0)
+		if(magsq == 0)
 		{
 			// failure! planes did not intersect, or planes were equal
 			result = Line(Vec3(), Vec3());					// not a valid line!
@@ -63,7 +63,7 @@ namespace CibraryEngine
 		float negative_check = Vec2::MagnitudeSquared(a.PointDistance(negative), b.PointDistance(negative));
 		// and use that one as a point on the line (for the out value)
 		Vec3 point_on_line;
-		if (positive_check < negative_check)
+		if(positive_check < negative_check)
 			point_on_line = positive;
 		else
 			point_on_line = negative;

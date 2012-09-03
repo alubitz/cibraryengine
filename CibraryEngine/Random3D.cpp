@@ -19,11 +19,11 @@ namespace CibraryEngine
 
 	Vec3 Random3D::RandomNormalizedVector(float len)
 	{
-		while (true)
+		while(true)
 		{
 			float x = Rand(-1, 1), y = Rand(-1, 1), z = Rand(-1, 1);
 			float mag_sq = x * x + y * y + z * z;
-			if (mag_sq == 0 || mag_sq > 1)
+			if(mag_sq == 0 || mag_sq > 1)
 				continue;
 			float inv = len / sqrtf(mag_sq);
 			return Vec3(x * inv, y * inv, z * inv);
@@ -32,11 +32,11 @@ namespace CibraryEngine
 
 	Vec2 Random3D::RandomNormalizedVec2(float len)
 	{
-		while (true)
+		while(true)
 		{
 			float x = Rand(-1, 1), y = Rand(-1, 1);
 			float mag_sq = x * x + y * y;
-			if (mag_sq == 0 || mag_sq > 1)
+			if(mag_sq == 0 || mag_sq > 1)
 				continue;
 			float inv = len / sqrtf(mag_sq);
 			return Vec2(x * inv, y * inv);
@@ -46,7 +46,7 @@ namespace CibraryEngine
 	Quaternion Random3D::RandomQuaternionRotation()
 	{
 		Quaternion temp = Quaternion::Identity();
-		for (int i = 0; i < 3; ++i)
+		for(int i = 0; i < 3; ++i)
 		{
 			Vec3 axis = RandomNormalizedVector(1.0f);
 			temp *= Quaternion::FromAxisAngle(axis.x, axis.y, axis.z, Rand((float)(16.0 * M_PI)));

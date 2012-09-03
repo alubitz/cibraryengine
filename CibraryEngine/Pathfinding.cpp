@@ -318,7 +318,7 @@ namespace CibraryEngine
 			if		(key == "finished") { lua_pushboolean(L, path_search->IsFinished()); return 1; }
 			else if	(key == "source") { PushNavNodeHandle(L, path_search->GetGraph(), path_search->GetSource()); return 1; }
 			else if	(key == "target") { PushNavNodeHandle(L, path_search->GetGraph(), path_search->GetTarget()); return 1; }
-			else if (key == "think") { lua_pushlightuserdata(L, path_search); lua_pushcclosure(L, pathsearch_think, 1); return 1; }
+			else if	(key == "think") { lua_pushlightuserdata(L, path_search); lua_pushcclosure(L, pathsearch_think, 1); return 1; }
 			else if	(key == "solution")
 			{
 				lua_settop(L, 0);

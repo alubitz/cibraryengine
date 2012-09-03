@@ -29,7 +29,7 @@ namespace CibraryEngine
 		for(vector<RenderNode>::iterator iter = objects.begin(); iter != objects.end(); ++iter)
 		{
 			RenderNode model = *iter;
-			if (material_model_lists.find(model.material) == material_model_lists.end())
+			if(material_model_lists.find(model.material) == material_model_lists.end())
 				material_model_lists[model.material] = vector<RenderNode>();
 			material_model_lists[model.material].push_back(model);
 		}
@@ -42,7 +42,7 @@ namespace CibraryEngine
 
 			assert(mat && "Material must not be NULL!");
 
-			if (mat->blend_style == Opaque)
+			if(mat->blend_style == Opaque)
 				opaque_items[mat] = material_model_lists[mat];
 			else
 				translucent_items[mat] = material_model_lists[mat];
@@ -88,9 +88,9 @@ namespace CibraryEngine
 			assert (model.material != NULL);
 
 			// only end the current material and start the next if they are DIFFERENT materials
-			if (current_mat == NULL || !model.material->Equals(current_mat))
+			if(current_mat == NULL || !model.material->Equals(current_mat))
 			{
-				if (current_mat != NULL)
+				if(current_mat != NULL)
 					current_mat->EndDraw();							// if the previous material was null, that means we're on the first material
 
 				model.material->BeginDraw(this);

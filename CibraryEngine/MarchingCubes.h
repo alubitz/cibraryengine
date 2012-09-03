@@ -65,11 +65,11 @@ namespace CibraryEngine
 	{
 		float v1 = p1.value, v2 = p2.value;
 
-		if (fabs(isolevel - v1) < 0.00001f)
+		if(fabs(isolevel - v1) < 0.00001f)
 			return(I::Convert(p1));
-		if (fabs(isolevel - v2) < 0.00001f)
+		if(fabs(isolevel - v2) < 0.00001f)
 			return(I::Convert(p2));
-		if (fabs(v1 - v2) < 0.00001f)
+		if(fabs(v1 - v2) < 0.00001f)
 			return(I::Convert(p1));
 
 		float mu = (isolevel - v1) / (v2 - v1);

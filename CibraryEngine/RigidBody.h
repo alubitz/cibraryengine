@@ -165,6 +165,7 @@ namespace CibraryEngine
 			CollisionCallback* GetCollisionCallback();
 
 			CollisionShape* GetCollisionShape();
+			ShapeType GetShapeType();
 
 			void SetCollisionEnabled(RigidBody* other, bool enabled);
 

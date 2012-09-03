@@ -61,7 +61,7 @@ namespace CibraryEngine
 
 	void PhysicsRegion::AddRigidBody(RigidBody* body)
 	{
-		ShapeType type = body->GetCollisionShape()->GetShapeType();
+		ShapeType type = body->GetShapeType();
 
 		all_objects[type].insert(body);
 
@@ -75,7 +75,7 @@ namespace CibraryEngine
 
 	void PhysicsRegion::RemoveRigidBody(RigidBody* body)
 	{
-		ShapeType type = body->GetCollisionShape()->GetShapeType();
+		ShapeType type = body->GetShapeType();
 
 		all_objects[type].erase(body);
 

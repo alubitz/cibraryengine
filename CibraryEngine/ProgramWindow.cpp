@@ -245,7 +245,7 @@ namespace CibraryEngine
 		bool CheckInput()
 		{
 			MSG msg;
-			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 			{
 				if(msg.message == WM_QUIT)
 					finished = true;
@@ -396,10 +396,10 @@ namespace CibraryEngine
 		window_class.lpszMenuName	= NULL;
 		window_class.lpszClassName	= "Cibrary";
 
-		if (!RegisterClass(&window_class))						// Attempt To Register The Window Class
+		if(!RegisterClass(&window_class))						// Attempt To Register The Window Class
 			return NULL;
 
-		if (fullscreen)
+		if(fullscreen)
 		{
 			if(w != 0 && h != 0)
 			{
@@ -412,7 +412,7 @@ namespace CibraryEngine
 				device_mode.dmBitsPerPel	= bpp;
 				device_mode.dmFields		= DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
 
-				if (ChangeDisplaySettings(&device_mode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
+				if(ChangeDisplaySettings(&device_mode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
 				{
 					UnregisterClass("Cibrary", program_instance);
 					return NULL;
@@ -478,7 +478,7 @@ namespace CibraryEngine
 		};
 
 		HDC device_context = GetDC(window);
-		if (!device_context)
+		if(!device_context)
 		{
 			// kill window and exit
 			if(fullscreen)
@@ -489,7 +489,7 @@ namespace CibraryEngine
 		}
 
 		pixel_format = ChoosePixelFormat(device_context, &pfd);
-		if (!pixel_format)
+		if(!pixel_format)
 		{
 			// kill window and exit
 			if(fullscreen)

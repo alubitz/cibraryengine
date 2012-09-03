@@ -34,7 +34,7 @@ namespace Test
 
 		attack_wait -= timestep;
 
-		if (IsFiring(1) && attack_wait <= 0)
+		if(IsFiring(1) && attack_wait <= 0)
 			ClawAttackNormal(time.total);
 	}
 

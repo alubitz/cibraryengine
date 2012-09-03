@@ -30,7 +30,7 @@ namespace CibraryEngine
 	{
 		Vec3 dir = Vec3::Normalize(line.direction);
 		float dir_dot = Vec3::Dot(dir, plane.normal);
-		if (dir_dot == 0.0f)
+		if(dir_dot == 0.0f)
 			return false;
 		else
 		{

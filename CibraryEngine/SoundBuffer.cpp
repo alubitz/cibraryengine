@@ -104,7 +104,7 @@ namespace CibraryEngine
 		string signature = "";
 		for(unsigned int i = 0; i < 4; ++i)
 			signature += ReadByte(stream);
-		if (signature != "RIFF")
+		if(signature != "RIFF")
 			return 3;
 
 		int riff_chunk_size = FlipInt32(ReadInt32(stream));
@@ -112,14 +112,14 @@ namespace CibraryEngine
 		string format = "";
 		for(unsigned int i = 0; i < 4; ++i)
 			format += ReadByte(stream);
-		if (format != "WAVE")
+		if(format != "WAVE")
 			return 4;
 
 		// WAVE header
 		string format_signature = "";
 		for(unsigned int i = 0; i < 4; ++i)
 			format_signature += ReadByte(stream);
-		if (format_signature != "fmt ")
+		if(format_signature != "fmt ")
 			return 5;
 
 		int format_chunk_size = FlipInt32(ReadInt32(stream));
@@ -133,7 +133,7 @@ namespace CibraryEngine
 		string data_signature = "";
 		for(unsigned int i = 0; i < 4; ++i)
 			data_signature += ReadByte(stream);
-		if (data_signature != "data")
+		if(data_signature != "data")
 			return 6;
 		int data_chunk_size = FlipInt32(ReadInt32(stream));
 

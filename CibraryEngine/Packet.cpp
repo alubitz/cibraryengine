@@ -33,10 +33,10 @@ namespace CibraryEngine
 
 	bool Packet::DecodePacket(string& type, string& out_data)
 	{
-		if (data.length() >= 12)
+		if(data.length() >= 12)
         {
             type = string();
-            for (int i = 0; i < 8; ++i)
+            for(int i = 0; i < 8; ++i)
                 type += data[i + 4];
 
 			unsigned int len = data.size() - 12;
@@ -86,7 +86,7 @@ namespace CibraryEngine
 
 	bool Packet::MaybeExtractPacket(string& byte_stream, string& unused_bytes, Packet& packet_out)
 	{
-		if (byte_stream.length() < 4)
+		if(byte_stream.length() < 4)
         {
             unused_bytes = byte_stream;
             return false;
@@ -95,7 +95,7 @@ namespace CibraryEngine
 		istringstream ss(byte_stream);
         unsigned int len = ReadUInt32(ss);
 
-        if (byte_stream.length() < len + 4)
+        if(byte_stream.length() < len + 4)
         {
             unused_bytes = byte_stream;
             return false;

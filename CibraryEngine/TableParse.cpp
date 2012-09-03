@@ -37,7 +37,7 @@ namespace CibraryEngine
 			continue;
 		if(mode != Error)
 		{
-			while (stack.size() > 0)
+			while(stack.size() > 0)
 			{
 				TableParseable* popped = stack[stack.size() - 1];
 				popped->End();
@@ -58,7 +58,7 @@ namespace CibraryEngine
 
 		in_string_literal = false;
 
-		for (unsigned int i = 0; i < line.length() && mode != Error; ++i)
+		for(unsigned int i = 0; i < line.length() && mode != Error; ++i)
 			ParseChar(line[i]);
 
 		ParseChar('\n');
@@ -74,7 +74,7 @@ namespace CibraryEngine
 
 	void TableParserInstance::DoOperationUsingOperands(string a, string b = "")
 	{
-		while (stack_depth <= stack.size())
+		while(stack_depth <= stack.size())
 		{
 			TableParseable* popped = stack[stack.size() - 1];
 			popped->End();
@@ -86,7 +86,7 @@ namespace CibraryEngine
 
 		TableParseable* result = op->DoOperation(a, b);
 
-		if (result != NULL)
+		if(result != NULL)
 			stack.push_back(result);
 	}
 
@@ -97,14 +97,14 @@ namespace CibraryEngine
 			case Error:
 				return;
 			case StartOfLine:
-				if (c == '\n' || c == '~')      // end of line
+				if(c == '\n' || c == '~')		// end of line
 				{
 					mode = Comment;
 					return;
 				}
-				else if (isspace(c))
+				else if(isspace(c))
 					return;
-				else if (c == ':')              // stack depth indicated by a string of colons
+				else if(c == ':')				// stack depth indicated by a string of colons
 				{
 					mode = StackDepth;
 					stack_depth = 1;
@@ -121,24 +121,24 @@ namespace CibraryEngine
 				return;
 
 			case StackDepth:
-				if (c == '\n' || c == '~')
+				if(c == '\n' || c == '~')
 				{
 					ParserException("stack depth may not be the last thing in a line (excluding comments)");
 					return;
 				}
-				else if (isspace(c))                  // found the end of the string of colons
+				else if(isspace(c))					// found the end of the string of colons
 				{
 					mode = VariableNameStart;
 					variable_name = "";
 					return;
 				}
-				else if (isalpha(c) || c == '_')
+				else if(isalpha(c) || c == '_')
 				{
 					mode = VariableName;
 					variable_name = "" + c;
 					return;
 				}
-				else if (c == ':')                              // increase stack depth once more
+				else if(c == ':')								// increase stack depth once more
 				{
 					stack_depth++;
 					return;
@@ -150,8 +150,8 @@ namespace CibraryEngine
 				}
 
 			case VariableNameStart:
-				if (c == '\n' || c == '~')
-					if (variable_name.length() == 0)
+				if(c == '\n' || c == '~')
+					if(variable_name.length() == 0)
 					{
 						ParserException("stack depth may not be the last thing in a line (excluding comments)");
 						return;
@@ -162,13 +162,13 @@ namespace CibraryEngine
 						mode = Comment;
 						return;
 					}
-				else if (isalnum(c) || (variable_name.length() > 0 && c == '_'))
+				else if(isalnum(c) || (variable_name.length() > 0 && c == '_'))
 				{
 					variable_name += c;
 					mode = VariableName;
 					return;
 				}
-				else if (isspace(c))
+				else if(isspace(c))
 					return;
 				else
 				{
@@ -177,19 +177,19 @@ namespace CibraryEngine
 				}
 
 			case VariableName:
-				if (c == '\n' || c == '~')
+				if(c == '\n' || c == '~')
 				{
 					DoOperationUsingOperands(variable_name, NULL);
 					mode = Comment;
 					return;
 				}
-				else if (isalnum(c) || (variable_name.length() > 0 && c == '_'))
+				else if(isalnum(c) || (variable_name.length() > 0 && c == '_'))
 				{
 					variable_name += c;
 					mode = VariableName;
 					return;
 				}
-				else if (isspace(c))
+				else if(isspace(c))
 				{
 					mode = PostVariable;
 					return;
@@ -201,15 +201,15 @@ namespace CibraryEngine
 				}
 
 			case PostVariable:
-				if (c == '\n' || c == '~')
+				if(c == '\n' || c == '~')
 				{
 					DoOperationUsingOperands(variable_name);
 					mode = Comment;
 					return;
 				}
-				else if (isspace(c))                  // more whitespace following the variable
+				else if(isspace(c))					// more whitespace following the variable
 					return;
-				else if (isalnum(c) || c == '_' || c == '\"' || c == '-')
+				else if(isalnum(c) || c == '_' || c == '\"' || c == '-')
 				{
 					in_string_literal = (c == '\"');
 					mode = ArgumentValue;
@@ -223,14 +223,14 @@ namespace CibraryEngine
 				}
 
 			case ArgumentValue:
-				if (in_string_literal)
+				if(in_string_literal)
 				{
-					if (c == '\n')
+					if(c == '\n')
 					{
 						ParserException("unclosed string literal");
 						return;
 					}
-					else if (c == '\"')                                             // closing quotes are okay
+					else if(c == '\"')									// closing quotes are okay
 					{
 						in_string_literal = false;
 						mode = PostArgument;
@@ -238,18 +238,18 @@ namespace CibraryEngine
 					argument_value += c;
 					return;
 				}
-				else if (c == '\n' || c == '~')
+				else if(c == '\n' || c == '~')
 				{
 					DoOperationUsingOperands(variable_name, argument_value);
 					mode = Comment;
 					return;
 				}
-				else if (isspace(c))
+				else if(isspace(c))
 				{
 					mode = PostArgument;
 					return;
 				}
-				else if (isalnum(c) || c == '_' || c == '.' || c == '-')         // letters, numbers, - signs (for negative numbers), or dots (decimal point) are all valid here
+				else if(isalnum(c) || c == '_' || c == '.' || c == '-')				// letters, numbers, - signs (for negative numbers), or dots (decimal point) are all valid here
 				{
 					argument_value += c;
 					return;
@@ -261,13 +261,13 @@ namespace CibraryEngine
 				}
 
 			case PostArgument:
-				if (c == '\n' || c == '~')
+				if(c == '\n' || c == '~')
 				{
 					DoOperationUsingOperands(variable_name, argument_value);
 					mode = Comment;
 					return;
 				}
-				else if (isspace(c))
+				else if(isspace(c))
 					return;
 
 				ParserException("invalid character following argument value");

@@ -81,7 +81,7 @@ namespace Test
 		BillboardMaterial* trail_mat = NULL;
 	#endif
 
-		for (int i = 0; i < 6; ++i)
+		for(int i = 0; i < 6; ++i)
 			game_state->Spawn(new Spark(game_state, poi, trail_mat));
 #endif
 

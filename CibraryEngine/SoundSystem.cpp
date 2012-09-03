@@ -37,7 +37,7 @@ namespace CibraryEngine
 
 	void SoundSystem::PlaceListener()
 	{
-		if (!master_enable)
+		if(!master_enable)
 			return;
 
 		alListener3f(AL_POSITION, listener_pos.x, listener_pos.y, listener_pos.z);
@@ -50,7 +50,7 @@ namespace CibraryEngine
 
 	bool SoundSystem::TryToEnable()
 	{
-		if (master_enable)
+		if(master_enable)
 			return true;
 		else
 		{
@@ -84,7 +84,7 @@ namespace CibraryEngine
 
 	void SoundSystem::Update(TimingInfo time)
 	{
-		if (!master_enable)
+		if(!master_enable)
 			return;
 
 		PlaceListener();
@@ -124,9 +124,9 @@ namespace CibraryEngine
 
 	SoundSource* SoundSystem::PlayEffect(SoundBuffer* buffer, Vec3 pos, Vec3 vel, float loudness, bool looping)
 	{
-		if (!master_enable)
+		if(!master_enable)
 			return NULL;
-		if (buffer == NULL)
+		if(buffer == NULL)
 			return NULL;
 
 		SoundSource* source = new SoundSource(Effects, pos, vel, buffer, loudness, looping, this);
@@ -162,7 +162,7 @@ namespace CibraryEngine
 	bool SoundSystem::CheckForALErrors()
 	{
 		ALenum err = alGetError();
-		if (err != AL_NO_ERROR)
+		if(err != AL_NO_ERROR)
 		{
 			Debug("AL error!\n");
 			return true;
@@ -173,7 +173,7 @@ namespace CibraryEngine
 	bool SoundSystem::CheckForALErrors(int line, string file)
 	{
 		ALenum err = alGetError();
-		if (err != AL_NO_ERROR)
+		if(err != AL_NO_ERROR)
 		{
 			stringstream message;
 			message << "AL Error #" << err << " at line " << line << " of " << file << endl;

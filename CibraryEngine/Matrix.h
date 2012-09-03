@@ -41,30 +41,28 @@ namespace CibraryEngine
 			float costheta = cosf(angle);
 			float sintheta = sinf(angle);
 			float oneminuscostheta = 1.0f - costheta;
-			float xy = x * y;
-			float xz = x * z;
-			float yz = y * z;
+			float cxy = oneminuscostheta * x * y;
+			float cxz = oneminuscostheta * x * z;
+			float cyz = oneminuscostheta * y * z;
+			float sx = sintheta * x;
+			float sy = sintheta * y;
+			float sz = sintheta * z;
 			return Mat3(
-				(float)(costheta + oneminuscostheta * x * x),
-				(float)(oneminuscostheta * xy - z * sintheta),
-				(float)(oneminuscostheta * xz + sintheta * y),
-				(float)(oneminuscostheta * xy + sintheta * z),
-				(float)(costheta + oneminuscostheta * y * y),
-				(float)(oneminuscostheta * yz - sintheta * x),
-				(float)(oneminuscostheta * xz - sintheta * y),
-				(float)(oneminuscostheta * yz + sintheta * x),
-				(float)(costheta + oneminuscostheta * z * z)
+				costheta + oneminuscostheta * x * x,	cxy - sz,								cxz + sy,
+				cxy + sz,								costheta + oneminuscostheta * y * y,	cyz - sx,
+				cxz - sy,								cyz + sx,								costheta + oneminuscostheta * z * z
 			);
 		}
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
 		static Mat3 FromScaledAxis(float x, float y, float z)
 		{
-			float mag = sqrtf(x * x + y * y + z * z);
-			if (mag == 0)
-				return Identity();
-
-			float inv = 1.0f / mag;
-			return FromAxisAngle(x * inv, y * inv, z * inv, mag);
+			if(float magsq = Vec3::MagnitudeSquared(x, y, z))
+			{
+				float mag = sqrtf(magsq), inv = 1.0f / mag;
+				return FromAxisAngle(x * inv, y * inv, z * inv, mag);
+			}
+			else
+				return Identity();		
 		}
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
 		static Mat3 FromScaledAxis(const Vec3& xyz) { return FromScaledAxis(xyz.x, xyz.y, xyz.z); }

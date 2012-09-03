@@ -24,7 +24,7 @@ namespace CibraryEngine
 		{
 			Quaternion rotation = ori * rest_ori;
 
-			if (parent == NULL)
+			if(parent == NULL)
 				cached_xform = Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);
 			else
 			{

@@ -56,7 +56,7 @@ namespace CibraryEngine
 
 			glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data);
 
-			if (!were_textures_enabled)
+			if(!were_textures_enabled)
 				glDisable(GL_TEXTURE_3D);
 
 			GLDEBUG();
@@ -69,15 +69,15 @@ namespace CibraryEngine
 		unsigned char* data = new unsigned char[frame_count * col_size * row_size * 4];		// gets deleted by Texture3D::InnerDispose
 
 		int data_index = 0;
-		for (int level = 0; level < frame_count; ++level)
+		for(int level = 0; level < frame_count; ++level)
 		{
 			int row = level / cols;
 			int col = level % cols;
 			int from_x = col * col_size, to_x = from_x + col_size;
 			int from_y = row * row_size, to_y = from_y + row_size;
 
-			for (int x = from_x; x < to_x; ++x)
-				for (int y = from_y; y < to_y; ++y)
+			for(int x = from_x; x < to_x; ++x)
+				for(int y = from_y; y < to_y; ++y)
 				{
 					memcpy(&data[data_index], &sheet->byte_data[(y * sheet->width + x) * 4], 4);
 					data_index += 4;

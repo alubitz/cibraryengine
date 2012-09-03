@@ -516,7 +516,7 @@ namespace CibraryEngine
 
 			lua_settop(L, 0);
 
-			if (key == "pos")
+			if(key == "pos")
 			{
 				PushLuaVector(L, NavGraph::GetNodePosition(node->graph, node->node));
 				return 1;

@@ -198,13 +198,13 @@ namespace CibraryEngine
 		{
 			const PhysicsConstraint* c = *iter;
 			if(RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a)
-				eligible_bodies[other->GetCollisionShape()->GetShapeType()].erase(other);
+				eligible_bodies[other->GetShapeType()].erase(other);
 		}
 
 		for(set<RigidBody*>::const_iterator iter = disabled_collisions.begin(); iter != disabled_collisions.end(); ++iter)
 		{
 			RigidBody* other = *iter;
-			eligible_bodies[other->GetCollisionShape()->GetShapeType()].erase(other);
+			eligible_bodies[other->GetShapeType()].erase(other);
 		}
 	}
 
@@ -267,6 +267,7 @@ namespace CibraryEngine
 	CollisionCallback* RigidBody::GetCollisionCallback() { return collision_callback; }
 
 	CollisionShape* RigidBody::GetCollisionShape() { return shape; }
+	ShapeType RigidBody::GetShapeType() { return shape->GetShapeType(); }
 
 	void RigidBody::SetCollisionEnabled(RigidBody* other, bool enabled)
 	{

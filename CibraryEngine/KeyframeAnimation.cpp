@@ -25,7 +25,7 @@ namespace CibraryEngine
 
 	bool KeyframeAnimation::Advance(TimingInfo time)
 	{
-		if (current_index == -1)
+		if(current_index == -1)
 			return false;
 		else
 		{
@@ -36,14 +36,14 @@ namespace CibraryEngine
 			// controls how much lag the animation system is willing to put up with, measured in seconds
 			const float really_far_behind = 1.0f;
 			// if the animation is more than this far behind (in seconds), don't keep advancing through all the frames in between
-			if (current_time < really_far_behind + current.duration)
-				while (current_time > current.duration)
+			if(current_time < really_far_behind + current.duration)
+				while(current_time > current.duration)
 				{
 					current_time -= current.duration;
 					current_index = frames[current_index].next;
-					
+
 					// if the animation finishes, quit early
-					if (current_index == -1)
+					if(current_index == -1)
 						return false;
 				}
 			else
@@ -52,7 +52,7 @@ namespace CibraryEngine
 				current_time = 0;
 				current_index = frames[current_index].next;
 
-				if (current_index == -1)
+				if(current_index == -1)
 					return false;
 			}
 
@@ -62,18 +62,18 @@ namespace CibraryEngine
 
 	void KeyframeAnimation::UpdatePose(TimingInfo time)
 	{
-		if (Advance(time))
+		if(Advance(time))
 		{
 			Keyframe cur = frames[current_index];
 
 			// linearly interpolate (lerp) only if this is not the final frame of the animation
 			bool interpolate = cur.next != -1;
 
-			if (interpolate)
+			if(interpolate)
 			{
-				Keyframe nxt = frames[cur.next];                                      // the next frame in the animation
+				Keyframe nxt = frames[cur.next];										// the next frame in the animation
 
-				float b_frac = current_time / cur.duration, a_frac = 1 - b_frac;                   // lerp coefficients
+				float b_frac = current_time / cur.duration, a_frac = 1 - b_frac;					// lerp coefficients
 
 				unordered_set<unsigned int> cur_names;
 				unordered_set<unsigned int> next_names;
@@ -141,7 +141,7 @@ namespace CibraryEngine
 		else
 			SetActive(false);
 	}
-	
+
 	void KeyframeAnimation::JumpToTime(float time)
 	{
 		if(time >= 0)

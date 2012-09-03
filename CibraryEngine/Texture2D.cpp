@@ -56,7 +56,7 @@ namespace CibraryEngine
 			if(mipmaps)
 				glGenerateMipmap(GL_TEXTURE_2D);
 
-			if (!were_textures_enabled)
+			if(!were_textures_enabled)
 				glDisable(GL_TEXTURE_2D);
 
 			GLDEBUG();

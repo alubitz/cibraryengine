@@ -128,16 +128,16 @@ namespace CibraryEngine
 		vector<string> texcoords = vector<string>();
 		vector<string> triangles = vector<string>();
 
-		while (line_finder_pos < str.length())
+		while(line_finder_pos < str.length())
 		{
 			char c = str[line_finder_pos];
-			if (c == '\n' || c == '\r')
+			if(c == '\n' || c == '\r')
 				line_finder_pos++;
 			else
 			{
 				int next_a = str.find('\n', line_finder_pos);
 				int next_b = str.find('\r', line_finder_pos);
-				if (next_a != -1 || next_b != -1)
+				if(next_a != -1 || next_b != -1)
 				{
 					int next = next_a == -1 ? next_b : next_b == -1 ? next_a : min(next_a, next_b);
 					lines.push_back(str.substr(line_finder_pos, next - line_finder_pos));
@@ -180,7 +180,7 @@ namespace CibraryEngine
 
 		float x, y, z, u, v, nx, ny, nz;
 		unsigned int i;
-		for (i = 0; i < vertices.size(); ++i)
+		for(i = 0; i < vertices.size(); ++i)
 		{
 			string line = vertices[i];
 			int start = 0, end = line.find(' ', start);
@@ -195,7 +195,7 @@ namespace CibraryEngine
 			z = (float)atof(line.substr(start, end - start).c_str());
 			xyz.push_back(Vec3(x, y, z));
 		}
-		for (i = 0; i < texcoords.size(); ++i)
+		for(i = 0; i < texcoords.size(); ++i)
 		{
 			string line = texcoords[i];
 			int start = 0, end = line.find(' ', start);
@@ -206,7 +206,7 @@ namespace CibraryEngine
 			v = (float)atof(line.substr(start, end - start).c_str());
 			uv.push_back(Vec3(u, v, 0.0f));
 		}
-		for (i = 0; i < normals.size(); ++i)
+		for(i = 0; i < normals.size(); ++i)
 		{
 			string line = normals[i];
 			int start = 0, end = line.find(' ', start);
@@ -225,7 +225,7 @@ namespace CibraryEngine
 
 		vbo->SetAllocatedSize(triangles.size() * 3);
 
-		for (i = 0; i < triangles.size(); ++i)
+		for(i = 0; i < triangles.size(); ++i)
 		{
 			string line = triangles[i];
 

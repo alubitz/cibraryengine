@@ -76,7 +76,7 @@ namespace CibraryEngine
 
 	void Controller::Exorcise()
 	{
-		if (pawn != NULL)
+		if(pawn != NULL)
 			pawn->controller = NULL;
 		pawn = NULL;
 	}

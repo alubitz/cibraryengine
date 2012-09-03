@@ -49,13 +49,13 @@ namespace CibraryEngine
 
 			unsigned char** byte_data = new unsigned char* [6];
 
-			for (int i = 0; i < 6; ++i)
+			for(int i = 0; i < 6; ++i)
 			{
 				byte_data[i] = new unsigned char[size * size * 4];
 				int x_initial = (i % 4) * size;
 				int y_initial = (i / 4) * size;
-				for (int x = 0; x < size; ++x)
-					for (int y = 0; y < size; ++y)
+				for(int x = 0; x < size; ++x)
+					for(int y = 0; y < size; ++y)
 					{
 						int source = (y * size + x) * 4;
 						int dest = ((y_initial + y) * anim->width + (x_initial + x)) * 4;

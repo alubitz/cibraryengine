@@ -490,17 +490,17 @@ namespace CibraryEngine
 		float part_x_ca = Vec3::Dot(cx, -ac) * inv_len_ca * inv_len_ca;
 
 		// determining whether or not the edge distances are valid
-		if (part_x_ab >= 0 && part_x_ab <= 1)
+		if(part_x_ab >= 0 && part_x_ab <= 1)
 			min_d = min(min_d, Vec3::Cross(ab, ax).ComputeMagnitude() * inv_len_ab);
-		if (part_x_bc >= 0 && part_x_bc <= 1)
+		if(part_x_bc >= 0 && part_x_bc <= 1)
 			min_d = min(min_d, Vec3::Cross(bc, bx).ComputeMagnitude() * inv_len_bc);
-		if (part_x_ca >= 0 && part_x_ca <= 1)
+		if(part_x_ca >= 0 && part_x_ca <= 1)
 			min_d = min(min_d, Vec3::Cross(-ac, cx).ComputeMagnitude() * inv_len_ca);
 
 		// finding the distance from the plane; valid under the least frequently satisfied conditions
-		if ((Vec3::Dot(n_ab, x) - dot_n_ab_a) * (Vec3::Dot(n_ab, c) - dot_n_ab_a) > 0)					// if they're on the same side, this product is positive
-			if ((Vec3::Dot(n_bc, x) - dot_n_bc_b) * (Vec3::Dot(n_bc, a) - dot_n_bc_b) > 0)
-				if ((Vec3::Dot(n_ca, x) - dot_n_ca_c) * (Vec3::Dot(n_ca, b) - dot_n_ca_c) > 0)
+		if((Vec3::Dot(n_ab, x) - dot_n_ab_a) * (Vec3::Dot(n_ab, c) - dot_n_ab_a) > 0)					// if they're on the same side, this product is positive
+			if((Vec3::Dot(n_bc, x) - dot_n_bc_b) * (Vec3::Dot(n_bc, a) - dot_n_bc_b) > 0)
+				if((Vec3::Dot(n_ca, x) - dot_n_ca_c) * (Vec3::Dot(n_ca, b) - dot_n_ca_c) > 0)
 					min_d = min(min_d, fabs(Vec3::Dot(normal, ax)));									// too bad it's so much harder to find out if it's valid than it is to calculate the value itself
 
 		return min_d;

@@ -43,10 +43,10 @@ namespace CibraryEngine
 			glEnable(GL_TEXTURE_CUBE_MAP);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, gl_name);
 
-			for (int i = 0; i < 6; ++i)
+			for(int i = 0; i < 6; ++i)
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data[i]);
 
-			if (mipmaps)
+			if(mipmaps)
 			{
 				glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, (int)GL_CLAMP_TO_EDGE);

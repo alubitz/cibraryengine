@@ -19,7 +19,7 @@ namespace CibraryEngine
 
 	Mat4 CameraView::GetViewMatrix()
 	{
-		if (!view_valid)
+		if(!view_valid)
 		{
 			// Normalize direction vectors
 			Vec3 reverse = -forward;
@@ -41,7 +41,7 @@ namespace CibraryEngine
 
 	Mat4 CameraView::GetProjectionMatrix()
 	{
-		if (!proj_valid)
+		if(!proj_valid)
 		{
 			float inv_width = 1.0f / (right - left), inv_height = 1.0f / (top - bottom), inv_depth = -1.0f / (_far - _near);
 
@@ -65,7 +65,7 @@ namespace CibraryEngine
 
 	Plane CameraView::GetLeftPlane()
 	{
-		if (!planes_valid[0])
+		if(!planes_valid[0])
 		{
 			Vec3 leftward = GetRight() * left + forward * _near;
 			planes[0] = Plane::FromPositionNormal(position, Vec3::Cross(leftward, up));
@@ -75,7 +75,7 @@ namespace CibraryEngine
 	}
 	Plane CameraView::GetRightPlane()
 	{
-		if (!planes_valid[1])
+		if(!planes_valid[1])
 		{
 			Vec3 rightward = GetRight() * right + forward * _near;
 			planes[1] = Plane::FromPositionNormal(position, Vec3::Cross(up, rightward));
@@ -85,7 +85,7 @@ namespace CibraryEngine
 	}
 	Plane CameraView::GetTopPlane()
 	{
-		if (!planes_valid[2])
+		if(!planes_valid[2])
 		{
 			Vec3 upward = up * top + forward * _near;
 			planes[2] = Plane::FromPositionNormal(position, Vec3::Cross(upward, GetRight()));
@@ -95,7 +95,7 @@ namespace CibraryEngine
 	}
 	Plane CameraView::GetBottomPlane()
 	{
-		if (!planes_valid[3])
+		if(!planes_valid[3])
 		{
 			Vec3 downward = up * bottom + forward * _near;
 			planes[3] = Plane::FromPositionNormal(position, Vec3::Cross(GetRight(), downward));
@@ -105,7 +105,7 @@ namespace CibraryEngine
 	}
 	Plane CameraView::GetNearPlane()
 	{
-		if (!planes_valid[4])
+		if(!planes_valid[4])
 		{
 			planes[4] = Plane::FromPositionNormal(position + forward * _near, forward);
 			planes_valid[4] = true;
@@ -114,7 +114,7 @@ namespace CibraryEngine
 	}
 	Plane CameraView::GetFarPlane()
 	{
-		if (!planes_valid[5])
+		if(!planes_valid[5])
 		{
 			planes[5] = Plane::FromPositionNormal(position + forward * _far, -forward);
 			planes_valid[5] = true;
@@ -132,12 +132,12 @@ namespace CibraryEngine
 	bool CameraView::CheckSphereVisibility(const Vec3& center, float radius)
 	{
 		float n_radius = -radius;
-		if (GetNearPlane().PointDistance(center) > n_radius)
-			if (GetFarPlane().PointDistance(center) > n_radius)
-				if (GetLeftPlane().PointDistance(center) > n_radius)
-					if (GetRightPlane().PointDistance(center) > n_radius)
-						if (GetTopPlane().PointDistance(center) > n_radius)
-							if (GetBottomPlane().PointDistance(center) > n_radius)
+		if(GetNearPlane().PointDistance(center) > n_radius)
+			if(GetFarPlane().PointDistance(center) > n_radius)
+				if(GetLeftPlane().PointDistance(center) > n_radius)
+					if(GetRightPlane().PointDistance(center) > n_radius)
+						if(GetTopPlane().PointDistance(center) > n_radius)
+							if(GetBottomPlane().PointDistance(center) > n_radius)
 								return true;
 		return false;
 	}

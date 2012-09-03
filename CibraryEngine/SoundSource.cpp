@@ -39,7 +39,7 @@ namespace CibraryEngine
 
 	void SoundSource::InnerDispose()
 	{
-		if (!sys->master_enable)
+		if(!sys->master_enable)
 			return;
 
 		alSourceStop(id);
@@ -48,7 +48,7 @@ namespace CibraryEngine
 
 	void SoundSource::SetPosVel()
 	{
-		if (!sys->master_enable)
+		if(!sys->master_enable)
 			return;
 
 		alSource3f(id, AL_POSITION, pos.x, pos.y, pos.z);
@@ -60,7 +60,7 @@ namespace CibraryEngine
 
 	void SoundSource::Update(TimingInfo time)
 	{
-		if (!sys->master_enable)
+		if(!sys->master_enable)
 			return;
 
 		int state;
@@ -68,7 +68,7 @@ namespace CibraryEngine
 
 		SoundSystem::CheckForALErrors(__LINE__, __FILE__);
 
-		if (state == AL_STOPPED)
+		if(state == AL_STOPPED)
 		{
 			InvalidateSound();
 			return;
@@ -91,7 +91,7 @@ namespace CibraryEngine
 	{
 		if(!sys->master_enable)
 			return;
-		if (loudness != f)
+		if(loudness != f)
 		{
 			loudness = f;
 

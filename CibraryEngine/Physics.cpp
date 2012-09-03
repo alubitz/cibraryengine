@@ -27,7 +27,7 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 15
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 5
 
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
@@ -247,9 +247,9 @@ namespace CibraryEngine
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
 
-		vector<ConstraintGraph::Node*> fringe;
+		vector<ConstraintGraph::Node*> fringe(graph_nodes);
 
-		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(); iter != graph.nodes.end(); ++iter)
+		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(), nodes_end = graph.nodes.end(); iter != nodes_end; ++iter)
 		{
 			if(body_subgraphs.find(iter->first) == body_subgraphs.end())
 			{
@@ -270,7 +270,7 @@ namespace CibraryEngine
 						body_subgraphs[node->body] = subgraph;
 
 						const vector<ConstraintGraph::Edge>& edges = *node->edges;
-						for(vector<ConstraintGraph::Edge>::const_iterator jter = edges.begin(); jter != edges.end(); ++jter)
+						for(vector<ConstraintGraph::Edge>::const_iterator jter = edges.begin(), edges_end = edges.end(); jter != edges_end; ++jter)
 						{
 							ConstraintGraph::Node* other = jter->other_node;
 							if(other == NULL || !subgraph->ContainsNode(other))
@@ -291,7 +291,7 @@ namespace CibraryEngine
 		vector<RigidBody*> wakeup_list;
 
 		// now go through each subgraph and do as many iterations as are necessary
-		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
+		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
 		{
 			Subgraph& subgraph = **iter;
 
@@ -300,7 +300,7 @@ namespace CibraryEngine
 			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
 			{
 				nu_active.clear();
-				for(vector<PhysicsConstraint*>::iterator jter = active.begin(); jter != active.end(); ++jter)
+				for(vector<PhysicsConstraint*>::iterator jter = active.begin(), active_end = active.end(); jter != active_end; ++jter)
 				{
 					PhysicsConstraint& constraint = **jter;
 
@@ -308,11 +308,11 @@ namespace CibraryEngine
 					constraint.DoConstraintAction(wakeup_list);
 
 					// constraint says we should wake up these rigid bodies
-					for(vector<RigidBody*>::iterator kter = wakeup_list.begin(); kter != wakeup_list.end(); ++kter)
+					for(vector<RigidBody*>::iterator kter = wakeup_list.begin(), wakeup_end = wakeup_list.end(); kter != wakeup_end; ++kter)
 					{
 						ConstraintGraph::Node* node = subgraph.nodes->operator[](*kter);
 
-						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges->begin(); kter != node->edges->end(); ++kter)
+						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges->begin(), edges_end = node->edges->end(); kter != edges_end; ++kter)
 							if(kter->constraint != *jter)
 								nu_active.insert(kter->constraint);
 					}
@@ -323,7 +323,7 @@ namespace CibraryEngine
 		}
 
 		// clean up subgraphs
-		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(); iter != subgraphs.end(); ++iter)
+		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
 			Subgraph::Delete(*iter);
 	}
 
@@ -459,7 +459,7 @@ namespace CibraryEngine
 
 	void PhysicsWorld::AddRigidBody(RigidBody* r)
 	{
-		ShapeType type = r->GetCollisionShape()->GetShapeType();
+		ShapeType type = r->GetShapeType();
 
 		all_objects[type].insert(r);
 		if(r->can_move)
@@ -472,7 +472,7 @@ namespace CibraryEngine
 
 	void PhysicsWorld::RemoveRigidBody(RigidBody* r)
 	{
-		ShapeType type = r->GetCollisionShape()->GetShapeType();
+		ShapeType type = r->GetShapeType();
 		all_objects[type].erase(r);
 		if(r->can_move)
 			dynamic_objects[type].erase(r);
@@ -753,7 +753,7 @@ namespace CibraryEngine
 
 	void ContactPoint::DoUpdateAction(float timestep)
 	{
-#if 1
+		// magical anti-penetration displacement! directly modifies position, instead of working with velocity
 		Vec3 dx = b.pos - a.pos;
 
 		static const float undo_penetration_coeff = 8.0f;
@@ -785,7 +785,6 @@ namespace CibraryEngine
 				obj_b->xform_valid = false;
 			}
 		}
-#endif
 	}
 
 

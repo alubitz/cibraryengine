@@ -113,7 +113,7 @@ namespace CibraryEngine
 	{
 		glEnd();
 
-		if (IsTexture3D())
+		if(IsTexture3D())
 			glDisable(GL_TEXTURE_3D);
 
 		glMatrixMode(GL_TEXTURE);

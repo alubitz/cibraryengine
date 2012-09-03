@@ -214,9 +214,9 @@ namespace CibraryEngine
 		{
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
-			if (started && !terminated)
+			if(started && !terminated)
             {
-                if (socket != NULL)
+                if(socket != NULL)
                 {
 					Server::DisconnectedEvent evt(server);
 					server->ServerDisconnected(&evt);

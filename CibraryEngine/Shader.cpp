@@ -123,17 +123,17 @@ namespace CibraryEngine
 
 			GLDEBUG();
 
-			if (vertex_status == 0)
+			if(vertex_status == 0)
 			{
 				Debug(vlog);
 				program_id = 0;
 			}
-			if (fragment_status == 0)
+			if(fragment_status == 0)
 			{
 				Debug(flog);
 				program_id = 0;
 			}
-			if (program_status == 0)
+			if(program_status == 0)
 			{
 				Debug(plog);
 				program_id = 0;
@@ -210,7 +210,7 @@ namespace CibraryEngine
 
 			int max;
 			glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max);
-			for (int i = 0; i < max; ++i)
+			for(int i = 0; i < max; ++i)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
 				glDisable(GL_TEXTURE_2D);

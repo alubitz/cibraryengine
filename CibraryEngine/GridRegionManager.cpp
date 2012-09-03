@@ -46,7 +46,7 @@ namespace CibraryEngine
 
 	void GridRegionManager::OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions)
 	{
-		if(object->GetCollisionShape()->GetShapeType() != ST_InfinitePlane)
+		if(object->GetShapeType() != ST_InfinitePlane)
 		{
 			int x1, y1, z1, x2, y2, z2;
 			AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
@@ -65,12 +65,12 @@ namespace CibraryEngine
 		}
 		else
 		{
-			int count = 0, possible = 0;
+			InfinitePlaneShape* plane_shape = (InfinitePlaneShape*)object->GetCollisionShape();
 
 			for(unsigned int x = 0; x < region_array.size(); ++x)
 				for(unsigned int y = 0; y < region_array[x].size(); ++y)
 					for(unsigned int z = 0; z < region_array[x][y].size(); ++z)
-						if(IsPlaneRelevantToRegion(((InfinitePlaneShape*)object->GetCollisionShape())->plane, x + x0, y + y0, z + z0))
+						if(IsPlaneRelevantToRegion(plane_shape->plane, x + x0, y + y0, z + z0))
 							region_array[x][y][z]->TakeOwnership(object);
 
 			planes.insert(object);
@@ -129,7 +129,7 @@ namespace CibraryEngine
 			region->RemoveRigidBody(object);
 		}
 
-		if(object->GetCollisionShape()->GetShapeType() == ST_InfinitePlane)
+		if(object->GetShapeType() == ST_InfinitePlane)
 			planes.erase(object);
 	}
 

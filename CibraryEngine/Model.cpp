@@ -313,7 +313,7 @@ namespace CibraryEngine
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
-		for (int i = 0; i < 3; ++i)
+		for(int i = 0; i < 3; ++i)
 		{
 			VTNTT* info;
 			switch (i)
@@ -349,7 +349,7 @@ namespace CibraryEngine
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
-		for (int i = 0; i < 3; ++i)
+		for(int i = 0; i < 3; ++i)
 		{
 			SkinVInfo* info;
 			switch (i)

@@ -67,7 +67,7 @@ namespace CibraryEngine
 	void MenuItem::Update(TimingInfo time)
 	{
 		float change_rate = time.elapsed * 3.0f;
-		if (imp->selectable && imp->hover)
+		if(imp->selectable && imp->hover)
 			imp->hover_phase = min(1.0f, imp->hover_phase + change_rate);
 		else
 			imp->hover_phase = max(0.0f, imp->hover_phase - change_rate);

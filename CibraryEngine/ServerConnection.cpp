@@ -63,7 +63,7 @@ namespace CibraryEngine
 
 		void Disconnect()
 		{
-			if (!disconnected)
+			if(!disconnected)
             {
 				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 

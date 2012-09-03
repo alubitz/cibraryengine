@@ -101,10 +101,10 @@ namespace CibraryEngine
 		{
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
-			if (connected && !terminated)
+			if(connected && !terminated)
             {
                 terminated = true;
-                if (socket != NULL)
+                if(socket != NULL)
                 {
 					Connection::DisconnectedEvent evt(client);
 					client->Disconnected(&evt);
@@ -123,7 +123,7 @@ namespace CibraryEngine
 		{
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
-			if (connected && !terminated)
+			if(connected && !terminated)
             {
 				string bytes = p.GetBytes();
 				for(unsigned int i = 0; i < bytes.length(); ++i)

@@ -72,7 +72,7 @@ namespace Test
 		float timestep = time.elapsed;
 
 		age += timestep;
-		if (age >= max_age)
+		if(age >= max_age)
 		{
 			if(trailhead != NULL)
 				trailhead->spark = NULL;

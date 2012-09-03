@@ -12,7 +12,7 @@ namespace CibraryEngine
 		float distance = dif.ComputeMagnitude();
 
 		// degenerate cases... one sphere completely inside the other
-		if (radius > distance)
+		if(radius > distance)
 			return;
 
 		// otherwise some actual work must be done... not too bad though
@@ -27,9 +27,9 @@ namespace CibraryEngine
 		float distance = dif.ComputeMagnitude();
 
 		// degenerate cases... one sphere completely inside the other
-		if (a.radius > distance + b.radius)
+		if(a.radius > distance + b.radius)
 			return Sphere(a.center, a.radius);
-		if (b.radius > distance + a.radius)
+		if(b.radius > distance + a.radius)
 			return Sphere(b.center, b.radius);
 
 		// otherwise some actual work must be done... not too bad though
@@ -47,7 +47,7 @@ namespace CibraryEngine
 		float distance = dif.ComputeMagnitude();
 
 		// degenerate cases... one sphere completely inside the other
-		if (a.radius > distance)
+		if(a.radius > distance)
 			return Sphere(a.center, a.radius);
 
 		// otherwise some actual work must be done... not too bad though
@@ -72,7 +72,7 @@ namespace CibraryEngine
 		float occluding_mag = to_occluding.ComputeMagnitude(), hidden_mag = to_hidden.ComputeMagnitude();
 		float occluding_subtended_angle = asinf(occluding.radius / occluding_mag);
 		float hidden_subtended_angle = asinf(hidden.radius / hidden_mag);
-		if (occluding_subtended_angle < hidden_subtended_angle)
+		if(occluding_subtended_angle < hidden_subtended_angle)
 			return false;
 		else
 			return (acosf(Vec3::Dot(to_occluding, to_hidden) / (occluding_mag * hidden_mag))) < occluding_subtended_angle - hidden_subtended_angle;
