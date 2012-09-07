@@ -350,10 +350,12 @@ namespace CibraryEngine
 		}
 	}
 
-	vector<unsigned int> TriangleMeshShape::GetRelevantTriangles(const AABB& aabb)
+	void TriangleMeshShape::GetRelevantTriangles(const AABB& aabb, vector<unsigned int>& results)
 	{
+		results.clear();
+
 		if(triangles.empty())
-			return vector<unsigned int>();						// lolwut?
+			return;												// lolwut?
 
 		if(octree == NULL)
 			BuildOctree();										// this will in turn call BuildCache if necessary
@@ -399,8 +401,6 @@ namespace CibraryEngine
 
 		action(octree);
 
-		vector<unsigned int> results;
-
 #ifdef DEBUG_OCTREE_EFFICIENCY
 
 		unsigned int x = (action.ops - 1) / 8, y = action.relevant_list.size();
@@ -419,8 +419,6 @@ namespace CibraryEngine
 
 		for(boost::unordered_set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
 			results.push_back(*iter);
-
-		return results;
 	}
 
 	vector<Intersection> TriangleMeshShape::RayTest(const Ray& ray)
@@ -428,7 +426,8 @@ namespace CibraryEngine
 		AABB aabb(ray.origin);
 		aabb.Expand(ray.origin + ray.direction);
 
-		vector<unsigned int> relevant_triangles = GetRelevantTriangles(aabb);
+		static vector<unsigned int> relevant_triangles;
+		GetRelevantTriangles(aabb, relevant_triangles);
 
 		vector<Intersection> test;
 		for(vector<unsigned int>::iterator iter = relevant_triangles.begin(); iter != relevant_triangles.end(); ++iter)

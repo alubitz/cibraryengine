@@ -48,7 +48,7 @@ namespace CibraryEngine
 	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits);
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
 	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
 	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits);
 
@@ -378,7 +378,7 @@ namespace CibraryEngine
 
 		// do collision detection on those objects
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoMultisphereMesh(body, *iter, shape, xform, inv_xform, constraint_graph);
+			DoMultisphereMesh(body, *iter, shape, xform, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
 			DoMultispherePlane(body, *iter, shape, xform, constraint_graph);
@@ -919,8 +919,10 @@ namespace CibraryEngine
 		ray.origin = pos;
 		ray.direction = vel;
 
-		vector<unsigned int> relevant_triangles = shape->GetRelevantTriangles(AABB(pos, radius));
-		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
+		vector<unsigned int> relevant_triangles;
+		shape->GetRelevantTriangles(AABB(pos, radius), relevant_triangles);
+
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
 			TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
 
@@ -990,31 +992,31 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape collision functions
 	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
+		Mat4 jinv = jbody->GetInvTransform();
 
-		Mat4 inv_net_xform = jbody->GetInvTransform() * xform;
-		Mat4 inv_inv_xform = inv_xform * j_xform;
-
+		Mat4 inv_net_xform = jinv * xform;
 		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
 
-		vector<unsigned int> relevant_triangles = jshape->GetRelevantTriangles(xformed_aabb);
+		vector<unsigned int> relevant_triangles;
+		jshape->GetRelevantTriangles(xformed_aabb, relevant_triangles);
 		if(relevant_triangles.empty())
 			return;
 
 		ContactPoint p;
-		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(); kter != relevant_triangles.end(); ++kter)
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
 			TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
 
-			ContactPoint p;
-			if(ishape->CollideMesh(inv_net_xform, inv_inv_xform, xformed_aabb, tri, p, ibody, jbody))
+			if(ishape->CollideMesh(inv_net_xform, tri, p, ibody, jbody))
 			{
-				p.a.pos = p.b.pos = j_xform.TransformVec3_1(p.a.pos);
-				p.a.norm = j_xform.TransformVec3_0(p.a.norm);
-				p.b.norm = -p.a.norm;
+				p.a.pos = j_xform.TransformVec3_1(p.a.pos);
+				p.b.pos = j_xform.TransformVec3_1(p.b.pos);
+				p.b.norm = j_xform.TransformVec3_0(p.b.norm);
+				p.a.norm = -p.b.norm;
 
 				hits.AddContactPoint(p);
 			}
@@ -1026,6 +1028,7 @@ namespace CibraryEngine
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
 
 		vector<ContactPoint> results;
+
 		if(ishape->CollidePlane(xform, jshape->plane, results, ibody, jbody))
 			for(vector<ContactPoint>::iterator iter = results.begin(); iter != results.end(); ++iter)
 				hits.AddContactPoint(*iter);
@@ -1037,7 +1040,7 @@ namespace CibraryEngine
 
 		Mat4 net_xform = inv_xform * jbody->GetTransformationMatrix();
 
-		ContactPoint p;
+		static ContactPoint p;
 		if(ishape->CollideMultisphere(net_xform, jshape, p, ibody, jbody))
 		{
 			p.a.pos = xform.TransformVec3_1(p.a.pos);

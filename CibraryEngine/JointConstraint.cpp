@@ -57,7 +57,7 @@ namespace CibraryEngine
 		// torque to make the joint conform to a pose
 		if(enable_motor)
 			alpha = (desired_av - current_av) * -angular_vel_coeff;
-
+#if 1
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
 		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * foresight, proposed_av.y * foresight, proposed_av.z * foresight);
@@ -79,6 +79,7 @@ namespace CibraryEngine
 
 			alpha = current_av - actual_av;
 		}
+#endif
 
 		// apply angular velocity changes
 		if(alpha.ComputeMagnitudeSquared())

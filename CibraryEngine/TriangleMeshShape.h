@@ -82,7 +82,7 @@ namespace CibraryEngine
 
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 
-			vector<unsigned int> GetRelevantTriangles(const AABB& aabb);
+			void GetRelevantTriangles(const AABB& aabb, vector<unsigned int>& results);
 			vector<Intersection> RayTest(const Ray& ray);
 
 			TriCache GetTriangleData(unsigned int index) { return cache[index]; }

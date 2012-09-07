@@ -235,12 +235,6 @@ namespace CibraryEngine
 
 				return result;
 			}
-
-			bool CollideSphere(const Sphere& sphere)
-			{
-				// TODO: implement this
-				return false;
-			}
 		};
 
 		vector<SpherePart> spheres;
@@ -249,21 +243,12 @@ namespace CibraryEngine
 
 		AABB aabb;
 
-		struct GridNode		// caches what points are inside/outside of the multisphereshape
-		{
-			bool solid;
-			Vec3 normal;
-		};
-		GridNode* grid;
-		unsigned int grid_sx, grid_sy, grid_sz, grid_x_span;
-		Vec3 xyz_to_grid_scalers;
-
 
 		// constructors, destructors, etc.
-		Imp() : spheres(), tubes(), planes(), aabb(), grid(NULL) { }
-		Imp(Sphere* spheres, unsigned int count) : grid(NULL) { Init(spheres, count); }
+		Imp() : spheres(), tubes(), planes(), aabb() { }
+		Imp(Sphere* spheres, unsigned int count) { Init(spheres, count); }
 
-		~Imp() { if(grid != NULL) { delete[] grid; grid = NULL; } }
+		~Imp() { }
 
 		void Init(Sphere* input_spheres, unsigned int count)
 		{
@@ -665,8 +650,6 @@ namespace CibraryEngine
 				delete[] planes_valid;
 
 				//OutputParts();
-
-				BuildGrid();
 			}
 			else
 				aabb = AABB();
@@ -859,129 +842,6 @@ namespace CibraryEngine
 		}
 
 
-		// grid stuff
-		void BuildGrid()
-		{
-			// TODO: make the way the dimensions are determined dynamic
-			grid_sx = 40;
-			grid_sy = 40;
-			grid_sz = 40;
-			grid_x_span = grid_sy * grid_sz;
-
-			grid = new GridNode[grid_sx * grid_sy * grid_sz];
-
-			Vec3 increment = (aabb.max - aabb.min);
-
-			xyz_to_grid_scalers.x = grid_sx / increment.x;
-			xyz_to_grid_scalers.y = grid_sy / increment.y;
-			xyz_to_grid_scalers.z = grid_sz / increment.z;
-
-			increment.x /= float(grid_sx - 1);
-			increment.y /= float(grid_sy - 1);
-			increment.z /= float(grid_sz - 1);
-
-			unsigned int x_step = grid_sy * grid_sz;
-
-			GridNode* grid_ptr = grid;
-			for(unsigned int x = 0; x < grid_sx; ++x)
-				for(unsigned int y = 0; y < grid_sy; ++y)
-					for(unsigned int z = 0; z < grid_sz; ++z)
-					{
-						Vec3 pos = Vec3(aabb.min.x + x * increment.x, aabb.min.y + y * increment.y, aabb.min.z + z * increment.z);
-
-						GridNode node = ComputeGridNode(pos);
-						*(grid_ptr++) = node;
-					}
-		}
-
-		inline void LookUpGridNode(const Vec3& point, GridNode& node) const
-		{
-			int x = max(0, min(int(grid_sx) - 1, int((point.x - aabb.min.x) * xyz_to_grid_scalers.x)));
-			int y = max(0, min(int(grid_sy) - 1, int((point.y - aabb.min.y) * xyz_to_grid_scalers.y)));
-			int z = max(0, min(int(grid_sz) - 1, int((point.z - aabb.min.z) * xyz_to_grid_scalers.z)));
-
-			GridNode& temp = grid[x * grid_x_span + y * grid_sz + z];
-
-			if(temp.solid)
-				node = temp;
-			else
-				node.solid = false;
-		}
-
-		GridNode ComputeGridNode(const Vec3& point) const
-		{
-			GridNode result;
-
-			// find out if the point is inside any spheres
-			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
-			{
-				if(iter->IsPointRelevant(point))
-				{
-					const Sphere& sphere = iter->sphere;
-
-					Vec3 dx = point - sphere.center;
-					float dmag_sq = dx.ComputeMagnitudeSquared();
-					if(dmag_sq <= sphere.radius * sphere.radius)
-					{
-						float dmag = sqrtf(dmag_sq);
-
-						result.solid = true;
-						result.normal = dx / dmag;
-
-						return result;
-					}
-				}
-			}
-
-			// find out if the point is inside any tubes
-			for(vector<TubePart>::const_iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
-			{
-				if(iter->IsPointRelevant(point))
-				{
-					const Vec3& u = iter->u;
-					const Vec3& p1 = iter->p1;
-
-					Vec3 q = point - p1;
-
-					float qu = Vec3::Dot(q, u);
-					float dr = iter->r2 - iter->r1;
-					float r = iter->r1 + qu * iter->inv_dmag * dr;
-
-					Vec3 from_axis = q - u * qu;
-
-					if(from_axis.ComputeMagnitudeSquared() <= r * r)
-					{
-						result.solid = true;
-						result.normal = Vec3::Normalize(from_axis) * iter->sin_theta + u * iter->cos_theta;
-
-						return result;
-					}
-				}
-			}
-
-			// to get the correct normal vector we want to find the plane this point is closest to
-			float best_dist;
-			result.solid = false;
-
-			for(vector<PlanePart>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
-			{
-				if(iter->IsPointRelevant(point))
-				{
-					float dist = iter->plane.PointDistance(point);
-					if(dist <= 0.0f && (!result.solid || dist > best_dist))
-					{
-						best_dist = dist;
-						result.solid = true;
-						result.normal = iter->plane.normal;
-					}
-				}
-			}
-
-			// either it's behind a plane, or it's in space... either way, the data is ready
-			return result;
-		}
-
-		bool ContainsPoint(const Vec3& point) const { GridNode temp; LookUpGridNode(point, temp); return temp.solid; }
 
 
 		// multisphere collision functions...
@@ -1110,31 +970,30 @@ namespace CibraryEngine
 
 					for(char j = 0; j < 8; ++j)
 					{
-						Vec3& dir = test_dir[j] = Vec3(
+						Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
 							direction.x + x_offsets[j] * search_scale,
 							direction.y + y_offsets[j] * search_scale,
-							direction.z + z_offsets[j] * search_scale);
+							direction.z + z_offsets[j] * search_scale));
 
-						float score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
+						float test_score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
 
-						if(score < 0)							// found a separating plane? go home early
+						if(test_score < 0)							// found a separating plane? go home early
 							return false;
 						else
 						{
-							float mag = dir.ComputeMagnitude();
-							if(j == 0 || score < best_score * mag)
+							if(j == 0 || test_score < best_score)
 							{
 								best_test = j;
-								best_score = score / mag;
+								best_score = test_score;
 							}
 						}
 					}
 
-					if(i != 0 && best_score > score)
+					if(i != 0 && best_score >= score)
 						search_scale *= 0.5f;
 					else
 					{
-						direction = Vec3::Normalize(test_dir[best_test]);
+						direction = test_dir[best_test];
 						score = best_score;
 					}
 				}
@@ -1157,88 +1016,183 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollideMesh(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollideMesh(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			Vec3 dim = xformed_aabb.max - xformed_aabb.min;
+			static const Sphere unit_sphere(Vec3(), 1.0f);
 
-			static const int steps = 5;				// adjust this to change precision/speed of multisphere-mesh collisions
-			static const float coeff = 1.0f / float(steps - 1);
-			Vec3 increment = dim * coeff;
+			// vector containing just the spheres (no extra stuff like cutting planes, etc.) transformed into the triangle's coordinate system
+			vector<Sphere> my_spheres;
+			my_spheres.reserve(spheres.size());
 
-			unsigned int weight = 0;
-			Vec3 center;
+			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 
-			// figure out which of the cardinal axes the normal vector most closely matches (x = 0, y = 1, z = 2)
-			int n_axis = fabs(tri.plane.normal.x) > fabs(tri.plane.normal.y) ? fabs(tri.plane.normal.x) > fabs(tri.plane.normal.z) ? 0 : 2 : fabs(tri.plane.normal.y) > fabs(tri.plane.normal.z) ? 1 : 2;
+			// create 0-radius spheres from the vertices of the triangle
+			vector<Sphere> other_spheres;
+			other_spheres.reserve(3);
 
-			Ray ray;
-			ray.direction = n_axis == 0 ? Vec3(dim.x, 0, 0) : n_axis == 1 ? Vec3(0, dim.y, 0) : Vec3(0, 0, dim.z);
-			ray.origin = xformed_aabb.min;
+			other_spheres.push_back(Sphere(tri.a, 0.0f));
+			other_spheres.push_back(Sphere(tri.b, 0.0f));
+			other_spheres.push_back(Sphere(tri.c, 0.0f));
 
-			// iterate on the other two cardinal axes, and find the appropriate height on the normal-ish axis
-			for(int i = 0; i < steps; ++i)
+			// try to find a separating axis
+			struct Scorer
 			{
-				switch(n_axis)
-				{
-					case 0:
-						ray.origin.y += increment.y;
-						ray.origin.z = xformed_aabb.min.z;
-						break;
-					case 1:
-						ray.origin.x += increment.x;
-						ray.origin.z = xformed_aabb.min.z;
-						break;
-					case 2:
-						ray.origin.x += increment.x;
-						ray.origin.y = xformed_aabb.min.y;
-						break;
-				}
+				const vector<Sphere>& a;
+				const vector<Sphere>& b;
 
-				for(int j = 0; j < steps; ++j)
+				bool first;
+
+				float least;
+				Vec3 direction;
+
+				Scorer(const vector<Sphere>& a, const vector<Sphere>& b) : a(a), b(b), first(true) { }
+
+				bool Score(const Vec3& dir)
 				{
-					switch(n_axis)
+					float value = GetMaximumExtent(dir, a) - GetMinimumExtent(dir, b);
+
+					if(first)
 					{
-						case 0:
-							ray.origin.z += increment.z;
-							break;
-						case 1:
-							ray.origin.z += increment.z;
-							break;
-						case 2:
-							ray.origin.y += increment.y;
-							break;
+						least = value;
+						direction = dir;
+						first = false;
+					}
+					else
+					{
+						least = value;
+						direction = dir;
 					}
 
-					Vec3 pos = ray.origin + ray.direction * Util::RayPlaneIntersect(ray, tri.plane);
+					return value <= 0;
+				}
+			} scorer(my_spheres, other_spheres);
 
-					float u = Vec3::Dot(tri.p, pos) - tri.u_offset;
-					float v = Vec3::Dot(tri.q, pos) - tri.v_offset;
-					if(u >= 0 && v >= 0 && u + v <= 1)
+			// my spheres ...
+			for(vector<Sphere>::iterator iter = my_spheres.begin(); iter != my_spheres.end(); ++iter)
+			{
+				const Vec3& s = iter->center;
+
+				Vec3 sa = s - tri.a;
+				Vec3 sb = s - tri.b;
+				Vec3 sc = s - tri.c;
+
+				// ... vs. triangle's spheres (verts
+				if(scorer.Score(-sa))	{ return false; }
+				if(scorer.Score(sa))	{ return false; }
+				if(scorer.Score(-sb))	{ return false; }
+				if(scorer.Score(sb))	{ return false; }
+				if(scorer.Score(-sc))	{ return false; }
+				if(scorer.Score(sc))	{ return false; }
+
+				// ... vs. triangle's tubes (edges)
+				Vec3 absn = Vec3::Cross(tri.ab, sa);
+				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, absn));
+				if(scorer.Score(absnabn))	{ return false; }
+				if(scorer.Score(-absnabn))	{ return false; }
+
+				Vec3 bcsn = Vec3::Cross(tri.bc, sb);
+				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, bcsn));
+				if(scorer.Score(bcsnbcn))	{ return false; }
+				if(scorer.Score(-bcsnbcn))	{ return false; }
+
+				Vec3 casn = Vec3::Cross(-tri.ac, sc);
+				Vec3 casncan = Vec3::Normalize(Vec3::Cross(-tri.ac, casn));
+				if(scorer.Score(casncan))	{ return false; }
+				if(scorer.Score(-casncan))	{ return false; }
+			}
+			
+			// my tubes ...
+			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			{
+				Vec3 p1 = my_xform.TransformVec3_1(iter->p1);
+				Vec3 p2 = my_xform.TransformVec3_1(iter->p2);
+				Vec3 u = my_xform.TransformVec3_0(iter->u);
+				Vec3 u_cos_theta = u * iter->cos_theta;
+				float sin_theta = iter->sin_theta;
+				Plane my_plane = Plane(u, sin_theta);
+
+				// ... vs. triangle's spheres (verts)
+				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)));
+				if(scorer.Score(u_cos_theta + atntn * sin_theta)) { return false; }
+				if(scorer.Score(u_cos_theta - atntn * sin_theta)) { return false; }
+
+				Vec3 btntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.b - p1)));
+				if(scorer.Score(u_cos_theta + btntn * sin_theta)) { return false; }
+				if(scorer.Score(u_cos_theta - btntn * sin_theta)) { return false; }
+
+				Vec3 ctntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.c - p1)));
+				if(scorer.Score(u_cos_theta + ctntn * sin_theta)) { return false; }
+				if(scorer.Score(u_cos_theta - ctntn * sin_theta)) { return false; }
+
+				// ... vs. triangle's tubes (edges)				
+				Line abtl;
+				if(Plane::Intersect(Plane(tri.ab * tri.inv_len_ab, 0.0f), my_plane, abtl))
+				{
+					Ray ray; ray.origin = abtl.origin; ray.direction = abtl.direction;
+					float first, second;
+					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
 					{
-						Vec3 my_pos = inv_xform.TransformVec3_1(pos);
-						if(aabb.ContainsPoint(my_pos) && ContainsPoint(my_pos))
-						{
-							++weight;
-							center += pos;
-						}
+						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
+						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
+					}
+				}
+				
+				Line bctl;
+				if(Plane::Intersect(Plane(tri.bc * tri.inv_len_bc, 0.0f), my_plane, bctl))
+				{
+					Ray ray; ray.origin = bctl.origin; ray.direction = bctl.direction;
+					float first, second;
+					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
+					{
+						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
+						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
+					}
+				}
+
+				Line catl;
+				if(Plane::Intersect(Plane(-tri.ac * tri.inv_len_ca, 0.0f), my_plane, catl))
+				{
+					Ray ray; ray.origin = catl.origin; ray.direction = catl.direction;
+					float first, second;
+					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
+					{
+						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
+						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
 					}
 				}
 			}
 
-			if(weight)
+			// my planes
+			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+				if(scorer.Score(my_xform.TransformVec3_0(iter->plane.normal))) { return false; }
+
+			// triangle's planes
+			if(scorer.Score(tri.plane.normal))	{ return false; }
+			if(scorer.Score(-tri.plane.normal))	{ return false; }
+
+			
+
+			result.obj_a = ibody;
+			result.obj_b = jbody;
+			result.b.norm = tri.plane.normal;
+			result.a.norm = -result.b.norm;
+			
+			float best;
+			for(unsigned int i = 0; i < my_spheres.size(); ++i)
 			{
-				center /= float(weight);
-
-				result.obj_a = ibody;
-				result.obj_b = jbody;
-				result.a.pos = result.b.pos = center;
-				result.b.norm = tri.plane.normal;
-				result.a.norm = -result.b.norm;
-
-				return true;
+				const Sphere& sphere = my_spheres[i];
+				float dist = Vec3::Dot(sphere.center, scorer.direction) + sphere.radius;
+				if(i == 0 || best < dist)
+				{
+					best = dist;
+					result.a.pos = sphere.center + scorer.direction * sphere.radius;
+				}
 			}
 
-			return false;
+			result.b.pos = result.a.pos + result.b.norm * (Vec3::Dot(result.a.pos, result.b.norm) - tri.plane.offset);
+
+			return true;
 		}
 
 
@@ -1329,13 +1283,11 @@ namespace CibraryEngine
 
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 
-	bool MultiSphereShape::ContainsPoint(const Vec3& point) const { return imp->ContainsPoint(point); }
-
 	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, other, result, ibody, jbody); }
-	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, const Mat4& inv_xform, const AABB& xformed_aabb, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, inv_xform, xformed_aabb, tri, result, ibody, jbody); }
+	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 
