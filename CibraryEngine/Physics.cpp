@@ -360,7 +360,7 @@ namespace CibraryEngine
 			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
 	}
 
-	void PhysicsWorld::InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
+	void PhysicsWorld::InitiateCollisionsForMultisphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
 
@@ -435,7 +435,7 @@ namespace CibraryEngine
 			InitiateCollisionsForSphere(*iter, timestep, constraint_graph);
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(); iter != dynamic_objects[ST_MultiSphere].end(); ++iter)
-			InitiateCollisionsForMultiSphere(*iter, timestep, constraint_graph);
+			InitiateCollisionsForMultisphere(*iter, timestep, constraint_graph);
 
 		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(); iter != constraint_graph.contact_points.end(); ++iter)
 			(*iter)->DoUpdateAction(timestep);
@@ -574,9 +574,7 @@ namespace CibraryEngine
 			(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
 
 		// now do the actual collision testing
-		Ray ray;
-		ray.origin = from;
-		ray.direction = to - from;
+		Ray ray(from, to - from);
 
 		list<RayResult> hits;
 
@@ -817,9 +815,7 @@ namespace CibraryEngine
 
 		Mat4 inv_mat = jbody->GetInvTransform();
 
-		Ray ray_cut;
-		ray_cut.origin = inv_mat.TransformVec3_1(ray.origin);
-		ray_cut.direction = inv_mat.TransformVec3_0(ray.direction * max_time);
+		Ray ray_cut(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
 
 		vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
 
@@ -864,9 +860,7 @@ namespace CibraryEngine
 
 		Mat4 inv_mat = jbody->GetInvTransform();
 
-		Ray nu_ray;
-		nu_ray.origin = inv_mat.TransformVec3_1(ray.origin);
-		nu_ray.direction = inv_mat.TransformVec3_0(ray.direction * max_time);
+		Ray nu_ray(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
 
 		ContactPoint p;
 		float t;
@@ -890,9 +884,7 @@ namespace CibraryEngine
 		Vec3 other_pos = jbody->GetPosition();
 		Vec3 other_vel = jbody->GetLinearVelocity();
 
-		Ray ray;
-		ray.origin = pos - other_pos;
-		ray.direction = vel - other_vel;
+		Ray ray(pos - other_pos, vel - other_vel);
 
 		float first = 0, second = 0;
 		if(ray.origin.ComputeMagnitudeSquared() < sr * sr || Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
@@ -915,9 +907,7 @@ namespace CibraryEngine
 	{
 		TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
 
-		Ray ray;
-		ray.origin = pos;
-		ray.direction = vel;
+		Ray ray(pos, vel);
 
 		vector<unsigned int> relevant_triangles;
 		shape->GetRelevantTriangles(AABB(pos, radius), relevant_triangles);

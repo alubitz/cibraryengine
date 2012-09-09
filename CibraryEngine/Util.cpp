@@ -7,9 +7,14 @@
 
 #include "Plane.h"
 #include "Sphere.h"
+#include "Line.h"
 
 namespace CibraryEngine
 {
+	Ray::Ray(const Line& line) : origin(line.origin), direction(line.direction) { }
+
+
+
 	float Util::LeadTime(const Vec3& dx, const Vec3& dv, float muzzle_speed)
 	{
 		float xmag_sq = dx.ComputeMagnitudeSquared();

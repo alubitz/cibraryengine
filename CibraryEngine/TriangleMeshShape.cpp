@@ -13,16 +13,31 @@
 
 #include "Serialize.h"
 #include "Util.h"
-
-//#define DEBUG_OCTREE_EFFICIENCY
-
-#ifdef DEBUG_OCTREE_EFFICIENCY
-	#include "Texture2D.h"
-	#include "ImageIO.h"
-#endif
 	
 namespace CibraryEngine
 {
+	/*
+	 * TriangleMeshShape::RelevantTriangleGetter methods
+	 */
+	TriangleMeshShape::RelevantTriangleGetter::RelevantTriangleGetter(const AABB& aabb) : relevant_list(), aabb(aabb) { }
+
+	void TriangleMeshShape::RelevantTriangleGetter::operator() (Octree<NodeData>* node)
+	{
+		if(AABB::IntersectTest(node->bounds, aabb))
+		{
+			if(node->IsLeaf())
+			{
+				for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
+					if(AABB::IntersectTest(iter->aabb, aabb))
+						relevant_list.insert(iter->face_index);
+			}
+			else
+				node->ForEach(*this);
+		}
+	}
+
+
+
 	/*
 	 * TriangleMeshShape methods
 	 */
@@ -158,44 +173,7 @@ namespace CibraryEngine
 		InitCache();
 	}
 
-#ifdef DEBUG_OCTREE_EFFICIENCY
-	static vector<unsigned char> efficiency_tex;
-
-	#define EFF_TEX_W 128
-	#define EFF_TEX_H 256
-
-#endif
-
-	void TriangleMeshShape::InnerDispose()
-	{
-#ifdef DEBUG_OCTREE_EFFICIENCY
-		unsigned char* color_ptr = &efficiency_tex[0];
-		for(unsigned int y = 0; y < EFF_TEX_H; ++y)
-			for(unsigned int x = 0; x < EFF_TEX_W; ++x)
-			{
-				unsigned char* temp = color_ptr;
-
-				float f = 0;
-
-				for(unsigned char i = 0; i < 4; ++i)
-					f += float(*(color_ptr++) * (0x1 << (8 * i)));
-				
-				f /= f + 1.0f;
-
-				float f_sq = f * f;
-				float g = f * 255.0f;
-
-				*(temp++) = (unsigned char)min(255.0f, g);
-				g *= f_sq;
-				*(temp++) = (unsigned char)min(255.0f, g);
-				g *= f_sq;
-				*(temp++) = (unsigned char)min(255.0f, g);
-				*temp = 255;
-			}
-		ImageIO::SaveTGA("octree_efficiency.tga", efficiency_tex, EFF_TEX_W, EFF_TEX_H);
-#endif
-		DeleteCache();
-	}
+	void TriangleMeshShape::InnerDispose() { DeleteCache(); }
 
 	void TriangleMeshShape::BuildCache()
 	{
@@ -360,64 +338,10 @@ namespace CibraryEngine
 		if(octree == NULL)
 			BuildOctree();										// this will in turn call BuildCache if necessary
 
-		// functor(?) to get a list of relevant triangles
-		struct Action
-		{
-#ifdef DEBUG_OCTREE_EFFICIENCY
-			unsigned int ops;
-#endif
-
-			boost::unordered_set<unsigned int> relevant_list;	// list of unique maybe-relevant triangles encountered
-
-			const AABB& aabb;									// temporal aabb for the ray
-
-			Action(const AABB& aabb) :
-#ifdef DEBUG_OCTREE_EFFICIENCY
-				ops(0),
-#endif
-				relevant_list(),
-				aabb(aabb)
-			{
-			}
-
-			void operator() (Octree<NodeData>* node)
-			{
-#ifdef DEBUG_OCTREE_EFFICIENCY
-				++ops;
-#endif
-				if(AABB::IntersectTest(node->bounds, aabb))
-				{
-					if(node->IsLeaf())
-					{
-						for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
-							if(AABB::IntersectTest(iter->aabb, aabb))
-								relevant_list.insert(iter->face_index);
-					}
-					else
-						node->ForEach(*this);
-				}
-			}
-		} action(aabb);
-
+		RelevantTriangleGetter action(aabb);
 		action(octree);
 
-#ifdef DEBUG_OCTREE_EFFICIENCY
-
-		unsigned int x = (action.ops - 1) / 8, y = action.relevant_list.size();
-		if(efficiency_tex.empty())
-			efficiency_tex.resize(EFF_TEX_W * EFF_TEX_H * 4);
-
-		if(x < EFF_TEX_W && y < EFF_TEX_H)
-		{
-			unsigned char* color_ptr = &efficiency_tex[(y * EFF_TEX_W + x) * 4];
-
-			unsigned char* next = &color_ptr[4];
-			do { ++*color_ptr; } while(*(color_ptr++) == 0 && color_ptr != next);
-		}
-
-#endif
-
-		for(boost::unordered_set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
+		for(set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
 			results.push_back(*iter);
 	}
 

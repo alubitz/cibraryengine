@@ -220,14 +220,10 @@ namespace CibraryEngine
 						Line line;
 						Plane::Intersect(planes[i], planes[j], line);
 
-						Ray ray;
-						ray.origin = line.origin;
-						ray.direction = line.direction;
-
-						float d = Util::RayPlaneIntersect(ray, plane);
+						float d = Util::RayPlaneIntersect(Ray(line), plane);
 						if(_finite(d))			// TODO: come up with a solution that doesn't depend on msvc
 						{
-							Vec3 vert = ray.origin + ray.direction * d;
+							Vec3 vert = line.origin + line.direction * d;
 
 							result.push_back(vert);
 						}
@@ -1027,31 +1023,25 @@ namespace CibraryEngine
 			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
 				my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 
-			// create 0-radius spheres from the vertices of the triangle
-			vector<Sphere> other_spheres;
-			other_spheres.reserve(3);
-
-			other_spheres.push_back(Sphere(tri.a, 0.0f));
-			other_spheres.push_back(Sphere(tri.b, 0.0f));
-			other_spheres.push_back(Sphere(tri.c, 0.0f));
-
 			// try to find a separating axis
 			struct Scorer
 			{
 				const vector<Sphere>& a;
-				const vector<Sphere>& b;
+				const TriangleMeshShape::TriCache& tri;
 
 				bool first;
 
 				float least;
 				Vec3 direction;
 
-				Scorer(const vector<Sphere>& a, const vector<Sphere>& b) : a(a), b(b), first(true) { }
+				Scorer(const vector<Sphere>& a, const TriangleMeshShape::TriCache& tri) : a(a), tri(tri), first(true) { }
 
 				bool Score(const Vec3& dir)
 				{
-					float value = GetMaximumExtent(dir, a) - GetMinimumExtent(dir, b);
-
+					float max_val = GetMaximumExtent(dir, a);
+					float min_val = min(Vec3::Dot(dir, tri.a), min(Vec3::Dot(dir, tri.b), Vec3::Dot(dir, tri.c)));
+					float value = max_val - min_val;
+					
 					if(first)
 					{
 						least = value;
@@ -1066,7 +1056,7 @@ namespace CibraryEngine
 
 					return value <= 0;
 				}
-			} scorer(my_spheres, other_spheres);
+			} scorer(my_spheres, tri);
 
 			// my spheres ...
 			for(vector<Sphere>::iterator iter = my_spheres.begin(); iter != my_spheres.end(); ++iter)
@@ -1077,27 +1067,24 @@ namespace CibraryEngine
 				Vec3 sb = s - tri.b;
 				Vec3 sc = s - tri.c;
 
-				// ... vs. triangle's spheres (verts
-				if(scorer.Score(-sa))	{ return false; }
-				if(scorer.Score(sa))	{ return false; }
-				if(scorer.Score(-sb))	{ return false; }
-				if(scorer.Score(sb))	{ return false; }
-				if(scorer.Score(-sc))	{ return false; }
-				if(scorer.Score(sc))	{ return false; }
+				// ... vs. triangle's verts
+				if(scorer.Score(-sa))		{ return false; }
+				if(scorer.Score(sa))		{ return false; }
+				if(scorer.Score(-sb))		{ return false; }
+				if(scorer.Score(sb))		{ return false; }
+				if(scorer.Score(-sc))		{ return false; }
+				if(scorer.Score(sc))		{ return false; }
 
-				// ... vs. triangle's tubes (edges)
-				Vec3 absn = Vec3::Cross(tri.ab, sa);
-				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, absn));
+				// ... vs. triangle's edges
+				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(tri.ab, sa)));
 				if(scorer.Score(absnabn))	{ return false; }
 				if(scorer.Score(-absnabn))	{ return false; }
 
-				Vec3 bcsn = Vec3::Cross(tri.bc, sb);
-				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, bcsn));
+				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(tri.bc, sb)));
 				if(scorer.Score(bcsnbcn))	{ return false; }
 				if(scorer.Score(-bcsnbcn))	{ return false; }
 
-				Vec3 casn = Vec3::Cross(-tri.ac, sc);
-				Vec3 casncan = Vec3::Normalize(Vec3::Cross(-tri.ac, casn));
+				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(tri.ac, sc)));		// would be -ac, but there are two of them
 				if(scorer.Score(casncan))	{ return false; }
 				if(scorer.Score(-casncan))	{ return false; }
 			}
@@ -1108,71 +1095,70 @@ namespace CibraryEngine
 				Vec3 p1 = my_xform.TransformVec3_1(iter->p1);
 				Vec3 p2 = my_xform.TransformVec3_1(iter->p2);
 				Vec3 u = my_xform.TransformVec3_0(iter->u);
-				Vec3 u_cos_theta = u * iter->cos_theta;
+
 				float sin_theta = iter->sin_theta;
+				Vec3 u_cos_theta = u * iter->cos_theta;
 				Plane my_plane = Plane(u, sin_theta);
 
-				// ... vs. triangle's spheres (verts)
-				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)));
-				if(scorer.Score(u_cos_theta + atntn * sin_theta)) { return false; }
-				if(scorer.Score(u_cos_theta - atntn * sin_theta)) { return false; }
+				// ... vs. triangle's verts
+				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)), sin_theta);
+				if(scorer.Score(u_cos_theta + atntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - atntn))	{ return false; }
 
-				Vec3 btntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.b - p1)));
-				if(scorer.Score(u_cos_theta + btntn * sin_theta)) { return false; }
-				if(scorer.Score(u_cos_theta - btntn * sin_theta)) { return false; }
+				Vec3 btntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.b - p1)), sin_theta);
+				if(scorer.Score(u_cos_theta + btntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - btntn))	{ return false; }
 
-				Vec3 ctntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.c - p1)));
-				if(scorer.Score(u_cos_theta + ctntn * sin_theta)) { return false; }
-				if(scorer.Score(u_cos_theta - ctntn * sin_theta)) { return false; }
+				Vec3 ctntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.c - p1)), sin_theta);
+				if(scorer.Score(u_cos_theta + ctntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - ctntn))	{ return false; }
 
-				// ... vs. triangle's tubes (edges)				
+				// ... vs. triangle's edges
 				Line abtl;
 				if(Plane::Intersect(Plane(tri.ab * tri.inv_len_ab, 0.0f), my_plane, abtl))
 				{
-					Ray ray; ray.origin = abtl.origin; ray.direction = abtl.direction;
 					float first, second;
-					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
+					if(Util::RaySphereIntersect(Ray(abtl), unit_sphere, first, second))
 					{
-						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
-						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
+						if(scorer.Score(abtl.origin + abtl.direction * first))	{ return false; }
+						if(scorer.Score(abtl.origin + abtl.direction * second))	{ return false; }
 					}
 				}
 				
 				Line bctl;
 				if(Plane::Intersect(Plane(tri.bc * tri.inv_len_bc, 0.0f), my_plane, bctl))
 				{
-					Ray ray; ray.origin = bctl.origin; ray.direction = bctl.direction;
 					float first, second;
-					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
+					if(Util::RaySphereIntersect(Ray(bctl), unit_sphere, first, second))
 					{
-						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
-						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
+						if(scorer.Score(bctl.origin + bctl.direction * first))	{ return false; }
+						if(scorer.Score(bctl.origin + bctl.direction * second))	{ return false; }
 					}
 				}
 
 				Line catl;
 				if(Plane::Intersect(Plane(-tri.ac * tri.inv_len_ca, 0.0f), my_plane, catl))
 				{
-					Ray ray; ray.origin = catl.origin; ray.direction = catl.direction;
 					float first, second;
-					if(Util::RaySphereIntersect(ray, unit_sphere, first, second))
+					if(Util::RaySphereIntersect(Ray(catl), unit_sphere, first, second))
 					{
-						if(scorer.Score(ray.origin + ray.direction * first))	{ return false; }
-						if(scorer.Score(ray.origin + ray.direction * second))	{ return false; }
+						if(scorer.Score(catl.origin + catl.direction * first))	{ return false; }
+						if(scorer.Score(catl.origin + catl.direction * second))	{ return false; }
 					}
 				}
 			}
 
 			// my planes
 			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
-				if(scorer.Score(my_xform.TransformVec3_0(iter->plane.normal))) { return false; }
+				if(scorer.Score(my_xform.TransformVec3_0(iter->plane.normal)))	{ return false; }
 
 			// triangle's planes
 			if(scorer.Score(tri.plane.normal))	{ return false; }
 			if(scorer.Score(-tri.plane.normal))	{ return false; }
 
-			
 
+			
+			// if we get this far, it means the objects are intersecting
 			result.obj_a = ibody;
 			result.obj_b = jbody;
 			result.b.norm = tri.plane.normal;

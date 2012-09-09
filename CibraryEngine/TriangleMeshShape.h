@@ -58,6 +58,16 @@ namespace CibraryEngine
 				void Add(Tri tri) { triangles.push_back(tri); ++tri_count; }
 			};
 
+			struct RelevantTriangleGetter
+			{
+				set<unsigned int> relevant_list;				// list of unique maybe-relevant triangles encountered
+				const AABB& aabb;
+
+				RelevantTriangleGetter(const AABB& aabb);
+
+				void operator() (Octree<NodeData>* node);
+			};
+
 			Octree<NodeData>* octree;
 			void BuildOctree();
 

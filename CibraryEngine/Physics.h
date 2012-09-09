@@ -52,7 +52,7 @@ namespace CibraryEngine
 			void SolveConstraintGraph(ConstraintGraph& graph);
 
 			void InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& contraint_graph);
-			void InitiateCollisionsForMultiSphere(RigidBody* body, float timestep, ConstraintGraph& constrain_graph);
+			void InitiateCollisionsForMultisphere(RigidBody* body, float timestep, ConstraintGraph& constrain_graph);
 
 			void DoFixedStep();
 

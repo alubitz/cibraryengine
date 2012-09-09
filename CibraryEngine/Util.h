@@ -7,6 +7,7 @@ namespace CibraryEngine
 	struct Mat3;
 	struct Plane;
 	struct Sphere;
+	struct Line;
 
 	using namespace std;
 
@@ -14,6 +15,10 @@ namespace CibraryEngine
 	{
 		Vec3 origin;
 		Vec3 direction;
+
+		Ray() : origin(), direction() { }
+		Ray(const Vec3& origin, const Vec3& direction) : origin(origin), direction(direction) { }
+		Ray(const Line& line);
 	};
 
 	struct Intersection

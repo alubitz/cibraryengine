@@ -70,9 +70,7 @@ namespace CibraryEngine
 		if(ContainsPoint(from) || ContainsPoint(to))
 			return true;
 
-		Ray ray;
-		ray.origin = from;
-		ray.direction = to - from;
+		Ray ray(from, to - from);
 
 		float origin[] = { from.x, from.y, from.z };
 		float direction[] = { ray.direction.x, ray.direction.y, ray.direction.z };
