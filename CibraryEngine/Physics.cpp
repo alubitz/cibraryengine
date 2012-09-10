@@ -360,6 +360,10 @@ namespace CibraryEngine
 			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
 	}
 
+	
+
+
+
 	void PhysicsWorld::InitiateCollisionsForMultisphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
@@ -814,12 +818,10 @@ namespace CibraryEngine
 		TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
 
 		Mat4 inv_mat = jbody->GetInvTransform();
+		Ray scaled_ray(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
 
-		Ray ray_cut(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
-
-		vector<Intersection> mesh_hits = mesh->RayTest(ray_cut);
-
-		for(vector<Intersection>::iterator kter = mesh_hits.begin(); kter != mesh_hits.end(); ++kter)
+		vector<Intersection> mesh_hits = mesh->RayTest(scaled_ray);
+		for(vector<Intersection>::iterator kter = mesh_hits.begin(), hits_end = mesh_hits.end(); kter != hits_end; ++kter)
 		{
 			float t = kter->time * max_time;
 			if(t >= 0 && t < max_time)
@@ -914,7 +916,7 @@ namespace CibraryEngine
 
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
-			TriangleMeshShape::TriCache tri = shape->GetTriangleData(*kter);
+			const TriangleMeshShape::TriCache& tri = shape->GetTriangleData(*kter);
 
 			float dist = tri.DistanceToPoint(pos);
 			if(dist < radius)
@@ -999,7 +1001,7 @@ namespace CibraryEngine
 		ContactPoint p;
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
-			TriangleMeshShape::TriCache tri = jshape->GetTriangleData(*kter);
+			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
 
 			if(ishape->CollideMesh(inv_net_xform, tri, p, ibody, jbody))
 			{

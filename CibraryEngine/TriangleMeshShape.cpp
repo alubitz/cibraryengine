@@ -27,12 +27,47 @@ namespace CibraryEngine
 		{
 			if(node->IsLeaf())
 			{
-				for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
+				for(vector<NodeData::TriRef>::iterator iter = node->contents.triangles.begin(), triangles_end = node->contents.triangles.end(); iter != triangles_end; ++iter)
 					if(AABB::IntersectTest(iter->aabb, aabb))
 						relevant_list.insert(iter->face_index);
 			}
 			else
 				node->ForEach(*this);
+		}
+	}
+
+
+
+
+	/*
+	 * TriangleMeshShape::OctreeBuilder methods
+	 */
+	TriangleMeshShape::OctreeBuilder::OctreeBuilder(const NodeData::TriRef& tri) : tri(tri) { }
+
+	void TriangleMeshShape::OctreeBuilder::operator() (Octree<NodeData>* node)
+	{
+		if(AABB::IntersectTest(node->bounds, tri.aabb))
+		{
+			if(node->IsLeaf())
+			{
+				node->contents.Add(tri);
+
+				if(node->contents.tri_count >= 8 && (node->parent == NULL || node->parent->contents.tri_count >= node->contents.tri_count + 4))			// node is too crowded (and subdivision seems to be working), therefore subdivide it
+				{
+					node->Split(1);
+					for(vector<NodeData::TriRef>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
+					{
+						OctreeBuilder adder(*iter);
+						node->ForEach(adder);
+					}
+					node->contents.triangles = vector<NodeData::TriRef>();
+				}
+			}
+			else
+			{
+				++node->contents.tri_count;
+				node->ForEach(*this);
+			}
 		}
 	}
 
@@ -226,11 +261,7 @@ namespace CibraryEngine
 
 	void TriangleMeshShape::BuildOctree()
 	{
-		if(octree != NULL)
-		{
-			delete octree;
-			octree = NULL;
-		}
+		if(octree != NULL) { delete octree; octree = NULL; }
 
 		if(vertices.empty())
 			return;					// lolwut?
@@ -255,44 +286,11 @@ namespace CibraryEngine
 		// now create the octree
 		octree = new Octree<NodeData>(aabb.min, aabb.max);
 
-		// functor(?) to place a triangle into the octree
-		struct Action
-		{
-			NodeData::Tri tri;
-
-			Action(NodeData::Tri tri) : tri(tri) { }
-
-			void operator()(Octree<NodeData>* node)
-			{
-				if(AABB::IntersectTest(node->bounds, tri.aabb))
-				{
-					if(node->IsLeaf())
-					{
-						node->contents.Add(tri);
-
-						if(node->contents.tri_count >= 2 && (node->parent == NULL || node->parent->contents.tri_count >= node->contents.tri_count + 1))			// node is too crowded (and subdivision seems to be working), therefore subdivide it
-						{
-							node->Split(1);
-							for(vector<NodeData::Tri>::iterator iter = node->contents.triangles.begin(); iter != node->contents.triangles.end(); ++iter)
-							{
-								Action adder(*iter);
-								node->ForEach(adder);
-							}
-							node->contents.triangles = vector<NodeData::Tri>();
-						}
-					}
-					else
-					{
-						++node->contents.tri_count;
-						node->ForEach(*this);
-					}
-				}
-			}
-		};
 
 		// insert all the triangles into the octree
 		TriCache* tri_ptr = cache;
 		unsigned int count = triangles.size();
+
 		for(unsigned int i = 0; i < count; ++i, ++tri_ptr)
 		{
 			TriCache& tri = *tri_ptr;
@@ -301,8 +299,8 @@ namespace CibraryEngine
 			aabb.Expand(tri.b);
 			aabb.Expand(tri.c);
 
-			Action action(NodeData::Tri(i, aabb));
-			action(octree);
+			NodeData::TriRef tri_ref(i, aabb);
+			(OctreeBuilder(tri_ref))(octree);
 		}
 	}
 
@@ -360,7 +358,7 @@ namespace CibraryEngine
 
 			Intersection intersection;
 			if(cache[face_index].RayTest(ray, face_index, intersection))
-				test.push_back(intersection);			
+				test.push_back(intersection);
 		}
 
 		return test;
@@ -368,7 +366,7 @@ namespace CibraryEngine
 
 
 
-	bool TriangleMeshShape::TriCache::RayTest(const Ray& ray, unsigned int index, Intersection& intersection)
+	bool TriangleMeshShape::TriCache::RayTest(const Ray& ray, unsigned int index, Intersection& intersection) const
 	{
 		float hit = Util::RayPlaneIntersect(ray, plane);
 
@@ -393,7 +391,7 @@ namespace CibraryEngine
 		return false;
 	}
 
-	float TriangleMeshShape::TriCache::DistanceToPoint(const Vec3& x)
+	float TriangleMeshShape::TriCache::DistanceToPoint(const Vec3& x) const
 	{
 		Vec3 ax = x - a, bx = x - b, cx = x - c;					// vectors from verts to X
 		const Vec3& normal = plane.normal;

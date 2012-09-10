@@ -17,6 +17,8 @@
 
 #include "Util.h"
 
+#include "DebugLog.h"
+
 namespace CibraryEngine
 {
 	/*

@@ -7,6 +7,8 @@
 
 #include "Octree.h"
 
+#include "DebugLog.h"
+
 namespace CibraryEngine
 {
 	struct Ray;
@@ -30,8 +32,8 @@ namespace CibraryEngine
 				float dot_n_ab_a, dot_n_bc_b, dot_n_ca_c;
 
 
-				bool RayTest(const Ray& ray, unsigned int index, Intersection& intersection);
-				float DistanceToPoint(const Vec3& point);
+				bool RayTest(const Ray& ray, unsigned int index, Intersection& intersection) const;
+				float DistanceToPoint(const Vec3& point) const;
 			};
 
 		private:
@@ -42,20 +44,20 @@ namespace CibraryEngine
 
 			struct NodeData
 			{
-				struct Tri
+				struct TriRef
 				{
 					unsigned int face_index;
 					AABB aabb;
 
-					Tri(unsigned int face_index, AABB aabb) : face_index(face_index), aabb(aabb) { }
+					TriRef(unsigned int face_index, const AABB& aabb) : face_index(face_index), aabb(aabb) { }
 				};
 
-				vector<Tri> triangles;
+				vector<TriRef> triangles;
 				unsigned int tri_count;
 
 				NodeData() : triangles(), tri_count() { }
 
-				void Add(Tri tri) { triangles.push_back(tri); ++tri_count; }
+				void Add(const TriRef& tri) { triangles.push_back(tri); ++tri_count; }
 			};
 
 			struct RelevantTriangleGetter
@@ -66,6 +68,14 @@ namespace CibraryEngine
 				RelevantTriangleGetter(const AABB& aabb);
 
 				void operator() (Octree<NodeData>* node);
+			};
+
+			struct OctreeBuilder
+			{
+				const NodeData::TriRef& tri;
+
+				OctreeBuilder(const NodeData::TriRef& tri);
+				void operator()(Octree<NodeData>* node);
 			};
 
 			Octree<NodeData>* octree;
@@ -95,7 +105,7 @@ namespace CibraryEngine
 			void GetRelevantTriangles(const AABB& aabb, vector<unsigned int>& results);
 			vector<Intersection> RayTest(const Ray& ray);
 
-			TriCache GetTriangleData(unsigned int index) { return cache[index]; }
+			const TriCache& GetTriangleData(unsigned int index) { return cache[index]; }
 
 			AABB GetAABB();
 			AABB GetTransformedAABB(const Mat4& xform);

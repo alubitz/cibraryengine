@@ -103,30 +103,4 @@ namespace CibraryEngine
 
 		return false;
 	}
-
-	bool AABB::IntersectTest(const AABB& a, const AABB& b)
-	{
-		return	a.min.x <= b.max.x && b.min.x <= a.max.x &&
-				a.min.y <= b.max.y && b.min.y <= a.max.y &&
-				a.min.z <= b.max.z && b.min.z <= a.max.z;
-	}
-
-	bool AABB::Intersect(const AABB& a, const AABB& b, AABB& result)
-	{
-		AABB temp;
-		temp.min.x = std::max(a.min.x, b.min.x);
-		temp.min.y = std::max(a.min.y, b.min.y);
-		temp.min.z = std::max(a.min.z, b.min.z);
-		temp.max.x = std::min(a.max.x, b.max.x);
-		temp.max.y = std::min(a.max.y, b.max.y);
-		temp.max.z = std::min(a.max.z, b.max.z);
-
-		if(temp.IsDegenerate())
-			return false;
-		else
-		{
-			result = temp;
-			return true;
-		}
-	}	
 }
