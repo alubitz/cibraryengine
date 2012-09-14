@@ -722,7 +722,7 @@ namespace CibraryEngine
 				{
 					Vec3 on_plane = dir - wn * Vec3::Dot(dir, wn);
 					float mag = on_plane.ComputeMagnitude(), inv_mag = 1.0f / mag;
-					
+
 					pos = wc + on_plane * (wr * inv_mag);
 
 					Vec3 from_eye = pos - eye;
@@ -733,7 +733,7 @@ namespace CibraryEngine
 				{
 					Vec3 on_plane = dir - wn * Vec3::Dot(dir, wn);
 					float mag = on_plane.ComputeMagnitude(), inv_mag = 1.0f / mag;
-					
+
 					Vec3 temp_pos = wc + on_plane * (wr * inv_mag);
 
 					Vec3 from_eye = temp_pos - eye;
@@ -1020,7 +1020,7 @@ namespace CibraryEngine
 			vector<Sphere> my_spheres;
 			my_spheres.reserve(spheres.size());
 
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 				my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 
 			// try to find a separating axis
@@ -1041,7 +1041,7 @@ namespace CibraryEngine
 					float max_val = GetMaximumExtent(dir, a);
 					float min_val = min(Vec3::Dot(dir, tri.a), min(Vec3::Dot(dir, tri.b), Vec3::Dot(dir, tri.c)));
 					float value = max_val - min_val;
-					
+
 					if(first)
 					{
 						least = value;
@@ -1059,7 +1059,7 @@ namespace CibraryEngine
 			} scorer(my_spheres, tri);
 
 			// my spheres ...
-			for(vector<Sphere>::iterator iter = my_spheres.begin(); iter != my_spheres.end(); ++iter)
+			for(vector<Sphere>::iterator iter = my_spheres.begin(), spheres_end = my_spheres.end(); iter != spheres_end; ++iter)
 			{
 				const Vec3& s = iter->center;
 
@@ -1088,9 +1088,9 @@ namespace CibraryEngine
 				if(scorer.Score(casncan))	{ return false; }
 				if(scorer.Score(-casncan))	{ return false; }
 			}
-			
+
 			// my tubes ...
-			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			for(vector<TubePart>::iterator iter = tubes.begin(), tubes_end = tubes.end(); iter != tubes_end; ++iter)
 			{
 				Vec3 p1 = my_xform.TransformVec3_1(iter->p1);
 				Vec3 p2 = my_xform.TransformVec3_1(iter->p2);
@@ -1124,7 +1124,7 @@ namespace CibraryEngine
 						if(scorer.Score(abtl.origin + abtl.direction * second))	{ return false; }
 					}
 				}
-				
+
 				Line bctl;
 				if(Plane::Intersect(Plane(tri.bc * tri.inv_len_bc, 0.0f), my_plane, bctl))
 				{
@@ -1149,7 +1149,7 @@ namespace CibraryEngine
 			}
 
 			// my planes
-			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+			for(vector<PlanePart>::iterator iter = planes.begin(), planes_end = planes.end(); iter != planes_end; ++iter)
 				if(scorer.Score(my_xform.TransformVec3_0(iter->plane.normal)))	{ return false; }
 
 			// triangle's planes
@@ -1157,13 +1157,13 @@ namespace CibraryEngine
 			if(scorer.Score(-tri.plane.normal))	{ return false; }
 
 
-			
+
 			// if we get this far, it means the objects are intersecting
 			result.obj_a = ibody;
 			result.obj_b = jbody;
 			result.b.norm = tri.plane.normal;
 			result.a.norm = -result.b.norm;
-			
+
 			float best;
 			for(unsigned int i = 0; i < my_spheres.size(); ++i)
 			{
@@ -1221,12 +1221,12 @@ namespace CibraryEngine
 		// static misc. utility stuff
 		static float GetMaximumExtent(const Vec3& direction, const vector<Sphere>& spheres)
 		{
-			vector<Sphere>::const_iterator iter = spheres.begin();
+			vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
 
 			float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
 			++iter;
 
-			while(iter != spheres.end())
+			while(iter != spheres_end)
 			{
 				maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
 				++iter;
@@ -1237,12 +1237,12 @@ namespace CibraryEngine
 
 		static float GetMinimumExtent(const Vec3& direction, const vector<Sphere>& spheres)
 		{
-			vector<Sphere>::const_iterator iter = spheres.begin();
+			vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
 
 			float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
 			++iter;
 
-			while(iter != spheres.end())
+			while(iter != spheres_end)
 			{
 				minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
 				++iter;

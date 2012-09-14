@@ -16,6 +16,7 @@ namespace CibraryEngine
 	class Entity;
 
 	class PhysicsRegionManager;
+	struct RelevantObjectsQuery;
 
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable
@@ -23,12 +24,15 @@ namespace CibraryEngine
 		friend class PhysicsWorld;
 		friend class PhysicsRegion;
 		friend struct ContactPoint;
+		friend struct RelevantObjectsQuery;
 
 		private:
 
 			set<PhysicsRegion*> regions;
 			set<PhysicsConstraint*> constraints;
 			set<RigidBody*> disabled_collisions;
+
+			unsigned int temporary_id, query_id;
 
 			Vec3 pos;
 			Vec3 vel;
@@ -82,7 +86,7 @@ namespace CibraryEngine
 			Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi);
 
 			// removes rigid bodies which are contrained with this one from the collection of eligible bodies
-			void RemoveConstrainedBodies(unordered_set<RigidBody*>* eligible_bodies) const;
+			void RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const;
 
 		protected:
 
@@ -177,5 +181,20 @@ namespace CibraryEngine
 
 			Entity* GetUserEntity();
 			void SetUserEntity(Entity* entity);
+	};
+
+	struct RelevantObjectsQuery
+	{
+		vector<RigidBody*> objects;
+
+		unsigned int query_id;
+
+		RelevantObjectsQuery();
+		~RelevantObjectsQuery();
+
+		void Insert(RigidBody* object);
+		void Erase(RigidBody* object);
+
+		void ConcludeQuery();
 	};
 }

@@ -22,10 +22,11 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), constraints(), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), constraints(), query_id(0), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
 		regions(),
 		constraints(),
+		query_id(0),
 		pos(pos),
 		vel(),
 		ori(ori),
@@ -192,20 +193,17 @@ namespace CibraryEngine
 
 	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse) { rot += inv_moi * angular_impulse; }
 
-	void RigidBody::RemoveConstrainedBodies(unordered_set<RigidBody*>* eligible_bodies) const
+	void RigidBody::RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const
 	{
 		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 		{
 			const PhysicsConstraint* c = *iter;
 			if(RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a)
-				eligible_bodies[other->GetShapeType()].erase(other);
+				eligible_bodies.Erase(other);
 		}
 
 		for(set<RigidBody*>::const_iterator iter = disabled_collisions.begin(); iter != disabled_collisions.end(); ++iter)
-		{
-			RigidBody* other = *iter;
-			eligible_bodies[other->GetShapeType()].erase(other);
-		}
+			eligible_bodies.Erase(*iter);
 	}
 
 
@@ -318,4 +316,41 @@ namespace CibraryEngine
 
 	Entity* RigidBody::GetUserEntity() { return user_entity; }
 	void RigidBody::SetUserEntity(Entity* entity) { user_entity = entity; }
+
+
+
+
+	/*
+	 * RelevantObjectsQuery methods
+	 */
+	static unsigned int next_query_id = 1;
+	RelevantObjectsQuery::RelevantObjectsQuery() : objects(), query_id(next_query_id++) { }
+	RelevantObjectsQuery::~RelevantObjectsQuery() { }
+
+	void RelevantObjectsQuery::Insert(RigidBody* object)
+	{
+		if(object->query_id != query_id)
+		{
+			unsigned int use_id = object->temporary_id = objects.size();
+			object->query_id = query_id;
+
+			objects.push_back(object);
+		}
+#if 0
+		else
+			objects[object->temporary_id] = object;			// this is only necessary if it is possible to erase and reinsert
+#endif
+	}
+	
+	void RelevantObjectsQuery::Erase(RigidBody* object)
+	{
+		if(object->query_id == query_id)
+		{
+			assert(object->temporary_id < objects.size());
+
+			objects[object->temporary_id] = NULL;
+		}
+	}
+
+	void RelevantObjectsQuery::ConcludeQuery() { query_id = next_query_id++; objects.clear(); }
 }

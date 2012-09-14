@@ -106,18 +106,26 @@ namespace CibraryEngine
 
 
 
-	void PhysicsRegion::GetRelevantObjects(const AABB& aabb, unordered_set<RigidBody*>* results)
+	void PhysicsRegion::GetRelevantObjects(ShapeType type, const AABB& aabb, RelevantObjectsQuery& results)
 	{
-		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)						// skip past ST_Ray
+		if(type == ST_InfinitePlane)
 		{
-			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
+			for(unordered_set<RigidBody*>::iterator iter = all_objects[type].begin(); iter != all_objects[type].end(); ++iter)
+				results.Insert(*iter);
+		}
+		else
+			for(unordered_set<RigidBody*>::iterator iter = all_objects[type].begin(); iter != all_objects[type].end(); ++iter)
 			{
 				RigidBody* object = *iter;
-				
-				if(i == ST_InfinitePlane || AABB::IntersectTest(aabb, object->GetCachedAABB()))
-					results[i].insert(object);
+				if(AABB::IntersectTest(aabb, object->GetCachedAABB()))
+					results.Insert(object);
 			}
-		}
+	}
+	
+	void PhysicsRegion::GetRelevantObjects(const AABB& aabb, RelevantObjectsQuery& results)
+	{
+		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)						// skip past ST_Ray
+			GetRelevantObjects((ShapeType)i, aabb, results);
 	}
 
 	unsigned int PhysicsRegion::NumObjects() const

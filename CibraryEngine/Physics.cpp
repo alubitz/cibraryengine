@@ -339,30 +339,40 @@ namespace CibraryEngine
 		AABB aabb(pos, radius);
 		aabb.Expand(AABB(pos + vel, radius));
 
-		unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+		static RelevantObjectsQuery relevant_objects;
+
 		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(aabb, relevant_objects);
 
 		body->RemoveConstrainedBodies(relevant_objects);
 
-		// do collision detection on those objects
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_Sphere].begin(); iter != relevant_objects[ST_Sphere].end(); ++iter)
-			if(*iter < body)
-				DoSphereSphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
+		// do collision detection with those objects
+		for(vector<RigidBody*>::iterator iter = relevant_objects.objects.begin(); iter != relevant_objects.objects.end(); ++iter)
+			if(RigidBody* other = *iter)
+			{
+				switch(other->GetShapeType())
+				{
+					case ST_Sphere:
+						if(other < body)
+							DoSphereSphere(body, other, radius, pos, vel, timestep, constraint_graph);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoSphereMesh(body, *iter, radius, pos, vel, timestep, constraint_graph);
+					case ST_TriangleMesh:
+						DoSphereMesh(body, other, radius, pos, vel, timestep, constraint_graph);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
-			DoSpherePlane(body, *iter, radius, pos, vel, timestep, constraint_graph);
+					case ST_InfinitePlane:
+						DoSpherePlane(body, other, radius, pos, vel, timestep, constraint_graph);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
-			DoSphereMultisphere(body, *iter, radius, pos, vel, timestep, constraint_graph);
+					case ST_MultiSphere:
+						DoSphereMultisphere(body, other, radius, pos, vel, timestep, constraint_graph);
+						break;
+				}
+			}
+
+		relevant_objects.ConcludeQuery();
 	}
-
-	
-
-
 
 	void PhysicsWorld::InitiateCollisionsForMultisphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
 	{
@@ -373,26 +383,35 @@ namespace CibraryEngine
 		AABB xformed_aabb = shape->GetTransformedAABB(xform);
 
 		// find out what might be colliding with us
-		static unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+		static RelevantObjectsQuery relevant_objects;
 
 		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
 
 		body->RemoveConstrainedBodies(relevant_objects);
 
-		// do collision detection on those objects
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_TriangleMesh].begin(); iter != relevant_objects[ST_TriangleMesh].end(); ++iter)
-			DoMultisphereMesh(body, *iter, shape, xform, constraint_graph);
+		// do collision detection with those objects
+		for(vector<RigidBody*>::iterator iter = relevant_objects.objects.begin(); iter != relevant_objects.objects.end(); ++iter)
+			if(RigidBody* other = *iter)
+			{
+				switch(other->GetShapeType())
+				{
+					case ST_TriangleMesh:
+						DoMultisphereMesh(body, other, shape, xform, constraint_graph);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_InfinitePlane].begin(); iter != relevant_objects[ST_InfinitePlane].end(); ++iter)
-			DoMultispherePlane(body, *iter, shape, xform, constraint_graph);
+					case ST_InfinitePlane:
+						DoMultispherePlane(body, other, shape, xform, constraint_graph);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator iter = relevant_objects[ST_MultiSphere].begin(); iter != relevant_objects[ST_MultiSphere].end(); ++iter)
-			if(*iter < body)
-				DoMultisphereMultisphere(body, *iter, shape, xform, inv_xform, constraint_graph);
+					case ST_MultiSphere:
+						if(other < body)
+							DoMultisphereMultisphere(body, other, shape, xform, inv_xform, constraint_graph);
+						break;
+				}
+			}
 
-		for(unsigned int i = ST_Sphere; i < ST_ShapeTypeMax; ++i)
-			relevant_objects[i].clear();
+		relevant_objects.ConcludeQuery();
 	}
 
 	void PhysicsWorld::DoFixedStep()
@@ -573,7 +592,8 @@ namespace CibraryEngine
 		AABB ray_aabb(from);
 		ray_aabb.Expand(endpoint);
 
-		unordered_set<RigidBody*> relevant_objects[ST_ShapeTypeMax];
+		static RelevantObjectsQuery relevant_objects;
+
 		for(set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
 
@@ -581,18 +601,28 @@ namespace CibraryEngine
 		Ray ray(from, to - from);
 
 		list<RayResult> hits;
+		for(vector<RigidBody*>::iterator iter = relevant_objects.objects.begin(); iter != relevant_objects.objects.end(); ++iter)
+			if(RigidBody* other = *iter)
+			{
+				switch(other->GetShapeType())
+				{
+					case ST_Sphere:
+						DoRaySphere(ibody, other, ray, max_time, hits);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_Sphere].begin(); jter != relevant_objects[ST_Sphere].end(); ++jter)
-			DoRaySphere(ibody, *jter, ray, max_time, hits);
+					case ST_TriangleMesh:
+						DoRayMesh(ibody, other, ray, max_time, hits);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_TriangleMesh].begin(); jter != relevant_objects[ST_TriangleMesh].end(); ++jter)
-			DoRayMesh(ibody, *jter, ray, max_time, hits);
+					case ST_InfinitePlane:
+						DoRayPlane(ibody, other, ray, max_time, hits);
+						break;
 
-		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_InfinitePlane].begin(); jter != relevant_objects[ST_InfinitePlane].end(); ++jter)
-			DoRayPlane(ibody, *jter, ray, max_time, hits);
-
-		for(unordered_set<RigidBody*>::iterator jter = relevant_objects[ST_MultiSphere].begin(); jter != relevant_objects[ST_MultiSphere].end(); ++jter)
-			DoRayMultisphere(ibody, *jter, ray, max_time, hits);
+					case ST_MultiSphere:
+						DoRayMultisphere(ibody, other, ray, max_time, hits);
+						break;
+				}
+			}
 
 		// run the collision callback on whatever we found
 		if(!hits.empty())
@@ -606,6 +636,8 @@ namespace CibraryEngine
 					break;
 			}
 		}
+
+		relevant_objects.ConcludeQuery();
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
 

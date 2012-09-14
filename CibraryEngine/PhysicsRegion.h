@@ -16,6 +16,7 @@ namespace CibraryEngine
 	struct ConstraintGraph;
 	class CollisionCallback;
 	class SceneRenderer;
+	struct RelevantObjectsQuery;
 
 	struct AABB;
 
@@ -54,7 +55,8 @@ namespace CibraryEngine
 			void Disown(RigidBody* body);
 
 
-			virtual void GetRelevantObjects(const AABB& query, unordered_set<RigidBody*>* results);
+			virtual void GetRelevantObjects(ShapeType type, const AABB& aabb, RelevantObjectsQuery& results);
+			virtual void GetRelevantObjects(const AABB& aabb, RelevantObjectsQuery& results);
 
 			unsigned int NumObjects() const;
 			unsigned int NumRays() const;
