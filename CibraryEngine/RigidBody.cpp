@@ -6,7 +6,9 @@
 #include "Vector.h"
 #include "Quaternion.h"
 #include "Matrix.h"
+
 #include "Physics.h"
+#include "PhysicsRegion.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"
@@ -316,6 +318,51 @@ namespace CibraryEngine
 
 	Entity* RigidBody::GetUserEntity() { return user_entity; }
 	void RigidBody::SetUserEntity(Entity* entity) { user_entity = entity; }
+
+
+
+
+	/*
+	 * RegionSet methods
+	 */
+	RegionSet::RegionSet() : buckets(), count(0) { }
+
+	void RegionSet::Insert(PhysicsRegion* region)
+	{
+		unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
+
+		vector<PhysicsRegion*>& bucket = buckets[hash];
+		for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+			if(*iter == region)
+				return;
+
+		bucket.push_back(region);
+		++count;
+	}
+
+	void RegionSet::Erase(PhysicsRegion* region)
+	{
+		unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
+
+		vector<PhysicsRegion*>& bucket = buckets[hash];
+		for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+			if(bucket[i] == region)
+			{
+				bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
+				bucket.pop_back();
+
+				assert(count);
+				--count;
+
+				return;
+			}
+	}
+
+	void RegionSet::Clear()
+	{
+		for(unsigned int i = 0; i < hash_size; ++i)
+			buckets[i].clear();
+	}
 
 
 

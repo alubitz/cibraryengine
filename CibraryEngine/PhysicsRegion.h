@@ -26,13 +26,26 @@ namespace CibraryEngine
 	{
 		protected:
 
+			struct ObjectSet
+			{
+				static const unsigned int hash_size = 5;
+
+				vector<RigidBody*> buckets[hash_size];
+				unsigned int count;
+
+				ObjectSet();
+
+				void Insert(RigidBody* obj);
+				void Erase(RigidBody* obj);
+			};
+
 			ObjectOrphanedCallback* orphan_callback;
 
-			unordered_set<RigidBody*> all_objects[ST_ShapeTypeMax];
+			ObjectSet all_objects[ST_ShapeTypeMax];
 
-			unordered_set<RigidBody*> active_objects[ST_ShapeTypeMax];
-			unordered_set<RigidBody*> inactive_objects[ST_ShapeTypeMax];
-			unordered_set<RigidBody*> static_objects[ST_ShapeTypeMax];
+			ObjectSet active_objects[ST_ShapeTypeMax];
+			ObjectSet inactive_objects[ST_ShapeTypeMax];
+			ObjectSet static_objects[ST_ShapeTypeMax];
 
 			virtual void InnerDispose();
 

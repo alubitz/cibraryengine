@@ -18,6 +18,21 @@ namespace CibraryEngine
 	class PhysicsRegionManager;
 	struct RelevantObjectsQuery;
 
+	struct RegionSet
+	{
+		static const unsigned int hash_size = 7;
+				
+		vector<PhysicsRegion*> buckets[hash_size];
+		unsigned int count;
+
+		RegionSet();
+
+		void Insert(PhysicsRegion* region);
+		void Erase(PhysicsRegion* region);
+
+		void Clear();
+	};
+
 	/** Class representing a rigid body */
 	class RigidBody : public Disposable
 	{
@@ -28,7 +43,7 @@ namespace CibraryEngine
 
 		private:
 
-			set<PhysicsRegion*> regions;
+			RegionSet regions;
 			set<PhysicsConstraint*> constraints;
 			set<RigidBody*> disabled_collisions;
 

@@ -28,6 +28,7 @@ namespace CibraryEngine
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
+	struct RegionSet;
 
 	class SceneRenderer;
 
@@ -157,12 +158,12 @@ namespace CibraryEngine
 		virtual ~PhysicsRegionManager() { };
 
 		// region should call TakeOwnership
-		virtual void OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions) = 0;
+		virtual void OnObjectAdded(RigidBody* object, RegionSet& object_regions) = 0;
 
-		virtual void OnObjectUpdate(RigidBody* object, set<PhysicsRegion*>& object_regions, float timestep) = 0;
+		virtual void OnObjectUpdate(RigidBody* object, RegionSet& object_regions, float timestep) = 0;
 
 		// region should NOT call Disown
-		virtual void OnObjectRemoved(RigidBody* object, set<PhysicsRegion*>& object_regions) = 0;
+		virtual void OnObjectRemoved(RigidBody* object, RegionSet& object_regions) = 0;
 
 		/** Get the PhysicsRegion containing the specified point, if one exists */
 		virtual PhysicsRegion* GetRegion(const Vec3& point) = 0;

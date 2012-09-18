@@ -241,8 +241,8 @@ namespace CibraryEngine
 		unsigned int graph_nodes = graph.nodes.size();
 
 		// break the graph into separate subgraphs
-		unordered_set<Subgraph*> subgraphs;
-		subgraphs.rehash((int)ceil(graph_nodes / subgraphs.max_load_factor()));
+		vector<Subgraph*> subgraphs;
+		subgraphs.reserve(graph_nodes);
 
 		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
@@ -254,7 +254,7 @@ namespace CibraryEngine
 			if(body_subgraphs.find(iter->first) == body_subgraphs.end())
 			{
 				Subgraph* subgraph = Subgraph::New();
-				subgraphs.insert(subgraph);
+				subgraphs.push_back(subgraph);
 
 				fringe.clear();
 				fringe.push_back(iter->second);
@@ -291,7 +291,7 @@ namespace CibraryEngine
 		vector<RigidBody*> wakeup_list;
 
 		// now go through each subgraph and do as many iterations as are necessary
-		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
+		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
 		{
 			Subgraph& subgraph = **iter;
 
@@ -323,7 +323,7 @@ namespace CibraryEngine
 		}
 
 		// clean up subgraphs
-		for(unordered_set<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
+		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
 			Subgraph::Delete(*iter);
 	}
 
@@ -341,8 +341,12 @@ namespace CibraryEngine
 
 		static RelevantObjectsQuery relevant_objects;
 
-		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
-			(*iter)->GetRelevantObjects(aabb, relevant_objects);
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		{
+			vector<PhysicsRegion*>& bucket = body->regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->GetRelevantObjects(aabb, relevant_objects);
+		}
 
 		body->RemoveConstrainedBodies(relevant_objects);
 
@@ -385,8 +389,12 @@ namespace CibraryEngine
 		// find out what might be colliding with us
 		static RelevantObjectsQuery relevant_objects;
 
-		for(set<PhysicsRegion*>::iterator iter = body->regions.begin(); iter != body->regions.end(); ++iter)
-			(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		{
+			vector<PhysicsRegion*>& bucket = body->regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
+		}
 
 		body->RemoveConstrainedBodies(relevant_objects);
 
@@ -502,10 +510,14 @@ namespace CibraryEngine
 
 		region_man->OnObjectRemoved(r, r->regions);
 
-		const set<PhysicsRegion*>& regions = r->regions;
-		for(set<PhysicsRegion*>::const_iterator iter = regions.begin(); iter != regions.end(); ++iter)
-			(*iter)->RemoveRigidBody(r);
-		r->regions.clear();
+		const RegionSet& regions = r->regions;
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		{
+			vector<PhysicsRegion*>& bucket = r->regions.buckets[i];
+			for(vector<PhysicsRegion*>::const_iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->RemoveRigidBody(r);
+		}
+		r->regions.Clear();
 
 		const set<RigidBody*>& disabled_collisions = r->disabled_collisions;
 		for(set<RigidBody*>::iterator iter = disabled_collisions.begin(); iter != disabled_collisions.end(); ++iter)
@@ -1030,12 +1042,14 @@ namespace CibraryEngine
 		if(relevant_triangles.empty())
 			return;
 
+		vector<Sphere> my_spheres;															// CollideMesh function will modify this if it's empty, otherwise use existing values
+
 		ContactPoint p;
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
 			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
 
-			if(ishape->CollideMesh(inv_net_xform, tri, p, ibody, jbody))
+			if(ishape->CollideMesh(inv_net_xform, my_spheres, tri, p, ibody, jbody))
 			{
 				p.a.pos = j_xform.TransformVec3_1(p.a.pos);
 				p.b.pos = j_xform.TransformVec3_1(p.b.pos);

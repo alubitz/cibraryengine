@@ -44,7 +44,7 @@ namespace CibraryEngine
 	GridRegionManager::~GridRegionManager() { }
 
 
-	void GridRegionManager::OnObjectAdded(RigidBody* object, set<PhysicsRegion*>& object_regions)
+	void GridRegionManager::OnObjectAdded(RigidBody* object, RegionSet& object_regions)
 	{
 		if(object->GetShapeType() != ST_InfinitePlane)
 		{
@@ -77,7 +77,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void GridRegionManager::OnObjectUpdate(RigidBody* object, set<PhysicsRegion*>& object_regions, float timestep)
+	void GridRegionManager::OnObjectUpdate(RigidBody* object, RegionSet& object_regions, float timestep)
 	{
 		int x1, y1, z1, x2, y2, z2;
 		AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
@@ -89,7 +89,13 @@ namespace CibraryEngine
 		y2 = min(y0 + dy - 1, y2);
 		z2 = min(z0 + dz - 1, z2);
 
-		set<PhysicsRegion*> ditch(object_regions.begin(), object_regions.end());
+		set<PhysicsRegion*> ditch;
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		{
+			vector<PhysicsRegion*>& bucket = object_regions.buckets[i];
+			ditch.insert(bucket.begin(), bucket.end());
+		}
+
 		set<PhysicsRegion*> add;
 
 		for(int x = x1; x < x2; ++x)
@@ -107,26 +113,27 @@ namespace CibraryEngine
 
 		for(set<PhysicsRegion*>::iterator iter = add.begin(); iter != add.end(); ++iter)
 		{
-			object_regions.insert(*iter);
+			object_regions.Insert(*iter);
 			(*iter)->AddRigidBody(object);
 		}
 
 		for(set<PhysicsRegion*>::iterator iter = ditch.begin(); iter != ditch.end(); ++iter)
 		{
-			object_regions.erase(*iter);
+			object_regions.Erase(*iter);
 			(*iter)->RemoveRigidBody(object);
 		}
 
-		if(object_regions.empty() && orphan_callback)
+		if(!object_regions.count && orphan_callback)
 			orphan_callback->OnObjectOrphaned(object);
 	}
 
-	void GridRegionManager::OnObjectRemoved(RigidBody* object, set<PhysicsRegion*>& object_regions)
+	void GridRegionManager::OnObjectRemoved(RigidBody* object, RegionSet& object_regions)
 	{
-		for(set<PhysicsRegion*>::iterator iter = object_regions.begin(); iter != object_regions.end(); ++iter)
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
 		{
-			PhysicsRegion* region = *iter;
-			region->RemoveRigidBody(object);
+			vector<PhysicsRegion*>& bucket = object_regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->RemoveRigidBody(object);
 		}
 
 		if(object->GetShapeType() == ST_InfinitePlane)

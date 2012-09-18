@@ -1012,16 +1012,18 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollideMesh(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
+		bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
-			static const Sphere unit_sphere(Vec3(), 1.0f);
-
 			// vector containing just the spheres (no extra stuff like cutting planes, etc.) transformed into the triangle's coordinate system
-			vector<Sphere> my_spheres;
-			my_spheres.reserve(spheres.size());
+			if(my_spheres.empty())
+			{
+				my_spheres.reserve(spheres.size());
 
-			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
-				my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
+				for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
+					my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
+			}
+
+			static const Sphere unit_sphere(Vec3(), 1.0f);
 
 			// try to find a separating axis
 			struct Scorer
@@ -1273,7 +1275,7 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, other, result, ibody, jbody); }
-	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, tri, result, ibody, jbody); }
+	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, my_spheres, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 
