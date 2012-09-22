@@ -232,10 +232,9 @@ namespace CibraryEngine
 
 #if PROFILE_PROGRAM_RUN
 			ProfilingTimer timer, timer2;
+			timer2.Start();
 			volatile bool reset_times = false;
 #endif
-
-			timer2.Start();
 
 			while(!finished)
 			{
