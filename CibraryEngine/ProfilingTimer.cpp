@@ -15,7 +15,7 @@ namespace CibraryEngine
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t); 
 
-		start = (unsigned long int)t.QuadPart;
+		_start = (unsigned long int)t.QuadPart;
 	}
 
 	float ProfilingTimer::Stop()
@@ -23,7 +23,7 @@ namespace CibraryEngine
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t);
 
-		stop = (unsigned long int)t.QuadPart;
+		_stop = (unsigned long int)t.QuadPart;
 
 		return GetElapsedTime();
 	}
@@ -34,6 +34,6 @@ namespace CibraryEngine
 		QueryPerformanceFrequency(&t);
 
 		unsigned long int freq = (unsigned long int)t.QuadPart;
-		return float(stop - start) / freq;
+		return float(_stop - _start) / freq;
 	}
 }

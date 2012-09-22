@@ -33,7 +33,7 @@ namespace CibraryEngine
 
 			bool IsPointRelevant(const Vec3& point) const
 			{
-				for(vector<Plane>::const_iterator iter = planes.begin(); iter != planes.end(); ++iter)
+				for(vector<Plane>::const_iterator iter = planes.begin(), planes_end = planes.end(); iter != planes_end; ++iter)
 					if(iter->PointDistance(point) < 0)
 						return false;
 				return true;
@@ -749,7 +749,7 @@ namespace CibraryEngine
 			bool any = false;
 
 			vector<Circle> circles;
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 			{
 				if(!any && renderer->camera->CheckSphereVisibility(Sphere(model_mat.TransformVec3_1(iter->sphere.center), iter->sphere.radius)))
 					any = true;
@@ -776,10 +776,10 @@ namespace CibraryEngine
 				float farthest;
 				Vec3 cur;
 
-				vector<Circle>::iterator iter = circles.begin();
+				vector<Circle>::iterator iter = circles.begin(), circles_end = circles.end();
 				iter->SetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
-				for(++iter; iter != circles.end(); ++iter)
+				for(++iter; iter != circles_end; ++iter)
 					iter->MaybeSetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				if(i != 0)
@@ -793,7 +793,7 @@ namespace CibraryEngine
 #if 1
 			// this will produce a tighter fitting AABB than aabb.GetTransformedAABB(xform), but it may be slower (especially if there are more than 8 spheres!)
 			AABB xformed_aabb;
-			for(vector<SpherePart>::const_iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::const_iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 			{
 				const Sphere& sphere = iter->sphere;
 				Vec3 pos = xform.TransformVec3_1(sphere.center);
@@ -857,7 +857,7 @@ namespace CibraryEngine
 			bool any = false;
 
 			float t;
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 				if(iter->RayTest(ray, cp.b, t))
 					if(!any || t < time)
 					{
@@ -867,7 +867,7 @@ namespace CibraryEngine
 						any = true;
 					}
 
-			for(vector<TubePart>::iterator iter = tubes.begin(); iter != tubes.end(); ++iter)
+			for(vector<TubePart>::iterator iter = tubes.begin(), tubes_end = tubes.end(); iter != tubes_end; ++iter)
 				if(iter->RayTest(ray, cp.b, t))
 					if(!any || t < time)
 					{
@@ -877,7 +877,7 @@ namespace CibraryEngine
 						any = true;
 					}
 
-			for(vector<PlanePart>::iterator iter = planes.begin(); iter != planes.end(); ++iter)
+			for(vector<PlanePart>::iterator iter = planes.begin(), planes_end = planes.end(); iter != planes_end; ++iter)
 				if(iter->RayTest(ray, cp.b, t))
 					if(!any || t < time)
 					{
@@ -901,7 +901,7 @@ namespace CibraryEngine
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
 
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 			{
 				Vec3 sphere_pos = my_xform.TransformVec3_1(iter->sphere.center);
 				float radius = iter->sphere.radius;
@@ -938,14 +938,14 @@ namespace CibraryEngine
 				vector<Sphere> my_spheres;
 				my_spheres.reserve(spheres.size());
 
-				for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+				for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 					my_spheres.push_back(iter->sphere);
 
 				// transform spheres from the other multisphereshape into our own coordinate system
 				vector<Sphere> other_spheres;
 				other_spheres.reserve(other_imp.spheres.size());
 
-				for(vector<SpherePart>::iterator iter = other_imp.spheres.begin(); iter != other_imp.spheres.end(); ++iter)
+				for(vector<SpherePart>::iterator iter = other_imp.spheres.begin(), spheres_end = other_imp.spheres.end(); iter != spheres_end; ++iter)
 					other_spheres.push_back(Sphere(xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 
 				// try to find a separating axis
@@ -960,7 +960,7 @@ namespace CibraryEngine
 				static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
 				static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
 
-				for(char i = 0; i < 20; ++i)
+				for(char i = 0; i < 5; ++i)
 				{
 					float best_score;
 
@@ -1015,7 +1015,7 @@ namespace CibraryEngine
 		bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			// vector containing just the spheres (no extra stuff like cutting planes, etc.) transformed into the triangle's coordinate system
-			if(my_spheres.empty())
+			if(my_spheres.empty())		// only compute this if it hasn't been computed already
 			{
 				my_spheres.reserve(spheres.size());
 
@@ -1065,30 +1065,24 @@ namespace CibraryEngine
 			{
 				const Vec3& s = iter->center;
 
-				Vec3 sa = s - tri.a;
-				Vec3 sb = s - tri.b;
-				Vec3 sc = s - tri.c;
+				Vec3 sa = tri.a - s;
+				Vec3 sb = tri.b - s;
+				Vec3 sc = tri.c - s;
 
 				// ... vs. triangle's verts
-				if(scorer.Score(-sa))		{ return false; }
 				if(scorer.Score(sa))		{ return false; }
-				if(scorer.Score(-sb))		{ return false; }
 				if(scorer.Score(sb))		{ return false; }
-				if(scorer.Score(-sc))		{ return false; }
 				if(scorer.Score(sc))		{ return false; }
 
 				// ... vs. triangle's edges
-				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(tri.ab, sa)));
+				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(sa, tri.ab)));
 				if(scorer.Score(absnabn))	{ return false; }
-				if(scorer.Score(-absnabn))	{ return false; }
 
-				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(tri.bc, sb)));
+				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(sb, tri.bc)));
 				if(scorer.Score(bcsnbcn))	{ return false; }
-				if(scorer.Score(-bcsnbcn))	{ return false; }
 
-				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(tri.ac, sc)));		// would be -ac, but there are two of them
+				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(sc, tri.ac)));		// would be -ac, but there are two of them
 				if(scorer.Score(casncan))	{ return false; }
-				if(scorer.Score(-casncan))	{ return false; }
 			}
 
 			// my tubes ...
@@ -1150,10 +1144,6 @@ namespace CibraryEngine
 				}
 			}
 
-			// my planes
-			for(vector<PlanePart>::iterator iter = planes.begin(), planes_end = planes.end(); iter != planes_end; ++iter)
-				if(scorer.Score(my_xform.TransformVec3_0(iter->plane.normal)))	{ return false; }
-
 			// triangle's planes
 			if(scorer.Score(tri.plane.normal))	{ return false; }
 			if(scorer.Score(-tri.plane.normal))	{ return false; }
@@ -1188,7 +1178,7 @@ namespace CibraryEngine
 		void Write(ostream& stream)
 		{
 			WriteUInt32(spheres.size(), stream);
-			for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
+			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 			{
 				WriteVec3(iter->sphere.center, stream);
 				WriteSingle(iter->sphere.radius, stream);

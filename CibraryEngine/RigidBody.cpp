@@ -197,14 +197,14 @@ namespace CibraryEngine
 
 	void RigidBody::RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const
 	{
-		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(), constraints_end = constraints.end(); iter != constraints_end; ++iter)
 		{
 			const PhysicsConstraint* c = *iter;
 			if(RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a)
 				eligible_bodies.Erase(other);
 		}
 
-		for(set<RigidBody*>::const_iterator iter = disabled_collisions.begin(); iter != disabled_collisions.end(); ++iter)
+		for(set<RigidBody*>::const_iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
 			eligible_bodies.Erase(*iter);
 	}
 

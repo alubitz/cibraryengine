@@ -10,13 +10,14 @@ namespace CibraryEngine
 	{
 	private:
 
-		unsigned long int start;
-		unsigned long int stop;
+		unsigned long int _start;
+		unsigned long int _stop;
 
 	public:
 
 		void Start();
 		float Stop();
+		float GetAndRestart() { float result = Stop(); Start(); return result; }
 
 		float GetElapsedTime();
 	};

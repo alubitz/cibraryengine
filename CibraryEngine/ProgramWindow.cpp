@@ -4,10 +4,26 @@
 
 #include "DebugLog.h"
 
+#include "ProfilingTimer.h"
+
+#define PROFILE_PROGRAM_RUN 0
+
 #include <winsock2.h>
 
 namespace CibraryEngine
 {
+
+#if PROFILE_PROGRAM_RUN
+	static float timer_run_loop = 0.0f;
+	static float timer_check_input = 0.0f;
+	static float timer_update = 0.0f;
+	static float timer_draw = 0.0f;
+	static unsigned int counter_run_loop = 0;
+#endif
+
+
+
+
 	/*
 	 * Private implementation for class ProgramWindow
 	 */
@@ -214,18 +230,68 @@ namespace CibraryEngine
 			current_screen = initial_screen;
 			current_screen->Activate();
 
+#if PROFILE_PROGRAM_RUN
+			ProfilingTimer timer, timer2;
+			volatile bool reset_times = false;
+#endif
+
+			timer2.Start();
+
 			while(!finished)
 			{
+#if PROFILE_PROGRAM_RUN
+				timer.Start();
+#endif
 				if(CheckInput())
 				{
+#if PROFILE_PROGRAM_RUN
+					timer_check_input += timer.GetAndRestart();
+#endif
+
 					Update();
+
+#if PROFILE_PROGRAM_RUN
+					timer_update += timer.GetAndRestart();
+#endif
 
 					Draw();
 					SwapBuffers(device_context);
 
+#if PROFILE_PROGRAM_RUN
+					timer_draw += timer.Stop();
+#endif
+
 					//Sleep(1);			// will actually be more like Sleep(15) because of the low timer resolution
 				}
+#if PROFILE_PROGRAM_RUN
+				else
+					timer_check_input += timer.Stop();
+
+				timer_run_loop += timer2.Stop();
+				++counter_run_loop;
+
+				if(reset_times)
+				{
+					timer_run_loop = 0.0f;
+					timer_check_input = 0.0f;
+					timer_draw = 0.0f;
+					timer_update = 0.0f;
+					counter_run_loop = 0;
+
+					reset_times = false;
+				}
+
+				timer2.Start();
+#endif
 			}
+
+#if PROFILE_PROGRAM_RUN
+			Debug(((stringstream&)(stringstream() << "total for " << counter_run_loop << " iterations of main program loop = " << timer_run_loop	<< endl)).str());
+			Debug(((stringstream&)(stringstream() << '\t' << "check input =\t\t\t"	<< timer_check_input											<< endl)).str());
+			Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t\t"		<< timer_update													<< endl)).str());
+			Debug(((stringstream&)(stringstream() << '\t' << "draw =\t\t\t\t\t"		<< timer_draw													<< endl)).str());
+			Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t" << timer_check_input + timer_update + timer_draw				<< endl)).str());
+#endif
 
 			return 0;
 		}

@@ -8,8 +8,26 @@
 
 #include "Scripting.h"
 
+#include "DebugLog.h"
+#include "ProfilingTimer.h"
+
+#define PROFILE_GAMESTATE_UPDATE 0
+
 namespace CibraryEngine
 {
+
+#if PROFILE_GAMESTATE_UPDATE
+	static float timer_total = 0.0f;
+	static float timer_update = 0.0f;
+	static float timer_spawn = 0.0f;
+	static float timer_physics = 0.0f;
+#endif
+
+
+
+	/*
+	 * GameState methods
+	 */
 	GameState::GameState() : spawn_directly(true), entities(), spawning(), content(NULL), network_role(NR_SinglePlayer), sound_system(NULL)
 	{
 		physics_world = new PhysicsWorld(); 
@@ -43,12 +61,29 @@ namespace CibraryEngine
 		physics_world->Dispose();
 		delete physics_world;
 		physics_world = NULL;
+
+#if PROFILE_GAMESTATE_UPDATE
+		Debug(((stringstream&)(stringstream() << "total within GameState::Update = " << timer_total << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t" << timer_update << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "spawn =\t\t\t\t" << timer_spawn << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "physics =\t\t\t" << timer_physics << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t" << timer_update + timer_spawn + timer_physics << endl)).str());
+#endif
 	}
 
 	void GameState::Update(TimingInfo time)
 	{
+#if PROFILE_GAMESTATE_UPDATE
+		ProfilingTimer timer, timer2;
+		timer2.Start();
+#endif
+
 		total_game_time = time.total;
 		elapsed_game_time = time.elapsed;
+
+#if PROFILE_GAMESTATE_UPDATE
+		timer.Start();
+#endif
 
 		spawn_directly = false;
 
@@ -67,6 +102,10 @@ namespace CibraryEngine
 			}
 		}
 
+#if PROFILE_GAMESTATE_UPDATE
+		timer_update += timer.GetAndRestart();
+#endif
+
 		for(list<Entity*>::iterator jter = spawning.begin(); jter != spawning.end(); ++jter)
 		{
 			(*jter)->Spawned();
@@ -74,12 +113,24 @@ namespace CibraryEngine
 		}
 		spawning.clear();
 
+#if PROFILE_GAMESTATE_UPDATE
+		timer_spawn += timer.GetAndRestart();
+#endif
+
 		physics_world->Update(time);
+
+#if PROFILE_GAMESTATE_UPDATE
+		timer_physics += timer.Stop();
+#endif
 
 		spawn_directly = true;
 
 		if(sound_system != NULL)
 			sound_system->Update(time);
+
+#if PROFILE_GAMESTATE_UPDATE
+		timer_total += timer2.Stop();
+#endif
 	}
 
 	void GameState::Draw(int width, int height) { }

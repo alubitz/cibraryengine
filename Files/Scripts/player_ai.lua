@@ -29,7 +29,7 @@ if force_bool(key_states[113]) then
 		nav_edit_toggle = true
 		nav_edit_mode = not nav_edit_mode
 		gs.setNavEditMode(nav_edit_mode)
-		if nav_edit_mode then gs.showChapterText("Nav editor on") else gs.showChapterText("Nav editor off") end
+		if nav_edit_mode then gs.showChapterText("Nav graph on") else gs.showChapterText("Nav graph off") end
 	end
 else nav_edit_toggle = false end
 

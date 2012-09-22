@@ -316,7 +316,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 5.0f;
+			float third_person_distance = 0.0f;
 			
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -360,19 +360,14 @@ namespace Test
 
 			origin = rigid_bodies[0]->GetPosition();
 
-			for(unsigned int i = 0; i < bone_to_rbody.size(); ++i)
+			unsigned int num_bones = bone_to_rbody.size();
+			for(unsigned int i = 0; i < num_bones; ++i)
 			{
 				Bone* bone = character->skeleton->bones[i];
 				if(RigidBody* body = bone_to_rbody[i])
 				{
-					Quaternion rigid_body_ori = body->GetOrientation();
-					Vec3 rigid_body_pos = body->GetPosition();
-
-					bone->ori = Quaternion::Reverse(rigid_body_ori);
-
-					// model origin = rigid body pos - model rot * rest pos
-					Vec3 offset = Mat4::FromQuaternion(bone->ori).TransformVec3_1(0, 0, 0);
-					bone->pos = rigid_body_pos - offset - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
+					bone->ori = Quaternion::Reverse(body->GetOrientation());
+					bone->pos = body->GetPosition() - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
 				}
 			}
 
@@ -382,26 +377,30 @@ namespace Test
 			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(timestep, now));
 
-			Vec3 net_vel;
-			Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin
-			float net_mass = 0.0f;
-			for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
-			{
-				RigidBody* body = rigid_bodies[i];
-
-				float mass = body->GetMass();
-				net_vel += body->GetLinearVelocity() * mass;
-				com += body->GetCenterOfMass() * mass;
-				rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * mass;
-				net_mass += mass;
-			}
-			net_vel /= net_mass;
-			com /= net_mass;
-			rest_com /= net_mass;
-
-			// make bones conform to pose
 			if(hp > 0)
-				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+			{
+				unsigned int num_bodies = rigid_bodies.size();
+
+				Vec3 net_vel;
+				Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin
+				float net_mass = 0.0f;
+
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+
+					float mass = body->GetMass();
+					net_vel += body->GetLinearVelocity() * mass;
+					com += body->GetCenterOfMass() * mass;
+					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * mass;
+					net_mass += mass;
+				}
+				net_vel /= net_mass;
+				com /= net_mass;
+				rest_com /= net_mass;
+
+				// make bones conform to pose
+				for(unsigned int i = 0; i < num_bodies; ++i)
 				{
 					RigidBody* body = rigid_bodies[i];
 					MassInfo mass_info = body->GetMassInfo();
@@ -426,6 +425,7 @@ namespace Test
 					Vec3 d_av = nu_av - body->GetAngularVelocity();
 					body->ApplyAngularImpulse(Mat3(body->GetTransformedMassInfo().moi) * d_av);
 				}
+			}
 
 			PostUpdatePoses(time);
 
