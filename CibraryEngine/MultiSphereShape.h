@@ -14,8 +14,26 @@ namespace CibraryEngine
 	struct Sphere;
 	struct Ray;
 
+	class MultiSphereShape;
+
+	class MultiSphereShapeInstanceCache : public ShapeInstanceCache
+	{
+		public:
+
+			bool valid;
+
+			vector<Sphere> spheres;
+			AABB aabb;
+
+			MultiSphereShapeInstanceCache();
+
+			void UpdateAsNeeded(RigidBody* body);
+	};
+
 	class MultiSphereShape : public CollisionShape
 	{
+		friend class MultiSphereShapeInstanceCache;
+
 		private:
 
 			struct Imp;
@@ -36,11 +54,12 @@ namespace CibraryEngine
 
 			MassInfo ComputeMassInfo();
 
-			bool CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody = NULL, RigidBody* jbody = NULL);						// ray pre-transformed into local coords
+			bool CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody = NULL, RigidBody* jbody = NULL);							// ray pre-transformed into local coords
 			bool CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
 			bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
-			bool CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of i xform and inverse j xform
 			bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of j xform and inverse i xform
+
+			// multisphere-multisphere is now handled in Physics.cpp
 
 			AABB GetAABB();
 

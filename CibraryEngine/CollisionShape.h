@@ -68,4 +68,11 @@ namespace CibraryEngine
 			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
 			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);
 	};
+
+	// subclass this!
+	class ShapeInstanceCache
+	{
+		public:
+			virtual ~ShapeInstanceCache() { }
+	};
 }

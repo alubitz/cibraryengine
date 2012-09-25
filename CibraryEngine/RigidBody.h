@@ -61,6 +61,7 @@ namespace CibraryEngine
 
 			MassInfo mass_info;
 			CollisionShape* shape;
+			ShapeInstanceCache* shape_cache;
 
 			// cached values for inverses of stuff
 			float inv_mass;

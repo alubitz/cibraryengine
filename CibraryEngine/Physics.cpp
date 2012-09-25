@@ -53,7 +53,7 @@ namespace CibraryEngine
 
 	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
 	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ConstraintGraph& hits);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ConstraintGraph& hits);
 
 
 
@@ -441,6 +441,11 @@ namespace CibraryEngine
 #endif
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
 
+		MultiSphereShapeInstanceCache* cache = (MultiSphereShapeInstanceCache*)body->shape_cache;
+		if(!cache)
+			body->shape_cache = cache = new MultiSphereShapeInstanceCache();
+		cache->UpdateAsNeeded(body);
+
 		Mat4 xform = body->GetTransformationMatrix();
 		Mat4 inv_xform = body->GetInvTransform();
 		AABB xformed_aabb = shape->GetTransformedAABB(xform);
@@ -485,7 +490,15 @@ namespace CibraryEngine
 		for(vector<RigidBody*>::iterator iter = relevant_objects.objects.begin(), relevant_end = relevant_objects.objects.end(); iter != relevant_end; ++iter)
 			if(RigidBody* other = *iter)
 				if(other->GetShapeType() == ST_MultiSphere)
-					DoMultisphereMultisphere(body, other, shape, xform, inv_xform, constraint_graph);
+					if(other < body)
+					{
+						MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
+						if(!other_cache)
+							other->shape_cache = other_cache = new MultiSphereShapeInstanceCache();
+						other_cache->UpdateAsNeeded(other);
+
+						DoMultisphereMultisphere(body, other, cache, other_cache, constraint_graph);
+					}
 
 		timer_msphere_msphere += timer.GetAndRestart();
 #else
@@ -505,7 +518,14 @@ namespace CibraryEngine
 
 					case ST_MultiSphere:
 						if(other < body)
-							DoMultisphereMultisphere(body, other, shape, xform, inv_xform, constraint_graph);
+						{
+							MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
+							if(!other_cache)
+								other->shape_cache = other_cache = new MultiSphereShapeInstanceCache();
+							other_cache->UpdateAsNeeded(other);
+
+							DoMultisphereMultisphere(body, other, cache, other_cache, constraint_graph);
+						}
 						break;
 				}
 			}
@@ -567,11 +587,15 @@ namespace CibraryEngine
 		}
 
 #if PROFILE_DOFIXEDSTEP
-		timer_ray_update += timer.GetAndRestart();
+		timer_ray_update += timer.Stop();
 #endif
 
 		// populate a constraint graph with all the collisions that are going on
 		ConstraintGraph constraint_graph;
+
+#if PROFILE_DOFIXEDSTEP
+		timer.Start();
+#endif
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_Sphere].begin(), spheres_end = dynamic_objects[ST_Sphere].end(); iter != spheres_end; ++iter)
 			InitiateCollisionsForSphere(*iter, timestep, constraint_graph);
@@ -579,6 +603,10 @@ namespace CibraryEngine
 #if PROFILE_DOFIXEDSTEP
 		timer_sphere_collide += timer.GetAndRestart();
 #endif
+
+		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(), mspheres_end = dynamic_objects[ST_MultiSphere].end(); iter != mspheres_end; ++iter)
+			if(MultiSphereShapeInstanceCache* mssic = (MultiSphereShapeInstanceCache*)(*iter)->shape_cache)
+				mssic->valid = false;
 
 		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(), mspheres_end = dynamic_objects[ST_MultiSphere].end(); iter != mspheres_end; ++iter)
 			InitiateCollisionsForMultisphere(*iter, timestep, constraint_graph);
@@ -1206,19 +1234,111 @@ namespace CibraryEngine
 				hits.AddContactPoint(*iter);
 	}
 
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, const Mat4& inv_xform, ConstraintGraph& hits)
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ConstraintGraph& hits)
 	{
-		MultiSphereShape* jshape = (MultiSphereShape*)jbody->GetCollisionShape();
-
-		Mat4 net_xform = inv_xform * jbody->GetTransformationMatrix();
-
 		static ContactPoint p;
-		if(ishape->CollideMultisphere(net_xform, jshape, p, ibody, jbody))
+
+		struct MaxExtentGetter
 		{
-			p.a.pos = xform.TransformVec3_1(p.a.pos);
-			p.b.pos = xform.TransformVec3_1(p.b.pos);
-			p.a.norm = xform.TransformVec3_0(p.a.norm);
-			p.b.norm = -p.a.norm;
+			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
+			{
+				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
+
+				float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
+				++iter;
+
+				while(iter != spheres_end)
+				{
+					maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
+					++iter;
+				}
+
+				return maximum;
+			}
+		} GetMaximumExtent;
+
+		struct MinExtentGetter
+		{
+			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
+			{
+				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
+
+				float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
+				++iter;
+
+				while(iter != spheres_end)
+				{
+					minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
+					++iter;
+				}
+
+				return minimum;
+			}
+		} GetMinimumExtent;
+
+		AABB overlap;
+		if(AABB::Intersect(ishape->aabb, jshape->aabb, overlap))
+		{
+			vector<Sphere>& my_spheres = ishape->spheres;
+			vector<Sphere>& other_spheres = jshape->spheres;
+
+			// try to find a separating axis
+			Vec3 direction;
+			float score = -1;
+			float search_scale = 0.6f;
+
+			char best_test;
+			Vec3 test_dir[8];
+
+			static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
+			static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
+			static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
+
+			for(char i = 0; i < 5; ++i)
+			{
+				float best_score;
+
+				for(char j = 0; j < 8; ++j)
+				{
+					Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
+						direction.x + x_offsets[j] * search_scale,
+						direction.y + y_offsets[j] * search_scale,
+						direction.z + z_offsets[j] * search_scale));
+
+					float test_score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
+
+					if(test_score < 0)							// found a separating plane? go home early
+						return;
+					else
+					{
+						if(j == 0 || test_score < best_score)
+						{
+							best_test = j;
+							best_score = test_score;
+						}
+					}
+				}
+
+				if(i != 0 && best_score >= score)
+					search_scale *= 0.5f;
+				else
+				{
+					direction = test_dir[best_test];
+					score = best_score;
+				}
+			}
+
+			p = ContactPoint();
+			p.obj_a = ibody;
+			p.obj_b = jbody;
+
+			p.a.norm = direction;
+			p.b.norm = -direction;
+
+			Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
+			Vec3 offset = direction * (score * 0.5f);
+			p.a.pos = pos - offset;
+			p.b.pos = pos + offset;
 
 			hits.AddContactPoint(p);
 		}

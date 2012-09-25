@@ -24,7 +24,7 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), constraints(), query_id(0), gravity(), mass_info(), shape(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), constraints(), query_id(0), gravity(), mass_info(), shape(NULL), shape_cache(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
 		regions(),
 		constraints(),
@@ -40,6 +40,7 @@ namespace CibraryEngine
 		gravity(),
 		mass_info(mass_info),
 		shape(shape),
+		shape_cache(NULL),
 		xform_valid(false),
 		bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
 		friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
@@ -69,6 +70,12 @@ namespace CibraryEngine
 			delete shape;
 
 			shape = NULL;
+		}
+
+		if(shape_cache != NULL)
+		{
+			delete shape_cache;
+			shape_cache = NULL;
 		}
 	}
 

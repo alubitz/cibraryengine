@@ -21,6 +21,7 @@ namespace CibraryEngine
 	static float timer_update = 0.0f;
 	static float timer_spawn = 0.0f;
 	static float timer_physics = 0.0f;
+	static unsigned int counter_game_update = 0;
 #endif
 
 
@@ -63,11 +64,11 @@ namespace CibraryEngine
 		physics_world = NULL;
 
 #if PROFILE_GAMESTATE_UPDATE
-		Debug(((stringstream&)(stringstream() << "total within GameState::Update = " << timer_total << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t" << timer_update << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "spawn =\t\t\t\t" << timer_spawn << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "physics =\t\t\t" << timer_physics << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t" << timer_update + timer_spawn + timer_physics << endl)).str());
+		Debug(((stringstream&)(stringstream() << "total for " << counter_game_update << " calls to GameState::Update = " << timer_total << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t"		<< timer_update <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "spawn =\t\t\t\t"		<< timer_spawn <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "physics =\t\t\t"		<< timer_physics <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t"	<< timer_update + timer_spawn + timer_physics << endl)).str());
 #endif
 	}
 
@@ -130,6 +131,7 @@ namespace CibraryEngine
 
 #if PROFILE_GAMESTATE_UPDATE
 		timer_total += timer2.Stop();
+		++counter_game_update;
 #endif
 	}
 

@@ -2,6 +2,7 @@
 #include "MultiSphereShape.h"
 
 #include "Physics.h"
+#include "RigidBody.h"
 
 #include "Matrix.h"
 #include "Quaternion.h"
@@ -926,92 +927,6 @@ namespace CibraryEngine
 			return !results.empty();
 		}
 
-		bool CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
-		{
-			Imp& other_imp = *other->imp;
-			AABB other_aabb = other_imp.GetTransformedAABB(xform);
-
-			AABB overlap;
-			if(AABB::Intersect(aabb, other_aabb, overlap))
-			{
-				// vector containing just the spheres (no extra stuff like cutting planes, etc.)
-				vector<Sphere> my_spheres;
-				my_spheres.reserve(spheres.size());
-
-				for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
-					my_spheres.push_back(iter->sphere);
-
-				// transform spheres from the other multisphereshape into our own coordinate system
-				vector<Sphere> other_spheres;
-				other_spheres.reserve(other_imp.spheres.size());
-
-				for(vector<SpherePart>::iterator iter = other_imp.spheres.begin(), spheres_end = other_imp.spheres.end(); iter != spheres_end; ++iter)
-					other_spheres.push_back(Sphere(xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
-
-				// try to find a separating axis
-				Vec3 direction;
-				float score = -1;
-				float search_scale = 0.6f;
-
-				char best_test;
-				Vec3 test_dir[8];
-
-				static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
-				static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
-				static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
-
-				for(char i = 0; i < 5; ++i)
-				{
-					float best_score;
-
-					for(char j = 0; j < 8; ++j)
-					{
-						Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
-							direction.x + x_offsets[j] * search_scale,
-							direction.y + y_offsets[j] * search_scale,
-							direction.z + z_offsets[j] * search_scale));
-
-						float test_score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
-
-						if(test_score < 0)							// found a separating plane? go home early
-							return false;
-						else
-						{
-							if(j == 0 || test_score < best_score)
-							{
-								best_test = j;
-								best_score = test_score;
-							}
-						}
-					}
-
-					if(i != 0 && best_score >= score)
-						search_scale *= 0.5f;
-					else
-					{
-						direction = test_dir[best_test];
-						score = best_score;
-					}
-				}
-
-				result = ContactPoint();
-				result.obj_a = ibody;
-				result.obj_b = jbody;
-
-				result.a.norm = direction;
-				result.b.norm = -direction;
-
-				Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
-				Vec3 offset = direction * (score * 0.5f);
-				result.a.pos = pos - offset;
-				result.b.pos = pos + offset;
-
-				return true;
-			}
-
-			return false;
-		}
-
 		bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
 		{
 			// vector containing just the spheres (no extra stuff like cutting planes, etc.) transformed into the triangle's coordinate system
@@ -1070,19 +985,19 @@ namespace CibraryEngine
 				Vec3 sc = tri.c - s;
 
 				// ... vs. triangle's verts
-				if(scorer.Score(sa))		{ return false; }
-				if(scorer.Score(sb))		{ return false; }
-				if(scorer.Score(sc))		{ return false; }
+				if(scorer.Score(Vec3::Normalize(sa)))	{ return false; }
+				if(scorer.Score(Vec3::Normalize(sb)))	{ return false; }
+				if(scorer.Score(Vec3::Normalize(sc)))	{ return false; }
 
 				// ... vs. triangle's edges
 				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(sa, tri.ab)));
-				if(scorer.Score(absnabn))	{ return false; }
+				if(scorer.Score(absnabn))				{ return false; }
 
 				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(sb, tri.bc)));
-				if(scorer.Score(bcsnbcn))	{ return false; }
+				if(scorer.Score(bcsnbcn))				{ return false; }
 
 				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(sc, tri.ac)));		// would be -ac, but there are two of them
-				if(scorer.Score(casncan))	{ return false; }
+				if(scorer.Score(casncan))				{ return false; }
 			}
 
 			// my tubes ...
@@ -1098,6 +1013,7 @@ namespace CibraryEngine
 
 				// ... vs. triangle's verts
 				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)), sin_theta);
+
 				if(scorer.Score(u_cos_theta + atntn))	{ return false; }
 				if(scorer.Score(u_cos_theta - atntn))	{ return false; }
 
@@ -1226,22 +1142,6 @@ namespace CibraryEngine
 
 			return maximum;
 		}
-
-		static float GetMinimumExtent(const Vec3& direction, const vector<Sphere>& spheres)
-		{
-			vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
-
-			float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
-			++iter;
-
-			while(iter != spheres_end)
-			{
-				minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
-				++iter;
-			}
-
-			return minimum;
-		}
 	};
 
 
@@ -1264,11 +1164,44 @@ namespace CibraryEngine
 	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
 	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
-	bool MultiSphereShape::CollideMultisphere(const Mat4& xform, const MultiSphereShape* other, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMultisphere(xform, other, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, my_spheres, tri, result, ibody, jbody); }
 
 	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
 
 	void MultiSphereShape::Write(ostream& stream) { imp->Write(stream); }
 	unsigned int MultiSphereShape::Read(istream& stream) { return imp->Read(stream); }
+
+
+
+
+	/*
+	 * MultiSphereShapeInstanceCache methods
+	 */
+	MultiSphereShapeInstanceCache::MultiSphereShapeInstanceCache() : valid(false), spheres(), aabb() { }
+
+	void MultiSphereShapeInstanceCache::UpdateAsNeeded(RigidBody* body)
+	{
+		if(!valid)
+		{
+			MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
+			MultiSphereShape::Imp* imp = shape->imp;
+
+			Mat4 xform = body->GetTransformationMatrix();
+
+			spheres.clear();
+			for(unsigned int i = 0; i < imp->spheres.size(); ++i)
+			{
+				Sphere s = imp->spheres[i].sphere;
+				s = Sphere(xform.TransformVec3_1(s.center), s.radius);
+				spheres.push_back(s);
+
+				if(!i)
+					aabb = AABB(s.center, s.radius);
+				else
+					aabb.Expand(AABB(s.center, s.radius));
+			}
+
+			valid = true;
+		}
+	}
 }
