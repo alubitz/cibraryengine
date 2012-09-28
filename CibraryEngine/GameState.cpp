@@ -65,10 +65,10 @@ namespace CibraryEngine
 
 #if PROFILE_GAMESTATE_UPDATE
 		Debug(((stringstream&)(stringstream() << "total for " << counter_game_update << " calls to GameState::Update = " << timer_total << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t"		<< timer_update <<	endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "spawn =\t\t\t\t"		<< timer_spawn <<	endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "physics =\t\t\t"		<< timer_physics <<	endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t"	<< timer_update + timer_spawn + timer_physics << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "update =\t\t\t\t"		<< timer_update <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "spawn =\t\t\t\t\t"	<< timer_spawn <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "physics =\t\t\t\t"	<< timer_physics <<	endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"	<< timer_update + timer_spawn + timer_physics << endl)).str());
 #endif
 	}
 

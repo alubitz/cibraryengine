@@ -965,7 +965,7 @@ namespace CibraryEngine
 						direction = dir;
 						first = false;
 					}
-					else
+					else if(value < least)
 					{
 						least = value;
 						direction = dir;
@@ -974,6 +974,12 @@ namespace CibraryEngine
 					return value <= 0;
 				}
 			} scorer(my_spheres, tri);
+
+
+
+			// triangle's planes
+			if(scorer.Score(-tri.plane.normal))	{ return false; }
+			if(scorer.Score(tri.plane.normal))	{ return false; }
 
 			// my spheres ...
 			for(vector<Sphere>::iterator iter = my_spheres.begin(), spheres_end = my_spheres.end(); iter != spheres_end; ++iter)
@@ -1013,56 +1019,14 @@ namespace CibraryEngine
 
 				// ... vs. triangle's verts
 				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)), sin_theta);
-
-				if(scorer.Score(u_cos_theta + atntn))	{ return false; }
 				if(scorer.Score(u_cos_theta - atntn))	{ return false; }
 
 				Vec3 btntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.b - p1)), sin_theta);
-				if(scorer.Score(u_cos_theta + btntn))	{ return false; }
 				if(scorer.Score(u_cos_theta - btntn))	{ return false; }
 
 				Vec3 ctntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.c - p1)), sin_theta);
-				if(scorer.Score(u_cos_theta + ctntn))	{ return false; }
 				if(scorer.Score(u_cos_theta - ctntn))	{ return false; }
-
-				// ... vs. triangle's edges
-				Line abtl;
-				if(Plane::Intersect(Plane(tri.ab * tri.inv_len_ab, 0.0f), my_plane, abtl))
-				{
-					float first, second;
-					if(Util::RaySphereIntersect(Ray(abtl), unit_sphere, first, second))
-					{
-						if(scorer.Score(abtl.origin + abtl.direction * first))	{ return false; }
-						if(scorer.Score(abtl.origin + abtl.direction * second))	{ return false; }
-					}
-				}
-
-				Line bctl;
-				if(Plane::Intersect(Plane(tri.bc * tri.inv_len_bc, 0.0f), my_plane, bctl))
-				{
-					float first, second;
-					if(Util::RaySphereIntersect(Ray(bctl), unit_sphere, first, second))
-					{
-						if(scorer.Score(bctl.origin + bctl.direction * first))	{ return false; }
-						if(scorer.Score(bctl.origin + bctl.direction * second))	{ return false; }
-					}
-				}
-
-				Line catl;
-				if(Plane::Intersect(Plane(-tri.ac * tri.inv_len_ca, 0.0f), my_plane, catl))
-				{
-					float first, second;
-					if(Util::RaySphereIntersect(Ray(catl), unit_sphere, first, second))
-					{
-						if(scorer.Score(catl.origin + catl.direction * first))	{ return false; }
-						if(scorer.Score(catl.origin + catl.direction * second))	{ return false; }
-					}
-				}
 			}
-
-			// triangle's planes
-			if(scorer.Score(tri.plane.normal))	{ return false; }
-			if(scorer.Score(-tri.plane.normal))	{ return false; }
 
 
 

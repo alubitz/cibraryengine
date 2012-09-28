@@ -126,7 +126,7 @@ namespace Test
 	{
 #if 0
 		if(time.total > 5.0f)
-			Die(Damage());
+			TakeDamage(Damage(NULL, 2.0f), Vec3());
 #endif
 
 		Dood::Update(time);

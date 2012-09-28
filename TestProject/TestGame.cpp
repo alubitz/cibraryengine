@@ -627,7 +627,7 @@ namespace Test
 		}
 		load_status.task = "starting game";
 
-		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 1, 1), NULL, NULL);
+		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 0.95f, 0.8f), NULL, NULL);
 
 		hud = new HUD(this, screen->content);
 
@@ -953,8 +953,7 @@ namespace Test
 			glViewport(0, 0, width, height);
 			glColorMask(true, true, true, false);
 
-			float light_pos[] = { imp->sun->position.x, imp->sun->position.y, imp->sun->position.z, 0.0f };
-			glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+			imp->sun->SetLight(0);
 
 			ShaderProgram* deferred_lighting = imp->deferred_lighting;
 			deferred_lighting->SetUniform<Texture2D>	("diffuse",				render_target->GetColorBufferTex(0));
@@ -971,6 +970,8 @@ namespace Test
 			deferred_lighting->SetUniform<float>		("zoom",				&zoom);
 
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
+
+			imp->sun->UnsetLight(0);
 
 			// re-draw the depth buffer (previous draw was on a different RenderTarget)
 			glDepthMask(true);
