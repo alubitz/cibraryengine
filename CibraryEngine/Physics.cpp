@@ -34,6 +34,7 @@
 
 #define PROFILE_DOFIXEDSTEP 0
 #define PROFILE_COLLIDE_MSPHERE 0						// warning: if both are enabled, the results for DoFixedStep will be skewed
+#define PROFILE_SOLVE_CGRAPH 0							// not so much skewing from this, though
 
 namespace CibraryEngine
 {
@@ -158,6 +159,15 @@ namespace CibraryEngine
 	static float timer_conclude = 0.0f;
 #endif
 
+#if PROFILE_SOLVE_CGRAPH
+	static float timer_cgraph_whole = 0.0f;
+	static float timer_cgraph_setup = 0.0f;
+	static float timer_cgraph_shutdown = 0.0f;
+	static float timer_make_subgraphs = 0.0f;
+	static float timer_do_constraints = 0.0f;
+	static unsigned int counter_solve_cgraph = 0;
+#endif
+
 
 
 
@@ -234,6 +244,15 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "conclude =\t\t\t\t"		<< timer_conclude						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_init_msphere_init + timer_get_relevant + timer_remove_constrained + timer_msphere_msphere + timer_msphere_mesh + timer_msphere_plane + timer_conclude << endl)).str());
 #endif
+
+#if PROFILE_SOLVE_CGRAPH
+		Debug(((stringstream&)(stringstream() << "total for " << counter_solve_cgraph << " calls to SolveConstraintGraph = " << timer_cgraph_whole << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "cgraph_setup =\t\t\t"		<< timer_cgraph_setup					<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "make_subgraphs =\t\t"		<< timer_make_subgraphs					<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "do_constraints =\t\t"		<< timer_do_constraints					<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "cgraph_shutdown =\t\t"	<< timer_cgraph_shutdown				<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_cgraph_setup + timer_make_subgraphs + timer_do_constraints + timer_cgraph_shutdown << endl)).str());
+#endif
 	}
 
 
@@ -292,6 +311,12 @@ namespace CibraryEngine
 
 	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
 	{
+#if PROFILE_SOLVE_CGRAPH
+		ProfilingTimer timer, timer2;
+		timer2.Start();
+		timer.Start();
+#endif
+
 		unsigned int graph_nodes = graph.nodes.size();
 
 		// break the graph into separate subgraphs
@@ -302,6 +327,10 @@ namespace CibraryEngine
 		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
 
 		vector<ConstraintGraph::Node*> fringe(graph_nodes);
+
+#if PROFILE_SOLVE_CGRAPH
+		timer_cgraph_setup += timer.GetAndRestart();
+#endif
 
 		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(), nodes_end = graph.nodes.end(); iter != nodes_end; ++iter)
 		{
@@ -340,6 +369,10 @@ namespace CibraryEngine
 			}
 		}
 
+#if PROFILE_SOLVE_CGRAPH
+		timer_make_subgraphs += timer.GetAndRestart();
+#endif
+
 		vector<PhysicsConstraint*> active;
 		unordered_set<PhysicsConstraint*> nu_active;
 		vector<RigidBody*> wakeup_list;
@@ -376,9 +409,20 @@ namespace CibraryEngine
 			}
 		}
 
+#if PROFILE_SOLVE_CGRAPH
+		timer_do_constraints += timer.GetAndRestart();
+#endif
+
 		// clean up subgraphs
 		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
 			Subgraph::Delete(*iter);
+
+#if PROFILE_SOLVE_CGRAPH
+		timer_cgraph_shutdown += timer.Stop();
+		timer_cgraph_whole += timer2.Stop();
+
+		++counter_solve_cgraph;
+#endif
 	}
 
 	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)

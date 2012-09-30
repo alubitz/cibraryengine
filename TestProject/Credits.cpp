@@ -21,24 +21,18 @@ namespace Test
 			ContentMan* content = menu->content;
 
 			int index = 0;
-			auto_menu_items.push_back(new AutoMenuItem(content, "Credits", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Programming", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Artwork", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    Trevor Finney", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "Instructor", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    M. Q. Azhar", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Credits",													index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------",	index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Programming & Artwork",									index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "    Andrew Lubitz              andrew.lubitz@gmail.com",	index++, false));
 			index++;
-			auto_menu_items.push_back(new AutoMenuItem(content, "Made at the Art Institute of Washington", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP350 Skeletal Animation", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP215 Programming for Shading and Dynamics", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    VGP Independent Study", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Additional Stuff",											index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "     Terrain textures from cgtextures.com",				index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "     Font from NeHe tutorials",							index++, false));
 			index++;
-			auto_menu_items.push_back(new AutoMenuItem(content, "Contact Info", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    aml316@stu.aii.edu", index++, false));
-			auto_menu_items.push_back(new AutoMenuItem(content, "    andrew.lubitz@gmail.com", index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "Special Thanks",											index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "     Prof. M. Q. Azhar",									index++, false));
+			auto_menu_items.push_back(new AutoMenuItem(content, "     Trevor Finney",										index++, false));
 			index++;
 			auto_menu_items.push_back(new BackButton(content, index));
 
