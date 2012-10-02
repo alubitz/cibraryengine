@@ -23,12 +23,15 @@ namespace CibraryEngine
 
 	class RigidBody;
 	class PhysicsConstraint;
+	struct ContactPoint;
 	class CollisionCallback;
 	struct ConstraintGraph;
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
 	struct RegionSet;
+
+	struct RelevantObjectsQuery;
 
 	class SceneRenderer;
 
@@ -53,7 +56,7 @@ namespace CibraryEngine
 			void SolveConstraintGraph(ConstraintGraph& graph);
 
 			void InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& contraint_graph);
-			void InitiateCollisionsForMultisphere(RigidBody* body, float timestep, ConstraintGraph& constrain_graph);
+			void InitiateCollisionsForMultisphere(RigidBody* body, float timestep, RelevantObjectsQuery& query, vector<ContactPoint>& contact_points);
 
 			void DoFixedStep();
 

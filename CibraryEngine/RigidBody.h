@@ -47,8 +47,6 @@ namespace CibraryEngine
 			set<PhysicsConstraint*> constraints;
 			set<RigidBody*> disabled_collisions;
 
-			unsigned int temporary_id, query_id;
-
 			Vec3 pos;
 			Vec3 vel;
 			Quaternion ori;
@@ -201,9 +199,10 @@ namespace CibraryEngine
 
 	struct RelevantObjectsQuery
 	{
-		vector<RigidBody*> objects;
+		static const unsigned int hash_size = 17;
 
-		unsigned int query_id;
+		vector<RigidBody*> buckets[hash_size];
+		unsigned int count;
 
 		RelevantObjectsQuery();
 		~RelevantObjectsQuery();
@@ -211,6 +210,6 @@ namespace CibraryEngine
 		void Insert(RigidBody* object);
 		void Erase(RigidBody* object);
 
-		void ConcludeQuery();
+		void Clear();
 	};
 }

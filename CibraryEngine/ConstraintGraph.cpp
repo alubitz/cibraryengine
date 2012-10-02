@@ -88,19 +88,13 @@ namespace CibraryEngine
 		constraints.clear();
 	}
 
-	void ConstraintGraph::AddContactPoint(const ContactPoint& cp)
-	{
-		ContactPoint* cp_ptr = NewCP(cp);
-		contact_points.push_back(cp_ptr);
-		AddConstraint(cp_ptr);
-	}
+	void ConstraintGraph::AddContactPoint(const ContactPoint& cp) { contact_points.push_back(NewCP(cp)); }
 
 	void ConstraintGraph::AddConstraint(PhysicsConstraint* constraint)
 	{
 		RigidBody* body_a = constraint->obj_a;
 		if(body_a->MergesSubgraphs())
 		{
-			unsigned int cp_index = constraints.size();
 			constraints.push_back(constraint);
 
 			Node* node_a;

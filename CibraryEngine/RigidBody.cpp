@@ -24,11 +24,10 @@ namespace CibraryEngine
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), constraints(), query_id(0), gravity(), mass_info(), shape(NULL), shape_cache(NULL), user_entity(NULL), collision_callback(NULL) { }
+	RigidBody::RigidBody() : regions(), constraints(), gravity(), mass_info(), shape(NULL), shape_cache(NULL), user_entity(NULL), collision_callback(NULL) { }
 	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
 		regions(),
 		constraints(),
-		query_id(0),
 		pos(pos),
 		vel(),
 		ori(ori),
@@ -377,34 +376,45 @@ namespace CibraryEngine
 	/*
 	 * RelevantObjectsQuery methods
 	 */
-	static unsigned int next_query_id = 1;
-	RelevantObjectsQuery::RelevantObjectsQuery() : objects(), query_id(next_query_id++) { }
+	RelevantObjectsQuery::RelevantObjectsQuery() : buckets(), count(0) { }
 	RelevantObjectsQuery::~RelevantObjectsQuery() { }
 
 	void RelevantObjectsQuery::Insert(RigidBody* object)
 	{
-		if(object->query_id != query_id)
-		{
-			unsigned int use_id = object->temporary_id = objects.size();
-			object->query_id = query_id;
+		unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
 
-			objects.push_back(object);
-		}
-#if 0
-		else
-			objects[object->temporary_id] = object;			// this is only necessary if it is possible to erase and reinsert
-#endif
+		vector<RigidBody*>& bucket = buckets[hash];
+		for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+			if(*iter == object)
+				return;
+
+		bucket.push_back(object);
+		++count;
 	}
 	
 	void RelevantObjectsQuery::Erase(RigidBody* object)
 	{
-		if(object->query_id == query_id)
-		{
-			assert(object->temporary_id < objects.size());
+		unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
 
-			objects[object->temporary_id] = NULL;
-		}
+		vector<RigidBody*>& bucket = buckets[hash];
+		for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+			if(bucket[i] == object)
+			{
+				bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
+				bucket.pop_back();
+
+				assert(count);
+				--count;
+
+				return;
+			}
 	}
 
-	void RelevantObjectsQuery::ConcludeQuery() { query_id = next_query_id++; objects.clear(); }
+	void RelevantObjectsQuery::Clear()
+	{
+		for(unsigned int i = 0; i < hash_size; ++i)
+			buckets[i].clear();
+
+		count = 0;
+	}
 }
