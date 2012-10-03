@@ -32,12 +32,14 @@
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
-#define PROFILE_DOFIXEDSTEP 0
-#define PROFILE_COLLIDE_MSPHERE 0						// warning: if both are enabled, the results for DoFixedStep will be skewed
+#define PROFILE_DOFIXEDSTEP 1
+#define PROFILE_COLLIDE_MSPHERE 0						// WARNING: if both are enabled, the results for DoFixedStep will be skewed
 #define PROFILE_SOLVE_CGRAPH 0							// not so much skewing from this, though
 
 namespace CibraryEngine
 {
+	using namespace boost::asio;
+
 	using boost::unordered_set;
 	using boost::unordered_map;
 
@@ -182,12 +184,17 @@ namespace CibraryEngine
 		gravity(0, -9.8f, 0),
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
+		collider_threads(),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
 	}
 	void PhysicsWorld::InnerDispose()
 	{
+		for(vector<MultisphereCollisionInitiatorThread*>::iterator iter = collider_threads.begin(); iter != collider_threads.end(); ++iter)
+			(*iter)->Shutdown();
+		collider_threads.clear();
+
 		// suppress "object orphaned" messages
 		orphan_callback->shutdown = true;
 
@@ -490,11 +497,11 @@ namespace CibraryEngine
 		assert(body);
 
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
-		MultiSphereShapeInstanceCache* cache = (MultiSphereShapeInstanceCache*)body->shape_cache;
 
 		Mat4 xform = body->GetTransformationMatrix();
 		Mat4 inv_xform = body->GetInvTransform();
 
+		MultiSphereShapeInstanceCache* cache = (MultiSphereShapeInstanceCache*)body->shape_cache;
 		AABB xformed_aabb = cache->aabb;
 
 #if PROFILE_COLLIDE_MSPHERE
@@ -662,61 +669,38 @@ namespace CibraryEngine
 #endif
 
 		{	// curly braces for variable scope
-			vector<RigidBody*> multispheres;
 
-			for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_MultiSphere].begin(), mspheres_end = dynamic_objects[ST_MultiSphere].end(); iter != mspheres_end; ++iter)
+			static const unsigned int SPLIT_AMONG_N = 16;
+
+			if(collider_threads.empty())
 			{
-				if(MultiSphereShapeInstanceCache* mssic = (MultiSphereShapeInstanceCache*)(*iter)->shape_cache)
-				{
-					mssic->valid = false;
-					mssic->UpdateAsNeeded(*iter);
-				}
-				else
-				{
-					(*iter)->shape_cache = mssic = new MultiSphereShapeInstanceCache();
-					mssic->UpdateAsNeeded(*iter);
-				}
-
-				multispheres.push_back(*iter);
+				for(unsigned int i = 0; i < SPLIT_AMONG_N; ++i)
+					collider_threads.push_back(new MultisphereCollisionInitiatorThread(this));
 			}
 
-			struct MultisphereCollisionInitiatorThread
+			unordered_set<RigidBody*>& mspheres_set = dynamic_objects[ST_MultiSphere];
+			unsigned int msphere_count = mspheres_set.size();
+
+			static vector<RigidBody*> multispheres;
+			multispheres.reserve(msphere_count);
+
+			for(unordered_set<RigidBody*>::iterator iter = mspheres_set.begin(), mspheres_end = mspheres_set.end(); iter != mspheres_end; ++iter)
+				multispheres.push_back(*iter);
+
+			for(unsigned int i = 0; i < SPLIT_AMONG_N; ++i)
+				collider_threads[i]->StartTask(multispheres, i * msphere_count / SPLIT_AMONG_N, (i + 1) * msphere_count / SPLIT_AMONG_N);
+
+			for(vector<MultisphereCollisionInitiatorThread*>::iterator iter = collider_threads.begin(); iter != collider_threads.end(); ++iter)
 			{
-				PhysicsWorld* physics;
-				float timestep;
-				vector<ContactPoint>* contact_points;
-				const vector<RigidBody*>* multispheres;
-				unsigned int from, to;
+				MultisphereCollisionInitiatorThread& mcit = **iter;
 
-				MultisphereCollisionInitiatorThread(PhysicsWorld* physics, float timestep, const vector<RigidBody*>& multispheres, unsigned int from, unsigned int to, vector<ContactPoint>& contact_points) : physics(physics), timestep(timestep), contact_points(&contact_points), multispheres(&multispheres), from(from), to(to) { }
-			
-				void operator()()
-				{
-					RelevantObjectsQuery query;
-					for(unsigned int i = from; i < to; ++i)
-						physics->InitiateCollisionsForMultisphere((*multispheres)[i], timestep, query, *contact_points);
-				}
-			};
+				mcit.WaitForTaskCompletion();
 
-			unsigned int msphere_count = multispheres.size();
-			unsigned int middle = msphere_count / 2;
-			vector<ContactPoint> cps_1, cps_2;
-			MultisphereCollisionInitiatorThread task_1(this, timestep, multispheres, 0,			middle,			cps_1);
-			MultisphereCollisionInitiatorThread task_2(this, timestep, multispheres, middle,	msphere_count,	cps_2);
+				for(vector<ContactPoint>::iterator jter = mcit.contact_points.begin(); jter != mcit.contact_points.end(); ++jter)
+					constraint_graph.AddContactPoint(*jter);
+			}
 
-			boost::thread* thread_1 = new boost::thread(task_1);
-			boost::thread* thread_2 = new boost::thread(task_2);
-
-			thread_1->join();
-			thread_2->join();
-
-			for(vector<ContactPoint>::iterator iter = cps_1.begin(); iter != cps_1.end(); ++iter)
-				constraint_graph.AddContactPoint(*iter);
-			for(vector<ContactPoint>::iterator iter = cps_2.begin(); iter != cps_2.end(); ++iter)
-				constraint_graph.AddContactPoint(*iter);
-
-			delete thread_1;
-			delete thread_2;
+			multispheres.clear();
 		}
 
 #if PROFILE_DOFIXEDSTEP
@@ -929,6 +913,88 @@ namespace CibraryEngine
 		relevant_objects.Clear();
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
+
+
+
+
+	/*
+	 * PhysicsWorld::MultisphereCollisionInitiatorThread methods
+	 */
+	PhysicsWorld::MultisphereCollisionInitiatorThread::MultisphereCollisionInitiatorThread(PhysicsWorld* physics) :
+		my_thread(NULL),
+		mutex(new boost::mutex()),
+		cond(new boost::condition_variable()),
+		physics(physics),
+		timestep(physics->timer_interval),
+		contact_points(),
+		stopped(false)
+	{
+	}
+
+	void PhysicsWorld::MultisphereCollisionInitiatorThread::StartTask(const vector<RigidBody*>& multispheres_, unsigned int from_, unsigned int to_)
+	{
+		multispheres = &multispheres_;
+		from = from_;
+		to = to_;
+
+		contact_points.clear();
+
+		if(!my_thread)
+			my_thread = new boost::thread(Runner(this));
+		else
+		{
+			boost::unique_lock<boost::mutex> lock(*mutex);
+
+			stopped = false;			
+			cond->notify_one();
+		}
+	}
+
+	void PhysicsWorld::MultisphereCollisionInitiatorThread::WaitForTaskCompletion()
+	{
+		boost::unique_lock<boost::mutex> lock(*mutex);
+		while(my_thread && !stopped)
+			cond->wait(lock);
+	}
+
+	void PhysicsWorld::MultisphereCollisionInitiatorThread::Shutdown()
+	{
+		{
+			boost::unique_lock<boost::mutex> lock(*mutex);
+
+			cond->notify_one();
+
+			if(my_thread)	{ delete my_thread;	my_thread = NULL; }
+			if(mutex)		{ delete mutex;		mutex = NULL; }
+			if(cond)		{ delete cond;		cond = NULL; }
+		}
+	}
+			
+	void PhysicsWorld::MultisphereCollisionInitiatorThread::Run()
+	{
+		while(!my_thread) { }			// TODO: don't busy wait?
+
+		RelevantObjectsQuery query;
+
+		while(my_thread)
+		{
+			for(unsigned int i = from; i < to; ++i)
+				physics->InitiateCollisionsForMultisphere((*multispheres)[i], timestep, query, contact_points);
+
+			{
+				boost::unique_lock<boost::mutex> lock(*mutex);
+				stopped = true;
+			}
+
+			cond->notify_one();
+
+			{
+				boost::unique_lock<boost::mutex> lock(*mutex);
+				while(my_thread && stopped)
+					cond->wait(lock);
+			}
+		}
+	}
 
 
 

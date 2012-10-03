@@ -53,6 +53,48 @@ namespace CibraryEngine
 
 			float internal_timer, timer_interval;
 
+
+			struct MultisphereCollisionInitiatorThread
+			{
+			private:
+
+				boost::thread* my_thread;
+				boost::mutex* mutex;
+				boost::condition_variable* cond;
+
+				PhysicsWorld* physics;
+				float timestep;
+
+				const vector<RigidBody*>* multispheres;
+				unsigned int from, to;
+
+				bool stopped;
+
+			public:
+
+				vector<ContactPoint> contact_points;				// results out
+
+				MultisphereCollisionInitiatorThread(PhysicsWorld* physics);
+
+				void StartTask(const vector<RigidBody*>& multispheres, unsigned int from, unsigned int to);
+				void WaitForTaskCompletion();
+
+				void Shutdown();									// called to inform the thread that it is no longer needed and should shut down
+
+				void Run();
+
+				struct Runner
+				{
+					MultisphereCollisionInitiatorThread* data;
+					Runner(MultisphereCollisionInitiatorThread* data) : data(data) { }
+
+					void operator()() { data->Run(); }				// thread's "main" function
+				};
+			};
+
+			vector<MultisphereCollisionInitiatorThread*> collider_threads;
+
+
 			void SolveConstraintGraph(ConstraintGraph& graph);
 
 			void InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& contraint_graph);

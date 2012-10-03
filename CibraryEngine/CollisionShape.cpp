@@ -31,6 +31,8 @@ namespace CibraryEngine
 	// default orientation returns a degenerate AABB
 	AABB CollisionShape::GetTransformedAABB(const Mat4& xform) { return AABB(); }
 
+	AABB CollisionShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache) { return GetTransformedAABB(xform); }
+
 	ShapeType CollisionShape::GetShapeType() { return type; }
 
 	bool CollisionShape::CanMove() { return CanShapeTypeMove(type); }

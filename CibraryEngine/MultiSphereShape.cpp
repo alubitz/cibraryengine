@@ -815,6 +815,17 @@ namespace CibraryEngine
 #endif
 		}
 
+		AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)
+		{
+			MultiSphereShapeInstanceCache* mssic = (MultiSphereShapeInstanceCache*)cache;
+			if(!mssic)
+				cache = mssic = new MultiSphereShapeInstanceCache();
+
+			mssic->Update(xform, this);
+
+			return mssic->aabb;
+		}
+
 		MassInfo ComputeMassInfo()
 		{
 			if(aabb.IsDegenerate())
@@ -1123,6 +1134,8 @@ namespace CibraryEngine
 
 	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform) { return imp->GetTransformedAABB(xform); }
 
+	AABB MultiSphereShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache) { return imp->ComputeCachedWorldAABB(xform, cache); }
+
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 
 	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
@@ -1141,31 +1154,21 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShapeInstanceCache methods
 	 */
-	MultiSphereShapeInstanceCache::MultiSphereShapeInstanceCache() : valid(false), spheres(), aabb() { }
+	MultiSphereShapeInstanceCache::MultiSphereShapeInstanceCache() : spheres(), aabb() { }
 
-	void MultiSphereShapeInstanceCache::UpdateAsNeeded(RigidBody* body)
+	void MultiSphereShapeInstanceCache::Update(const Mat4& xform, MultiSphereShape::Imp* imp)
 	{
-		if(!valid)
+		spheres.clear();
+		for(unsigned int i = 0; i < imp->spheres.size(); ++i)
 		{
-			MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
-			MultiSphereShape::Imp* imp = shape->imp;
+			Sphere s = imp->spheres[i].sphere;
+			s = Sphere(xform.TransformVec3_1(s.center), s.radius);
+			spheres.push_back(s);
 
-			Mat4 xform = body->GetTransformationMatrix();
-
-			spheres.clear();
-			for(unsigned int i = 0; i < imp->spheres.size(); ++i)
-			{
-				Sphere s = imp->spheres[i].sphere;
-				s = Sphere(xform.TransformVec3_1(s.center), s.radius);
-				spheres.push_back(s);
-
-				if(!i)
-					aabb = AABB(s.center, s.radius);
-				else
-					aabb.Expand(AABB(s.center, s.radius));
-			}
-
-			valid = true;
+			if(!i)
+				aabb = AABB(s.center, s.radius);
+			else
+				aabb.Expand(AABB(s.center, s.radius));
 		}
 	}
 }

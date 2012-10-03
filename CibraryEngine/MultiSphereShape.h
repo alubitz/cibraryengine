@@ -16,20 +16,6 @@ namespace CibraryEngine
 
 	class MultiSphereShape;
 
-	class MultiSphereShapeInstanceCache : public ShapeInstanceCache
-	{
-		public:
-
-			bool valid;
-
-			vector<Sphere> spheres;
-			AABB aabb;
-
-			MultiSphereShapeInstanceCache();
-
-			void UpdateAsNeeded(RigidBody* body);
-	};
-
 	class MultiSphereShape : public CollisionShape
 	{
 		friend class MultiSphereShapeInstanceCache;
@@ -51,6 +37,7 @@ namespace CibraryEngine
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 
 			AABB GetTransformedAABB(const Mat4& xform);
+			AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
 
 			MassInfo ComputeMassInfo();
 
@@ -65,5 +52,17 @@ namespace CibraryEngine
 
 			void Write(ostream& stream);
 			unsigned int Read(istream& stream);
+	};
+
+	class MultiSphereShapeInstanceCache : public ShapeInstanceCache
+	{
+		public:
+
+			vector<Sphere> spheres;
+			AABB aabb;
+
+			MultiSphereShapeInstanceCache();
+
+			void Update(const Mat4& xform, MultiSphereShape::Imp* shape);
 	};
 }

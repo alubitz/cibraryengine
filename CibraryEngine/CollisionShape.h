@@ -23,6 +23,13 @@ namespace CibraryEngine
 	class SceneRenderer;
 	class Material;
 
+	// subclass this!
+	class ShapeInstanceCache
+	{
+		public:
+			virtual ~ShapeInstanceCache() { }
+	};
+
 	enum ShapeType
 	{
 		ST_Ray = 1,
@@ -53,6 +60,9 @@ namespace CibraryEngine
 			/** Get the AABB of this shape transformed by the specified matrix. Default implementation returns a degenerate AABB */
 			virtual AABB GetTransformedAABB(const Mat4& xform);
 
+			/** Like GetTransformedAABB, except the xform is a RigidBody's world xform, and it can be used to cache other data with the RigidBody; default implementation returns GetTransformedAABB */
+			virtual AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
+
 			ShapeType GetShapeType();
 
 			bool CanMove();
@@ -67,12 +77,5 @@ namespace CibraryEngine
 
 			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
 			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);
-	};
-
-	// subclass this!
-	class ShapeInstanceCache
-	{
-		public:
-			virtual ~ShapeInstanceCache() { }
 	};
 }

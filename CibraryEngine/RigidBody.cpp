@@ -142,7 +142,7 @@ namespace CibraryEngine
 		xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
 		inv_xform = Mat4::Invert(xform);
 
-		cached_aabb = shape->GetTransformedAABB(xform);
+		cached_aabb = shape->ComputeCachedWorldAABB(xform, shape_cache);
 
 		cached_com = xform.TransformVec3_1(mass_info.com);
 
@@ -310,7 +310,7 @@ namespace CibraryEngine
 
 			case ST_TriangleMesh:
 			case ST_MultiSphere:
-				return shape->GetTransformedAABB(GetTransformationMatrix());
+				return GetCachedAABB();
 
 			case ST_InfinitePlane:
 				return AABB();
