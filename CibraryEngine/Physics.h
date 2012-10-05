@@ -56,42 +56,41 @@ namespace CibraryEngine
 
 			struct MultisphereCollisionInitiatorThread
 			{
-			private:
+				private:
 
-				boost::thread* my_thread;
-				boost::mutex* mutex;
-				boost::condition_variable* cond;
+					boost::thread* my_thread;							// if this becomes NULL (after being non-NULL) it means the thread is shutting down
+					boost::mutex* mutex;
+					boost::condition_variable* cond;
 
-				PhysicsWorld* physics;
-				float timestep;
+					PhysicsWorld* physics;
+					float timestep;
 
-				const vector<RigidBody*>* multispheres;
-				unsigned int from, to;
+					const vector<RigidBody*>* multispheres;
+					unsigned int from, to;
 
-				bool stopped;
+					bool stopped;
 
-			public:
+				public:
 
-				vector<ContactPoint> contact_points;				// results out
+					vector<ContactPoint> contact_points;				// results out
 
-				MultisphereCollisionInitiatorThread(PhysicsWorld* physics);
+					MultisphereCollisionInitiatorThread(PhysicsWorld* physics);
 
-				void StartTask(const vector<RigidBody*>& multispheres, unsigned int from, unsigned int to);
-				void WaitForTaskCompletion();
+					void StartTask(const vector<RigidBody*>& multispheres, unsigned int from, unsigned int to);
+					void WaitForTaskCompletion();
 
-				void Shutdown();									// called to inform the thread that it is no longer needed and should shut down
+					void Shutdown();									// called to inform the thread that it is no longer needed and should shut down
 
-				void Run();
+					void Run();
 
-				struct Runner
-				{
-					MultisphereCollisionInitiatorThread* data;
-					Runner(MultisphereCollisionInitiatorThread* data) : data(data) { }
+					struct Runner
+					{
+						MultisphereCollisionInitiatorThread* data;
+						Runner(MultisphereCollisionInitiatorThread* data) : data(data) { }
 
-					void operator()() { data->Run(); }				// thread's "main" function
-				};
+						void operator()() { data->Run(); }				// thread's "main" function
+					};
 			};
-
 			vector<MultisphereCollisionInitiatorThread*> collider_threads;
 
 

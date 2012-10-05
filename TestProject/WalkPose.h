@@ -26,6 +26,8 @@ namespace Test
 			KeyframeAnimation* l_turn_anim;
 			KeyframeAnimation* r_turn_anim;
 
+			float fwd_anim_rate, side_anim_rate, turn_anim_rate;
+
 			unsigned int yaw_bone;			// id of bone to rotate to achieve yaw
 			float yaw;
 			float target_yaw;

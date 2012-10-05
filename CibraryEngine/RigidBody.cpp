@@ -348,20 +348,23 @@ namespace CibraryEngine
 
 	void RegionSet::Erase(PhysicsRegion* region)
 	{
-		unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
+		if(count)
+		{
+			unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
 
-		vector<PhysicsRegion*>& bucket = buckets[hash];
-		for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-			if(bucket[i] == region)
-			{
-				bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-				bucket.pop_back();
+			vector<PhysicsRegion*>& bucket = buckets[hash];
+			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+				if(bucket[i] == region)
+				{
+					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
+					bucket.pop_back();
 
-				assert(count);
-				--count;
+					assert(count);
+					--count;
 
-				return;
-			}
+					return;
+				}
+		}
 	}
 
 	void RegionSet::Clear()
@@ -394,20 +397,23 @@ namespace CibraryEngine
 	
 	void RelevantObjectsQuery::Erase(RigidBody* object)
 	{
-		unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
+		if(count)
+		{
+			unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
 
-		vector<RigidBody*>& bucket = buckets[hash];
-		for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-			if(bucket[i] == object)
-			{
-				bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-				bucket.pop_back();
+			vector<RigidBody*>& bucket = buckets[hash];
+			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+				if(bucket[i] == object)
+				{
+					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
+					bucket.pop_back();
 
-				assert(count);
-				--count;
+					assert(count);
+					--count;
 
-				return;
-			}
+					return;
+				}
+		}
 	}
 
 	void RelevantObjectsQuery::Clear()

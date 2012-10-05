@@ -1015,7 +1015,7 @@ namespace CibraryEngine
 				sfric_coeff = obj_a->friction * obj_b->friction;
 				moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
 			}
-			else
+			else			// for ray-tests
 			{
 				bounciness = obj_b->bounciness;	
 				sfric_coeff = obj_b->friction;
@@ -1147,7 +1147,7 @@ namespace CibraryEngine
 
 		static const float undo_penetration_coeff = 8.0f;
 
-		if(float magsq = dx.ComputeMagnitude())
+		if(dx.x || dx.y || dx.z)
 		{
 			static float saved_timestep = timestep - 1;				// make sure first initialization triggers the if... could instead init move_frac in two places?
 			static float move_frac;
@@ -1165,10 +1165,10 @@ namespace CibraryEngine
 			}
 			else
 			{
-				float total = 1.0f / obj_a->mass_info.mass + 1.0f / obj_b->mass_info.mass, inv_total = move_frac / total;
+				float total = obj_a->inv_mass + obj_b->inv_mass, inv_total = move_frac / total;
 
-				obj_a->pos -= dx * (inv_total / obj_a->mass_info.mass);
-				obj_b->pos += dx * (inv_total / obj_b->mass_info.mass);
+				obj_a->pos -= dx * (inv_total * obj_a->inv_mass);
+				obj_b->pos += dx * (inv_total * obj_b->inv_mass);
 
 				obj_a->xform_valid = false;
 				obj_b->xform_valid = false;

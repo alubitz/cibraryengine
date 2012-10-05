@@ -173,19 +173,22 @@ namespace CibraryEngine
 
 	void PhysicsRegion::ObjectSet::Erase(RigidBody* obj)
 	{
-		unsigned int hash = ((unsigned int)obj / sizeof(RigidBody)) % hash_size;
+		if(count)
+		{
+			unsigned int hash = ((unsigned int)obj / sizeof(RigidBody)) % hash_size;
 
-		vector<RigidBody*>& bucket = buckets[hash];
-		for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-			if(bucket[i] == obj)
-			{
-				bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-				bucket.pop_back();
+			vector<RigidBody*>& bucket = buckets[hash];
+			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+				if(bucket[i] == obj)
+				{
+					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
+					bucket.pop_back();
 
-				assert(count);
-				--count;
+					assert(count);
+					--count;
 
-				return;
-			}
+					return;
+				}
+		}
 	}
 }

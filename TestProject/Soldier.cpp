@@ -368,6 +368,7 @@ namespace Test
 
 		walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
 		walk_pose->yaw_bone = Bone::string_table["pelvis"];
+		walk_pose->side_anim_rate = 2.5f;
 		posey->active_poses.push_back(walk_pose);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");

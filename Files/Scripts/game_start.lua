@@ -24,7 +24,7 @@ bot_spawn_timer = 0
 bots_spawned = 0
 
 disable_enemies = false
-disable_waves = false
+disable_waves = true
 disable_ai = true
 
 num_boxes = 0

@@ -6,7 +6,7 @@
 
 #include "ProfilingTimer.h"
 
-#define PROFILE_PROGRAM_RUN 0
+#define PROFILE_PROGRAM_RUN 1
 
 #include <winsock2.h>
 

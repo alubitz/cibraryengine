@@ -22,6 +22,9 @@ namespace Test
 		right_anim(		right_anim == NULL ?	NULL : new KeyframeAnimation(*right_anim)),
 		l_turn_anim(	l_turn_anim == NULL ?	NULL : new KeyframeAnimation(*l_turn_anim)),
 		r_turn_anim(	r_turn_anim == NULL ?	NULL : new KeyframeAnimation(*r_turn_anim)),
+		fwd_anim_rate(1.0f),
+		side_anim_rate(1.0f),
+		turn_anim_rate(4.0f),
 		yaw_bone(0),
 		yaw(0),
 		target_yaw(0)
@@ -46,11 +49,8 @@ namespace Test
 		const float min_speed = 0.9f;
 		const float playback_exp_coeff = 0.25f;
 
-		const float left_speed_coeff = 2.5f;
-
 		const float max_standing_yaw = 1.0f;
 		const float max_moving_yaw = 0.1f;
-		const float turn_rate = 4.0f;
 
 		// make sure we reset to the rest pose if we aren't doing anything
 		bones.clear();
@@ -97,9 +97,9 @@ namespace Test
 
 		// figure out the fastest playback speed we have an animation for (used as master playback speed)
 		float use_speed = 0.0f;
-		if(forward_v > 0		&& forward_anim)	{ use_speed = forward_v; }										else if(forward_v < 0	&& backward_anim)	{ use_speed = -forward_v; }
-		if(leftward_v > 0		&& left_anim)		{ use_speed = max(use_speed, leftward_v * left_speed_coeff); }	else if(leftward_v < 0	&& right_anim)		{ use_speed = max(use_speed, -leftward_v * left_speed_coeff); }
-		if(yaw_v > 0			&& l_turn_anim)		{ use_speed = max(use_speed, yaw_v * turn_rate); }				else if(yaw_v < 0		&& r_turn_anim)		{ use_speed = max(use_speed, -yaw_v * turn_rate); }
+		if(forward_v > 0		&& forward_anim)	{ use_speed = forward_v * fwd_anim_rate; }						else if(forward_v < 0	&& backward_anim)	{ use_speed = -forward_v * fwd_anim_rate; }
+		if(leftward_v > 0		&& left_anim)		{ use_speed = max(use_speed, leftward_v * side_anim_rate); }	else if(leftward_v < 0	&& right_anim)		{ use_speed = max(use_speed, -leftward_v * side_anim_rate); }
+		if(yaw_v > 0			&& l_turn_anim)		{ use_speed = max(use_speed, yaw_v * turn_anim_rate); }			else if(yaw_v < 0		&& r_turn_anim)		{ use_speed = max(use_speed, -yaw_v * turn_anim_rate); }
 
 		float forward_speed, leftward_speed, yaw_speed;
 		if(use_speed < min_speed)			// if none of the animations are moving fast enough to warrant stepping, set all speeds to zero and reset the timer
@@ -109,9 +109,9 @@ namespace Test
 		}
 		else
 		{
-			forward_speed =		forward_v;
-			leftward_speed =	leftward_v	* left_speed_coeff;
-			yaw_speed =			yaw_v		* turn_rate;
+			forward_speed =		forward_v	* fwd_anim_rate;
+			leftward_speed =	leftward_v	* side_anim_rate;
+			yaw_speed =			yaw_v		* turn_anim_rate;
 
 			float dt = 1.0f - exp(-use_speed * playback_exp_coeff * time.elapsed);
 			anim_timer += dt;

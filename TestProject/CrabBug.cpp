@@ -78,6 +78,24 @@ namespace Test
 		}
 	}
 
+	static void GenerateRestPose(KeyframeAnimation* ka)
+	{
+		ka->frames.clear();
+		ka->name = "crabby rest pose";
+
+		Keyframe kf;
+		kf.duration = 2.0f;
+		kf.next = 0;
+		kf.values[Bone::string_table["l leg a 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["l leg b 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["l leg c 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["r leg a 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["r leg b 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["r leg c 1"]] = BoneInfluence();
+
+		ka->frames.push_back(kf);
+	}
+
 
 
 
@@ -93,10 +111,11 @@ namespace Test
 		// character animation stuff
 		posey->active_poses.push_back(crab_heading);
 
-		KeyframeAnimation ka;
-		GenerateHardCodedWalkAnimation(&ka);
+		KeyframeAnimation kw, kr;
+		GenerateHardCodedWalkAnimation(&kw);
+		GenerateRestPose(&kr);
 
-		posey->active_poses.push_back(new WalkPose(this, NULL, &ka, &ka, &ka, &ka, NULL, NULL));
+		posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
@@ -125,7 +144,7 @@ namespace Test
 	void CrabBug::Update(TimingInfo time)
 	{
 #if 0
-		if(time.total > 5.0f)
+		if(time.total > 1.0f)
 			TakeDamage(Damage(NULL, 2.0f), Vec3());
 #endif
 
