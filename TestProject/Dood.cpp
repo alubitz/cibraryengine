@@ -509,7 +509,6 @@ namespace Test
 				RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
 				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents, phys.angular_damp);
-				//c->enable_motor = true;
 
 				constraints.push_back(c);
 
@@ -609,10 +608,6 @@ namespace Test
 
 		MaybeDoScriptedDeath(this);
 
-		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
-				jc->enable_motor = false;
-
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 			for(vector<RigidBody*>::iterator jter = iter; jter != rigid_bodies.end(); ++jter)
 				if(iter != jter)
@@ -649,20 +644,16 @@ namespace Test
 	 */
 	bool Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
-		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
-			if(collision.obj_a == *iter || collision.obj_b == *iter)
+		for(map<unsigned int, RigidBody*>::iterator iter = dood->foot_bones.begin(); iter != dood->foot_bones.end(); ++iter)
+			if(collision.obj_a == iter->second || collision.obj_b == iter->second)
 			{
-				ContactPoint::Part self = collision.obj_a == *iter ? collision.a : collision.b;
-				ContactPoint::Part other = collision.obj_a == *iter ? collision.b : collision.a;
-
-				for(vector<RigidBody*>::iterator jter = dood->rigid_bodies.begin(); jter != dood->rigid_bodies.end(); ++jter)
-					if(iter != jter && (collision.obj_a == *jter || collision.obj_b == *jter))
-						return true;			// collisions between bones of the same dood don't count as "standing"
+				ContactPoint::Part self = collision.obj_a == iter->second ? collision.a : collision.b;
+				ContactPoint::Part other = collision.obj_a == iter->second ? collision.b : collision.a;
 
 				Vec3 normal = other.norm;
 				if(normal.y > 0.1f)
 				{
-					standing_on.push_back(collision.obj_a == *iter ? collision.obj_b : collision.obj_a);
+					standing_on.push_back(collision.obj_a == iter->second ? collision.obj_b : collision.obj_a);
 					standing = 1.0f;
 				}
 

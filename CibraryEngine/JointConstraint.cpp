@@ -15,8 +15,7 @@ namespace CibraryEngine
 		axes(axes),
 		min_extents(min_extents),
 		max_extents(max_extents),
-		angular_damp(angular_damp),
-		enable_motor(false)
+		angular_damp(angular_damp)
 	{
 	}
 
@@ -25,8 +24,8 @@ namespace CibraryEngine
 		static const float angular_vel_coeff =	1.0f;
 		static const float dv_coeff =			1.0f;
 
-		const float inv_foresight =				inv_timestep;
-		const float foresight =					timestep;
+		static const float dv_sq_threshold	=	0.01f;
+		static const float alpha_sq_threshold =	0.01f;
 
 		bool wakeup = false;
 
@@ -35,7 +34,8 @@ namespace CibraryEngine
 		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
 
 		Vec3 dv = desired_dv - current_dv;
-		if(float magsq = dv.ComputeMagnitudeSquared())
+		float magsq = dv.ComputeMagnitudeSquared();
+		if(magsq > dv_sq_threshold)
 		{
 			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
 			obj_a->ApplyWorldImpulse(impulse, apply_pos);
@@ -52,13 +52,10 @@ namespace CibraryEngine
 
 		Vec3 alpha;												// delta-angular-velocity
 
-		// torque to make the joint conform to a pose
-		if(enable_motor)
-			alpha = (desired_av - current_av) * -angular_vel_coeff;
 #if 1
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
-		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * foresight, proposed_av.y * foresight, proposed_av.z * foresight);
+		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * timestep, proposed_av.y * timestep, proposed_av.z * timestep);
 		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
 
 		bool any_changes = false;
@@ -73,14 +70,15 @@ namespace CibraryEngine
 		{
 			// at least one rotation limit was violated, so we must recompute alpha
 			Quaternion actual_ori = Quaternion::FromPYR(reverse_oriented_axes * -proposed_pyr);
-			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_foresight;
+			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_timestep;
 
 			alpha = current_av - actual_av;
 		}
 #endif
 
 		// apply angular velocity changes
-		if(alpha.ComputeMagnitudeSquared())
+		magsq = alpha.ComputeMagnitudeSquared();
+		if(magsq > alpha_sq_threshold)
 		{
 			Vec3 angular_impulse = moi * alpha;
 
@@ -103,19 +101,13 @@ namespace CibraryEngine
 		timestep = timestep_;
 		inv_timestep = 1.0f / timestep;
 
-		const float pyr_coeff =					inv_timestep;
-		const float spring_coeff =				inv_timestep;
+		const float spring_coeff =				1.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();
 
 		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 		b_to_a = Quaternion::Reverse(a_to_b);
-
-
-		// torque to make the joint conform to a pose
-		if(enable_motor)
-			desired_av = (Quaternion::Reverse(a_ori) * desired_ori * b_ori).ToPYR() * (-pyr_coeff);
 
 		moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 
@@ -128,6 +120,6 @@ namespace CibraryEngine
 		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
 
 		apply_pos = (a_pos + b_pos) * 0.5f;
-		desired_dv = (b_pos - a_pos) * -spring_coeff;
+		desired_dv = (b_pos - a_pos) * -(spring_coeff * inv_timestep);
 	}
 }

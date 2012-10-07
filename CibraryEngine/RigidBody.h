@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 
-#include "Disposable.h"
+#include "CollisionObject.h"
 
 #include "Physics.h"
 #include "Vector.h"
@@ -34,7 +34,7 @@ namespace CibraryEngine
 	};
 
 	/** Class representing a rigid body */
-	class RigidBody : public Disposable
+	class RigidBody : public CollisionObject
 	{
 		friend class PhysicsWorld;
 		friend class PhysicsRegion;
