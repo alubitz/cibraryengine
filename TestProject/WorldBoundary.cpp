@@ -14,18 +14,15 @@ namespace Test
 	{
 		CollisionShape* shape = new InfinitePlaneShape(plane);
 
-		rigid_body = new RigidBody(shape, MassInfo(), Vec3(plane.normal * plane.offset));
-		rigid_body->SetUserEntity(this);
-		
-		game_state->physics_world->AddRigidBody(rigid_body);
-		this->rigid_body = rigid_body;
+		rigid_body = new RigidBody(this, shape, MassInfo(), Vec3(plane.normal * plane.offset));
+		game_state->physics_world->AddCollisionObject(rigid_body);
 	}
 
 	void WorldBoundary::DeSpawned()
 	{
 		if(rigid_body != NULL)
 		{
-			game_state->physics_world->RemoveRigidBody(rigid_body);
+			game_state->physics_world->RemoveCollisionObject(rigid_body);
 
 			rigid_body->Dispose();
 			delete rigid_body;

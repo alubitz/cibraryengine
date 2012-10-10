@@ -58,18 +58,15 @@ namespace Test
 
 			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
 
-			rigid_body = new RigidBody(bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)));
-			rigid_body->SetUserEntity(this);
-
-			physics->AddRigidBody(rigid_body);
-			this->rigid_body = rigid_body;
+			rigid_body = new RigidBody(this, bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)));
+			physics->AddCollisionObject(rigid_body);
 		}
 	}
 
 	void Rubbish::DeSpawned()
 	{
 		if(rigid_body != NULL)
-			physics->RemoveRigidBody(rigid_body);
+			physics->RemoveCollisionObject(rigid_body);
 	}
 
 	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)

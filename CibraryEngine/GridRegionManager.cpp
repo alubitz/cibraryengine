@@ -44,9 +44,9 @@ namespace CibraryEngine
 	GridRegionManager::~GridRegionManager() { }
 
 
-	void GridRegionManager::OnObjectAdded(RigidBody* object, RegionSet& object_regions)
+	void GridRegionManager::OnObjectAdded(CollisionObject* object, RegionSet& object_regions)
 	{
-		if(object->GetShapeType() != ST_InfinitePlane)
+		if(object->GetType() != COT_RigidBody || ((RigidBody*)object)->GetShapeType() != ST_InfinitePlane)
 		{
 			int x1, y1, z1, x2, y2, z2;
 			AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
@@ -65,7 +65,7 @@ namespace CibraryEngine
 		}
 		else
 		{
-			InfinitePlaneShape* plane_shape = (InfinitePlaneShape*)object->GetCollisionShape();
+			InfinitePlaneShape* plane_shape = (InfinitePlaneShape*)((RigidBody*)object)->GetCollisionShape();
 
 			for(unsigned int x = 0; x < region_array.size(); ++x)
 				for(unsigned int y = 0; y < region_array[x].size(); ++y)
@@ -73,11 +73,11 @@ namespace CibraryEngine
 						if(IsPlaneRelevantToRegion(plane_shape->plane, x + x0, y + y0, z + z0))
 							region_array[x][y][z]->TakeOwnership(object);
 
-			planes.insert(object);
+			planes.insert((RigidBody*)object);
 		}
 	}
 
-	void GridRegionManager::OnObjectUpdate(RigidBody* object, RegionSet& object_regions, float timestep)
+	void GridRegionManager::OnObjectUpdate(CollisionObject* object, RegionSet& object_regions, float timestep)
 	{
 		int x1, y1, z1, x2, y2, z2;
 		AABBToCells(object->GetAABB(0), x1, y1, z1, x2, y2, z2);
@@ -114,30 +114,30 @@ namespace CibraryEngine
 		for(set<PhysicsRegion*>::iterator iter = add.begin(); iter != add.end(); ++iter)
 		{
 			object_regions.Insert(*iter);
-			(*iter)->AddRigidBody(object);
+			(*iter)->AddCollisionObject(object);
 		}
 
 		for(set<PhysicsRegion*>::iterator iter = ditch.begin(); iter != ditch.end(); ++iter)
 		{
 			object_regions.Erase(*iter);
-			(*iter)->RemoveRigidBody(object);
+			(*iter)->RemoveCollisionObject(object);
 		}
 
 		if(!object_regions.count && orphan_callback)
 			orphan_callback->OnObjectOrphaned(object);
 	}
 
-	void GridRegionManager::OnObjectRemoved(RigidBody* object, RegionSet& object_regions)
+	void GridRegionManager::OnObjectRemoved(CollisionObject* object, RegionSet& object_regions)
 	{
 		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
 		{
 			vector<PhysicsRegion*>& bucket = object_regions.buckets[i];
 			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				(*iter)->RemoveRigidBody(object);
+				(*iter)->RemoveCollisionObject(object);
 		}
 
-		if(object->GetShapeType() == ST_InfinitePlane)
-			planes.erase(object);
+		if(object->GetType() == COT_RigidBody && ((RigidBody*)object)->GetShapeType() == ST_InfinitePlane)
+			planes.erase((RigidBody*)object);
 	}
 
 	PhysicsRegion* GridRegionManager::GetRegion(const Vec3& point)

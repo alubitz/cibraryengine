@@ -163,13 +163,13 @@ namespace Test
 			control_state->SetBoolControl("reload", false);
 		}
 
-		if(equipped_weapon != NULL)
+		if(equipped_weapon)
 		{
 			equipped_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 			equipped_weapon->OwnerUpdate(time);
 		}
 
-		if(intrinsic_weapon != NULL)
+		if(intrinsic_weapon)
 		{
 			intrinsic_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 			intrinsic_weapon->OwnerUpdate(time);
@@ -458,9 +458,9 @@ namespace Test
 			ModelPhysics::BonePhysics& phys = mphys->bones[i];
 
 			CollisionShape* shape = phys.collision_shape;
-			if(shape != NULL)
+			if(shape)
 			{
-				RigidBody* rigid_body = new RigidBody(shape, phys.mass_info, pos);
+				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, pos);
 
 				rigid_body->SetDamp(0.05f);
 
@@ -470,7 +470,7 @@ namespace Test
 				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 					rigid_body->SetCollisionEnabled(*iter, false);		// disables collisions both ways
 
-				physics->AddRigidBody(rigid_body);
+				physics->AddCollisionObject(rigid_body);
 				rigid_bodies.push_back(rigid_body);
 
 				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
@@ -559,17 +559,17 @@ namespace Test
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 		{
 			RigidBody* body = rigid_bodies[i];
-			if(physics != NULL)
-				physics->RemoveRigidBody(body);
+			if(physics)
+				physics->RemoveCollisionObject(body);
 
 			body->DisposePreservingCollisionShape();
 			delete body;
 		}
 		rigid_bodies.clear();
 
-		if(equipped_weapon != NULL)
+		if(equipped_weapon)
 			equipped_weapon->is_valid = false;
-		if(intrinsic_weapon != NULL)
+		if(intrinsic_weapon)
 			intrinsic_weapon->is_valid = false;
 	}
 
@@ -590,7 +590,7 @@ namespace Test
 
 	void Dood::Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		if(blood_material != NULL)
+		if(blood_material)
 			for(int i = 0; i < 8; ++i)
 			{
 				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
@@ -620,18 +620,18 @@ namespace Test
 
 	bool Dood::GetAmmoFraction(float& result)
 	{
-		if(equipped_weapon != NULL && equipped_weapon->GetAmmoFraction(result))
+		if(equipped_weapon && equipped_weapon->GetAmmoFraction(result))
 			return true;
-		if(intrinsic_weapon != NULL && intrinsic_weapon->GetAmmoFraction(result))
+		if(intrinsic_weapon && intrinsic_weapon->GetAmmoFraction(result))
 			return true;
 		return false;
 	}
 
 	bool Dood::GetAmmoCount(int& result)
 	{
-		if(equipped_weapon != NULL && equipped_weapon->GetAmmoCount(result))
+		if(equipped_weapon && equipped_weapon->GetAmmoCount(result))
 			return true;
-		if(intrinsic_weapon != NULL && intrinsic_weapon->GetAmmoCount(result))
+		if(intrinsic_weapon && intrinsic_weapon->GetAmmoCount(result))
 			return true;
 		return false;
 	}
@@ -703,7 +703,7 @@ namespace Test
 			else
 			{
 				Dood* dood = *dood_ptr;
-				if(dood != NULL)
+				if(dood)
 				{
 					if		(key == "id")				{ lua_pushnumber(L, dood->GetID()); return 1; }
 					else if	(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
@@ -780,7 +780,7 @@ namespace Test
 		ss << "a = " << a << "; b = " << b << endl;
 		Debug(ss.str());
 
-		if(a != NULL && b != NULL && a == b)
+		if(a && b && a == b)
 			return true;
 		return false;
 	}
@@ -788,7 +788,7 @@ namespace Test
 	int dood_gc(lua_State* L)
 	{
 		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
-		if(dood_ptr != NULL)
+		if(dood_ptr)
 		{
 			if(Dood* dood = *dood_ptr)
 				dood->TossScriptingHandle();

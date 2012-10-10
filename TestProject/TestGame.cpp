@@ -155,9 +155,13 @@ namespace Test
 			player_death_handler(),
 			player_damage_handler(),
 			alive(true),
+			sky_shader(NULL),
 			renderer(NULL),
+			sun(NULL),
 			render_target(NULL),
-			shadow_render_target(NULL)
+			shadow_render_target(NULL),
+			deferred_ambient(NULL),
+			deferred_lighting(NULL)
 		{
 		}
 
@@ -1088,17 +1092,17 @@ namespace Test
 
 	float TestGame::GetTerrainHeight(float x, float z)
 	{
-		struct RayCallback : public CollisionCallback
+		struct MyRayCallback : public RayCallback
 		{
 			float max_y;
-			RayCallback() : max_y(0.0f) { }
+			MyRayCallback() : max_y(0.0f) { }
 
-			bool OnCollision(const ContactPoint& cp)
+			bool OnCollision(RayResult& rr)
 			{
-				if(Entity* entity = cp.obj_b->GetUserEntity())
+				if(Entity* entity = rr.body->GetUserEntity())
 					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
 					{
-						float y = cp.a.pos.y;
+						float y = rr.pos.y;
 						if(y > max_y)
 							max_y = y;
 
@@ -1567,16 +1571,16 @@ namespace Test
 		// define a callback for when a ray intersects an object
 		list<float> results;
 
-		struct RayCallback : public CollisionCallback
+		struct MyRayCallback : public RayCallback
 		{
 			list<float>& results;
-			RayCallback(list<float>& results) : results(results) { }
+			MyRayCallback(list<float>& results) : results(results) { }
 
-			bool OnCollision(const ContactPoint& cp)
+			bool OnCollision(RayResult& rr)
 			{
-				if(Entity* entity = cp.obj_b->GetUserEntity())
+				if(Entity* entity = rr.body->GetUserEntity())
 					if(StaticLevelGeometry* slg = dynamic_cast<StaticLevelGeometry*>(entity))
-						results.push_back(cp.a.pos.y);
+						results.push_back(rr.pos.y);
 				return false;
 			}
 		} ray_callback(results);

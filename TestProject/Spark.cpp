@@ -8,9 +8,9 @@ namespace Test
 	 */
 	Spark::Spark(GameState* gs, Vec3 pos, BillboardMaterial* billboard_mat) :
 		Entity(gs),
-		body(NULL),
-		mass(Random3D::Rand(0.001f, 0.01f)),
 		collider(NULL),
+		mass(Random3D::Rand(0.001f, 0.01f)),
+		callback(NULL),
 		pos(pos),
 		vel(Random3D::RandomNormalizedVector(Random3D::Rand(2, 5) + Random3D::Rand() * Random3D::Rand(5)) * 0.005f / mass),
 		age(0),
@@ -22,11 +22,11 @@ namespace Test
 
 	void Spark::InnerDispose()
 	{
-		if(body != NULL)
+		if(collider != NULL)
 		{
-			body->Dispose();
-			delete body;
-			body = NULL;
+			collider->Dispose();
+			delete collider;
+			collider = NULL;
 		}
 
 		if(trailhead != NULL)
@@ -39,32 +39,29 @@ namespace Test
 			}
 		}
 
-		if(collider)
+		if(callback)
 		{
-			delete collider;
-			collider = NULL;
+			delete callback;
+			callback = NULL;
 		}
 	}
 
 	void Spark::Spawned()
 	{
-		body = new RigidBody(new RayShape(), MassInfo(Vec3(), 0.000001f), pos);
-		body->SetLinearVelocity(vel);
-		body->SetUserEntity(this);
-
-		game_state->physics_world->AddRigidBody(body);
+		collider = new RayCollider(this, pos, vel, 0.000001f);
+		game_state->physics_world->AddCollisionObject(collider);
 
 		trailhead = new TrailHead(this);
 		game_state->Spawn(new BillboardTrail(game_state, trailhead, billboard_mat, 0.01f));
 
-		collider = new Collider(this);
-		body->SetCollisionCallback(collider);
+		callback = new Collider(this);
+		collider->SetRayCallback(callback);
 	}
 
 	void Spark::DeSpawned()
 	{
-		if(body != NULL)
-			game_state->physics_world->RemoveRigidBody(body);
+		if(collider != NULL)
+			game_state->physics_world->RemoveCollisionObject(collider);
 	}
 
 	void Spark::Update(TimingInfo time)
@@ -81,8 +78,8 @@ namespace Test
 			return;
 		}
 
-		pos = body->GetPosition();
-		vel = body->GetLinearVelocity();
+		pos = collider->GetPosition();
+		vel = collider->GetLinearVelocity();
 	}
 
 

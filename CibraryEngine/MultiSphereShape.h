@@ -14,7 +14,8 @@ namespace CibraryEngine
 	struct Sphere;
 	struct Ray;
 
-	class MultiSphereShape;
+	class RayCollider;
+	struct RayResult;
 
 	class MultiSphereShape : public CollisionShape
 	{
@@ -41,7 +42,7 @@ namespace CibraryEngine
 
 			MassInfo ComputeMassInfo();
 
-			bool CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody = NULL, RigidBody* jbody = NULL);							// ray pre-transformed into local coords
+			bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider = NULL, RigidBody* body = NULL);										// ray pre-transformed into local coords
 			bool CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
 			bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
 			bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of j xform and inverse i xform

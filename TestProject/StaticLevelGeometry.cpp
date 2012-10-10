@@ -59,10 +59,9 @@ namespace Test
 		physics = game_state->physics_world;
 		if(collision_shape != NULL)
 		{
-			RigidBody* rigid_body = new RigidBody(collision_shape, MassInfo(), pos, ori);
-			rigid_body->SetUserEntity(this);
+			RigidBody* rigid_body = new RigidBody(this, collision_shape, MassInfo(), pos, ori);
 
-			physics->AddRigidBody(rigid_body);
+			physics->AddCollisionObject(rigid_body);
 			this->rigid_body = rigid_body;
 		}
 	}
@@ -70,7 +69,7 @@ namespace Test
 	void StaticLevelGeometry::DeSpawned()
 	{
 		if(rigid_body != NULL)
-			physics->RemoveRigidBody(rigid_body);
+			physics->RemoveCollisionObject(rigid_body);
 	}
 
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)

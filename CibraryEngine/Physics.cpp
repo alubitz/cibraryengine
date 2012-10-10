@@ -2,6 +2,8 @@
 #include "Physics.h"
 
 #include "RigidBody.h"
+#include "RayCollider.h"
+
 #include "PhysicsRegion.h"
 #include "GridRegionManager.h"
 
@@ -33,7 +35,6 @@
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
 #define PROFILE_DOFIXEDSTEP 1
-#define PROFILE_COLLIDE_MSPHERE 0						// WARNING: if both are enabled, the results for DoFixedStep will be skewed
 #define PROFILE_SOLVE_CGRAPH 0							// not so much skewing from this, though
 
 namespace CibraryEngine
@@ -44,20 +45,12 @@ namespace CibraryEngine
 	using boost::unordered_map;
 
 	// forward declare a few functions
-	static void DoRaySphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
-	static void DoRayMesh(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
-	static void DoRayPlane(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
-	static void DoRayMultisphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits);
-
 	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points);
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint>& contact_points);
-
+	
 
 
 
@@ -70,7 +63,7 @@ namespace CibraryEngine
 
 		MyOrphanCallback() : shutdown(false) { }
 
-		void OnObjectOrphaned(RigidBody* object)
+		void OnObjectOrphaned(CollisionObject* object)
 		{
 			//if(!shutdown)
 			//	Debug("An object has been orphaned!\n");
@@ -141,24 +134,12 @@ namespace CibraryEngine
 #if PROFILE_DOFIXEDSTEP
 	static float timer_update_vel = 0.0f;
 	static float timer_ray_update = 0.0f;
-	static float timer_sphere_collide = 0.0f;
-	static float timer_msphere_collide = 0.0f;
+	static float timer_collide = 0.0f;
 	static float timer_constraints = 0.0f;
 	static float timer_cgraph = 0.0f;
 	static float timer_update_pos = 0.0f;
 	static float timer_total = 0.0f;
 	static unsigned int counter_dofixedstep = 0;
-#endif
-
-#if PROFILE_COLLIDE_MSPHERE
-	static float timer_init_msphere = 0.0f;
-	static float timer_init_msphere_init = 0.0f;
-	static float timer_get_relevant = 0.0f;
-	static float timer_remove_constrained = 0.0f;
-	static float timer_msphere_msphere = 0.0f;
-	static float timer_msphere_mesh = 0.0f;
-	static float timer_msphere_plane = 0.0f;
-	static float timer_conclude = 0.0f;
 #endif
 
 #if PROFILE_SOLVE_CGRAPH
@@ -178,23 +159,19 @@ namespace CibraryEngine
 	 */
 	PhysicsWorld::PhysicsWorld() :
 		all_objects(),
+		rays(),
 		dynamic_objects(),
 		all_regions(),
 		region_man(NULL),
 		gravity(0, -9.8f, 0),
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
-		collider_threads(),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
 	}
 	void PhysicsWorld::InnerDispose()
 	{
-		for(vector<MultisphereCollisionInitiatorThread*>::iterator iter = collider_threads.begin(); iter != collider_threads.end(); ++iter)
-			(*iter)->Shutdown();
-		collider_threads.clear();
-
 		// suppress "object orphaned" messages
 		orphan_callback->shutdown = true;
 
@@ -206,18 +183,16 @@ namespace CibraryEngine
 		}
 		all_regions.clear();
 
-		// dispose rigid bodies
-		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
+		// dispose collision objects
+		for(unordered_set<CollisionObject*>::iterator iter = all_objects.begin(), objects_end = all_objects.end(); iter != objects_end; ++iter)
 		{
-			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(), objects_end = all_objects[i].end(); iter != objects_end; ++iter)
-			{
-				(*iter)->Dispose();
-				delete *iter;
-			}
-
-			all_objects[i].clear();
-			dynamic_objects[i].clear();
+			(*iter)->Dispose();
+			delete *iter;
 		}
+		all_objects.clear();
+
+		rays.clear();
+		dynamic_objects.clear();
 
 		delete region_man;
 		region_man = NULL;
@@ -232,24 +207,11 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << "total for " << counter_dofixedstep << " calls to PhysicsWorld::DoFixedStep = " << timer_total << endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_vel =\t\t\t"		<< timer_update_vel						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "ray_update =\t\t\t"		<< timer_ray_update						<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "sphere_collide =\t\t"		<< timer_sphere_collide					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "msphere_collide =\t\t"	<< timer_msphere_collide				<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "collide =\t\t\t\t"		<< timer_collide						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "constraints =\t\t\t"		<< timer_constraints					<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "cgraph =\t\t\t\t"			<< timer_cgraph							<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_pos =\t\t\t"		<< timer_update_pos						<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_sphere_collide + timer_msphere_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
-#endif
-
-#if PROFILE_COLLIDE_MSPHERE
-		Debug(((stringstream&)(stringstream() << "total within InitiateCollisionsForMultisphere = " << timer_init_msphere	<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "init_msphere_init =\t\t"	<< timer_init_msphere_init				<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "get_relevant =\t\t\t"		<< timer_get_relevant					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "remove_constrained =\t"	<< timer_remove_constrained				<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "msphere_msphere =\t\t"	<< timer_msphere_msphere				<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "msphere_mesh =\t\t\t"		<< timer_msphere_mesh					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "msphere_plane =\t\t\t"	<< timer_msphere_plane					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "conclude =\t\t\t\t"		<< timer_conclude						<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_init_msphere_init + timer_get_relevant + timer_remove_constrained + timer_msphere_msphere + timer_msphere_mesh + timer_msphere_plane + timer_conclude << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
 #endif
 
 #if PROFILE_SOLVE_CGRAPH
@@ -316,6 +278,50 @@ namespace CibraryEngine
 		return 1.0f / A;
 	}
 
+	float PhysicsWorld::GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B)
+	{
+		float A;
+		B = 0;
+
+		if(body->can_move)
+		{
+			A = collider->inv_mass + body->inv_mass;
+			B = Vec3::Dot(collider->vel, direction) - Vec3::Dot(body->vel, direction);
+		}
+		else
+		{
+			A = collider->inv_mass;
+			B = Vec3::Dot(collider->vel, direction);
+		}
+
+		if(body->can_rotate)
+		{
+			Vec3 nr2 = Vec3::Cross(direction, position - body->cached_com);
+			A += Vec3::Dot(body->inv_moi * nr2, nr2);
+			B -= Vec3::Dot(body->rot, nr2);
+		}
+
+		return 1.0f / A;
+	}
+
+	float PhysicsWorld::GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction)
+	{
+		float A;
+
+		if(body->can_move)
+			A = collider->inv_mass + body->inv_mass;
+		else
+			A = collider->inv_mass;
+
+		if(body->can_rotate)
+		{
+			Vec3 nr2 = Vec3::Cross(direction, position - body->cached_com);
+			A += Vec3::Dot(body->inv_moi * nr2, nr2);
+		}
+
+		return 1.0f / A;
+	}
+
 	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
 	{
 #if PROFILE_SOLVE_CGRAPH
@@ -367,7 +373,7 @@ namespace CibraryEngine
 							{
 								subgraph->constraints.push_back(jter->constraint);
 
-								if(other != NULL)
+								if(other)
 									fringe.push_back(other);
 							}
 						}
@@ -432,176 +438,7 @@ namespace CibraryEngine
 #endif
 	}
 
-	void PhysicsWorld::InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& constraint_graph)
-	{
-		SphereShape* shape = (SphereShape*)body->GetCollisionShape();
 
-		float radius = shape->radius;
-		Vec3 pos = body->GetPosition();
-		Vec3 vel = body->GetLinearVelocity();
-
-		// find out what might be colliding with us
-		AABB aabb(pos, radius);
-		aabb.Expand(AABB(pos + vel, radius));
-
-		static RelevantObjectsQuery relevant_objects;
-
-		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
-		{
-			vector<PhysicsRegion*>& bucket = body->regions.buckets[i];
-			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				(*iter)->GetRelevantObjects(aabb, relevant_objects);
-		}
-
-		body->RemoveConstrainedBodies(relevant_objects);
-
-		// do collision detection with those objects
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
-		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
-				{
-					switch(other->GetShapeType())
-					{
-						case ST_Sphere:
-							if(other < body)
-								DoSphereSphere(body, other, radius, pos, vel, timestep, constraint_graph);
-							break;
-
-						case ST_TriangleMesh:
-							DoSphereMesh(body, other, radius, pos, vel, timestep, constraint_graph);
-							break;
-
-						case ST_InfinitePlane:
-							DoSpherePlane(body, other, radius, pos, vel, timestep, constraint_graph);
-							break;
-
-						case ST_MultiSphere:
-							DoSphereMultisphere(body, other, radius, pos, vel, timestep, constraint_graph);
-							break;
-					}
-				}
-		}
-
-		relevant_objects.Clear();
-	}
-
-	void PhysicsWorld::InitiateCollisionsForMultisphere(RigidBody* body, float timestep, RelevantObjectsQuery& relevant_objects, vector<ContactPoint>& contact_points)
-	{
-#if PROFILE_COLLIDE_MSPHERE
-		ProfilingTimer timer, timer2;
-		timer.Start();
-		timer2.Start();
-#endif
-		assert(body);
-
-		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
-
-		Mat4 xform = body->GetTransformationMatrix();
-		Mat4 inv_xform = body->GetInvTransform();
-
-		MultiSphereShapeInstanceCache* cache = (MultiSphereShapeInstanceCache*)body->shape_cache;
-		AABB xformed_aabb = cache->aabb;
-
-#if PROFILE_COLLIDE_MSPHERE
-		timer_init_msphere_init += timer.GetAndRestart();
-#endif
-
-		// find out what might be colliding with us
-		assert(!relevant_objects.count);
-
-		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
-		{
-			vector<PhysicsRegion*>& bucket = body->regions.buckets[i];
-			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
-		}
-
-#if PROFILE_COLLIDE_MSPHERE
-		timer_get_relevant += timer.GetAndRestart();
-#endif
-
-		body->RemoveConstrainedBodies(relevant_objects);
-
-#if PROFILE_COLLIDE_MSPHERE
-		timer_remove_constrained += timer.GetAndRestart();
-
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
-		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
-					if(other->GetShapeType() == ST_TriangleMesh)
-						DoMultisphereMesh(body, other, shape, xform, contact_points);
-		}
-
-		timer_msphere_mesh += timer.GetAndRestart();
-
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
-		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
-					if(other->GetShapeType() == ST_InfinitePlane)
-						DoMultispherePlane(body, other, shape, xform, contact_points);
-		}
-
-		timer_msphere_plane += timer.GetAndRestart();
-
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
-		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
-					if(other->GetShapeType() == ST_MultiSphere)
-						if(other < body)
-						{
-							MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
-							DoMultisphereMultisphere(body, other, cache, other_cache, contact_points);
-						}
-		}
-
-		timer_msphere_msphere += timer.GetAndRestart();
-#else
-		// do collision detection with those objects
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
-		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
-				{
-					unsigned int old_size = contact_points.size();
-
-					switch(other->GetShapeType())
-					{
-						case ST_TriangleMesh:
-							DoMultisphereMesh(body, other, shape, xform, contact_points);
-							break;
-
-						case ST_InfinitePlane:
-							DoMultispherePlane(body, other, shape, xform, contact_points);
-							break;
-
-						case ST_MultiSphere:
-							if(other < body)
-							{
-								MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
-								DoMultisphereMultisphere(body, other, cache, other_cache, contact_points);
-							}
-							break;
-					}
-				}
-		}
-#endif
-
-		relevant_objects.Clear();
-
-#if PROFILE_COLLIDE_MSPHERE
-		timer_conclude += timer.Stop();
-		timer_init_msphere += timer2.Stop();
-#endif
-	}
 
 	void PhysicsWorld::DoFixedStep()
 	{
@@ -613,41 +450,40 @@ namespace CibraryEngine
 		timer.Start();
 #endif
 
-		// set forces to what was applied by gravity / user forces; also the objects may deactivate or move between physics regions now
-		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
-			if(CollisionShape::CanShapeTypeMove((ShapeType)i))
-				for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[i].begin(), objects_end = dynamic_objects[i].end(); iter != objects_end; ++iter)
-					(*iter)->UpdateVel(timestep);
+		// set forces to what was applied by gravity / user forces; also the objects may deactivate now
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+			(*iter)->UpdateVel(timestep);
+		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
+			(*iter)->UpdateVel(timestep);
 
 #if PROFILE_DOFIXEDSTEP
 		timer_update_vel += timer.GetAndRestart();
 #endif
 
 		// handle all the collisions involving rays
-		struct RayCallback : public CollisionCallback
+		struct MyRayCallback : public RayCallback
 		{
 			PhysicsWorld* world;
-			RayCallback(PhysicsWorld* world) : world(world) { }
+			MyRayCallback(PhysicsWorld* world) : world(world) { }
 
-			bool OnCollision(const ContactPoint& cp)			// return value controls whether to continue iterating through ray collisions
+			bool OnCollision(RayResult& rr)			// return value controls whether to continue iterating through ray collisions
 			{
-				CollisionCallback* callback = cp.obj_a->GetCollisionCallback();
+				RayCallback* callback = rr.collider->GetRayCallback();
 
-				if(callback && !callback->OnCollision(cp))
+				if(callback && !callback->OnCollision(rr))
 					return true;
 				else
 				{
-					cp.DoCollisionResponse();
-
+					rr.collider->DoCollisionResponse(rr);
 					return true;
 				}
 			}
 		} ray_callback(this);
 
-		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_Ray].begin(), rays_end = dynamic_objects[ST_Ray].end(); iter != rays_end; ++iter)
+		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
 		{
-			RigidBody* body = *iter;
-			RayTestPrivate(body->pos, body->pos + body->vel, ray_callback, timestep, body);
+			RayCollider* collider = (RayCollider*)*iter;
+			RayTestPrivate(collider->pos, collider->pos + collider->vel, ray_callback, timestep, collider);
 		}
 
 #if PROFILE_DOFIXEDSTEP
@@ -661,50 +497,18 @@ namespace CibraryEngine
 		timer.Start();
 #endif
 
-		for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[ST_Sphere].begin(), spheres_end = dynamic_objects[ST_Sphere].end(); iter != spheres_end; ++iter)
-			InitiateCollisionsForSphere(*iter, timestep, constraint_graph);
+		vector<ContactPoint> contact_points;
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+		{
+			(*iter)->InitiateCollisions(timestep, contact_points);
 
-#if PROFILE_DOFIXEDSTEP
-		timer_sphere_collide += timer.GetAndRestart();
-#endif
-
-		{	// curly braces for variable scope
-
-			static const unsigned int SPLIT_AMONG_N = 16;
-
-			if(collider_threads.empty())
-			{
-				for(unsigned int i = 0; i < SPLIT_AMONG_N; ++i)
-					collider_threads.push_back(new MultisphereCollisionInitiatorThread(this));
-			}
-
-			unordered_set<RigidBody*>& mspheres_set = dynamic_objects[ST_MultiSphere];
-			unsigned int msphere_count = mspheres_set.size();
-
-			static vector<RigidBody*> multispheres;
-			multispheres.reserve(msphere_count);
-
-			for(unordered_set<RigidBody*>::iterator iter = mspheres_set.begin(), mspheres_end = mspheres_set.end(); iter != mspheres_end; ++iter)
-				multispheres.push_back(*iter);
-
-			for(unsigned int i = 0; i < SPLIT_AMONG_N; ++i)
-				collider_threads[i]->StartTask(multispheres, i * msphere_count / SPLIT_AMONG_N, (i + 1) * msphere_count / SPLIT_AMONG_N);
-
-			for(vector<MultisphereCollisionInitiatorThread*>::iterator iter = collider_threads.begin(); iter != collider_threads.end(); ++iter)
-			{
-				MultisphereCollisionInitiatorThread& mcit = **iter;
-
-				mcit.WaitForTaskCompletion();
-
-				for(vector<ContactPoint>::iterator jter = mcit.contact_points.begin(); jter != mcit.contact_points.end(); ++jter)
-					constraint_graph.AddContactPoint(*jter);
-			}
-
-			multispheres.clear();
+			for(vector<ContactPoint>::iterator jter = contact_points.begin(), cp_end = contact_points.end(); jter != cp_end; ++jter)
+				constraint_graph.AddContactPoint(*jter);
+			contact_points.clear();
 		}
 
 #if PROFILE_DOFIXEDSTEP
-		timer_msphere_collide += timer.GetAndRestart();
+		timer_collide += timer.GetAndRestart();
 #endif
 
 		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(), cp_end = constraint_graph.contact_points.end(); iter != cp_end; ++iter)
@@ -730,10 +534,10 @@ namespace CibraryEngine
 #endif
 
 		// update positions
-		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
-			if(CollisionShape::CanShapeTypeMove((ShapeType)i))
-				for(unordered_set<RigidBody*>::iterator iter = dynamic_objects[i].begin(), objects_end = dynamic_objects[i].end(); iter != objects_end; ++iter)
-					(*iter)->UpdatePos(timestep, region_man);
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+			(*iter)->UpdatePos(timestep, region_man);
+		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
+			(*iter)->UpdatePos(timestep, region_man);
 
 #if PROFILE_DOFIXEDSTEP
 		timer_update_pos += timer.Stop();
@@ -745,70 +549,95 @@ namespace CibraryEngine
 
 
 
-	void PhysicsWorld::AddRigidBody(RigidBody* r)
+	void PhysicsWorld::AddCollisionObject(CollisionObject* obj)
 	{
-		ShapeType type = r->GetShapeType();
+		// TODO: account for the other kinds of CollisionObject which will eventually exist
 
-		all_objects[type].insert(r);
-		if(r->can_move)
-			dynamic_objects[type].insert(r);
+		all_objects.insert(obj);
+		switch(obj->GetType())
+		{
+			case COT_RigidBody:
+			{
+				RigidBody* r = (RigidBody*)obj;
+				if(r->can_move)
+					dynamic_objects.insert(r);
 
-		r->gravity = gravity;
+				r->gravity = gravity;
 
-		region_man->OnObjectAdded(r, r->regions);
+				break;
+			}
+
+			case COT_RayCollider:
+			{
+				rays.insert((RayCollider*)obj);
+				break;
+			}
+		}
+
+		region_man->OnObjectAdded(obj, obj->regions);
 	}
 
-	void PhysicsWorld::RemoveRigidBody(RigidBody* r)
+	void PhysicsWorld::RemoveCollisionObject(CollisionObject* obj)
 	{
-		ShapeType type = r->GetShapeType();
-		all_objects[type].erase(r);
-		if(r->can_move)
-			dynamic_objects[type].erase(r);
+		all_objects.erase(obj);
 
-		region_man->OnObjectRemoved(r, r->regions);
-
-		const RegionSet& regions = r->regions;
-		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		CollisionObjectType type = obj->GetType();
+		switch(type)
 		{
-			vector<PhysicsRegion*>& bucket = r->regions.buckets[i];
-			for(vector<PhysicsRegion*>::const_iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				(*iter)->RemoveRigidBody(r);
+			case COT_RigidBody:
+			{
+				if(obj->can_move)
+					dynamic_objects.erase(obj);
+				break;
+			}
+
+			case COT_RayCollider:
+			{
+				rays.erase((RayCollider*)obj);
+				break;
+			}
 		}
-		r->regions.Clear();
 
-		const set<RigidBody*>& disabled_collisions = r->disabled_collisions;
-		for(set<RigidBody*>::iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
-			(*iter)->disabled_collisions.erase(r);
-		r->disabled_collisions.clear();
+		region_man->OnObjectRemoved(obj, obj->regions);
+		obj->regions.Clear();
 
-		for(set<PhysicsConstraint*>::iterator iter = r->constraints.begin(), constraints_end = r->constraints.end(); iter != constraints_end; ++iter)
+		const set<CollisionObject*>& disabled_collisions = obj->disabled_collisions;
+		for(set<CollisionObject*>::iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
+			(*iter)->disabled_collisions.erase(obj);
+		obj->disabled_collisions.clear();
+
+		if(type == COT_RigidBody)
 		{
-			PhysicsConstraint* c = *iter;
-			if(c->obj_a == r && c->obj_b)
-				c->obj_b->constraints.erase(c);
-			else if(c->obj_b == r && c->obj_a)
-				c->obj_a->constraints.erase(c);
+			RigidBody* r = (RigidBody*)obj;
+			for(set<PhysicsConstraint*>::iterator iter = r->constraints.begin(), constraints_end = r->constraints.end(); iter != constraints_end; ++iter)
+			{
+				PhysicsConstraint* c = *iter;
+				if(c->obj_a == r && c->obj_b)
+					c->obj_b->constraints.erase(c);
+				else if(c->obj_b == r && c->obj_a)
+					c->obj_a->constraints.erase(c);
 
-			all_constraints.erase(c);
+				all_constraints.erase(c);
 
-			// TODO: figure out where the constraint will be deleted?
+				// TODO: figure out where the constraint will be deleted?
+			}
 		}
 	}
 
 	void PhysicsWorld::AddConstraint(PhysicsConstraint* c)
 	{
-		if(c->obj_a != NULL)
+		if(c->obj_a)
 			c->obj_a->constraints.insert(c);
-		if(c->obj_b != NULL)
+		if(c->obj_b)
 			c->obj_b->constraints.insert(c);
 		all_constraints.insert(c);
 	}
 
 	void PhysicsWorld::RemoveConstraint(PhysicsConstraint* c)
 	{
-		if(c->obj_a != NULL)
+		if(c->obj_a)
 			c->obj_a->constraints.erase(c);
-		if(c->obj_b != NULL)
+		if(c->obj_b)
 			c->obj_b->constraints.erase(c);
 
 		all_constraints.erase(c);
@@ -823,17 +652,16 @@ namespace CibraryEngine
 			internal_timer -= timer_interval;
 		}
 
-		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
-			if(CollisionShape::CanShapeTypeMove((ShapeType)i))
-				for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(), objects_end = all_objects[i].end(); iter != objects_end; ++iter)
-					(*iter)->ResetForces();
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+			((RigidBody*)*iter)->ResetForces();
+		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
+			((RayCollider*)*iter)->ResetForces();
 	}
 
 	void PhysicsWorld::DebugDrawWorld(SceneRenderer* renderer)
 	{
-		for(unsigned int i = 0; i < ST_ShapeTypeMax; ++i)
-			for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(), objects_end = all_objects[i].end(); iter != objects_end; ++iter)
-				(*iter)->DebugDraw(renderer);
+		for(unordered_set<CollisionObject*>::iterator iter = all_objects.begin(), objects_end = all_objects.end(); iter != objects_end; ++iter)
+			(*iter)->DebugDraw(renderer);
 
 		renderer->Render();
 		renderer->Cleanup();
@@ -844,13 +672,13 @@ namespace CibraryEngine
 	{
 		gravity = gravity_;
 
-		for(unsigned int i = 1; i < ST_ShapeTypeMax; ++i)
-			if(CollisionShape::CanShapeTypeMove((ShapeType)i))
-				for(unordered_set<RigidBody*>::iterator iter = all_objects[i].begin(); iter != all_objects[i].end(); ++iter)
-					(*iter)->gravity = gravity_;
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(); iter != dynamic_objects.end(); ++iter)
+			((RigidBody*)*iter)->gravity = gravity_;
+		for(unordered_set<RayCollider*>::iterator iter = rays.begin(); iter != rays.end(); ++iter)
+			((RayCollider*)*iter)->gravity = gravity_;
 	}
 
-	void PhysicsWorld::RayTestPrivate(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time, RigidBody* ibody)
+	void PhysicsWorld::RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time, RayCollider* collider)
 	{
 		// find out what objects are relevant
 		set<PhysicsRegion*> regions;
@@ -872,29 +700,29 @@ namespace CibraryEngine
 		list<RayResult> hits;
 		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
 		{
-			vector<RigidBody*>& bucket = relevant_objects.buckets[i];
-			for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = *iter)
+			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+			{
+				CollisionObject* cobj = *iter;
+				switch(cobj->GetType())
 				{
-					switch(other->GetShapeType())
+					case COT_RigidBody:
 					{
-						case ST_Sphere:
-							DoRaySphere(ibody, other, ray, max_time, hits);
-							break;
+						RigidBody* other = (RigidBody*)*iter;
+						switch(other->GetShapeType())
+						{
+							case ST_Sphere:			RayCollider::CollideSphere(		other, ray, max_time, hits, collider); break;
+							case ST_TriangleMesh:	RayCollider::CollideMesh(		other, ray, max_time, hits, collider); break;
+							case ST_InfinitePlane:	RayCollider::CollidePlane(		other, ray, max_time, hits, collider); break; 
+							case ST_MultiSphere:	RayCollider::CollideMultisphere(other, ray, max_time, hits, collider); break;
+						}
 
-						case ST_TriangleMesh:
-							DoRayMesh(ibody, other, ray, max_time, hits);
-							break;
-
-						case ST_InfinitePlane:
-							DoRayPlane(ibody, other, ray, max_time, hits);
-							break;
-
-						case ST_MultiSphere:
-							DoRayMultisphere(ibody, other, ray, max_time, hits);
-							break;
+						break;
 					}
+
+					// TODO: account for the other kinds of CollisionObject which will eventually exist
 				}
+			}
 		}
 
 		// run the collision callback on whatever we found
@@ -903,98 +731,13 @@ namespace CibraryEngine
 			hits.sort();
 
 			for(list<RayResult>::iterator jter = hits.begin(), hits_end = hits.end(); jter != hits_end; ++jter)
-			{
-				jter->p.BuildCache();
-				if(callback.OnCollision(jter->p))
+				if(callback.OnCollision(*jter))
 					break;
-			}
 		}
 
 		relevant_objects.Clear();
 	}
-	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback) { RayTestPrivate(from, to, callback); }
-
-
-
-
-	/*
-	 * PhysicsWorld::MultisphereCollisionInitiatorThread methods
-	 */
-	PhysicsWorld::MultisphereCollisionInitiatorThread::MultisphereCollisionInitiatorThread(PhysicsWorld* physics) :
-		my_thread(NULL),
-		mutex(new boost::mutex()),
-		cond(new boost::condition_variable()),
-		physics(physics),
-		timestep(physics->timer_interval),
-		contact_points(),
-		stopped(false)
-	{
-	}
-
-	void PhysicsWorld::MultisphereCollisionInitiatorThread::StartTask(const vector<RigidBody*>& multispheres_, unsigned int from_, unsigned int to_)
-	{
-		multispheres = &multispheres_;
-		from = from_;
-		to = to_;
-
-		contact_points.clear();
-
-		if(!my_thread)
-			my_thread = new boost::thread(Runner(this));
-		else
-		{
-			boost::unique_lock<boost::mutex> lock(*mutex);
-
-			stopped = false;			
-			cond->notify_one();
-		}
-	}
-
-	void PhysicsWorld::MultisphereCollisionInitiatorThread::WaitForTaskCompletion()
-	{
-		boost::unique_lock<boost::mutex> lock(*mutex);
-		while(my_thread && !stopped)
-			cond->wait(lock);
-	}
-
-	void PhysicsWorld::MultisphereCollisionInitiatorThread::Shutdown()
-	{
-		{
-			boost::unique_lock<boost::mutex> lock(*mutex);
-
-			cond->notify_one();
-
-			if(my_thread)	{ delete my_thread;	my_thread = NULL; }
-			if(mutex)		{ delete mutex;		mutex = NULL; }
-			if(cond)		{ delete cond;		cond = NULL; }
-		}
-	}
-			
-	void PhysicsWorld::MultisphereCollisionInitiatorThread::Run()
-	{
-		while(!my_thread) { }			// TODO: don't busy wait?
-
-		RelevantObjectsQuery query;
-
-		while(my_thread)
-		{
-			for(unsigned int i = from; i < to; ++i)
-				physics->InitiateCollisionsForMultisphere((*multispheres)[i], timestep, query, contact_points);
-
-			{
-				boost::unique_lock<boost::mutex> lock(*mutex);
-				stopped = true;
-			}
-
-			cond->notify_one();
-
-			{
-				boost::unique_lock<boost::mutex> lock(*mutex);
-				while(my_thread && stopped)
-					cond->wait(lock);
-			}
-		}
-	}
+	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, RayCallback& callback) { RayTestPrivate(from, to, callback); }
 
 
 
@@ -1043,7 +786,6 @@ namespace CibraryEngine
 		{
 			float B;
 			float use_mass = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, B);
-			float bounciness = ibody->bounciness * jbody->bounciness;
 			float impulse_mag = -(1.0f + bounciness) * B * use_mass;
 
 			if(impulse_mag < 0)
@@ -1180,90 +922,6 @@ namespace CibraryEngine
 
 
 	/*
-	 * Ray intersect functions
-	 */
-	static void DoRaySphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
-	{
-		float first, second;
-
-		if(Util::RaySphereIntersect(ray, Sphere(jbody->GetPosition(), ((SphereShape*)jbody->GetCollisionShape())->radius), first, second))
-			if(first >= 0 && first < max_time)
-			{
-				ContactPoint p;
-
-				p.obj_a = ibody;
-				p.obj_b = jbody;
-				p.a.pos = ray.origin + first * ray.direction;
-				p.b.norm = Vec3::Normalize(p.a.pos - jbody->GetPosition(), 1.0f);
-
-				hits.push_back(RayResult(first, p));
-			}
-	}
-
-	static void DoRayMesh(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
-	{
-		TriangleMeshShape* mesh = (TriangleMeshShape*)jbody->GetCollisionShape();
-
-		Mat4 inv_mat = jbody->GetInvTransform();
-		Ray scaled_ray(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
-
-		vector<Intersection> mesh_hits = mesh->RayTest(scaled_ray);
-		for(vector<Intersection>::iterator kter = mesh_hits.begin(), hits_end = mesh_hits.end(); kter != hits_end; ++kter)
-		{
-			float t = kter->time * max_time;
-			if(t >= 0 && t < max_time)
-			{
-				ContactPoint p;
-
-				p.obj_a = ibody;
-				p.obj_b = jbody;
-				p.a.pos = ray.origin + t * ray.direction;
-				p.b.norm = kter->normal;
-
-				hits.push_back(RayResult(t, p));
-			}
-		}
-	}
-
-	static void DoRayPlane(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
-	{
-		InfinitePlaneShape* plane = (InfinitePlaneShape*)jbody->GetCollisionShape();
-
-		float t = Util::RayPlaneIntersect(ray, plane->plane);
-		if(t >= 0 && t < max_time)
-		{
-			ContactPoint p;
-
-			p.obj_a = ibody;
-			p.obj_b = jbody;
-			p.a.pos = ray.origin + t * ray.direction;
-			p.b.norm = plane->plane.normal;
-
-			hits.push_back(RayResult(t, p));
-		}
-	}
-
-	static void DoRayMultisphere(RigidBody* ibody, RigidBody* jbody, const Ray& ray, float max_time, list<RayResult>& hits)
-	{
-		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
-
-		Mat4 inv_mat = jbody->GetInvTransform();
-
-		Ray nu_ray(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
-
-		ContactPoint p;
-		float t;
-		if(shape->CollideRay(nu_ray, p, t, ibody, jbody))
-		{
-			p.a.pos = jbody->GetTransformationMatrix().TransformVec3_1(p.b.pos);
-			hits.push_back(RayResult(t * max_time, p));
-		}
-	}
-
-
-
-
-	/*
 	 * SphereShape collision functions
 	 */
 	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
@@ -1363,158 +1021,5 @@ namespace CibraryEngine
 		ContactPoint cp;
 		if(shape->CollideSphere(Sphere(nu_pos, radius), cp, ibody, jbody))
 			hits.AddContactPoint(cp);
-	}
-
-
-
-
-	/*
-	 * MultiSphereShape collision functions
-	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points)
-	{
-		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
-		Mat4 j_xform = jbody->GetTransformationMatrix();
-		Mat4 jinv = jbody->GetInvTransform();
-
-		Mat4 inv_net_xform = jinv * xform;
-		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
-
-		vector<unsigned int> relevant_triangles;
-		jshape->GetRelevantTriangles(xformed_aabb, relevant_triangles);
-		if(relevant_triangles.empty())
-			return;
-
-		vector<Sphere> my_spheres;															// CollideMesh function will modify this if it's empty, otherwise use existing values
-
-		ContactPoint p;
-		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
-		{
-			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
-
-			if(ishape->CollideMesh(inv_net_xform, my_spheres, tri, p, ibody, jbody))
-			{
-				p.a.pos = j_xform.TransformVec3_1(p.a.pos);
-				p.b.pos = j_xform.TransformVec3_1(p.b.pos);
-				p.b.norm = j_xform.TransformVec3_0(p.b.norm);
-				p.a.norm = -p.b.norm;
-
-				contact_points.push_back(p);
-			}
-		}
-	}
-
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points)
-	{
-		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
-		ishape->CollidePlane(xform, jshape->plane, contact_points, ibody, jbody);
-	}
-
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint>& contact_points)
-	{
-		struct MaxExtentGetter
-		{
-			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
-			{
-				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
-
-				float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
-				++iter;
-
-				while(iter != spheres_end)
-				{
-					maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
-					++iter;
-				}
-
-				return maximum;
-			}
-		} GetMaximumExtent;
-
-		struct MinExtentGetter
-		{
-			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
-			{
-				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
-
-				float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
-				++iter;
-
-				while(iter != spheres_end)
-				{
-					minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
-					++iter;
-				}
-
-				return minimum;
-			}
-		} GetMinimumExtent;
-
-		AABB overlap;
-		if(AABB::Intersect(ishape->aabb, jshape->aabb, overlap))
-		{
-			vector<Sphere>& my_spheres = ishape->spheres;
-			vector<Sphere>& other_spheres = jshape->spheres;
-
-			// try to find a separating axis
-			Vec3 direction;
-			float score = -1;
-			float search_scale = 0.6f;
-
-			char best_test;
-			Vec3 test_dir[8];
-
-			static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
-			static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
-			static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
-
-			for(char i = 0; i < 5; ++i)
-			{
-				float best_score;
-
-				for(char j = 0; j < 8; ++j)
-				{
-					Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
-						direction.x + x_offsets[j] * search_scale,
-						direction.y + y_offsets[j] * search_scale,
-						direction.z + z_offsets[j] * search_scale));
-
-					float test_score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
-
-					if(test_score < 0)							// found a separating plane? go home early
-						return;
-					else
-					{
-						if(j == 0 || test_score < best_score)
-						{
-							best_test = j;
-							best_score = test_score;
-						}
-					}
-				}
-
-				if(i != 0 && best_score >= score)
-					search_scale *= 0.5f;
-				else
-				{
-					direction = test_dir[best_test];
-					score = best_score;
-				}
-			}
-
-			ContactPoint p;
-			p.obj_a = ibody;
-			p.obj_b = jbody;
-
-			p.a.norm = direction;
-			p.b.norm = -direction;
-
-			Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
-			Vec3 offset = direction * (score * 0.5f);
-			p.a.pos = pos - offset;
-			p.b.pos = pos + offset;
-
-			contact_points.push_back(p);
-		}
 	}
 }

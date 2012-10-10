@@ -9,6 +9,7 @@
 
 #include "Physics.h"
 #include "RigidBody.h"
+#include "RayCollider.h"
 #include "ModelPhysics.h"
 #include "JointConstraint.h"
 

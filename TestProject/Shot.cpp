@@ -18,7 +18,7 @@ namespace Test
 		origin(origin),
 		initial_vel(initial_vel),
 		mass(0.05f),
-		body(NULL),
+		collider(NULL),
 		causer(firer),
 		firer(firer),
 		trail_head(NULL),
@@ -30,11 +30,14 @@ namespace Test
 	{
 		Entity::InnerDispose();
 
-		body->Dispose();
-		delete body;
-		body = NULL;
+		if(collider)
+		{
+			collider->Dispose();
+			delete collider;
+			collider = NULL;
+		}
 
-		if(trail_head != NULL)
+		if(trail_head)
 		{
 			trail_head->head_free = true;
 			if(trail_head->trail_free)
@@ -49,11 +52,9 @@ namespace Test
 	{
 		physics = game_state->physics_world;
 
-		body = new RigidBody(new RayShape(), MassInfo(Vec3(), mass), origin);
-		body->SetLinearVelocity(initial_vel);
-		body->SetCollisionCallback(&impact_callback);
-		body->SetUserEntity(this);
-		physics->AddRigidBody(body);
+		collider = new RayCollider(this, origin, initial_vel, mass);
+		collider->SetRayCallback(&impact_callback);
+		physics->AddCollisionObject(collider);
 
 		trail_head = new TrailHead(this);
 		game_state->Spawn(new BillboardTrail(game_state, trail_head, material, 0.03f));
@@ -61,14 +62,14 @@ namespace Test
 
 	void Shot::DeSpawned()
 	{
-		if(body != NULL)
-			physics->RemoveRigidBody(body);
+		if(collider)
+			physics->RemoveCollisionObject(collider);
 	}
 
 	void Shot::Update(TimingInfo time) { Entity::Update(time); }
 
-	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }			// was .03 in C# version, but it took too many shots to do 1 damage
-	Vec3 Shot::GetMomentum() { return body->GetLinearVelocity() * mass; }
+	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }						// was .03 in C# version, but it took too many shots to do 1 damage
+	Vec3 Shot::GetMomentum() { return collider->GetLinearVelocity() * mass; }
 
 
 
@@ -93,7 +94,7 @@ namespace Test
 		}
 		else
 		{
-			node = BillboardTrail::TrailNode(shot->body->GetPosition(), 0.0f, 0.1f);
+			node = BillboardTrail::TrailNode(shot->collider->GetPosition(), 0.0f, 0.1f);
 			return true;
 		}
 	}
@@ -106,16 +107,16 @@ namespace Test
 	 */
 	Shot::MyImpactCallback::MyImpactCallback(Shot* shot) : shot(shot) { }
 
-	bool Shot::MyImpactCallback::OnCollision(const ContactPoint& cp)
+	bool Shot::MyImpactCallback::OnCollision(RayResult& rr)
 	{
 		if(shot->is_valid)
 		{
-			Shootable* hit = dynamic_cast<Shootable*>(cp.obj_b->GetUserEntity());
-			if(hit != NULL && hit->GetShot(shot, cp.a.pos, shot->GetMomentum()))
+			Shootable* hit = dynamic_cast<Shootable*>(rr.body->GetUserEntity());
+			if(hit && hit->GetShot(shot, rr.pos, shot->GetMomentum()))
 			{
-				if(shot->trail_head != NULL)
+				if(shot->trail_head)
 				{
-					shot->trail_head->end_pos = cp.a.pos;
+					shot->trail_head->end_pos = rr.pos;
 					shot->trail_head->shot = NULL;
 				}
 

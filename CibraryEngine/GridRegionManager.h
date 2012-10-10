@@ -36,9 +36,9 @@ namespace CibraryEngine
 			~GridRegionManager();
 
 
-			void OnObjectAdded(RigidBody* object, RegionSet& object_regions);
-			void OnObjectUpdate(RigidBody* object, RegionSet& object_regions, float timestep);
-			void OnObjectRemoved(RigidBody* object, RegionSet& object_regions);
+			void OnObjectAdded(CollisionObject* object, RegionSet& object_regions);
+			void OnObjectUpdate(CollisionObject* object, RegionSet& object_regions, float timestep);
+			void OnObjectRemoved(CollisionObject* object, RegionSet& object_regions);
 
 			PhysicsRegion* GetRegion(const Vec3& point);
 			void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results);

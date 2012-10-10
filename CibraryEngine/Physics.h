@@ -21,11 +21,15 @@ namespace CibraryEngine
 
 	struct Mat4;
 
-	class RigidBody;
+	class CollisionObject;
+	class RayCollider;
+
 	class PhysicsConstraint;
 	struct ContactPoint;
-	class CollisionCallback;
 	struct ConstraintGraph;
+
+	class RayCallback;
+	class CollisionCallback;
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
@@ -40,8 +44,9 @@ namespace CibraryEngine
 	{
 		private:
 
-			unordered_set<RigidBody*> all_objects[ST_ShapeTypeMax];
-			unordered_set<RigidBody*> dynamic_objects[ST_ShapeTypeMax];
+			unordered_set<CollisionObject*> all_objects;
+			unordered_set<RayCollider*> rays;
+			unordered_set<CollisionObject*> dynamic_objects;
 
 			unordered_set<PhysicsRegion*> all_regions;
 
@@ -53,55 +58,11 @@ namespace CibraryEngine
 
 			float internal_timer, timer_interval;
 
-
-			struct MultisphereCollisionInitiatorThread
-			{
-				private:
-
-					boost::thread* my_thread;							// if this becomes NULL (after being non-NULL) it means the thread is shutting down
-					boost::mutex* mutex;
-					boost::condition_variable* cond;
-
-					PhysicsWorld* physics;
-					float timestep;
-
-					const vector<RigidBody*>* multispheres;
-					unsigned int from, to;
-
-					bool stopped;
-
-				public:
-
-					vector<ContactPoint> contact_points;				// results out
-
-					MultisphereCollisionInitiatorThread(PhysicsWorld* physics);
-
-					void StartTask(const vector<RigidBody*>& multispheres, unsigned int from, unsigned int to);
-					void WaitForTaskCompletion();
-
-					void Shutdown();									// called to inform the thread that it is no longer needed and should shut down
-
-					void Run();
-
-					struct Runner
-					{
-						MultisphereCollisionInitiatorThread* data;
-						Runner(MultisphereCollisionInitiatorThread* data) : data(data) { }
-
-						void operator()() { data->Run(); }				// thread's "main" function
-					};
-			};
-			vector<MultisphereCollisionInitiatorThread*> collider_threads;
-
-
 			void SolveConstraintGraph(ConstraintGraph& graph);
-
-			void InitiateCollisionsForSphere(RigidBody* body, float timestep, ConstraintGraph& contraint_graph);
-			void InitiateCollisionsForMultisphere(RigidBody* body, float timestep, RelevantObjectsQuery& query, vector<ContactPoint>& contact_points);
 
 			void DoFixedStep();
 
-			void RayTestPrivate(const Vec3& from, const Vec3& to, CollisionCallback& callback, float max_time = 1.0f, RigidBody* ibody = NULL);
+			void RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time = 1.0f, RayCollider* collider = NULL);
 
 			struct MyOrphanCallback;
 			MyOrphanCallback* orphan_callback;
@@ -119,13 +80,13 @@ namespace CibraryEngine
 			/** Initializes a PhysicsWorld */
 			PhysicsWorld();
 
-			/** Adds a rigid body to the simulation */
-			void AddRigidBody(RigidBody* r);
+			/** Adds a collision object to the simulation */
+			void AddCollisionObject(CollisionObject* obj);
 			/**
-			 * Removes a rigid body from the simulation.
+			 * Removes a collision object from the simulation.
 			 * This will also remove any constraints with other objects, and it's up to you to know when to delete them!
 			 */
-			void RemoveRigidBody(RigidBody* r);
+			void RemoveCollisionObject(CollisionObject* obj);
 
 			void AddConstraint(PhysicsConstraint* c);
 			void RemoveConstraint(PhysicsConstraint* c);
@@ -138,12 +99,14 @@ namespace CibraryEngine
 			Vec3 GetGravity();
 			void SetGravity(const Vec3& gravity);
 
-			void RayTest(const Vec3& from, const Vec3& to, CollisionCallback& callback);
+			void RayTest(const Vec3& from, const Vec3& to, RayCallback& callback);
 
 			/** Hard to explain... return value is like mass, and B is like inward velocity */
 			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B);
-
 			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction);
+
+			static float GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B);
+			static float GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction);
 	};
 
 	class RigidBody;
@@ -202,26 +165,17 @@ namespace CibraryEngine
 		virtual ~PhysicsRegionManager() { };
 
 		// region should call TakeOwnership
-		virtual void OnObjectAdded(RigidBody* object, RegionSet& object_regions) = 0;
+		virtual void OnObjectAdded(CollisionObject* object, RegionSet& object_regions) = 0;
 
-		virtual void OnObjectUpdate(RigidBody* object, RegionSet& object_regions, float timestep) = 0;
+		virtual void OnObjectUpdate(CollisionObject* object, RegionSet& object_regions, float timestep) = 0;
 
 		// region should NOT call Disown
-		virtual void OnObjectRemoved(RigidBody* object, RegionSet& object_regions) = 0;
+		virtual void OnObjectRemoved(CollisionObject* object, RegionSet& object_regions) = 0;
 
 		/** Get the PhysicsRegion containing the specified point, if one exists */
 		virtual PhysicsRegion* GetRegion(const Vec3& point) = 0;
 
 		virtual void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results) = 0;
-	};
-
-	struct RayResult
-	{
-		float t;
-		ContactPoint p;
-
-		RayResult(float t, const ContactPoint& p) : t(t), p(p) { }
-		bool operator <(const RayResult& h) { return t < h.t; }
 	};
 
 	class CollisionCallback

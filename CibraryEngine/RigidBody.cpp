@@ -7,6 +7,8 @@
 #include "Quaternion.h"
 #include "Matrix.h"
 
+#include "Sphere.h"
+
 #include "Physics.h"
 #include "PhysicsRegion.h"
 
@@ -21,49 +23,48 @@
 
 namespace CibraryEngine
 {
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points);
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint>& contact_points);
+
+
+
+
+
 	/*
 	 * RigidBody methods
 	 */
-	RigidBody::RigidBody() : regions(), constraints(), gravity(), mass_info(), shape(NULL), shape_cache(NULL), user_entity(NULL), collision_callback(NULL) { }
-	RigidBody::RigidBody(CollisionShape* shape, MassInfo mass_info, Vec3 pos, Quaternion ori) :
-		regions(),
+	RigidBody::RigidBody() : DynamicsObject(NULL, COT_RigidBody, MassInfo()), constraints(), shape(NULL), shape_cache(NULL) { }
+	RigidBody::RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info_, Vec3 pos, Quaternion ori) :
+		DynamicsObject(user_entity, COT_RigidBody, mass_info_, pos),
 		constraints(),
-		pos(pos),
-		vel(),
 		ori(ori),
 		rot(),
-		force(),
 		torque(),
-		applied_force(),
 		applied_torque(),
-		gravity(),
-		mass_info(mass_info),
 		shape(shape),
 		shape_cache(NULL),
-		xform_valid(false),
-		bounciness(!shape->CanMove() ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.8f : 0.2f),
-		friction(shape->GetShapeType() == ST_InfinitePlane ? 1.0f : shape->GetShapeType() == ST_Ray ? 0.0f : 1.0f),
-		linear_damp(0.1f),
 		angular_damp(0.1f),
-		can_move(shape->CanMove() && mass_info.mass > 0),
 		can_rotate(false),
-		active(can_move),
-		deactivation_timer(0.5f),
-		user_entity(NULL),
 		collision_callback(NULL)
 	{
+		bounciness = shape->CanMove() ? 0.2f : 1.0f;
+		friction = 1.0f;
+		linear_damp = 0.1f;
+
+		active = can_move = shape->CanMove() && mass_info.mass > 0;
+
 		Mat3 moi_rm(mass_info.moi);
 
 		if(moi_rm.Determinant() != 0.0f)
 			can_rotate = true;
 
-		inv_mass = mass_info.mass = 0.0f ? 0.0f : 1.0f / mass_info.mass;
 		inv_moi = ComputeInvMoi();
 	}
 
 	void RigidBody::InnerDispose()
 	{
-		if(shape != NULL)
+		if(shape)
 		{
 			shape->Dispose();
 			delete shape;
@@ -71,19 +72,19 @@ namespace CibraryEngine
 			shape = NULL;
 		}
 
-		if(shape_cache != NULL)
+		if(shape_cache)
 		{
 			delete shape_cache;
 			shape_cache = NULL;
 		}
 	}
 
-	void RigidBody::DisposePreservingCollisionShape() { shape = NULL; Dispose(); }
+	void RigidBody::DisposePreservingCollisionShape()					{ shape = NULL; Dispose(); }
 
 
 
 
-	Mat3 RigidBody::ComputeInvMoi() { return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
+	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
 
 	void RigidBody::UpdateVel(float timestep)
 	{
@@ -149,19 +150,11 @@ namespace CibraryEngine
 		xform_valid = true;
 	}
 
-	void RigidBody::ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
+	void RigidBody::ComputeXformAsNeeded()								{ if(!xform_valid) { ComputeXform(); } }
 
-	void RigidBody::ResetForces() 
-	{
-		applied_force = can_move ? gravity * mass_info.mass : Vec3();
-		applied_torque = Vec3();
-	}
+	void RigidBody::ResetForces()										{ DynamicsObject::ResetForces(); applied_torque = Vec3(); }
 
-	void RigidBody::ResetToApplied()
-	{
-		force = applied_force;
-		torque = applied_torque;
-	}
+	void RigidBody::ResetToApplied()									{ DynamicsObject::ResetToApplied(); torque = applied_torque; }
 
 	Vec3 RigidBody::LocalForceToTorque(const Vec3& force, const Vec3& local_poi)
 	{
@@ -175,7 +168,7 @@ namespace CibraryEngine
 		return Vec3::Cross(force, radius_vector);
 	}
 
-	Vec3 RigidBody::GetLocalVelocity(const Vec3& point) { ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
+	Vec3 RigidBody::GetLocalVelocity(const Vec3& point)					{ ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
 
 	void RigidBody::ApplyLocalImpulse(const Vec3& impulse, const Vec3& local_poi)
 	{
@@ -197,9 +190,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::ApplyCentralImpulse(const Vec3& impulse) { if(active) { vel += impulse * inv_mass; } }
-
-	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse) { rot += inv_moi * angular_impulse; }
+	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse)	{ rot += inv_moi * angular_impulse; }
 
 	void RigidBody::RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const
 	{
@@ -210,27 +201,21 @@ namespace CibraryEngine
 				eligible_bodies.Erase(other);
 		}
 
-		for(set<RigidBody*>::const_iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
+		for(set<CollisionObject*>::const_iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
 			eligible_bodies.Erase(*iter);
 	}
 
 
 
-	Vec3 RigidBody::GetPosition() { return pos; }
-	void RigidBody::SetPosition(Vec3 pos_) { pos = pos_; xform_valid = false; }
+	
 
-	Quaternion RigidBody::GetOrientation() { return ori; }
-	void RigidBody::SetOrientation(Quaternion ori_) { ori = ori_; xform_valid = false; }
+	Quaternion RigidBody::GetOrientation()								{ return ori; }
+	void RigidBody::SetOrientation(Quaternion ori_)						{ ori = ori_; xform_valid = false; }
 
-	Mat4 RigidBody::GetTransformationMatrix() { ComputeXformAsNeeded(); return xform; }
-	Mat4 RigidBody::GetInvTransform() { ComputeXformAsNeeded(); return inv_xform; }
+	Mat4 RigidBody::GetTransformationMatrix()							{ ComputeXformAsNeeded(); return xform; }
+	Mat4 RigidBody::GetInvTransform()									{ ComputeXformAsNeeded(); return inv_xform; }
 
-	void RigidBody::SetBounciness(float bounciness_) { bounciness = bounciness_; }
-	void RigidBody::SetFriction(float friction_) { friction = friction_; }
-	float RigidBody::GetBounciness() { return bounciness; }
-	float RigidBody::GetFriction() { return friction; }
-
-	bool RigidBody::MergesSubgraphs() { return shape->CanMove() && shape->GetShapeType() != ST_Ray; }
+	bool RigidBody::MergesSubgraphs()									{ return shape->CanMove() && shape->GetShapeType() != ST_Ray; }
 
 	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
 	{
@@ -238,18 +223,9 @@ namespace CibraryEngine
 		applied_force += force;
 	}
 
-	void RigidBody::ApplyCentralForce(const Vec3& force) { applied_force += force; }
+	Vec3 RigidBody::GetAngularVelocity()								{ return rot; }
+	void RigidBody::SetAngularVelocity(const Vec3& vel)					{ rot = vel; }
 
-	Vec3 RigidBody::GetLinearVelocity() { return vel; }
-	void RigidBody::SetLinearVelocity(const Vec3& vel_) { vel = vel_; }
-
-	Vec3 RigidBody::GetAngularVelocity() { return rot; }
-	void RigidBody::SetAngularVelocity(const Vec3& vel) { rot = vel; }
-
-	void RigidBody::SetGravity(const Vec3& grav) { gravity = grav; }
-	void RigidBody::SetDamp(float damp) { linear_damp = damp; }
-
-	MassInfo RigidBody::GetMassInfo() const { return mass_info; }
 	MassInfo RigidBody::GetTransformedMassInfo() const
 	{
 		MassInfo result;
@@ -262,32 +238,18 @@ namespace CibraryEngine
 		return result;
 	}
 
-	float RigidBody::GetMass() const { return mass_info.mass; }
-	Vec3 RigidBody::GetCenterOfMass() { ComputeXformAsNeeded(); return cached_com; }
+	
+	Vec3 RigidBody::GetCenterOfMass()									{ ComputeXformAsNeeded(); return cached_com; }
 
-	Mat3 RigidBody::GetInvMoI() { return inv_moi; }
+	Mat3 RigidBody::GetInvMoI()											{ return inv_moi; }
 
-	void RigidBody::DebugDraw(SceneRenderer* renderer) { shape->DebugDraw(renderer, pos, ori); }
+	void RigidBody::DebugDraw(SceneRenderer* renderer)					{ shape->DebugDraw(renderer, pos, ori); }
 
-	void RigidBody::SetCollisionCallback(CollisionCallback* callback) { collision_callback = callback; }
-	CollisionCallback* RigidBody::GetCollisionCallback() { return collision_callback; }
+	CollisionShape* RigidBody::GetCollisionShape()						{ return shape; }
+	ShapeType RigidBody::GetShapeType()									{ return shape->GetShapeType(); }
 
-	CollisionShape* RigidBody::GetCollisionShape() { return shape; }
-	ShapeType RigidBody::GetShapeType() { return shape->GetShapeType(); }
-
-	void RigidBody::SetCollisionEnabled(RigidBody* other, bool enabled)
-	{
-		if(enabled)
-		{
-			disabled_collisions.erase(other);
-			other->disabled_collisions.erase(this);
-		}
-		else
-		{
-			disabled_collisions.insert(other);
-			other->disabled_collisions.insert(this);
-		}
-	}
+	void RigidBody::SetCollisionCallback(CollisionCallback* callback)	{ collision_callback = callback; }
+	CollisionCallback* RigidBody::GetCollisionCallback() const			{ return collision_callback; }
 
 	AABB RigidBody::GetAABB(float timestep)
 	{
@@ -320,107 +282,222 @@ namespace CibraryEngine
 		}
 	}
 
-	AABB RigidBody::GetCachedAABB() { ComputeXformAsNeeded(); return cached_aabb; }
-
-	Entity* RigidBody::GetUserEntity() { return user_entity; }
-	void RigidBody::SetUserEntity(Entity* entity) { user_entity = entity; }
+	AABB RigidBody::GetCachedAABB()										{ ComputeXformAsNeeded(); return cached_aabb; }
 
 
 
 
-	/*
-	 * RegionSet methods
-	 */
-	RegionSet::RegionSet() : buckets(), count(0) { }
-
-	void RegionSet::Insert(PhysicsRegion* region)
+	void RigidBody::InitiateCollisions(float timestep, vector<ContactPoint>& contact_points)
 	{
-		unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
+		switch(shape->GetShapeType())
+		{
+			case ST_MultiSphere:
+				InitiateCollisionsForMultisphere(timestep, contact_points);
+				break;
 
-		vector<PhysicsRegion*>& bucket = buckets[hash];
-		for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-			if(*iter == region)
-				return;
-
-		bucket.push_back(region);
-		++count;
+			default:
+				DEBUG();
+				break;
+		}
 	}
 
-	void RegionSet::Erase(PhysicsRegion* region)
+	void RigidBody::InitiateCollisionsForMultisphere(float timestep, vector<ContactPoint>& contact_points)
 	{
-		if(count)
+		MultiSphereShape* shape = (MultiSphereShape*)this->shape;
+
+		Mat4 xform = GetTransformationMatrix();
+		Mat4 inv_xform = GetInvTransform();
+
+		MultiSphereShapeInstanceCache* cache = (MultiSphereShapeInstanceCache*)shape_cache;
+		AABB xformed_aabb = cache->aabb;
+
+		RelevantObjectsQuery relevant_objects;
+
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
 		{
-			unsigned int hash = ((unsigned int)region / sizeof(PhysicsRegion)) % hash_size;
+			vector<PhysicsRegion*>& bucket = regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
+		}
 
-			vector<PhysicsRegion*>& bucket = buckets[hash];
-			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-				if(bucket[i] == region)
+		RemoveConstrainedBodies(relevant_objects);
+
+		// do collision detection with those objects
+		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		{
+			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				if(RigidBody* other = (RigidBody*)*iter)					// TODO: account for the other kinds of CollisionObject which will eventually exist
 				{
-					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-					bucket.pop_back();
+					switch(other->GetShapeType())
+					{
+						case ST_TriangleMesh:
+							DoMultisphereMesh(this, other, shape, xform, contact_points);
+							break;
 
-					assert(count);
-					--count;
+						case ST_InfinitePlane:
+							DoMultispherePlane(this, other, shape, xform, contact_points);
+							break;
 
-					return;
+						case ST_MultiSphere:
+							if(other < this)
+							{
+								MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
+								DoMultisphereMultisphere(this, other, cache, other_cache, contact_points);
+							}
+							break;
+					}
 				}
 		}
 	}
 
-	void RegionSet::Clear()
-	{
-		for(unsigned int i = 0; i < hash_size; ++i)
-			buckets[i].clear();
-	}
-
-
-
-
 	/*
-	 * RelevantObjectsQuery methods
+	 * MultiSphereShape collision functions
 	 */
-	RelevantObjectsQuery::RelevantObjectsQuery() : buckets(), count(0) { }
-	RelevantObjectsQuery::~RelevantObjectsQuery() { }
-
-	void RelevantObjectsQuery::Insert(RigidBody* object)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points)
 	{
-		unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
+		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
+		Mat4 j_xform = jbody->GetTransformationMatrix();
+		Mat4 jinv = jbody->GetInvTransform();
 
-		vector<RigidBody*>& bucket = buckets[hash];
-		for(vector<RigidBody*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-			if(*iter == object)
-				return;
+		Mat4 inv_net_xform = jinv * xform;
+		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
 
-		bucket.push_back(object);
-		++count;
-	}
-	
-	void RelevantObjectsQuery::Erase(RigidBody* object)
-	{
-		if(count)
+		vector<unsigned int> relevant_triangles;
+		jshape->GetRelevantTriangles(xformed_aabb, relevant_triangles);
+		if(relevant_triangles.empty())
+			return;
+
+		vector<Sphere> my_spheres;															// CollideMesh function will modify this if it's empty, otherwise use existing values
+
+		ContactPoint p;
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
-			unsigned int hash = ((unsigned int)object / sizeof(PhysicsRegion)) % hash_size;
+			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
 
-			vector<RigidBody*>& bucket = buckets[hash];
-			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-				if(bucket[i] == object)
-				{
-					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-					bucket.pop_back();
+			if(ishape->CollideMesh(inv_net_xform, my_spheres, tri, p, ibody, jbody))
+			{
+				p.a.pos = j_xform.TransformVec3_1(p.a.pos);
+				p.b.pos = j_xform.TransformVec3_1(p.b.pos);
+				p.b.norm = j_xform.TransformVec3_0(p.b.norm);
+				p.a.norm = -p.b.norm;
 
-					assert(count);
-					--count;
-
-					return;
-				}
+				contact_points.push_back(p);
+			}
 		}
 	}
 
-	void RelevantObjectsQuery::Clear()
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint>& contact_points)
 	{
-		for(unsigned int i = 0; i < hash_size; ++i)
-			buckets[i].clear();
+		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
+		ishape->CollidePlane(xform, jshape->plane, contact_points, ibody, jbody);
+	}
 
-		count = 0;
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint>& contact_points)
+	{
+		struct MaxExtentGetter
+		{
+			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
+			{
+				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
+
+				float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
+				++iter;
+
+				while(iter != spheres_end)
+				{
+					maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
+					++iter;
+				}
+
+				return maximum;
+			}
+		} GetMaximumExtent;
+
+		struct MinExtentGetter
+		{
+			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
+			{
+				vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
+
+				float minimum = Vec3::Dot(direction, iter->center) - iter->radius;
+				++iter;
+
+				while(iter != spheres_end)
+				{
+					minimum = min(minimum, Vec3::Dot(direction, iter->center) - iter->radius);
+					++iter;
+				}
+
+				return minimum;
+			}
+		} GetMinimumExtent;
+
+		AABB overlap;
+		if(AABB::Intersect(ishape->aabb, jshape->aabb, overlap))
+		{
+			vector<Sphere>& my_spheres = ishape->spheres;
+			vector<Sphere>& other_spheres = jshape->spheres;
+
+			// try to find a separating axis
+			Vec3 direction;
+			float score = -1;
+			float search_scale = 0.6f;
+
+			char best_test;
+			Vec3 test_dir[8];
+
+			static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
+			static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
+			static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
+
+			for(char i = 0; i < 5; ++i)
+			{
+				float best_score;
+
+				for(char j = 0; j < 8; ++j)
+				{
+					Vec3& dir = test_dir[j] = Vec3::Normalize(Vec3(
+						direction.x + x_offsets[j] * search_scale,
+						direction.y + y_offsets[j] * search_scale,
+						direction.z + z_offsets[j] * search_scale));
+
+					float test_score = GetMaximumExtent(dir, my_spheres) - GetMinimumExtent(dir, other_spheres);
+
+					if(test_score < 0)							// found a separating plane? go home early
+						return;
+					else
+					{
+						if(j == 0 || test_score < best_score)
+						{
+							best_test = j;
+							best_score = test_score;
+						}
+					}
+				}
+
+				if(i != 0 && best_score >= score)
+					search_scale *= 0.5f;
+				else
+				{
+					direction = test_dir[best_test];
+					score = best_score;
+				}
+			}
+
+			ContactPoint p;
+			p.obj_a = ibody;
+			p.obj_b = jbody;
+
+			p.a.norm = direction;
+			p.b.norm = -direction;
+
+			Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
+			Vec3 offset = direction * (score * 0.5f);
+			p.a.pos = pos - offset;
+			p.b.pos = pos + offset;
+
+			contact_points.push_back(p);
+		}
 	}
 }

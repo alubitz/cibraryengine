@@ -7,18 +7,19 @@
 #include "Entity.h"
 #include "Physics.h"
 #include "RigidBody.h"
+#include "RayCollider.h"
 
 namespace CibraryEngine
 {
 	bool VisionBlocker::CheckLineOfSight(PhysicsWorld* physics, Vec3 from, Vec3 to)
 	{
-		struct RayCallback : public CollisionCallback
+		struct MyRayCallback : public RayCallback
 		{
 			bool result;
-			RayCallback() : result(true) { }
-			bool OnCollision(const ContactPoint& cp)
+			MyRayCallback() : result(true) { }
+			bool OnCollision(RayResult& rr)
 			{
-				if(Entity* entity = cp.obj_b->GetUserEntity())
+				if(Entity* entity = rr.body->GetUserEntity())
 					if(VisionBlocker* vision_blocker = dynamic_cast<VisionBlocker*>(entity))
 					{
 						result = false;

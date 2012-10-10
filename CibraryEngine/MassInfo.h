@@ -21,6 +21,8 @@ namespace CibraryEngine
 
 		/** Initializes a zero mass */
 		MassInfo();
+		/** Initializes a MassInfo representing a point mass at the origin */
+		MassInfo(float mass);
 		/** Initializes a MassInfo representing a point mass, at the specified location */
 		MassInfo(Vec3 pos, float mass);
 

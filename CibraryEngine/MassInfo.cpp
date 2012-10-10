@@ -10,6 +10,7 @@ namespace CibraryEngine
 	 * MassInfo methods
 	 */
 	MassInfo::MassInfo() : mass(0), com(), moi() { }
+	MassInfo::MassInfo(float mass) : mass(mass), com(), moi() { }
 	MassInfo::MassInfo(Vec3 point, float mass) : mass(mass), com(point), moi() { }
 
 	void MassInfo::operator +=(MassInfo right)

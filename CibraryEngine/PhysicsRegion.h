@@ -12,7 +12,7 @@ namespace CibraryEngine
 	using boost::unordered_map;
 	using boost::unordered_set;
 
-	class RigidBody;
+	class CollisionObject;
 	struct ConstraintGraph;
 	class CollisionCallback;
 	class SceneRenderer;
@@ -30,22 +30,24 @@ namespace CibraryEngine
 			{
 				static const unsigned int hash_size = 5;
 
-				vector<RigidBody*> buckets[hash_size];
+				vector<CollisionObject*> buckets[hash_size];
 				unsigned int count;
 
 				ObjectSet();
 
-				void Insert(RigidBody* obj);
-				void Erase(RigidBody* obj);
+				void Insert(CollisionObject* obj);
+				void Erase(CollisionObject* obj);
 			};
 
 			ObjectOrphanedCallback* orphan_callback;
 
-			ObjectSet all_objects[ST_ShapeTypeMax];
+			ObjectSet all_objects;
 
-			ObjectSet active_objects[ST_ShapeTypeMax];
-			ObjectSet inactive_objects[ST_ShapeTypeMax];
-			ObjectSet static_objects[ST_ShapeTypeMax];
+			ObjectSet active_objects;
+			ObjectSet inactive_objects;
+			ObjectSet static_objects;
+
+			ObjectSet rays;
 
 			virtual void InnerDispose();
 
@@ -55,20 +57,18 @@ namespace CibraryEngine
 
 
 
-			// add a rigid body to this region
-			void AddRigidBody(RigidBody* body);
+			// add a collision object to this region
+			void AddCollisionObject(CollisionObject* obj);
 
-			// remove a rigid body from this region
-			void RemoveRigidBody(RigidBody* body);
+			// remove a collision object from this region
+			void RemoveCollisionObject(CollisionObject* obj);
 
-			// add a rigid body to this region, and add this region to its regions list
-			void TakeOwnership(RigidBody* body);
+			// add a collision object to this region, and add this region to its regions list
+			void TakeOwnership(CollisionObject* obj);
 
-			// remove a rigid body from this region, and remove this region from its regions list
-			void Disown(RigidBody* body);
+			// remove a collision object from this region, and remove this region from its regions list
+			void Disown(CollisionObject* obj);
 
-
-			virtual void GetRelevantObjects(ShapeType type, const AABB& aabb, RelevantObjectsQuery& results);
 			virtual void GetRelevantObjects(const AABB& aabb, RelevantObjectsQuery& results);
 
 			unsigned int NumObjects() const;
@@ -82,6 +82,6 @@ namespace CibraryEngine
 		public:
 
 			/** An object is no longer contained by any PhysicsRegion! */
-			virtual void OnObjectOrphaned(RigidBody* object) = 0;
+			virtual void OnObjectOrphaned(CollisionObject* object) = 0;
 	};
 }

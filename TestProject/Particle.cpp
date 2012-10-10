@@ -6,18 +6,18 @@ namespace Test
 	/*
 	 * Particle methods
 	 */
-	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), body(NULL), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
+	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), collider(NULL), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
 
 	void Particle::InnerDispose()
 	{
-		if(body != NULL)
+		if(collider)
 		{
-			body->Dispose();
-			delete body;
-			body = NULL;
+			collider->Dispose();
+			delete collider;
+			collider = NULL;
 		}
 
-		if(trailhead != NULL)
+		if(trailhead)
 		{
 			trailhead->head_free = true;
 			if(trailhead->trail_free)
@@ -30,16 +30,14 @@ namespace Test
 
 	void Particle::Spawned()
 	{
-		body = new RigidBody(new RayShape(), MassInfo(Vec3(), 0.000001f), pos);
-		body->SetLinearVelocity(vel);
-		body->SetUserEntity(this);
-		body->SetDamp(damp);
+		collider = new RayCollider(this, pos, vel, 0.000001f);
+		collider->SetDamp(damp);
 
-		game_state->physics_world->AddRigidBody(body);
+		game_state->physics_world->AddCollisionObject(collider);
 
-		body->SetGravity(Vec3(0, -gravity, 0));			// have to set this after adding to world, or world gravity will override it
+		collider->SetGravity(Vec3(0, -gravity, 0));			// have to set this after adding to world, or world gravity will override it
 
-		if(billboard_mat != NULL)
+		if(billboard_mat)
 		{
 			trailhead = new TrailHead(this);
 			game_state->Spawn(new BillboardTrail(game_state, trailhead, billboard_mat, radius));
@@ -48,8 +46,8 @@ namespace Test
 
 	void Particle::DeSpawned()
 	{
-		if(body != NULL)
-			game_state->physics_world->RemoveRigidBody(body);
+		if(collider)
+			game_state->physics_world->RemoveCollisionObject(collider);
 	}
 
 	void Particle::Update(TimingInfo time)
@@ -59,20 +57,20 @@ namespace Test
 		age += timestep;
 		if(age >= max_age)
 		{
-			if(trailhead != NULL)
+			if(trailhead)
 				trailhead->particle = NULL;
 
 			is_valid = false;
 			return;
 		}
 
-		pos = body->GetPosition();
-		vel = body->GetLinearVelocity();
+		pos = collider->GetPosition();
+		vel = collider->GetLinearVelocity();
 	}
 
 	void Particle::Vis(SceneRenderer* scene)
 	{
-		if(material != NULL)
+		if(material)
 			if(age < max_age && age >= 0)
 				if(scene->camera->CheckSphereVisibility(Sphere(pos, radius)))
 				{

@@ -28,7 +28,7 @@ namespace Test
 			Vec3 initial_vel;
 
 			float mass;
-			RigidBody* body;
+			RayCollider* collider;
 
 			void* causer;						// was IDamageBlame in the C# version
 			Dood* firer;
@@ -55,12 +55,12 @@ namespace Test
 			};
 			TrailHead* trail_head;
 
-			struct MyImpactCallback : public CollisionCallback
+			struct MyImpactCallback : public RayCallback
 			{
 				Shot* shot;
 				MyImpactCallback(Shot* shot);
 
-				bool OnCollision(const ContactPoint& cp);
+				bool OnCollision(RayResult& rr);
 			} impact_callback;
 	};
 }

@@ -3,6 +3,7 @@
 
 #include "Physics.h"
 #include "RigidBody.h"
+#include "RayCollider.h"
 
 #include "Matrix.h"
 #include "Quaternion.h"
@@ -41,7 +42,7 @@ namespace CibraryEngine
 			}
 
 			virtual int RayTest(const Ray& ray) const = 0;
-			virtual bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const = 0;
+			virtual bool RayTest(const Ray& ray, RayResult& rr) const = 0;
 		};
 
 		struct SpherePart : Part
@@ -68,7 +69,7 @@ namespace CibraryEngine
 
 				return result;
 			}
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
+			bool RayTest(const Ray& ray, RayResult& rr) const
 			{
 				float t[2];
 
@@ -83,10 +84,10 @@ namespace CibraryEngine
 						{
 							if(IsPointRelevant(pos))
 							{
-								contact.pos = pos;
-								contact.norm = Vec3::Normalize(pos - sphere.center);
+								rr.pos = pos;
+								rr.norm = Vec3::Normalize(pos - sphere.center);
 
-								time = ti;
+								rr.t = ti;
 
 								return true;
 							}
@@ -149,7 +150,7 @@ namespace CibraryEngine
 
 				return result;
 			}
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
+			bool RayTest(const Ray& ray, RayResult& rr) const
 			{
 				float t[2];
 				if(RayTestInfinite(ray, t[0], t[1]))
@@ -159,12 +160,12 @@ namespace CibraryEngine
 						Vec3 pos = ray.origin + ray.direction * t[i];
 						if(t[i] >= 0.0f && t[i] <= 1.0f && IsPointRelevant(pos))
 						{
-							contact.pos = pos;
+							rr.pos = pos;
 
 							Vec3 from_axis = pos - (p1 + u * Vec3::Dot(pos - p1, u));
-							contact.norm = Vec3::Normalize(from_axis) * sin_theta + u * cos_theta;
+							rr.norm = Vec3::Normalize(from_axis) * sin_theta + u * cos_theta;
 
-							time = t[i];
+							rr.t = t[i];
 
 							return true;
 						}
@@ -192,7 +193,7 @@ namespace CibraryEngine
 						++result;
 				return result;
 			}
-			bool RayTest(const Ray& ray, ContactPoint::Part& contact, float& time) const
+			bool RayTest(const Ray& ray, RayResult& rr) const
 			{
 				float t = Util::RayPlaneIntersect(ray, plane);
 				Vec3 pos = ray.origin + ray.direction * t;
@@ -200,10 +201,10 @@ namespace CibraryEngine
 				if(IsPointRelevant(pos))
 					if(t >= 0.0f && t <= 1.0f)
 					{
-						contact.pos = pos;
-						contact.norm = plane.normal;
+						rr.pos = pos;
+						rr.norm = plane.normal;
 
-						time  = t;
+						rr.t  = t;
 
 						return true;
 					}
@@ -392,44 +393,52 @@ namespace CibraryEngine
 									{
 										Vec3 n = cross / sqrtf(cross_magsq);									// normal to plane containing the spheres' centers
 
-										Vec3 abn = ij_tube.sin_theta * ij_tube.u - ij_tube.cos_theta * n;		// point of tangency in plane of a, b, and n
-										Vec3 acn = ik_tube.sin_theta * ik_tube.u - ik_tube.cos_theta * n;		// point of tangency in plane of a, c, and n
-
-										Vec3 normal_1 = Vec3::Normalize(Vec3::Cross(abn, acn));					// normal vectors to first plane
-										Vec3 normal_2 = normal_1 - n * (2.0f * Vec3::Dot(normal_1, n));			// reflect normal vector across the plane containing the centerpoints
-
-										PlanePart plane_parts[] =
+										Plane ij_tubenormals = Plane(ij_tube.u, -ij_tube.cos_theta);
+										Plane jk_tubenormals = Plane(jk_tubep->u, -jk_tubep->cos_theta);
+										//Plane ki_tubenormals = Plane(ik_tube.u, -ik_tube.cos_theta);
+										Line line;
+										if(Plane::Intersect(ij_tubenormals, jk_tubenormals, line))
 										{
-											PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
-											PlanePart(Plane::FromPositionNormal(i_center + normal_2 * i_radius, normal_2))
-										};
+											float first, second;
+											if(Util::RaySphereIntersect(Ray(line), Sphere(Vec3(), 1.0f), first, second))
+											{
+												Vec3 normal_1 = line.origin + line.direction * first;
+												Vec3 normal_2 = line.origin + line.direction * second;
 
-										for(unsigned char m = 0; m < 2; ++m)
-										{
-											PlanePart& pp = plane_parts[m];
+												PlanePart plane_parts[] =
+												{
+													PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
+													PlanePart(Plane::FromPositionNormal(i_center + normal_2 * i_radius, normal_2))
+												};
 
-											// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
-											if(fabs(fabs(pp.plane.PointDistance(i_center)) - i_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(j_center)) - j_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(k_center)) - k_radius) > 0.0001f)
-												continue;
+												for(unsigned char m = 0; m < 2; ++m)
+												{
+													PlanePart& pp = plane_parts[m];
 
-											pp.planes.push_back(Plane::FromTriangleVertices(i_center, j_center, i_center + pp.plane.normal));
-											pp.planes.push_back(Plane::FromTriangleVertices(j_center, k_center, j_center + pp.plane.normal));
-											pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
+													// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
+													if(fabs(fabs(pp.plane.PointDistance(i_center)) - i_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(j_center)) - j_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(k_center)) - k_radius) > 0.0001f)
+														continue;
 
-											Vec3 center = (i_center + j_center + k_center) / 3.0f;
+													pp.planes.push_back(Plane::FromTriangleVertices(i_center, j_center, i_center + pp.plane.normal));
+													pp.planes.push_back(Plane::FromTriangleVertices(j_center, k_center, j_center + pp.plane.normal));
+													pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
 
-											for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
-												if(iter->PointDistance(center) < 0)
-													*iter = Plane::Reverse(*iter);
+													Vec3 center = (i_center + j_center + k_center) / 3.0f;
 
-											tube_tried_planes[i_n + j] = true;
-											tube_tried_planes[i_n + k] = true;
-											tube_tried_planes[j_n + k] = true;
+													for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
+														if(iter->PointDistance(center) < 0)
+															*iter = Plane::Reverse(*iter);
 
-											unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
+													tube_tried_planes[i_n + j] = true;
+													tube_tried_planes[i_n + k] = true;
+													tube_tried_planes[j_n + k] = true;
 
-											sphere_planes[index] = new PlanePart(pp);
-											planes_valid[index] = true;
+													unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
+
+													sphere_planes[index] = new PlanePart(pp);
+													planes_valid[index] = true;
+												}
+											}
 										}
 									}
 								}
@@ -456,6 +465,7 @@ namespace CibraryEngine
 							{
 								const Sphere& sphere = spheres[j].sphere;
 								float dist = Vec3::Dot(normal, sphere.center) + sphere.radius;
+
 								if(dist > my_dist + 0.000001f)
 								{
 									worthy = false;
@@ -853,7 +863,7 @@ namespace CibraryEngine
 
 
 		// multisphere collision functions...
-		bool CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody)
+		bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)
 		{
 			Vec3 a = ray.origin, b = ray.origin + ray.direction;
 			AABB ray_aabb(Vec3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)), Vec3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z)));
@@ -861,45 +871,43 @@ namespace CibraryEngine
 			if(!AABB::IntersectTest(ray_aabb, aabb))
 				return false;
 
-			ContactPoint cp;
-
-			cp.obj_a = ibody;
-			cp.obj_b = jbody;
+			RayResult rr;
 
 			bool any = false;
 
-			float t;
 			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
-				if(iter->RayTest(ray, cp.b, t))
-					if(!any || t < time)
+				if(iter->RayTest(ray, rr))
+					if(!any || rr.t < result.t)
 					{
-						result = cp;
-						time = t;
-
+						result = rr;
 						any = true;
 					}
 
 			for(vector<TubePart>::iterator iter = tubes.begin(), tubes_end = tubes.end(); iter != tubes_end; ++iter)
-				if(iter->RayTest(ray, cp.b, t))
-					if(!any || t < time)
+				if(iter->RayTest(ray, rr))
+					if(!any || rr.t < result.t)
 					{
-						result = cp;
-						time = t;
-
+						result = rr;
 						any = true;
 					}
 
 			for(vector<PlanePart>::iterator iter = planes.begin(), planes_end = planes.end(); iter != planes_end; ++iter)
-				if(iter->RayTest(ray, cp.b, t))
-					if(!any || t < time)
+				if(iter->RayTest(ray, rr))
+					if(!any || rr.t < result.t)
 					{
-						result = cp;
-						time = t;
-
+						result = rr;
 						any = true;
 					}
 
-			return any;
+			if(any)
+			{
+				result.collider = collider;
+				result.body = body;
+
+				return true;
+			}
+			else
+				return false;
 		}
 
 		bool CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody)
@@ -1138,7 +1146,7 @@ namespace CibraryEngine
 
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 
-	bool MultiSphereShape::CollideRay(const Ray& ray, ContactPoint& result, float& time, RigidBody* ibody, RigidBody* jbody) { return imp->CollideRay(ray, result, time, ibody, jbody); }
+	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body) { return imp->CollideRay(ray, result, collider, body); }
 	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, my_spheres, tri, result, ibody, jbody); }

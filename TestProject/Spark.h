@@ -11,17 +11,17 @@ namespace Test
 	{
 		protected:
 
-			RigidBody* body;
+			RayCollider* collider;
 			float mass;
 
 			void InnerDispose();
 
-			struct Collider : public CollisionCallback
+			struct Collider : public RayCallback
 			{
 				Spark* spark;
 				Collider(Spark* spark) : spark(spark) { }
 
-				bool OnCollision(const ContactPoint& cp)
+				bool OnCollision(RayResult& rr)
 				{
 					if(spark)
 					{
@@ -31,7 +31,7 @@ namespace Test
 					return false;
 				}
 			};
-			Collider* collider;
+			Collider* callback;
 
 		public:
 			

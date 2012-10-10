@@ -12,7 +12,7 @@ namespace Test
 
 			void InnerDispose();
 
-			RigidBody* body;
+			RayCollider* collider;
 
 		public:
 
