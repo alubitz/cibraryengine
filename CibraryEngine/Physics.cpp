@@ -706,21 +706,8 @@ namespace CibraryEngine
 				CollisionObject* cobj = *iter;
 				switch(cobj->GetType())
 				{
-					case COT_RigidBody:
-					{
-						RigidBody* other = (RigidBody*)*iter;
-						switch(other->GetShapeType())
-						{
-							case ST_Sphere:			RayCollider::CollideSphere(		other, ray, max_time, hits, collider); break;
-							case ST_TriangleMesh:	RayCollider::CollideMesh(		other, ray, max_time, hits, collider); break;
-							case ST_InfinitePlane:	RayCollider::CollidePlane(		other, ray, max_time, hits, collider); break; 
-							case ST_MultiSphere:	RayCollider::CollideMultisphere(other, ray, max_time, hits, collider); break;
-						}
-
-						break;
-					}
-
-					// TODO: account for the other kinds of CollisionObject which will eventually exist
+					case COT_RigidBody:			RayCollider::CollideRigidBody(		(RigidBody*)*iter,		ray, max_time, hits, collider); break;
+					case COT_CollisionGroup:	RayCollider::CollideCollisionGroup(	(CollisionGroup*)*iter,	ray, max_time, hits, collider); break;
 				}
 			}
 		}

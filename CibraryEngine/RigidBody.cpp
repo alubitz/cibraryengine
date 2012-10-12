@@ -19,6 +19,8 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
+#include "CollisionGroup.h"
+
 #define ENABLE_OBJECT_DEACTIVATION 0
 
 namespace CibraryEngine
@@ -192,17 +194,16 @@ namespace CibraryEngine
 
 	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse)	{ rot += inv_moi * angular_impulse; }
 
-	void RigidBody::RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const
+	void RigidBody::RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies)
 	{
+		CollisionObject::RemoveDisabledCollisions(eligible_bodies);
+
 		for(set<PhysicsConstraint*>::const_iterator iter = constraints.begin(), constraints_end = constraints.end(); iter != constraints_end; ++iter)
 		{
 			const PhysicsConstraint* c = *iter;
 			if(RigidBody* other = c->obj_a == this ? c->obj_b : c->obj_a)
 				eligible_bodies.Erase(other);
 		}
-
-		for(set<CollisionObject*>::const_iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
-			eligible_bodies.Erase(*iter);
 	}
 
 
@@ -320,36 +321,63 @@ namespace CibraryEngine
 				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
 		}
 
-		RemoveConstrainedBodies(relevant_objects);
+		RemoveDisabledCollisions(relevant_objects);
 
 		// do collision detection with those objects
 		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
 		{
 			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
 			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				if(RigidBody* other = (RigidBody*)*iter)					// TODO: account for the other kinds of CollisionObject which will eventually exist
+				switch((*iter)->GetType())
 				{
-					switch(other->GetShapeType())
+					case COT_RigidBody:
 					{
-						case ST_TriangleMesh:
-							DoMultisphereMesh(this, other, shape, xform, contact_points);
-							break;
+						RigidBody* rigid_body = (RigidBody*)*iter;
+						if(rigid_body->GetShapeType() != ST_MultiSphere || rigid_body < this)
+							CollideRigidBody((RigidBody*)*iter, contact_points);
+						break;
+					}
 
-						case ST_InfinitePlane:
-							DoMultispherePlane(this, other, shape, xform, contact_points);
-							break;
+					case COT_CollisionGroup:
+					{
+						CollisionGroup* cgroup = (CollisionGroup*)*iter;
+						if(*iter < this)
+							cgroup->CollideRigidBody(this, contact_points);
 
-						case ST_MultiSphere:
-							if(other < this)
-							{
-								MultiSphereShapeInstanceCache* other_cache = (MultiSphereShapeInstanceCache*)other->shape_cache;
-								DoMultisphereMultisphere(this, other, cache, other_cache, contact_points);
-							}
-							break;
+						break;
 					}
 				}
 		}
 	}
+
+	void RigidBody::CollideRigidBody(RigidBody* other, vector<ContactPoint>& contact_points)
+	{
+		assert(shape->GetShapeType() == ST_MultiSphere);
+
+		Mat4 xform = GetTransformationMatrix();
+
+		switch(other->GetShapeType())
+		{
+			case ST_TriangleMesh:
+				DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, contact_points);
+				break;
+
+			case ST_InfinitePlane:
+				DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, contact_points);
+				break;
+
+			case ST_MultiSphere:
+				DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, contact_points);
+				break;
+
+			default:
+				DEBUG();
+				break;
+		}
+	}
+
+
+
 
 	/*
 	 * MultiSphereShape collision functions

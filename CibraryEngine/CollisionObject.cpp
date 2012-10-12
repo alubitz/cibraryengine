@@ -27,6 +27,12 @@ namespace CibraryEngine
 	Entity* CollisionObject::GetUserEntity() { return user_entity; }
 	void CollisionObject::SetUserEntity(Entity* entity) { user_entity = entity; }
 
+	void CollisionObject::RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies)
+	{
+		for(set<CollisionObject*>::const_iterator iter = disabled_collisions.begin(), disabled_end = disabled_collisions.end(); iter != disabled_end; ++iter)
+			eligible_bodies.Erase(*iter);
+	}
+
 
 
 	

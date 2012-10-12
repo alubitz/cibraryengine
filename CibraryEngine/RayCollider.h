@@ -13,6 +13,7 @@ namespace CibraryEngine
 
 	class RayCollider;
 	class RigidBody;
+	class CollisionGroup;
 	
 	using namespace std;
 
@@ -38,12 +39,13 @@ namespace CibraryEngine
 
 			RayCallback* ray_callback;
 
-			void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points);		// contact points is unused!
+			static void CollideRigidBody(		RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollideCollisionGroup(	CollisionGroup* group,	const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
 
-			static void CollideSphere(		RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
-			static void CollideMesh(		RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
-			static void CollidePlane(		RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
-			static void CollideMultisphere(	RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollideSphere(			RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollideMesh(			RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollidePlane(			RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollideMultisphere(		RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
 
 		public:
 

@@ -5,6 +5,7 @@
 
 #include "Physics.h"
 #include "RigidBody.h"
+#include "CollisionGroup.h"
 
 #include "Sphere.h"
 
@@ -49,9 +50,21 @@ namespace CibraryEngine
 		linear_damp = 0.1f;
 	}
 
-	void RayCollider::InitiateCollisions(float timestep, vector<ContactPoint>& contact_points)
+	void RayCollider::CollideRigidBody(RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)
 	{
-		// TODO: implement this
+		switch(body->GetShapeType())
+		{
+			case ST_Sphere:			RayCollider::CollideSphere(		body, ray, max_time, hits, collider); return;
+			case ST_TriangleMesh:	RayCollider::CollideMesh(		body, ray, max_time, hits, collider); return;
+			case ST_InfinitePlane:	RayCollider::CollidePlane(		body, ray, max_time, hits, collider); return; 
+			case ST_MultiSphere:	RayCollider::CollideMultisphere(body, ray, max_time, hits, collider); return;
+		}
+	}
+
+	void RayCollider::CollideCollisionGroup(CollisionGroup* group, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)
+	{
+		for(boost::unordered_set<RigidBody*>::iterator iter = group->children.begin(); iter != group->children.end(); ++iter)
+			CollideRigidBody(*iter, ray, max_time, hits, collider);
 	}
 
 	void RayCollider::CollideSphere(RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)

@@ -70,7 +70,7 @@ namespace CibraryEngine
 			Vec3 LocalForceToTorque(const Vec3& force, const Vec3& local_poi);
 
 			// removes rigid bodies which are contrained with this one from the collection of eligible bodies
-			void RemoveConstrainedBodies(RelevantObjectsQuery& eligible_bodies) const;
+			void RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies);
 
 			void InitiateCollisionsForMultisphere(float timestep, vector<ContactPoint>& contact_points);
 
@@ -155,5 +155,9 @@ namespace CibraryEngine
 
 			/** Get AABB for this object, recomputing if necessary; not for rays; may be iffy for spheres */
 			AABB GetCachedAABB();
+
+
+
+			void CollideRigidBody(RigidBody* other, vector<ContactPoint>& contact_points);
 	};
 }

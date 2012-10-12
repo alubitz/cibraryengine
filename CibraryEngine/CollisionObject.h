@@ -24,6 +24,7 @@ namespace CibraryEngine
 	{
 		COT_RigidBody = 1,
 		COT_RayCollider = 2,
+		COT_CollisionGroup = 3,
 
 		COT_CollisionObjectTypeMax
 	};
@@ -67,6 +68,8 @@ namespace CibraryEngine
 			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man) { }
 
 			virtual void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points) { };
+
+			virtual void RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies);
 
 		public:
 
