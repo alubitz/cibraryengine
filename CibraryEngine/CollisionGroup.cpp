@@ -102,7 +102,7 @@ namespace CibraryEngine
 						RigidBody* jbody = *jter;
 						AABB jaabb = jbody->GetCachedAABB();
 
-						if(AABB::IntersectTest(iaabb, jaabb))
+						if(AABB::IntersectTest(iaabb, jaabb) && ((CollisionGroup*)ibody)->disabled_collisions.find(jbody) == ((CollisionGroup*)ibody)->disabled_collisions.end())		// ughhhhh
 							ibody->CollideRigidBody(jbody, contact_points);
 					}
 			}
@@ -150,11 +150,12 @@ namespace CibraryEngine
 	void CollisionGroup::CollideRigidBody(RigidBody* body, vector<ContactPoint>& contact_points)
 	{
 		AABB body_aabb = body->GetCachedAABB();
+		bool aabb_exempt = body->GetShapeType() == ST_InfinitePlane;
 
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children.end(); ++iter)
 		{
 			RigidBody* child = *iter;
-			if(AABB::IntersectTest(body_aabb, child->GetCachedAABB()))
+			if(aabb_exempt || AABB::IntersectTest(body_aabb, child->GetCachedAABB()))
 				child->CollideRigidBody(body, contact_points);
 		}
 	}
