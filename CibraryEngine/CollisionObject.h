@@ -44,7 +44,6 @@ namespace CibraryEngine
 		void Clear();
 	};
 
-	// TODO: move more members from RigidBody up to CollisionObject
 	class CollisionObject : public Disposable
 	{
 		friend class PhysicsWorld;
@@ -64,16 +63,15 @@ namespace CibraryEngine
 
 			Entity* user_entity;
 
-			virtual void UpdateVel(float timestep) { }
-			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man) { }
-
-			virtual void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points) { };
-
 			virtual void RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies);
 
 		public:
 
 			CollisionObject(Entity* user_entity, CollisionObjectType type);
+
+			virtual void UpdateVel(float timestep) { }
+			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man) { }
+			virtual void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points) { };
 
 			virtual void DebugDraw(SceneRenderer* renderer) { }
 
@@ -87,6 +85,8 @@ namespace CibraryEngine
 			void SetUserEntity(Entity* entity);
 
 			virtual void SetGravity(const Vec3& gravity) { }
+
+			virtual void ResetForces() { }
 	};
 
 	struct RelevantObjectsQuery

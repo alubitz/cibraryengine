@@ -80,6 +80,8 @@ namespace Test
 			vector<RigidBody*> bone_to_rbody;
 			vector<PhysicsConstraint*> constraints;
 
+			CollisionGroup* collision_group;
+
 			map<unsigned int, RigidBody*> foot_bones;				// names of bones which should count for "standing"; put pairs with NULL in the constructor and they will be populated in Spawned
 
 			PhysicsWorld* physics;

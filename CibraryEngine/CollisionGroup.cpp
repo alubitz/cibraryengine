@@ -10,6 +10,8 @@
 
 namespace CibraryEngine
 {
+	// TODO: find a way to access protected members without having to cast a RigidBody* as a CollisionGroup*
+
 	/*
 	 * CollisionGroup::DummyRegionManager methods
 	 */
@@ -25,7 +27,8 @@ namespace CibraryEngine
 		CollisionObject(entity, COT_CollisionGroup),
 		dummy_region_man(new DummyRegionManager()),
 		children(),
-		collide_within(false)
+		collide_within(false),
+		gravity()
 	{
 	}
 
@@ -41,6 +44,12 @@ namespace CibraryEngine
 		children.clear();
 
 		if(dummy_region_man)	{ delete dummy_region_man; dummy_region_man = NULL; }
+	}
+
+	void CollisionGroup::DebugDraw(SceneRenderer* renderer)
+	{
+		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+			(*iter)->DebugDraw(renderer);
 	}
 
 	AABB CollisionGroup::GetAABB(float timestep)
@@ -59,21 +68,19 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionGroup::AddChild(RigidBody* child)		{ children.insert(child); }
+	void CollisionGroup::AddChild(RigidBody* child)		{ assert(((CollisionGroup*)child)->can_move); child->SetGravity(gravity); children.insert(child); }
 	void CollisionGroup::RemoveChild(RigidBody* child)	{ children.erase(child); }
 
-
-	// TODO: find a way to access these protected methods without having to cast a RigidBody* as a CollisionGroup*
 	void CollisionGroup::UpdateVel(float timestep)
 	{
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
-			((CollisionGroup*)*iter)->UpdateVel(timestep);
+			(*iter)->UpdateVel(timestep);
 	}
 
 	void CollisionGroup::UpdatePos(float timestep, PhysicsRegionManager* region_man)
 	{
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
-			((CollisionGroup*)*iter)->UpdatePos(timestep, dummy_region_man);		// NOTE: we are passing a different PhysicsRegionManager from the one we were passed
+			(*iter)->UpdatePos(timestep, dummy_region_man);		// NOTE: we are passing a different PhysicsRegionManager from the one we were passed
 
 		region_man->OnObjectUpdate(this, regions, timestep);
 	}
@@ -81,6 +88,7 @@ namespace CibraryEngine
 	void CollisionGroup::InitiateCollisions(float timestep, vector<ContactPoint>& contact_points)
 	{
 		// do collisions between contained objects, if enabled
+		// TODO: don't do disabled collisions!
 		if(collide_within)
 		{
 			for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children_end; ++iter)
@@ -147,7 +155,7 @@ namespace CibraryEngine
 		{
 			RigidBody* child = *iter;
 			if(AABB::IntersectTest(body_aabb, child->GetCachedAABB()))
-				body->CollideRigidBody(child, contact_points);
+				child->CollideRigidBody(body, contact_points);
 		}
 	}
 
@@ -164,5 +172,19 @@ namespace CibraryEngine
 					ibody->CollideRigidBody(jbody, contact_points);
 			}
 		}
+	}
+
+	void CollisionGroup::SetGravity(const Vec3& gravity_)
+	{
+		gravity = gravity_;
+
+		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+			(*iter)->SetGravity(gravity_);
+	}
+
+	void CollisionGroup::ResetForces()
+	{
+		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+			(*iter)->ResetForces();
 	}
 }

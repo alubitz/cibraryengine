@@ -61,7 +61,6 @@ namespace CibraryEngine
 
 			void ComputeXformAsNeeded();
 
-			void ResetForces();
 			void ResetToApplied();
 
 			// force is a world-space direction
@@ -78,11 +77,6 @@ namespace CibraryEngine
 
 			void InnerDispose();
 
-			void UpdateVel(float timestep);
-			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
-
-			void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points);
-
 		public:
 
 			/** Default constructor for a RigidBody; the constructed RigidBody will not work without setting the fields manually */
@@ -92,6 +86,12 @@ namespace CibraryEngine
 
 			/** Disposes of this rigid body without disposing of and deleting the collision shape; by default RigidBody::Dispose will dispose of and delete the collision shape! */
 			void DisposePreservingCollisionShape();
+
+			
+			void UpdateVel(float timestep);
+			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
+
+			void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points);
 
 			
 
@@ -159,5 +159,7 @@ namespace CibraryEngine
 
 
 			void CollideRigidBody(RigidBody* other, vector<ContactPoint>& contact_points);
+
+			void ResetForces();
 	};
 }

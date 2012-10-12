@@ -3,6 +3,7 @@
 
 #include "RigidBody.h"
 #include "RayCollider.h"
+#include "CollisionGroup.h"
 
 #include "PhysicsRegion.h"
 #include "GridRegionManager.h"
@@ -551,8 +552,6 @@ namespace CibraryEngine
 
 	void PhysicsWorld::AddCollisionObject(CollisionObject* obj)
 	{
-		// TODO: account for the other kinds of CollisionObject which will eventually exist
-
 		all_objects.insert(obj);
 		switch(obj->GetType())
 		{
@@ -570,6 +569,16 @@ namespace CibraryEngine
 			case COT_RayCollider:
 			{
 				rays.insert((RayCollider*)obj);
+				break;
+			}
+
+			case COT_CollisionGroup:
+			{
+				CollisionGroup* cgroup = (CollisionGroup*)obj;
+				dynamic_objects.insert(cgroup);
+
+				cgroup->SetGravity(gravity);
+
 				break;
 			}
 		}
@@ -653,9 +662,9 @@ namespace CibraryEngine
 		}
 
 		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
-			((RigidBody*)*iter)->ResetForces();
+			(*iter)->ResetForces();
 		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
-			((RayCollider*)*iter)->ResetForces();
+			(*iter)->ResetForces();
 	}
 
 	void PhysicsWorld::DebugDrawWorld(SceneRenderer* renderer)

@@ -68,6 +68,7 @@ namespace Test
 		rbody_to_posey(),
 		bone_to_rbody(),
 		constraints(),
+		collision_group(NULL),
 		foot_bones(),
 		physics(NULL),
 		mphys(mphys),
@@ -447,6 +448,8 @@ namespace Test
 
 		physics = game_state->physics_world;
 
+		collision_group = new CollisionGroup(this);
+
 		unsigned int count = mphys->bones.size();
 
 		// given string id, get index of rigid body
@@ -470,7 +473,8 @@ namespace Test
 				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 					rigid_body->SetCollisionEnabled(*iter, false);		// disables collisions both ways
 
-				physics->AddCollisionObject(rigid_body);
+				//physics->AddCollisionObject(rigid_body);
+				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
 
 				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
@@ -494,6 +498,8 @@ namespace Test
 					root_rigid_body = rigid_body;
 			}
 		}
+
+		physics->AddCollisionObject(collision_group);
 
 		// create constraints between bones
 		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
@@ -559,13 +565,21 @@ namespace Test
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 		{
 			RigidBody* body = rigid_bodies[i];
-			if(physics)
-				physics->RemoveCollisionObject(body);
+			collision_group->RemoveChild(body);
 
 			body->DisposePreservingCollisionShape();
 			delete body;
 		}
 		rigid_bodies.clear();
+
+		if(collision_group)
+		{
+			physics->RemoveCollisionObject(collision_group);
+
+			collision_group->Dispose();
+			delete collision_group;
+			collision_group = NULL;
+		}	
 
 		if(equipped_weapon)
 			equipped_weapon->is_valid = false;
@@ -608,14 +622,10 @@ namespace Test
 
 		MaybeDoScriptedDeath(this);
 
-		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			for(vector<RigidBody*>::iterator jter = iter; jter != rigid_bodies.end(); ++jter)
-				if(iter != jter)
-					(*iter)->SetCollisionEnabled(*jter, true);
+		collision_group->SetInternalCollisionsEnabled(true);
 
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
-		//is_valid = false;
 	}
 
 	bool Dood::GetAmmoFraction(float& result)

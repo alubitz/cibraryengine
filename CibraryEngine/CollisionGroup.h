@@ -35,16 +35,21 @@ namespace CibraryEngine
 			boost::unordered_set<RigidBody*> children;
 			bool collide_within;
 
+			Vec3 gravity;
+
 			void InnerDispose();
+
+		public:
+
+			CollisionGroup(Entity* entity);
+
 
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
 			void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points);
 
-		public:
-
-			CollisionGroup(Entity* entity);
+			void DebugDraw(SceneRenderer* renderer);
 
 			AABB GetAABB(float timestep);
 
@@ -54,7 +59,11 @@ namespace CibraryEngine
 			bool AreInternalCollisionsEnabled()			{ return collide_within; }
 			void SetInternalCollisionsEnabled(bool yn)	{ collide_within = yn; }
 
+			void SetGravity(const Vec3& gravity);
+
 			void CollideRigidBody(RigidBody* body, vector<ContactPoint>& contact_points);
 			void CollideCollisionGroup(CollisionGroup* other, vector<ContactPoint>& contact_points);
+
+			void ResetForces();
 	};
 }

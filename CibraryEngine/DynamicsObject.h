@@ -32,12 +32,13 @@ namespace CibraryEngine
 			float deactivation_timer;
 
 			virtual void ResetToApplied();
-			virtual void UpdateVel(float timestep);
-			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
 		public:
 
 			DynamicsObject(Entity* user_entity, CollisionObjectType type, const MassInfo& mass_info, const Vec3& pos = Vec3());
+
+			virtual void UpdateVel(float timestep);
+			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
 			/** Gets the position of this rigid body */
 			Vec3 GetPosition() const;
@@ -47,7 +48,7 @@ namespace CibraryEngine
 			Vec3 GetLinearVelocity() const;
 			void SetLinearVelocity(const Vec3& vel);
 
-			void SetGravity(const Vec3& grav);
+			void SetGravity(const Vec3& grav);			// overrides method in CollisionObject
 			void SetDamp(float damp);
 
 			MassInfo GetMassInfo() const;
@@ -63,6 +64,6 @@ namespace CibraryEngine
 			void ApplyCentralForce(const Vec3& force);
 			void ApplyCentralImpulse(const Vec3& impulse);
 
-			virtual void ResetForces();
+			virtual void ResetForces();					// overrides method in CollisionObject
 	};
 }

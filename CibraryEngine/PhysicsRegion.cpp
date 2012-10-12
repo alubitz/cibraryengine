@@ -3,6 +3,7 @@
 
 #include "Physics.h"
 #include "RigidBody.h"
+#include "CollisionGroup.h"
 #include "ConstraintGraph.h"
 
 #include "CollisionShape.h"
@@ -75,6 +76,12 @@ namespace CibraryEngine
 				rays.Insert(obj);
 				break;
 			}
+
+			case COT_CollisionGroup:
+			{
+				active_objects.Insert(obj);
+				break;
+			}
 		}
 	}
 
@@ -102,6 +109,12 @@ namespace CibraryEngine
 				rays.Erase(obj);
 				break;
 			}
+
+			case COT_CollisionGroup:
+			{
+				active_objects.Erase(obj);
+				break;
+			}
 		}		
 	}
 
@@ -127,9 +140,26 @@ namespace CibraryEngine
 			vector<CollisionObject*>& bucket = active_objects.buckets[i];
 			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
 			{
-				RigidBody* object = (RigidBody*)*iter;
-				if(AABB::IntersectTest(aabb, object->GetCachedAABB()))
-					results.Insert(object);
+				switch((*iter)->GetType())
+				{
+					case COT_RigidBody:
+					{
+						RigidBody* object = (RigidBody*)*iter;
+						if(AABB::IntersectTest(aabb, object->GetCachedAABB()))
+							results.Insert(object);
+
+						break;
+					}
+
+					case COT_CollisionGroup:
+					{
+						CollisionGroup* object = (CollisionGroup*)*iter;
+						if(AABB::IntersectTest(aabb, object->GetAABB(0.0f)))
+							results.Insert(object);
+
+						break;
+					}
+				}
 			}
 		}
 
@@ -138,9 +168,26 @@ namespace CibraryEngine
 			vector<CollisionObject*>& bucket = inactive_objects.buckets[i];
 			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
 			{
-				RigidBody* object = (RigidBody*)*iter;
-				if(AABB::IntersectTest(aabb, object->GetCachedAABB()))
-					results.Insert(object);
+				switch((*iter)->GetType())
+				{
+					case COT_RigidBody:
+					{
+						RigidBody* object = (RigidBody*)*iter;
+						if(AABB::IntersectTest(aabb, object->GetCachedAABB()))
+							results.Insert(object);
+
+						break;
+					}
+
+					case COT_CollisionGroup:
+					{
+						CollisionGroup* object = (CollisionGroup*)*iter;
+						if(AABB::IntersectTest(aabb, object->GetAABB(0.0f)))
+							results.Insert(object);
+
+						break;
+					}
+				}
 			}
 		}
 
