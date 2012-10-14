@@ -82,7 +82,7 @@ namespace CibraryEngine
 			/** Writes a skeleton from a stream, and returns 0 if ok or an int error code */
 			static int WriteSkeleton(ostream& file, Skeleton* skeleton);
 
-			vector<Mat4> GetBoneMatrices();
+			void GetBoneMatrices(vector<Mat4>& results);
 
 			void InvalidateCachedBoneXforms();
 	};

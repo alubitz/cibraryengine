@@ -63,6 +63,7 @@ namespace Test
 			float jump_start_timer;
 
 			float hp;
+			bool alive;
 
 			Bone* eye_bone;
 

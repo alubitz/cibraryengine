@@ -106,15 +106,11 @@ namespace CibraryEngine
 		return NULL;
 	}
 
-	vector<Mat4> Skeleton::GetBoneMatrices()
+	void Skeleton::GetBoneMatrices(vector<Mat4>& results)
 	{
-		unsigned int bones_count = bones.size();
-
-		vector<Mat4> matrices = vector<Mat4>();
+		results.clear();
 		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
-			matrices.push_back((*iter)->GetTransformationMatrix());
-
-		return matrices;
+			results.push_back((*iter)->GetTransformationMatrix());
 	}
 
 	void Skeleton::InvalidateCachedBoneXforms()
@@ -297,7 +293,8 @@ namespace CibraryEngine
 	{
 		if(render_info.bone_matrices == NULL)
 		{
-			vector<Mat4> matrices = skeleton->GetBoneMatrices();
+			static vector<Mat4> matrices;
+			skeleton->GetBoneMatrices(matrices);
 
 			render_info.bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, mat_tex_precision);
 			render_info.mat_tex_precision = mat_tex_precision;

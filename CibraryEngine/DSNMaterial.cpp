@@ -52,7 +52,7 @@ namespace CibraryEngine
 	void DSNMaterial::BeginDraw(SceneRenderer* renderer)
 	{
 		scene = renderer;
-		node_data = vector<DSNMaterialNodeData*>();
+		node_data.clear();
 
 		GLDEBUG();
 	}
@@ -121,6 +121,8 @@ namespace CibraryEngine
 		glColorMask(color_mask[0], color_mask[1], color_mask[2], color_mask[3]);
 
 		GLDEBUG();
+
+		node_data.clear();
 	}
 
 	void DrawNodeData(DSNMaterialNodeData* data, ShaderProgram* use_shader)

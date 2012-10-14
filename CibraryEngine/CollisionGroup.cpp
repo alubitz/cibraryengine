@@ -88,7 +88,6 @@ namespace CibraryEngine
 	void CollisionGroup::InitiateCollisions(float timestep, vector<ContactPoint>& contact_points)
 	{
 		// do collisions between contained objects, if enabled
-		// TODO: don't do disabled collisions!
 		if(collide_within)
 		{
 			for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children_end; ++iter)
@@ -149,6 +148,8 @@ namespace CibraryEngine
 
 	void CollisionGroup::CollideRigidBody(RigidBody* body, vector<ContactPoint>& contact_points)
 	{
+		// TODO: consult disabled_collisions for child-other collisions?
+
 		AABB body_aabb = body->GetCachedAABB();
 		bool aabb_exempt = body->GetShapeType() == ST_InfinitePlane;
 
@@ -162,6 +163,8 @@ namespace CibraryEngine
 
 	void CollisionGroup::CollideCollisionGroup(CollisionGroup* other, vector<ContactPoint>& contact_points)
 	{
+		// TODO: consult disabled_collisions for child-group and child-other-child collisions?
+
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 		{
 			RigidBody* ibody = *iter;

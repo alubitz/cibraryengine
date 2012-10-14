@@ -58,6 +58,7 @@ namespace Test
 		pitch(0),
 		jump_start_timer(0),
 		hp(1.0f),
+		alive(true),
 		eye_bone(NULL),
 		model(model),
 		character(NULL),
@@ -226,7 +227,7 @@ namespace Test
 		this->vel = vel;
 
 
-		if(hp > 0)
+		if(alive)
 		{
 			DoMovementControls(time, forward, rightward);
 			DoJumpControls(time, forward, rightward);
@@ -237,7 +238,7 @@ namespace Test
 
 		PoseCharacter(time);
 
-		if(hp > 0)
+		if(alive)
 			DoWeaponControls(time);
 
 		posey->UpdatePoses(time);
@@ -378,7 +379,7 @@ namespace Test
 			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(timestep, now));
 
-			if(hp > 0)
+			if(alive)
 			{
 				unsigned int num_bodies = rigid_bodies.size();
 
@@ -449,6 +450,7 @@ namespace Test
 		physics = game_state->physics_world;
 
 		collision_group = new CollisionGroup(this);
+		physics->AddCollisionObject(collision_group);
 
 		unsigned int count = mphys->bones.size();
 
@@ -498,8 +500,6 @@ namespace Test
 					root_rigid_body = rigid_body;
 			}
 		}
-
-		physics->AddCollisionObject(collision_group);
 
 		// create constraints between bones
 		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
@@ -626,6 +626,8 @@ namespace Test
 
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
+
+		alive = false;
 	}
 
 	bool Dood::GetAmmoFraction(float& result)

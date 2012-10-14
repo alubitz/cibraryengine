@@ -34,6 +34,9 @@ if not disable_ai then
 			props.goal = goal_move_attack(dood, target)
 			props.goal.activate()
 		end
+	elseif props.goal then
+		props.goal.terminate()
+		props.goal = nil
 	end
 
 	if props.goal and props.goal.status == GoalStatus.ACTIVE then

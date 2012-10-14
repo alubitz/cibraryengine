@@ -1386,7 +1386,7 @@ namespace Test
 			TestGame* gs = (TestGame*)lua_touserdata(L, 1);
 			lua_pop(L, 1);
 
-			struct : EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } doods_only;
+			struct : EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL && ((Dood*)ent)->alive; } } doods_only;
 			EntityList e = gs->GetQualifyingEntities(doods_only);
 
 			// begin table
