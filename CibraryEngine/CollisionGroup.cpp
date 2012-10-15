@@ -28,6 +28,7 @@ namespace CibraryEngine
 		dummy_region_man(new DummyRegionManager()),
 		children(),
 		collide_within(false),
+		cache_valid(false),
 		gravity()
 	{
 	}
@@ -54,18 +55,23 @@ namespace CibraryEngine
 
 	AABB CollisionGroup::GetAABB(float timestep)
 	{
-		if(children.empty())
-			return AABB();
-		else
+		if(!cache_valid)			// TODO: somehow invalidate the cache whenever a child is "teleported" ?
 		{
-			boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end();
+			if(children.empty())
+				cached_aabb = AABB();
+			else
+			{
+				boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end();
 
-			AABB result = (*iter)->GetCachedAABB();
-			while(++iter != children_end)
-				result.Expand((*iter)->GetCachedAABB());
+				cached_aabb = (*iter)->GetCachedAABB();
+				while(++iter != children_end)
+					cached_aabb.Expand((*iter)->GetCachedAABB());
+			}
 
-			return result;
+			cache_valid = true;
 		}
+
+		return cached_aabb;
 	}
 
 	void CollisionGroup::AddChild(RigidBody* child)		{ assert(((CollisionGroup*)child)->can_move); child->SetGravity(gravity); children.insert(child); }
@@ -81,6 +87,8 @@ namespace CibraryEngine
 	{
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->UpdatePos(timestep, dummy_region_man);		// NOTE: we are passing a different PhysicsRegionManager from the one we were passed
+
+		cache_valid = false;
 
 		region_man->OnObjectUpdate(this, regions, timestep);
 	}

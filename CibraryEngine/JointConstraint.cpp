@@ -21,7 +21,6 @@ namespace CibraryEngine
 
 	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
 	{
-		static const float angular_vel_coeff =	1.0f;
 		static const float dv_coeff =			1.0f;
 
 		static const float dv_sq_threshold	=	0.01f;

@@ -71,6 +71,8 @@ namespace Test
 			SkinnedCharacter* character;
 			PosedCharacter* posey;
 
+			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
+
 			Mat4 whole_xform;
 			Vec3 origin;
 

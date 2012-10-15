@@ -342,7 +342,8 @@ namespace InverseKinematics
 			pelvis->pos = Vec3();
 			skeleton->InvalidateCachedBoneXforms();
 			
-			vector<Mat4> bone_matrices = skeleton->GetBoneMatrices();
+			vector<Mat4> bone_matrices;
+			skeleton->GetBoneMatrices(bone_matrices);
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices);
 

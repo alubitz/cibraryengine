@@ -55,7 +55,6 @@ function crab_bug_death(dood)
 	if not game_over then
 		kills_this_level = kills_this_level + 1
 		kills = kills + 1
-
 	end
 	dood_properties[dood.id].dood = nil
 	dood_properties[dood.id] = nil
@@ -97,7 +96,7 @@ end
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
 		local bugs_this_level = 100 --1 + 2 * level + math.floor(math.random() * 3.0)
-		local num_artillery = 0
+		local num_artillery = 6
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)
 		end

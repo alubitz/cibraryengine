@@ -35,6 +35,9 @@ namespace CibraryEngine
 			boost::unordered_set<RigidBody*> children;
 			bool collide_within;
 
+			AABB cached_aabb;
+			bool cache_valid;
+
 			Vec3 gravity;
 
 			void InnerDispose();

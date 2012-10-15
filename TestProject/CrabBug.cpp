@@ -145,7 +145,7 @@ namespace Test
 	{
 #if 0
 		if(time.total > 1.0f)
-			Die(Damage(NULL, 1.0f));
+			Die(Damage());
 #endif
 
 		Dood::Update(time);

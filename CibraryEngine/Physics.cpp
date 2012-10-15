@@ -387,9 +387,9 @@ namespace CibraryEngine
 		timer_make_subgraphs += timer.GetAndRestart();
 #endif
 
-		vector<PhysicsConstraint*> active;
+		static vector<PhysicsConstraint*> active;
 		unordered_set<PhysicsConstraint*> nu_active;
-		vector<RigidBody*> wakeup_list;
+		static vector<RigidBody*> wakeup_list;
 
 		// now go through each subgraph and do as many iterations as are necessary
 		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
@@ -426,6 +426,9 @@ namespace CibraryEngine
 #if PROFILE_SOLVE_CGRAPH
 		timer_do_constraints += timer.GetAndRestart();
 #endif
+
+		active.clear();
+		wakeup_list.clear();
 
 		// clean up subgraphs
 		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)

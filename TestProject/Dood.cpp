@@ -63,6 +63,7 @@ namespace Test
 		model(model),
 		character(NULL),
 		posey(NULL),
+		vis_bs_radius(2.5f),
 		root_rigid_body(NULL),
 		rigid_bodies(),
 		shootables(),
@@ -293,7 +294,7 @@ namespace Test
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		Sphere bs = Sphere(pos, 2.5);
+		Sphere bs = Sphere(pos, vis_bs_radius);
 		if(renderer->camera->CheckSphereVisibility(bs))
 		{
 			double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
@@ -617,6 +618,9 @@ namespace Test
 
 	void Dood::Die(Damage cause)
 	{
+		if(!alive)
+			return;
+
 		DeathEvent evt(this, cause);
 		OnDeath(&evt);
 

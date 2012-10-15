@@ -21,6 +21,8 @@ namespace Test
 		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
 		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
+
+		vis_bs_radius = 25.0f;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
