@@ -608,6 +608,12 @@ namespace CibraryEngine
 				rays.erase((RayCollider*)obj);
 				break;
 			}
+
+			case COT_CollisionGroup:
+			{
+				dynamic_objects.erase(obj);
+				break;
+			}
 		}
 
 		region_man->OnObjectRemoved(obj, obj->regions);

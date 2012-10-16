@@ -59,6 +59,7 @@ namespace Test
 		jump_start_timer(0),
 		hp(1.0f),
 		alive(true),
+		ragdoll_timer(5.0f),
 		eye_bone(NULL),
 		model(model),
 		character(NULL),
@@ -245,6 +246,13 @@ namespace Test
 		posey->UpdatePoses(time);
 
 		standing_callback.Reset();
+
+		if(!alive)
+		{
+			ragdoll_timer -= time.elapsed;
+			if(ragdoll_timer <= 0)
+				is_valid = false;
+		}
 	}
 
 	void Dood::DoPitchAndYawControls(TimingInfo time)

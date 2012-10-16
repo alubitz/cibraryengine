@@ -65,6 +65,8 @@ namespace Test
 			float hp;
 			bool alive;
 
+			float ragdoll_timer;
+
 			Bone* eye_bone;
 
 			UberModel* model;

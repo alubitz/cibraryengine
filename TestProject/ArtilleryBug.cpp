@@ -23,6 +23,7 @@ namespace Test
 		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
 
 		vis_bs_radius = 25.0f;
+		ragdoll_timer = 50.0f;
 	}
 
 	void ArtilleryBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
