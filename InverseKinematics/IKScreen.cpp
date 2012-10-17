@@ -3,9 +3,6 @@
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
-#include "../CibraryEngine/IKChain.h"
-#include "../CibraryEngine/StepPose.h"
-
 namespace InverseKinematics
 {
 	using namespace CibraryEngine;
@@ -79,8 +76,6 @@ namespace InverseKinematics
 
 		PosedCharacter* character;
 		AimingPose* aiming_pose;
-		StepPose* left_foot_pose;
-		StepPose* right_foot_pose;
 
 		Skeleton* skeleton;
 		vector<IKBone*> ik_bones;
@@ -105,8 +100,6 @@ namespace InverseKinematics
 			input_state(window->input_state),
 			character(NULL),
 			aiming_pose(NULL),
-			left_foot_pose(NULL),
-			right_foot_pose(NULL),
 			skeleton(NULL),
 			uber(NULL),
 			ik_bones(),
@@ -149,28 +142,6 @@ namespace InverseKinematics
 
 			bool left_fwd = true;
 
-			if(Bone* pelvis = skeleton->GetNamedBone("pelvis"))
-			{
-				if(Bone* l_foot = skeleton->GetNamedBone("l foot"))
-				{
-					left_foot_pose = new StepPose(pelvis, l_foot, mphys);
-					if(left_fwd)
-						left_foot_pose->Slide(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
-					else
-						left_foot_pose->Slide(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
-					character->active_poses.push_back(left_foot_pose);
-				}
-				if(Bone* r_foot = skeleton->GetNamedBone("r foot"))
-				{
-					right_foot_pose = new StepPose(pelvis, r_foot, mphys);
-					if(left_fwd)
-						right_foot_pose->Slide(Vec3(0, 0, -0.45f), Quaternion::Identity(), 1.0f);
-					else
-						right_foot_pose->Slide(Vec3(0, 0, 0.15f), Quaternion::Identity(), 1.0f);
-					character->active_poses.push_back(right_foot_pose);
-				}
-			}
-
 			pos.y = -0.2f;				// otherwise feet would be at 0.2
 
 			now = buffered_time = 0.0f;
@@ -193,7 +164,6 @@ namespace InverseKinematics
 
 			// these will have been deleted by the above
 			aiming_pose = NULL;
-			left_foot_pose = right_foot_pose = NULL;
 
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				delete *iter;
@@ -243,45 +213,6 @@ namespace InverseKinematics
 					float speed = vel.ComputeMagnitude();
 					Vec3 u_vel = vel / speed;
 
-					Vec3 left_foot_pos = left_foot_pose->chain->end->GetTransformationMatrix().TransformVec3_1(0, 0, 0);
-					Vec3 right_foot_pos = right_foot_pose->chain->end->GetTransformationMatrix().TransformVec3_1(0, 0, 0);
-				
-					Vec3 l_to_r = right_foot_pos - left_foot_pos;
-					float fwd = Vec3::Dot(l_to_r, vel);
-
-					StepPose* stepper;
-					StepPose* nonstep;
-					Vec3 stepper_pos;
-					Vec3 nonstep_pos;
-					if(fwd > 0)
-					{
-						stepper = left_foot_pose;
-						stepper_pos = left_foot_pos;
-
-						nonstep = right_foot_pose;
-						nonstep_pos = right_foot_pos;
-					}
-					else
-					{
-						stepper = right_foot_pose;
-						stepper_pos = right_foot_pos;
-
-						nonstep = left_foot_pose;
-						nonstep_pos = left_foot_pos;
-					}
-
-					const float step_size = 0.5f;							// distance past the centerpoint to place the foot when stepping
-					const Vec3 step_elevation = Vec3(0, 0.0f, 0);			// amount the pelvis sinks when in a stepping pose versus when standing erect
-				
-					float stepper_dist = Vec3::Dot(pos - stepper_pos, u_vel), nonstep_dist = Vec3::Dot(pos - nonstep_pos, u_vel);
-					if(stepper_dist > step_size && stepper->arrived && nonstep->arrived)
-						stepper->Step(pos + Vec3::Normalize(vel, step_size) + step_elevation, Quaternion::Identity(), now, now + min(0.5f, 0.5f * (step_size + stepper_dist) / speed));
-
-				
-				
-					// TODO: make it walk
-
-					left_foot_pose->dood_vel = right_foot_pose->dood_vel = vel;
 					character->UpdatePoses(use_time);
 				}
 			}
@@ -392,28 +323,7 @@ namespace InverseKinematics
 		{
 			Imp* imp;
 
-			void HandleEvent(Event* evt)
-			{
-				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
-				if(mbse->state)
-				{
-					if(StepPose* pose = mbse->button == 0 ? imp->left_foot_pose : mbse->button == 2 ? imp->right_foot_pose : NULL)
-					{
-						Ray ray;
-						imp->camera.GetRayFromDimCoeffs((float)imp->input_state->mx / imp->window->GetWidth(), 1.0f - (float)imp->input_state->my / imp->window->GetHeight(), ray.origin, ray.direction);
-						
-						float hit = Util::RayPlaneIntersect(ray, Plane(Vec3(0, 1, 0), 0));
-						if(hit > 0 && hit < 16384)
-						{
-							Vec3 point_on_ground = ray.origin + ray.direction * hit;
-							Vec3 point_on_foot = pose->chain->end->rest_pos;
-							point_on_foot.y = 0.0f;
-
-							pose->Step(point_on_ground - point_on_foot, Quaternion::Identity(), imp->now, imp->now + 1.0f);
-						}
-					}
-				}
-			}
+			void HandleEvent(Event* evt) { }
 		} mouse_listener;
 	};
 

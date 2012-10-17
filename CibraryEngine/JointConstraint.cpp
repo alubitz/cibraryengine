@@ -8,15 +8,37 @@ namespace CibraryEngine
 	/*
 	 * JointConstraint methods
 	 */
-	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp) :
+	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents) :
 		PhysicsConstraint(ibody, jbody),
-		desired_ori(Quaternion::Identity()),
 		pos(pos),
 		axes(axes),
 		min_extents(min_extents),
-		max_extents(max_extents),
-		angular_damp(angular_damp)
+		max_extents(max_extents)
 	{
+	}
+
+	Vec3 JointConstraint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
+
+	void JointConstraint::ApplyImpulse(const Vec3& impulse) const
+	{
+		if(obj_a->active)
+		{
+			obj_a->vel += impulse * obj_a->inv_mass;
+			if(obj_a->can_rotate)
+				obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
+		}
+		if(obj_b->can_move && obj_b->active)
+		{
+			obj_b->vel -= impulse * obj_b->inv_mass;
+			if(obj_b->can_rotate)
+				obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
+		}
+	}
+
+	void JointConstraint::ApplyAngularVelocityChange(const Vec3& change) const
+	{
+		obj_a->rot += alpha_to_obja * change;
+		obj_b->rot -= alpha_to_objb * change;
 	}
 
 	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
@@ -30,16 +52,13 @@ namespace CibraryEngine
 
 
 		// linear stuff
-		Vec3 current_dv = obj_b->GetLocalVelocity(apply_pos) - obj_a->GetLocalVelocity(apply_pos);
+		Vec3 current_dv = GetRelativeLocalVelocity();
 
 		Vec3 dv = desired_dv - current_dv;
 		float magsq = dv.ComputeMagnitudeSquared();
 		if(magsq > dv_sq_threshold)
 		{
-			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
-			obj_a->ApplyWorldImpulse(impulse, apply_pos);
-			obj_b->ApplyWorldImpulse(-impulse, apply_pos);
-
+			ApplyImpulse(dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq))));
 			wakeup = true;
 		}
 
@@ -79,11 +98,7 @@ namespace CibraryEngine
 		magsq = alpha.ComputeMagnitudeSquared();
 		if(magsq > alpha_sq_threshold)
 		{
-			Vec3 angular_impulse = moi * alpha;
-
-			obj_a->ApplyAngularImpulse(angular_impulse);
-			obj_b->ApplyAngularImpulse(-angular_impulse);
-
+			ApplyAngularVelocityChange(alpha);
 			wakeup = true;
 		}
 
@@ -109,6 +124,8 @@ namespace CibraryEngine
 		b_to_a = Quaternion::Reverse(a_to_b);
 
 		moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		alpha_to_obja = obj_a->inv_moi * moi;
+		alpha_to_objb = obj_b->inv_moi * moi;
 
 		oriented_axes = axes.Transpose() * a_ori.ToMat3();
 		reverse_oriented_axes = oriented_axes.Transpose();
@@ -120,5 +137,8 @@ namespace CibraryEngine
 
 		apply_pos = (a_pos + b_pos) * 0.5f;
 		desired_dv = (b_pos - a_pos) * -(spring_coeff * inv_timestep);
+
+		r1 = apply_pos - obj_a->cached_com;
+		r2 = apply_pos - obj_b->cached_com;
 	}
 }

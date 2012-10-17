@@ -23,7 +23,14 @@ namespace CibraryEngine
 			Mat3 oriented_axes, reverse_oriented_axes;
 			Quaternion a_to_b, b_to_a;
 
+			Vec3 r1, r2;
+			Mat3 alpha_to_obja, alpha_to_objb;
+
 			float timestep, inv_timestep;
+
+			Vec3 GetRelativeLocalVelocity() const;
+			void ApplyImpulse(const Vec3& impulse) const;
+			void ApplyAngularVelocityChange(const Vec3& change) const;
 
 		public:
 
@@ -36,11 +43,7 @@ namespace CibraryEngine
 			/** Maximum angle the joint can turn in each direction, in the coordinate system specified by axes */
 			Vec3 max_extents;
 
-			Vec3 angular_damp;
-
-			Quaternion desired_ori;
-
-			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents, const Vec3& angular_damp);
+			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 
 			void DoConstraintAction(vector<RigidBody*>& wakeup);
 			void DoUpdateAction(float timestep);

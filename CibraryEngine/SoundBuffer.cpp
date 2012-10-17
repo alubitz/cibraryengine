@@ -72,7 +72,7 @@ namespace CibraryEngine
 		if(al_name == 0)
 		{
 			stringstream message;
-			message << "failure to load file: \"" << filename << "\"" << endl;
+			message << "something went wrong loading audio file: \"" << filename << "\"" << endl;
 			Debug(message.str());
 
 			return NULL;

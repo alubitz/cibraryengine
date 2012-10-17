@@ -54,15 +54,34 @@ namespace CibraryEngine
 			return true;
 		else
 		{
+			if(alcIsExtensionPresent(NULL, "ALC_ENUMERATION_EXT"))
+				if(const ALchar* device_list = alcGetString(NULL, ALC_DEVICE_SPECIFIER))
+				{
+					vector<const ALchar*> device_names;
+
+					size_t pos = 0;
+					while(size_t size = strlen(device_list + pos))
+					{
+						device_names.push_back(device_list + pos);
+						pos += size + 1;
+					}
+
+					Debug(((stringstream&)(stringstream() << "Found " << device_names.size() << " audio device(s)\n")).str());
+					for(vector<const ALchar*>::iterator iter = device_names.begin(); iter != device_names.end(); ++iter)
+						Debug(((stringstream&)(stringstream() << '\t' << *iter << endl)).str());
+				}
+				else
+					Debug("Something funky going on with your OpenAL; Unable to enumerate OpenAL devices\n");
+			else
+				Debug("Unable to enumerate OpenAL devices\n");
+
 			al_device = alcOpenDevice("Generic Software");
 			al_context = alcCreateContext(al_device, 0);
 
 			ALCenum alc_error = alcGetError(al_device);
 			if(alc_error != ALC_NO_ERROR)
 			{
-				stringstream message;
-				message << "ALC error: " << alc_error << endl;
-				Debug(message.str());
+				Debug(((stringstream&)(stringstream() << "ALC error: " << alc_error << "; unable to initialize audio\n" << endl)).str());
 				return false;
 			}
 
@@ -75,9 +94,11 @@ namespace CibraryEngine
 			if(CheckForALErrors() || al_device == NULL || al_context == NULL)
 			{
 				master_enable = false;
+				Debug("Unable to initialize audio\n");
 				return false;
 			}
 
+			Debug("Audio system initialized successfully\n");
 			return true;
 		}
 	}

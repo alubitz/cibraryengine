@@ -19,6 +19,8 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
+#include <CL/cl.h>
+
 #include <stdio.h>
 #include <time.h>
 

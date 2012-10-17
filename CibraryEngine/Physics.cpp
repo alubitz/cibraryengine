@@ -230,7 +230,6 @@ namespace CibraryEngine
 	float PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B)
 	{
 		float A;
-		B = 0;
 
 		if(jbody->can_move)
 		{
@@ -282,7 +281,6 @@ namespace CibraryEngine
 	float PhysicsWorld::GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B)
 	{
 		float A;
-		B = 0;
 
 		if(body->can_move)
 		{
@@ -757,22 +755,47 @@ namespace CibraryEngine
 			use_pos = (a.pos + b.pos) * 0.5f;
 			normal = Vec3::Normalize(a.norm - b.norm);
 
-			if(obj_a)
-			{
-				bounciness = obj_a->bounciness * obj_b->bounciness;	
-				sfric_coeff = obj_a->friction * obj_b->friction;
-				moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
-			}
-			else			// for ray-tests
-			{
-				bounciness = obj_b->bounciness;	
-				sfric_coeff = obj_b->friction;
-				moi_n = Mat3::Invert(obj_b->inv_moi) * normal;
-			}
+			bounce_coeff = -(1.0f + obj_a->bounciness * obj_b->bounciness);
+			kfric_coeff = sfric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
+			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
 
-			kfric_coeff = sfric_coeff;			// would be * 0.9f but in practice the sim treats everything as kinetic anyway
+			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
+			r1 = use_pos - obj_a->cached_com;
+			r2 = use_pos - obj_b->cached_com;
+			nr1 = Vec3::Cross(normal, r1);
+			nr2 = Vec3::Cross(normal, r2);
 
 			cache_valid = true;
+		}
+	}
+
+	Vec3 ContactPoint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
+
+	float ContactPoint::GetInwardVelocity() const
+	{
+		// based on the computations in GetUseMass
+		float B = obj_b->can_move ? Vec3::Dot(obj_a->vel - obj_b->vel, normal) : Vec3::Dot(obj_a->vel, normal);
+		if(obj_a->can_rotate)
+			B += Vec3::Dot(obj_a->rot, nr1);
+		if(obj_b->can_rotate)
+			B -= Vec3::Dot(obj_b->rot, nr2);
+		return B;
+	}
+
+	void ContactPoint::ApplyImpulse(const Vec3& impulse) const
+	{
+		if(obj_a->active)
+		{
+			obj_a->vel += impulse * obj_a->inv_mass;
+			if(obj_a->can_rotate)
+				obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
+		}
+
+		if(obj_b->active && obj_b->can_move)
+		{
+			obj_b->vel -= impulse * obj_b->inv_mass;
+			if(obj_b->can_rotate)
+				obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
 		}
 	}
 
@@ -785,14 +808,11 @@ namespace CibraryEngine
 
 		bool j_can_move = jbody->can_move;
 
-		Vec3 dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
+		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot < 0.0f)
-		{
-			float B;
-			float use_mass = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, normal, B);
-			float impulse_mag = -(1.0f + bounciness) * B * use_mass;
-
+		{		
+			float impulse_mag = bounce_coeff * GetInwardVelocity() * use_mass;
 			if(impulse_mag < 0)
 			{
 				Vec3 impulse = normal * impulse_mag;
@@ -800,12 +820,10 @@ namespace CibraryEngine
 				// normal force
 				if(impulse.ComputeMagnitudeSquared() != 0)
 				{
-					ibody->ApplyWorldImpulse(impulse, use_pos);
-					if(j_can_move)
-						jbody->ApplyWorldImpulse(-impulse, use_pos);
+					ApplyImpulse(impulse);
 
 					// applying this impulse means we need to recompute dv and nvdot!
-					dv = obj_b->GetLocalVelocity(use_pos) - obj_a->GetLocalVelocity(use_pos);
+					dv = GetRelativeLocalVelocity();
 					nvdot = Vec3::Dot(normal, dv);
 				}
 
@@ -818,13 +836,8 @@ namespace CibraryEngine
 					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
 					Vec3 u_tdv = t_dv * inv_tdmag;
 
-					use_mass = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv);
-
-					Vec3 fric_impulse = t_dv * min(use_mass, fabs(impulse_mag * kfric_coeff * inv_tdmag));
-
-					ibody->ApplyWorldImpulse(fric_impulse, use_pos);
-					if(j_can_move)
-						jbody->ApplyWorldImpulse(-fric_impulse, use_pos);
+					float use_mass2 = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv);
+					ApplyImpulse(t_dv * min(use_mass2, fabs(impulse_mag * kfric_coeff * inv_tdmag)));
 				}
 				else											// object isn't moving; apply static friction
 				{
@@ -836,13 +849,7 @@ namespace CibraryEngine
 
 					float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
 					if(fric_i_mag > 0)
-					{
-						Vec3 fric_impulse = t_df * (-fric_i_mag / t_df_mag);
-
-						ibody->ApplyWorldImpulse(fric_impulse, use_pos);
-						if(j_can_move)
-							jbody->ApplyWorldImpulse(-fric_impulse, use_pos);
-					}
+						ApplyImpulse(t_df * (-fric_i_mag / t_df_mag));
 				}
 
 				// TODO: make angular friction less wrong
@@ -858,9 +865,6 @@ namespace CibraryEngine
 						jbody->ApplyAngularImpulse(-angular_impulse);
 				}
 #endif
-
-				if(j_can_move)
-					jbody->active = true;
 
 				return true;
 			}

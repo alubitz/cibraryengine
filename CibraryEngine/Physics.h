@@ -119,6 +119,8 @@ namespace CibraryEngine
 			PhysicsConstraint() : obj_a(NULL), obj_b(NULL) { }
 			PhysicsConstraint(RigidBody* obj_a, RigidBody* obj_b) : obj_a(obj_a), obj_b(obj_b) { }
 
+			virtual ~PhysicsConstraint() { }
+
 			virtual void DoConstraintAction(vector<RigidBody*>& wakeup) = 0;
 			virtual void DoUpdateAction(float timestep) { }
 
@@ -140,12 +142,20 @@ namespace CibraryEngine
 		// cached values (must be computed if cache_valid is false)
 		Vec3 use_pos;
 		Vec3 normal;
-		float bounciness, sfric_coeff, kfric_coeff;
+		float bounce_coeff, sfric_coeff, kfric_coeff;
 		Vec3 moi_n;
+
+		// cached values relating to GetUseMass
+		float use_mass;
+		Vec3 r1, r2, nr1, nr2;
 
 		ContactPoint() : cache_valid(false) { }
 
 		void BuildCache();
+
+		Vec3 GetRelativeLocalVelocity() const;
+		float GetInwardVelocity() const;
+		void ApplyImpulse(const Vec3& impulse) const;
 
 		void DoConstraintAction(vector<RigidBody*>& wakeup);
 		void DoUpdateAction(float timestep);
