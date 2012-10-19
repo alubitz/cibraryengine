@@ -4,6 +4,8 @@
 
 #include "Disposable.h"
 
+#include "SmartHashSet.h"
+
 namespace CibraryEngine
 {
 	struct AABB;
@@ -18,7 +20,12 @@ namespace CibraryEngine
 
 	class Entity;
 
+	class CollisionObject;
+
 	using namespace std;
+
+	typedef SmartHashSet<PhysicsRegion, 7> RegionSet;
+	typedef SmartHashSet<CollisionObject, 17> RelevantObjectsQuery;
 
 	enum CollisionObjectType
 	{
@@ -29,26 +36,10 @@ namespace CibraryEngine
 		COT_CollisionObjectTypeMax
 	};
 
-	struct RegionSet
-	{
-		static const unsigned int hash_size = 7;
-				
-		vector<PhysicsRegion*> buckets[hash_size];
-		unsigned int count;
-
-		RegionSet();
-
-		void Insert(PhysicsRegion* region);
-		void Erase(PhysicsRegion* region);
-
-		void Clear();
-	};
-
 	class CollisionObject : public Disposable
 	{
 		friend class PhysicsWorld;
 		friend class PhysicsRegion;
-		friend struct RelevantObjectsQuery;
 
 		private:
 
@@ -87,21 +78,5 @@ namespace CibraryEngine
 			virtual void SetGravity(const Vec3& gravity) { }
 
 			virtual void ResetForces() { }
-	};
-
-	struct RelevantObjectsQuery
-	{
-		static const unsigned int hash_size = 17;
-
-		vector<CollisionObject*> buckets[hash_size];
-		unsigned int count;
-
-		RelevantObjectsQuery();
-		~RelevantObjectsQuery();
-
-		void Insert(CollisionObject* object);
-		void Erase(CollisionObject* object);
-
-		void Clear();
 	};
 }

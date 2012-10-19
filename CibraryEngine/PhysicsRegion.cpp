@@ -207,46 +207,4 @@ namespace CibraryEngine
 	unsigned int PhysicsRegion::NumRays() const { return rays.count; }
 	unsigned int PhysicsRegion::NumDynamicObjects() const { return inactive_objects.count + active_objects.count; }
 	unsigned int PhysicsRegion::NumStaticObjects() const { return static_objects.count; }
-
-
-
-
-	/*
-	 * PhysicsRegion::ObjectSet methods
-	 */
-	PhysicsRegion::ObjectSet::ObjectSet() : buckets(), count(0) { }
-
-	void PhysicsRegion::ObjectSet::Insert(CollisionObject* obj)
-	{
-		unsigned int hash = ((unsigned int)obj / sizeof(RigidBody)) % hash_size;
-
-		vector<CollisionObject*>& bucket = buckets[hash];
-		for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-			if(*iter == obj)
-				return;
-
-		bucket.push_back(obj);
-		++count;
-	}
-
-	void PhysicsRegion::ObjectSet::Erase(CollisionObject* obj)
-	{
-		if(count)
-		{
-			unsigned int hash = ((unsigned int)obj / sizeof(RigidBody)) % hash_size;
-
-			vector<CollisionObject*>& bucket = buckets[hash];
-			for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-				if(bucket[i] == obj)
-				{
-					bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-					bucket.pop_back();
-
-					assert(count);
-					--count;
-
-					return;
-				}
-		}
-	}
 }

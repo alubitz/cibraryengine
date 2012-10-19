@@ -12,6 +12,8 @@
 
 #include "MassInfo.h"
 
+#include "SmartHashSet.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -33,9 +35,9 @@ namespace CibraryEngine
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
-	struct RegionSet;
 
-	struct RelevantObjectsQuery;
+	typedef SmartHashSet<PhysicsRegion, 7> RegionSet;
+	typedef SmartHashSet<CollisionObject, 17> RelevantObjectsQuery;
 
 	class SceneRenderer;
 

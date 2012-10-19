@@ -17,30 +17,6 @@ namespace CibraryEngine
 	{
 	}
 
-	Vec3 JointConstraint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
-
-	void JointConstraint::ApplyImpulse(const Vec3& impulse) const
-	{
-		if(obj_a->active)
-		{
-			obj_a->vel += impulse * obj_a->inv_mass;
-			if(obj_a->can_rotate)
-				obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
-		}
-		if(obj_b->can_move && obj_b->active)
-		{
-			obj_b->vel -= impulse * obj_b->inv_mass;
-			if(obj_b->can_rotate)
-				obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
-		}
-	}
-
-	void JointConstraint::ApplyAngularVelocityChange(const Vec3& change) const
-	{
-		obj_a->rot += alpha_to_obja * change;
-		obj_b->rot -= alpha_to_objb * change;
-	}
-
 	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
 	{
 		static const float dv_coeff =			1.0f;
@@ -52,22 +28,34 @@ namespace CibraryEngine
 
 
 		// linear stuff
-		Vec3 current_dv = GetRelativeLocalVelocity();
+		Vec3 current_dv = obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot);
 
 		Vec3 dv = desired_dv - current_dv;
 		float magsq = dv.ComputeMagnitudeSquared();
 		if(magsq > dv_sq_threshold)
 		{
-			ApplyImpulse(dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq))));
+			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
+
+			// apply impulse
+			if(obj_a->active)
+			{
+				obj_a->vel += impulse * obj_a->inv_mass;
+				if(obj_a->can_rotate)
+					obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
+			}
+			if(obj_b->can_move && obj_b->active)
+			{
+				obj_b->vel -= impulse * obj_b->inv_mass;
+				if(obj_b->can_rotate)
+					obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
+			}
+
 			wakeup = true;
 		}
 
 
 		// angular stuff
-		Vec3 a_avel = obj_a->GetAngularVelocity();
-		Vec3 b_avel = obj_b->GetAngularVelocity();
-		Vec3 current_av = b_avel - a_avel;
-
+		Vec3 current_av = obj_b->rot - obj_a->rot;
 		Vec3 alpha;												// delta-angular-velocity
 
 #if 1
@@ -98,7 +86,9 @@ namespace CibraryEngine
 		magsq = alpha.ComputeMagnitudeSquared();
 		if(magsq > alpha_sq_threshold)
 		{
-			ApplyAngularVelocityChange(alpha);
+			obj_a->rot += alpha_to_obja * alpha;
+			obj_b->rot -= alpha_to_objb * alpha;
+
 			wakeup = true;
 		}
 

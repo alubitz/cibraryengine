@@ -16,7 +16,6 @@ namespace CibraryEngine
 	class Entity;
 
 	class PhysicsRegionManager;
-	struct RelevantObjectsQuery;
 
 
 
@@ -28,7 +27,6 @@ namespace CibraryEngine
 		friend class PhysicsRegion;
 		friend struct ContactPoint;
 		friend class JointConstraint;
-		friend struct RelevantObjectsQuery;
 
 		private:
 

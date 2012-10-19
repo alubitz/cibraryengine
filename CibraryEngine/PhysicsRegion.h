@@ -5,6 +5,8 @@
 #include "Disposable.h"
 #include "CollisionShape.h"
 
+#include "SmartHashSet.h"
+
 namespace CibraryEngine
 {
 	using namespace std;
@@ -16,7 +18,8 @@ namespace CibraryEngine
 	struct ConstraintGraph;
 	class CollisionCallback;
 	class SceneRenderer;
-	struct RelevantObjectsQuery;
+
+	typedef SmartHashSet<CollisionObject, 17> RelevantObjectsQuery;
 
 	struct AABB;
 
@@ -24,20 +27,9 @@ namespace CibraryEngine
 
 	class PhysicsRegion : public Disposable
 	{
+		public:
+			typedef SmartHashSet<CollisionObject, 5> ObjectSet;
 		protected:
-
-			struct ObjectSet
-			{
-				static const unsigned int hash_size = 5;
-
-				vector<CollisionObject*> buckets[hash_size];
-				unsigned int count;
-
-				ObjectSet();
-
-				void Insert(CollisionObject* obj);
-				void Erase(CollisionObject* obj);
-			};
 
 			ObjectOrphanedCallback* orphan_callback;
 

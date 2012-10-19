@@ -36,7 +36,7 @@
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
 #define PROFILE_DOFIXEDSTEP 1
-#define PROFILE_SOLVE_CGRAPH 0							// not so much skewing from this, though
+#define PROFILE_SOLVE_CGRAPH 0
 
 namespace CibraryEngine
 {
@@ -386,7 +386,7 @@ namespace CibraryEngine
 #endif
 
 		static vector<PhysicsConstraint*> active;
-		unordered_set<PhysicsConstraint*> nu_active;
+		boost::unordered_set<PhysicsConstraint*> nu_active;
 		static vector<RigidBody*> wakeup_list;
 
 		// now go through each subgraph and do as many iterations as are necessary

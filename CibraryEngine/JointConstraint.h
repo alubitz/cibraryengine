@@ -28,10 +28,6 @@ namespace CibraryEngine
 
 			float timestep, inv_timestep;
 
-			Vec3 GetRelativeLocalVelocity() const;
-			void ApplyImpulse(const Vec3& impulse) const;
-			void ApplyAngularVelocityChange(const Vec3& change) const;
-
 		public:
 
 			/** Position of the joint in the coordinate system of the first bone */
