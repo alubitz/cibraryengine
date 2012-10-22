@@ -64,6 +64,11 @@ namespace CibraryEngine
 
 			void InnerDispose();			// for Disposable
 
+			/** Enabling vertex attributes, and other setup like that */
+			void PreDrawEnable();
+			/** Disabling vertex attributes, and other cleanup like that */
+			void PostDrawDisable();
+
 		public:
 
 			/** Constructs a VertexBuffer */

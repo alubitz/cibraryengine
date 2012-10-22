@@ -25,5 +25,10 @@ namespace CibraryEngine
 			Texture1D(unsigned int size, unsigned char* byte_data);
 
 			unsigned int GetGLName();
+
+			/**
+			 * Function to call when the byte_data has been changed, but the other properties (including gl name) should be kept
+			 * This will in turn call glTexImage1D, so don't call it from a thread without a gl context */
+			void UpdateTextureData();
 	};
 }

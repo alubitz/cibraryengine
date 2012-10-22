@@ -49,4 +49,15 @@ namespace CibraryEngine
 		}
 		return gl_name;
 	}
+
+	void Texture1D::UpdateTextureData()
+	{
+		glEnable(GL_TEXTURE_1D);
+		glBindTexture(GL_TEXTURE_1D, gl_name);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA8, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data);
+
+		glDisable(GL_TEXTURE_1D);
+	}
 }

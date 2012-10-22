@@ -257,20 +257,6 @@ namespace CibraryEngine
 
 
 
-	void SkinnedCharacterRenderInfo::Invalidate()
-	{
-		if(bone_matrices != NULL)
-		{
-			bone_matrices->Dispose();
-			delete bone_matrices;
-
-			bone_matrices = NULL;
-		}
-	}
-
-
-
-
 	/*
 	 * SkinnedCharacter methods
 	 */
@@ -278,33 +264,28 @@ namespace CibraryEngine
 
 	void SkinnedCharacter::InnerDispose()
 	{
-		if(skeleton)
-		{
-			skeleton->Dispose();
-
-			delete skeleton;
-			skeleton = NULL;
-		}
-
-		render_info.Invalidate();
+		if(skeleton)					{ skeleton->Dispose();					delete skeleton;					skeleton = NULL; }
+		if(render_info.bone_matrices)	{ render_info.bone_matrices->Dispose();	delete render_info.bone_matrices;	render_info.bone_matrices = NULL; }
 	}
 
 	SkinnedCharacterRenderInfo SkinnedCharacter::GetRenderInfo()
 	{
-		if(render_info.bone_matrices == NULL)
+		if(!render_info.valid)
 		{
 			static vector<Mat4> matrices;
 			skeleton->GetBoneMatrices(matrices);
 
-			render_info.bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, mat_tex_precision);
+			render_info.bone_matrices = SkinnedCharacter::MatricesToTexture1D(matrices, render_info.bone_matrices, mat_tex_precision);
 			render_info.mat_tex_precision = mat_tex_precision;
 			render_info.num_bones = matrices.size();
+
+			render_info.valid = true;
 		}
 
 		return render_info;
 	}
 
-	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices, float precision)
+	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices, Texture1D* existing_texture, float precision)
 	{
 		unsigned int matrix_count = matrices.size();
 		const unsigned int max_bones = 128;
@@ -316,8 +297,11 @@ namespace CibraryEngine
 		while(use_size < size)
 			use_size <<= 1;				// multiply by 2, lol
 
-		unsigned char* array = new unsigned char[use_size];
-		unsigned char* target = array;
+		if(existing_texture && existing_texture->size != use_size / 4)
+			Debug("Existing texture's size doesn't match required size!\n");
+
+		unsigned char* bytes = existing_texture ? existing_texture->byte_data : new unsigned char[use_size];
+		unsigned char* target = bytes;
 
 		for(unsigned int i = 0; i < matrix_count; ++i)
 		{
@@ -334,6 +318,12 @@ namespace CibraryEngine
 			}
 		}
 
-		return new Texture1D(use_size / 4, array);
+		if(existing_texture)
+		{
+			existing_texture->UpdateTextureData();
+			return existing_texture;
+		}
+		else
+			return new Texture1D(use_size / 4, bytes);
 	}
 }

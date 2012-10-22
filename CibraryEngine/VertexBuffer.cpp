@@ -253,18 +253,10 @@ namespace CibraryEngine
 		}
 	}
 
-	void VertexBuffer::Draw()
+	void VertexBuffer::PreDrawEnable()
 	{
-		BuildMultiTexNames();
-
-		GLDEBUG();
-
 		unsigned int vbo = GetVBO();
 
-
-		/*
-		 * First, we set everything up for our VBO draw operation...
-		 */
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
 		int offset = 0;
@@ -276,17 +268,17 @@ namespace CibraryEngine
 
 			if(name.length() >= 3 && memcmp(name_cstr, "gl_", 3) == 0)
 			{
-				if(name == "gl_Vertex")
+				if(!strcmp(name_cstr, "gl_Vertex"))
 				{
 					glEnable(GL_VERTEX_ARRAY);
 					glVertexPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0,	(void*)(num_verts * offset));
 				}
-				else if(name == "gl_Normal")
+				else if(!strcmp(name_cstr, "gl_Normal"))
 				{
 					glEnable(GL_NORMAL_ARRAY);
 					glNormalPointer((GLenum)attrib.type, 0, (void*)(num_verts * offset));
 				}
-				else if(name == "gl_Color")
+				else if(!strcmp(name_cstr, "gl_Color"))
 				{
 					glEnable(GL_COLOR_ARRAY);
 					glColorPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
@@ -307,31 +299,20 @@ namespace CibraryEngine
 					}
 				}
 			}
-			else
+			else if(ShaderProgram* shader = ShaderProgram::GetActiveProgram())
 			{
-				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
-				if(shader != NULL)
-				{
-					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
-					glEnableVertexAttribArray(index);
-					glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
-				}
+				GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
+				glEnableVertexAttribArray(index);
+				glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
 			}
 
 			if(attrib.type == Float)
 				offset += attrib.n_per_vertex * sizeof(float);
 		}
+	}
 
-
-		/*
-		 * Now for the draw call itself...
-		 */
-		glDrawArrays((GLenum)storage_mode, 0, num_verts);
-
-
-		/*
-		 * Now to put everything back the way we found it...
-		 */
+	void VertexBuffer::PostDrawDisable()
+	{
 		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
@@ -340,11 +321,11 @@ namespace CibraryEngine
 
 			if(name.length() >= 3 && memcmp(name_cstr, "gl_", 3) == 0)
 			{
-				if(name == "gl_Vertex")
+				if(!strcmp(name_cstr, "gl_Vertex"))
 					glDisable(GL_VERTEX_ARRAY);
-				else if(name == "gl_Normal")
+				else if(!strcmp(name_cstr, "gl_Normal"))
 					glDisable(GL_NORMAL_ARRAY);
-				else if(name == "gl_Color")
+				else if(!strcmp(name_cstr, "gl_Color"))
 					glDisable(GL_COLOR_ARRAY);
 				else
 				{
@@ -360,25 +341,33 @@ namespace CibraryEngine
 					}
 				}
 			}
-			else
+			else if(ShaderProgram* shader = ShaderProgram::GetActiveProgram())
 			{
-				ShaderProgram* shader = ShaderProgram::GetActiveProgram();
-				if(shader != NULL)
-				{
-					GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
-					glDisableVertexAttribArray(index);
-				}				
-			}
+				GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
+				glDisableVertexAttribArray(index);
+			}				
 		}
 
 		glClientActiveTexture(GL_TEXTURE0);			// get texcoords back to working "the normal way"
 		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
+	}
+
+	void VertexBuffer::Draw() { Draw(storage_mode); }
+
+	void VertexBuffer::Draw(DrawMode mode)
+	{
+		BuildMultiTexNames();
+
+		GLDEBUG();
+
+		PreDrawEnable();
+		glDrawArrays((GLenum)mode, 0, num_verts);
+		PostDrawDisable();
 
 		GLDEBUG();
 	}
 
 	// TODO: implement these
-	void VertexBuffer::Draw(DrawMode mode) { }
 	void VertexBuffer::Draw(DrawMode mode, unsigned int* indices, int num_indices) { }
 	void VertexBuffer::Draw(unsigned int num_instances) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode) { }
@@ -414,9 +403,11 @@ namespace CibraryEngine
 
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
 		glBeginTransformFeedback((GLenum)storage_mode);
-			glDrawArrays((GLenum)storage_mode, 0, num_verts);
+
+		glDrawArrays((GLenum)storage_mode, 0, num_verts);
+
 		glEndTransformFeedback();
-		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN); 
+		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);
 		
 		glDisable(GL_RASTERIZER_DISCARD);
 

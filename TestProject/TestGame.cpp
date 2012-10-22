@@ -455,9 +455,9 @@ namespace Test
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
 		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
-		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
+		//deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
 		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
-		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("env_cubemap", 5));
+		//deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("env_cubemap", 5));
 		deferred_ambient->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
 		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
@@ -931,9 +931,9 @@ namespace Test
 			deferred_ambient->SetUniform<Texture2D>		(	"diffuse",			render_target->GetColorBufferTex(0)	);
 			deferred_ambient->SetUniform<Texture2D>		(	"normal",			render_target->GetColorBufferTex(1)	);
 			deferred_ambient->SetUniform<Texture2D>		(	"specular",			render_target->GetColorBufferTex(2)	);
-			deferred_ambient->SetUniform<Texture2D>		(	"depth",			render_target->GetColorBufferTex(3)	);
+			//deferred_ambient->SetUniform<Texture2D>		(	"depth",			render_target->GetColorBufferTex(3)	);
 			deferred_ambient->SetUniform<TextureCube>	(	"ambient_cubemap",	imp->ambient_cubemap		);
-			deferred_ambient->SetUniform<TextureCube>	(	"env_cubemap",		imp->sky_texture			);
+			//deferred_ambient->SetUniform<TextureCube>	(	"env_cubemap",		imp->sky_texture			);
 			deferred_ambient->SetUniform<Mat4>			(	"view_matrix",		&view_matrix		);
 			deferred_ambient->SetUniform<float>			(	"aspect_ratio",		&aspect_ratio		);
 			deferred_ambient->SetUniform<float>			(	"zoom",				&zoom				);
