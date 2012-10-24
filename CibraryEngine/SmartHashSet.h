@@ -51,6 +51,21 @@ namespace CibraryEngine
 			}
 		}
 
+		bool Contains(T* item)
+		{
+			if(count)
+			{
+				unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
+
+				vector<T*>& bucket = buckets[hash];
+				for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
+					if(bucket[i] == item)
+						return true;
+			}
+
+			return false;
+		}
+
 		void Clear()
 		{
 			if(count)

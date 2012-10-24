@@ -33,6 +33,8 @@
 *
 ***************************************************************************/
 
+// edit by Aardwolf: fixed glTransformFeedbackVaryings arg 3 error
+
 #ifdef _MSC_VER
 	#pragma optimize( "g", off )
 #endif
@@ -2062,7 +2064,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glTransformFeedbackVaryings
 #define GLEE_C_DEFINED_glTransformFeedbackVaryings
-  void __stdcall GLee_Lazy_glTransformFeedbackVaryings(GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryings(program, count, locations, bufferMode);}
+  void __stdcall GLee_Lazy_glTransformFeedbackVaryings(GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryings(program, count, locations, bufferMode);}
   GLEEPFNGLTRANSFORMFEEDBACKVARYINGSPROC GLeeFuncPtr_glTransformFeedbackVaryings=GLee_Lazy_glTransformFeedbackVaryings;
 #endif
 #ifndef GLEE_C_DEFINED_glGetTransformFeedbackVarying
@@ -8332,7 +8334,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glTransformFeedbackVaryingsNV
 #define GLEE_C_DEFINED_glTransformFeedbackVaryingsNV
-  void __stdcall GLee_Lazy_glTransformFeedbackVaryingsNV(GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryingsNV(program, count, locations, bufferMode);}
+  void __stdcall GLee_Lazy_glTransformFeedbackVaryingsNV(GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryingsNV(program, count, locations, bufferMode);}
   GLEEPFNGLTRANSFORMFEEDBACKVARYINGSNVPROC GLeeFuncPtr_glTransformFeedbackVaryingsNV=GLee_Lazy_glTransformFeedbackVaryingsNV;
 #endif
 #ifndef GLEE_C_DEFINED_glActiveVaryingNV
@@ -8472,7 +8474,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glTransformFeedbackVaryingsEXT
 #define GLEE_C_DEFINED_glTransformFeedbackVaryingsEXT
-  void __stdcall GLee_Lazy_glTransformFeedbackVaryingsEXT(GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryingsEXT(program, count, locations, bufferMode);}
+  void __stdcall GLee_Lazy_glTransformFeedbackVaryingsEXT(GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode)  {if (GLeeInit()) glTransformFeedbackVaryingsEXT(program, count, locations, bufferMode);}
   GLEEPFNGLTRANSFORMFEEDBACKVARYINGSEXTPROC GLeeFuncPtr_glTransformFeedbackVaryingsEXT=GLee_Lazy_glTransformFeedbackVaryingsEXT;
 #endif
 #ifndef GLEE_C_DEFINED_glGetTransformFeedbackVaryingEXT

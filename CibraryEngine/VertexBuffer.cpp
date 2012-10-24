@@ -382,8 +382,12 @@ namespace CibraryEngine
 
 		ShaderProgram::SetActiveProgram(shader_program);
 
-		GLchar const* strings[] = { "gl_Vertex" };
-//		glTransformFeedbackVaryings(shader_program->program_id, 1, strings, GL_SEPARATE_ATTRIBS);
+		vector<GLchar const*> strings;
+		vector<string> target_attribs = target->GetAttributes();
+		for(vector<string>::iterator iter = target_attribs.begin(); iter != target_attribs.end(); ++iter)
+			strings.push_back(iter->c_str());
+
+		glTransformFeedbackVaryings(shader_program->program_id, strings.size(), strings.data(), GL_SEPARATE_ATTRIBS);
 
 		// we must re-link the program to force some things to update (i think?)
 		glLinkProgram(shader_program->program_id);
@@ -399,12 +403,12 @@ namespace CibraryEngine
 
 		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, out_buf);
 
-//		glBindVertexArray(transform vertex array name);
+		glBindVertexArray(target->GetVBO());							// something like glBindVertexArray(transform vertex array name);
 
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
 		glBeginTransformFeedback((GLenum)storage_mode);
 
-		glDrawArrays((GLenum)storage_mode, 0, num_verts);
+		Draw(storage_mode);
 
 		glEndTransformFeedback();
 		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);
@@ -419,7 +423,6 @@ namespace CibraryEngine
 		/*
 		TODO: put results into target
 		*/
-
 
 		GLDEBUG();
 	}

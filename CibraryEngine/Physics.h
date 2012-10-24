@@ -41,6 +41,8 @@ namespace CibraryEngine
 
 	class SceneRenderer;
 
+	struct TaskThread;
+
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
 	{
@@ -51,14 +53,15 @@ namespace CibraryEngine
 			unordered_set<CollisionObject*> dynamic_objects;
 
 			unordered_set<PhysicsRegion*> all_regions;
+			PhysicsRegionManager* region_man;
 
 			unordered_set<PhysicsConstraint*> all_constraints;
-
-			PhysicsRegionManager* region_man;
 
 			Vec3 gravity;
 
 			float internal_timer, timer_interval;
+
+			vector<TaskThread*> task_threads;
 
 			void SolveConstraintGraph(ConstraintGraph& graph);
 
@@ -123,7 +126,7 @@ namespace CibraryEngine
 
 			virtual ~PhysicsConstraint() { }
 
-			virtual void DoConstraintAction(vector<RigidBody*>& wakeup) = 0;
+			virtual void DoConstraintAction() = 0;
 			virtual void DoUpdateAction(float timestep) { }
 
 			RigidBody* obj_a;
@@ -152,6 +155,7 @@ namespace CibraryEngine
 		Vec3 r1, r2, nr1, nr2;
 
 		ContactPoint() : cache_valid(false) { }
+		~ContactPoint() { }
 
 		void BuildCache();
 
@@ -159,10 +163,16 @@ namespace CibraryEngine
 		float GetInwardVelocity() const;
 		void ApplyImpulse(const Vec3& impulse) const;
 
-		void DoConstraintAction(vector<RigidBody*>& wakeup);
+		void DoConstraintAction();
 		void DoUpdateAction(float timestep);
 
 		bool DoCollisionResponse() const;
+
+		static ContactPoint* New();
+		static ContactPoint* New(const ContactPoint& cp);
+
+		static void Delete(ContactPoint* cp);
+		static void EmptyRecycleBins();
 	};
 
 	class PhysicsRegionManager

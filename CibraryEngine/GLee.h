@@ -33,6 +33,8 @@
 *
 ***************************************************************************/
 
+// edit by Aardwolf: fixed glTransformFeedbackVaryings arg 3 error
+
 #ifndef __glee_h_
 #define __glee_h_
 
@@ -3014,7 +3016,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glTransformFeedbackVaryings
 #define GLEE_H_DEFINED_glTransformFeedbackVaryings
-  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSPROC) (GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode);
+  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSPROC) (GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode);
   GLEE_EXTERN GLEEPFNGLTRANSFORMFEEDBACKVARYINGSPROC GLeeFuncPtr_glTransformFeedbackVaryings;
   #define glTransformFeedbackVaryings GLeeFuncPtr_glTransformFeedbackVaryings
 #endif
@@ -13190,7 +13192,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glTransformFeedbackVaryingsNV
 #define GLEE_H_DEFINED_glTransformFeedbackVaryingsNV
-  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSNVPROC) (GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode);
+  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSNVPROC) (GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode);
   GLEE_EXTERN GLEEPFNGLTRANSFORMFEEDBACKVARYINGSNVPROC GLeeFuncPtr_glTransformFeedbackVaryingsNV;
   #define glTransformFeedbackVaryingsNV GLeeFuncPtr_glTransformFeedbackVaryingsNV
 #endif
@@ -13448,7 +13450,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glTransformFeedbackVaryingsEXT
 #define GLEE_H_DEFINED_glTransformFeedbackVaryingsEXT
-  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSEXTPROC) (GLuint program, GLsizei count, const GLint * locations, GLenum bufferMode);
+  typedef void (APIENTRYP GLEEPFNGLTRANSFORMFEEDBACKVARYINGSEXTPROC) (GLuint program, GLsizei count, const GLchar ** locations, GLenum bufferMode);
   GLEE_EXTERN GLEEPFNGLTRANSFORMFEEDBACKVARYINGSEXTPROC GLeeFuncPtr_glTransformFeedbackVaryingsEXT;
   #define glTransformFeedbackVaryingsEXT GLeeFuncPtr_glTransformFeedbackVaryingsEXT
 #endif

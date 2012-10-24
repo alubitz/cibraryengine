@@ -12,24 +12,10 @@ namespace CibraryEngine
 
 
 	/*
-	 * Recycle bins for ContactPoint and ConstraintGraph::Node pointers
+	 * Recycle bins for ConstraintGraph::Node pointers
 	 */
-	static vector<ContactPoint*> cp_recycle_bin;
 	static vector<ConstraintGraph::Node*> node_recycle_bin;
 	static vector<vector<ConstraintGraph::Edge>*> edges_recycle_bin;
-
-	static ContactPoint* NewCP(const ContactPoint& cp)
-	{
-		if(cp_recycle_bin.empty())
-			return new ContactPoint(cp);
-		else
-		{
-			ContactPoint* result = new (*cp_recycle_bin.rbegin()) ContactPoint(cp);
-			cp_recycle_bin.pop_back();
-			return result;
-		}
-	}
-	static void DeleteCP(ContactPoint* cp) { cp_recycle_bin.push_back(cp); }
 
 	static ConstraintGraph::Node* NewNode(RigidBody* body)
 	{
@@ -81,14 +67,11 @@ namespace CibraryEngine
 			DeleteNode(iter->second);
 		nodes.clear();
 
-		for(vector<ContactPoint*>::iterator iter = contact_points.begin(); iter != contact_points.end(); ++iter)
-			DeleteCP(*iter);
 		contact_points.clear();
-
 		constraints.clear();
 	}
 
-	void ConstraintGraph::AddContactPoint(const ContactPoint& cp) { contact_points.push_back(NewCP(cp)); }
+	void ConstraintGraph::AddContactPoint(ContactPoint* cp) { contact_points.push_back(cp); }
 
 	void ConstraintGraph::AddConstraint(PhysicsConstraint* constraint)
 	{
@@ -134,10 +117,6 @@ namespace CibraryEngine
 
 	void ConstraintGraph::EmptyRecycleBins()
 	{
-		for(vector<ContactPoint*>::iterator iter = cp_recycle_bin.begin(); iter != cp_recycle_bin.end(); ++iter)
-			delete *iter;
-		cp_recycle_bin.clear();
-
 		for(vector<Node*>::iterator iter = node_recycle_bin.begin(); iter != node_recycle_bin.end(); ++iter)
 			delete *iter;
 		node_recycle_bin.clear();

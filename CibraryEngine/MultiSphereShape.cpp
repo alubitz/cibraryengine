@@ -916,7 +916,7 @@ namespace CibraryEngine
 			return false;
 		}
 
-		bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody)
+		bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)
 		{
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
@@ -939,7 +939,7 @@ namespace CibraryEngine
 					result.b.norm = plane_norm;
 					result.a.norm = -plane_norm;
 
-					results.push_back(result);
+					results.push_back(ContactPoint::New(result));
 				}
 			}
 
@@ -1147,7 +1147,7 @@ namespace CibraryEngine
 	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
 
 	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body) { return imp->CollideRay(ray, result, collider, body); }
-	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
+	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, results, ibody, jbody); }
 	bool MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, result, ibody, jbody); }
 	bool MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, my_spheres, tri, result, ibody, jbody); }
 

@@ -17,14 +17,12 @@ namespace CibraryEngine
 	{
 	}
 
-	void JointConstraint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
+	void JointConstraint::DoConstraintAction()
 	{
 		static const float dv_coeff =			1.0f;
 
 		static const float dv_sq_threshold	=	0.01f;
 		static const float alpha_sq_threshold =	0.01f;
-
-		bool wakeup = false;
 
 
 		// linear stuff
@@ -49,8 +47,6 @@ namespace CibraryEngine
 				if(obj_b->can_rotate)
 					obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
 			}
-
-			wakeup = true;
 		}
 
 
@@ -88,15 +84,6 @@ namespace CibraryEngine
 		{
 			obj_a->rot += alpha_to_obja * alpha;
 			obj_b->rot -= alpha_to_objb * alpha;
-
-			wakeup = true;
-		}
-
-
-		if(wakeup)
-		{
-			wakeup_list.push_back(obj_a);
-			wakeup_list.push_back(obj_b);
 		}
 	}
 

@@ -62,7 +62,7 @@ namespace CibraryEngine
 
 			virtual void UpdateVel(float timestep) { }
 			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man) { }
-			virtual void InitiateCollisions(float timestep, vector<ContactPoint>& contact_points) { };
+			virtual void InitiateCollisions(float timestep, vector<ContactPoint*>& contact_points) { };
 
 			virtual void DebugDraw(SceneRenderer* renderer) { }
 

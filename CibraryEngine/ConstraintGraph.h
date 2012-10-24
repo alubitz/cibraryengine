@@ -42,7 +42,7 @@ namespace CibraryEngine
 		 * Call this whenever you find a collision
 		 * The first object has to be something that merges subgraphs
 		 */
-		void AddContactPoint(const ContactPoint& cp);
+		void AddContactPoint(ContactPoint* cp);
 
 		void AddConstraint(PhysicsConstraint* constraint);
 

@@ -93,7 +93,7 @@ namespace CibraryEngine
 		region_man->OnObjectUpdate(this, regions, timestep);
 	}
 
-	void CollisionGroup::InitiateCollisions(float timestep, vector<ContactPoint>& contact_points)
+	void CollisionGroup::InitiateCollisions(float timestep, vector<ContactPoint*>& contact_points)
 	{
 		// do collisions between contained objects, if enabled
 		if(collide_within)
@@ -154,7 +154,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionGroup::CollideRigidBody(RigidBody* body, vector<ContactPoint>& contact_points)
+	void CollisionGroup::CollideRigidBody(RigidBody* body, vector<ContactPoint*>& contact_points)
 	{
 		// TODO: consult disabled_collisions for child-other collisions?
 
@@ -169,7 +169,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionGroup::CollideCollisionGroup(CollisionGroup* other, vector<ContactPoint>& contact_points)
+	void CollisionGroup::CollideCollisionGroup(CollisionGroup* other, vector<ContactPoint*>& contact_points)
 	{
 		// TODO: consult disabled_collisions for child-group and child-other-child collisions?
 

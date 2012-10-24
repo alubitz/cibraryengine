@@ -20,13 +20,13 @@
 
 #include "DebugLog.h"
 #include "Serialize.h"
+#include "Util.h"
 
 #include "RenderNode.h"
 #include "SceneRenderer.h"
-
-#include "Util.h"
-
 #include "DebugDrawMaterial.h"
+
+#include "TaskThread.h"
 
 #include "ProfilingTimer.h"
 
@@ -36,12 +36,11 @@
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
 #define PROFILE_DOFIXEDSTEP 1
-#define PROFILE_SOLVE_CGRAPH 0
+
+#define NUM_THREADS 8
 
 namespace CibraryEngine
 {
-	using namespace boost::asio;
-
 	using boost::unordered_set;
 	using boost::unordered_map;
 
@@ -52,7 +51,6 @@ namespace CibraryEngine
 	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
 	
-
 
 
 	/*
@@ -74,64 +72,6 @@ namespace CibraryEngine
 
 
 
-	/*
-	 * Subgraph struct used within PhysicsWorld::SolveConstraintGraph
-	 */
-	struct Subgraph
-	{
-		static vector<Subgraph*> subgraph_recycle_bin;
-		static vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*> nodemaps_recycle_bin;
-
-		unordered_map<RigidBody*, ConstraintGraph::Node*>* nodes;
-		vector<PhysicsConstraint*> constraints;
-
-		Subgraph() : constraints()
-		{
-			if(nodemaps_recycle_bin.empty())
-				nodes = new unordered_map<RigidBody*, ConstraintGraph::Node*>();
-			else
-			{
-				unordered_map<RigidBody*, ConstraintGraph::Node*>* result = *nodemaps_recycle_bin.rbegin();
-				nodemaps_recycle_bin.pop_back();
-
-				nodes = new (result) unordered_map<RigidBody*, ConstraintGraph::Node*>();
-			}
-		}
-		~Subgraph() { if(nodes) { nodes->~unordered_map(); nodemaps_recycle_bin.push_back(nodes); nodes = NULL; } }
-
-		bool ContainsNode(ConstraintGraph::Node* node) { return nodes->find(node->body) != nodes->end(); }
-
-		static Subgraph* New()
-		{
-			if(subgraph_recycle_bin.empty())
-				return new Subgraph();
-			else
-			{
-				Subgraph* result = *subgraph_recycle_bin.rbegin();
-				subgraph_recycle_bin.pop_back();
-
-				return new (result) Subgraph();
-			}
-		}
-		static void Delete(Subgraph* s) { s->~Subgraph(); subgraph_recycle_bin.push_back(s); }
-
-		static void EmptyRecycleBins()
-		{
-			for(vector<Subgraph*>::iterator iter = subgraph_recycle_bin.begin(), bin_end = subgraph_recycle_bin.end(); iter != bin_end; ++iter)
-				delete *iter;
-			subgraph_recycle_bin.clear();
-
-			for(vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*>::iterator iter = nodemaps_recycle_bin.begin(), bin_end = nodemaps_recycle_bin.end(); iter != bin_end; ++iter)
-				delete *iter;
-			nodemaps_recycle_bin.clear();
-		}
-	};
-	vector<Subgraph*> Subgraph::subgraph_recycle_bin = vector<Subgraph*>();
-	vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*> Subgraph::nodemaps_recycle_bin = vector<unordered_map<RigidBody*, ConstraintGraph::Node*>*>();
-
-
-
-
 #if PROFILE_DOFIXEDSTEP
 	static float timer_update_vel = 0.0f;
 	static float timer_ray_update = 0.0f;
@@ -141,15 +81,6 @@ namespace CibraryEngine
 	static float timer_update_pos = 0.0f;
 	static float timer_total = 0.0f;
 	static unsigned int counter_dofixedstep = 0;
-#endif
-
-#if PROFILE_SOLVE_CGRAPH
-	static float timer_cgraph_whole = 0.0f;
-	static float timer_cgraph_setup = 0.0f;
-	static float timer_cgraph_shutdown = 0.0f;
-	static float timer_make_subgraphs = 0.0f;
-	static float timer_do_constraints = 0.0f;
-	static unsigned int counter_solve_cgraph = 0;
 #endif
 
 
@@ -164,13 +95,19 @@ namespace CibraryEngine
 		dynamic_objects(),
 		all_regions(),
 		region_man(NULL),
+		all_constraints(),
 		gravity(0, -9.8f, 0),
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
+		task_threads(),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
+
+		for(unsigned int i = 0; i < NUM_THREADS; ++i)
+			task_threads.push_back(new TaskThread());
 	}
+
 	void PhysicsWorld::InnerDispose()
 	{
 		// suppress "object orphaned" messages
@@ -201,8 +138,15 @@ namespace CibraryEngine
 		delete orphan_callback;
 		orphan_callback = NULL;
 
-		Subgraph::EmptyRecycleBins();
 		ConstraintGraph::EmptyRecycleBins();
+		ContactPoint::EmptyRecycleBins();
+
+		for(vector<TaskThread*>::iterator iter = task_threads.begin(); iter != task_threads.end(); ++iter)
+		{
+			(*iter)->Shutdown();
+			delete *iter;
+		}
+		task_threads.clear();
 
 #if PROFILE_DOFIXEDSTEP
 		Debug(((stringstream&)(stringstream() << "total for " << counter_dofixedstep << " calls to PhysicsWorld::DoFixedStep = " << timer_total << endl)).str());
@@ -213,15 +157,6 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "cgraph =\t\t\t\t"			<< timer_cgraph							<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_pos =\t\t\t"		<< timer_update_pos						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
-#endif
-
-#if PROFILE_SOLVE_CGRAPH
-		Debug(((stringstream&)(stringstream() << "total for " << counter_solve_cgraph << " calls to SolveConstraintGraph = " << timer_cgraph_whole << endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "cgraph_setup =\t\t\t"		<< timer_cgraph_setup					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "make_subgraphs =\t\t"		<< timer_make_subgraphs					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "do_constraints =\t\t"		<< timer_do_constraints					<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "cgraph_shutdown =\t\t"	<< timer_cgraph_shutdown				<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_cgraph_setup + timer_make_subgraphs + timer_do_constraints + timer_cgraph_shutdown << endl)).str());
 #endif
 	}
 
@@ -323,121 +258,78 @@ namespace CibraryEngine
 
 	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
 	{
-#if PROFILE_SOLVE_CGRAPH
-		ProfilingTimer timer, timer2;
-		timer2.Start();
-		timer.Start();
-#endif
+		static vector<vector<PhysicsConstraint*> > batches;
 
-		unsigned int graph_nodes = graph.nodes.size();
+		static vector<PhysicsConstraint*> unassigned;
+		unassigned.assign(graph.constraints.begin(), graph.constraints.end());
 
-		// break the graph into separate subgraphs
-		vector<Subgraph*> subgraphs;
-		subgraphs.reserve(graph_nodes);
-
-		unordered_map<RigidBody*, Subgraph*> body_subgraphs;
-		body_subgraphs.rehash((int)ceil(graph_nodes / body_subgraphs.max_load_factor()));
-
-		vector<ConstraintGraph::Node*> fringe(graph_nodes);
-
-#if PROFILE_SOLVE_CGRAPH
-		timer_cgraph_setup += timer.GetAndRestart();
-#endif
-
-		for(unordered_map<RigidBody*, ConstraintGraph::Node*>::iterator iter = graph.nodes.begin(), nodes_end = graph.nodes.end(); iter != nodes_end; ++iter)
+		while(!unassigned.empty())
 		{
-			if(body_subgraphs.find(iter->first) == body_subgraphs.end())
+			static SmartHashSet<RigidBody, 37> used_nodes;
+			static vector<PhysicsConstraint*> nu_unassigned;
+
+			static vector<PhysicsConstraint*> batch;
+
+			for(vector<PhysicsConstraint*>::iterator iter = unassigned.begin(); iter != unassigned.end(); ++iter)
 			{
-				Subgraph* subgraph = Subgraph::New();
-				subgraphs.push_back(subgraph);
-
-				fringe.clear();
-				fringe.push_back(iter->second);
-
-				while(!fringe.empty())
+				PhysicsConstraint* constraint = *iter;
+				if(used_nodes.Contains(constraint->obj_a) || used_nodes.Contains(constraint->obj_b))
+					nu_unassigned.push_back(constraint);
+				else
 				{
-					ConstraintGraph::Node* node = *fringe.rbegin();
-					fringe.pop_back();
+					batch.push_back(constraint);
 
-					if(!subgraph->ContainsNode(node))
-					{
-						subgraph->nodes->operator[](node->body) = node;
-						body_subgraphs[node->body] = subgraph;
-
-						const vector<ConstraintGraph::Edge>& edges = *node->edges;
-						for(vector<ConstraintGraph::Edge>::const_iterator jter = edges.begin(), edges_end = edges.end(); jter != edges_end; ++jter)
-						{
-							ConstraintGraph::Node* other = jter->other_node;
-							if(other == NULL || !subgraph->ContainsNode(other))
-							{
-								subgraph->constraints.push_back(jter->constraint);
-
-								if(other)
-									fringe.push_back(other);
-							}
-						}
-					}
+					used_nodes.Insert(constraint->obj_a);
+					if(constraint->obj_b->can_move)						// if(constraint->obj_b->MergesSubgraphs())
+						used_nodes.Insert(constraint->obj_b);
 				}
 			}
+
+			unassigned.assign(nu_unassigned.begin(), nu_unassigned.end());
+
+			batches.push_back(batch);
+
+			batch.clear();
+			used_nodes.Clear();
+			nu_unassigned.clear();
 		}
 
-#if PROFILE_SOLVE_CGRAPH
-		timer_make_subgraphs += timer.GetAndRestart();
-#endif
-
-		static vector<PhysicsConstraint*> active;
-		boost::unordered_set<PhysicsConstraint*> nu_active;
-		static vector<RigidBody*> wakeup_list;
-
-		// now go through each subgraph and do as many iterations as are necessary
-		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
+		struct BatchConstraintSolver : public ThreadTask
 		{
-			Subgraph& subgraph = **iter;
+			vector<PhysicsConstraint*>* batch;
+			unsigned int from, to;
 
-			active.assign(subgraph.constraints.begin(), subgraph.constraints.end());
+			BatchConstraintSolver() { }
+			BatchConstraintSolver(vector<PhysicsConstraint*>* batch, unsigned int from, unsigned int to) : batch(batch), from(from), to(to) { }
 
-			for(int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS && !active.empty(); ++i)
+			void DoTask()
 			{
-				nu_active.clear();
-				for(vector<PhysicsConstraint*>::iterator jter = active.begin(), active_end = active.end(); jter != active_end; ++jter)
+				PhysicsConstraint **data = batch->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(PhysicsConstraint** constraint_ptr = start_ptr; constraint_ptr != finish_ptr; ++constraint_ptr)
+					(*constraint_ptr)->DoConstraintAction();
+			}
+		};
+		BatchConstraintSolver solvers[NUM_THREADS];
+
+		for(unsigned int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+			for(vector<vector<PhysicsConstraint*> >::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+			{
+				vector<PhysicsConstraint*>& batch = *iter;
+
+				unsigned int batch_size = batch.size();
+				unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, batch_size / 20));
+
+				for(unsigned int j = 0; j < use_threads; ++j)
 				{
-					PhysicsConstraint& constraint = **jter;
-
-					wakeup_list.clear();
-					constraint.DoConstraintAction(wakeup_list);
-
-					// constraint says we should wake up these rigid bodies
-					for(vector<RigidBody*>::iterator kter = wakeup_list.begin(), wakeup_end = wakeup_list.end(); kter != wakeup_end; ++kter)
-					{
-						ConstraintGraph::Node* node = subgraph.nodes->operator[](*kter);
-
-						for(vector<ConstraintGraph::Edge>::iterator kter = node->edges->begin(), edges_end = node->edges->end(); kter != edges_end; ++kter)
-							if(kter->constraint != *jter)
-								nu_active.insert(kter->constraint);
-					}
+					solvers[j] = BatchConstraintSolver(&batch, j * batch_size / use_threads, (j	+ 1) * batch_size / use_threads);
+					task_threads[j]->StartTask(&solvers[j]);
 				}
 
-				active.assign(nu_active.begin(), nu_active.end());
+				for(unsigned int j = 0; j < use_threads; ++j)
+					task_threads[j]->WaitForCompletion();
 			}
-		}
 
-#if PROFILE_SOLVE_CGRAPH
-		timer_do_constraints += timer.GetAndRestart();
-#endif
-
-		active.clear();
-		wakeup_list.clear();
-
-		// clean up subgraphs
-		for(vector<Subgraph*>::iterator iter = subgraphs.begin(), subgraphs_end = subgraphs.end(); iter != subgraphs_end; ++iter)
-			Subgraph::Delete(*iter);
-
-#if PROFILE_SOLVE_CGRAPH
-		timer_cgraph_shutdown += timer.Stop();
-		timer_cgraph_whole += timer2.Stop();
-
-		++counter_solve_cgraph;
-#endif
+		batches.clear();
 	}
 
 
@@ -499,14 +391,41 @@ namespace CibraryEngine
 		timer.Start();
 #endif
 
-		vector<ContactPoint> contact_points;
-		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+		struct CollisionInitiator : public ThreadTask
 		{
-			(*iter)->InitiateCollisions(timestep, contact_points);
+			float timestep;
+			vector<CollisionObject*>* objects;
+			vector<ContactPoint*> contact_points;
+			unsigned int from, to;
 
-			for(vector<ContactPoint>::iterator jter = contact_points.begin(), cp_end = contact_points.end(); jter != cp_end; ++jter)
-				constraint_graph.AddContactPoint(*jter);
-			contact_points.clear();
+			CollisionInitiator() { }
+			CollisionInitiator(float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), from(from), to(to) { }
+
+			void DoTask()
+			{
+				CollisionObject **data = objects->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(CollisionObject** obj_ptr = start_ptr; obj_ptr != finish_ptr; ++obj_ptr)
+					(*obj_ptr)->InitiateCollisions(timestep, contact_points);
+			}
+		};
+		CollisionInitiator collision_initiators[NUM_THREADS];
+
+		vector<CollisionObject*> dynamic_objects_vector;
+		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
+			dynamic_objects_vector.push_back(*iter);
+		unsigned int num_objects = dynamic_objects_vector.size();
+		unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, num_objects / 20));
+
+		for(unsigned int i = 0; i < use_threads; ++i)
+		{
+			collision_initiators[i] = CollisionInitiator(timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
+			task_threads[i]->StartTask(&collision_initiators[i]);
+		}
+		for(unsigned int i = 0; i < use_threads; ++i)
+		{
+			task_threads[i]->WaitForCompletion();
+			for(vector<ContactPoint*>::iterator iter = collision_initiators[i].contact_points.begin(); iter != collision_initiators[i].contact_points.end(); ++iter)
+				constraint_graph.contact_points.push_back(*iter);
 		}
 
 #if PROFILE_DOFIXEDSTEP
@@ -530,6 +449,10 @@ namespace CibraryEngine
 #endif
 
 		SolveConstraintGraph(constraint_graph);
+
+		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(); iter != constraint_graph.contact_points.end(); ++iter)
+			ContactPoint::Delete(*iter);
+		constraint_graph.contact_points.clear();
 
 #if PROFILE_DOFIXEDSTEP
 		timer_cgraph += timer.GetAndRestart();
@@ -558,18 +481,22 @@ namespace CibraryEngine
 		{
 			case COT_RigidBody:
 			{
-				RigidBody* r = (RigidBody*)obj;
-				if(r->can_move)
-					dynamic_objects.insert(r);
+				RigidBody* rigid_body = (RigidBody*)obj;
+				if(rigid_body->can_move)
+					dynamic_objects.insert(rigid_body);
 
-				r->gravity = gravity;
+				rigid_body->gravity = gravity;
 
 				break;
 			}
 
 			case COT_RayCollider:
 			{
-				rays.insert((RayCollider*)obj);
+				RayCollider* ray_collider = (RayCollider*)obj;
+				rays.insert(ray_collider);
+
+				ray_collider->gravity = gravity;
+
 				break;
 			}
 
@@ -873,17 +800,12 @@ namespace CibraryEngine
 		return false;
 	}
 
-	void ContactPoint::DoConstraintAction(vector<RigidBody*>& wakeup_list)
+	void ContactPoint::DoConstraintAction()
 	{
 		BuildCache();
 
 		if(DoCollisionResponse())
 		{
-			// because we applied an impulse, we should wake up edges for the rigid bodies involved
-			wakeup_list.push_back(obj_a);
-			if(obj_b->MergesSubgraphs())
-				wakeup_list.push_back(obj_b);
-
 			if(obj_a->collision_callback)
 				obj_a->collision_callback->OnCollision(*this);
 			if(obj_b->collision_callback)
@@ -927,6 +849,52 @@ namespace CibraryEngine
 		}
 	}
 
+	/*
+	 * ContactPoint recycle bin stuffs
+	 */
+	static vector<ContactPoint*> cp_recycle_bin = vector<ContactPoint*>();
+
+	ContactPoint* ContactPoint::New()
+	{
+		/*
+		if(cp_recycle_bin.empty())
+			return new ContactPoint();
+		else
+		{
+			ContactPoint* result = *cp_recycle_bin.rbegin();
+			cp_recycle_bin.pop_back();
+
+			return new (result) ContactPoint();
+		}
+		*/
+		return new ContactPoint();
+	}
+
+	ContactPoint* ContactPoint::New(const ContactPoint& cp)
+	{
+		/*
+		if(cp_recycle_bin.empty())
+			return new ContactPoint(cp);
+		else
+		{
+			ContactPoint* result = *cp_recycle_bin.rbegin();
+			cp_recycle_bin.pop_back();
+
+			return new (result) ContactPoint(cp);
+		}
+		*/
+		return new ContactPoint(cp);
+	}
+
+	void ContactPoint::Delete(ContactPoint* cp) { /*cp->~ContactPoint(); cp_recycle_bin.push_back(cp);*/ delete cp; }
+
+	void ContactPoint::EmptyRecycleBins()
+	{
+		for(vector<ContactPoint*>::iterator iter = cp_recycle_bin.begin(); iter != cp_recycle_bin.end(); ++iter)
+			delete *iter;
+		cp_recycle_bin.clear();
+	}
+
 
 
 
@@ -955,7 +923,7 @@ namespace CibraryEngine
 				p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
 				p.a.norm = -p.b.norm;
 
-				hits.AddContactPoint(p);
+				hits.AddContactPoint(ContactPoint::New(p));
 			}
 	}
 
@@ -984,7 +952,7 @@ namespace CibraryEngine
 				p.a.norm = -tri.plane.normal;
 				p.b.norm = tri.plane.normal;
 
-				hits.AddContactPoint(p);
+				hits.AddContactPoint(ContactPoint::New(p));
 			}
 		}
 	}
@@ -1015,7 +983,7 @@ namespace CibraryEngine
 				p.b.norm = plane_norm;
 				p.a.norm = -plane_norm;
 
-				hits.AddContactPoint(p);
+				hits.AddContactPoint(ContactPoint::New(p));
 			}
 		}
 	}
@@ -1029,6 +997,6 @@ namespace CibraryEngine
 
 		ContactPoint cp;
 		if(shape->CollideSphere(Sphere(nu_pos, radius), cp, ibody, jbody))
-			hits.AddContactPoint(cp);
+			hits.AddContactPoint(ContactPoint::New(cp));
 	}
 }
