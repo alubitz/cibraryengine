@@ -3022,7 +3022,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glGetTransformFeedbackVarying
 #define GLEE_H_DEFINED_glGetTransformFeedbackVarying
-  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGPROC) (GLuint program, GLuint index, GLint * location);
+  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGPROC) (GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, char * name);
   GLEE_EXTERN GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGPROC GLeeFuncPtr_glGetTransformFeedbackVarying;
   #define glGetTransformFeedbackVarying GLeeFuncPtr_glGetTransformFeedbackVarying
 #endif
@@ -13216,7 +13216,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glGetTransformFeedbackVaryingNV
 #define GLEE_H_DEFINED_glGetTransformFeedbackVaryingNV
-  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGNVPROC) (GLuint program, GLuint index, GLint * location);
+  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGNVPROC) (GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, char * name);
   GLEE_EXTERN GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGNVPROC GLeeFuncPtr_glGetTransformFeedbackVaryingNV;
   #define glGetTransformFeedbackVaryingNV GLeeFuncPtr_glGetTransformFeedbackVaryingNV
 #endif
@@ -13456,7 +13456,7 @@ GLEE_EXTERN GLboolean _GLEE_SGIX_texture_range;
 #endif
 #ifndef GLEE_H_DEFINED_glGetTransformFeedbackVaryingEXT
 #define GLEE_H_DEFINED_glGetTransformFeedbackVaryingEXT
-  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGEXTPROC) (GLuint program, GLuint index, GLint * location);
+  typedef void (APIENTRYP GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGEXTPROC) (GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, char * name);
   GLEE_EXTERN GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGEXTPROC GLeeFuncPtr_glGetTransformFeedbackVaryingEXT;
   #define glGetTransformFeedbackVaryingEXT GLeeFuncPtr_glGetTransformFeedbackVaryingEXT
 #endif

@@ -481,10 +481,6 @@ namespace Test
 				unsigned int bone_name = Bone::string_table[phys.bone_name];
 				name_indices[bone_name] = rigid_bodies.size();
 
-				for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-					rigid_body->SetCollisionEnabled(*iter, false);		// disables collisions both ways
-
-				//physics->AddCollisionObject(rigid_body);
 				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
 
@@ -515,7 +511,7 @@ namespace Test
 		{
 			ModelPhysics::JointPhysics& phys = *iter;
 				
-			if(phys.bone_b != 0)						// don't deal with special attachment points
+			if(phys.bone_b != 0)									// don't deal with special attachment points
 			{
 				const string& bone_a_name = mphys->bones[phys.bone_a - 1].bone_name;
 				const string& bone_b_name = mphys->bones[phys.bone_b - 1].bone_name;
@@ -523,10 +519,11 @@ namespace Test
 				RigidBody* bone_a = rigid_bodies[name_indices[Bone::string_table[bone_a_name]]];
 				RigidBody* bone_b = rigid_bodies[name_indices[Bone::string_table[bone_b_name]]];
 
+				bone_a->SetCollisionEnabled(bone_b, false);			// disable collisions between these two bones
+
 				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents);
 
 				constraints.push_back(c);
-
 				physics->AddConstraint(c);
 			}
 		}

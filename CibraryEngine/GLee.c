@@ -2069,7 +2069,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glGetTransformFeedbackVarying
 #define GLEE_C_DEFINED_glGetTransformFeedbackVarying
-  void __stdcall GLee_Lazy_glGetTransformFeedbackVarying(GLuint program, GLuint index, GLint * location)  {if (GLeeInit()) glGetTransformFeedbackVarying(program, index, location);}
+  void __stdcall GLee_Lazy_glGetTransformFeedbackVarying(GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, char * name)  {if (GLeeInit()) glGetTransformFeedbackVarying(program, index, bufSize, length, size, type, name);}
   GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGPROC GLeeFuncPtr_glGetTransformFeedbackVarying=GLee_Lazy_glGetTransformFeedbackVarying;
 #endif
 #ifndef GLEE_C_DEFINED_glClampColor
@@ -8354,7 +8354,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glGetTransformFeedbackVaryingNV
 #define GLEE_C_DEFINED_glGetTransformFeedbackVaryingNV
-  void __stdcall GLee_Lazy_glGetTransformFeedbackVaryingNV(GLuint program, GLuint index, GLint * location)  {if (GLeeInit()) glGetTransformFeedbackVaryingNV(program, index, location);}
+  void __stdcall GLee_Lazy_glGetTransformFeedbackVaryingNV(GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, GLchar * name)  {if (GLeeInit()) glGetTransformFeedbackVaryingNV(program, index, bufSize, length, size, type, name);}
   GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGNVPROC GLeeFuncPtr_glGetTransformFeedbackVaryingNV=GLee_Lazy_glGetTransformFeedbackVaryingNV;
 #endif
 #endif 
@@ -8479,7 +8479,7 @@ int __GLeeGLNumExtensions=322;
 #endif
 #ifndef GLEE_C_DEFINED_glGetTransformFeedbackVaryingEXT
 #define GLEE_C_DEFINED_glGetTransformFeedbackVaryingEXT
-  void __stdcall GLee_Lazy_glGetTransformFeedbackVaryingEXT(GLuint program, GLuint index, GLint * location)  {if (GLeeInit()) glGetTransformFeedbackVaryingEXT(program, index, location);}
+  void __stdcall GLee_Lazy_glGetTransformFeedbackVaryingEXT(GLuint program, GLuint index, GLsizei bufSize, GLsizei * length, GLsizei * size, GLenum * type, GLchar * name)  {if (GLeeInit()) glGetTransformFeedbackVaryingEXT(program, index, bufSize, length, size, type, name);}
   GLEEPFNGLGETTRANSFORMFEEDBACKVARYINGEXTPROC GLeeFuncPtr_glGetTransformFeedbackVaryingEXT=GLee_Lazy_glGetTransformFeedbackVaryingEXT;
 #endif
 #endif 

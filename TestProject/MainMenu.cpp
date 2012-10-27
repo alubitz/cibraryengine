@@ -1,10 +1,10 @@
 #include "StdAfx.h"
 #include "MainMenu.h"
 
+#include "ExperimentalScreen.h"
 #include "LoadingScreen.h"
 #include "InstructionsScreen.h"
 #include "Credits.h"
-//#include "TestScreen.h"
 
 namespace Test
 {
@@ -15,7 +15,8 @@ namespace Test
 	{
 		struct CreateGameButton : public AutoMenuItem
 		{
-			CreateGameButton(ContentMan* content, int row) : AutoMenuItem(content, "Create Game...", row, true) { }
+			//CreateGameButton(ContentMan* content, int row) : AutoMenuItem(content, "Create Game...", row, true) { }
+			CreateGameButton(ContentMan* content, int row) : AutoMenuItem(content, "New Game", row, true) { }
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu, NR_Server)); }
 		};
 
@@ -37,6 +38,12 @@ namespace Test
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new Credits(mse->menu->window, mse->menu)); }
 		};
 
+		struct ExperimentalButton : public AutoMenuItem
+		{
+			ExperimentalButton(ContentMan* content, int row) : AutoMenuItem(content, "Experimental Stuff", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new ExperimentalScreen(mse->menu->window, mse->menu)); }
+		};
+
 		struct ExitButton : public AutoMenuItem
 		{
 			ExitButton(ContentMan* content, int row) : AutoMenuItem(content, "Exit", row, true) { }
@@ -53,7 +60,8 @@ namespace Test
 			auto_menu_items.push_back(new AutoMenuItem(content, "FPS", row++, false));
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 			auto_menu_items.push_back(new CreateGameButton(content, row++));
-			auto_menu_items.push_back(new JoinGameButton(content, row++));
+			//auto_menu_items.push_back(new JoinGameButton(content, row++));
+			auto_menu_items.push_back(new ExperimentalButton(content, row++));
 			//auto_menu_items.push_back(new AutoMenuItem(content, "Options...", row++, true));		// default implementation does nothing when selected
 			auto_menu_items.push_back(new InstructionsButton(content, row++));
 			auto_menu_items.push_back(new CreditsButton(content, row++));
@@ -87,14 +95,14 @@ namespace Test
 	{
 		MenuScreen::Activate();
 
-		if(imp == NULL)
+		if(!imp)
 			imp = new Imp(window, this);
 	}
 
 	void MainMenu::Deactivate()
 	{
 		MenuScreen::Deactivate();
-		if(imp != NULL)
+		if(imp)
 		{
 			imp->Destroy();
 
