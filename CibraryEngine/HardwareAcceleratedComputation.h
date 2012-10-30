@@ -4,30 +4,35 @@
 
 namespace CibraryEngine
 {
+	using namespace std;
+
 	// TODO: generalize, then specialize!
 	struct HardwareAcceleratedComputation
-	{	
-		// prefix of "Transform" means it has to do with the first shader, the one that just does vertex processing
-		GLuint transform_program;
-		GLuint transform_array_buffer;
-		GLuint transform_vertex_array;
+	{
+		private:
 
-		// prefix of "Feedback" means it has to do with the second shader, the one that takes the first shader's output and draws stuff based on it
-		GLuint feedback_array_buffer_position;			// one channel of the output
-		GLuint feedback_array_buffer_derp;				// another channel of the output
-		GLuint feedback_vertex_array;					// object which will contain one or more channels of output
+			GLuint shader_program;
+			GLuint input_array_buffer;
+			GLuint input_vertex_array;
 
-		GLuint query_object;
+			GLuint output_vertex_array;
+			vector<GLuint> output_channels;			// array buffers which will go inside the output vertex array
 
-		HardwareAcceleratedComputation();
+			GLuint query;
 
-		bool initProgram();
-		bool initArrayBuffer();
-		bool initVertexArray();
+			bool InitShaderProgram();
+			bool InitArrayBuffers();
+			bool InitVertexArrays();
 
-		void begin();
-		void end();
+		public:
 
-		void display();
+			vector<const GLchar*> varying_names;	// names of the output variables... indices parallel to output_channels
+
+			HardwareAcceleratedComputation();
+
+			void Begin();
+			void End();
+
+			void Process();
 	};
 }

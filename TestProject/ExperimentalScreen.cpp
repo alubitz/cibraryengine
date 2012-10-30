@@ -53,10 +53,6 @@ namespace Test
 	 */
 	ExperimentalScreen::ExperimentalScreen(ProgramWindow* win, ProgramScreen* previous) : MenuScreen(win, previous), imp(NULL) { }
 
-	static void begin();
-	static void display();
-	static void end();
-
 	void ExperimentalScreen::Activate()
 	{
 		MenuScreen::Activate();
@@ -64,7 +60,7 @@ namespace Test
 		if(!imp)
 			imp = new Imp(this);
 
-		imp->comp.begin();
+		imp->comp.Begin();
 	}
 
 	void ExperimentalScreen::Deactivate()
@@ -73,7 +69,7 @@ namespace Test
 
 		if(imp)
 		{
-			imp->comp.end();
+			imp->comp.End();
 
 			imp->Destroy();
 			delete imp;
@@ -85,6 +81,6 @@ namespace Test
 	{
 		MenuScreen::Draw(width, height);
 
-		imp->comp.display();
+		imp->comp.Process();
 	}
 }

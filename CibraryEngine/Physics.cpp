@@ -317,7 +317,7 @@ namespace CibraryEngine
 				vector<PhysicsConstraint*>& batch = *iter;
 
 				unsigned int batch_size = batch.size();
-				unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, batch_size / 20));
+				unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, batch_size / 40));
 
 				for(unsigned int j = 0; j < use_threads; ++j)
 				{
@@ -414,7 +414,7 @@ namespace CibraryEngine
 		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
 			dynamic_objects_vector.push_back(*iter);
 		unsigned int num_objects = dynamic_objects_vector.size();
-		unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, num_objects / 20));
+		unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, num_objects / 40));
 
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
