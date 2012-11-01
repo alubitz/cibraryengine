@@ -6,10 +6,14 @@ namespace CibraryEngine
 {
 	using namespace std;
 
+	class Shader;
+
 	// TODO: generalize, then specialize!
 	struct HardwareAcceleratedComputation
 	{
 		private:
+
+			Shader* shader;
 
 			GLuint shader_program;
 			GLuint input_array_buffer;
@@ -20,19 +24,19 @@ namespace CibraryEngine
 
 			GLuint query;
 
+			bool init_ok;
+
 			bool InitShaderProgram();
 			bool InitArrayBuffers();
 			bool InitVertexArrays();
 
 		public:
 
-			vector<const GLchar*> varying_names;	// names of the output variables... indices parallel to output_channels
+			vector<const GLchar*> varying_names;	// names of the output variables... indices are parallel to output_channels
 
-			HardwareAcceleratedComputation();
+			HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names);
+			~HardwareAcceleratedComputation();
 
-			void Begin();
-			void End();
-
-			void Process();
+			void Process();							// TODO: add a way to specify the input, and access the outputs
 	};
 }

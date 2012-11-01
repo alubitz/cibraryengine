@@ -4,7 +4,6 @@
 #include "Physics.h"
 #include "RigidBody.h"
 #include "CollisionGroup.h"
-#include "ConstraintGraph.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"

@@ -1,0 +1,7 @@
+varying vec4 derp;
+
+void main()
+{
+	gl_Position = gl_Vertex;
+	derp = vec4(5, 5, 5, 5);
+}

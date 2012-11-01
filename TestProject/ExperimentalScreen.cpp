@@ -10,7 +10,7 @@ namespace Test
 	 */
 	struct ExperimentalScreen::Imp
 	{
-		HardwareAcceleratedComputation comp;
+		HardwareAcceleratedComputation* comp;
 
 		struct BackButton : public AutoMenuItem
 		{
@@ -20,7 +20,7 @@ namespace Test
 
 		vector<AutoMenuItem*> auto_menu_items;
 
-		Imp(ExperimentalScreen* menu) : auto_menu_items()
+		Imp(ExperimentalScreen* menu) : comp(NULL), auto_menu_items()
 		{
 			ContentMan* content = menu->content;
 
@@ -31,6 +31,14 @@ namespace Test
 
 			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
 				menu->AddItem(auto_menu_items[i]);
+
+			Shader* shader = content->GetCache<Shader>()->Load("hardware_comp-v");
+
+			vector<const GLchar*> varying_names;
+			varying_names.push_back("gl_Position");
+			varying_names.push_back("derp");
+
+			comp = new HardwareAcceleratedComputation(shader, varying_names);
 		}
 
 		void Destroy()
@@ -40,8 +48,9 @@ namespace Test
 				auto_menu_items[i]->Dispose();
 				delete auto_menu_items[i];
 			}
-
 			auto_menu_items.clear();
+
+			if(comp) { delete comp; comp = NULL; }
 		}
 	};
 
@@ -59,28 +68,19 @@ namespace Test
 
 		if(!imp)
 			imp = new Imp(this);
-
-		imp->comp.Begin();
 	}
 
 	void ExperimentalScreen::Deactivate()
 	{
 		MenuScreen::Deactivate();
 
-		if(imp)
-		{
-			imp->comp.End();
-
-			imp->Destroy();
-			delete imp;
-			imp = NULL;
-		}
+		if(imp) { imp->Destroy(); delete imp; imp = NULL; }
 	}
 
 	void ExperimentalScreen::Draw(int width, int height)
 	{
 		MenuScreen::Draw(width, height);
 
-		imp->comp.Process();
+		imp->comp->Process();
 	}
 }

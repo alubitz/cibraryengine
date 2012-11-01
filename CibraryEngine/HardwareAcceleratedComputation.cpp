@@ -2,8 +2,9 @@
 #include "HardwareAcceleratedComputation.h"
 
 #include "Vector.h"
-
 #include "DebugLog.h"
+
+#include "Shader.h"
 
 namespace CibraryEngine
 {
@@ -24,34 +25,55 @@ namespace CibraryEngine
 	/*
 	 * HardwareAcceleratedComputation methods
 	 */
-	HardwareAcceleratedComputation::HardwareAcceleratedComputation() :
+	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names) :
+		shader(shader),
 		shader_program(0),
 		input_array_buffer(0),
 		input_vertex_array(0),
 		output_vertex_array(0),
 		output_channels(),
 		query(0),
-		varying_names()
+		init_ok(false),
+		varying_names(varying_names)
 	{
-		// TODO: have this be specified via some external means
-		varying_names.push_back("gl_Position");
-		varying_names.push_back("derp");
+		glGenQueries(1, &query);
+
+		if(!InitShaderProgram())	{ DEBUG(); return; }
+		if(!InitArrayBuffers())		{ DEBUG(); return; }
+		if(!InitVertexArrays())		{ DEBUG(); return; }
+
+		GLDEBUG();
+
+		init_ok = true;
+	}
+
+	HardwareAcceleratedComputation::~HardwareAcceleratedComputation()
+	{
+		GLDEBUG();
+
+		glDeleteVertexArrays(1, &input_vertex_array);
+		glDeleteBuffers(1, &input_array_buffer);
+		glDeleteProgram(shader_program);
+
+		glDeleteVertexArrays(1, &output_vertex_array);
+
+		glDeleteBuffers(output_channels.size(), output_channels.data());
+		output_channels.clear();
+
+		glDeleteQueries(1, &query);
+
+		GLDEBUG();
 	}
 
 	// create shader program
 	bool HardwareAcceleratedComputation::InitShaderProgram()
 	{
-		// TODO: have a way to input what shader to use (possibly as a Shader* parameter somewhere?)
-		const GLchar* shader_source = "varying vec4 derp; void main() { gl_Position = gl_Vertex; derp = vec4(5, 5, 5, 5); }";
+		shader->CompileShader();
 
-		// creating vertex shader from file
-		GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vertex_shader, 1, &shader_source, NULL);
-		glCompileShader(vertex_shader);
 		char vlog[1024];
 		int vertex_status;
-		glGetShaderInfoLog(vertex_shader, 1024, NULL, vlog);
-		glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_status);
+		glGetShaderInfoLog(shader->shader_id, 1024, NULL, vlog);
+		glGetShaderiv(shader->shader_id, GL_COMPILE_STATUS, &vertex_status);
 		if(!vertex_status)
 		{
 			DEBUG();
@@ -59,8 +81,7 @@ namespace CibraryEngine
 		}
 
 		shader_program = glCreateProgram();
-		glAttachShader(shader_program, vertex_shader);
-		glDeleteShader(vertex_shader);
+		glAttachShader(shader_program, shader->shader_id);
 
 		// tell the transform feedback thing which varyings we are interested in
 		glTransformFeedbackVaryings(shader_program, varying_names.size(), varying_names.data(), GL_SEPARATE_ATTRIBS);
@@ -70,7 +91,6 @@ namespace CibraryEngine
 
 
 		int program_status;
-
 		glGetProgramiv(shader_program, GL_LINK_STATUS, &program_status);
 
 		if(!program_status)
@@ -176,37 +196,11 @@ namespace CibraryEngine
 		return true;
 	}
 
-	void HardwareAcceleratedComputation::Begin()
-	{
-		glGenQueries(1, &query);
-
-		if(!InitShaderProgram())	{ DEBUG(); return; }
-		if(!InitArrayBuffers())		{ DEBUG(); return; }
-		if(!InitVertexArrays())		{ DEBUG(); return; }
-
-		GLDEBUG();
-	}
-
-	void HardwareAcceleratedComputation::End()
-	{
-		GLDEBUG();
-
-		glDeleteVertexArrays(1, &input_vertex_array);
-		glDeleteBuffers(1, &input_array_buffer);
-		glDeleteProgram(shader_program);
-
-		glDeleteVertexArrays(1, &output_vertex_array);
-
-		glDeleteBuffers(output_channels.size(), output_channels.data());
-		output_channels.clear();
-
-		glDeleteQueries(1, &query);
-
-		GLDEBUG();
-	}
-
 	void HardwareAcceleratedComputation::Process()
 	{
+		if(!init_ok)
+			return;
+
 		GLDEBUG();
 
 		// preparation for transform feedback

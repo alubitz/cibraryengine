@@ -15,7 +15,6 @@ namespace CibraryEngine
 	class PhysicsRegion;
 	class PhysicsRegionManager;
 
-	struct ConstraintGraph;
 	struct ContactPoint;
 
 	class Entity;

@@ -9,12 +9,9 @@
 #include "GridRegionManager.h"
 
 #include "RayShape.h"
-#include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
-
-#include "ConstraintGraph.h"
 
 #include "Matrix.h"
 
@@ -44,13 +41,7 @@ namespace CibraryEngine
 	using boost::unordered_set;
 	using boost::unordered_map;
 
-	// forward declare a few functions
-	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
-	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
-	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
-	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits);
 
-	
 
 
 	/*
@@ -138,7 +129,6 @@ namespace CibraryEngine
 		delete orphan_callback;
 		orphan_callback = NULL;
 
-		ConstraintGraph::EmptyRecycleBins();
 		ContactPoint::EmptyRecycleBins();
 
 		for(vector<TaskThread*>::iterator iter = task_threads.begin(); iter != task_threads.end(); ++iter)
@@ -256,12 +246,12 @@ namespace CibraryEngine
 		return 1.0f / A;
 	}
 
-	void PhysicsWorld::SolveConstraintGraph(ConstraintGraph& graph)
+	void PhysicsWorld::SolveConstraintGraph(vector<PhysicsConstraint*>& constraints)
 	{
 		static vector<vector<PhysicsConstraint*> > batches;
 
 		static vector<PhysicsConstraint*> unassigned;
-		unassigned.assign(graph.constraints.begin(), graph.constraints.end());
+		unassigned.assign(constraints.begin(), constraints.end());
 
 		while(!unassigned.empty())
 		{
@@ -376,18 +366,12 @@ namespace CibraryEngine
 
 		for(unordered_set<RayCollider*>::iterator iter = rays.begin(), rays_end = rays.end(); iter != rays_end; ++iter)
 		{
-			RayCollider* collider = (RayCollider*)*iter;
+			RayCollider* collider = *iter;
 			RayTestPrivate(collider->pos, collider->pos + collider->vel, ray_callback, timestep, collider);
 		}
 
 #if PROFILE_DOFIXEDSTEP
 		timer_ray_update += timer.Stop();
-#endif
-
-		// populate a constraint graph with all the collisions that are going on
-		ConstraintGraph constraint_graph;
-
-#if PROFILE_DOFIXEDSTEP
 		timer.Start();
 #endif
 
@@ -421,38 +405,40 @@ namespace CibraryEngine
 			collision_initiators[i] = CollisionInitiator(timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
 			task_threads[i]->StartTask(&collision_initiators[i]);
 		}
+
+		vector<ContactPoint*> temp_contact_points;
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
 			task_threads[i]->WaitForCompletion();
 			for(vector<ContactPoint*>::iterator iter = collision_initiators[i].contact_points.begin(); iter != collision_initiators[i].contact_points.end(); ++iter)
-				constraint_graph.contact_points.push_back(*iter);
+				temp_contact_points.push_back(*iter);
 		}
 
 #if PROFILE_DOFIXEDSTEP
 		timer_collide += timer.GetAndRestart();
 #endif
 
-		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(), cp_end = constraint_graph.contact_points.end(); iter != cp_end; ++iter)
+		vector<PhysicsConstraint*> use_constraints;
+		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(), cp_end = temp_contact_points.end(); iter != cp_end; ++iter)
 		{
 			(*iter)->DoUpdateAction(timestep);
-			constraint_graph.AddConstraint(*iter);
+			use_constraints.push_back(*iter);
 		}
 
 		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
 		{
 			(*iter)->DoUpdateAction(timestep);
-			constraint_graph.AddConstraint(*iter);
+			use_constraints.push_back(*iter);
 		}
 
 #if PROFILE_DOFIXEDSTEP
 		timer_constraints += timer.GetAndRestart();
 #endif
 
-		SolveConstraintGraph(constraint_graph);
+		SolveConstraintGraph(use_constraints);
 
-		for(vector<ContactPoint*>::iterator iter = constraint_graph.contact_points.begin(); iter != constraint_graph.contact_points.end(); ++iter)
+		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(); iter != temp_contact_points.end(); ++iter)
 			ContactPoint::Delete(*iter);
-		constraint_graph.contact_points.clear();
 
 #if PROFILE_DOFIXEDSTEP
 		timer_cgraph += timer.GetAndRestart();
@@ -893,110 +879,5 @@ namespace CibraryEngine
 		for(vector<ContactPoint*>::iterator iter = cp_recycle_bin.begin(); iter != cp_recycle_bin.end(); ++iter)
 			delete *iter;
 		cp_recycle_bin.clear();
-	}
-
-
-
-
-	/*
-	 * SphereShape collision functions
-	 */
-	static void DoSphereSphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
-	{
-		float sr = radius + ((SphereShape*)jbody->GetCollisionShape())->radius;
-
-		Vec3 other_pos = jbody->GetPosition();
-		Vec3 other_vel = jbody->GetLinearVelocity();
-
-		Ray ray(pos - other_pos, vel - other_vel);
-
-		float first = 0, second = 0;
-		if(ray.origin.ComputeMagnitudeSquared() < sr * sr || Util::RaySphereIntersect(ray, Sphere(Vec3(), sr), first, second))
-			if(first >= 0 && first <= timestep)
-			{
-				ContactPoint p;
-
-				p.obj_a = ibody;
-				p.obj_b = jbody;
-				p.a.pos = pos + first * vel;
-				p.b.pos = other_pos + first * other_vel;
-				p.b.norm = Vec3::Normalize(p.a.pos - other_pos, 1.0f);
-				p.a.norm = -p.b.norm;
-
-				hits.AddContactPoint(ContactPoint::New(p));
-			}
-	}
-
-	static void DoSphereMesh(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
-	{
-		TriangleMeshShape* shape = (TriangleMeshShape*)jbody->GetCollisionShape();
-
-		Ray ray(pos, vel);
-
-		vector<unsigned int> relevant_triangles;
-		shape->GetRelevantTriangles(AABB(pos, radius), relevant_triangles);
-
-		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
-		{
-			const TriangleMeshShape::TriCache& tri = shape->GetTriangleData(*kter);
-
-			float dist = tri.DistanceToPoint(pos);
-			if(dist < radius)
-			{
-				ContactPoint p;
-
-				p.obj_a = ibody;
-				p.obj_b = jbody;
-				p.a.pos = pos - tri.plane.normal * radius;
-				p.b.pos = p.a.pos;
-				p.a.norm = -tri.plane.normal;
-				p.b.norm = tri.plane.normal;
-
-				hits.AddContactPoint(ContactPoint::New(p));
-			}
-		}
-	}
-
-	static void DoSpherePlane(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
-	{
-		InfinitePlaneShape* shape = (InfinitePlaneShape*)jbody->GetCollisionShape();
-
-		Vec3 plane_norm = shape->plane.normal;
-		float plane_offset = shape->plane.offset;
-
-		float center_offset = Vec3::Dot(plane_norm, pos) - plane_offset;
-		float vel_dot = Vec3::Dot(plane_norm, vel);
-
-		// if the sphere is moving away from the plane, don't bounce!
-		if(vel_dot <= 0.0f)
-		{
-			float dist = fabs(center_offset) - radius;
-			float t = center_offset - radius < 0.0f ? 0.0f : dist / fabs(vel_dot);
-			if(t >= 0 && t <= timestep)
-			{
-				ContactPoint p;
-
-				p.obj_a = ibody;
-				p.obj_b = jbody;
-				p.a.pos = pos - plane_norm * radius;
-				p.b.pos = p.a.pos - plane_norm * (Vec3::Dot(p.a.pos, plane_norm) - plane_offset);
-				p.b.norm = plane_norm;
-				p.a.norm = -plane_norm;
-
-				hits.AddContactPoint(ContactPoint::New(p));
-			}
-		}
-	}
-
-	static void DoSphereMultisphere(RigidBody* ibody, RigidBody* jbody, float radius, const Vec3& pos, const Vec3& vel, float timestep, ConstraintGraph& hits)
-	{
-		MultiSphereShape* shape = (MultiSphereShape*)jbody->GetCollisionShape();
-
-		Mat4 inv_xform = Mat4::Invert(jbody->GetTransformationMatrix());
-		Vec3 nu_pos = inv_xform.TransformVec3_1(pos);
-
-		ContactPoint cp;
-		if(shape->CollideSphere(Sphere(nu_pos, radius), cp, ibody, jbody))
-			hits.AddContactPoint(ContactPoint::New(cp));
 	}
 }

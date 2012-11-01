@@ -28,7 +28,6 @@ namespace CibraryEngine
 
 	class PhysicsConstraint;
 	struct ContactPoint;
-	struct ConstraintGraph;
 
 	class RayCallback;
 	class CollisionCallback;
@@ -63,7 +62,7 @@ namespace CibraryEngine
 
 			vector<TaskThread*> task_threads;
 
-			void SolveConstraintGraph(ConstraintGraph& graph);
+			void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
 
 			void DoFixedStep();
 
