@@ -5,19 +5,11 @@
 #include "DebugLog.h"
 
 #include "Shader.h"
+#include "VertexBuffer.h"
 
 namespace CibraryEngine
 {
-	// originally based on stuff from "gl-330-transform-feedback-separated.cpp" from g-truc.net; now heavily modified
-	const GLsizei input_vert_count(5);
-	const Vec4 input_vert_data[input_vert_count] =
-	{
-		Vec4(1,	2, 3, 4),
-		Vec4(5,	6, 7, 8),
-		Vec4(9,	0, 1, 2),
-		Vec4(3,	4, 5, 6),
-		Vec4(7, 8, 9, 0)
-	};
+	static const unsigned int input_vert_count = 5;						// TODO: determine this dynamically
 
 
 
@@ -28,8 +20,6 @@ namespace CibraryEngine
 	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names) :
 		shader(shader),
 		shader_program(0),
-		input_array_buffer(0),
-		input_vertex_array(0),
 		output_vertex_array(0),
 		output_channels(),
 		query(0),
@@ -51,8 +41,6 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		glDeleteVertexArrays(1, &input_vertex_array);
-		glDeleteBuffers(1, &input_array_buffer);
 		glDeleteProgram(shader_program);
 
 		glDeleteVertexArrays(1, &output_vertex_array);
@@ -129,12 +117,6 @@ namespace CibraryEngine
 
 	bool HardwareAcceleratedComputation::InitArrayBuffers()
 	{
-		// generate input buffer object
-		glGenBuffers(1, &input_array_buffer);
-		glBindBuffer(GL_ARRAY_BUFFER, input_array_buffer);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * input_vert_count, input_vert_data, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 		GLDEBUG();
 
 		// generate output buffer objects
@@ -158,23 +140,6 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		const unsigned int VSHADER_INPUT_ATTRIB_A = 0;
-
-		const unsigned int VSHADER_OUTPUT_ATTRIB_A = 0;
-		const unsigned int VSHADER_OUTPUT_ATTRIB_B = 1;
-
-		// build the input vertex array object
-		glGenVertexArrays(1, &input_vertex_array);
-		glBindVertexArray(input_vertex_array);
-			glBindBuffer(GL_ARRAY_BUFFER, input_array_buffer);
-				glVertexAttribPointer(VSHADER_INPUT_ATTRIB_A, 4, GL_FLOAT, GL_FALSE, 0, 0);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-			glEnableVertexAttribArray(VSHADER_INPUT_ATTRIB_A);
-		glBindVertexArray(0);
-
-		GLDEBUG();
-
 		// build the output vertex array objects
 		glGenVertexArrays(1, &output_vertex_array);
 		glBindVertexArray(output_vertex_array);
@@ -196,7 +161,7 @@ namespace CibraryEngine
 		return true;
 	}
 
-	void HardwareAcceleratedComputation::Process()
+	void HardwareAcceleratedComputation::Process(VertexBuffer* input_data)
 	{
 		if(!init_ok)
 			return;
@@ -212,14 +177,13 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < output_channels.size(); ++i)
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_channels[i]);
 
-		glBindVertexArray(input_vertex_array); GLDEBUG();
 
 		// the actual transform feedback
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);
 		glBeginTransformFeedback(GL_POINTS);
 
 			GLDEBUG();
-			glDrawArrays(GL_POINTS, 0, input_vert_count);
+			input_data->Draw();
 			GLDEBUG();
 
 		glEndTransformFeedback();

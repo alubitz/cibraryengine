@@ -11,6 +11,7 @@ namespace Test
 	struct ExperimentalScreen::Imp
 	{
 		HardwareAcceleratedComputation* comp;
+		VertexBuffer* input_vbo;
 
 		struct BackButton : public AutoMenuItem
 		{
@@ -39,6 +40,24 @@ namespace Test
 			varying_names.push_back("derp");
 
 			comp = new HardwareAcceleratedComputation(shader, varying_names);
+
+			input_vbo = new VertexBuffer(Points);
+			input_vbo->AddAttribute("gl_Vertex", Float, 4);
+			input_vbo->SetNumVerts(5);
+			float* vert_ptr = input_vbo->GetFloatPointer("gl_Vertex");
+			float positions[] =
+			{
+				1,	2, 3, 4,
+				5,	6, 7, 8,
+				9,	0, 1, 2,
+				3,	4, 5, 6,
+				7, 8, 9, 0
+			};
+
+			for(float *read_ptr = positions, *write_ptr = vert_ptr, *write_end = vert_ptr + 20; write_ptr != write_end; ++read_ptr, ++write_ptr)
+				*write_ptr = *read_ptr;
+
+			input_vbo->BuildVBO();
 		}
 
 		void Destroy()
@@ -50,7 +69,8 @@ namespace Test
 			}
 			auto_menu_items.clear();
 
-			if(comp) { delete comp; comp = NULL; }
+			if(comp)		{ delete comp;		comp = NULL; }
+			if(input_vbo)	{ delete input_vbo;	input_vbo = NULL; }
 		}
 	};
 
@@ -81,6 +101,6 @@ namespace Test
 	{
 		MenuScreen::Draw(width, height);
 
-		imp->comp->Process();
+		imp->comp->Process(imp->input_vbo);
 	}
 }

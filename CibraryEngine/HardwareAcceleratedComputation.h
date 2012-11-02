@@ -7,6 +7,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class Shader;
+	struct VertexBuffer;
 
 	// TODO: generalize, then specialize!
 	struct HardwareAcceleratedComputation
@@ -16,11 +17,9 @@ namespace CibraryEngine
 			Shader* shader;
 
 			GLuint shader_program;
-			GLuint input_array_buffer;
-			GLuint input_vertex_array;
 
 			GLuint output_vertex_array;
-			vector<GLuint> output_channels;			// array buffers which will go inside the output vertex array
+			vector<GLuint> output_channels;						// array buffers which will go inside the output vertex array
 
 			GLuint query;
 
@@ -32,11 +31,11 @@ namespace CibraryEngine
 
 		public:
 
-			vector<const GLchar*> varying_names;	// names of the output variables... indices are parallel to output_channels
+			vector<const GLchar*> varying_names;				// names of the output variables... indices are parallel to output_channels
 
 			HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names);
 			~HardwareAcceleratedComputation();
 
-			void Process();							// TODO: add a way to specify the input, and access the outputs
+			void Process(VertexBuffer* input_data);				// TODO: add a way to access the outputs
 	};
 }
