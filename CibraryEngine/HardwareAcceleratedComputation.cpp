@@ -9,11 +9,6 @@
 
 namespace CibraryEngine
 {
-	static const unsigned int input_vert_count = 5;						// TODO: determine this dynamically
-
-
-
-
 	/*
 	 * HardwareAcceleratedComputation methods
 	 */
@@ -107,7 +102,7 @@ namespace CibraryEngine
 			}
 
 			GLDEBUG();
-		}		
+		}
 
 		GLDEBUG();
 
@@ -119,21 +114,30 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		// generate output buffer objects
-		for(unsigned int i = 0; i < varying_names.size(); ++i)
+		if(output_channels.empty())
 		{
-			unsigned int output_channel;
-			glGenBuffers(1, &output_channel);
-			glBindBuffer(GL_ARRAY_BUFFER, output_channel);
-				glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * input_vert_count, NULL, GL_DYNAMIC_READ);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			// generate output buffer objects
+			for(unsigned int i = 0; i < varying_names.size(); ++i)
+			{
+				unsigned int output_channel;
+				glGenBuffers(1, &output_channel);
+				output_channels.push_back(output_channel);
 
-			output_channels.push_back(output_channel);
-
-			GLDEBUG();
+				GLDEBUG();
+			}
 		}
 
 		return true;
+	}
+
+	void HardwareAcceleratedComputation::ResizeArrayBuffers(unsigned int num_verts)
+	{
+		for(unsigned int i = 0; i < output_channels.size(); ++i)
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, output_channels[i]);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * num_verts, NULL, GL_DYNAMIC_READ);
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 	bool HardwareAcceleratedComputation::InitVertexArrays()
@@ -147,10 +151,10 @@ namespace CibraryEngine
 			for(unsigned int i = 0; i < output_channels.size(); ++i)
 			{
 				glBindBuffer(GL_ARRAY_BUFFER, output_channels[i]);
-					glVertexAttribPointer(i, 4, GL_FLOAT, GL_FALSE, 0, 0);
+					glVertexAttribPointer(i, 4, GL_FLOAT, GL_FALSE, 0, NULL);		// TODO: generalize count and type params
 			}
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			
+
 			for(unsigned int i = 0; i < output_channels.size(); ++i)
 				glEnableVertexAttribArray(i);
 
@@ -161,12 +165,14 @@ namespace CibraryEngine
 		return true;
 	}
 
-	void HardwareAcceleratedComputation::Process(VertexBuffer* input_data)
+	void HardwareAcceleratedComputation::Process(VertexBuffer* input_data, VertexBuffer* output_data)
 	{
 		if(!init_ok)
 			return;
 
 		GLDEBUG();
+
+		ResizeArrayBuffers(input_data->GetNumVerts());
 
 		// preparation for transform feedback
 		// disable rasterization; only process the vertices!
@@ -176,7 +182,6 @@ namespace CibraryEngine
 
 		for(unsigned int i = 0; i < output_channels.size(); ++i)
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_channels[i]);
-
 
 		// the actual transform feedback
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);
@@ -198,39 +203,16 @@ namespace CibraryEngine
 		unsigned int verts_per_primitive = 1;
 		unsigned int num_verts = primitives_written * verts_per_primitive;
 
-		Debug(((stringstream&)(stringstream() << "Got data for " << num_verts << " verts" << endl)).str());
+		output_data->SetNumVerts(num_verts);
 
 		for(unsigned int i = 0; i < output_channels.size(); ++i)
 		{
-			unsigned int num_floats = num_verts * 4;			// could be different from one output variable to another
-			float* data = new float[num_floats];
+			unsigned int num_floats = num_verts * 4;			// TODO: get this number from somewhere; it could be different from one output variable to another
+
+			float* data = output_data->GetFloatPointer(varying_names[i]);
 
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, output_channels[i]);
 			glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, num_floats * sizeof(float), data);
-
-			string varying_name = varying_names[i];
-		
-			for(unsigned int j = 0; j < num_floats; ++j)
-			{
-				float datum = data[j];
-				switch(j % 4)
-				{
-					case 0:
-						Debug(((stringstream&)(stringstream() << '\t' << varying_name << "[" << j / 4 << "] = (" << datum << ", ")).str());
-						break;
-
-					case 1:
-					case 2:
-						Debug(((stringstream&)(stringstream() << datum << ", ")).str());
-						break;
-
-					case 3:
-						Debug(((stringstream&)(stringstream() << datum << ")" << endl)).str());
-						break;
-				}
-			}
-
-			delete[] data;
 		}
 
 		glUseProgram(0); GLDEBUG();

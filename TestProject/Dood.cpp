@@ -59,7 +59,7 @@ namespace Test
 		jump_start_timer(0),
 		hp(1.0f),
 		alive(true),
-		ragdoll_timer(5.0f),
+		ragdoll_timer(10.0f),
 		eye_bone(NULL),
 		model(model),
 		character(NULL),
@@ -209,7 +209,7 @@ namespace Test
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 		{
 			(*iter)->Activate();
-			
+
 			float mass = (*iter)->GetMass();
 			com_vel += (*iter)->GetLinearVelocity() * mass;
 			total_mass += mass;
@@ -318,7 +318,7 @@ namespace Test
 		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
 
 		if(eye_bone == NULL)
-		{	
+		{
 			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	-pitch,	0,		0 ));
 			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	0,		yaw,	0 ));
 			Mat4 loc		= Mat4::Translation(-pos);
@@ -328,7 +328,7 @@ namespace Test
 		else
 		{
 			float third_person_distance = 0.0f;
-			
+
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
 			Mat4 ori_derp = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
@@ -464,7 +464,7 @@ namespace Test
 		unsigned int count = mphys->bones.size();
 
 		// given string id, get index of rigid body
-		map<unsigned int, unsigned int> name_indices;			
+		map<unsigned int, unsigned int> name_indices;
 
 		// create rigid bodies and shootables
 		for(unsigned int i = 0; i < count; ++i)
@@ -510,7 +510,7 @@ namespace Test
 		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
 		{
 			ModelPhysics::JointPhysics& phys = *iter;
-				
+
 			if(phys.bone_b != 0)									// don't deal with special attachment points
 			{
 				const string& bone_a_name = mphys->bones[phys.bone_a - 1].bone_name;
@@ -585,7 +585,7 @@ namespace Test
 			collision_group->Dispose();
 			delete collision_group;
 			collision_group = NULL;
-		}	
+		}
 
 		if(equipped_weapon)
 			equipped_weapon->is_valid = false;
@@ -729,7 +729,7 @@ namespace Test
 					if		(key == "id")				{ lua_pushnumber(L, dood->GetID()); return 1; }
 					else if	(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
 					else if	(key == "is_player")		{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
-					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }			
+					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }
 					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
 					else if	(key == "pitch")			{ lua_pushnumber(L, dood->pitch); return 1; }
 					else
@@ -852,14 +852,14 @@ namespace Test
 
 			lua_newtable(L);
 			lua_setfield(L, -2, "update_callback");
-			
+
 			lua_newtable(L);
 			lua_setfield(L, -2, "death_callback");
 
 			lua_setglobal(L, "DoodMeta");
 			lua_getglobal(L, "DoodMeta");
 		}
-		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1		
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
 	}
 
 	bool MaybeDoScriptedUpdate(Dood* dood)
