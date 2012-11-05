@@ -75,12 +75,8 @@ namespace CibraryEngine
 	static float timer_constraints = 0.0f;
 	static float timer_cgraph = 0.0f;
 	static float timer_update_pos = 0.0f;
-	
-	static float timer_jc_pre = 0.0f;
-	static float timer_jc_process = 0.0f;
-	static float timer_jc_post = 0.0f;
-	
 	static float timer_total = 0.0f;
+
 	static unsigned int counter_dofixedstep = 0;
 #endif
 
@@ -101,7 +97,6 @@ namespace CibraryEngine
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
-		jc_comp(NULL),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
@@ -149,8 +144,6 @@ namespace CibraryEngine
 		}
 		task_threads.clear();
 
-		if(jc_comp) { delete jc_comp; jc_comp = NULL; }
-
 #if PROFILE_DOFIXEDSTEP
 		Debug(((stringstream&)(stringstream() << "total for " << counter_dofixedstep << " calls to PhysicsWorld::DoFixedStep = " << timer_total << endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_vel =\t\t\t"		<< timer_update_vel						<< endl)).str());
@@ -158,28 +151,9 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "collide =\t\t\t\t"		<< timer_collide						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "constraints =\t\t\t"		<< timer_constraints					<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "cgraph =\t\t\t\t"			<< timer_cgraph							<< endl)).str());
-	//	Debug(((stringstream&)(stringstream() << '\t' << "\tjc_pre =\t\t\t"			<< timer_jc_pre							<< endl)).str());
-	//	Debug(((stringstream&)(stringstream() << '\t' << "\tjc_process =\t\t"		<< timer_jc_process						<< endl)).str());
-	//	Debug(((stringstream&)(stringstream() << '\t' << "\tjc_post =\t\t\t"		<< timer_jc_post						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_pos =\t\t\t"		<< timer_update_pos						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
 #endif
-	}
-
-	void PhysicsWorld::InitHardwareAcceleratedComputationShaders(ContentMan* content)
-	{
-		if(!jc_comp)
-		{
-			Shader* jc_shader = content->GetCache<Shader>()->Load("jc_comp-v");
-
-			vector<const GLchar*> jc_varyings;
-			jc_varyings.push_back("out_vel_a");
-			jc_varyings.push_back("out_vel_b");
-			jc_varyings.push_back("out_rot_a");
-			jc_varyings.push_back("out_rot_b");
-
-			jc_comp = new HardwareAcceleratedComputation(jc_shader, jc_varyings);
-		}
 	}
 
 
@@ -280,13 +254,7 @@ namespace CibraryEngine
 
 	void PhysicsWorld::SolveConstraintGraph(vector<PhysicsConstraint*>& constraints)
 	{
-		struct BatchData
-		{
-			vector<JointConstraint*> joint_constraints;
-			vector<ContactPoint*> contact_points;
-		};
-
-		static vector<BatchData> batches;
+		static vector<vector<PhysicsConstraint*> > batches;
 
 		static vector<PhysicsConstraint*> unassigned;
 		unassigned.assign(constraints.begin(), constraints.end());
@@ -296,7 +264,7 @@ namespace CibraryEngine
 			static SmartHashSet<RigidBody, 37> used_nodes;
 			static vector<PhysicsConstraint*> nu_unassigned;
 
-			BatchData batch;
+			static vector<PhysicsConstraint*> batch;
 
 			for(vector<PhysicsConstraint*>::iterator iter = unassigned.begin(); iter != unassigned.end(); ++iter)
 			{
@@ -305,10 +273,7 @@ namespace CibraryEngine
 					nu_unassigned.push_back(constraint);
 				else
 				{
-					if(dynamic_cast<JointConstraint*>(constraint))
-						batch.joint_constraints.push_back((JointConstraint*)constraint);
-					else
-						batch.contact_points.push_back((ContactPoint*)constraint);
+					batch.push_back(constraint);
 
 					used_nodes.Insert(constraint->obj_a);
 					if(constraint->obj_b->can_move)						// if(constraint->obj_b->MergesSubgraphs())
@@ -320,158 +285,47 @@ namespace CibraryEngine
 
 			batches.push_back(batch);
 
+			batch.clear();
 			used_nodes.Clear();
 			nu_unassigned.clear();
 		}
 
-		for(unsigned int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
-			for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+		struct BatchConstraintSolver : public ThreadTask
+		{
+			vector<PhysicsConstraint*>* batch;
+			unsigned int from, to;
+
+			BatchConstraintSolver() { }
+			BatchConstraintSolver(vector<PhysicsConstraint*>* batch, unsigned int from, unsigned int to) : batch(batch), from(from), to(to) { }
+
+			void DoTask()
 			{
-				BatchData& batch = *iter;
+				PhysicsConstraint **data = batch->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(PhysicsConstraint** constraint_ptr = start_ptr; constraint_ptr != finish_ptr; ++constraint_ptr)
+					(*constraint_ptr)->DoConstraintAction();
+			}
+		};
+		BatchConstraintSolver solvers[NUM_THREADS];
 
-				ProcessJointConstraints(batch.joint_constraints);
+		for(unsigned int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+			for(vector<vector<PhysicsConstraint*> >::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+			{
+				vector<PhysicsConstraint*>& batch = *iter;
 
-				for(vector<ContactPoint*>::iterator iter = batch.contact_points.begin(); iter != batch.contact_points.end(); ++iter)
-					(*iter)->DoConstraintAction();
+				unsigned int batch_size = batch.size();
+				unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, batch_size / 40));
+
+				for(unsigned int j = 0; j < use_threads; ++j)
+				{
+					solvers[j] = BatchConstraintSolver(&batch, j * batch_size / use_threads, (j	+ 1) * batch_size / use_threads);
+					task_threads[j]->StartTask(&solvers[j]);
+				}
+
+				for(unsigned int j = 0; j < use_threads; ++j)
+					task_threads[j]->WaitForCompletion();
 			}
 
 		batches.clear();
-	}
-
-
-	void PhysicsWorld::ProcessJointConstraints(vector<JointConstraint*>& batch)
-	{
-		if(unsigned int num_joint_constraints = batch.size())
-		{
-			if(false && num_joint_constraints > 600)
-			{
-#if PROFILE_DOFIXEDSTEP
-				ProfilingTimer timer;
-				timer.Start();
-#endif
-
-				static VertexBuffer* jc_data_vbo = NULL;
-				if(!jc_data_vbo)
-				{
-					jc_data_vbo = new VertexBuffer(Points);
-					jc_data_vbo->AddAttribute("in_vel_a", Float, 4);
-					jc_data_vbo->AddAttribute("in_vel_b", Float, 4);
-					jc_data_vbo->AddAttribute("in_rot_a", Float, 4);
-					jc_data_vbo->AddAttribute("in_rot_b", Float, 4);
-				}
-
-				jc_data_vbo->SetNumVerts(num_joint_constraints);
-
-				float* in_vel_a_ptr = jc_data_vbo->GetFloatPointer("in_vel_a");
-				float* in_vel_b_ptr = jc_data_vbo->GetFloatPointer("in_vel_b");
-				float* in_rot_a_ptr = jc_data_vbo->GetFloatPointer("in_rot_a");
-				float* in_rot_b_ptr = jc_data_vbo->GetFloatPointer("in_rot_b");
-
-				for(unsigned int i = 0; i < num_joint_constraints; ++i)
-				{
-					JointConstraint* constraint = batch[i];
-					
-					Vec3& a_vel = constraint->obj_a->vel;
-					Vec3& b_vel = constraint->obj_b->vel;
-					Vec3& a_rot = constraint->obj_a->rot;
-					Vec3& b_rot = constraint->obj_b->rot;
-
-					*(in_vel_a_ptr++) = a_vel.x;
-					*(in_vel_a_ptr++) = a_vel.y;
-					*(in_vel_a_ptr++) = a_vel.z;
-					++in_vel_a_ptr;
-
-					*(in_vel_b_ptr++) = b_vel.x;
-					*(in_vel_b_ptr++) = b_vel.y;
-					*(in_vel_b_ptr++) = b_vel.z;
-					++in_vel_b_ptr;
-
-					*(in_rot_a_ptr++) = a_rot.x;
-					*(in_rot_a_ptr++) = a_rot.y;
-					*(in_rot_a_ptr++) = a_rot.z;
-					++in_rot_a_ptr;
-
-					*(in_rot_b_ptr++) = b_rot.x;
-					*(in_rot_b_ptr++) = b_rot.y;
-					*(in_rot_b_ptr++) = b_rot.z;
-					++in_rot_b_ptr;
-				}
-
-				jc_data_vbo->BuildVBO();
-
-				static VertexBuffer* jc_results_vbo = NULL;
-				if(!jc_results_vbo)
-				{
-					jc_results_vbo = new VertexBuffer(Points);
-					jc_results_vbo->AddAttribute("out_vel_a", Float, 4);
-					jc_results_vbo->AddAttribute("out_vel_b", Float, 4);
-					jc_results_vbo->AddAttribute("out_rot_a", Float, 4);
-					jc_results_vbo->AddAttribute("out_rot_b", Float, 4);
-				}
-
-#if PROFILE_DOFIXEDSTEP
-				timer_jc_pre += timer.GetAndRestart();
-#endif
-
-				jc_comp->Process(jc_data_vbo, jc_results_vbo);
-
-#if PROFILE_DOFIXEDSTEP
-				timer_jc_process += timer.GetAndRestart();
-#endif
-
-				float* out_vel_a_ptr = jc_results_vbo->GetFloatPointer("out_vel_a");
-				float* out_vel_b_ptr = jc_results_vbo->GetFloatPointer("out_vel_b");
-				float* out_rot_a_ptr = jc_results_vbo->GetFloatPointer("out_rot_a");
-				float* out_rot_b_ptr = jc_results_vbo->GetFloatPointer("out_rot_b");
-
-				for(unsigned int i = 0; i < num_joint_constraints; ++i)
-				{
-					JointConstraint* constraint = batch[i];
-
-					Vec3& vel_a = constraint->obj_a->vel;
-					Vec3& vel_b = constraint->obj_b->vel;
-					Vec3& rot_a = constraint->obj_a->rot;
-					Vec3& rot_b = constraint->obj_b->rot;
-
-					vel_a.x = *(out_vel_a_ptr++);
-					vel_a.y = *(out_vel_a_ptr++);
-					vel_a.z = *(out_vel_a_ptr++);
-					++out_vel_a_ptr;
-
-					vel_b.x = *(out_vel_b_ptr++);
-					vel_b.y = *(out_vel_b_ptr++);
-					vel_b.z = *(out_vel_b_ptr++);
-					++out_vel_b_ptr;
-
-					rot_a.x = *(out_rot_a_ptr++);
-					rot_a.y = *(out_rot_a_ptr++);
-					rot_a.z = *(out_rot_a_ptr++);
-					++out_rot_a_ptr;
-
-					rot_b.x = *(out_rot_b_ptr++);
-					rot_b.y = *(out_rot_b_ptr++);
-					rot_b.z = *(out_rot_b_ptr++);
-					++out_rot_b_ptr;
-				}
-
-#if PROFILE_DOFIXEDSTEP
-				timer_jc_post += timer.Stop();
-#endif
-
-				/*
-				jc_data_vbo->Dispose();
-				delete jc_data_vbo;
-
-				jc_results_vbo->Dispose();
-				delete jc_results_vbo;
-				*/
-			}
-			else
-			{
-				for(vector<JointConstraint*>::iterator iter = batch.begin(); iter != batch.end(); ++iter)
-					(*iter)->DoConstraintAction();
-			}
-		}
 	}
 
 

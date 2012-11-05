@@ -66,15 +66,11 @@ namespace CibraryEngine
 
 			vector<TaskThread*> task_threads;
 
-			HardwareAcceleratedComputation* jc_comp;
-
 			void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
 
 			void DoFixedStep();
 
 			void RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time = 1.0f, RayCollider* collider = NULL);
-
-			void ProcessJointConstraints(vector<JointConstraint*>& batch);
 
 			struct MyOrphanCallback;
 			MyOrphanCallback* orphan_callback;
@@ -91,8 +87,6 @@ namespace CibraryEngine
 
 			/** Initializes a PhysicsWorld */
 			PhysicsWorld();
-
-			void InitHardwareAcceleratedComputationShaders(ContentMan* content);
 
 			/** Adds a collision object to the simulation */
 			void AddCollisionObject(CollisionObject* obj);

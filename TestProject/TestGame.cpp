@@ -830,10 +830,6 @@ namespace Test
 	{
 		GLDEBUG();
 
-		physics_world->InitHardwareAcceleratedComputationShaders(content);
-
-		GLDEBUG();
-
 		width = width_;
 		height = height_;
 
