@@ -28,6 +28,7 @@ namespace CibraryEngine
 
 	class PhysicsConstraint;
 	struct ContactPoint;
+	class JointConstraint;
 
 	class RayCallback;
 	class CollisionCallback;
@@ -41,6 +42,9 @@ namespace CibraryEngine
 	class SceneRenderer;
 
 	struct TaskThread;
+	struct HardwareAcceleratedComputation;
+
+	struct ContentMan;
 
 	/** Class for a physical simulation */
 	class PhysicsWorld : public Disposable
@@ -62,11 +66,15 @@ namespace CibraryEngine
 
 			vector<TaskThread*> task_threads;
 
+			HardwareAcceleratedComputation* jc_comp;
+
 			void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
 
 			void DoFixedStep();
 
 			void RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time = 1.0f, RayCollider* collider = NULL);
+
+			void ProcessJointConstraints(vector<JointConstraint*>& batch);
 
 			struct MyOrphanCallback;
 			MyOrphanCallback* orphan_callback;
@@ -83,6 +91,8 @@ namespace CibraryEngine
 
 			/** Initializes a PhysicsWorld */
 			PhysicsWorld();
+
+			void InitHardwareAcceleratedComputationShaders(ContentMan* content);
 
 			/** Adds a collision object to the simulation */
 			void AddCollisionObject(CollisionObject* obj);

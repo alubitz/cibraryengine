@@ -301,18 +301,29 @@ namespace CibraryEngine
 			}
 			else if(ShaderProgram* shader = ShaderProgram::GetActiveProgram())
 			{
-				GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
-				glEnableVertexAttribArray(index);
-				glVertexAttribPointer(index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
+				GLint index = glGetAttribLocation(shader->program_id, name_cstr);
+				if(index != -1)
+				{
+					glEnableVertexAttribArray((GLuint)index);
+					glVertexAttribPointer((GLuint)index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
+
+					GLDEBUG();
+				}
+				else
+					Debug(((stringstream&)(stringstream() << "Couldn't enable attribute \"" << name << "\"" << endl)).str());
 			}
 
 			if(attrib.type == Float)
 				offset += attrib.n_per_vertex * sizeof(float);
 		}
+
+		GLDEBUG();
 	}
 
 	void VertexBuffer::PostDrawDisable()
 	{
+		GLDEBUG();
+
 		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
@@ -343,8 +354,14 @@ namespace CibraryEngine
 			}
 			else if(ShaderProgram* shader = ShaderProgram::GetActiveProgram())
 			{
-				GLuint index = (GLuint)glGetAttribLocation(shader->program_id, name_cstr);
-				glDisableVertexAttribArray(index);
+				GLint index = glGetAttribLocation(shader->program_id, name_cstr);
+				if(index != -1)
+				{
+					glDisableVertexAttribArray((GLuint)index);
+					GLDEBUG();
+				}
+				else
+					Debug(((stringstream&)(stringstream() << "Couldn't disable attribute \"" << name << "\"" << endl)).str());
 			}				
 		}
 

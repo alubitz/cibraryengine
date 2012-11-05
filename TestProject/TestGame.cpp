@@ -633,7 +633,7 @@ namespace Test
 
 		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 0.95f, 0.8f), NULL, NULL);
 
-		hud = new HUD(this, screen->content);
+		hud = new HUD(this, content);
 
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
@@ -828,6 +828,10 @@ namespace Test
 
 	void TestGame::Draw(int width_, int height_)
 	{
+		GLDEBUG();
+
+		physics_world->InitHardwareAcceleratedComputationShaders(content);
+
 		GLDEBUG();
 
 		width = width_;

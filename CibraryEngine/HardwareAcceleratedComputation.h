@@ -7,6 +7,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	class Shader;
+	class ShaderProgram;
 	struct VertexBuffer;
 
 	struct HardwareAcceleratedComputation
@@ -14,8 +15,7 @@ namespace CibraryEngine
 		private:
 
 			Shader* shader;
-
-			GLuint shader_program;								// TODO: make it possible to specify uniforms (e.g. by wrapping with a ShaderProgram)
+			ShaderProgram* shader_program;
 
 			GLuint output_vertex_array;
 			vector<GLuint> output_channels;						// array buffers which will go inside the output vertex array

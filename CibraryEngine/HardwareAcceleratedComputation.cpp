@@ -7,20 +7,41 @@
 #include "Shader.h"
 #include "VertexBuffer.h"
 
+#include "ProfilingTimer.h"
+
+#define PROFILE_HAC_PROCESS 0
+
 namespace CibraryEngine
 {
+#if PROFILE_HAC_PROCESS
+	static float timer_resize = 0.0f;
+	static float timer_setshader_bind = 0.0f;
+	static float timer_draw = 0.0f;
+	static float timer_query_verts = 0.0f;
+	static float timer_resize_outs = 0.0f;
+	static float timer_extract_data = 0.0f;
+
+	static unsigned int counter_hac_process = 0;
+#endif
+
+
+
+
 	/*
 	 * HardwareAcceleratedComputation methods
 	 */
 	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names) :
 		shader(shader),
-		shader_program(0),
+		shader_program(NULL),
 		output_vertex_array(0),
 		output_channels(),
 		query(0),
 		init_ok(false),
 		varying_names(varying_names)
 	{
+		if(!shader)
+			return;
+
 		glGenQueries(1, &query);
 
 		if(!InitShaderProgram())	{ DEBUG(); return; }
@@ -36,7 +57,7 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		glDeleteProgram(shader_program);
+		if(shader_program) { shader_program->Dispose(); delete shader_program; shader_program = NULL; }
 
 		glDeleteVertexArrays(1, &output_vertex_array);
 
@@ -44,6 +65,17 @@ namespace CibraryEngine
 		output_channels.clear();
 
 		glDeleteQueries(1, &query);
+
+#if PROFILE_HAC_PROCESS
+		Debug(((stringstream&)(stringstream() << "time usage during " << counter_hac_process << " calls to HardwareAcceleratedComputation::Process" << endl)).str());
+		Debug(((stringstream&)(stringstream() << "\tresize =\t\t\t\t"		<< timer_resize			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\tsetshader_bind =\t\t"	<< timer_setshader_bind	<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\tdraw =\t\t\t\t\t"		<< timer_draw			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\tquery_verts =\t\t\t"	<< timer_query_verts	<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\tresize_outs =\t\t\t"	<< timer_resize_outs	<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\textract_data =\t\t\t"	<< timer_extract_data	<< endl)).str());
+		Debug(((stringstream&)(stringstream() << "\ttotal of above =\t\t"	<< timer_resize + timer_setshader_bind + timer_draw + timer_query_verts + timer_resize_outs + timer_extract_data << endl)).str());
+#endif
 
 		GLDEBUG();
 	}
@@ -63,28 +95,18 @@ namespace CibraryEngine
 			Debug(vlog);
 		}
 
-		shader_program = glCreateProgram();
-		glAttachShader(shader_program, shader->shader_id);
+		shader_program = new ShaderProgram(shader, NULL);
+		shader_program->program_id = glCreateProgram();
+		glAttachShader(shader_program->program_id, shader->shader_id);
 
 		// tell the transform feedback thing which varyings we are interested in
-		glTransformFeedbackVaryings(shader_program, varying_names.size(), varying_names.data(), GL_SEPARATE_ATTRIBS);
+		glTransformFeedbackVaryings(shader_program->program_id, varying_names.size(), varying_names.data(), GL_SEPARATE_ATTRIBS);
 
 		// required for the above call to glTransformFeedbackVaryings to take effect
-		glLinkProgram(shader_program);
-
-
-		int program_status;
-		glGetProgramiv(shader_program, GL_LINK_STATUS, &program_status);
-
-		if(!program_status)
-		{
-			char plog[1024];
-			glGetProgramInfoLog(shader_program, 1024, NULL, plog);
-			Debug(plog);
-			return false;
-		}
+		glLinkProgram(shader_program->program_id);
 
 		GLDEBUG();
+
 
 		char name[64];				// name is unused
 		GLsizei length(0);			// length is unused
@@ -94,7 +116,7 @@ namespace CibraryEngine
 		// TODO: have some sorta data type spec, modify the checking appropriately
 		for(unsigned int i = 0; i < varying_names.size(); ++i)
 		{
-			glGetTransformFeedbackVarying(shader_program, i, 64, &length, &size, &type, name);
+			glGetTransformFeedbackVarying(shader_program->program_id, i, 64, &length, &size, &type, name);
 			if(size != 1 || type != GL_FLOAT_VEC4)
 			{
 				DEBUG();
@@ -170,18 +192,33 @@ namespace CibraryEngine
 		if(!init_ok)
 			return;
 
+#if PROFILE_HAC_PROCESS
+		++counter_hac_process;
+
+		ProfilingTimer timer;
+		timer.Start();
+#endif
+
 		GLDEBUG();
 
 		ResizeArrayBuffers(input_data->GetNumVerts());
+
+#if PROFILE_HAC_PROCESS
+		timer_resize += timer.GetAndRestart();
+#endif
 
 		// preparation for transform feedback
 		// disable rasterization; only process the vertices!
 		glEnable(GL_RASTERIZER_DISCARD); GLDEBUG();
 
-		glUseProgram(shader_program); GLDEBUG();
+		ShaderProgram::SetActiveProgram(shader_program); GLDEBUG();
 
 		for(unsigned int i = 0; i < output_channels.size(); ++i)
 			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_channels[i]);
+
+#if PROFILE_HAC_PROCESS
+		timer_setshader_bind += timer.GetAndRestart();
+#endif
 
 		// the actual transform feedback
 		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);
@@ -196,6 +233,10 @@ namespace CibraryEngine
 
 		glDisable(GL_RASTERIZER_DISCARD); GLDEBUG();
 
+#if PROFILE_HAC_PROCESS
+		timer_draw += timer.GetAndRestart();
+#endif
+
 		// getting the results of the transform feedback we just did
 		GLuint primitives_written = 0;
 		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);
@@ -203,7 +244,15 @@ namespace CibraryEngine
 		unsigned int verts_per_primitive = 1;
 		unsigned int num_verts = primitives_written * verts_per_primitive;
 
+#if PROFILE_HAC_PROCESS
+		timer_resize_outs += timer.GetAndRestart();
+#endif
+
 		output_data->SetNumVerts(num_verts);
+
+#if PROFILE_HAC_PROCESS
+		timer_query_verts += timer.GetAndRestart();
+#endif
 
 		for(unsigned int i = 0; i < output_channels.size(); ++i)
 		{
@@ -216,5 +265,9 @@ namespace CibraryEngine
 		}
 
 		glUseProgram(0); GLDEBUG();
+
+#if PROFILE_HAC_PROCESS
+		timer_extract_data += timer.Stop();
+#endif
 	}
 }
