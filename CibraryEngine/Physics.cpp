@@ -15,6 +15,8 @@
 
 #include "JointConstraint.h"
 
+#include "ConstraintGraphSolver.h"
+
 #include "Matrix.h"
 
 #include "DebugLog.h"
@@ -97,6 +99,7 @@ namespace CibraryEngine
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
+		cgraph_solver(new ConstraintGraphSolver()),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
@@ -144,6 +147,9 @@ namespace CibraryEngine
 		}
 		task_threads.clear();
 
+		delete cgraph_solver;
+		cgraph_solver = NULL;
+
 #if PROFILE_DOFIXEDSTEP
 		Debug(((stringstream&)(stringstream() << "total for " << counter_dofixedstep << " calls to PhysicsWorld::DoFixedStep = " << timer_total << endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_vel =\t\t\t"		<< timer_update_vel						<< endl)).str());
@@ -155,6 +161,8 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
 #endif
 	}
+
+	void PhysicsWorld::InitConstraintGraphSolver(ContentMan* content) { cgraph_solver->Init(content); }
 
 
 
@@ -252,19 +260,35 @@ namespace CibraryEngine
 		return 1.0f / A;
 	}
 
+	/*
 	void PhysicsWorld::SolveConstraintGraph(vector<PhysicsConstraint*>& constraints)
 	{
-		static vector<vector<PhysicsConstraint*> > batches;
+		vector<RigidBody*> rigid_bodies;
+		map<RigidBody*, unsigned int> rb_indices;
+
+		// vector<Vec3> linear_velocities;
+		// vector<Vec3> angular_velocities;
+
+		struct BatchData
+		{
+			vector<ContactPoint*>		contact_points;
+			vector<JointConstraint*>	joint_constraints;
+
+			vector<unsigned int>		v_xfer_indices;
+		};
+		static vector<BatchData> batches;
 
 		static vector<PhysicsConstraint*> unassigned;
 		unassigned.assign(constraints.begin(), constraints.end());
 
+		// collect constraints into batches containing no adjacent edges
+		// collect unique non-static rigid bodies in a vector, and map to each one its index
 		while(!unassigned.empty())
 		{
 			static SmartHashSet<RigidBody, 37> used_nodes;
 			static vector<PhysicsConstraint*> nu_unassigned;
 
-			static vector<PhysicsConstraint*> batch;
+			static BatchData batch;
 
 			for(vector<PhysicsConstraint*>::iterator iter = unassigned.begin(); iter != unassigned.end(); ++iter)
 			{
@@ -273,11 +297,30 @@ namespace CibraryEngine
 					nu_unassigned.push_back(constraint);
 				else
 				{
-					batch.push_back(constraint);
+					if(dynamic_cast<ContactPoint*>(constraint) != NULL)
+						batch.contact_points.push_back((ContactPoint*)constraint);
+					else
+						batch.joint_constraints.push_back((JointConstraint*)constraint);
 
-					used_nodes.Insert(constraint->obj_a);
-					if(constraint->obj_b->can_move)						// if(constraint->obj_b->MergesSubgraphs())
-						used_nodes.Insert(constraint->obj_b);
+					RigidBody *rb_a = constraint->obj_a, *rb_b = constraint->obj_b;
+
+					if(rb_indices.find(rb_a) == rb_indices.end())
+					{
+						rb_indices[rb_a] = rigid_bodies.size();
+						rigid_bodies.push_back(rb_a);
+					}
+					used_nodes.Insert(rb_a);
+
+					if(rb_b->can_move)						// if(rb_b->MergesSubgraphs())
+					{
+						if(rb_indices.find(rb_b) == rb_indices.end())
+						{
+							rb_indices[rb_b] = rigid_bodies.size();
+							rigid_bodies.push_back(rb_b);
+						}
+
+						used_nodes.Insert(rb_b);
+					}
 				}
 			}
 
@@ -285,48 +328,112 @@ namespace CibraryEngine
 
 			batches.push_back(batch);
 
-			batch.clear();
+			batch.contact_points.clear();
+			batch.joint_constraints.clear();
 			used_nodes.Clear();
 			nu_unassigned.clear();
 		}
 
-		struct BatchConstraintSolver : public ThreadTask
+		// populate velocity transfer indices (for updating velocities given indices into a batch's outputs)
+		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
 		{
-			vector<PhysicsConstraint*>* batch;
+			BatchData& batch = *iter;
+			
+			batch.v_xfer_indices.resize(rigid_bodies.size(), 0);
+
+			unsigned int next_index = 1;
+			for(vector<ContactPoint*>::iterator jter = batch.contact_points.begin(); jter != batch.contact_points.end(); ++jter)
+			{
+				batch.v_xfer_indices[rb_indices[(*jter)->obj_a]] = next_index++;
+				if((*jter)->obj_b->can_move)
+					batch.v_xfer_indices[rb_indices[(*jter)->obj_b]] = next_index++;
+				else
+					++next_index;
+			}
+
+			for(vector<JointConstraint*>::iterator jter = batch.joint_constraints.begin(); jter != batch.joint_constraints.end(); ++jter)
+			{
+				batch.v_xfer_indices[rb_indices[(*jter)->obj_a]] = next_index++;
+				if((*jter)->obj_b->can_move)
+					batch.v_xfer_indices[rb_indices[(*jter)->obj_b]] = next_index++;
+				else
+					++next_index;
+			}
+		}
+
+		struct CPSolver : public ThreadTask
+		{
+			vector<ContactPoint*>* batch;
 			unsigned int from, to;
 
-			BatchConstraintSolver() { }
-			BatchConstraintSolver(vector<PhysicsConstraint*>* batch, unsigned int from, unsigned int to) : batch(batch), from(from), to(to) { }
+			CPSolver() { }
+			CPSolver(vector<ContactPoint*>* batch, unsigned int from, unsigned int to) : batch(batch), from(from), to(to) { }
 
 			void DoTask()
 			{
-				PhysicsConstraint **data = batch->data(), **start_ptr = data + from, **finish_ptr = data + to;
-				for(PhysicsConstraint** constraint_ptr = start_ptr; constraint_ptr != finish_ptr; ++constraint_ptr)
+				ContactPoint **data = batch->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(ContactPoint** constraint_ptr = start_ptr; constraint_ptr != finish_ptr; ++constraint_ptr)
 					(*constraint_ptr)->DoConstraintAction();
 			}
-		};
-		BatchConstraintSolver solvers[NUM_THREADS];
+		} cp_solvers[NUM_THREADS];
 
-		for(unsigned int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
-			for(vector<vector<PhysicsConstraint*> >::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+		struct JCSolver : public ThreadTask
+		{
+			vector<JointConstraint*>* batch;
+			unsigned int from, to;
+
+			JCSolver() { }
+			JCSolver(vector<JointConstraint*>* batch, unsigned int from, unsigned int to) : batch(batch), from(from), to(to) { }
+
+			void DoTask()
 			{
-				vector<PhysicsConstraint*>& batch = *iter;
+				JointConstraint **data = batch->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(JointConstraint** constraint_ptr = start_ptr; constraint_ptr != finish_ptr; ++constraint_ptr)
+					(*constraint_ptr)->DoConstraintAction();
+			}
+		} jc_solvers[NUM_THREADS];
 
-				unsigned int batch_size = batch.size();
-				unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, batch_size / 40));
+		// do the actual solving
+		for(unsigned int i = 0; i < MAX_SEQUENTIAL_SOLVER_ITERATIONS; ++i)
+			for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+			{
+				BatchData& batch = *iter;
 
-				for(unsigned int j = 0; j < use_threads; ++j)
+				unsigned int cp_batch_size = batch.contact_points.size();
+				unsigned int jc_batch_size = batch.joint_constraints.size();
+
+				unsigned int cp_threads = 1;						// avoid cross-thread access violations involving contact callback functions
+				unsigned int jc_threads = max(1u, min((unsigned)NUM_THREADS - 1u, jc_batch_size / 40));
+
+				for(unsigned int j = 0; j < cp_threads; ++j)
 				{
-					solvers[j] = BatchConstraintSolver(&batch, j * batch_size / use_threads, (j	+ 1) * batch_size / use_threads);
-					task_threads[j]->StartTask(&solvers[j]);
+					cp_solvers[j] = CPSolver(&batch.contact_points, j * cp_batch_size / cp_threads, (j + 1) * cp_batch_size / cp_threads);
+					task_threads[j]->StartTask(&cp_solvers[j]);
 				}
 
-				for(unsigned int j = 0; j < use_threads; ++j)
+				for(unsigned int j = 0; j < jc_threads; ++j)
+				{
+					jc_solvers[j] = JCSolver(&batch.joint_constraints, j * jc_batch_size / jc_threads, (j + 1) * jc_batch_size / jc_threads);
+					task_threads[cp_threads + j]->StartTask(&jc_solvers[j]);
+				}
+
+				for(unsigned int j = 0; j < cp_threads + jc_threads; ++j)
 					task_threads[j]->WaitForCompletion();
 			}
 
+		// copy data from linear and angular velocity arrays back to the corresponding RigidBody objects
+		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+		{
+			RigidBody* body = rigid_bodies[i];
+
+			if(!body->can_move)
+				Debug("Oops, this RigidBody can't move but it's been put in the rigid_bodies vector anyway!\n");
+			// TODO: implement this for real
+		}
+
 		batches.clear();
 	}
+	*/
 
 
 	void PhysicsWorld::DoFixedStep()
@@ -440,7 +547,8 @@ namespace CibraryEngine
 		timer_constraints += timer.GetAndRestart();
 #endif
 
-		SolveConstraintGraph(use_constraints);
+		//SolveConstraintGraph(use_constraints);
+		cgraph_solver->Solve(MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
 		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(); iter != temp_contact_points.end(); ++iter)
 			ContactPoint::Delete(*iter);

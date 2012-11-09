@@ -61,12 +61,12 @@ namespace CibraryEngine
 		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
 
 		bool any_changes = false;
-		if(proposed_pyr.x < min_extents.x)		{ proposed_pyr.x = min_extents.x; any_changes = true; }
-		else if(proposed_pyr.x > max_extents.x)	{ proposed_pyr.x = max_extents.x; any_changes = true; }
-		if(proposed_pyr.y < min_extents.y)		{ proposed_pyr.y = min_extents.y; any_changes = true; }
-		else if(proposed_pyr.y > max_extents.y)	{ proposed_pyr.y = max_extents.y; any_changes = true; }
-		if(proposed_pyr.z < min_extents.z)		{ proposed_pyr.z = min_extents.z; any_changes = true; }
-		else if(proposed_pyr.z > max_extents.z)	{ proposed_pyr.z = max_extents.z; any_changes = true; }
+		if      (proposed_pyr.x < min_extents.x) { proposed_pyr.x = min_extents.x; any_changes = true; }
+		else if (proposed_pyr.x > max_extents.x) { proposed_pyr.x = max_extents.x; any_changes = true; }
+		if      (proposed_pyr.y < min_extents.y) { proposed_pyr.y = min_extents.y; any_changes = true; }
+		else if (proposed_pyr.y > max_extents.y) { proposed_pyr.y = max_extents.y; any_changes = true; }
+		if      (proposed_pyr.z < min_extents.z) { proposed_pyr.z = min_extents.z; any_changes = true; }
+		else if (proposed_pyr.z > max_extents.z) { proposed_pyr.z = max_extents.z; any_changes = true; }
 
 		if(any_changes)
 		{
@@ -100,9 +100,9 @@ namespace CibraryEngine
 		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 		b_to_a = Quaternion::Reverse(a_to_b);
 
-		moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
-		alpha_to_obja = obj_a->inv_moi * moi;
-		alpha_to_objb = obj_b->inv_moi * moi;
+		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		alpha_to_obja = obj_a->inv_moi * net_moi;
+		alpha_to_objb = obj_b->inv_moi * net_moi;
 
 		oriented_axes = axes.Transpose() * a_ori.ToMat3();
 		reverse_oriented_axes = oriented_axes.Transpose();

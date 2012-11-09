@@ -36,6 +36,8 @@ namespace CibraryEngine
 	class PhysicsRegion;
 	class PhysicsRegionManager;
 
+	class ConstraintGraphSolver;
+
 	typedef SmartHashSet<PhysicsRegion, 7> RegionSet;
 	typedef SmartHashSet<CollisionObject, 17> RelevantObjectsQuery;
 
@@ -65,8 +67,9 @@ namespace CibraryEngine
 			float internal_timer, timer_interval;
 
 			vector<TaskThread*> task_threads;
+			ConstraintGraphSolver* cgraph_solver;
 
-			void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
+			//void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
 
 			void DoFixedStep();
 
@@ -87,6 +90,8 @@ namespace CibraryEngine
 
 			/** Initializes a PhysicsWorld */
 			PhysicsWorld();
+
+			void InitConstraintGraphSolver(ContentMan* content);
 
 			/** Adds a collision object to the simulation */
 			void AddCollisionObject(CollisionObject* obj);

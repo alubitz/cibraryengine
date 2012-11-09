@@ -10,6 +10,8 @@ namespace CibraryEngine
 	class ShaderProgram;
 	struct VertexBuffer;
 
+	enum VertexAttributeType;
+
 	struct HardwareAcceleratedComputation
 	{
 		private:
@@ -17,24 +19,21 @@ namespace CibraryEngine
 			Shader* shader;
 			ShaderProgram* shader_program;
 
-			GLuint output_vertex_array;
-			vector<GLuint> output_channels;						// array buffers which will go inside the output vertex array
+			VertexBuffer* output_proto;
+			vector<string>				attribute_names;		// needed to keep the vector<const GLchar*> from getting corrupted
+			vector<const GLchar*>		attrib_name;
+			vector<unsigned int>		attrib_n_per_vert;
+			vector<VertexAttributeType>	attrib_type;
 
 			GLuint query;
 
 			bool init_ok;
 
 			bool InitShaderProgram();
-			bool InitArrayBuffers();
-			bool InitVertexArrays();
-
-			void ResizeArrayBuffers(unsigned int num_verts);
 
 		public:
 
-			vector<const GLchar*> varying_names;				// names of the output variables... indices are parallel to output_channels
-
-			HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names);
+			HardwareAcceleratedComputation(Shader* shader, VertexBuffer* output_proto);
 			~HardwareAcceleratedComputation();
 
 			void Process(VertexBuffer* input_data, VertexBuffer* output_data);

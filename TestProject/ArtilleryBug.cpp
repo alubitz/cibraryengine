@@ -12,6 +12,8 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		walk_pose(new WalkPose())
 	{
+		hp *= 3.0f;
+
 		posey->active_poses.push_back(walk_pose);
 		character->mat_tex_precision = 1024.0f;
 

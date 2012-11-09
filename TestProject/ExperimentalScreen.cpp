@@ -40,8 +40,6 @@ namespace Test
 			varying_names.push_back("gl_Position");
 			varying_names.push_back("derp");
 
-			comp = new HardwareAcceleratedComputation(shader, varying_names);
-
 			input_vbo = new VertexBuffer(Points);
 			input_vbo->AddAttribute("gl_Vertex", Float, 4);
 			input_vbo->SetNumVerts(7);
@@ -65,6 +63,8 @@ namespace Test
 			output_vbo = new VertexBuffer(Points);
 			output_vbo->AddAttribute("gl_Position",	Float, 4);
 			output_vbo->AddAttribute("derp",		Float, 4);
+
+			comp = new HardwareAcceleratedComputation(shader, output_vbo);
 		}
 
 		void Destroy()

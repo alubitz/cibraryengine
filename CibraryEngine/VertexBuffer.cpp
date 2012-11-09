@@ -231,10 +231,38 @@ namespace CibraryEngine
 	
 	unsigned int VertexBuffer::GetVBO()
 	{
-		if(vbo_id == 0) 
+		if(!vbo_id) 
 			BuildVBO(); 
 
 		return vbo_id;
+	}
+
+	void VertexBuffer::UpdateDataFromGL()
+	{
+		if(!vbo_id)
+			return;
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
+
+		int offset = 0;
+		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		{
+			const VertexAttribute& attrib = iter->second;
+
+			int attrib_size = 0;
+			if(attrib.type == Float)
+				attrib_size = sizeof(float) * attrib.n_per_vertex;
+
+			if(attrib_size > 0)
+			{
+				if(attrib.type == Float)
+					glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);
+
+				offset += attrib_size;
+			}
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 	// utility stuff... do this once
@@ -442,5 +470,21 @@ namespace CibraryEngine
 		*/
 
 		GLDEBUG();
+	}
+
+
+
+	VertexBuffer* VertexBuffer::CreateEmptyCopyAttributes(VertexBuffer* existing)
+	{
+		VertexBuffer* result = new VertexBuffer(existing->GetStorageMode());
+
+		vector<string> attribs = existing->GetAttributes();
+		for(vector<string>::iterator iter = attribs.begin(); iter != attribs.end(); ++iter)
+		{
+			string& name = *iter;
+			result->AddAttribute(name, existing->GetAttribType(name), existing->GetAttribNPerVertex(name));
+		}
+
+		return result;
 	}
 }

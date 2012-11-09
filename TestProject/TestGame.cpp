@@ -150,6 +150,8 @@ namespace Test
 		SoundBuffer* chamber_click_sound;
 		SoundBuffer* reload_sound;
 
+		bool physics_content_init;
+
 		Imp() :
 			bot_death_handler(),
 			player_death_handler(),
@@ -161,7 +163,8 @@ namespace Test
 			render_target(NULL),
 			shadow_render_target(NULL),
 			deferred_ambient(NULL),
-			deferred_lighting(NULL)
+			deferred_lighting(NULL),
+			physics_content_init(false)
 		{
 		}
 
@@ -795,6 +798,12 @@ namespace Test
 	{
 		NGDEBUG();
 
+		if(!imp->physics_content_init)
+		{
+			physics_world->InitConstraintGraphSolver(content);
+			imp->physics_content_init = true;
+		}
+
 		float elapsed = min((float)time.elapsed, 1.0f / 60.0f);
 		total_game_time += elapsed;
 		elapsed_game_time = elapsed;
@@ -888,7 +897,9 @@ namespace Test
 				imp->shadow_render_target = new RenderTarget(4096, 4096, 0, 1);
 #endif
 
+			GLDEBUG();
 			RenderTarget::Bind(imp->render_target);
+			GLDEBUG();
 
 			ClearDepthAndColor();
 

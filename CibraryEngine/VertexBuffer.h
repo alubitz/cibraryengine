@@ -98,6 +98,9 @@ namespace CibraryEngine
 			void BuildVBO();
 			unsigned int GetVBO();
 
+			/** Causes the attribute array data to be loaded from the gl VBO */
+			void UpdateDataFromGL();
+
 			/**
 			 * Draws this vertex buffer.
 			 *
@@ -115,5 +118,8 @@ namespace CibraryEngine
 
 			/** Draws this vertex buffer, and sends the output to the specified feedback buffer */
 			void DrawToFeedbackBuffer(VertexBuffer* target, ShaderProgram* shader_program, bool keep_fragments);
+
+			/** Creates an empty vertex buffer with the same storage mode and attributes as the one passed as argument */
+			static VertexBuffer* CreateEmptyCopyAttributes(VertexBuffer* existing);
 	};
 }

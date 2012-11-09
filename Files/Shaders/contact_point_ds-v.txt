@@ -1,0 +1,7 @@
+
+varying vec3 out_vel_a, out_rot_a;
+
+void main()
+{
+	out_vel_a = out_rot_a = vec3(0.0, 0.0, 0.0);
+}

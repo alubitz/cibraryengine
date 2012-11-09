@@ -16,9 +16,8 @@ namespace CibraryEngine
 		protected:
 
 			// some values that are set by DoUpdateAction and which should only be used for the duration of a single physics tick
-			Mat3 moi;
 			Vec3 apply_pos;
-			Vec3 desired_av, desired_dv;
+			Vec3 desired_dv;
 
 			Mat3 oriented_axes, reverse_oriented_axes;
 			Quaternion a_to_b, b_to_a;

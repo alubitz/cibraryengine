@@ -30,23 +30,18 @@ namespace CibraryEngine
 	/*
 	 * HardwareAcceleratedComputation methods
 	 */
-	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, vector<const GLchar*>& varying_names) :
+	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, VertexBuffer* output_proto) :
 		shader(shader),
 		shader_program(NULL),
-		output_vertex_array(0),
-		output_channels(),
+		output_proto(VertexBuffer::CreateEmptyCopyAttributes(output_proto)),
 		query(0),
-		init_ok(false),
-		varying_names(varying_names)
+		init_ok(false)
 	{
 		if(!shader)
 			return;
 
 		glGenQueries(1, &query);
-
 		if(!InitShaderProgram())	{ DEBUG(); return; }
-		if(!InitArrayBuffers())		{ DEBUG(); return; }
-		if(!InitVertexArrays())		{ DEBUG(); return; }
 
 		GLDEBUG();
 
@@ -57,12 +52,8 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		if(shader_program) { shader_program->Dispose(); delete shader_program; shader_program = NULL; }
-
-		glDeleteVertexArrays(1, &output_vertex_array);
-
-		glDeleteBuffers(output_channels.size(), output_channels.data());
-		output_channels.clear();
+		if(output_proto)	{ output_proto->Dispose();		delete output_proto;	output_proto = NULL;	}
+		if(shader_program)	{ shader_program->Dispose();	delete shader_program;	shader_program = NULL;	}
 
 		glDeleteQueries(1, &query);
 
@@ -93,94 +84,92 @@ namespace CibraryEngine
 		{
 			DEBUG();
 			Debug(vlog);
+
+			return false;
 		}
 
 		shader_program = new ShaderProgram(shader, NULL);
 		shader_program->program_id = glCreateProgram();
 		glAttachShader(shader_program->program_id, shader->shader_id);
 
+		attribute_names = output_proto->GetAttributes();
+		unsigned int num_attributes = attribute_names.size();
+		for(vector<string>::iterator iter = attribute_names.begin(); iter != attribute_names.end(); ++iter)
+		{
+			attrib_name.push_back(iter->c_str());
+			attrib_n_per_vert.push_back(output_proto->GetAttribNPerVertex(*iter));
+			attrib_type.push_back(output_proto->GetAttribType(*iter));
+		}
+
 		// tell the transform feedback thing which varyings we are interested in
-		glTransformFeedbackVaryings(shader_program->program_id, varying_names.size(), varying_names.data(), GL_SEPARATE_ATTRIBS);
+		glTransformFeedbackVaryings(shader_program->program_id, attrib_name.size(), attrib_name.data(), GL_SEPARATE_ATTRIBS);
 
 		// required for the above call to glTransformFeedbackVaryings to take effect
 		glLinkProgram(shader_program->program_id);
 
 		GLDEBUG();
 
+		char name[64];
+		GLsizei size = 0;
+		GLenum type = 0;
 
-		char name[64];				// name is unused
-		GLsizei length(0);			// length is unused
-		GLsizei size(0);
-		GLenum type(0);
+		GLint num_varyings = 0;
+		glGetProgramiv(shader_program->program_id, GL_TRANSFORM_FEEDBACK_VARYINGS, &num_varyings);
 
-		// TODO: have some sorta data type spec, modify the checking appropriately
-		for(unsigned int i = 0; i < varying_names.size(); ++i)
+		for(int i = 0; i < num_varyings; ++i)
 		{
-			glGetTransformFeedbackVarying(shader_program->program_id, i, 64, &length, &size, &type, name);
-			if(size != 1 || type != GL_FLOAT_VEC4)
+			glGetTransformFeedbackVarying(shader_program->program_id, i, 64, NULL, &size, &type, name);
+
+			// see which name this matches (not sure if necessary?)
+			for(unsigned int j = 0; j < num_attributes; ++j)
 			{
-				DEBUG();
-				return false;
+				if(strcmp(name, attrib_name[j]) == 0)
+				{
+					// found which varying this matches... now to check that it matches the prototype properly
+					unsigned int wanted_n_per_vert = output_proto->GetAttribNPerVertex(name);
+					VertexAttributeType wanted_type = output_proto->GetAttribType(name);
+
+					unsigned int n_per_vert = 0;
+
+					switch(attrib_type[j])
+					{
+						case Float:
+						{
+							switch(type)
+							{
+								case GL_FLOAT:		{ n_per_vert = size;		break; }
+								case GL_FLOAT_VEC2:	{ n_per_vert = size * 2;	break; }
+								case GL_FLOAT_VEC3:	{ n_per_vert = size * 3;	break; }
+								case GL_FLOAT_VEC4:	{ n_per_vert = size * 4;	break; }
+										
+								default:
+
+									DEBUG();
+									return false;
+							}
+
+							break;
+						}
+
+						default:
+						{
+							DEBUG();
+							return false;
+						}
+					}
+
+					if(attrib_n_per_vert[j] != n_per_vert)
+					{
+						DEBUG();
+						return false;
+					}
+
+					break;			// break out of search-for-name loop
+				}
 			}
 
 			GLDEBUG();
 		}
-
-		GLDEBUG();
-
-		return true;
-	}
-
-
-	bool HardwareAcceleratedComputation::InitArrayBuffers()
-	{
-		GLDEBUG();
-
-		if(output_channels.empty())
-		{
-			// generate output buffer objects
-			for(unsigned int i = 0; i < varying_names.size(); ++i)
-			{
-				unsigned int output_channel;
-				glGenBuffers(1, &output_channel);
-				output_channels.push_back(output_channel);
-
-				GLDEBUG();
-			}
-		}
-
-		return true;
-	}
-
-	void HardwareAcceleratedComputation::ResizeArrayBuffers(unsigned int num_verts)
-	{
-		for(unsigned int i = 0; i < output_channels.size(); ++i)
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, output_channels[i]);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * num_verts, NULL, GL_DYNAMIC_READ);
-		}
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}
-
-	bool HardwareAcceleratedComputation::InitVertexArrays()
-	{
-		GLDEBUG();
-
-		// build the output vertex array objects
-		glGenVertexArrays(1, &output_vertex_array);
-		glBindVertexArray(output_vertex_array);
-
-			for(unsigned int i = 0; i < output_channels.size(); ++i)
-			{
-				glBindBuffer(GL_ARRAY_BUFFER, output_channels[i]);
-					glVertexAttribPointer(i, 4, GL_FLOAT, GL_FALSE, 0, NULL);		// TODO: generalize count and type params
-			}
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-			for(unsigned int i = 0; i < output_channels.size(); ++i)
-				glEnableVertexAttribArray(i);
-
-		glBindVertexArray(0);
 
 		GLDEBUG();
 
@@ -192,6 +181,9 @@ namespace CibraryEngine
 		if(!init_ok)
 			return;
 
+		unsigned int num_input_verts = input_data->GetNumVerts();
+		unsigned int output_vbo = output_data->GetVBO();
+
 #if PROFILE_HAC_PROCESS
 		++counter_hac_process;
 
@@ -201,20 +193,50 @@ namespace CibraryEngine
 
 		GLDEBUG();
 
-		ResizeArrayBuffers(input_data->GetNumVerts());
-
 #if PROFILE_HAC_PROCESS
 		timer_resize += timer.GetAndRestart();
 #endif
 
-		// preparation for transform feedback
-		// disable rasterization; only process the vertices!
+		// preparation for transform feedback! disable rasterization; only process the vertices!
 		glEnable(GL_RASTERIZER_DISCARD); GLDEBUG();
 
 		ShaderProgram::SetActiveProgram(shader_program); GLDEBUG();
 
-		for(unsigned int i = 0; i < output_channels.size(); ++i)
-			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_channels[i]);
+		// resize the output vbo
+		glBindBuffer(GL_ARRAY_BUFFER, output_vbo);
+		glBufferData(GL_ARRAY_BUFFER, num_input_verts * output_data->GetVertexSize(), NULL, GL_DYNAMIC_COPY);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		vector<string> target_attribs = output_data->GetAttributes();
+		unsigned int offset = 0;
+		for(vector<string>::iterator iter = target_attribs.begin(); iter != target_attribs.end(); ++iter)
+		{
+			GLDEBUG();
+
+			const string& attrib_name = *iter;
+			VertexAttributeType attrib_type = output_data->GetAttribType(attrib_name);
+
+			int attrib_size = 0;
+			if(attrib_type == Float)
+				attrib_size = sizeof(float) * output_data->GetAttribNPerVertex(attrib_name) * num_input_verts;
+
+			if(attrib_size > 0)
+			{
+				unsigned int i = 0;
+				for(vector<string>::iterator jter = attribute_names.begin(); jter != attribute_names.end(); ++jter, ++i)
+					if(attrib_name == *jter)
+					{
+						GLDEBUG();
+
+						glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_vbo, offset, attrib_size);
+
+						GLDEBUG();
+						break;
+					}
+
+				offset += attrib_size;
+			}
+		}
 
 #if PROFILE_HAC_PROCESS
 		timer_setshader_bind += timer.GetAndRestart();
@@ -254,17 +276,10 @@ namespace CibraryEngine
 		timer_query_verts += timer.GetAndRestart();
 #endif
 
-		for(unsigned int i = 0; i < output_channels.size(); ++i)
-		{
-			unsigned int num_floats = num_verts * 4;			// TODO: get this number from somewhere; it could be different from one output variable to another
+		output_data->SetNumVerts(num_input_verts);
+		output_data->UpdateDataFromGL();
 
-			float* data = output_data->GetFloatPointer(varying_names[i]);
-
-			glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, output_channels[i]);
-			glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, num_floats * sizeof(float), data);
-		}
-
-		glUseProgram(0); GLDEBUG();
+		ShaderProgram::SetActiveProgram(NULL); GLDEBUG();
 
 #if PROFILE_HAC_PROCESS
 		timer_extract_data += timer.Stop();
