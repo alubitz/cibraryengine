@@ -37,8 +37,7 @@ namespace CibraryEngine
 		query(0),
 		init_ok(false)
 	{
-		if(!shader)
-			return;
+		if(!shader)					{ DEBUG(); return; }
 
 		glGenQueries(1, &query);
 		if(!InitShaderProgram())	{ DEBUG(); return; }
@@ -276,8 +275,8 @@ namespace CibraryEngine
 		timer_query_verts += timer.GetAndRestart();
 #endif
 
+		// ensure UpdateDataFromGL will work properly
 		output_data->SetNumVerts(num_input_verts);
-		output_data->UpdateDataFromGL();
 
 		ShaderProgram::SetActiveProgram(NULL); GLDEBUG();
 

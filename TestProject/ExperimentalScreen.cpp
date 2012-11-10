@@ -84,6 +84,7 @@ namespace Test
 		void Process()
 		{
 			comp->Process(input_vbo, output_vbo);
+			output_vbo->UpdateDataFromGL();
 
 			unsigned int num_verts = output_vbo->GetNumVerts();
 			Debug(((stringstream&)(stringstream() << "Got data for " << num_verts << " verts!\n")).str());

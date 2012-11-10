@@ -1,8 +1,0 @@
-
-varying vec3 out_vel_a, out_rot_a;
-varying vec3 out_vel_b, out_rot_b;
-
-void main()
-{
-	out_vel_a = out_rot_a = out_vel_b = out_rot_b = vec3(0.0, 0.0, 0.0);
-}

@@ -1,0 +1,12 @@
+
+attribute vec3 in_vel;
+attribute vec3 in_rot;
+
+varying vec3 vel;
+varying vec3 rot;
+
+void main()
+{
+	vel = vec3(0.0, 0.0, 0.0);
+	rot = vec3(0.0, 0.0, 0.0);
+}

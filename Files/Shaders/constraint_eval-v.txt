@@ -1,0 +1,12 @@
+
+attribute vec3 vel;
+attribute vec3 rot;
+
+varying vec3 out_vel_a, out_rot_a;
+varying vec3 out_vel_b, out_rot_b;
+
+void main()
+{
+	out_vel_a = out_vel_b = vel;
+	out_rot_a = out_rot_b = rot;
+}

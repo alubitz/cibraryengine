@@ -10,16 +10,26 @@ namespace CibraryEngine
 	struct ContentMan;
 
 	struct HardwareAcceleratedComputation;
+	struct VertexBuffer;
 
 	class ConstraintGraphSolver
 	{
 		private:
 
-			HardwareAcceleratedComputation* joint_constraint_hac;
-			HardwareAcceleratedComputation* contact_point_dd_hac;			// contact point between two dynamic objects
-			HardwareAcceleratedComputation* contact_point_ds_hac;			// contact point between a dynamic object and a static object
-
+			HardwareAcceleratedComputation* constraint_eval_hac;
 			HardwareAcceleratedComputation* vdata_copy_hac;					// copy velocity data between constraint batches
+
+			VertexBuffer* velocity_data;
+			VertexBuffer* constraint_eval_out;
+
+			struct BatchData
+			{
+				vector<PhysicsConstraint*> constraints;
+
+				vector<unsigned int>		v_xfer_indices;
+			};
+
+			void SelectBatches(vector<PhysicsConstraint*>& constraints, vector<BatchData>& batches);
 
 		public:
 

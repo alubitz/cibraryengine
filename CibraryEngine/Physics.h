@@ -69,8 +69,6 @@ namespace CibraryEngine
 			vector<TaskThread*> task_threads;
 			ConstraintGraphSolver* cgraph_solver;
 
-			//void SolveConstraintGraph(vector<PhysicsConstraint*>& constraints);
-
 			void DoFixedStep();
 
 			void RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time = 1.0f, RayCollider* collider = NULL);
