@@ -21,8 +21,9 @@ namespace CibraryEngine
 	ConstraintGraphSolver::ConstraintGraphSolver() :
 		constraint_eval_hac(NULL),
 		vdata_copy_hac(NULL),
-		velocity_data(NULL),
-		constraint_eval_out(NULL)
+		constraint_eval_out(NULL),
+		velocity_data_a(NULL),
+		velocity_data_b(NULL)
 	{
 	}
 
@@ -31,26 +32,42 @@ namespace CibraryEngine
 		if(constraint_eval_hac)	{ delete constraint_eval_hac;	constraint_eval_hac = NULL; }
 		if(vdata_copy_hac)		{ delete vdata_copy_hac;		vdata_copy_hac = NULL; }
 
-		if(velocity_data)		{ velocity_data->Dispose();			delete velocity_data;		velocity_data = NULL; }
 		if(constraint_eval_out)	{ constraint_eval_out->Dispose();	delete constraint_eval_out;	constraint_eval_out = NULL; }
+		if(velocity_data_a)		{ velocity_data_a->Dispose();		delete velocity_data_a;		velocity_data_a = NULL; }
+		if(velocity_data_b)		{ velocity_data_b->Dispose();		delete velocity_data_b;		velocity_data_b = NULL; }
 	}
 
 	void ConstraintGraphSolver::Init(ContentMan* content)
 	{
 		Cache<Shader>* shader_cache = content->GetCache<Shader>();
 
+		// initialize stuff pertaining to constraint evaluator HAC
 		constraint_eval_out = new VertexBuffer(Points);
-		constraint_eval_out->AddAttribute(	"out_vel_a",	Float, 3);
-		constraint_eval_out->AddAttribute(	"out_vel_b",	Float, 3);
-		constraint_eval_out->AddAttribute(	"out_rot_a",	Float, 3);
-		constraint_eval_out->AddAttribute(	"out_rot_b",	Float, 3);
+		constraint_eval_out->AddAttribute("vel_a", Float, 3);
+		constraint_eval_out->AddAttribute("vel_b", Float, 3);
+		constraint_eval_out->AddAttribute("rot_a", Float, 3);
+		constraint_eval_out->AddAttribute("rot_b", Float, 3);
 
-		velocity_data = new VertexBuffer(Points);
-		velocity_data->AddAttribute(		"vel",			Float, 3);
-		velocity_data->AddAttribute(		"rot",			Float, 3);
+		map<string, string> constraint_eval_output_map;
+		constraint_eval_output_map["out_vel_a"] = "vel_a";
+		constraint_eval_output_map["out_vel_b"] = "vel_b";
+		constraint_eval_output_map["out_rot_a"] = "rot_a";
+		constraint_eval_output_map["out_rot_b"] = "rot_b";
 
-		constraint_eval_hac = new HardwareAcceleratedComputation(	shader_cache->Load("constraint_eval-v"),	constraint_eval_out);
-		vdata_copy_hac = new HardwareAcceleratedComputation(		shader_cache->Load("vdata_copy-v"),			velocity_data);		
+		constraint_eval_hac = new HardwareAcceleratedComputation(shader_cache->Load("constraint_eval-v"), constraint_eval_output_map, constraint_eval_out);
+
+		// initialize stuff pertaining to velocity data copy/transfer HAC
+		velocity_data_a = new VertexBuffer(Points);
+		velocity_data_a->AddAttribute("vel", Float, 3);
+		velocity_data_a->AddAttribute("rot", Float, 3);
+
+		map<string, string> vdata_copy_output_map;
+		vdata_copy_output_map["out_vel"] = "vel";
+		vdata_copy_output_map["out_rot"] = "rot";
+
+		velocity_data_b = VertexBuffer::CreateEmptyCopyAttributes(velocity_data_a);
+
+		vdata_copy_hac = new HardwareAcceleratedComputation(shader_cache->Load("vdata_copy-v"), vdata_copy_output_map, velocity_data_a);
 	}
 
 
@@ -65,7 +82,6 @@ namespace CibraryEngine
 			static vector<PhysicsConstraint*> nu_unassigned;
 
 			static BatchData batch;
-			batch.constraints.clear();
 
 			for(vector<PhysicsConstraint*>::iterator iter = unassigned.begin(); iter != unassigned.end(); ++iter)
 			{
@@ -82,10 +98,11 @@ namespace CibraryEngine
 				}
 			}
 
-			unassigned.assign(nu_unassigned.begin(), nu_unassigned.end());
-
 			batches.push_back(batch);
 
+			unassigned.assign(nu_unassigned.begin(), nu_unassigned.end());
+
+			batch.constraints.clear();
 			used_nodes.Clear();
 			nu_unassigned.clear();
 		}
@@ -117,13 +134,13 @@ namespace CibraryEngine
 
 		unsigned int num_rigid_bodies = rigid_bodies.size();
 
-		// put rigid bodies' velocity data into a vertex buffer		
-		velocity_data->SetNumVerts(num_rigid_bodies);
-		float* lv_ptr = velocity_data->GetFloatPointer("vel");
-		float* av_ptr = velocity_data->GetFloatPointer("rot");
+		// put rigid bodies' velocity data into a vertex buffer
+		velocity_data_a->SetNumVerts(num_rigid_bodies);
+		float* lv_ptr = velocity_data_a->GetFloatPointer("vel");
+		float* av_ptr = velocity_data_a->GetFloatPointer("rot");
 		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(), rb_end = rigid_bodies.end(); iter != rb_end; ++iter)
 		{
-			RigidBody* body = *iter;			
+			RigidBody* body = *iter;
 
 			Vec3 vel = body->GetLinearVelocity();
 			*(lv_ptr++) = vel.x;
@@ -135,14 +152,14 @@ namespace CibraryEngine
 			*(av_ptr++) = rot.y;
 			*(av_ptr++) = rot.z;
 		}
-		velocity_data->BuildVBO();
+		velocity_data_a->BuildVBO();
 
 
 		// collect constraints into batches containing no adjacent edges
 		static vector<BatchData> batches;
 
 		SelectBatches(constraints, batches);
-		Debug(((stringstream&)(stringstream() << "batches.size() = " << batches.size() << endl)).str());
+		Debug(((stringstream&)(stringstream() << "number of batches = " << batches.size() << endl)).str());
 
 
 
@@ -150,10 +167,10 @@ namespace CibraryEngine
 		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
 		{
 			BatchData& batch = *iter;
-			
+
 			batch.v_xfer_indices.resize(num_rigid_bodies, 0);
 
-			unsigned int next_index = 1;
+			int next_index = 1;
 			for(vector<PhysicsConstraint*>::iterator jter = batch.constraints.begin(); jter != batch.constraints.end(); ++jter)
 			{
 				batch.v_xfer_indices[rb_indices[(*jter)->obj_a]] = next_index++;
@@ -161,6 +178,7 @@ namespace CibraryEngine
 			}
 		}
 
+		VertexBuffer *active_vdata = velocity_data_a, *inactive_vdata = velocity_data_b;
 
 		// do the actual solving
 		for(unsigned int i = 0; i < iterations; ++i)
@@ -169,13 +187,15 @@ namespace CibraryEngine
 				BatchData& batch = *iter;
 
 				//constraint_eval_hac->Process(velocity_data, constraint_eval_out);
-				//vdata_copy_hac->Process(velocity_data, velocity_data);
+
+				vdata_copy_hac->Process(active_vdata, inactive_vdata);
+				swap(active_vdata, inactive_vdata);
 			}
 
 		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
-		velocity_data->UpdateDataFromGL();
-		lv_ptr = velocity_data->GetFloatPointer("vel");
-		av_ptr = velocity_data->GetFloatPointer("rot");
+		active_vdata->UpdateDataFromGL();
+		lv_ptr = active_vdata->GetFloatPointer("vel");
+		av_ptr = active_vdata->GetFloatPointer("rot");
 
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 		{

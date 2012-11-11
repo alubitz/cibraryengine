@@ -64,7 +64,7 @@ namespace Test
 			output_vbo->AddAttribute("gl_Position",	Float, 4);
 			output_vbo->AddAttribute("derp",		Float, 4);
 
-			comp = new HardwareAcceleratedComputation(shader, output_vbo);
+			comp = new HardwareAcceleratedComputation(shader, map<string, string>(), output_vbo);
 		}
 
 		void Destroy()

@@ -15,6 +15,7 @@ namespace CibraryEngine
 		BadVertexAttribute	= 0,
 
 		Float				= GL_FLOAT,
+		Int					= GL_INT
 	};
 
 	struct VertexAttribute
@@ -42,9 +43,11 @@ namespace CibraryEngine
 	union VertexData
 	{
 		float* floats;
+		int* ints;
 
 		VertexData() : floats(NULL) { }
 		VertexData(float* floats) : floats(floats) { }
+		VertexData(int* ints) : ints(ints) { }
 	};
 
 	/** Stores a collection of named vertex attribute data */
@@ -94,6 +97,9 @@ namespace CibraryEngine
 			/** Returns a pointer to the float data for the given attribute name, if applicable; if non-applicable, returns NULL */
 			float* GetFloatPointer(const string& name);
 
+			/** Returns a pointer to the int data for the given attribute name, if applicable; if non-applicable, returns NULL */
+			int* GetIntPointer(const string& name);
+
 			void InvalidateVBO();
 			void BuildVBO();
 			unsigned int GetVBO();
@@ -115,9 +121,6 @@ namespace CibraryEngine
 			void Draw(unsigned int num_instances);
 			void Draw(unsigned int num_instances, DrawMode mode);
 			void Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices);
-
-			/** Draws this vertex buffer, and sends the output to the specified feedback buffer */
-			void DrawToFeedbackBuffer(VertexBuffer* target, ShaderProgram* shader_program, bool keep_fragments);
 
 			/** Creates an empty vertex buffer with the same storage mode and attributes as the one passed as argument */
 			static VertexBuffer* CreateEmptyCopyAttributes(VertexBuffer* existing);

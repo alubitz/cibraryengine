@@ -1,12 +1,38 @@
 
-attribute vec3 in_vel;
-attribute vec3 in_rot;
+uniform samplerBuffer constraint_out_vel_a;
+uniform samplerBuffer constraint_out_vel_b;
+uniform samplerBuffer constraint_out_rot_a;
+uniform samplerBuffer constraint_out_rot_b;
 
-varying vec3 vel;
-varying vec3 rot;
+uniform isamplerBuffer transfer_indices;
+
+attribute vec3 vel;
+attribute vec3 rot;
+
+varying vec3 out_vel;
+varying vec3 out_rot;
 
 void main()
 {
-	vel = vec3(0.0, 0.0, 0.0);
-	rot = vec3(0.0, 0.0, 0.0);
+	int transfer_index = texelFetch(transfer_indices, gl_VertexID).x;
+
+	if(transfer_index == 0)
+	{
+		out_vel = vel;
+		out_rot = rot;
+	}
+	else
+	{
+		--transfer_index;
+		if(transfer_index % 2 == 0)
+		{
+			out_vel = texelFetch(constraint_out_vel_a, transfer_index / 2);
+			out_rot = texelFetch(constraint_out_rot_a, transfer_index / 2);
+		}
+		else
+		{
+			out_vel = texelFetch(constraint_out_vel_b, transfer_index / 2);
+			out_rot = texelFetch(constraint_out_rot_b, transfer_index / 2);
+		}
+	}
 }

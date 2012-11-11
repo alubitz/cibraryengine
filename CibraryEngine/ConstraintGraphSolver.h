@@ -19,14 +19,15 @@ namespace CibraryEngine
 			HardwareAcceleratedComputation* constraint_eval_hac;
 			HardwareAcceleratedComputation* vdata_copy_hac;					// copy velocity data between constraint batches
 
-			VertexBuffer* velocity_data;
 			VertexBuffer* constraint_eval_out;
+
+			VertexBuffer* velocity_data_a;
+			VertexBuffer* velocity_data_b;
 
 			struct BatchData
 			{
 				vector<PhysicsConstraint*> constraints;
-
-				vector<unsigned int>		v_xfer_indices;
+				vector<int> v_xfer_indices;
 			};
 
 			void SelectBatches(vector<PhysicsConstraint*>& constraints, vector<BatchData>& batches);

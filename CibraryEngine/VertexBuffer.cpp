@@ -52,26 +52,44 @@ namespace CibraryEngine
 			boost::unordered_map<string, VertexData> nu_attribute_data;
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				if(GetAttribType(iter->first) == Float)
+				int n_per_vertex = GetAttribNPerVertex(iter->first);
+				switch(GetAttribType(iter->first))
 				{
-					int n_per_vertex = GetAttribNPerVertex(iter->first);
-					float* new_data = new float[allocated_size * n_per_vertex];
-					float* old_data = iter->second.floats;
-					if(old_data != NULL)
+					case Float:
 					{
-						for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
-							new_data[i] = old_data[i];
+						float* new_data = new float[allocated_size * n_per_vertex];
+						float* old_data = iter->second.floats;
+						if(old_data != NULL)
+						{
+							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
+								new_data[i] = old_data[i];
+						}
+						nu_attribute_data[iter->first] = VertexData(new_data);
+
+						break;
 					}
-					nu_attribute_data[iter->first] = VertexData(new_data);
+					case Int:
+					{
+						int* new_data = new int[allocated_size * n_per_vertex];
+						int* old_data = iter->second.ints;
+						if(old_data != NULL)
+						{
+							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
+								new_data[i] = old_data[i];
+						}
+						nu_attribute_data[iter->first] = VertexData(new_data);
+
+						break;
+					}
 				}
 			}
 
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				if(GetAttribType(iter->first) == Float)
+				switch(GetAttribType(iter->first))
 				{
-					float* floats = iter->second.floats;
-					delete[] floats;
+					case Float:	{ float* floats = iter->second.floats;	delete[] floats;	break; }
+					case Int:	{ int* ints = iter->second.ints;		delete[] ints;		break; }
 				}
 			}
 			attribute_data.clear();
@@ -85,11 +103,10 @@ namespace CibraryEngine
 			boost::unordered_map<string, VertexData> nu_attribute_data;
 			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
-				if(GetAttribType(iter->first) == Float)
+				switch(GetAttribType(iter->first))
 				{
-					float* old_data = iter->second.floats;
-					if(old_data != NULL)
-						delete[] old_data;
+					case Float:	{ float* old_data = iter->second.floats;	if(old_data != NULL) { delete[] old_data; } break; }
+					case Int:	{ int* old_data = iter->second.ints;		if(old_data != NULL) { delete[] old_data; } break; }
 				}
 
 				nu_attribute_data[iter->first] = VertexData();
@@ -111,8 +128,11 @@ namespace CibraryEngine
 
 		int num_elements = n_per_vertex * allocated_size;
 
-		if(type == Float)
-			attribute_data[name].floats = num_elements > 0 ? new float[num_elements] : NULL;
+		switch(type)
+		{
+			case Float:	{ attribute_data[name].floats =	num_elements > 0 ? new float[num_elements] : NULL;	break; }
+			case Int:	{ attribute_data[name].ints =	num_elements > 0 ? new int[num_elements] : NULL;	break; }
+		}
 	}
 
 	void VertexBuffer::RemoveAttribute(const string& name)
@@ -128,8 +148,11 @@ namespace CibraryEngine
 			{
 				VertexData data = found_attrib->second;
 
-				if(attribute.type == Float)
-					delete[] data.floats;
+				switch(attribute.type)
+				{
+					case Float:	{ delete[] data.floats;	break; }
+					case Int:	{ delete[] data.ints;	break; }
+				}
 
 				attribute_data.erase(found_attrib);
 			}
@@ -168,8 +191,11 @@ namespace CibraryEngine
 		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			VertexAttribute& attrib = iter->second;
-			if(attrib.type == Float)
-				total_size += sizeof(float) * attrib.n_per_vertex;
+			switch(attrib.type)
+			{
+				case Float:	{ total_size += attrib.n_per_vertex * sizeof(float);	break; }
+				case Int:	{ total_size += attrib.n_per_vertex * sizeof(int);		break; }
+			}
 		}
 		return total_size;
 	}
@@ -182,8 +208,16 @@ namespace CibraryEngine
 			return NULL;
 	}
 
+	int* VertexBuffer::GetIntPointer(const string& name)
+	{
+		if(GetAttribType(name) == Int)
+			return attribute_data[name].ints;
+		else
+			return NULL;
+	}
+
 	void VertexBuffer::InvalidateVBO()
-	{ 
+	{
 		if(vbo_id != 0)
 		{
 			glDeleteBuffers(1, &vbo_id);
@@ -212,13 +246,19 @@ namespace CibraryEngine
 			const VertexAttribute& attrib = iter->second;
 
 			int attrib_size = 0;
-			if(attrib.type == Float)
-				attrib_size = sizeof(float) * attrib.n_per_vertex;
+			switch(attrib.type)
+			{
+				case Float:	{ attrib_size = attrib.n_per_vertex * sizeof(float);	break; }
+				case Int:	{ attrib_size = attrib.n_per_vertex * sizeof(int);		break; }
+			}
 
 			if(attrib_size > 0)
 			{
-				if(attrib.type == Float)
-					glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);
+				switch(attrib.type)
+				{
+					case Float:	{ glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);	break; }
+					case Int:	{ glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);		break; }
+				}
 
 				offset += attrib_size;
 			}
@@ -228,11 +268,11 @@ namespace CibraryEngine
 
 		GLDEBUG();
 	}
-	
+
 	unsigned int VertexBuffer::GetVBO()
 	{
-		if(!vbo_id) 
-			BuildVBO(); 
+		if(!vbo_id)
+			BuildVBO();
 
 		return vbo_id;
 	}
@@ -250,13 +290,19 @@ namespace CibraryEngine
 			const VertexAttribute& attrib = iter->second;
 
 			int attrib_size = 0;
-			if(attrib.type == Float)
-				attrib_size = sizeof(float) * attrib.n_per_vertex;
+			switch(attrib.type)
+			{
+				case Float:	{ attrib_size = attrib.n_per_vertex * sizeof(float);	break; }
+				case Int:	{ attrib_size = attrib.n_per_vertex * sizeof(int);		break; }
+			}
 
 			if(attrib_size > 0)
 			{
-				if(attrib.type == Float)
-					glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);
+				switch(attrib.type)
+				{
+					case Float:	{ glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);	break; }
+					case Int:	{ glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);	break; }
+				}
 
 				offset += attrib_size;
 			}
@@ -341,8 +387,11 @@ namespace CibraryEngine
 					Debug(((stringstream&)(stringstream() << "Couldn't enable attribute \"" << name << "\"" << endl)).str());
 			}
 
-			if(attrib.type == Float)
-				offset += attrib.n_per_vertex * sizeof(float);
+			switch(attrib.type)
+			{
+				case Float:	{ offset += attrib.n_per_vertex * sizeof(float);	break; }
+				case Int:	{ offset += attrib.n_per_vertex * sizeof(int);		break; }
+			}
 		}
 
 		GLDEBUG();
@@ -390,7 +439,7 @@ namespace CibraryEngine
 				}
 				else
 					Debug(((stringstream&)(stringstream() << "Couldn't disable attribute \"" << name << "\"" << endl)).str());
-			}				
+			}
 		}
 
 		glClientActiveTexture(GL_TEXTURE0);			// get texcoords back to working "the normal way"
@@ -417,60 +466,6 @@ namespace CibraryEngine
 	void VertexBuffer::Draw(unsigned int num_instances) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode) { }
 	void VertexBuffer::Draw(unsigned int num_instances, DrawMode mode, unsigned int* indices, int num_indices) { }
-
-	void VertexBuffer::DrawToFeedbackBuffer(VertexBuffer* target, ShaderProgram* shader_program, bool keep_fragments)
-	{
-		GLDEBUG();
-
-		if(!keep_fragments)
-			glEnable(GL_RASTERIZER_DISCARD);
-
-		ShaderProgram::SetActiveProgram(shader_program);
-
-		vector<GLchar const*> strings;
-		vector<string> target_attribs = target->GetAttributes();
-		for(vector<string>::iterator iter = target_attribs.begin(); iter != target_attribs.end(); ++iter)
-			strings.push_back(iter->c_str());
-
-		glTransformFeedbackVaryings(shader_program->program_id, strings.size(), strings.data(), GL_SEPARATE_ATTRIBS);
-
-		// we must re-link the program to force some things to update (i think?)
-		glLinkProgram(shader_program->program_id);
-
-		GLuint query;
-		glGenQueries(1, &query);
-
-		GLuint out_buf;
-		glGenBuffers(1, &out_buf);
-		glBindBuffer(GL_ARRAY_BUFFER, out_buf);
-		glBufferData(GL_ARRAY_BUFFER, 4 * num_verts * sizeof(float), NULL, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, out_buf);
-
-		glBindVertexArray(target->GetVBO());							// something like glBindVertexArray(transform vertex array name);
-
-		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query); 
-		glBeginTransformFeedback((GLenum)storage_mode);
-
-		Draw(storage_mode);
-
-		glEndTransformFeedback();
-		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);
-		
-		glDisable(GL_RASTERIZER_DISCARD);
-
-		GLuint primitives_written = 0;
-		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);
-
-		glDeleteQueries(1, &query);
-
-		/*
-		TODO: put results into target
-		*/
-
-		GLDEBUG();
-	}
 
 
 

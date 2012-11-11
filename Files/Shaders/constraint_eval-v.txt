@@ -1,12 +1,21 @@
 
-attribute vec3 vel;
-attribute vec3 rot;
+uniform samplerBuffer constraint_data;
 
-varying vec3 out_vel_a, out_rot_a;
-varying vec3 out_vel_b, out_rot_b;
+uniform samplerBuffer in_linear_velocities;
+uniform samplerBuffer in_angular_velocities;
+
+attribute int index_a;
+attribute int index_b;
+
+varying vec3 out_vel_a;
+varying vec3 out_rot_a;
+
+varying vec3 out_vel_b;
+varying vec3 out_rot_b;
 
 void main()
 {
-	out_vel_a = out_vel_b = vel;
-	out_rot_a = out_rot_b = rot;
+	out_vel_a = texelFetch(in_linear_velocities, index_a);
+	out_rot_a = texelFetch(in_angular_velocities, index_a);	out_vel_b = texelFetch(in_linear_velocities, index_b);
+	out_rot_b = texelFetch(in_angular_velocities, index_b);
 }
