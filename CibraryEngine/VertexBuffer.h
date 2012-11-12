@@ -55,8 +55,8 @@ namespace CibraryEngine
 	{
 		protected:
 
-			boost::unordered_map<string, VertexAttribute> attributes;
-			boost::unordered_map<string, VertexData> attribute_data;
+			map<string, VertexAttribute> attributes;
+			map<string, VertexData> attribute_data;
 
 			DrawMode storage_mode;
 
@@ -75,7 +75,7 @@ namespace CibraryEngine
 		public:
 
 			/** Constructs a VertexBuffer */
-			VertexBuffer(DrawMode storage_mode);
+			VertexBuffer(DrawMode storage_mode = Points);
 
 			/** Returns the DrawMode for which this VertexBuffer's vertex data is stored */
 			DrawMode GetStorageMode();

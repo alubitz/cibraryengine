@@ -24,7 +24,7 @@ namespace CibraryEngine
 		glDeleteTextures(1, &gl_name);
 		gl_name = 0;
 
-		if(byte_data != NULL)
+		if(byte_data)
 		{
 			delete[] byte_data;
 			byte_data = NULL;
@@ -33,7 +33,7 @@ namespace CibraryEngine
 
 	unsigned int Texture2D::GetGLName()
 	{
-		if(gl_name == 0)
+		if(!gl_name)
 		{
 			GLDEBUG();
 
@@ -79,8 +79,7 @@ namespace CibraryEngine
 		int width, height;
 		vector<unsigned char> image;
 
-		unsigned int result = ImageIO::LoadPNG(filename, image, width, height);
-		if(result != 0)
+		if(unsigned int result = ImageIO::LoadPNG(filename, image, width, height))
 			return NULL;
 		else if(width == 0 || height == 0)
 		{

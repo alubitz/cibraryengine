@@ -5,6 +5,7 @@
 #include "Texture1D.h"
 #include "Texture2D.h"
 #include "Texture3D.h"
+#include "TextureBuffer.h"
 #include "TextureCube.h"
 #include "Vector.h"
 #include "Matrix.h"
@@ -94,6 +95,23 @@ namespace CibraryEngine
 
 			Texture3D* GetValue();
 			void SetValue(Texture3D* t);
+
+			void Disable();
+	};
+
+	class UniformTextureBuffer : public TypedUniformVariable<TextureBuffer>
+	{
+		public:
+
+			int which;
+			TextureBuffer* buffer;
+
+			UniformTextureBuffer(string name, int which);
+
+			TextureBuffer* GetValue();
+			void SetValue(TextureBuffer* b);
+
+			void ApplyValue(int location);
 
 			void Disable();
 	};

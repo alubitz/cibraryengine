@@ -15,12 +15,12 @@ namespace CibraryEngine
 	 * HardwareAcceleratedComputation methods
 	 */
 	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, map<string, string>& output_mapping_, VertexBuffer* output_proto) :
-		shader(shader),
-		shader_program(NULL),
 		output_proto(VertexBuffer::CreateEmptyCopyAttributes(output_proto)),
 		output_mapping(output_mapping_),
 		query(0),
-		init_ok(false)
+		init_ok(false),
+		shader(shader),
+		shader_program(NULL)
 	{
 		if(!shader)					{ DEBUG(); return; }
 
@@ -170,9 +170,6 @@ namespace CibraryEngine
 
 		GLDEBUG();
 
-		// preparation for transform feedback! disable rasterization; only process the vertices!
-		glEnable(GL_RASTERIZER_DISCARD); GLDEBUG();
-
 		ShaderProgram::SetActiveProgram(shader_program); GLDEBUG();
 
 		// resize the output vbo
@@ -180,12 +177,12 @@ namespace CibraryEngine
 		glBufferData(GL_ARRAY_BUFFER, num_input_verts * output_data->GetVertexSize(), NULL, GL_DYNAMIC_COPY);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+		GLDEBUG();
+
 		vector<string> target_attribs = output_data->GetAttributes();
 		unsigned int offset = 0;
 		for(vector<string>::iterator iter = target_attribs.begin(); iter != target_attribs.end(); ++iter)
 		{
-			GLDEBUG();
-
 			const string& attrib_name = *iter;
 			VertexAttributeType attrib_type = output_data->GetAttribType(attrib_name);
 
@@ -204,9 +201,7 @@ namespace CibraryEngine
 					{
 						GLDEBUG();
 
-						glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_vbo, offset, attrib_size);
-
-						GLDEBUG();
+						glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, i, output_vbo, offset, attrib_size);	GLDEBUG();
 						break;
 					}
 
@@ -217,18 +212,20 @@ namespace CibraryEngine
 		GLDEBUG();
 
 		// the actual transform feedback
+		glEnable(GL_RASTERIZER_DISCARD); 
 
-		//glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);		GLDEBUG();
+		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);			GLDEBUG();
 		glBeginTransformFeedback(GL_POINTS);									GLDEBUG();
 		input_data->Draw();														GLDEBUG();
 		glEndTransformFeedback();												GLDEBUG();
-		//glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);					GLDEBUG();
+		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);					GLDEBUG();
 
 		glDisable(GL_RASTERIZER_DISCARD);										GLDEBUG();
+		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
 
-		// getting the results of the transform feedback we just did
-		//GLuint primitives_written = 0;
-		//glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);
+		// getting the results of the transform feedback we just did...
+		GLuint primitives_written = 0;
+		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);		// bizarrely, if this is skipped, it introduces undefined behavior :(
 
 		// keep the size of the VBO wrapper up to date, ensuring UpdateDataFromGL will work properly
 		output_data->SetNumVerts(num_input_verts);

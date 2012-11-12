@@ -49,8 +49,8 @@ namespace CibraryEngine
 		{
 			allocated_size = verts;
 
-			boost::unordered_map<string, VertexData> nu_attribute_data;
-			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			map<string, VertexData> nu_attribute_data;
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				int n_per_vertex = GetAttribNPerVertex(iter->first);
 				switch(GetAttribType(iter->first))
@@ -58,8 +58,7 @@ namespace CibraryEngine
 					case Float:
 					{
 						float* new_data = new float[allocated_size * n_per_vertex];
-						float* old_data = iter->second.floats;
-						if(old_data != NULL)
+						if(float* old_data = iter->second.floats)
 						{
 							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
 								new_data[i] = old_data[i];
@@ -71,8 +70,7 @@ namespace CibraryEngine
 					case Int:
 					{
 						int* new_data = new int[allocated_size * n_per_vertex];
-						int* old_data = iter->second.ints;
-						if(old_data != NULL)
+						if(int* old_data = iter->second.ints)
 						{
 							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
 								new_data[i] = old_data[i];
@@ -84,7 +82,7 @@ namespace CibraryEngine
 				}
 			}
 
-			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				switch(GetAttribType(iter->first))
 				{
@@ -100,13 +98,13 @@ namespace CibraryEngine
 		{
 			allocated_size = 0;
 
-			boost::unordered_map<string, VertexData> nu_attribute_data;
-			for(boost::unordered_map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
+			map<string, VertexData> nu_attribute_data;
+			for(map<string, VertexData>::iterator iter = attribute_data.begin(); iter != attribute_data.end(); ++iter)
 			{
 				switch(GetAttribType(iter->first))
 				{
-					case Float:	{ float* old_data = iter->second.floats;	if(old_data != NULL) { delete[] old_data; } break; }
-					case Int:	{ int* old_data = iter->second.ints;		if(old_data != NULL) { delete[] old_data; } break; }
+					case Float:	{ float* old_data = iter->second.floats;	if(old_data) { delete[] old_data; } break; }
+					case Int:	{ int* old_data = iter->second.ints;		if(old_data) { delete[] old_data; } break; }
 				}
 
 				nu_attribute_data[iter->first] = VertexData();
@@ -137,13 +135,13 @@ namespace CibraryEngine
 
 	void VertexBuffer::RemoveAttribute(const string& name)
 	{
-		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
 		{
 			VertexAttribute attribute = found_name->second;
 			attributes.erase(found_name);
 
-			boost::unordered_map<string, VertexData>::iterator found_attrib = attribute_data.find(name);
+			map<string, VertexData>::iterator found_attrib = attribute_data.find(name);
 			if(found_attrib != attribute_data.end())
 			{
 				VertexData data = found_attrib->second;
@@ -161,7 +159,7 @@ namespace CibraryEngine
 
 	VertexAttributeType VertexBuffer::GetAttribType(const string& name)
 	{
-		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
 			return found_name->second.type;
 		else
@@ -170,7 +168,7 @@ namespace CibraryEngine
 
 	int VertexBuffer::GetAttribNPerVertex(const string& name)
 	{
-		boost::unordered_map<string, VertexAttribute>::iterator found_name = attributes.find(name);
+		map<string, VertexAttribute>::iterator found_name = attributes.find(name);
 		if(found_name != attributes.end())
 			return found_name->second.n_per_vertex;
 		else
@@ -180,7 +178,7 @@ namespace CibraryEngine
 	vector<string> VertexBuffer::GetAttributes()
 	{
 		vector<string> results;
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 			results.push_back(iter->first);
 		return results;
 	}
@@ -188,7 +186,7 @@ namespace CibraryEngine
 	int VertexBuffer::GetVertexSize()
 	{
 		int total_size = 0;
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			VertexAttribute& attrib = iter->second;
 			switch(attrib.type)
@@ -218,7 +216,7 @@ namespace CibraryEngine
 
 	void VertexBuffer::InvalidateVBO()
 	{
-		if(vbo_id != 0)
+		if(vbo_id)
 		{
 			glDeleteBuffers(1, &vbo_id);
 			vbo_id = 0;
@@ -241,7 +239,7 @@ namespace CibraryEngine
 		glBufferData(GL_ARRAY_BUFFER, total_size * num_verts, NULL, GL_STATIC_DRAW);
 
 		int offset = 0;
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
 
@@ -285,7 +283,7 @@ namespace CibraryEngine
 		glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
 
 		int offset = 0;
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
 
@@ -315,7 +313,7 @@ namespace CibraryEngine
 	string* multi_tex_names = NULL;
 	void BuildMultiTexNames()
 	{
-		if(multi_tex_names == NULL)
+		if(!multi_tex_names)
 		{
 			int max_texture_units;
 			glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
@@ -334,7 +332,7 @@ namespace CibraryEngine
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
 		int offset = 0;
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
 			const string& name = iter->first;
@@ -401,7 +399,7 @@ namespace CibraryEngine
 	{
 		GLDEBUG();
 
-		for(boost::unordered_map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
+		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 		{
 			const VertexAttribute& attrib = iter->second;
 			const string& name = iter->first;
@@ -453,11 +451,11 @@ namespace CibraryEngine
 		BuildMultiTexNames();
 
 		GLDEBUG();
-
 		PreDrawEnable();
-		glDrawArrays((GLenum)mode, 0, num_verts);
-		PostDrawDisable();
 
+		glDrawArrays((GLenum)mode, 0, num_verts); GLDEBUG();
+
+		PostDrawDisable();
 		GLDEBUG();
 	}
 

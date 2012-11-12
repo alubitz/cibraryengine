@@ -7,10 +7,13 @@ namespace CibraryEngine
 	using namespace std;
 
 	class PhysicsConstraint;
+	class RigidBody;
+
 	struct ContentMan;
 
 	struct HardwareAcceleratedComputation;
 	struct VertexBuffer;
+	class TextureBuffer;
 
 	class ConstraintGraphSolver
 	{
@@ -24,13 +27,27 @@ namespace CibraryEngine
 			VertexBuffer* velocity_data_a;
 			VertexBuffer* velocity_data_b;
 
+			TextureBuffer* constraint_out_tex;
+			TextureBuffer* vdata_tex_a;
+			TextureBuffer* vdata_tex_b;
+
 			struct BatchData
 			{
 				vector<PhysicsConstraint*> constraints;
-				vector<int> v_xfer_indices;
-			};
 
-			void SelectBatches(vector<PhysicsConstraint*>& constraints, vector<BatchData>& batches);
+				VertexBuffer* v_xfer_indices;
+				TextureBuffer* v_xfer_tex;
+
+				VertexBuffer* eval_obj_indices;
+
+				/**
+				 * Creates a batch containing a subset of the provided constraints containing no adjacent edges
+				 * The list is updated to remove the constraints which were put into the created batch
+				 */
+				BatchData(vector<PhysicsConstraint*>& unassigned, map<RigidBody*, unsigned int> rb_indices);
+
+				void Cleanup();
+			};
 
 		public:
 

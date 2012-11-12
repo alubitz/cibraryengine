@@ -24,7 +24,7 @@ namespace CibraryEngine
 		glDeleteTextures(1, &gl_name);
 		gl_name = 0;
 
-		if(byte_data != NULL)
+		if(byte_data)
 		{
 			for(int i = 0; i < 6; ++i)
 				delete[] byte_data[i];
@@ -35,7 +35,7 @@ namespace CibraryEngine
 
 	unsigned int TextureCube::GetGLName()
 	{
-		if(gl_name == 0)
+		if(!gl_name)
 		{
 			GLDEBUG();
 

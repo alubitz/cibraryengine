@@ -1,11 +1,10 @@
 
-uniform samplerBuffer constraint_data;
+uniform samplerBuffer	constraint_data;
 
-uniform samplerBuffer in_linear_velocities;
-uniform samplerBuffer in_angular_velocities;
+uniform int				velocity_data_size;
+uniform samplerBuffer	velocity_data;
 
-attribute int index_a;
-attribute int index_b;
+attribute ivec2 object_indices;
 
 varying vec3 out_vel_a;
 varying vec3 out_rot_a;
@@ -13,9 +12,16 @@ varying vec3 out_rot_a;
 varying vec3 out_vel_b;
 varying vec3 out_rot_b;
 
+vec3 get_vel(int index) { return texelFetch(velocity_data, index + velocity_data_size).xyz; }
+vec3 get_rot(int index) { return texelFetch(velocity_data, index).xyz; }
+
 void main()
 {
-	out_vel_a = texelFetch(in_linear_velocities, index_a);
-	out_rot_a = texelFetch(in_angular_velocities, index_a);	out_vel_b = texelFetch(in_linear_velocities, index_b);
-	out_rot_b = texelFetch(in_angular_velocities, index_b);
+	out_vel_a = get_vel(object_indices[0]);
+	out_rot_a = get_rot(object_indices[0]);
+
+	out_rot_b = get_rot(object_indices[1]);
+	out_vel_b = get_vel(object_indices[1]);
+
+	// TODO: actually evaluate the constraints!
 }

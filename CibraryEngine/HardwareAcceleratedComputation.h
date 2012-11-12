@@ -16,9 +16,6 @@ namespace CibraryEngine
 	{
 		private:
 
-			Shader* shader;
-			ShaderProgram* shader_program;
-
 			VertexBuffer* output_proto;
 			vector<string>				varying_names;		// needed to keep the vector<const GLchar*> from getting corrupted
 			vector<const GLchar*>		var_name;
@@ -34,6 +31,9 @@ namespace CibraryEngine
 			bool InitShaderProgram();
 
 		public:
+
+			Shader* shader;
+			ShaderProgram* shader_program;
 
 			HardwareAcceleratedComputation(Shader* shader, map<string, string>& output_mapping, VertexBuffer* output_proto);
 			~HardwareAcceleratedComputation();

@@ -10,10 +10,10 @@ namespace CibraryEngine
 	 */
 	UniformInt::UniformInt(string name) : TypedUniformVariable<int>(name), value(0) { }
 
-	void UniformInt::ApplyValue(int location) { glUniform1i(location, value); }
+	void UniformInt::ApplyValue(int location)				{ glUniform1i(location, value); }
 
-	int* UniformInt::GetValue() { return &value; }
-	void UniformInt::SetValue(int* v) { value = *v; }
+	int* UniformInt::GetValue()								{ return &value; }
+	void UniformInt::SetValue(int* v)						{ value = *v; }
 
 
 
@@ -23,10 +23,10 @@ namespace CibraryEngine
 	 */
 	UniformFloat::UniformFloat(string name) : TypedUniformVariable<float>(name), value(0.0f) { }
 
-	void UniformFloat::ApplyValue(int location) { glUniform1f(location, value); }
+	void UniformFloat::ApplyValue(int location)				{ glUniform1f(location, value); }
 
-	float* UniformFloat::GetValue() { return &value; }
-	void UniformFloat::SetValue(float* v) { value = *v; }
+	float* UniformFloat::GetValue()							{ return &value; }
+	void UniformFloat::SetValue(float* v)					{ value = *v; }
 
 
 
@@ -36,10 +36,10 @@ namespace CibraryEngine
 	 */
 	UniformVector3::UniformVector3(string name) : TypedUniformVariable<Vec3>(name), value() { }
 
-	void UniformVector3::ApplyValue(int location) { glUniform3f(location, value.x, value.y, value.z); }
+	void UniformVector3::ApplyValue(int location)			{ glUniform3f(location, value.x, value.y, value.z); }
 
-	Vec3* UniformVector3::GetValue() { return &value; }
-	void UniformVector3::SetValue(Vec3* v) { value = *v; }
+	Vec3* UniformVector3::GetValue()						{ return &value; }
+	void UniformVector3::SetValue(Vec3* v)					{ value = *v; }
 
 
 
@@ -51,22 +51,19 @@ namespace CibraryEngine
 
 	void UniformTexture1D::ApplyValue(int location)
 	{
-		if(texture != NULL)
+		if(texture)
 		{
 			GLDEBUG();
-			glActiveTexture(GL_TEXTURE0 + which);
-			GLDEBUG();
-			glEnable(GL_TEXTURE_1D);
-			GLDEBUG();
-			glBindTexture(GL_TEXTURE_1D, texture->GetGLName());
-			GLDEBUG();
-			glUniform1i(location, which);
-			GLDEBUG();
+
+			glActiveTexture(GL_TEXTURE0 + which);					GLDEBUG();
+			glEnable(GL_TEXTURE_1D);								GLDEBUG();
+			glBindTexture(GL_TEXTURE_1D, texture->GetGLName());		GLDEBUG();
+			glUniform1i(location, which);							GLDEBUG();
 		}
 	}
 
-	Texture1D* UniformTexture1D::GetValue() { return texture; }
-	void UniformTexture1D::SetValue(Texture1D* t) { texture = t; }
+	Texture1D* UniformTexture1D::GetValue()					{ return texture; }
+	void UniformTexture1D::SetValue(Texture1D* t)			{ texture = t; }
 
 	void UniformTexture1D::Disable()
 	{
@@ -85,17 +82,17 @@ namespace CibraryEngine
 
 	void UniformTexture2D::ApplyValue(int location)
 	{
-		if(texture != NULL)
+		if(texture)
 		{
 			glActiveTexture(GL_TEXTURE0 + which);
 			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, texture == NULL ? 0 : texture->GetGLName());
+			glBindTexture(GL_TEXTURE_2D, texture->GetGLName());
 			glUniform1i(location, which);
 		}
 	}
 
-	Texture2D* UniformTexture2D::GetValue() { return texture; }
-	void UniformTexture2D::SetValue(Texture2D* t) { texture = t; }
+	Texture2D* UniformTexture2D::GetValue()					{ return texture; }
+	void UniformTexture2D::SetValue(Texture2D* t)			{ texture = t; }
 
 	void UniformTexture2D::Disable()
 	{
@@ -114,17 +111,17 @@ namespace CibraryEngine
 
 	void UniformTexture3D::ApplyValue(int location)
 	{
-		if(texture != NULL)
+		if(texture)
 		{
 			glActiveTexture(GL_TEXTURE0 + which);
 			glEnable(GL_TEXTURE_3D);
-			glBindTexture(GL_TEXTURE_3D, texture == NULL ? 0 : texture->GetGLName());
+			glBindTexture(GL_TEXTURE_3D, texture->GetGLName());
 			glUniform1i(location, which);
 		}
 	}
 
-	Texture3D* UniformTexture3D::GetValue() { return texture; }
-	void UniformTexture3D::SetValue(Texture3D* t) { texture = t; }
+	Texture3D* UniformTexture3D::GetValue()					{ return texture; }
+	void UniformTexture3D::SetValue(Texture3D* t)			{ texture = t; }
 
 	void UniformTexture3D::Disable()
 	{
@@ -137,26 +134,59 @@ namespace CibraryEngine
 
 
 	/*
+	 * UniformTextureBuffer methods
+	 */
+	UniformTextureBuffer::UniformTextureBuffer(string name, int which) : TypedUniformVariable<TextureBuffer>(name), which(which), buffer(NULL) { }
+
+	void UniformTextureBuffer::ApplyValue(int location)
+	{
+		if(buffer)
+		{
+			GLDEBUG();
+
+			glActiveTexture(GL_TEXTURE0 + which);					GLDEBUG();
+			glBindTexture(GL_TEXTURE_BUFFER, buffer->GetGLName());	GLDEBUG();
+			glUniform1i(location, which);							GLDEBUG();
+		}
+	}
+
+	TextureBuffer* UniformTextureBuffer::GetValue()			{ return buffer; }
+	void UniformTextureBuffer::SetValue(TextureBuffer* b)	{ buffer = b; }
+
+	void UniformTextureBuffer::Disable()
+	{
+		if(buffer)
+		{
+			GLDEBUG();
+
+			glActiveTexture(GL_TEXTURE0 + which);	GLDEBUG();
+			glBindTexture(GL_TEXTURE_BUFFER, 0);	GLDEBUG();
+			glActiveTexture(GL_TEXTURE0);			GLDEBUG();
+		}
+	}
+
+
+
+
+	/*
 	 * UniformTextureCube methods
 	 */
 	UniformTextureCube::UniformTextureCube(string name, int which) : TypedUniformVariable<TextureCube>(name), which(which), cubemap(NULL) { }
 
 	void UniformTextureCube::ApplyValue(int location)
 	{
-		if(cubemap != NULL)
+		if(cubemap)
 		{
 			GLDEBUG();
-			glActiveTexture(GL_TEXTURE0 + which);
-			GLDEBUG();
-			glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap == NULL ? 0 : cubemap->GetGLName());
-			GLDEBUG();
-			glUniform1i(location, which);
-			GLDEBUG();
+
+			glActiveTexture(GL_TEXTURE0 + which);						GLDEBUG();
+			glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->GetGLName());	GLDEBUG();
+			glUniform1i(location, which);								GLDEBUG();
 		}
 	}
 
-	TextureCube* UniformTextureCube::GetValue() { return cubemap; }
-	void UniformTextureCube::SetValue(TextureCube* c) { cubemap = c; }
+	TextureCube* UniformTextureCube::GetValue()				{ return cubemap; }
+	void UniformTextureCube::SetValue(TextureCube* c)		{ cubemap = c; }
 
 	void UniformTextureCube::Disable()
 	{
@@ -166,18 +196,17 @@ namespace CibraryEngine
 	}
 
 
+
+
 	/*
 	 * UniformMatrix4 methods
 	 */
 	UniformMatrix4::UniformMatrix4(string name, bool transpose) : TypedUniformVariable<Mat4>(name), transpose(transpose), matrix() { }
 
-	void UniformMatrix4::ApplyValue(int location)
-	{
-		glUniformMatrix4fv(location, 1, transpose, matrix.values);
-	}
+	void UniformMatrix4::ApplyValue(int location)			{ glUniformMatrix4fv(location, 1, transpose, matrix.values); }
 
-	Mat4* UniformMatrix4::GetValue() { return &matrix; }
-	void UniformMatrix4::SetValue(Mat4* mat) { matrix = *mat; }
+	Mat4* UniformMatrix4::GetValue()						{ return &matrix; }
+	void UniformMatrix4::SetValue(Mat4* mat)				{ matrix = *mat; }
 
 
 

@@ -23,7 +23,7 @@ namespace CibraryEngine
 		glDeleteTextures(1, &gl_name);
 		gl_name = 0;
 
-		if(byte_data != NULL)
+		if(byte_data)
 		{
 			delete[] byte_data;
 			byte_data = NULL;
@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 	unsigned int Texture3D::GetGLName()
 	{
-		if(gl_name == 0)
+		if(!gl_name)
 		{
 			GLDEBUG();
 
