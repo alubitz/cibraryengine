@@ -2,17 +2,17 @@
 uniform int				constraint_results_size;
 uniform samplerBuffer	constraint_results;
 
-uniform isamplerBuffer	transfer_indices;
+uniform samplerBuffer	transfer_indices;
 
-attribute vec3 vel;
-attribute vec3 rot;
+attribute vec4 vel;
+attribute vec4 rot;
 
-varying vec3 out_vel;
-varying vec3 out_rot;
+varying vec4 out_vel;
+varying vec4 out_rot;
 
 void main()
 {
-	int transfer_index = texelFetch(transfer_indices, gl_VertexID).x;
+	int transfer_index = int(texelFetch(transfer_indices, gl_VertexID)[0]);
 
 	if(transfer_index == 0)
 	{

@@ -343,7 +343,7 @@ namespace CibraryEngine
 				if(!strcmp(name_cstr, "gl_Vertex"))
 				{
 					glEnable(GL_VERTEX_ARRAY);
-					glVertexPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0,	(void*)(num_verts * offset));
+					glVertexPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
 				}
 				else if(!strcmp(name_cstr, "gl_Normal"))
 				{
@@ -377,7 +377,7 @@ namespace CibraryEngine
 				if(index != -1)
 				{
 					glEnableVertexAttribArray((GLuint)index);
-					glVertexAttribPointer((GLuint)index, attrib.n_per_vertex, (GLenum)attrib.type, true, 0, (void*)(num_verts * offset));
+					glVertexAttribPointer((GLuint)index, attrib.n_per_vertex, attrib.type, false, 0, (void*)(num_verts * offset));
 
 					GLDEBUG();
 				}
@@ -434,9 +434,7 @@ namespace CibraryEngine
 				{
 					glDisableVertexAttribArray((GLuint)index);
 					GLDEBUG();
-				}
-				else
-					Debug(((stringstream&)(stringstream() << "Couldn't disable attribute \"" << name << "\"" << endl)).str());
+				}									// no "else" for disabling (no need for 2x the debug spew)
 			}
 		}
 
