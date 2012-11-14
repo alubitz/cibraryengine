@@ -22,19 +22,11 @@ namespace CibraryEngine
 		{
 			GLDEBUG();
 
-			glGenTextures(1, &gl_name);										GLDEBUG();
+			glGenTextures(1, &gl_name);						GLDEBUG();
 
-			SetBuffer(buffer);
+			glBindTexture(GL_TEXTURE_BUFFER, gl_name);		GLDEBUG();
+			glBindTexture(GL_TEXTURE_BUFFER, 0);			GLDEBUG();
 		}
 		return gl_name;
-	}
-
-	void TextureBuffer::SetBuffer(VertexBuffer* buffer_)
-	{
-		buffer = buffer_;
-
-		glBindTexture(GL_TEXTURE_BUFFER, gl_name);						GLDEBUG();
-		glTexBufferEXT(GL_TEXTURE_BUFFER, format, buffer->GetVBO());	GLDEBUG();
-		glBindTexture(GL_TEXTURE_BUFFER, 0);							GLDEBUG();
 	}
 }

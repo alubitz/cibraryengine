@@ -24,8 +24,6 @@ namespace CibraryEngine
 
 			map<string, string>			output_mapping;
 
-			GLuint query;
-
 			bool init_ok;
 
 			bool InitShaderProgram();

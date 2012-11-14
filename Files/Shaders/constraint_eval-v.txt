@@ -1,19 +1,85 @@
 
-uniform samplerBuffer	constraint_data;
+uniform samplerBuffer	constraint_data;
+attribute float			constraint_data_index;		// index into the above
+uniform int				num_rigid_bodies;
 
-uniform int				velocity_data_size;
 uniform samplerBuffer	velocity_data;
+uniform samplerBuffer	mass_infos;
 
-attribute vec2 object_indices;
+attribute vec2			object_indices;				// indices into the above
 
-varying vec4 out_vel_a;
+
+
 varying vec4 out_rot_a;
-
-varying vec4 out_vel_b;
 varying vec4 out_rot_b;
 
-vec3 get_vel(int index) { return texelFetch(velocity_data, index + velocity_data_size).xyz; }
+varying vec4 out_vel_a;
+varying vec4 out_vel_b;
+
+
+
+struct MassInfo
+{
+	float inv_mass;
+	vec3 com;
+	mat3 inv_moi;
+};
+
+MassInfo get_mass_info(int index)
+{
+	MassInfo result;
+
+	vec4 first_sample = texelFetch(mass_infos, index * 4);
+	result.inv_mass = first_sample.x;
+	result.com = first_sample.yzw;
+	result.inv_moi = mat3(texelFetch(mass_infos, index * 4 + 1), texelFetch(mass_infos, index * 4 + 2), texelFetch(mass_infos, index * 4 + 3).x);
+
+	return result;
+}
+
+vec3 get_vel(int index) { return texelFetch(velocity_data, index + num_rigid_bodies).xyz; }
 vec3 get_rot(int index) { return texelFetch(velocity_data, index).xyz; }
+
+void process_contact_point(
+	int data_index,
+	vec4 data_sample,
+	in out vec3 vel_a,
+	in out vec3 vel_b,
+	in out vec3 rot_a,
+	in out vec3 rot_b     )
+{
+	MassInfo A = get_mass_info(int(object_indices[0]));
+	MassInfo B = get_mass_info(int(object_indices[1]));
+
+	vel_a.y += A.inv_mass;
+	vel_b.y -= B.inv_mass;
+}
+
+void process_joint_constraint(
+	int data_index,
+	vec4 data_sample,
+	in out vec3 vel_a,
+	in out vec3 vel_b,
+	in out vec3 rot_a,
+	in out vec3 rot_b        )
+{
+	process_contact_point(data_index, data_sample, vel_a, vel_b, rot_a, rot_b);
+}
+
+void process_constraint(
+	int data_index,
+	in out vec3 vel_a,
+	in out vec3 vel_b,
+	in out vec3 rot_a,
+	in out vec3 rot_b  )
+{
+	vec4 data_sample = texelFetch(constraint_data, data_index);
+
+	if(data_sample.x > 0)
+		process_contact_point   (data_index, data_sample, vel_a, vel_b, rot_a, rot_b);
+	else
+		process_joint_constraint(data_index, data_sample, vel_a, vel_b, rot_a, rot_b);
+}
 
 void main()
 {
@@ -25,6 +91,8 @@ void main()
 
 	out_vel_b = vec4(get_vel(index_b), 0.0);
 	out_rot_b = vec4(get_rot(index_b), 0.0);
+
+	process_constraint(int(constraint_data_index), out_vel_a.xyz, out_vel_b.xyz, out_rot_a.xyz, out_rot_b.xyz);
 
 	// TODO: actually evaluate the constraints!
 }

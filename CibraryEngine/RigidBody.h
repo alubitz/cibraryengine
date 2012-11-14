@@ -27,6 +27,7 @@ namespace CibraryEngine
 		friend class PhysicsRegion;
 		friend struct ContactPoint;
 		friend class JointConstraint;
+		friend class ConstraintGraphSolver;
 
 		private:
 

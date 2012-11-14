@@ -23,7 +23,5 @@ namespace CibraryEngine
 			TextureBuffer(VertexBuffer* buffer, GLenum format);
 
 			unsigned int GetGLName();
-
-			void SetBuffer(VertexBuffer* buffer);
 	};
 }

@@ -607,7 +607,7 @@ namespace CibraryEngine
 
 			bounce_coeff = -(1.0f + obj_a->bounciness * obj_b->bounciness);
 			kfric_coeff = sfric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
-			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
+			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;			// this isn't actually used right now, because angular friction is disabled
 
 			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
 			r1 = use_pos - obj_a->cached_com;
@@ -661,7 +661,7 @@ namespace CibraryEngine
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot < 0.0f)
-		{		
+		{
 			float impulse_mag = bounce_coeff * GetInwardVelocity() * use_mass;
 			if(impulse_mag < 0)
 			{

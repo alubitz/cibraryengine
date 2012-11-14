@@ -17,7 +17,6 @@ namespace CibraryEngine
 	HardwareAcceleratedComputation::HardwareAcceleratedComputation(Shader* shader, map<string, string>& output_mapping_, VertexBuffer* output_proto) :
 		output_proto(VertexBuffer::CreateEmptyCopyAttributes(output_proto)),
 		output_mapping(output_mapping_),
-		query(0),
 		init_ok(false),
 		shader(shader),
 		shader_program(NULL)
@@ -32,7 +31,6 @@ namespace CibraryEngine
 				output_mapping[*iter] = *iter;
 		}
 
-		glGenQueries(1, &query);
 		if(!InitShaderProgram())	{ DEBUG(); return; }
 
 		GLDEBUG();
@@ -46,8 +44,6 @@ namespace CibraryEngine
 
 		if(output_proto)	{ output_proto->Dispose();		delete output_proto;	output_proto = NULL;	}
 		if(shader_program)	{ shader_program->Dispose();	delete shader_program;	shader_program = NULL;	}
-
-		glDeleteQueries(1, &query);
 
 		GLDEBUG();
 	}
@@ -214,21 +210,17 @@ namespace CibraryEngine
 		// the actual transform feedback
 		glEnable(GL_RASTERIZER_DISCARD); 
 
-		glBeginQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, query);			GLDEBUG();
 		glBeginTransformFeedback(GL_POINTS);									GLDEBUG();
 		input_data->Draw();														GLDEBUG();
 		glEndTransformFeedback();												GLDEBUG();
-		glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);					GLDEBUG();
 
 		glDisable(GL_RASTERIZER_DISCARD);										GLDEBUG();
 		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
 
-		// getting the results of the transform feedback we just did...
-		GLuint primitives_written = 0;
-		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &primitives_written);		// bizarrely, if this is skipped, it introduces undefined behavior :(
-
 		// keep the size of the VBO wrapper up to date, ensuring UpdateDataFromGL will work properly
 		output_data->SetNumVerts(num_input_verts);
+
+		glFlush();
 
 		ShaderProgram::SetActiveProgram(NULL); GLDEBUG();
 	}

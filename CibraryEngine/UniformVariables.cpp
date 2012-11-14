@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "UniformVariables.h"
 
+#include "VertexBuffer.h"
+
 #include "DebugLog.h"
 
 namespace CibraryEngine
@@ -144,9 +146,10 @@ namespace CibraryEngine
 		{
 			GLDEBUG();
 
-			glActiveTexture(GL_TEXTURE0 + which);					GLDEBUG();
-			glBindTexture(GL_TEXTURE_BUFFER, buffer->GetGLName());	GLDEBUG();
-			glUniform1i(location, which);							GLDEBUG();
+			glActiveTexture(GL_TEXTURE0 + which);											GLDEBUG();
+			glBindTexture(GL_TEXTURE_BUFFER, buffer->GetGLName());							GLDEBUG();
+			glTexBufferEXT(GL_TEXTURE_BUFFER, buffer->format, buffer->buffer->GetVBO());	GLDEBUG();
+			glUniform1i(location, which);													GLDEBUG();
 		}
 	}
 
