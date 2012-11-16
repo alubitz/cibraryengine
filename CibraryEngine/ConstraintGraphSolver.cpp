@@ -232,10 +232,10 @@ namespace CibraryEngine
 
 		unsigned int num_rigid_bodies = rigid_bodies.size();
 
-		// put rigid bodies' velocity data into the vertex buffer
+		// put rigid bodies' velocity data and mass infos into their respective vertex buffers
 		velocity_data_a->SetNumVerts(num_rigid_bodies);
 		velocity_data_b->SetNumVerts(num_rigid_bodies);
-		mass_infos->SetNumVerts(num_rigid_bodies * 4);
+		mass_infos->SetNumVerts(num_rigid_bodies * 4);			// 13 floats rounds up to 4 texels
 
 		float* lv_ptr = velocity_data_a->GetFloatPointer("vel");
 		float* av_ptr = velocity_data_a->GetFloatPointer("rot");
