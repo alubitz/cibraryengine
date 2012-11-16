@@ -174,6 +174,8 @@ namespace CibraryEngine
 
 		bool DoCollisionResponse() const;
 
+		void WriteDataToBuffer(float* ptr);
+
 		static ContactPoint* New();
 		static ContactPoint* New(const ContactPoint& cp);
 

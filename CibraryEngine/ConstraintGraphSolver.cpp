@@ -18,12 +18,15 @@
 #include "TextureBuffer.h"
 #include "UniformVariables.h"
 
+#define TEXELS_PER_JC 9
+#define TEXELS_PER_CP 6
+
 namespace CibraryEngine
 {
 	/*
 	 * ConstraintGraphSolver::BatchData methods
 	 */
-	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, map<RigidBody*, unsigned int>& rb_indices) :
+	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index) :
 		constraints(),
 		v_xfer_indices(NULL),
 		v_xfer_tex(NULL),
@@ -65,6 +68,8 @@ namespace CibraryEngine
 		eval_obj_indices->AddAttribute("constraint_data_index", Float, 1);
 		eval_obj_indices->AddAttribute("object_indices", Float, 2);
 		eval_obj_indices->SetNumVerts(constraints.size());
+
+		float* texel_index_ptr = eval_obj_indices->GetFloatPointer("constraint_data_index");
 		float* eval_obj_indices_ptr = eval_obj_indices->GetFloatPointer("object_indices");
 
 		// populate both of those buffers
@@ -79,6 +84,23 @@ namespace CibraryEngine
 
 			*(eval_obj_indices_ptr++) = (float)index_a;
 			*(eval_obj_indices_ptr++) = (float)index_b;
+
+			// put constraints' data into the constraint data buffer
+			*(texel_index_ptr++) = (float)texel_index;
+			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
+			{
+				jc->WriteDataToBuffer(data_ptr);
+
+				data_ptr += TEXELS_PER_JC * 4;
+				texel_index += TEXELS_PER_JC;
+			}
+			else
+			{
+				((ContactPoint*)*iter)->WriteDataToBuffer(data_ptr);
+
+				data_ptr += TEXELS_PER_CP * 4;
+				texel_index += TEXELS_PER_CP;
+			}
 		}
 
 		v_xfer_indices->BuildVBO();
@@ -147,9 +169,12 @@ namespace CibraryEngine
 		constraint_eval_out->AddAttribute("rot_b", Float, 4);
 
 		mass_infos = new VertexBuffer();
-		mass_infos->AddAttribute("data", Float, 4);			// NOTE: mass info data is interleaved!
+		mass_infos->AddAttribute("data", Float, 4);
+		mass_info_tex = new TextureBuffer(mass_infos, GL_RGBA32F);					// bunch of data packed into a handful of consecutive texels!
 
-		mass_info_tex = new TextureBuffer(mass_infos, GL_RGBA32F);
+		constraint_data = new VertexBuffer();
+		constraint_data->AddAttribute("data", Float, 4);
+		constraints_tex = new TextureBuffer(constraint_data, GL_RGBA32F);			// bunch of data packed into a handful of consecutive texels!
 
 		map<string, string> constraint_eval_output_map;
 		constraint_eval_output_map["out_vel_a"] = "vel_a";
@@ -163,12 +188,15 @@ namespace CibraryEngine
 		if(!constraint_eval_prog)
 			return;
 
+		constraint_eval_prog->AddUniform<float>(			new UniformFloat(			"timestep"							));
 		constraint_eval_prog->AddUniform<int>(				new UniformInt(				"num_rigid_bodies"					));
 		constraint_eval_prog->AddUniform<TextureBuffer>(	new UniformTextureBuffer(	"constraint_data",				0	));
 		constraint_eval_prog->AddUniform<TextureBuffer>(	new UniformTextureBuffer(	"velocity_data",				1	));
 		constraint_eval_prog->AddUniform<TextureBuffer>(	new UniformTextureBuffer(	"mass_infos",					2	));
 
-		constraint_eval_prog->SetUniform<TextureBuffer>("mass_infos", mass_info_tex);			// the corresponding VertexBuffer pointer won't change
+		// set these once and be done with them (the corresponding VertexBuffer pointers won't change)
+		constraint_eval_prog->SetUniform<TextureBuffer>( "mass_infos",      mass_info_tex   );
+		constraint_eval_prog->SetUniform<TextureBuffer>( "constraint_data", constraints_tex );
 
 		constraint_out_tex = new TextureBuffer(constraint_eval_out, GL_RGBA32F);
 
@@ -195,6 +223,9 @@ namespace CibraryEngine
 		vdata_copy_prog->AddUniform<TextureBuffer>(			new UniformTextureBuffer(	"constraint_results",			0	));
 		vdata_copy_prog->AddUniform<TextureBuffer>(			new UniformTextureBuffer(	"transfer_indices",				1	));
 
+		// set this once and be done with it (the corresponding VertexBuffer pointer won't change)
+		vdata_copy_prog->SetUniform<TextureBuffer>("constraint_results", constraint_out_tex);
+
 		vdata_tex_a = new TextureBuffer(velocity_data_a, GL_RGBA32F);
 		vdata_tex_b = new TextureBuffer(velocity_data_b, GL_RGBA32F);
 
@@ -203,14 +234,15 @@ namespace CibraryEngine
 		init_ok = true;
 	}
 
-	void ConstraintGraphSolver::Solve(unsigned int iterations, vector<PhysicsConstraint*>& constraints)
+	void ConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
 		if(!init_ok)
 			return;
 
-		// collect unique rigid bodies in a vector, and map to each one its index... should this be non-static only?
+		// collect unique rigid bodies in a vector, and map to each one its index... and while we're at it, tally how many constraints there are of each type
 		vector<RigidBody*> rigid_bodies;
 		map<RigidBody*, unsigned int> rb_indices;
+		unsigned int joint_constraints = 0, contact_points = 0;
 
 		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 		{
@@ -228,9 +260,14 @@ namespace CibraryEngine
 				rb_indices[rb_b] = rigid_bodies.size();
 				rigid_bodies.push_back(rb_b);
 			}
-		}
 
+			if(dynamic_cast<JointConstraint*>(constraint))
+				++joint_constraints;
+			else
+				++contact_points;
+		}
 		unsigned int num_rigid_bodies = rigid_bodies.size();
+
 
 		// put rigid bodies' velocity data and mass infos into their respective vertex buffers
 		velocity_data_a->SetNumVerts(num_rigid_bodies);
@@ -280,10 +317,16 @@ namespace CibraryEngine
 		velocity_data_b->BuildVBO();
 		mass_infos->BuildVBO();
 
+		constraint_data->SetNumVerts(joint_constraints * TEXELS_PER_JC + contact_points * TEXELS_PER_CP);
+		float* constraint_data_ptr = constraint_data->GetFloatPointer("data");
+		unsigned int constraint_texel_index = 0;
+
 		vector<BatchData> batches;
 		vector<PhysicsConstraint*> unassigned = constraints;
 		while(!unassigned.empty())
-			batches.push_back(BatchData(unassigned, rb_indices));
+			batches.push_back(BatchData(unassigned, rb_indices, constraint_data_ptr, constraint_texel_index));
+
+		constraint_data->BuildVBO();
 		
 		Debug(((stringstream&)(stringstream() << "number of batches = " << batches.size() << endl)).str());
 
@@ -292,29 +335,28 @@ namespace CibraryEngine
 		TextureBuffer *active_vtex = vdata_tex_a, *inactive_vtex = vdata_tex_b;
 
 		// do the actual solving
+		ShaderProgram* constraint_eval_prog = constraint_eval_hac->shader_program;
+		ShaderProgram* vdata_copy_prog = vdata_copy_hac->shader_program;
+		
+		int velocity_data_size = (int)num_rigid_bodies;
+		constraint_eval_prog->SetUniform<float>(					"timestep",					&timestep					);
+		constraint_eval_prog->SetUniform<int>(						"num_rigid_bodies",			&velocity_data_size			);
+
 		for(unsigned int i = 0; i < iterations; ++i)
 			for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
 			{
 				BatchData& batch = *iter;
 
 				// do constraint shader stuff
-				ShaderProgram* constraint_eval_prog = constraint_eval_hac->shader_program;
-				int velocity_data_size = (int)num_rigid_bodies;
-				constraint_eval_prog->SetUniform<int>(				"num_rigid_bodies",			&velocity_data_size);
-				constraint_eval_prog->SetUniform<TextureBuffer>(	"velocity_data",			active_vtex);
-
+				constraint_eval_prog->SetUniform<TextureBuffer>(	"velocity_data",			active_vtex					);
 				constraint_eval_hac->Process(batch.eval_obj_indices, constraint_eval_out);
 
 
 
 				// update master array of velocity data
-				ShaderProgram* vdata_copy_prog = vdata_copy_hac->shader_program;
-
 				int constraint_results_size = (int)constraint_eval_out->GetNumVerts();
-				vdata_copy_prog->SetUniform<int>(					"constraint_results_size",	&constraint_results_size);
-				vdata_copy_prog->SetUniform<TextureBuffer>(			"constraint_results",		constraint_out_tex);
-				vdata_copy_prog->SetUniform<TextureBuffer>(			"transfer_indices",			batch.v_xfer_tex);
-
+				vdata_copy_prog->SetUniform<int>(					"constraint_results_size",	&constraint_results_size	);
+				vdata_copy_prog->SetUniform<TextureBuffer>(			"transfer_indices",			batch.v_xfer_tex			);
 				vdata_copy_hac->Process(active_vdata, inactive_vdata);
 
 				// change which direction the copying is going (back and forth)... can't use one buffer as both input and output or it will be undefined behavior!

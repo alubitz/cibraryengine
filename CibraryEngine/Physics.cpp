@@ -372,7 +372,7 @@ namespace CibraryEngine
 #endif
 
 		//SolveConstraintGraph(use_constraints);
-		cgraph_solver->Solve(MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
+		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
 		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(); iter != temp_contact_points.end(); ++iter)
 			ContactPoint::Delete(*iter);
@@ -770,6 +770,41 @@ namespace CibraryEngine
 				obj_b->xform_valid = false;
 			}
 		}
+	}
+
+	void ContactPoint::WriteDataToBuffer(float* ptr)
+	{
+		BuildCache();
+
+		ptr[0] =	1.0f;
+		ptr[1] =	use_mass;
+		ptr[2] =	bounce_coeff;
+		ptr[3] =	sfric_coeff;
+
+		ptr[4] =	normal.x;
+		ptr[5] =	normal.y;
+		ptr[6] =	normal.z;
+		ptr[7] =	nr2.x;
+
+		ptr[8] =	r1.x;
+		ptr[9] =	r1.y;
+		ptr[10] =	r1.z;
+		ptr[11] =	nr2.y;
+		
+		ptr[12] =	r2.x;
+		ptr[13] =	r2.y;
+		ptr[14] =	r2.z;
+		ptr[15] =	nr2.z;
+
+		ptr[16] =	nr1.x;
+		ptr[17] =	nr1.y;
+		ptr[18] =	nr1.z;
+		// ptr[19] is unused
+
+		ptr[20] =	use_pos.x;
+		ptr[21] =	use_pos.y;
+		ptr[22] =	use_pos.z;
+		// ptr[23] is unused
 	}
 
 	/*

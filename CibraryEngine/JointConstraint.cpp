@@ -118,4 +118,54 @@ namespace CibraryEngine
 		r1 = apply_pos - obj_a->cached_com;
 		r2 = apply_pos - obj_b->cached_com;
 	}
+
+	void JointConstraint::WriteDataToBuffer(float* ptr)
+	{
+		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+
+		ptr[0] =	-1.0f;
+		ptr[1] =	desired_dv.x;
+		ptr[2] =	desired_dv.y;
+		ptr[3] =	desired_dv.z;
+
+		ptr[4] =	apply_pos.x;
+		ptr[5] =	apply_pos.y;
+		ptr[6] =	apply_pos.z;
+		ptr[7] =	oriented_axes[0];
+
+		ptr[8] =	oriented_axes[1];
+		ptr[9] =	oriented_axes[2];
+		ptr[10] =	oriented_axes[3];
+		ptr[11] =	oriented_axes[4];
+
+		ptr[12] =	oriented_axes[5];
+		ptr[13] =	oriented_axes[6];
+		ptr[14] =	oriented_axes[7];
+		ptr[15] =	oriented_axes[8];
+
+		ptr[16] =	a_to_b.x;
+		ptr[17] =	a_to_b.y;
+		ptr[18] =	a_to_b.z;
+		ptr[19] =	a_to_b.w;
+
+		ptr[20] =	min_extents.x;
+		ptr[21] =	min_extents.y;
+		ptr[22] =	min_extents.z;
+		ptr[23] =	net_moi[0];
+
+		ptr[24] =	net_moi[1];
+		ptr[25] =	net_moi[2];
+		ptr[26] =	net_moi[3];
+		ptr[27] =	net_moi[4];
+
+		ptr[28] =	net_moi[5];
+		ptr[29] =	net_moi[6];
+		ptr[30] =	net_moi[7];
+		ptr[31] =	net_moi[8];
+
+		ptr[32] =	max_extents.x;
+		ptr[33] =	max_extents.y;
+		ptr[34] =	max_extents.z;
+		// ptr[35] is unused
+	}
 }
