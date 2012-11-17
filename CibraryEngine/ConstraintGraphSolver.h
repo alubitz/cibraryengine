@@ -20,15 +20,12 @@ namespace CibraryEngine
 		private:
 
 			HardwareAcceleratedComputation* constraint_eval_hac;
-			HardwareAcceleratedComputation* vdata_copy_hac;					// copy velocity data between constraint batches
 
-			VertexBuffer* constraint_eval_out;
 			VertexBuffer* velocity_data_a;
 			VertexBuffer* velocity_data_b;
 			VertexBuffer* constraint_data;
 			VertexBuffer* mass_infos;
 
-			TextureBuffer* constraint_out_tex;
 			TextureBuffer* vdata_tex_a;
 			TextureBuffer* vdata_tex_b;
 			TextureBuffer* constraints_tex;
@@ -41,9 +38,6 @@ namespace CibraryEngine
 				vector<PhysicsConstraint*> constraints;
 
 				VertexBuffer* v_xfer_indices;
-				TextureBuffer* v_xfer_tex;
-
-				VertexBuffer* eval_obj_indices;
 
 				/**
 				 * Creates a batch containing a subset of the provided constraints containing no adjacent edges

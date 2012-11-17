@@ -46,9 +46,7 @@ namespace CibraryEngine
 	 */
 	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index) :
 		constraints(),
-		v_xfer_indices(NULL),
-		v_xfer_tex(NULL),
-		eval_obj_indices(NULL)
+		v_xfer_indices(NULL)
 	{
 		static vector<PhysicsConstraint*> nu_unassigned;
 		static SmartHashSet<RigidBody, 37> used_nodes;
@@ -77,21 +75,14 @@ namespace CibraryEngine
 
 		// init velocity transfer indices buffer (used as a uniform buffer texture)
 		v_xfer_indices = new VertexBuffer();
-		v_xfer_indices->AddAttribute("indices", Float, 1);
+		v_xfer_indices->AddAttribute("constraint_data_index", Float, 1);
+		v_xfer_indices->AddAttribute("object_indices", Float, 2);
 		v_xfer_indices->SetNumVerts(rb_indices.size());
 
-		float* v_xfer_array = v_xfer_indices->GetFloatPointer("indices");
-		memset(v_xfer_array, 0, rb_indices.size() * sizeof(float));
-		
+		float* constraint_index_array = v_xfer_indices->GetFloatPointer("constraint_data_index");
+		memset(constraint_index_array, 0, rb_indices.size() * sizeof(float));
 
-		// init constraint eval input index buffer (used as an attribute)
-		eval_obj_indices = new VertexBuffer();
-		eval_obj_indices->AddAttribute("constraint_data_index", Float, 1);
-		eval_obj_indices->AddAttribute("object_indices", Float, 2);
-		eval_obj_indices->SetNumVerts(constraints.size());
-
-		float* texel_index_ptr = eval_obj_indices->GetFloatPointer("constraint_data_index");
-		float* eval_obj_indices_ptr = eval_obj_indices->GetFloatPointer("object_indices");
+		float* object_index_array = v_xfer_indices->GetFloatPointer("object_indices");
 
 		// populate both of those buffers
 		int next_index = 0;
@@ -100,14 +91,11 @@ namespace CibraryEngine
 			unsigned int index_a = rb_indices[(*iter)->obj_a];
 			unsigned int index_b = rb_indices[(*iter)->obj_b];
 
-			v_xfer_array[index_a] = (float)++next_index;					// odd indices are velocity data from the first object of a constraint pair
-			v_xfer_array[index_b] = (float)++next_index;					// even indices are from the second
+			constraint_index_array[index_a] = constraint_index_array[index_b] = (float)(texel_index + 1);
 
-			*(eval_obj_indices_ptr++) = (float)index_a;
-			*(eval_obj_indices_ptr++) = (float)index_b;
+			object_index_array[index_a * 2    ] = object_index_array[index_b * 2    ] = (float)index_a;
+			object_index_array[index_a * 2 + 1] = object_index_array[index_b * 2 + 1] = (float)index_b;
 
-			// put constraints' data into the constraint data buffer
-			*(texel_index_ptr++) = (float)texel_index;
 			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
 			{
 				jc->WriteDataToBuffer(data_ptr);
@@ -123,15 +111,11 @@ namespace CibraryEngine
 				texel_index += TEXELS_PER_CP;
 			}
 		}
-
-		v_xfer_tex = new TextureBuffer(v_xfer_indices, GL_R32F);
 	}
 
 	void ConstraintGraphSolver::BatchData::Cleanup()
 	{
-		if(v_xfer_tex)			{ v_xfer_tex->Dispose();		delete v_xfer_tex;			v_xfer_tex = NULL; }
 		if(v_xfer_indices)		{ v_xfer_indices->Dispose();	delete v_xfer_indices;		v_xfer_indices = NULL; }
-		if(eval_obj_indices)	{ eval_obj_indices->Dispose();	delete eval_obj_indices;	eval_obj_indices = NULL; }
 	}
 
 
@@ -142,13 +126,10 @@ namespace CibraryEngine
 	 */
 	ConstraintGraphSolver::ConstraintGraphSolver() :
 		constraint_eval_hac(NULL),
-		vdata_copy_hac(NULL),
-		constraint_eval_out(NULL),
 		velocity_data_a(NULL),
 		velocity_data_b(NULL),
 		constraint_data(NULL),
 		mass_infos(NULL),
-		constraint_out_tex(NULL),
 		vdata_tex_a(NULL),
 		vdata_tex_b(NULL),
 		constraints_tex(NULL),
@@ -160,15 +141,12 @@ namespace CibraryEngine
 	ConstraintGraphSolver::~ConstraintGraphSolver()
 	{
 		if(constraint_eval_hac)	{ delete constraint_eval_hac;	constraint_eval_hac = NULL;	}
-		if(vdata_copy_hac)		{ delete vdata_copy_hac;		vdata_copy_hac = NULL;		}
 
-		if(constraint_out_tex)	{ constraint_out_tex->Dispose();	delete constraint_out_tex;	constraint_out_tex = NULL;	}
 		if(vdata_tex_a)			{ vdata_tex_a->Dispose();			delete vdata_tex_a;			vdata_tex_a = NULL;			}
 		if(vdata_tex_b)			{ vdata_tex_b->Dispose();			delete vdata_tex_b;			vdata_tex_b = NULL;			}
 		if(constraints_tex)		{ constraints_tex->Dispose();		delete constraints_tex;		constraints_tex = NULL;		}
 		if(mass_info_tex)		{ mass_info_tex->Dispose();			delete mass_info_tex;		mass_info_tex = NULL;		}
 
-		if(constraint_eval_out)	{ constraint_eval_out->Dispose();	delete constraint_eval_out;	constraint_eval_out = NULL;	}
 		if(velocity_data_a)		{ velocity_data_a->Dispose();		delete velocity_data_a;		velocity_data_a = NULL;		}
 		if(velocity_data_b)		{ velocity_data_b->Dispose();		delete velocity_data_b;		velocity_data_b = NULL;		}
 		if(constraint_data)		{ constraint_data->Dispose();		delete constraint_data;		constraint_data = NULL;		}
@@ -191,12 +169,6 @@ namespace CibraryEngine
 		Cache<Shader>* shader_cache = content->GetCache<Shader>();
 
 		// initialize stuff pertaining to constraint evaluator HAC
-		constraint_eval_out = new VertexBuffer();
-		constraint_eval_out->AddAttribute("vel_a", Float, 4);
-		constraint_eval_out->AddAttribute("vel_b", Float, 4);
-		constraint_eval_out->AddAttribute("rot_a", Float, 4);
-		constraint_eval_out->AddAttribute("rot_b", Float, 4);
-
 		mass_infos = new VertexBuffer();
 		mass_infos->AddAttribute("data", Float, 4);
 		mass_info_tex = new TextureBuffer(mass_infos, GL_RGBA32F);					// bunch of data packed into a handful of consecutive texels!
@@ -205,13 +177,17 @@ namespace CibraryEngine
 		constraint_data->AddAttribute("data", Float, 4);
 		constraints_tex = new TextureBuffer(constraint_data, GL_RGBA32F);			// bunch of data packed into a handful of consecutive texels!
 
-		map<string, string> constraint_eval_output_map;
-		constraint_eval_output_map["out_vel_a"] = "vel_a";
-		constraint_eval_output_map["out_vel_b"] = "vel_b";
-		constraint_eval_output_map["out_rot_a"] = "rot_a";
-		constraint_eval_output_map["out_rot_b"] = "rot_b";
+		velocity_data_a = new VertexBuffer();
+		velocity_data_a->AddAttribute("rot", Float, 4);
+		velocity_data_a->AddAttribute("vel", Float, 4);
 
-		constraint_eval_hac = new HardwareAcceleratedComputation(shader_cache->Load("constraint_eval-v"), constraint_eval_output_map, constraint_eval_out);
+		map<string, string> vdata_copy_output_map;
+		vdata_copy_output_map["out_rot"] = "rot";
+		vdata_copy_output_map["out_vel"] = "vel";
+
+		velocity_data_b = VertexBuffer::CreateEmptyCopyAttributes(velocity_data_a);
+
+		constraint_eval_hac = new HardwareAcceleratedComputation(shader_cache->Load("constraint_eval-v"), vdata_copy_output_map, velocity_data_a);
 		ShaderProgram* constraint_eval_prog = constraint_eval_hac->shader_program;
 
 		if(!constraint_eval_prog)
@@ -227,38 +203,8 @@ namespace CibraryEngine
 		constraint_eval_prog->SetUniform<TextureBuffer>( "mass_infos",      mass_info_tex   );
 		constraint_eval_prog->SetUniform<TextureBuffer>( "constraint_data", constraints_tex );
 
-		constraint_out_tex = new TextureBuffer(constraint_eval_out, GL_RGBA32F);
-
-
-
-		// initialize stuff pertaining to velocity data copy/transfer HAC
-		velocity_data_a = new VertexBuffer();
-		velocity_data_a->AddAttribute("vel", Float, 4);
-		velocity_data_a->AddAttribute("rot", Float, 4);
-
-		map<string, string> vdata_copy_output_map;
-		vdata_copy_output_map["out_vel"] = "vel";
-		vdata_copy_output_map["out_rot"] = "rot";
-
-		velocity_data_b = VertexBuffer::CreateEmptyCopyAttributes(velocity_data_a);
-
-		vdata_copy_hac = new HardwareAcceleratedComputation(shader_cache->Load("vdata_copy-v"), vdata_copy_output_map, velocity_data_a);
-		ShaderProgram* vdata_copy_prog = vdata_copy_hac->shader_program;
-
-		if(!vdata_copy_prog)
-			return;
-
-		vdata_copy_prog->AddUniform<int>(					new UniformInt(				"constraint_results_size"			));
-		vdata_copy_prog->AddUniform<TextureBuffer>(			new UniformTextureBuffer(	"constraint_results",			0	));
-		vdata_copy_prog->AddUniform<TextureBuffer>(			new UniformTextureBuffer(	"transfer_indices",				1	));
-
-		// set this once and be done with it (the corresponding VertexBuffer pointer won't change)
-		vdata_copy_prog->SetUniform<TextureBuffer>("constraint_results", constraint_out_tex);
-
 		vdata_tex_a = new TextureBuffer(velocity_data_a, GL_RGBA32F);
 		vdata_tex_b = new TextureBuffer(velocity_data_b, GL_RGBA32F);
-
-
 
 		init_ok = true;
 	}
@@ -366,10 +312,7 @@ namespace CibraryEngine
 		constraint_data->BuildVBO();
 
 		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
-		{
 			iter->v_xfer_indices->BuildVBO();
-			iter->eval_obj_indices->BuildVBO();
-		}
 
 #if PROFILE_CGRAPH
 		timer_batch_vbos += timer.GetAndRestart();
@@ -381,11 +324,10 @@ namespace CibraryEngine
 
 		// do the actual solving
 		ShaderProgram* constraint_eval_prog = constraint_eval_hac->shader_program;
-		ShaderProgram* vdata_copy_prog = vdata_copy_hac->shader_program;
 		
 		int velocity_data_size = (int)num_rigid_bodies;
-		constraint_eval_prog->SetUniform<float>(					"timestep",					&timestep					);
-		constraint_eval_prog->SetUniform<int>(						"num_rigid_bodies",			&velocity_data_size			);
+		constraint_eval_prog->SetUniform<float>(	"timestep",			&timestep			);
+		constraint_eval_prog->SetUniform<int>(		"num_rigid_bodies",	&velocity_data_size	);
 
 		for(unsigned int i = 0; i < iterations; ++i)
 			for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
@@ -393,16 +335,8 @@ namespace CibraryEngine
 				BatchData& batch = *iter;
 
 				// do constraint shader stuff
-				constraint_eval_prog->SetUniform<TextureBuffer>(	"velocity_data",			active_vtex					);
-				constraint_eval_hac->Process(batch.eval_obj_indices, constraint_eval_out);
-
-
-
-				// update master array of velocity data
-				int constraint_results_size = (int)constraint_eval_out->GetNumVerts();
-				vdata_copy_prog->SetUniform<int>(					"constraint_results_size",	&constraint_results_size	);
-				vdata_copy_prog->SetUniform<TextureBuffer>(			"transfer_indices",			batch.v_xfer_tex			);
-				vdata_copy_hac->Process(active_vdata, inactive_vdata);
+				constraint_eval_prog->SetUniform<TextureBuffer>("velocity_data", active_vtex);
+				constraint_eval_hac->Process(batch.v_xfer_indices, inactive_vdata);
 
 				// change which direction the copying is going (back and forth)... can't use one buffer as both input and output or it will be undefined behavior!
 				swap(active_vdata, inactive_vdata);
