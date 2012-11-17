@@ -32,6 +32,7 @@ namespace CibraryEngine
 	static float timer_collect_and_count = 0.0f;
 	static float timer_vdata_init = 0.0f;
 	static float timer_make_batches = 0.0f;
+	static float timer_batch_vbos = 0.0f;
 	static float timer_process = 0.0f;
 	static float timer_retrieve = 0.0f;
 	static float timer_total = 0.0f;
@@ -43,14 +44,14 @@ namespace CibraryEngine
 	/*
 	 * ConstraintGraphSolver::BatchData methods
 	 */
-	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index) :
+	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index) :
 		constraints(),
 		v_xfer_indices(NULL),
 		v_xfer_tex(NULL),
 		eval_obj_indices(NULL)
 	{
-		vector<PhysicsConstraint*> nu_unassigned;
-		SmartHashSet<RigidBody, 37> used_nodes;
+		static vector<PhysicsConstraint*> nu_unassigned;
+		static SmartHashSet<RigidBody, 37> used_nodes;
 
 		// select which edges will appear in this batch
 		for(vector<PhysicsConstraint*>::iterator iter = unassigned.begin(); iter != unassigned.end(); ++iter)
@@ -70,6 +71,9 @@ namespace CibraryEngine
 
 		// update the reference parameter
 		unassigned.assign(nu_unassigned.begin(), nu_unassigned.end());
+
+		nu_unassigned.clear();
+		used_nodes.Clear();
 
 		// init velocity transfer indices buffer (used as a uniform buffer texture)
 		v_xfer_indices = new VertexBuffer();
@@ -120,10 +124,7 @@ namespace CibraryEngine
 			}
 		}
 
-		v_xfer_indices->BuildVBO();
 		v_xfer_tex = new TextureBuffer(v_xfer_indices, GL_R32F);
-
-		eval_obj_indices->BuildVBO();
 	}
 
 	void ConstraintGraphSolver::BatchData::Cleanup()
@@ -178,6 +179,7 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "collect_and_count =\t\t"	<< timer_collect_and_count	<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "vdata_init =\t\t\t"		<< timer_vdata_init			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "make_batches =\t\t\t"		<< timer_make_batches		<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "batch_vbos =\t\t\t"		<< timer_batch_vbos			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "process =\t\t\t\t"		<< timer_process			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "retrieve =\t\t\t\t"		<< timer_retrieve			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
@@ -275,8 +277,8 @@ namespace CibraryEngine
 			return;
 
 		// collect unique rigid bodies in a vector, and map to each one its index... and while we're at it, tally how many constraints there are of each type
-		vector<RigidBody*> rigid_bodies;
-		map<RigidBody*, unsigned int> rb_indices;
+		static vector<RigidBody*> rigid_bodies;
+		boost::unordered_map<RigidBody*, unsigned int> rb_indices;
 		unsigned int joint_constraints = 0, contact_points = 0;
 
 		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
@@ -320,29 +322,23 @@ namespace CibraryEngine
 		{
 			RigidBody* body = *iter;
 
-			Vec3 vel = body->GetLinearVelocity();
-			*(lv_ptr++) = vel.x;
-			*(lv_ptr++) = vel.y;
-			*(lv_ptr++) = vel.z;
-			++lv_ptr;
+			// copy velocity data
+			Vec3 vel = body->GetLinearVelocity(), rot = body->GetAngularVelocity();
 
-			Vec3 rot = body->GetAngularVelocity();
-			*(av_ptr++) = rot.x;
-			*(av_ptr++) = rot.y;
-			*(av_ptr++) = rot.z;
-			++av_ptr;
+			memcpy(lv_ptr, &vel, 3 * sizeof(float));
+			memcpy(av_ptr, &rot, 3 * sizeof(float));
+
+			lv_ptr += 4;								// 3 floats, + 1 wasted float in each texel
+			av_ptr += 4;
 
 			// copy mass info ... or rather, "inverse mass info" :3
 			*(mi_ptr++) = body->inv_mass;
-			*(mi_ptr++) = body->cached_com.x;
-			*(mi_ptr++) = body->cached_com.y;
-			*(mi_ptr++) = body->cached_com.z;
 
-			// repeat 9x
-			float* mat_ptr = body->inv_moi.values;
-			memcpy(mi_ptr, mat_ptr, 9 * sizeof(float));
-			
-			mi_ptr += 9 + 3;			// 9 for the matrix we just copied, + 3 wasted floats in the last texel
+			memcpy(mi_ptr, &body->cached_com,		3 * sizeof(float));
+			mi_ptr += 3;
+
+			memcpy(mi_ptr, body->inv_moi.values,	9 * sizeof(float));
+			mi_ptr += 9 + 3;							// 9 for the matrix we just copied, + 3 wasted floats in the last texel
 		}
 		velocity_data_a->BuildVBO();
 		velocity_data_b->BuildVBO();
@@ -361,12 +357,22 @@ namespace CibraryEngine
 		while(!unassigned.empty())
 			batches.push_back(BatchData(unassigned, rb_indices, constraint_data_ptr, constraint_texel_index));
 
-		constraint_data->BuildVBO();
-		
 		Debug(((stringstream&)(stringstream() << "number of batches = " << batches.size() << endl)).str());
 
 #if PROFILE_CGRAPH
 		timer_make_batches += timer.GetAndRestart();
+#endif
+
+		constraint_data->BuildVBO();
+
+		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
+		{
+			iter->v_xfer_indices->BuildVBO();
+			iter->eval_obj_indices->BuildVBO();
+		}
+
+#if PROFILE_CGRAPH
+		timer_batch_vbos += timer.GetAndRestart();
 #endif
 
 
@@ -403,12 +409,12 @@ namespace CibraryEngine
 				swap(active_vtex, inactive_vtex);
 			}
 
-		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
-		active_vdata->UpdateDataFromGL();
-
 #if PROFILE_CGRAPH
 		timer_process += timer.GetAndRestart();
 #endif
+
+		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
+		active_vdata->UpdateDataFromGL();
 
 		lv_ptr = active_vdata->GetFloatPointer("vel");
 		av_ptr = active_vdata->GetFloatPointer("rot");
@@ -417,25 +423,22 @@ namespace CibraryEngine
 		{
 			RigidBody* body = rigid_bodies[i];
 
-			Vec3 vel;
-			vel.x = *(lv_ptr++);
-			vel.y = *(lv_ptr++);
-			vel.z = *(lv_ptr++);
-			++lv_ptr;
-
-			Vec3 rot;
-			rot.x = *(av_ptr++);
-			rot.y = *(av_ptr++);
-			rot.z = *(av_ptr++);
-			++av_ptr;
+			Vec3 vel, rot;
+			memcpy(&vel, lv_ptr, 3 * sizeof(float));
+			memcpy(&rot, av_ptr, 3 * sizeof(float));
 
 			body->SetLinearVelocity(vel);
 			body->SetAngularVelocity(rot);
+
+			lv_ptr += 4;
+			av_ptr += 4;
 		}
 
 		// clean up per-batch stuff
 		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
 			iter->Cleanup();
+
+		rigid_bodies.clear();
 
 #if PROFILE_CGRAPH
 		timer_retrieve += timer.Stop();
@@ -443,3 +446,4 @@ namespace CibraryEngine
 #endif
 	}
 }
+

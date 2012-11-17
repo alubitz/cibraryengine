@@ -34,7 +34,7 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 1
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 5
 
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
@@ -607,7 +607,7 @@ namespace CibraryEngine
 
 			bounce_coeff = -(1.0f + obj_a->bounciness * obj_b->bounciness);
 			kfric_coeff = sfric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
-			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;			// this isn't actually used right now, because angular friction is disabled
+			//moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;			// this isn't actually used right now, because angular friction is disabled
 
 			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
 			r1 = use_pos - obj_a->cached_com;
@@ -781,29 +781,17 @@ namespace CibraryEngine
 		ptr[2] =	bounce_coeff;
 		ptr[3] =	sfric_coeff;
 
-		ptr[4] =	normal.x;
-		ptr[5] =	normal.y;
-		ptr[6] =	normal.z;
-		ptr[7] =	nr2.x;
+		memcpy(ptr + 4,		&normal,	3 * sizeof(float));			// ptr[4] through ptr[6]
+		memcpy(ptr + 8,		&r1,		3 * sizeof(float));			// ptr[8] through ptr[10]
+		memcpy(ptr + 12,	&r2,		3 * sizeof(float));			// ptr[12] through ptr[14]
+		memcpy(ptr + 16,	&nr1,		3 * sizeof(float));			// ptr[16] through ptr[18]
+		memcpy(ptr + 20,	&use_pos,	3 * sizeof(float));			// ptr[20] through ptr[22]
 
-		ptr[8] =	r1.x;
-		ptr[9] =	r1.y;
-		ptr[10] =	r1.z;
+		ptr[7] =	nr2.x;
 		ptr[11] =	nr2.y;
-		
-		ptr[12] =	r2.x;
-		ptr[13] =	r2.y;
-		ptr[14] =	r2.z;
 		ptr[15] =	nr2.z;
 
-		ptr[16] =	nr1.x;
-		ptr[17] =	nr1.y;
-		ptr[18] =	nr1.z;
 		// ptr[19] is unused
-
-		ptr[20] =	use_pos.x;
-		ptr[21] =	use_pos.y;
-		ptr[22] =	use_pos.z;
 		// ptr[23] is unused
 	}
 

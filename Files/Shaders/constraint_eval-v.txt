@@ -73,7 +73,7 @@ struct JointConstraint
 {
 	vec3 desired_dv;
 	vec3 apply_pos;
-	vec4 a_to_b;									// quaternion; b_to_a can be computed as the inverse of a_to_b
+	vec4 a_to_b;									// quaternion; b_to_a can be computed as the reverse of a_to_b
 
 	mat3 oriented_axes;
 	vec3 min_extents, max_extents;	mat3 net_moi;									// alpha_to_obja = obj_a->inv_moi * net_moi; alpha_to_objb = obj_b->inv_moi * net_moi;

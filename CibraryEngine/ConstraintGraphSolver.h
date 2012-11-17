@@ -49,7 +49,7 @@ namespace CibraryEngine
 				 * Creates a batch containing a subset of the provided constraints containing no adjacent edges
 				 * The list is updated to remove the constraints which were put into the created batch
 				 */
-				BatchData(vector<PhysicsConstraint*>& unassigned, map<RigidBody*, unsigned int>& rb_indices, float*& constraint_data_ptr, unsigned int& constraint_texel_index);
+				BatchData(vector<PhysicsConstraint*>& unassigned, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& constraint_data_ptr, unsigned int& constraint_texel_index);
 
 				void Cleanup();
 			};
