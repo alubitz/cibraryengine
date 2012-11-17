@@ -1,4 +1,7 @@
 
+const float JC_DV_COEFF = 1.0f;
+
+
 uniform float timestep;
 
 
@@ -27,6 +30,20 @@ varying vec4 out_vel_b;
 
 vec3 vel_a, vel_b, rot_a, rot_b;					// working with vec3 internally, for syntactic simplicity
 
+
+
+
+vec4 quat_multiply(vec4 a, vec4 b)
+{
+	return vec4(	a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+					a.w * b.y + a.y * b.w + a.z * b.x - a.x * b.z,
+					a.w * b.z + a.z * b.w + a.x * b.y - a.y * b.x,
+					a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);
+}
+
+vec4 quat_from_scaled_axis(vec3 axis)	{ float mag = length(axis), half_angle = mag * 0.5; return vec4(axis * (sin(half_angle) / mag), cos(half_angle)); }
+
+vec3 quat_to_scaled_axis(vec4 quat)		{ float mag = length(quat.xyz), half_angle = atan(mag / quat.w); return quat.xyz * (2.0 * half_angle / mag); }
 
 
 
@@ -85,11 +102,67 @@ void get_joint_constraint(int index, vec4 first_sample)
 	jc.net_moi =		mat3(other_samples[4].w, other_samples[5], other_samples[6]);
 }
 
+float jc_get_use_mass(vec3 direction, vec3 r1, vec3 r2)
+{
+	vec3 nr1 = cross(direction, r1);
+	vec3 nr2 = cross(direction, r2);
+	return 1.0f / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
+}
+
 void process_joint_constraint(vec4 data_sample)
 {
 	get_joint_constraint(data_index, data_sample);
 
-	// TODO: port JointConstraint::DoConstraintAction from C++ to GLSL
+	vec3 r1 = jc.apply_pos - massinfo_a.com;
+	vec3 r2 = jc.apply_pos - massinfo_b.com;
+
+	// linear stuff
+	vec3 current_dv = vel_b - vel_a + cross(r2, rot_b) - cross(r1, rot_a);
+	vec3 dv = jc.desired_dv - current_dv;
+
+	float dv_mag = length(dv);
+	if(dv_mag > 0.0)
+	{
+		vec3 impulse = dv * (-JC_DV_COEFF * jc_get_use_mass(dv / dv_mag, r1, r2));
+
+		vel_a += impulse * massinfo_a.inv_mass;
+		rot_a += massinfo_a.inv_moi * cross(impulse, r1);
+
+		vel_b -= impulse * massinfo_b.inv_mass;
+		rot_b -= massinfo_b.inv_moi * cross(impulse, r2);
+	}
+
+
+	// angular stuff
+	vec3 current_av = rot_b - rot_a;
+	vec3 alpha = vec3(0.0, 0.0, 0.0);
+
+	// enforce joint rotation limits
+	vec3 proposed_av = current_av - alpha;
+	vec4 proposed_ori = quat_multiply(jc.a_to_b, quat_from_scaled_axis(proposed_av * timestep));
+	vec3 proposed_pyr = jc.oriented_axes * -quat_to_scaled_axis(proposed_ori);
+
+	bool any_changes = false;
+	if      (proposed_pyr.x < jc.min_extents.x) { proposed_pyr.x = jc.min_extents.x; any_changes = true; }
+	else if (proposed_pyr.x > jc.max_extents.x) { proposed_pyr.x = jc.max_extents.x; any_changes = true; }
+	if      (proposed_pyr.y < jc.min_extents.y) { proposed_pyr.y = jc.min_extents.y; any_changes = true; }
+	else if (proposed_pyr.y > jc.max_extents.y) { proposed_pyr.y = jc.max_extents.y; any_changes = true; }
+	if      (proposed_pyr.z < jc.min_extents.z) { proposed_pyr.z = jc.min_extents.z; any_changes = true; }
+	else if (proposed_pyr.z > jc.max_extents.z) { proposed_pyr.z = jc.max_extents.z; any_changes = true; }	if(any_changes)
+	{
+		// at least one rotation limit was violated, so we must recompute alpha
+		vec4 actual_ori = quat_from_scaled_axis((-proposed_pyr) * jc.oriented_axes);
+		vec3 actual_av = quat_to_scaled_axis(quat_multiply(vec4(-jc.a_to_b.xyz, jc.a_to_b.w), actual_ori)) / timestep;
+
+		alpha = current_av - actual_av;
+	}
+
+	// apply angular velocity changes
+	if(true)
+	{
+		rot_a += (massinfo_a.inv_moi * jc.net_moi) * alpha;
+		rot_b -= (massinfo_b.inv_moi * jc.net_moi) * alpha;
+	}
 }
 
 
@@ -136,7 +209,7 @@ float	cp_get_use_mass(vec3 direction)
 {
 	vec3 nr1 = cross(direction, cp.position - massinfo_a.com);
 	vec3 nr2 = cross(direction, cp.position - massinfo_b.com);
-	return massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2);
+	return 1.0f / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
 }
 void	cp_apply_impulse(vec3 impulse)
 {

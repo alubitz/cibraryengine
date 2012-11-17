@@ -18,11 +18,28 @@
 #include "TextureBuffer.h"
 #include "UniformVariables.h"
 
+#include "ProfilingTimer.h"
+
 #define TEXELS_PER_JC 9
 #define TEXELS_PER_CP 6
 
+#define PROFILE_CGRAPH 1
+
+
 namespace CibraryEngine
 {
+#if PROFILE_CGRAPH
+	static float timer_collect_and_count = 0.0f;
+	static float timer_vdata_init = 0.0f;
+	static float timer_make_batches = 0.0f;
+	static float timer_process = 0.0f;
+	static float timer_retrieve = 0.0f;
+	static float timer_total = 0.0f;
+	static unsigned int counter_cgraph = 0;
+#endif
+
+
+
 	/*
 	 * ConstraintGraphSolver::BatchData methods
 	 */
@@ -155,6 +172,16 @@ namespace CibraryEngine
 		if(velocity_data_b)		{ velocity_data_b->Dispose();		delete velocity_data_b;		velocity_data_b = NULL;		}
 		if(constraint_data)		{ constraint_data->Dispose();		delete constraint_data;		constraint_data = NULL;		}
 		if(mass_infos)			{ mass_infos->Dispose();			delete mass_infos;			mass_infos = NULL;			}
+
+#if PROFILE_CGRAPH
+		Debug(((stringstream&)(stringstream() << "total for " << counter_cgraph << " calls to ConstraintGraphSolver::Solve = " << timer_total << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "collect_and_count =\t\t"	<< timer_collect_and_count	<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "vdata_init =\t\t\t"		<< timer_vdata_init			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "make_batches =\t\t\t"		<< timer_make_batches		<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "process =\t\t\t\t"		<< timer_process			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "retrieve =\t\t\t\t"		<< timer_retrieve			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
+#endif
 	}
 
 	void ConstraintGraphSolver::Init(ContentMan* content)
@@ -236,6 +263,14 @@ namespace CibraryEngine
 
 	void ConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
+#if PROFILE_CGRAPH
+		ProfilingTimer timer, timer2;
+		timer2.Start();
+		timer.Start();
+
+		++counter_cgraph;
+#endif
+
 		if(!init_ok)
 			return;
 
@@ -267,6 +302,10 @@ namespace CibraryEngine
 				++contact_points;
 		}
 		unsigned int num_rigid_bodies = rigid_bodies.size();
+
+#if PROFILE_CGRAPH
+		timer_collect_and_count += timer.GetAndRestart();
+#endif
 
 
 		// put rigid bodies' velocity data and mass infos into their respective vertex buffers
@@ -301,21 +340,17 @@ namespace CibraryEngine
 
 			// repeat 9x
 			float* mat_ptr = body->inv_moi.values;
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *(mat_ptr++);
-			*(mi_ptr++) = *mat_ptr;
-
-			mi_ptr += 3;
+			memcpy(mi_ptr, mat_ptr, 9 * sizeof(float));
+			
+			mi_ptr += 9 + 3;			// 9 for the matrix we just copied, + 3 wasted floats in the last texel
 		}
 		velocity_data_a->BuildVBO();
 		velocity_data_b->BuildVBO();
 		mass_infos->BuildVBO();
+
+#if PROFILE_CGRAPH
+		timer_vdata_init += timer.GetAndRestart();
+#endif
 
 		constraint_data->SetNumVerts(joint_constraints * TEXELS_PER_JC + contact_points * TEXELS_PER_CP);
 		float* constraint_data_ptr = constraint_data->GetFloatPointer("data");
@@ -329,6 +364,10 @@ namespace CibraryEngine
 		constraint_data->BuildVBO();
 		
 		Debug(((stringstream&)(stringstream() << "number of batches = " << batches.size() << endl)).str());
+
+#if PROFILE_CGRAPH
+		timer_make_batches += timer.GetAndRestart();
+#endif
 
 
 		VertexBuffer *active_vdata = velocity_data_a, *inactive_vdata = velocity_data_b;
@@ -366,6 +405,11 @@ namespace CibraryEngine
 
 		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
 		active_vdata->UpdateDataFromGL();
+
+#if PROFILE_CGRAPH
+		timer_process += timer.GetAndRestart();
+#endif
+
 		lv_ptr = active_vdata->GetFloatPointer("vel");
 		av_ptr = active_vdata->GetFloatPointer("rot");
 
@@ -392,5 +436,10 @@ namespace CibraryEngine
 		// clean up per-batch stuff
 		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
 			iter->Cleanup();
+
+#if PROFILE_CGRAPH
+		timer_retrieve += timer.Stop();
+		timer_total += timer2.Stop();
+#endif
 	}
 }
