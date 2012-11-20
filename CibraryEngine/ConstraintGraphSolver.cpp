@@ -113,10 +113,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void ConstraintGraphSolver::BatchData::Cleanup()
-	{
-		if(v_xfer_indices)		{ v_xfer_indices->Dispose();	delete v_xfer_indices;		v_xfer_indices = NULL; }
-	}
+	void ConstraintGraphSolver::BatchData::Cleanup() { if(v_xfer_indices) { v_xfer_indices->Dispose(); delete v_xfer_indices; v_xfer_indices = NULL; } }
 
 
 
@@ -303,7 +300,7 @@ namespace CibraryEngine
 		while(!unassigned.empty())
 			batches.push_back(BatchData(unassigned, rb_indices, constraint_data_ptr, constraint_texel_index));
 
-		Debug(((stringstream&)(stringstream() << "number of batches = " << batches.size() << endl)).str());
+		Debug(((stringstream&)(stringstream() << "batches = " << batches.size() << endl)).str());
 
 #if PROFILE_CGRAPH
 		timer_make_batches += timer.GetAndRestart();

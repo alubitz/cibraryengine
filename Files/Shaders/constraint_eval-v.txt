@@ -1,5 +1,5 @@
 
-const float JC_DV_COEFF = 1.0f;
+const float JC_DV_COEFF = 1.0;
 
 
 uniform float timestep;
@@ -102,7 +102,7 @@ float jc_get_use_mass(vec3 direction, vec3 r1, vec3 r2)
 {
 	vec3 nr1 = cross(direction, r1);
 	vec3 nr2 = cross(direction, r2);
-	return 1.0f / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
+	return 1.0 / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
 }
 
 void process_joint_constraint(vec4 data_sample)
@@ -205,7 +205,7 @@ float	cp_get_use_mass(vec3 direction)
 {
 	vec3 nr1 = cross(direction, cp.position - massinfo_a.com);
 	vec3 nr2 = cross(direction, cp.position - massinfo_b.com);
-	return 1.0f / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
+	return 1.0 / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
 }
 void	cp_apply_impulse(vec3 impulse)
 {
