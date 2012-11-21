@@ -19,17 +19,31 @@ namespace CibraryEngine
 	{
 		private:
 
-			HardwareAcceleratedComputation* constraint_eval_hac;
+			// formerly HardwareAcceleratedComputation* constraint_eval_hac
+			unsigned int shader, program;
 
-			VertexBuffer* velocity_data_a;
-			VertexBuffer* velocity_data_b;
-			VertexBuffer* constraint_data;
-			VertexBuffer* mass_infos;
+			// locations of uniform variables in the shader program
+			int u_timestep;
+			int u_num_rigid_bodies;
+			int u_constraint_data;
+			int u_velocity_data;
+			int u_mass_infos;
 
-			TextureBuffer* vdata_tex_a;
-			TextureBuffer* vdata_tex_b;
-			TextureBuffer* constraints_tex;
-			TextureBuffer* mass_info_tex;
+			// locations of attribute variables
+			int a_constraint_data_index;
+			int a_object_indices;
+
+			// formerly VertexBuffer*
+			unsigned int velocity_data_a;
+			unsigned int velocity_data_b;
+			unsigned int constraint_data;
+			unsigned int mass_infos;
+
+			// formerly TextureBuffer*
+			unsigned int vdata_tex_a;
+			unsigned int vdata_tex_b;
+			unsigned int constraints_tex;
+			unsigned int mass_info_tex;
 
 			bool init_ok;
 
@@ -37,7 +51,8 @@ namespace CibraryEngine
 			{
 				vector<PhysicsConstraint*> constraints;
 
-				VertexBuffer* v_xfer_indices;
+				// formerly VertexBuffer*
+				unsigned int v_xfer_indices;
 
 				/**
 				 * Creates a batch containing a subset of the provided constraints containing no adjacent edges
