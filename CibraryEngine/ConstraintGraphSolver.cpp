@@ -157,7 +157,7 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "batch_vbos =\t\t\t"		<< timer_batch_vbos			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "process =\t\t\t\t"		<< timer_process			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "retrieve =\t\t\t\t"		<< timer_retrieve			<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_batch_vbos + timer_process + timer_retrieve << endl)).str());
 #endif
 	}
 
@@ -266,10 +266,8 @@ namespace CibraryEngine
 			RigidBody* body = *iter;
 
 			// copy velocity data
-			Vec3 vel = body->GetLinearVelocity(), rot = body->GetAngularVelocity();
-
-			memcpy(lv_ptr, &vel, 3 * sizeof(float));
-			memcpy(av_ptr, &rot, 3 * sizeof(float));
+			memcpy(lv_ptr, &body->vel, 3 * sizeof(float));
+			memcpy(av_ptr, &body->rot, 3 * sizeof(float));
 
 			lv_ptr += 4;								// 3 floats, + 1 wasted float in each texel
 			av_ptr += 4;
@@ -354,12 +352,8 @@ namespace CibraryEngine
 		{
 			RigidBody* body = rigid_bodies[i];
 
-			Vec3 vel, rot;
-			memcpy(&vel, lv_ptr, 3 * sizeof(float));
-			memcpy(&rot, av_ptr, 3 * sizeof(float));
-
-			body->SetLinearVelocity(vel);
-			body->SetAngularVelocity(rot);
+			memcpy(&body->vel, lv_ptr, 3 * sizeof(float));
+			memcpy(&body->rot, av_ptr, 3 * sizeof(float));
 
 			lv_ptr += 4;
 			av_ptr += 4;

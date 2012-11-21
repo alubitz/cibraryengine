@@ -72,7 +72,9 @@ struct JointConstraint
 	vec4 a_to_b;									// quaternion; b_to_a can be computed as the reverse of a_to_b
 
 	mat3 oriented_axes;
-	vec3 min_extents, max_extents;	mat3 net_moi;									// alpha_to_obja = obj_a->inv_moi * net_moi; alpha_to_objb = obj_b->inv_moi * net_moi;
+	vec3 min_extents, max_extents;
+
+	mat3 net_moi;									// alpha_to_obja = obj_a->inv_moi * net_moi; alpha_to_objb = obj_b->inv_moi * net_moi;
 } jc;
 
 void get_joint_constraint(int index, vec4 first_sample)
@@ -89,10 +91,12 @@ void get_joint_constraint(int index, vec4 first_sample)
 		texelFetch(constraint_data, index + 8)		// other_samples[7].w is unused
 	};
 
-	jc.desired_dv =		first_sample.yzw;	jc.apply_pos =		other_samples[0].xyz;
+	jc.desired_dv =		first_sample.yzw;
+	jc.apply_pos =		other_samples[0].xyz;
 	jc.a_to_b =			other_samples[3];
 
-	jc.oriented_axes =	mat3(other_samples[0].w, other_samples[1], other_samples[2]);	jc.min_extents =	other_samples[4].xyz;
+	jc.oriented_axes =	mat3(other_samples[0].w, other_samples[1], other_samples[2]);
+	jc.min_extents =	other_samples[4].xyz;
 	jc.max_extents =	other_samples[7].xyz;
 
 	jc.net_moi =		mat3(other_samples[4].w, other_samples[5], other_samples[6]);
@@ -144,7 +148,9 @@ void process_joint_constraint(vec4 data_sample)
 	if      (proposed_pyr.y < jc.min_extents.y) { proposed_pyr.y = jc.min_extents.y; any_changes = true; }
 	else if (proposed_pyr.y > jc.max_extents.y) { proposed_pyr.y = jc.max_extents.y; any_changes = true; }
 	if      (proposed_pyr.z < jc.min_extents.z) { proposed_pyr.z = jc.min_extents.z; any_changes = true; }
-	else if (proposed_pyr.z > jc.max_extents.z) { proposed_pyr.z = jc.max_extents.z; any_changes = true; }	if(any_changes)
+	else if (proposed_pyr.z > jc.max_extents.z) { proposed_pyr.z = jc.max_extents.z; any_changes = true; }
+
+	if(any_changes)
 	{
 		// at least one rotation limit was violated, so we must recompute alpha
 		vec4 actual_ori = quat_from_scaled_axis((-proposed_pyr) * jc.oriented_axes);
@@ -191,7 +197,8 @@ void get_contact_point(int index, vec4 first_sample)
 	cp.r1 =				other_samples[1].xyz;
 	cp.r2 =				other_samples[2].xyz;
 	cp.nr1 =			other_samples[3].xyz;
-	cp.nr2 = 			vec3(other_samples[0].w, other_samples[1].w, other_samples[2].w);
+	cp.nr2 = 			vec3(other_samples[0].w, other_samples[1].w, other_samples[2].w);
+
 	cp.use_mass = 		first_sample.y;
 	cp.bounce_coeff =	first_sample.z;
 	cp.fric_coeff =		first_sample.w;
@@ -206,7 +213,8 @@ float	cp_get_use_mass(vec3 direction)
 	vec3 nr1 = cross(direction, cp.position - massinfo_a.com);
 	vec3 nr2 = cross(direction, cp.position - massinfo_b.com);
 	return 1.0 / (massinfo_a.inv_mass + massinfo_b.inv_mass + dot(massinfo_a.inv_moi * nr1, nr1) + dot(massinfo_b.inv_moi * nr2, nr2));
-}
+}
+
 void	cp_apply_impulse(vec3 impulse)
 {
 	vel_a += impulse * massinfo_a.inv_mass;
@@ -232,10 +240,15 @@ void process_contact_point(vec4 data_sample)
 			// normal force
 			if(true)		// TODO: have a condition maybe?
 			{
-				cp_apply_impulse(impulse);				dv = cp_get_relative_local_velocity();
+				cp_apply_impulse(impulse);
+
+				dv = cp_get_relative_local_velocity();
 				nvdot = dot(cp.normal, dv);
-			}			vec3 t_dv = dv - cp.normal * nvdot;
-			float t_dv_mag = length(t_dv);
+			}
+
+			vec3 t_dv = dv - cp.normal * nvdot;
+			float t_dv_mag = length(t_dv);
+
 			// linear friction (kinetic)
 			if(t_dv_mag > 0.0)
 			{
@@ -257,7 +270,8 @@ vec3 get_rot(int index) { return texelFetch(velocity_data, index).xyz; }
 void main()
 {
 	out_rot = texelFetch(velocity_data, gl_VertexID);
-	out_vel = texelFetch(velocity_data, gl_VertexID + num_rigid_bodies);
+	out_vel = texelFetch(velocity_data, gl_VertexID + num_rigid_bodies);
+
 	data_index = int(constraint_data_index);
 
 	if(data_index != 0)

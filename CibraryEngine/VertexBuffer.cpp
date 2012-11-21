@@ -24,7 +24,9 @@ namespace CibraryEngine
 	{
 		InvalidateVBO();
 
-		vector<string> attribs = GetAttributes();
+		vector<string> attribs;
+		GetAttributes(attribs);
+
 		for(vector<string>::iterator iter = attribs.begin(); iter != attribs.end(); ++iter)
 			RemoveAttribute(*iter);
 
@@ -175,12 +177,11 @@ namespace CibraryEngine
 			return -1;
 	}
 
-	vector<string> VertexBuffer::GetAttributes()
+	void VertexBuffer::GetAttributes(vector<string>& results_out)
 	{
-		vector<string> results;
+		results_out.clear();
 		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
-			results.push_back(iter->first);
-		return results;
+			results_out.push_back(iter->first);
 	}
 
 	int VertexBuffer::GetVertexSize()
@@ -469,7 +470,9 @@ namespace CibraryEngine
 	{
 		VertexBuffer* result = new VertexBuffer(existing->GetStorageMode());
 
-		vector<string> attribs = existing->GetAttributes();
+		vector<string> attribs;
+		existing->GetAttributes(attribs);
+
 		for(vector<string>::iterator iter = attribs.begin(); iter != attribs.end(); ++iter)
 		{
 			string& name = *iter;

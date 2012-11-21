@@ -146,10 +146,13 @@ namespace CibraryEngine
 		{
 			GLDEBUG();
 
-			glActiveTexture(GL_TEXTURE0 + which);											GLDEBUG();
-			glBindTexture(GL_TEXTURE_BUFFER, buffer->GetGLName());							GLDEBUG();
-			glTexBufferEXT(GL_TEXTURE_BUFFER, buffer->format, buffer->buffer->GetVBO());	GLDEBUG();
-			glUniform1i(location, which);													GLDEBUG();
+			unsigned int tex_name = buffer->GetGLName();
+			unsigned int buf_name = buffer->buffer->GetVBO();
+
+			glActiveTexture(GL_TEXTURE0 + which);							GLDEBUG();
+			glBindTexture(GL_TEXTURE_BUFFER, tex_name);						GLDEBUG();
+			glTexBufferEXT(GL_TEXTURE_BUFFER, buffer->format, buf_name);	GLDEBUG();
+			glUniform1i(location, which);									GLDEBUG();
 		}
 	}
 

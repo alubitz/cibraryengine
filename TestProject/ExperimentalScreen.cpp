@@ -89,7 +89,9 @@ namespace Test
 			unsigned int num_verts = output_vbo->GetNumVerts();
 			Debug(((stringstream&)(stringstream() << "Got data for " << num_verts << " verts!\n")).str());
 
-			vector<string> attrib_names = output_vbo->GetAttributes();
+			vector<string> attrib_names;
+			output_vbo->GetAttributes(attrib_names);
+
 			for(unsigned int i = 0; i < attrib_names.size(); ++i)
 			{
 				string attrib_name = attrib_names[i];

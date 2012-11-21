@@ -91,7 +91,7 @@ namespace CibraryEngine
 			VertexAttributeType GetAttribType(const string& name);
 			int GetAttribNPerVertex(const string& name);
 
-			vector<string> GetAttributes();
+			void GetAttributes(vector<string>& results_out);
 			int GetVertexSize();
 
 			/** Returns a pointer to the float data for the given attribute name, if applicable; if non-applicable, returns NULL */

@@ -26,7 +26,9 @@ namespace CibraryEngine
 		// if nothing is mapped, map all attribute names in the output prototype to themselves
 		if(output_mapping.empty())
 		{
-			vector<string> attributes = output_proto->GetAttributes();
+			vector<string> attributes;
+			output_proto->GetAttributes(attributes);
+
 			for(vector<string>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
 				output_mapping[*iter] = *iter;
 		}
@@ -69,7 +71,9 @@ namespace CibraryEngine
 		shader_program->program_id = glCreateProgram();
 		glAttachShader(shader_program->program_id, shader->shader_id);
 
-		vector<string> attribute_names = output_proto->GetAttributes();
+		vector<string> attribute_names;
+		output_proto->GetAttributes(attribute_names);
+
 		unsigned int num_attributes = attribute_names.size();
 		for(map<string, string>::iterator iter = output_mapping.begin(); iter != output_mapping.end(); ++iter)
 		{
@@ -169,13 +173,18 @@ namespace CibraryEngine
 		ShaderProgram::SetActiveProgram(shader_program); GLDEBUG();
 
 		// resize the output vbo
-		glBindBuffer(GL_ARRAY_BUFFER, output_vbo);
-		glBufferData(GL_ARRAY_BUFFER, num_input_verts * output_data->GetVertexSize(), NULL, GL_DYNAMIC_COPY);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		if(output_data->GetNumVerts() != num_input_verts)
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, output_vbo);
+			glBufferData(GL_ARRAY_BUFFER, num_input_verts * output_data->GetVertexSize(), NULL, GL_DYNAMIC_COPY);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		GLDEBUG();
+			GLDEBUG();
+		}
 
-		vector<string> target_attribs = output_data->GetAttributes();
+		vector<string> target_attribs;
+		output_data->GetAttributes(target_attribs);
+
 		unsigned int offset = 0;
 		for(vector<string>::iterator iter = target_attribs.begin(); iter != target_attribs.end(); ++iter)
 		{
@@ -222,6 +231,6 @@ namespace CibraryEngine
 
 		glFlush();
 
-		ShaderProgram::SetActiveProgram(NULL); GLDEBUG();
+		ShaderProgram::SetActiveProgram(NULL);									GLDEBUG();
 	}
 }

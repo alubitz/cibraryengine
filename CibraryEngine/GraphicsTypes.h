@@ -6,6 +6,7 @@
 #include "Texture1D.h"
 #include "Texture2D.h"
 #include "Texture3D.h"
+#include "TextureBuffer.h"
 #include "TextureCube.h"
 
 #include "RenderTarget.h"
