@@ -7,16 +7,7 @@
 #include "JointConstraint.h"
 
 #include "Serialize.h"
-
 #include "DebugLog.h"
-#include "Content.h"
-
-#include "Shader.h"
-#include "VertexBuffer.h"
-#include "HardwareAcceleratedComputation.h"
-
-#include "TextureBuffer.h"
-#include "UniformVariables.h"
 
 #include "ProfilingTimer.h"
 
@@ -43,9 +34,8 @@ namespace CibraryEngine
 	/*
 	 * ConstraintGraphSolver::BatchData methods
 	 */
-	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index) :
-		constraints(),
-		v_xfer_indices(0)
+	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned) :
+		constraints()
 	{
 		static vector<PhysicsConstraint*> nu_unassigned;
 		static SmartHashSet<RigidBody, 37> used_nodes;
@@ -71,30 +61,21 @@ namespace CibraryEngine
 
 		nu_unassigned.clear();
 		used_nodes.Clear();
+	}
 
+	void ConstraintGraphSolver::BatchData::GetVTransferIndices(float* results, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index)
+	{
 		unsigned int num_rigid_bodies = rb_indices.size();
 
-		// init velocity transfer indices buffer (used as a uniform buffer texture)
-		glGenBuffers(1, &v_xfer_indices);
-		glBindBuffer(GL_ARRAY_BUFFER, v_xfer_indices);
-		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 3 * sizeof(float), NULL, GL_DYNAMIC_DRAW);
-
-		float* constraint_index_array = new float[num_rigid_bodies];
-		memset(constraint_index_array, 0, num_rigid_bodies * sizeof(float));
-
-		float* object_index_array = new float[num_rigid_bodies * 2];
-
 		// populate both of those buffers
-		int next_index = 0;
 		for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 		{
 			unsigned int index_a = rb_indices[(*iter)->obj_a];
 			unsigned int index_b = rb_indices[(*iter)->obj_b];
 
-			constraint_index_array[index_a] = constraint_index_array[index_b] = (float)(texel_index + 1);
-
-			object_index_array[index_a * 2    ] = object_index_array[index_b * 2    ] = (float)index_a;
-			object_index_array[index_a * 2 + 1] = object_index_array[index_b * 2 + 1] = (float)index_b;
+			results[index_a * 3    ] = results[index_b * 3    ] = (float)(texel_index + 1);
+			results[index_a * 3 + 1] = results[index_b * 3 + 1] = (float)index_a;
+			results[index_a * 3 + 2] = results[index_b * 3 + 2] = (float)index_b;
 
 			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
 			{
@@ -111,17 +92,7 @@ namespace CibraryEngine
 				texel_index += TEXELS_PER_CP;
 			}
 		}
-
-		glBufferSubData(GL_ARRAY_BUFFER, 0,									num_rigid_bodies * sizeof(float),		constraint_index_array);
-		glBufferSubData(GL_ARRAY_BUFFER, num_rigid_bodies * sizeof(float),	num_rigid_bodies * 2 * sizeof(float),	object_index_array);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		delete[] constraint_index_array;
-		delete[] object_index_array;
 	}
-
-	void ConstraintGraphSolver::BatchData::Cleanup() { if(v_xfer_indices) { glDeleteBuffers(1, &v_xfer_indices); v_xfer_indices = 0; } }
 
 
 
@@ -141,6 +112,7 @@ namespace CibraryEngine
 		velocity_data_b(0),
 		constraint_data(0),
 		mass_infos(0),
+		v_xfer_indices(0),
 		vdata_tex_a(0),
 		vdata_tex_b(0),
 		constraints_tex(0),
@@ -163,6 +135,7 @@ namespace CibraryEngine
 		if(velocity_data_b)		{ glDeleteBuffers(1, &velocity_data_b);		velocity_data_b = 0;	}
 		if(constraint_data)		{ glDeleteBuffers(1, &constraint_data);		constraint_data = 0;	}
 		if(mass_infos)			{ glDeleteBuffers(1, &mass_infos);			mass_infos = 0;			}
+		if(v_xfer_indices)		{ glDeleteBuffers(1, &v_xfer_indices);		v_xfer_indices = 0;		}
 
 #if PROFILE_CGRAPH
 		Debug(((stringstream&)(stringstream() << "total for " << counter_cgraph << " calls to ConstraintGraphSolver::Solve = " << timer_total << endl)).str());
@@ -177,18 +150,15 @@ namespace CibraryEngine
 
 	void ConstraintGraphSolver::Init(ContentMan* content)
 	{
-		Cache<Shader>* shader_cache = content->GetCache<Shader>();
-
 		// initialize stuff pertaining to constraint evaluator HAC
 		glGenBuffers(1, &mass_infos);
-		glGenTextures(1, &mass_info_tex);
-
 		glGenBuffers(1, &constraint_data);
-		glGenTextures(1, &constraints_tex);
-
 		glGenBuffers(1, &velocity_data_a);
 		glGenBuffers(1, &velocity_data_b);
+		glGenBuffers(1, &v_xfer_indices);
 
+		glGenTextures(1, &mass_info_tex);
+		glGenTextures(1, &constraints_tex);
 		glGenTextures(1, &vdata_tex_a);
 		glGenTextures(1, &vdata_tex_b);
 
@@ -198,10 +168,10 @@ namespace CibraryEngine
 		const char* source_string = shader_source.c_str();
 
 		shader = glCreateShader(GL_VERTEX_SHADER);
+		program = glCreateProgram();
+
 		glShaderSource(shader, 1, &source_string, NULL);
 		glCompileShader(shader);
-
-		program = glCreateProgram();
 		glAttachShader(program, shader);
 
 		const GLchar* var_names[] = { "out_rot", "out_vel" };
@@ -226,7 +196,7 @@ namespace CibraryEngine
 			Debug(vlog);
 
 			glDeleteShader(shader);
-			program = 0;
+			shader = 0;
 
 			return;
 		}
@@ -235,7 +205,7 @@ namespace CibraryEngine
 			Debug(plog);
 
 			glDeleteProgram(program);
-			shader = 0;
+			program = 0;
 
 			return;
 		}
@@ -289,8 +259,6 @@ namespace CibraryEngine
 
 		a_constraint_data_index =	glGetAttribLocation(program, "constraint_data_index");
 		a_object_indices =			glGetAttribLocation(program, "object_indices"		);
-
-		glActiveTexture(GL_TEXTURE0);
 
 		GLDEBUG();
 
@@ -374,31 +342,39 @@ namespace CibraryEngine
 			mi_ptr += 9 + 3;							// 9 for the matrix we just copied, + 3 wasted floats in the last texel
 		}
 		glBindBuffer(GL_ARRAY_BUFFER, velocity_data_a);
-		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 8 * sizeof(float), velocity_data_array, GL_STREAM_COPY);
+		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 8 * sizeof(float),		velocity_data_array,	GL_STREAM_COPY);
 		glBindBuffer(GL_ARRAY_BUFFER, velocity_data_b);
-		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 8 * sizeof(float), NULL, GL_STREAM_COPY);
+		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 8 * sizeof(float),		NULL,					GL_STREAM_COPY);
 		glBindBuffer(GL_ARRAY_BUFFER, mass_infos);
-		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 16 * sizeof(float), mass_infos_array, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, num_rigid_bodies * 16 * sizeof(float),	mass_infos_array,		GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 #if PROFILE_CGRAPH
 		timer_vdata_init += timer.GetAndRestart();
 #endif
 
+		vector<BatchData> batches;
+		vector<PhysicsConstraint*> unassigned = constraints;
+		while(!unassigned.empty())
+			batches.push_back(BatchData(unassigned));
+
+		Debug(((stringstream&)(stringstream() << "batches = " << batches.size() << endl)).str());
+
 		unsigned int constraint_data_texels = joint_constraints * TEXELS_PER_JC + contact_points * TEXELS_PER_CP;
 		float* constraint_data_array = new float[constraint_data_texels * 4];
 		float* constraint_data_ptr = constraint_data_array;
 		unsigned int constraint_texel_index = 0;
 
-		vector<BatchData> batches;
-		vector<PhysicsConstraint*> unassigned = constraints;
-		while(!unassigned.empty())
-			batches.push_back(BatchData(unassigned, rb_indices, constraint_data_ptr, constraint_texel_index));
+		float* v_xfer_array = new float[batches.size() * num_rigid_bodies * 3];
+		memset(v_xfer_array, 0, batches.size() * num_rigid_bodies * 3 * sizeof(float));
 
-		Debug(((stringstream&)(stringstream() << "batches = " << batches.size() << endl)).str());
+		for(unsigned int i = 0; i < batches.size(); ++i)
+			batches[i].GetVTransferIndices(v_xfer_array + num_rigid_bodies * 3 * i, rb_indices, constraint_data_ptr, constraint_texel_index);
 
 		glBindBuffer(GL_ARRAY_BUFFER, constraint_data);
 		glBufferData(GL_ARRAY_BUFFER, constraint_data_texels * 4 * sizeof(float), constraint_data_array, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, v_xfer_indices);
+		glBufferData(GL_ARRAY_BUFFER, batches.size() * num_rigid_bodies * 3 * sizeof(float), v_xfer_array, GL_STREAM_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 #if PROFILE_CGRAPH
@@ -434,11 +410,13 @@ namespace CibraryEngine
 
 		GLDEBUG();
 
-		for(unsigned int i = 0; i < iterations; ++i)
-			for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
-			{
-				BatchData& batch = *iter;
+		glBindBuffer(GL_ARRAY_BUFFER, v_xfer_indices);
+		glVertexAttribPointer((GLuint)a_constraint_data_index,	1, GL_FLOAT, false, 3 * sizeof(float), (void*)0);
+		glVertexAttribPointer((GLuint)a_object_indices,			2, GL_FLOAT, false, 3 * sizeof(float), (void*)sizeof(float));
 
+		for(unsigned int i = 0; i < iterations; ++i)
+			for(unsigned int j = 0; j < batches.size(); ++j)
+			{
 				// do constraint shader stuff
 				glActiveTexture(GL_TEXTURE1);
 				glBindTexture(GL_TEXTURE_BUFFER, active_vtex);
@@ -454,11 +432,8 @@ namespace CibraryEngine
 				GLDEBUG();
 
 				glBeginTransformFeedback(GL_POINTS);
-				
-					glBindBuffer(GL_ARRAY_BUFFER, batch.v_xfer_indices);
-					glVertexAttribPointer((GLuint)a_constraint_data_index,	1, GL_FLOAT, false, 0, (void*)0);
-					glVertexAttribPointer((GLuint)a_object_indices,			2, GL_FLOAT, false, 0, (void*)(num_rigid_bodies * sizeof(float)));
-					glDrawArrays(GL_POINTS, 0, num_rigid_bodies);
+
+					glDrawArrays(GL_POINTS, num_rigid_bodies * j, num_rigid_bodies);
 				
 				glEndTransformFeedback();
 
@@ -473,10 +448,11 @@ namespace CibraryEngine
 
 		GLDEBUG();
 
-		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
-
 		glDisableVertexAttribArray((GLuint)a_constraint_data_index);
 		glDisableVertexAttribArray((GLuint)a_object_indices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
 
 		glUseProgram(0);
 		glDisable(GL_RASTERIZER_DISCARD);
@@ -485,14 +461,14 @@ namespace CibraryEngine
 
 		GLDEBUG();
 
-#if PROFILE_CGRAPH
-		timer_process += timer.GetAndRestart();
-#endif
-
 		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
 		glBindBuffer(GL_ARRAY_BUFFER, active_vdata);
 		glGetBufferSubData(GL_ARRAY_BUFFER, 0, num_rigid_bodies * 8 * sizeof(float), velocity_data_array);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+#if PROFILE_CGRAPH
+		timer_process += timer.GetAndRestart();
+#endif
 
 		lv_ptr = velocity_data_array + num_rigid_bodies * 4;
 		av_ptr = velocity_data_array;
@@ -508,15 +484,12 @@ namespace CibraryEngine
 			av_ptr += 4;
 		}
 
-		// clean up per-batch stuff
-		for(vector<BatchData>::iterator iter = batches.begin(); iter != batches.end(); ++iter)
-			iter->Cleanup();
-
 		rigid_bodies.clear();
 
 		delete[] constraint_data_array;
 		delete[] velocity_data_array;
 		delete[] mass_infos_array;
+		delete[] v_xfer_array;
 
 		GLDEBUG();
 

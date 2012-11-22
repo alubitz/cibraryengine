@@ -13,8 +13,6 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
-#include "JointConstraint.h"
-
 #include "ConstraintGraphSolver.h"
 
 #include "Matrix.h"
@@ -27,10 +25,7 @@
 #include "SceneRenderer.h"
 #include "DebugDrawMaterial.h"
 
-#include "VertexBuffer.h"
-
 #include "TaskThread.h"
-#include "HardwareAcceleratedComputation.h"
 
 #include "ProfilingTimer.h"
 

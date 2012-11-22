@@ -19,7 +19,6 @@ namespace CibraryEngine
 	{
 		private:
 
-			// formerly HardwareAcceleratedComputation* constraint_eval_hac
 			unsigned int shader, program;
 
 			// locations of uniform variables in the shader program
@@ -33,13 +32,15 @@ namespace CibraryEngine
 			int a_constraint_data_index;
 			int a_object_indices;
 
-			// formerly VertexBuffer*
+			// vertex buffers
 			unsigned int velocity_data_a;
 			unsigned int velocity_data_b;
 			unsigned int constraint_data;
 			unsigned int mass_infos;
 
-			// formerly TextureBuffer*
+			unsigned int v_xfer_indices;
+
+			// buffer textures
 			unsigned int vdata_tex_a;
 			unsigned int vdata_tex_b;
 			unsigned int constraints_tex;
@@ -51,16 +52,13 @@ namespace CibraryEngine
 			{
 				vector<PhysicsConstraint*> constraints;
 
-				// formerly VertexBuffer*
-				unsigned int v_xfer_indices;
-
 				/**
 				 * Creates a batch containing a subset of the provided constraints containing no adjacent edges
 				 * The list is updated to remove the constraints which were put into the created batch
 				 */
-				BatchData(vector<PhysicsConstraint*>& unassigned, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& constraint_data_ptr, unsigned int& constraint_texel_index);
+				BatchData(vector<PhysicsConstraint*>& unassigned);
 
-				void Cleanup();
+				void GetVTransferIndices(float* results, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& constraint_data_ptr, unsigned int& constraint_texel_index);
 			};
 
 		public:

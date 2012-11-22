@@ -4,20 +4,22 @@ const float JC_DV_COEFF = 1.0;
 
 uniform float timestep;
 
-
 uniform samplerBuffer	constraint_data;
-
-attribute float			constraint_data_index;		// index into the above (+1 so that zero can denote "no change")
-int						data_index;					// the same, but converted to an integer
-
-attribute vec2			object_indices;				// indices of the two constrained objects (one of these should equal gl_VertexID)
-int						index_a, index_b;			// the same, but converted to integers
-
 
 uniform int				num_rigid_bodies;
 
 uniform samplerBuffer	velocity_data;
 uniform samplerBuffer	mass_infos;
+
+
+
+attribute float			constraint_data_index;		// index into the above (+1 so that zero can denote "no change")
+int						data_index;					// the same, but converted to an integer
+
+attribute vec2			object_indices;				// indices of the two constrained objects (one of these should equal (gl_VertexID % num_rigid_bodies))
+int						index_a, index_b;			// the same, but converted to integers
+
+
 
 
 
@@ -269,8 +271,10 @@ vec3 get_rot(int index) { return texelFetch(velocity_data, index).xyz; }
 
 void main()
 {
-	out_rot = texelFetch(velocity_data, gl_VertexID);
-	out_vel = texelFetch(velocity_data, gl_VertexID + num_rigid_bodies);
+	int use_id = gl_VertexID % num_rigid_bodies;
+
+	out_rot = texelFetch(velocity_data, use_id);
+	out_vel = texelFetch(velocity_data, use_id + num_rigid_bodies);
 
 	data_index = int(constraint_data_index);
 
@@ -297,7 +301,7 @@ void main()
 		else
 			process_joint_constraint(data_sample);
 
-		if(index_a == gl_VertexID)
+		if(index_a == use_id)
 		{
 			out_vel.xyz = vel_a;
 			out_rot.xyz = rot_a;
