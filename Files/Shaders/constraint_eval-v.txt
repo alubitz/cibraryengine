@@ -1,4 +1,6 @@
 
+#define ENFORCE_JOINT_ROTATION_LIMITS 1
+
 const float JC_DV_COEFF = 1.0;
 
 
@@ -139,10 +141,11 @@ void process_joint_constraint(vec4 data_sample)
 	vec3 current_av = rot_b - rot_a;
 	vec3 alpha = vec3(0.0, 0.0, 0.0);
 
+#if ENFORCE_JOINT_ROTATION_LIMITS
 	// enforce joint rotation limits
 	vec3 proposed_av = current_av - alpha;
 	vec4 proposed_ori = quat_multiply(jc.a_to_b, quat_from_scaled_axis(proposed_av * timestep));
-	vec3 proposed_pyr = jc.oriented_axes * -quat_to_scaled_axis(proposed_ori);
+	vec3 proposed_pyr = -quat_to_scaled_axis(proposed_ori) * jc.oriented_axes;
 
 	bool any_changes = false;
 	if      (proposed_pyr.x < jc.min_extents.x) { proposed_pyr.x = jc.min_extents.x; any_changes = true; }
@@ -155,11 +158,12 @@ void process_joint_constraint(vec4 data_sample)
 	if(any_changes)
 	{
 		// at least one rotation limit was violated, so we must recompute alpha
-		vec4 actual_ori = quat_from_scaled_axis((-proposed_pyr) * jc.oriented_axes);
+		vec4 actual_ori = quat_from_scaled_axis(-jc.oriented_axes * proposed_pyr);
 		vec3 actual_av = quat_to_scaled_axis(quat_multiply(vec4(-jc.a_to_b.xyz, jc.a_to_b.w), actual_ori)) / timestep;
 
 		alpha = current_av - actual_av;
 	}
+#endif
 
 	// apply angular velocity changes
 	if(true)

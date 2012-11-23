@@ -19,7 +19,11 @@ namespace CibraryEngine
 	{
 		private:
 
-			unsigned int shader, program;
+			unsigned int shader_g, shader_v, shader_f;
+			unsigned int program;
+
+			unsigned int renderbuffer;
+			unsigned int framebuffer;
 
 			// locations of uniform variables in the shader program
 			int u_timestep;

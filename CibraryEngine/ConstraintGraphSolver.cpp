@@ -15,11 +15,13 @@
 #define TEXELS_PER_CP 6
 
 #define PROFILE_CGRAPH 1
+#define PROFILE_GL_FINISH 1					// only applicable if PROFILE_CGRAPH is enabled
 
 
 namespace CibraryEngine
 {
 #if PROFILE_CGRAPH
+	static float timer_gl_finish = 0.0f;
 	static float timer_collect_and_count = 0.0f;
 	static float timer_vdata_init = 0.0f;
 	static float timer_make_batches = 0.0f;
@@ -101,8 +103,12 @@ namespace CibraryEngine
 	 * ConstraintGraphSolver methods
 	 */
 	ConstraintGraphSolver::ConstraintGraphSolver() :
-		shader(0),
+		shader_g(0),
+		shader_v(0),
+		shader_f(0),
 		program(0),
+		renderbuffer(0),
+		framebuffer(0),
 		u_timestep(-1),
 		u_num_rigid_bodies(-1),
 		u_constraint_data(-1),
@@ -124,7 +130,12 @@ namespace CibraryEngine
 	ConstraintGraphSolver::~ConstraintGraphSolver()
 	{
 		if(program)				{ glDeleteProgram(program);					program = 0;			}
-		if(shader)				{ glDeleteShader(shader);					shader = 0;				}
+		if(shader_g)			{ glDeleteShader(shader_g);					shader_g = 0;			}
+		if(shader_v)			{ glDeleteShader(shader_v);					shader_v = 0;			}
+		if(shader_f)			{ glDeleteShader(shader_f);					shader_f = 0;			}
+
+		if(framebuffer)			{ glDeleteFramebuffers(1, &framebuffer);	framebuffer = 0;		}
+		if(renderbuffer)		{ glDeleteRenderbuffers(1, &renderbuffer);	renderbuffer = 0;		}
 
 		if(vdata_tex_a)			{ glDeleteTextures(1, &vdata_tex_a);		vdata_tex_a = 0;		}
 		if(vdata_tex_b)			{ glDeleteTextures(1, &vdata_tex_b);		vdata_tex_b = 0;		}
@@ -139,12 +150,15 @@ namespace CibraryEngine
 
 #if PROFILE_CGRAPH
 		Debug(((stringstream&)(stringstream() << "total for " << counter_cgraph << " calls to ConstraintGraphSolver::Solve = " << timer_total << endl)).str());
+#if PROFILE_GL_FINISH
+		Debug(((stringstream&)(stringstream() << '\t' << "gl_finish =\t\t\t\t"		<< timer_gl_finish			<< endl)).str());
+#endif
 		Debug(((stringstream&)(stringstream() << '\t' << "collect_and_count =\t\t"	<< timer_collect_and_count	<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "vdata_init =\t\t\t"		<< timer_vdata_init			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "make_batches =\t\t\t"		<< timer_make_batches		<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "process =\t\t\t\t"		<< timer_process			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "retrieve =\t\t\t\t"		<< timer_retrieve			<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_gl_finish + timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
 #endif
 	}
 
@@ -167,12 +181,14 @@ namespace CibraryEngine
 			return;
 		const char* source_string = shader_source.c_str();
 
-		shader = glCreateShader(GL_VERTEX_SHADER);
+		// TODO: do other stuff for shader_g and shader_f
+		
+		shader_v = glCreateShader(GL_VERTEX_SHADER);
 		program = glCreateProgram();
 
-		glShaderSource(shader, 1, &source_string, NULL);
-		glCompileShader(shader);
-		glAttachShader(program, shader);
+		glShaderSource(shader_v, 1, &source_string, NULL);
+		glCompileShader(shader_v);
+		glAttachShader(program, shader_v);
 
 		const GLchar* var_names[] = { "out_rot", "out_vel" };
 		glTransformFeedbackVaryings(program, 2, var_names, GL_SEPARATE_ATTRIBS);
@@ -181,12 +197,12 @@ namespace CibraryEngine
 
 		char vlog[1024];
 		char plog[1024];
-		glGetShaderInfoLog(shader, 1024, NULL, vlog);
+		glGetShaderInfoLog(shader_v, 1024, NULL, vlog);
 		glGetProgramInfoLog(program, 1024, NULL, plog);
 
 		int vertex_status, program_status;
 
-		glGetShaderiv(shader, GL_COMPILE_STATUS, &vertex_status);
+		glGetShaderiv(shader_v, GL_COMPILE_STATUS, &vertex_status);
 		glGetProgramiv(program, GL_LINK_STATUS, &program_status);
 
 		GLDEBUG();
@@ -195,8 +211,8 @@ namespace CibraryEngine
 		{
 			Debug(vlog);
 
-			glDeleteShader(shader);
-			shader = 0;
+			glDeleteShader(shader_v);
+			shader_v = 0;
 
 			return;
 		}
@@ -260,6 +276,11 @@ namespace CibraryEngine
 		a_constraint_data_index =	glGetAttribLocation(program, "constraint_data_index");
 		a_object_indices =			glGetAttribLocation(program, "object_indices"		);
 
+		glGenRenderbuffers(1, &renderbuffer);
+		glGenFramebuffers(1, &framebuffer);
+
+		// TODO: additional framebuffer/renderbuffer setup?
+
 		GLDEBUG();
 
 		init_ok = true;
@@ -267,6 +288,17 @@ namespace CibraryEngine
 
 	void ConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
+#if 0
+		for(unsigned int i = 0; i < iterations; ++i)
+			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				(*iter)->DoConstraintAction();
+
+		return;
+#endif
+
+
+
+
 #if PROFILE_CGRAPH
 		ProfilingTimer timer, timer2;
 		timer2.Start();
@@ -277,6 +309,14 @@ namespace CibraryEngine
 
 		if(!init_ok)
 			return;
+
+
+#if PROFILE_CGRAPH && PROFILE_GL_FINISH
+		glFinish();
+		timer_gl_finish += timer.GetAndRestart();
+#endif
+
+
 
 		GLDEBUG();
 
@@ -358,23 +398,24 @@ namespace CibraryEngine
 		while(!unassigned.empty())
 			batches.push_back(BatchData(unassigned));
 
-		Debug(((stringstream&)(stringstream() << "batches = " << batches.size() << endl)).str());
+		unsigned int num_batches = batches.size();
+		Debug(((stringstream&)(stringstream() << "batches = " << num_batches << endl)).str());
 
 		unsigned int constraint_data_texels = joint_constraints * TEXELS_PER_JC + contact_points * TEXELS_PER_CP;
 		float* constraint_data_array = new float[constraint_data_texels * 4];
 		float* constraint_data_ptr = constraint_data_array;
 		unsigned int constraint_texel_index = 0;
 
-		float* v_xfer_array = new float[batches.size() * num_rigid_bodies * 3];
-		memset(v_xfer_array, 0, batches.size() * num_rigid_bodies * 3 * sizeof(float));
+		float* v_xfer_array = new float[num_batches * num_rigid_bodies * 3];
+		memset(v_xfer_array, 0, num_batches * num_rigid_bodies * 3 * sizeof(float));
 
-		for(unsigned int i = 0; i < batches.size(); ++i)
+		for(unsigned int i = 0; i < num_batches; ++i)
 			batches[i].GetVTransferIndices(v_xfer_array + num_rigid_bodies * 3 * i, rb_indices, constraint_data_ptr, constraint_texel_index);
 
 		glBindBuffer(GL_ARRAY_BUFFER, constraint_data);
 		glBufferData(GL_ARRAY_BUFFER, constraint_data_texels * 4 * sizeof(float), constraint_data_array, GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, v_xfer_indices);
-		glBufferData(GL_ARRAY_BUFFER, batches.size() * num_rigid_bodies * 3 * sizeof(float), v_xfer_array, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, num_batches * num_rigid_bodies * 3 * sizeof(float), v_xfer_array, GL_STREAM_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 #if PROFILE_CGRAPH
@@ -415,7 +456,7 @@ namespace CibraryEngine
 		glVertexAttribPointer((GLuint)a_object_indices,			2, GL_FLOAT, false, 3 * sizeof(float), (void*)sizeof(float));
 
 		for(unsigned int i = 0; i < iterations; ++i)
-			for(unsigned int j = 0; j < batches.size(); ++j)
+			for(unsigned int j = 0; j < num_batches; ++j)
 			{
 				// do constraint shader stuff
 				glActiveTexture(GL_TEXTURE1);
@@ -460,6 +501,8 @@ namespace CibraryEngine
 		glActiveTexture(GL_TEXTURE0);
 
 		GLDEBUG();
+
+		glFinish();
 
 		// copy linear and angular velocity data from vertex buffer back to the corresponding RigidBody objects
 		glBindBuffer(GL_ARRAY_BUFFER, active_vdata);
