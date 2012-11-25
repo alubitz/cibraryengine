@@ -23,6 +23,7 @@ namespace CibraryEngine
 			Quaternion a_to_b, b_to_a;
 
 			Vec3 r1, r2;
+			Mat3 net_moi;
 			Mat3 alpha_to_obja, alpha_to_objb;
 
 			float timestep, inv_timestep;

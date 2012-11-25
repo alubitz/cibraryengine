@@ -1073,7 +1073,7 @@ namespace Test
 		glMultMatrixf(shadow_matrix.Transpose().values);
 
 		glViewport(0, 0, target->GetWidth(), target->GetHeight());
-		
+
 		// not using "ClearDepthAndColor" because clear color must represent "far"
 		glColorMask(true, true, true, true);
 		glDepthMask(true);

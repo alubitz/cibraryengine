@@ -71,14 +71,28 @@ end
 
 -- a specific manner of spawning bots
 function spawn_one(gs, player_pos, artillery)
-	local theta, radius = math.random() * math.pi * 2.0, math.random() * 70 + 50
-	local x = radius * math.cos(theta) + player_pos.x
-	local z = radius * math.sin(theta) + player_pos.z
+	local min_dist = 20.0
+	local max_dist = 120.0
 
-	if x > 98 then x = 98 end
-	if x < -98 then x = -98 end
-	if z > 98 then z = 98 end
-	if z < -98 then z = -98 end
+	local min_dist_sq = min_dist * min_dist;
+	local max_dist_sq = max_dist * max_dist;
+
+	local ok = false
+	local x, z
+
+	while not ok do
+
+		x = math.random() * 196.0 - 98.0
+		z = math.random() * 196.0 - 98.0
+
+		local dx = x - player_pos.x
+		local dz = z - player_pos.z
+
+		local dsq = dx * dx + dz * dz
+		if dsq < max_dist_sq and dsq > min_dist_sq then
+			ok = true
+		end
+	end
 
 	local bot = spawnBotAtPosition(gs, x, z, artillery)
 	bots_spawned = bots_spawned + 1

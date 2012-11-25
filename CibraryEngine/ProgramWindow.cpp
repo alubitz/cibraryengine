@@ -108,13 +108,13 @@ namespace CibraryEngine
 				case WM_SYSKEYDOWN:
 				{
 					input_state->SetKeyState(wParam, true);
-					return 0;
+					break;
 				}
 				case WM_KEYUP:
 				case WM_SYSKEYUP:
 				{
 					input_state->SetKeyState(wParam, false);
-					return 0;
+					break;
 				}
 				case WM_MOUSEMOVE:
 				{

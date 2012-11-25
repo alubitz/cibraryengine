@@ -29,6 +29,7 @@ namespace CibraryEngine
 	static float timer_retrieve = 0.0f;
 	static float timer_total = 0.0f;
 	static unsigned int counter_cgraph = 0;
+	static unsigned int counter_batches = 0;
 #endif
 
 
@@ -75,9 +76,10 @@ namespace CibraryEngine
 			unsigned int index_a = rb_indices[(*iter)->obj_a];
 			unsigned int index_b = rb_indices[(*iter)->obj_b];
 
-			results[index_a * 3    ] = results[index_b * 3    ] = (float)(texel_index + 1);
-			results[index_a * 3 + 1] = results[index_b * 3 + 1] = (float)index_a;
-			results[index_a * 3 + 2] = results[index_b * 3 + 2] = (float)index_b;
+			float *a_ptr = results + index_a * 3, *b_ptr = results + index_b * 3;
+			*a_ptr		= *b_ptr		= (float)(texel_index + 1);
+			*(++a_ptr)	= *(++b_ptr)	= (float)index_a;
+			*(++a_ptr)	= *(++b_ptr)	= (float)index_b;
 
 			if(JointConstraint* jc = dynamic_cast<JointConstraint*>(*iter))
 			{
@@ -159,6 +161,7 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "process =\t\t\t\t"		<< timer_process			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "retrieve =\t\t\t\t"		<< timer_retrieve			<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_gl_finish + timer_collect_and_count + timer_vdata_init + timer_make_batches + timer_process + timer_retrieve << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total batches = " << counter_batches << "; average = " << (float)counter_batches / counter_cgraph << endl)).str());
 #endif
 	}
 
@@ -399,6 +402,7 @@ namespace CibraryEngine
 			batches.push_back(BatchData(unassigned));
 
 		unsigned int num_batches = batches.size();
+		counter_batches += num_batches;
 		Debug(((stringstream&)(stringstream() << "batches = " << num_batches << endl)).str());
 
 		unsigned int constraint_data_texels = joint_constraints * TEXELS_PER_JC + contact_points * TEXELS_PER_CP;
@@ -412,15 +416,15 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < num_batches; ++i)
 			batches[i].GetVTransferIndices(v_xfer_array + num_rigid_bodies * 3 * i, rb_indices, constraint_data_ptr, constraint_texel_index);
 
+#if PROFILE_CGRAPH
+		timer_make_batches += timer.GetAndRestart();
+#endif
+
 		glBindBuffer(GL_ARRAY_BUFFER, constraint_data);
 		glBufferData(GL_ARRAY_BUFFER, constraint_data_texels * 4 * sizeof(float), constraint_data_array, GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, v_xfer_indices);
 		glBufferData(GL_ARRAY_BUFFER, num_batches * num_rigid_bodies * 3 * sizeof(float), v_xfer_array, GL_STREAM_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-#if PROFILE_CGRAPH
-		timer_make_batches += timer.GetAndRestart();
-#endif
 
 		GLDEBUG();
 

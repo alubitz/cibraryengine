@@ -100,7 +100,7 @@ namespace CibraryEngine
 		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 		b_to_a = Quaternion::Reverse(a_to_b);
 
-		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		alpha_to_obja = obj_a->inv_moi * net_moi;
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
@@ -121,20 +121,15 @@ namespace CibraryEngine
 
 	void JointConstraint::WriteDataToBuffer(float* ptr)
 	{
-		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		*ptr = -1.0f;
 
-		ptr[0] =	-1.0f;
 		memcpy(ptr + 1,		&desired_dv,			3 * sizeof(float));			// ptr[1] through ptr[3]
 		memcpy(ptr + 4,		&apply_pos,				3 * sizeof(float));			// ptr[4] through ptr[6]
 		memcpy(ptr + 7,		oriented_axes.values,	9 * sizeof(float));			// ptr[7] through ptr[15]
+		memcpy(ptr + 16,	&a_to_b,				4 * sizeof(float));			// ptr[16] through ptr[19]
 		memcpy(ptr + 20,	&min_extents,			3 * sizeof(float));			// ptr[20] through ptr[22]
 		memcpy(ptr + 23,	net_moi.values,			9 * sizeof(float));			// ptr[23] through ptr[31]
 		memcpy(ptr + 32,	&max_extents,			3 * sizeof(float));			// ptr[32] through ptr[34]
-
-		ptr[16] =	a_to_b.x;
-		ptr[17] =	a_to_b.y;
-		ptr[18] =	a_to_b.z;
-		ptr[19] =	a_to_b.w;
 
 		// ptr[35] is unused
 	}

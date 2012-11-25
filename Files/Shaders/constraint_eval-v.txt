@@ -83,8 +83,9 @@ struct JointConstraint
 
 void get_joint_constraint(int index, vec4 first_sample)
 {
-	vec4 other_samples[8] =
+	vec4 samples[9] =
 	{
+		first_sample,
 		texelFetch(constraint_data, index + 1),
 		texelFetch(constraint_data, index + 2),
 		texelFetch(constraint_data, index + 3),
@@ -92,18 +93,18 @@ void get_joint_constraint(int index, vec4 first_sample)
 		texelFetch(constraint_data, index + 5),
 		texelFetch(constraint_data, index + 6),
 		texelFetch(constraint_data, index + 7),
-		texelFetch(constraint_data, index + 8)		// other_samples[7].w is unused
+		texelFetch(constraint_data, index + 8)		// samples[8].w is unused
 	};
 
 	jc.desired_dv =		first_sample.yzw;
-	jc.apply_pos =		other_samples[0].xyz;
-	jc.a_to_b =			other_samples[3];
+	jc.apply_pos =		samples[1].xyz;
+	jc.a_to_b =			samples[4].yzwx;
 
-	jc.oriented_axes =	mat3(other_samples[0].w, other_samples[1], other_samples[2]);
-	jc.min_extents =	other_samples[4].xyz;
-	jc.max_extents =	other_samples[7].xyz;
+	jc.oriented_axes =	mat3(samples[1].w, samples[2], samples[3]);
+	jc.min_extents =	samples[5].xyz;
+	jc.max_extents =	samples[8].xyz;
 
-	jc.net_moi =		mat3(other_samples[4].w, other_samples[5], other_samples[6]);
+	jc.net_moi =		mat3(samples[5].w, samples[6], samples[7]);
 }
 
 float jc_get_use_mass(vec3 direction, vec3 r1, vec3 r2)
@@ -189,21 +190,22 @@ struct ContactPoint
 
 void get_contact_point(int index, vec4 first_sample)
 {
-	vec4 other_samples[5] =
+	vec4 samples[6] =
 	{
+		first_sample,
 		texelFetch(constraint_data, index + 1),
 		texelFetch(constraint_data, index + 2),
 		texelFetch(constraint_data, index + 3),
-		texelFetch(constraint_data, index + 4),		// other_samples[3].w is unused
-		texelFetch(constraint_data, index + 5)		// other_samples[4].w is unused
+		texelFetch(constraint_data, index + 4),		// samples[4].w is unused
+		texelFetch(constraint_data, index + 5)		// samples[5].w is unused
 	};
 
-	cp.position =		other_samples[4].xyz;
-	cp.normal =			other_samples[0].xyz;
-	cp.r1 =				other_samples[1].xyz;
-	cp.r2 =				other_samples[2].xyz;
-	cp.nr1 =			other_samples[3].xyz;
-	cp.nr2 = 			vec3(other_samples[0].w, other_samples[1].w, other_samples[2].w);
+	cp.position =		samples[5].xyz;
+	cp.normal =			samples[1].xyz;
+	cp.r1 =				samples[2].xyz;
+	cp.r2 =				samples[3].xyz;
+	cp.nr1 =			samples[4].xyz;
+	cp.nr2 = 			vec3(samples[1].w, samples[2].w, samples[3].w);
 
 	cp.use_mass = 		first_sample.y;
 	cp.bounce_coeff =	first_sample.z;
