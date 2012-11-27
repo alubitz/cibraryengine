@@ -426,7 +426,7 @@ namespace Test
 
 					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
-					float time_coeff = time.elapsed * 1200.0f;
+					float time_coeff = time.elapsed * 2400.0f;
 
 					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
 					Vec3 dv = nu_v - body->GetLinearVelocity();

@@ -13,7 +13,8 @@
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
 
-#include "ConstraintGraphSolver.h"
+#include "CPUConstraintGraphSolver.h"
+#include "GPUConstraintGraphSolver.h"
 
 #include "Matrix.h"
 
@@ -94,7 +95,7 @@ namespace CibraryEngine
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
-		cgraph_solver(new ConstraintGraphSolver()),
+		cgraph_solver(new CPUConstraintGraphSolver()),
 		orphan_callback(new MyOrphanCallback())
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);

@@ -3,6 +3,8 @@
 
 #include "RigidBody.h"
 
+#define ENFORCE_JOINT_ROTATION_LIMITS 1
+
 namespace CibraryEngine
 {
 	/*
@@ -32,20 +34,27 @@ namespace CibraryEngine
 		float magsq = dv.ComputeMagnitudeSquared();
 		if(magsq > dv_sq_threshold)
 		{
-			Vec3 impulse = dv * (-dv_coeff * PhysicsWorld::GetUseMass(obj_a, obj_b, apply_pos, dv / sqrtf(magsq)));
+			float mag = sqrtf(magsq);
+			Vec3 udv = dv / mag;
+			Vec3 nr1 = Vec3::Cross(udv, r1);
+			Vec3 nr2 = Vec3::Cross(udv, r2);
+			Vec3 moi_imp1 = obj_a->inv_moi * nr1;
+			Vec3 moi_imp2 = obj_b->inv_moi * nr2;
+			float use_mass = 1.0f / (obj_a->inv_mass + obj_b->inv_mass + Vec3::Dot(moi_imp1, nr1) + Vec3::Dot(moi_imp2, nr2));
+			float impulse_mag = -mag * dv_coeff * use_mass;
 
 			// apply impulse
 			if(obj_a->active)
 			{
-				obj_a->vel += impulse * obj_a->inv_mass;
+				obj_a->vel += udv * (impulse_mag * obj_a->inv_mass);
 				if(obj_a->can_rotate)
-					obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
+					obj_a->rot += moi_imp1 * impulse_mag;
 			}
 			if(obj_b->can_move && obj_b->active)
 			{
-				obj_b->vel -= impulse * obj_b->inv_mass;
+				obj_b->vel -= udv * (impulse_mag * obj_b->inv_mass);
 				if(obj_b->can_rotate)
-					obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
+					obj_b->rot -= moi_imp2 * impulse_mag;
 			}
 		}
 
@@ -54,7 +63,7 @@ namespace CibraryEngine
 		Vec3 current_av = obj_b->rot - obj_a->rot;
 		Vec3 alpha;												// delta-angular-velocity
 
-#if 1
+#if ENFORCE_JOINT_ROTATION_LIMITS
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
 		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * timestep, proposed_av.y * timestep, proposed_av.z * timestep);

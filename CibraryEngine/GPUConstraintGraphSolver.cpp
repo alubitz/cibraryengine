@@ -1,5 +1,5 @@
 #include "StdAfx.h"
-#include "ConstraintGraphSolver.h"
+#include "GPUConstraintGraphSolver.h"
 
 #include "Physics.h"
 #include "RigidBody.h"
@@ -35,9 +35,9 @@ namespace CibraryEngine
 
 
 	/*
-	 * ConstraintGraphSolver::BatchData methods
+	 * GPUConstraintGraphSolver::BatchData methods
 	 */
-	ConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned) :
+	GPUConstraintGraphSolver::BatchData::BatchData(vector<PhysicsConstraint*>& unassigned) :
 		constraints()
 	{
 		static vector<PhysicsConstraint*> nu_unassigned;
@@ -66,7 +66,7 @@ namespace CibraryEngine
 		used_nodes.Clear();
 	}
 
-	void ConstraintGraphSolver::BatchData::GetVTransferIndices(float* results, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index)
+	void GPUConstraintGraphSolver::BatchData::GetVTransferIndices(float* results, boost::unordered_map<RigidBody*, unsigned int>& rb_indices, float*& data_ptr, unsigned int& texel_index)
 	{
 		unsigned int num_rigid_bodies = rb_indices.size();
 
@@ -102,9 +102,9 @@ namespace CibraryEngine
 
 
 	/*
-	 * ConstraintGraphSolver methods
+	 * GPUConstraintGraphSolver methods
 	 */
-	ConstraintGraphSolver::ConstraintGraphSolver() :
+	GPUConstraintGraphSolver::GPUConstraintGraphSolver() :
 		shader_g(0),
 		shader_v(0),
 		shader_f(0),
@@ -129,7 +129,7 @@ namespace CibraryEngine
 	{
 	}
 
-	ConstraintGraphSolver::~ConstraintGraphSolver()
+	GPUConstraintGraphSolver::~GPUConstraintGraphSolver()
 	{
 		if(program)				{ glDeleteProgram(program);					program = 0;			}
 		if(shader_g)			{ glDeleteShader(shader_g);					shader_g = 0;			}
@@ -165,7 +165,7 @@ namespace CibraryEngine
 #endif
 	}
 
-	void ConstraintGraphSolver::Init(ContentMan* content)
+	void GPUConstraintGraphSolver::Init(ContentMan* content)
 	{
 		// initialize stuff pertaining to constraint evaluator HAC
 		glGenBuffers(1, &mass_infos);
@@ -289,19 +289,8 @@ namespace CibraryEngine
 		init_ok = true;
 	}
 
-	void ConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
+	void GPUConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
-#if 0
-		for(unsigned int i = 0; i < iterations; ++i)
-			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				(*iter)->DoConstraintAction();
-
-		return;
-#endif
-
-
-
-
 #if PROFILE_CGRAPH
 		ProfilingTimer timer, timer2;
 		timer2.Start();
