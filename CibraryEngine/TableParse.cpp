@@ -84,9 +84,7 @@ namespace CibraryEngine
 
 		TableParseable* op = stack.size() == 0 ? this : stack[stack.size() - 1];
 
-		TableParseable* result = op->DoOperation(a, b);
-
-		if(result != NULL)
+		if(TableParseable* result = op->DoOperation(a, b))
 			stack.push_back(result);
 	}
 

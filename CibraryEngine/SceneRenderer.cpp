@@ -85,7 +85,7 @@ namespace CibraryEngine
 		{
 			RenderNode model = *iter;
 
-			assert (model.material != NULL);
+			assert(model.material != NULL);
 
 			// only end the current material and start the next if they are DIFFERENT materials
 			if(current_mat == NULL || !model.material->Equals(current_mat))

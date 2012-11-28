@@ -127,7 +127,7 @@ namespace Test
 				vector<RigidBody*> standing_on;
 				float standing;
 
-				bool OnCollision(const ContactPoint& collision);
+				void OnCollision(const ContactPoint& collision);
 
 				void Reset();
 				void ApplyVelocityChange(const Vec3& dv);

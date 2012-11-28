@@ -5,6 +5,8 @@
 
 #include "TestGame.h"
 
+#include "RocketBug.h"
+
 namespace Test
 {
 	using namespace CibraryEngine;
@@ -19,13 +21,20 @@ namespace Test
 
 	Shot* DefaultWeapon::CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction)
 	{
+#if 0
+		game_state->Spawn(new RocketBug(
+			game_state,
+			owner,
+			((TestGame*)game_state)->ubermodel_cache->Load("dummycube"),
+			((TestGame*)game_state)->mphys_cache->Load("dummycube"),
+			origin,
+			weapon_vel + direction * 50.0f,
+			Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction))));
+#endif
+
 		Vec3 vel = Vec3::Normalize(direction, 300) + weapon_vel;
 		return new Shot(game_state, shot_model, shot_material, origin, vel, owner);
 	}
 
-	bool DefaultWeapon::GetAmmoCount(int& result)
-	{
-		result = clip;
-		return true;
-	}
+	bool DefaultWeapon::GetAmmoCount(int& result) { result = clip; return true; }
 };

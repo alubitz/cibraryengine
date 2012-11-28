@@ -54,11 +54,7 @@ namespace Test
 			player->OnJumpFailure -= &OnJumpFailure;
 		}
 
-		if(render_target != NULL)
-		{
-			render_target->Dispose();
-			delete render_target;
-		}
+		if(render_target) { render_target->Dispose(); delete render_target; }
 	}
 
 	void HUD::SetOrtho(float w, float h)

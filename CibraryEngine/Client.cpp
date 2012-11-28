@@ -102,19 +102,19 @@ namespace CibraryEngine
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
 			if(connected && !terminated)
-            {
-                terminated = true;
-                if(socket != NULL)
-                {
+			{
+				terminated = true;
+				if(socket != NULL)
+				{
 					Connection::DisconnectedEvent evt(client);
 					client->Disconnected(&evt);
 
-                    socket->close();
+					socket->close();
 
 					delete socket;
 					socket = NULL;
-                }
-            }
+				}
+			}
 		}
 
 		bool IsConnected() { return connected && !terminated; }
@@ -124,14 +124,14 @@ namespace CibraryEngine
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
 			if(connected && !terminated)
-            {
+			{
 				string bytes = p.GetBytes();
 				for(unsigned int i = 0; i < bytes.length(); ++i)
 					my_send_handler.bytes[i] = bytes[i];
 
 				self->send = true;
 				socket->async_send(buffer(&my_send_handler.bytes[0], bytes.length() * sizeof(unsigned char)), my_send_handler);
-            }
+			}
 		}
 
 		void AsyncReceive();
@@ -187,7 +187,7 @@ namespace CibraryEngine
 				ptr->receive = false;
 				Imp* imp = ptr->imp;
 
-				if(imp != NULL)
+				if(imp)
 				{
 					if(!error)
 					{
@@ -279,14 +279,7 @@ namespace CibraryEngine
 		imp->my_connect_handler.ptr = imp->my_send_handler.ptr = imp->my_receive_handler.ptr = imp->self = new Imp::ImpPtr(imp); 
 	}
 
-	void Client::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			delete imp;
-			imp = NULL;
-		}
-	}
+	void Client::InnerDispose() { if(imp) { delete imp; imp = NULL; } }
 
 	void Client::Connect(string server_ip_string, unsigned short port_num) { imp->Connect(server_ip_string, port_num); }
 	void Client::Disconnect() { imp->Disconnect(); }

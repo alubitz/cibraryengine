@@ -39,7 +39,7 @@ namespace CibraryEngine
 
 	void UberModel::LOD::InnerDispose()
 	{
-		if(vbos != NULL)
+		if(vbos)
 		{
 			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); ++iter)
 			{
@@ -145,7 +145,7 @@ namespace CibraryEngine
 
 	void UberModel::LOD::InvalidateVBOs()
 	{
-		if(vbos != NULL)
+		if(vbos)
 		{
 			for(vector<MaterialModelPair>::iterator iter = vbos->begin(); iter != vbos->end(); ++iter)
 			{

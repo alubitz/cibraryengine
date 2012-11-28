@@ -65,13 +65,7 @@ namespace CibraryEngine
 			}
 			vbos.clear();
 
-			if(depth_vbo != NULL)
-			{
-				depth_vbo->Dispose();
-				delete depth_vbo;
-
-				depth_vbo = NULL;
-			}
+			if(depth_vbo) { depth_vbo->Dispose(); delete depth_vbo; depth_vbo = NULL; }
 		}
 	}
 
@@ -422,9 +416,7 @@ namespace CibraryEngine
 				for(int z = 0; z < max_z; ++z)
 				{
 					// find the verts for this one cube
-					CubeTriangles* cube = target.GetCubeRelative(x - 1, y - 1, z - 1);
-
-					if(cube != NULL)
+					if(CubeTriangles* cube = target.GetCubeRelative(x - 1, y - 1, z - 1))
 					{
 						cube->BuildAsNeeded();
 						
@@ -461,9 +453,7 @@ namespace CibraryEngine
 			for(int y = 0; y < cmax_y; ++y)
 				for(int z = 0; z < cmax_z; ++z)
 				{
-					CubeTriangles* cube = target.GetCubeRelative(x, y, z);
-
-					if(cube != NULL)
+					if(CubeTriangles* cube = target.GetCubeRelative(x, y, z))
 					{
 						char cube_vert_count = cube->num_vertices;
 						assert(cube_vert_count >= 0 && cube_vert_count < 16);

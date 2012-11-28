@@ -170,46 +170,15 @@ namespace Test
 
 		~Imp()
 		{
-			if(sun != NULL)
-			{
-				delete sun;
-				sun = NULL;
-			}
+			if(sun)						{ delete sun; sun = NULL; }
 
-			if(sky_shader != NULL)
-			{
-				sky_shader->Dispose();
-				delete sky_shader;
-				sky_shader = NULL;
-			}
+			if(render_target)			{ render_target->Dispose();			delete render_target;			render_target = NULL;			}
+			if(shadow_render_target)	{ shadow_render_target->Dispose();	delete shadow_render_target;	shadow_render_target = NULL;	}
 
-			if(render_target != NULL)
-			{
-				render_target->Dispose();
-				delete render_target;
-				render_target = NULL;
-			}
+			if(sky_shader)				{ sky_shader->Dispose();			delete sky_shader;				sky_shader = NULL;				}
 
-			if(shadow_render_target != NULL)
-			{
-				shadow_render_target->Dispose();
-				delete shadow_render_target;
-				shadow_render_target = NULL;
-			}
-
-			if(deferred_ambient != NULL)
-			{
-				deferred_ambient->Dispose();
-				delete deferred_ambient;
-				deferred_ambient = NULL;
-			}
-
-			if(deferred_lighting != NULL)
-			{
-				deferred_lighting->Dispose();
-				delete deferred_lighting;
-				deferred_lighting = NULL;
-			}
+			if(deferred_ambient)		{ deferred_ambient->Dispose();		delete deferred_ambient;		deferred_ambient = NULL;		}
+			if(deferred_lighting)		{ deferred_lighting->Dispose();		delete deferred_lighting;		deferred_lighting = NULL;		}
 		}
 
 		void DrawBackground(Mat4 view_matrix)
@@ -1133,23 +1102,11 @@ namespace Test
 	{
 		load_status.Dispose();
 
-		if(imp != NULL)
-		{
-			delete imp;
-			imp = NULL;
-		}
+		if(imp) { delete imp; imp = NULL; }
 
-		if(hud != NULL)
-		{
-			delete hud;
-			hud = NULL;
-		}
+		if(hud) { delete hud; hud = NULL; }
 
-		if(nav_graph != 0)
-		{
-			NavGraph::DeleteNavGraph(nav_graph);
-			nav_graph = 0;
-		}
+		if(nav_graph) { NavGraph::DeleteNavGraph(nav_graph); nav_graph = 0; }
 
 		sound_system->StopAll();
 

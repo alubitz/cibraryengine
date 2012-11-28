@@ -54,7 +54,7 @@ namespace CibraryEngine
 		~Octree()
 		{
 			for(int i = 0; i < 8; ++i)
-				if(children[i] != NULL)
+				if(children[i])
 				{
 					delete children[i];
 					children[i] = NULL;

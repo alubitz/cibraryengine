@@ -20,7 +20,7 @@ namespace Test
 
 	void WorldBoundary::DeSpawned()
 	{
-		if(rigid_body != NULL)
+		if(rigid_body)
 		{
 			game_state->physics_world->RemoveCollisionObject(rigid_body);
 

@@ -84,9 +84,6 @@ namespace CibraryEngine
 			/** Initializes a rigid body with the specified collision shape, mass properties, and optional position and orientation */
 			RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity());
 
-			/** Disposes of this rigid body without disposing of and deleting the collision shape; by default RigidBody::Dispose will dispose of and delete the collision shape! */
-			void DisposePreservingCollisionShape();
-
 			
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep, PhysicsRegionManager* region_man);

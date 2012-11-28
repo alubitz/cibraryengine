@@ -37,7 +37,7 @@ namespace CibraryEngine
 
 		void Dispose()
 		{
-			if(state != NULL)
+			if(state)
 			{
 				if(is_thread)
 					lua_pop(state, 1);
@@ -92,17 +92,17 @@ namespace CibraryEngine
 	ScriptingState::ScriptingState() : imp(new Imp()) { }
 	ScriptingState::ScriptingState(lua_State* L) : imp(new Imp(L)) { }
 
-	void ScriptingState::InnerDispose() { imp->Dispose(); delete imp; imp = NULL; }
+	void ScriptingState::InnerDispose()							{ imp->Dispose(); delete imp; imp = NULL; }
 
-	lua_State* ScriptingState::GetLuaState() { return imp->state; }
+	lua_State* ScriptingState::GetLuaState()					{ return imp->state; }
 
-	ScriptingState ScriptingState::NewThread() { ScriptingState result(lua_newthread(imp->state)); result.imp->is_thread = true; return result; }
+	ScriptingState ScriptingState::NewThread()					{ ScriptingState result(lua_newthread(imp->state)); result.imp->is_thread = true; return result; }
 
-	int ScriptingState::DoFunction(int args, int results) { return imp->DoFunction(args, results); }
-	int ScriptingState::DoString(const string& str) { return imp->DoString(str); }
-	int ScriptingState::DoFile(const string& filename) { return imp->DoFile(filename); }
+	int ScriptingState::DoFunction(int args, int results)		{ return imp->DoFunction(args, results); }
+	int ScriptingState::DoString(const string& str)				{ return imp->DoString(str); }
+	int ScriptingState::DoFile(const string& filename)			{ return imp->DoFile(filename); }
 
-	bool ScriptingState::IsValid() { return imp != NULL && imp->state != NULL; }
+	bool ScriptingState::IsValid()								{ return imp != NULL && imp->state != NULL; }
 
 
 
@@ -130,11 +130,11 @@ namespace CibraryEngine
 		SetupDefaultFunctions(global_state);
 		DoGlobalsScript(global_state);
 	}
-	void ScriptSystem::Shutdown() { global_state.Dispose(); }
+	void ScriptSystem::Shutdown()								{ global_state.Dispose(); }
 
-	bool ScriptSystem::IsInit() { return global_state.GetLuaState() != NULL; }
+	bool ScriptSystem::IsInit()									{ return global_state.GetLuaState() != NULL; }
 
-	ScriptingState ScriptSystem::GetGlobalState() { return global_state; }
+	ScriptingState ScriptSystem::GetGlobalState()				{ return global_state; }
 
 	void ScriptSystem::SetGS(GameState* gs)
 	{
@@ -152,7 +152,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void ScriptSystem::SetContentReqList(ContentReqList* req) { content_req_list = req; }
+	void ScriptSystem::SetContentReqList(ContentReqList* req)	{ content_req_list = req; }
 
 	void ScriptSystem::DoKeyStateCallback(int key, bool state)
 	{

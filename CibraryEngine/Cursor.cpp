@@ -36,19 +36,10 @@ namespace CibraryEngine
 	{
 	}
 
-	void Cursor::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			imp->Destroy();
+	void Cursor::InnerDispose()		{ if(imp) { imp->Destroy(); delete imp; imp = NULL; } }
 
-			delete imp;
-			imp = NULL;
-		}
-	}
-
-	Texture2D* Cursor::GetImage() { return imp->texture; }
-	Vec2 Cursor::GetOffset() { return imp->offset; }
+	Texture2D* Cursor::GetImage()	{ return imp->texture; }
+	Vec2 Cursor::GetOffset()		{ return imp->offset; }
 
 	// assumes we're already in the correct view matrix, proj, etc.
 	void Cursor::Draw(float x, float y)
@@ -114,9 +105,5 @@ namespace CibraryEngine
 			return new Cursor(texture.GetObject(), Vec2());
 	}
 
-	void CursorLoader::Unload(Cursor* content, ContentMetadata& what)
-	{
-		content->Dispose();
-		delete content;
-	}
+	void CursorLoader::Unload(Cursor* content, ContentMetadata& what) { content->Dispose(); delete content; }
 };

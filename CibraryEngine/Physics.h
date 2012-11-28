@@ -213,6 +213,6 @@ namespace CibraryEngine
 		public:
 
 			/** A collision has occurred! Return whether or not to do the normal collision response behavior */
-			virtual bool OnCollision(const ContactPoint& collision) = 0;
+			virtual void OnCollision(const ContactPoint& collision) = 0;
 	};
 }

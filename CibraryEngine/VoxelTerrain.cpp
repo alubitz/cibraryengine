@@ -41,12 +41,7 @@ namespace CibraryEngine
 	void VoxelTerrain::InnerDispose()
 	{
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-		{
-			TerrainChunk* chunk = *iter;
-			if(chunk != NULL)
-				delete chunk;
-		}
-
+			delete *iter;
 		chunks.clear();
 
 		Disposable::InnerDispose();

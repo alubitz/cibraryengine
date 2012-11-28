@@ -22,28 +22,15 @@ namespace Test
 
 	void Spark::InnerDispose()
 	{
-		if(collider != NULL)
-		{
-			collider->Dispose();
-			delete collider;
-			collider = NULL;
-		}
+		if(collider) { collider->Dispose(); delete collider; collider = NULL; }
 
-		if(trailhead != NULL)
+		if(trailhead)
 		{
 			trailhead->head_free = true;
-			if(trailhead->trail_free)
-			{
-				delete trailhead;
-				trailhead = NULL;
-			}
+			if(trailhead->trail_free) { delete trailhead; trailhead = NULL; }
 		}
 
-		if(callback)
-		{
-			delete callback;
-			callback = NULL;
-		}
+		if(callback) { delete callback; callback = NULL; }
 	}
 
 	void Spark::Spawned()
@@ -58,11 +45,7 @@ namespace Test
 		collider->SetRayCallback(callback);
 	}
 
-	void Spark::DeSpawned()
-	{
-		if(collider != NULL)
-			game_state->physics_world->RemoveCollisionObject(collider);
-	}
+	void Spark::DeSpawned() { if(collider != NULL) { game_state->physics_world->RemoveCollisionObject(collider); } }
 
 	void Spark::Update(TimingInfo time)
 	{

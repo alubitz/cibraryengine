@@ -92,12 +92,8 @@ namespace Test
 
 		// look up all the materials the model uses in advance
 		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
-		for(unsigned int i = 0; i < model->materials.size(); ++i)
-		{
-			string material_name = model->materials[i];
-			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
-			materials.push_back(mat);
-		}
+		for(vector<string>::iterator iter = model->materials.begin(); iter != model->materials.end(); ++iter)
+			materials.push_back(mat_cache->Load(*iter));
 	}
 
 	void Dood::InnerDispose()
@@ -302,10 +298,9 @@ namespace Test
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
-		Sphere bs = Sphere(pos, vis_bs_radius);
-		if(renderer->camera->CheckSphereVisibility(bs))
+		if(renderer->camera->CheckSphereVisibility(pos, vis_bs_radius))
 		{
-			double dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
+			float dist = (renderer->camera->GetPosition() - pos).ComputeMagnitude();
 			int use_lod = dist < 45.0f ? 0 : 1;
 
 			SkinnedCharacterRenderInfo render_info = character->GetRenderInfo();
@@ -573,7 +568,7 @@ namespace Test
 			RigidBody* body = rigid_bodies[i];
 			collision_group->RemoveChild(body);
 
-			body->DisposePreservingCollisionShape();
+			body->Dispose();
 			delete body;
 		}
 		rigid_bodies.clear();
@@ -663,7 +658,7 @@ namespace Test
 	/*
 	 * Dood::StandingCallback methods
 	 */
-	bool Dood::StandingCallback::OnCollision(const ContactPoint& collision)
+	void Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
 		for(map<unsigned int, RigidBody*>::iterator iter = dood->foot_bones.begin(); iter != dood->foot_bones.end(); ++iter)
 			if(collision.obj_a == iter->second || collision.obj_b == iter->second)
@@ -677,11 +672,7 @@ namespace Test
 					standing_on.push_back(collision.obj_a == iter->second ? collision.obj_b : collision.obj_a);
 					standing = 1.0f;
 				}
-
-				return true;
 			}
-
-		return true;
 	}
 
 	void Dood::StandingCallback::Reset() { standing_on.clear(); standing = 0; }

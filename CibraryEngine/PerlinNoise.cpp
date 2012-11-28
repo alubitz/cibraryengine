@@ -50,14 +50,7 @@ namespace CibraryEngine
 		delete[] unique_gradients;
 	}
 
-	PerlinNoise::~PerlinNoise()
-	{
-		if(gradients != NULL)
-		{
-			delete[] gradients;
-			gradients = NULL;
-		}
-	}
+	PerlinNoise::~PerlinNoise() { if(gradients) { delete[] gradients; gradients = NULL; } }
 
 	float PerlinNoise::Sample(Vec3 uvw)
 	{

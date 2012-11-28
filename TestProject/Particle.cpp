@@ -10,21 +10,13 @@ namespace Test
 
 	void Particle::InnerDispose()
 	{
-		if(collider)
-		{
-			collider->Dispose();
-			delete collider;
-			collider = NULL;
-		}
+		if(collider) { collider->Dispose(); delete collider; collider = NULL; }
 
 		if(trailhead)
 		{
 			trailhead->head_free = true;
-			if(trailhead->trail_free)
-			{
-				delete trailhead;
-				trailhead = NULL;
-			}
+
+			if(trailhead->trail_free) { delete trailhead; trailhead = NULL; }
 		}
 	}
 

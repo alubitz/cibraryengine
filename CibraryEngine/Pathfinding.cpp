@@ -181,8 +181,7 @@ namespace CibraryEngine
 				while(cur != source)
 				{
 					int index = node_to_index[cur];
-					Edge* edge = shortest_path_tree[index];
-					if(edge != NULL)
+					if(Edge* edge = shortest_path_tree[index])
 					{
 						results.push_back(cur);
 						cur = edge->to;

@@ -138,20 +138,12 @@ namespace CibraryEngine
 				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
 				self->imp = NULL;
-				if(self->CanDelete())
-				{
-					delete self;
-					self = NULL;
-				}
+				if(self->CanDelete()) { delete self; self = NULL; }
 			}
 
 			Disconnect();
 
-			if(next_socket != NULL)
-			{
-				delete next_socket;
-				next_socket = NULL;
-			}
+			if(next_socket) { delete next_socket; next_socket = NULL; }
 		}
 
 		void BufferedSendAll(Packet p)
@@ -215,32 +207,32 @@ namespace CibraryEngine
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
 			if(started && !terminated)
-            {
-                if(socket != NULL)
-                {
+			{
+				if(socket != NULL)
+				{
 					Server::DisconnectedEvent evt(server);
 					server->ServerDisconnected(&evt);
 
-                    socket->close();
+					socket->close();
 
 					for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 					{
 						iter->second->Send(Packet::CreateNamedAutoLength("BYE", string()));
 
 						RemoveDefaultHandlers(iter->second);
-                        iter->second->Disconnect();
+						iter->second->Disconnect();
 						iter->second->Dispose();
 
 						delete iter->second;
-                    }
+					}
 					connections.clear();
 
 					delete socket;
 					socket = NULL;
-                }
+				}
 
 				terminated = true;
-            }
+			}
 		}
 
 		void DisconnectClient(unsigned int id)
@@ -319,23 +311,16 @@ namespace CibraryEngine
 		imp->my_accept_handler.ptr = imp->self = new Imp::ImpPtr(imp);
 	}
 
-	void Server::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			delete imp;
-			imp = NULL;
-		}
-	}
+	void Server::InnerDispose()									{ if(imp) { delete imp; imp = NULL; } }
 
-	void Server::Start(unsigned short port_num) { imp->Start(port_num); }
-	void Server::Disconnect() { imp->Disconnect(); }
-	void Server::DisconnectClient(unsigned int id) { imp->DisconnectClient(id); }
-	bool Server::IsActive() { return imp->IsActive(); }
+	void Server::Start(unsigned short port_num)					{ imp->Start(port_num); }
+	void Server::Disconnect()									{ imp->Disconnect(); }
+	void Server::DisconnectClient(unsigned int id)				{ imp->DisconnectClient(id); }
+	bool Server::IsActive()										{ return imp->IsActive(); }
 
-	void Server::BufferedSendAll(Packet p) { imp->BufferedSendAll(p); }
-	void Server::SendBufferedPackets() { imp->SendBufferedPackets(); }
+	void Server::BufferedSendAll(Packet p)						{ imp->BufferedSendAll(p); }
+	void Server::SendBufferedPackets()							{ imp->SendBufferedPackets(); }
 
-	list<unsigned int> Server::GetClientIDs() { return imp->GetClientIDs(); }
-	ServerConnection* Server::GetConnection(unsigned int id) { return imp->GetConnection(id); }
+	list<unsigned int> Server::GetClientIDs()					{ return imp->GetClientIDs(); }
+	ServerConnection* Server::GetConnection(unsigned int id)	{ return imp->GetConnection(id); }
 }

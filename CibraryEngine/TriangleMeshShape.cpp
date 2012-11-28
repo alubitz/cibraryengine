@@ -261,7 +261,7 @@ namespace CibraryEngine
 
 	void TriangleMeshShape::BuildOctree()
 	{
-		if(octree != NULL) { delete octree; octree = NULL; }
+		if(octree) { delete octree; octree = NULL; }
 
 		if(vertices.empty())
 			return;					// lolwut?

@@ -212,8 +212,8 @@ namespace DestructibleTerrain
 
 		~Imp()
 		{
-			if(material != NULL) { delete material; material = NULL; }
-			if(terrain != NULL) { delete terrain; terrain = NULL; }
+			if(material)	{ delete material;	material = NULL; }
+			if(terrain)		{ delete terrain;	terrain = NULL; }
 		}
 
 		void MakeTerrainAsNeeded()
@@ -334,7 +334,7 @@ namespace DestructibleTerrain
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 			if(enable_editing && current_brush != NULL)
-			{			
+			{
 				font->Print(current_brush->name, 0, 0);
 				font->Print(((stringstream&)(stringstream() << "Radius : " << brush_radius)).str(), 0, font->font_height);
 			}
@@ -530,9 +530,9 @@ namespace DestructibleTerrain
 
 			AddBrush(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
 
-			void UpdateName() { if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << (*which_ptr)->second.name << "\"")).str(); } }
+			void UpdateName()		{ if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << (*which_ptr)->second.name << "\"")).str(); } }
 
-			void DoAction(Imp* imp) { if(material != NULL) { imp->ApplyBrush(SphereMaterialSetter((*which_ptr)->second.material_index)); imp->terrain->Solidify(); } }
+			void DoAction(Imp* imp)	{ if(material != NULL) { imp->ApplyBrush(SphereMaterialSetter((*which_ptr)->second.material_index)); imp->terrain->Solidify(); } }
 		} add_brush;
 
 		struct SmoothBrush : public EditorBrush

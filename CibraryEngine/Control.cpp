@@ -41,14 +41,7 @@ namespace CibraryEngine
 	 Pawn methods
 	 */
 	Pawn::Pawn(GameState* gs) : Entity(gs), controller(NULL), control_state(new ControlState()) { }
-	Pawn::~Pawn() 
-	{
-		if(control_state != NULL)
-		{
-			delete control_state;
-			control_state = NULL;
-		}
-	}
+	Pawn::~Pawn() { if(control_state) { delete control_state; control_state = NULL; } }
 
 
 
@@ -74,12 +67,7 @@ namespace CibraryEngine
 		pawn->controller = this;
 	}
 
-	void Controller::Exorcise()
-	{
-		if(pawn != NULL)
-			pawn->controller = NULL;
-		pawn = NULL;
-	}
+	void Controller::Exorcise()	{ if(pawn) { pawn->controller = NULL; pawn = NULL; } }
 
 	ControlState* Controller::GetControlState() { return pawn != NULL ? pawn->control_state : NULL; }
 

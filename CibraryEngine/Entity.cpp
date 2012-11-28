@@ -30,17 +30,12 @@ namespace CibraryEngine
 			(*iter)->Vis(renderer);
 	}
 
-	void Entity::InnerDispose()
-	{
-		all_entities[id] = NULL;
-		if(scripting_handle != NULL)
-			*scripting_handle = NULL;
-	}
+	void Entity::InnerDispose()			{ all_entities[id] = NULL; if(scripting_handle) { *scripting_handle = NULL; } }
 
-	void Entity::Spawned() { }
-	void Entity::DeSpawned() { }
+	void Entity::Spawned()				{ }
+	void Entity::DeSpawned()			{ }
 
-	unsigned long int Entity::GetID() { return id; }
+	unsigned long int Entity::GetID()	{ return id; }
 
 	void Entity::PushScriptingHandle(lua_State* L)
 	{
@@ -53,5 +48,5 @@ namespace CibraryEngine
 			lua_pushlightuserdata(L, scripting_handle);
 	}
 
-	void Entity::TossScriptingHandle() { scripting_handle = NULL; }
+	void Entity::TossScriptingHandle()	{ scripting_handle = NULL; }
 }

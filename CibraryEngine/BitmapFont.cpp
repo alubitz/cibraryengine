@@ -105,9 +105,5 @@ namespace CibraryEngine
 		return new BitmapFont(first_display_list, font_height, font_spacing, texture_handle.GetObject());
 	}
 
-	void BitmapFontLoader::Unload(BitmapFont* content, ContentMetadata& meta)
-	{
-		content->Dispose();
-		delete content;
-	}
+	void BitmapFontLoader::Unload(BitmapFont* content, ContentMetadata& meta) { content->Dispose(); delete content; }
 }

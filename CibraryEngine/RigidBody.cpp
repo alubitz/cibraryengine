@@ -66,22 +66,12 @@ namespace CibraryEngine
 
 	void RigidBody::InnerDispose()
 	{
-		if(shape)
-		{
-			shape->Dispose();
-			delete shape;
-
-			shape = NULL;
-		}
-
 		if(shape_cache)
 		{
 			delete shape_cache;
 			shape_cache = NULL;
 		}
 	}
-
-	void RigidBody::DisposePreservingCollisionShape()					{ shape = NULL; Dispose(); }
 
 
 

@@ -83,12 +83,7 @@ void ShowMainMenu()
 
 void DiscardChanges()
 {
-	if(model != NULL)
-	{
-		model->Dispose();
-		delete model;
-		model = NULL;
-	}
+	if(model) { model->Dispose(); delete model; model = NULL; }
 
 	changes = false;
 	UpdateStatus();
@@ -230,7 +225,7 @@ void TranslateModel()
 
 	Vec3 translation = Vec3(x, y, z);
 
-	if(model != NULL)
+	if(model)
 	{
 		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{
@@ -266,7 +261,7 @@ void ScaleModel()
 	cin >> input;
 	float z = (float)atof(input.c_str());
 
-	if(model != NULL)
+	if(model)
 	{
 		for(unsigned int i = 0; i < model->lods.size(); ++i)
 		{

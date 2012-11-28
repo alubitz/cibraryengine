@@ -20,15 +20,7 @@ namespace CibraryEngine
 
 		~Imp() { KillVBO(); }
 
-		void KillVBO()
-		{
-			if(vbo != NULL)
-			{
-				vbo->Dispose();
-				delete vbo;
-				vbo = NULL;
-			}
-		}
+		void KillVBO() { if(vbo) { vbo->Dispose(); delete vbo; vbo = NULL; } }
 
 		void BeginDraw(SceneRenderer* renderer)
 		{
@@ -104,21 +96,14 @@ namespace CibraryEngine
 	 */
 	DebugDrawMaterial::DebugDrawMaterial() : Material(6, Opaque, false), imp(new Imp()) { }
 
-	void DebugDrawMaterial::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			delete imp;
-			imp = NULL;
-		}
-	}
+	void DebugDrawMaterial::InnerDispose()						{ if(imp) { delete imp; imp = NULL; } }
 
-	void DebugDrawMaterial::BeginDraw(SceneRenderer* renderer) { imp->BeginDraw(renderer); }
-	void DebugDrawMaterial::EndDraw() { imp->EndDraw(); }
-	void DebugDrawMaterial::Draw(RenderNode node) { imp->Draw(node); }
-	void DebugDrawMaterial::Cleanup(RenderNode node) { imp->Cleanup(node); }
+	void DebugDrawMaterial::BeginDraw(SceneRenderer* renderer)	{ imp->BeginDraw(renderer); }
+	void DebugDrawMaterial::EndDraw()							{ imp->EndDraw(); }
+	void DebugDrawMaterial::Draw(RenderNode node)				{ imp->Draw(node); }
+	void DebugDrawMaterial::Cleanup(RenderNode node)			{ imp->Cleanup(node); }
 
-	bool DebugDrawMaterial::Equals(Material* other) { return other->mclass_id == mclass_id; }
+	bool DebugDrawMaterial::Equals(Material* other)				{ return other->mclass_id == mclass_id; }
 
 	Material* DebugDrawMaterial::GetDebugDrawMaterial()
 	{

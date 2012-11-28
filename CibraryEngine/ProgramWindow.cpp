@@ -361,11 +361,7 @@ namespace CibraryEngine
 			}
 		}
 
-		void Draw()
-		{
-			if(current_screen != NULL)
-				current_screen->Draw(width, height);
-		}
+		void Draw() { if(current_screen != NULL) { current_screen->Draw(width, height); } }
 
 		void SetTitle(string text) { SetWindowText(window_handle, text.c_str()); }
 	};

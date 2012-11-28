@@ -68,13 +68,9 @@ namespace CibraryEngine
 	template <class T> Cache<T>::Cache(ContentMan* man) : CacheBase(man) { }
 	template <class T> Cache<T>::Cache(ContentMan* man, ContentTypeHandler<T>* handler_) : CacheBase(man) { handler = handler_; }
 
-	template <class T> ContentMetadata& Cache<T>::GetMetadata(unsigned int id) { return content[id].meta; }
+	template <class T> ContentMetadata& Cache<T>::GetMetadata(unsigned int id)		{ return content[id].meta; }
 
-	template <class T> T*& Cache<T>::GetContent(unsigned int id)
-	{
-		void*& vpref = content[id].data;
-		return (T*&)vpref;
-	}
+	template <class T> T*& Cache<T>::GetContent(unsigned int id)					{ void*& vpref = content[id].data; return (T*&)vpref; }
 
 	template <class T> ContentHandle<T> Cache<T>::CreateHandle(ContentMetadata meta)
 	{
@@ -115,8 +111,7 @@ namespace CibraryEngine
 	{
 		unsigned int id = handle.id;
 
-		void* data = content[id].data;
-		if(data != NULL)
+		if(void* data = content[id].data)
 		{
 			content[id].data = NULL;
 
@@ -125,11 +120,7 @@ namespace CibraryEngine
 		}
 	}
 
-	template <class T> bool Cache<T>::IsLoaded(ContentHandle<T> handle)
-	{
-		unsigned int id = handle.id;
-		return content[id].data != NULL;
-	}
+	template <class T> bool Cache<T>::IsLoaded(ContentHandle<T> handle)				{ return content[handle.id].data != NULL; }
 
 	template <class T> T* Cache<T>::Load(const string& asset_name)
 	{
@@ -138,6 +129,6 @@ namespace CibraryEngine
 		return GetContent(handle.id);
 	}
 
-	template <class T> ContentTypeHandler<T>* Cache<T>::GetHandler() { return handler; }
-	template <class T> void Cache<T>::SetHandler(ContentTypeHandler<T>* handler_) { handler = handler_; }
+	template <class T> ContentTypeHandler<T>* Cache<T>::GetHandler()				{ return handler; }
+	template <class T> void Cache<T>::SetHandler(ContentTypeHandler<T>* handler_)	{ handler = handler_; }
 }

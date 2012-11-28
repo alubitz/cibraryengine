@@ -25,12 +25,8 @@ namespace Test
 		bs.center += pos;
 
 		Cache<Material>* mat_cache = gs->content->GetCache<Material>();
-		for(unsigned int i = 0; i < model->materials.size(); ++i)
-		{
-			string material_name = model->materials[i];
-			DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
-			materials.push_back(mat);
-		}
+		for(vector<string>::iterator iter = model->materials.begin(); iter != model->materials.end(); ++iter)
+			materials.push_back(mat_cache->Load(*iter));
 
 		dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 		dust_particle = (ParticleMaterial*)mat_cache->Load("dust_poof");
@@ -40,12 +36,7 @@ namespace Test
 	{
 		Entity::InnerDispose();
 
-		if(rigid_body != NULL)
-		{
-			rigid_body->DisposePreservingCollisionShape();
-			delete rigid_body;
-			rigid_body = NULL;
-		}
+		if(rigid_body) { rigid_body->Dispose(); delete rigid_body; rigid_body = NULL; }
 	}
 
 	void StaticLevelGeometry::Vis(SceneRenderer* renderer)
@@ -66,11 +57,7 @@ namespace Test
 		}
 	}
 
-	void StaticLevelGeometry::DeSpawned()
-	{
-		if(rigid_body != NULL)
-			physics->RemoveCollisionObject(rigid_body);
-	}
+	void StaticLevelGeometry::DeSpawned() { if(rigid_body != NULL) { physics->RemoveCollisionObject(rigid_body); } }
 
 	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
 	{

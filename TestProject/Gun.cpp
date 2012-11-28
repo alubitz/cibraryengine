@@ -34,12 +34,8 @@ namespace Test
 		if(gun_model != NULL)
 		{
 			Cache<Material>* mat_cache = game_state->content->GetCache<Material>();
-			for(unsigned int i = 0; i < gun_model->materials.size(); ++i)
-			{
-				string material_name = gun_model->materials[i];
-				DSNMaterial* mat = (DSNMaterial*)mat_cache->Load(material_name);
-				gun_materials.push_back(mat);
-			}
+			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
+				gun_materials.push_back(mat_cache->Load(*iter));
 		}
 	}
 

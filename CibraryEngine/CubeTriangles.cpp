@@ -51,11 +51,7 @@ namespace CibraryEngine
 	{
 		num_vertices = -1;
 
-		if(cache != NULL)
-		{
-			delete cache;
-			cache = NULL;
-		}
+		if(cache) { delete cache; cache = NULL; }
 
 		chunk->InvalidateVBO();
 	}

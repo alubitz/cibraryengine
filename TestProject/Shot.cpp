@@ -30,21 +30,12 @@ namespace Test
 	{
 		Entity::InnerDispose();
 
-		if(collider)
-		{
-			collider->Dispose();
-			delete collider;
-			collider = NULL;
-		}
+		if(collider) { collider->Dispose(); delete collider; collider = NULL; }
 
 		if(trail_head)
 		{
 			trail_head->head_free = true;
-			if(trail_head->trail_free)
-			{
-				delete trail_head;
-				trail_head = NULL;
-			}
+			if(trail_head->trail_free) { delete trail_head; trail_head = NULL; }
 		}
 	}
 

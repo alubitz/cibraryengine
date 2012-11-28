@@ -48,13 +48,5 @@ namespace Test
 		test_game->Draw(width, height);
 	}
 
-	void TestScreen::Deactivate()
-	{
-		if(test_game != NULL)
-		{
-			test_game->Dispose();
-			delete test_game;
-			test_game = NULL;
-		}
-	}
+	void TestScreen::Deactivate() { if(test_game) { test_game->Dispose(); delete test_game; test_game = NULL; } }
 }

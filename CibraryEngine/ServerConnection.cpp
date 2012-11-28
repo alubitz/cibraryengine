@@ -64,10 +64,10 @@ namespace CibraryEngine
 		void Disconnect()
 		{
 			if(!disconnected)
-            {
+			{
 				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
-				if(socket != NULL)
+				if(socket)
 				{
 					if(socket->is_open())
 						socket->close();
@@ -76,13 +76,13 @@ namespace CibraryEngine
 					socket = NULL;
 				}
 
-                disconnected = true;
+				disconnected = true;
 
 				Connection::DisconnectedEvent evt(connection);
 				connection->Disconnected(&evt);
 
 				server->DisconnectClient(connection->GetClientID());
-            }
+			}
 		}
 		bool IsConnected() { return !disconnected; }
 
@@ -114,8 +114,7 @@ namespace CibraryEngine
 				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
 
 				ptr->receive = false;
-				Imp* imp = ptr->imp;
-				if(imp != NULL)
+				if(Imp* imp = ptr->imp)
 				{
 					if(!error)
 					{		
@@ -163,8 +162,7 @@ namespace CibraryEngine
 
 				ptr->send = false;
 
-				Imp* imp = ptr->imp;
-				if(imp != NULL)
+				if(Imp* imp = ptr->imp)
 				{
 					if(!error)
 					{
@@ -207,19 +205,12 @@ namespace CibraryEngine
 		imp->AsyncReceive();
 	}
 
-	void ServerConnection::InnerDispose()
-	{
-		if(imp != NULL)
-		{
-			delete imp;
-			imp = NULL;
-		}
-	}
+	void ServerConnection::InnerDispose()			{ if(imp) { delete imp; imp = NULL; } }
 
-	Server* ServerConnection::GetServer() { return imp->server; }
-	unsigned int ServerConnection::GetClientID() { return imp->id; }
+	Server* ServerConnection::GetServer()			{ return imp->server; }
+	unsigned int ServerConnection::GetClientID()	{ return imp->id; }
 
-	void ServerConnection::Send(Packet p) { imp->Send(p); }
-	void ServerConnection::Disconnect() { imp->Disconnect(); }
-	bool ServerConnection::IsConnected() { return imp->IsConnected(); }
+	void ServerConnection::Send(Packet p)			{ imp->Send(p); }
+	void ServerConnection::Disconnect()				{ imp->Disconnect(); }
+	bool ServerConnection::IsConnected()			{ return imp->IsConnected(); }
 }

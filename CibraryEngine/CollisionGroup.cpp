@@ -39,7 +39,7 @@ namespace CibraryEngine
 		{
 			RigidBody* child = *iter;
 
-			child->Dispose();		// CAUTION: this will destroy the collision shapes! consider removing children first
+			child->Dispose();
 			delete child;
 		}
 		children.clear();
