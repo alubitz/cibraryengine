@@ -240,7 +240,7 @@ function goal_move_attack(owner, target)
 			return false
 		else
 			local dx = result.target.position - result.owner.position
-			return dx.length < 10
+			return dx.length < 50
 		end
 	end
 
@@ -308,7 +308,7 @@ function create_steering_behavior(owner)
 					control_state.leap = true
 				else
 					control_state.forward = 1
-					if attack and dist < 2 then control_state.primary_fire = true end
+					if attack and dist < 50 then control_state.primary_fire = true end
 				end
 
 			end

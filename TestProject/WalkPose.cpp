@@ -171,7 +171,8 @@ namespace Test
 
 		// apply yaw changes
 		yaw -= yaw_speed * time.elapsed;
-		if(yaw_bone)
+
+		if(yaw_bone != 0)
 			SetBonePose(yaw_bone, Vec3(0, -yaw, 0), Vec3());
 	}
 }

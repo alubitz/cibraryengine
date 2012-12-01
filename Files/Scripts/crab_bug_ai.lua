@@ -10,13 +10,14 @@ if not disable_ai then
 
 	-- select a target
 	local my_pos = dood.position
+	local eye_pos = dood.eye_pos
 
 	local dood_list = gs.getDoodsList()
 
 	local target = nil
 	for i, ent in ipairs(dood_list) do
 		if ent.is_player and ent ~= dood then
-			if gs.checkLineOfSight(my_pos + ba.createVector(0, 0.5, 0), ent.position + ba.createVector(0, 1, 0)) then
+			if gs.checkLineOfSight(eye_pos, ent.position + ba.createVector(0, 1, 0)) then
 				target = ent
 			end
 		end

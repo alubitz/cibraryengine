@@ -23,18 +23,14 @@ namespace Test
 	 */
 	CrabWeapon::CrabWeapon(TestGame* test, Dood* owner) :
 		WeaponIntrinsic(test, owner),
-		attack_wait(0),
-		attack_interval(1.0)
+		attack_ready_time(-1.0f),
+		attack_interval(1.0f)
 	{
 	}
 
 	void CrabWeapon::OwnerUpdate(TimingInfo time)
 	{
-		float timestep = time.elapsed;
-
-		attack_wait -= timestep;
-
-		if(IsFiring(1) && attack_wait <= 0)
+		if(IsFiring(1) && time.total >= attack_ready_time)
 			ClawAttackNormal(time.total);
 	}
 
@@ -74,7 +70,7 @@ namespace Test
 			dood->shootables[0]->GetShot(&shot, damage_location, Vec3());
 		}
 
-		attack_wait = attack_interval;
+		attack_ready_time = now + attack_interval;
 
 		FireOnce(1);
 	}

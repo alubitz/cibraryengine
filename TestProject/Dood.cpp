@@ -18,8 +18,6 @@ namespace Test
 	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	float top_speed_sideways = 5.0f;
 
-	float yaw_rate = 10.0f, pitch_rate = 10.0f;
-
 
 
 
@@ -50,6 +48,8 @@ namespace Test
 	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Pawn(gs),
 		character_pose_time(-1),
+		yaw_rate(10.0f),
+		pitch_rate(10.0f),
 		team(team),
 		materials(),
 		pos(pos),
@@ -322,7 +322,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 0.0f;
+			float third_person_distance = 5.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -339,6 +339,14 @@ namespace Test
 			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, backward.x, backward.y, backward.z);
 			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec - backward * third_person_distance));
 		}
+	}
+
+	Vec3 Dood::GetEyePos()
+	{
+		if(eye_bone != NULL)
+			return eye_bone->GetTransformationMatrix().TransformVec3_1(eye_bone->rest_pos);
+		else
+			return pos;
 	}
 
 	SoundSource* Dood::PlayDoodSound(SoundBuffer* buffer, float vol, bool looping)
@@ -711,18 +719,19 @@ namespace Test
 
 			lua_settop(L, 0);
 
-			if(key == "is_valid")						{ lua_pushboolean(L,  *dood_ptr != NULL); return 1; }
+			if(key == "is_valid")						{ lua_pushboolean(	L, *dood_ptr != NULL);									return 1; }
 			else
 			{
 				Dood* dood = *dood_ptr;
 				if(dood)
 				{
-					if		(key == "id")				{ lua_pushnumber(L, dood->GetID()); return 1; }
-					else if	(key == "position")			{ PushLuaVector(L, dood->pos); return 1; }
-					else if	(key == "is_player")		{ lua_pushboolean(L, dood == ((TestGame*)dood->game_state)->player_pawn); return 1; }
-					else if	(key == "health")			{ lua_pushnumber(L, dood->hp); return 1; }
-					else if	(key == "yaw")				{ lua_pushnumber(L, dood->yaw); return 1; }
-					else if	(key == "pitch")			{ lua_pushnumber(L, dood->pitch); return 1; }
+					if		(key == "id")				{ lua_pushnumber(	L, dood->GetID());										return 1; }
+					else if	(key == "position")			{ PushLuaVector(	L, dood->pos);											return 1; }
+					else if	(key == "eye_pos")			{ PushLuaVector(	L, dood->GetEyePos());									return 1; }
+					else if	(key == "is_player")		{ lua_pushboolean(	L, dood == ((TestGame*)dood->game_state)->player_pawn);	return 1; }
+					else if	(key == "health")			{ lua_pushnumber(	L, dood->hp);											return 1; }
+					else if	(key == "yaw")				{ lua_pushnumber(	L, dood->yaw);											return 1; }
+					else if	(key == "pitch")			{ lua_pushnumber(	L, dood->pitch);										return 1; }
 					else
 						Debug("unrecognized key for Dood:index: " + key + "\n");
 				}

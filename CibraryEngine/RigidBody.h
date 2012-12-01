@@ -124,7 +124,7 @@ namespace CibraryEngine
 
 
 
-			void ApplyForce(const Vec3& force, const Vec3& local_poi);
+			void ApplyWorldForce(const Vec3& force, const Vec3& poi);
 
 			// impulse is a world-space direction
 			// local_poi is in the coordinate system of the object

@@ -208,9 +208,11 @@ namespace CibraryEngine
 
 	bool RigidBody::MergesSubgraphs()									{ return shape->CanMove() && shape->GetShapeType() != ST_Ray; }
 
-	void RigidBody::ApplyForce(const Vec3& force, const Vec3& local_poi)
+	void RigidBody::ApplyWorldForce(const Vec3& force, const Vec3& poi)
 	{
-		applied_torque += LocalForceToTorque(force, local_poi);
+		ComputeXformAsNeeded();
+
+		applied_torque += Vec3::Cross(force, poi - cached_com);
 		applied_force += force;
 	}
 

@@ -8,7 +8,7 @@ namespace Test
 	{
 		public:
 
-			float attack_wait;
+			float attack_ready_time;
 			float attack_interval;
 
 			CrabWeapon(TestGame* game_state, Dood* owner);

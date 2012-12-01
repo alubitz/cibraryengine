@@ -48,8 +48,16 @@ namespace Test
 		
 		if(time.total > detonation_time)
 			Explode();
+		else
+		{
+			Mat3 rm = ori.ToMat3().Transpose();
+			Vec3 fwd = rm * Vec3(0, 0, 1);
 
-		// TODO: else apply drag, steering, etc.
+			float mass = rigid_body->GetMass();
+
+			rigid_body->ApplyWorldForce(fwd * (mass * 50.0f), pos + fwd * 0.5f);				// thrust
+			rigid_body->ApplyWorldForce(vel * (-mass * 0.01f), pos - fwd * 0.5f);				// drag
+		}
 	}
 
 	void RocketBug::Spawned()

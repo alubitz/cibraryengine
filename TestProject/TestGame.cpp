@@ -14,6 +14,8 @@
 
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
+#include "ArtilleryWeapon.h"
+
 #include "WorldBoundary.h"
 
 #include "LevelLoad.h"
@@ -710,7 +712,7 @@ namespace Test
 
 		dood->blood_material = imp->blood_blue;
 
-		Spawn(dood->intrinsic_weapon = new CrabWeapon(this, dood));
+		Spawn(dood->intrinsic_weapon = new ArtilleryWeapon(this, dood, dood->character->skeleton->GetNamedBone("carapace"), Vec3(0, 10.0f, 8.0f)));
 
 		ScriptedController* ai_controller = new ScriptedController(this, "crab_bug_ai");
 		ai_controller->Possess(dood);

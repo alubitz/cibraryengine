@@ -11,9 +11,9 @@ namespace CibraryEngine
 	 */
 	MassInfo::MassInfo() : mass(0), com(), moi() { }
 	MassInfo::MassInfo(float mass) : mass(mass), com(), moi() { }
-	MassInfo::MassInfo(Vec3 point, float mass) : mass(mass), com(point), moi() { }
+	MassInfo::MassInfo(const Vec3& point, float mass) : mass(mass), com(point), moi() { }
 
-	void MassInfo::operator +=(MassInfo right)
+	void MassInfo::operator +=(const MassInfo& right)
 	{
 		float totalmass = mass + right.mass;
 		Vec3 new_com = (com * mass + right.com * right.mass) / totalmass;
@@ -28,7 +28,7 @@ namespace CibraryEngine
 		for(int i = 0; i < 9; ++i)
 			moi[i] = left_moi[i] + right_moi[i];
 	}
-	MassInfo MassInfo::operator +(MassInfo other) { MassInfo temp = *this; temp += other; return temp; }
+	MassInfo MassInfo::operator +(const MassInfo& other) { MassInfo temp = *this; temp += other; return temp; }
 
 	void MassInfo::operator *=(float coeff)
 	{
@@ -39,7 +39,7 @@ namespace CibraryEngine
 	}
 	MassInfo MassInfo::operator *(float coeff) { MassInfo temp = *this; temp *= coeff; return temp; }
 
-	void MassInfo::GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result)
+	void MassInfo::GetAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result)
 	{
 		float a_squared = a.ComputeMagnitudeSquared();
 

@@ -38,6 +38,8 @@ namespace Test
 				bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
 			};
 
+			float yaw_rate, pitch_rate;
+
 			virtual void InnerDispose();
 
 			void DoPitchAndYawControls(TimingInfo time);
@@ -102,6 +104,7 @@ namespace Test
 
 			void Vis(SceneRenderer* renderer);
 			Mat4 GetViewMatrix();
+			Vec3 GetEyePos();
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 

@@ -24,12 +24,12 @@ namespace CibraryEngine
 		/** Initializes a MassInfo representing a point mass at the origin */
 		MassInfo(float mass);
 		/** Initializes a MassInfo representing a point mass, at the specified location */
-		MassInfo(Vec3 pos, float mass);
+		MassInfo(const Vec3& pos, float mass);
 
 		/** Adds two MassInfo objects */
-		void operator +=(MassInfo other);
+		void operator +=(const MassInfo& other);
 		/** Adds two MassInfo objects */
-		MassInfo operator +(MassInfo other);
+		MassInfo operator +(const MassInfo& other);
 
 		/** Scales the mass and MoI components of a MassInfo, leaving the CoM unchanged */
 		void operator *=(float coeff);
@@ -37,7 +37,7 @@ namespace CibraryEngine
 		MassInfo operator *(float coeff);
 
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
-		static void GetAlternatePivotMoI(Vec3 a, float* I, float m, float* result);
+		static void GetAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result);
 
 		static MassInfo FromCollisionShape(CollisionShape* shape, float mass);
 
