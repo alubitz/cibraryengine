@@ -75,10 +75,13 @@ namespace Test
 			SkinnedCharacter* character;
 			PosedCharacter* posey;
 
+			bool use_cheaty_physics;
+
 			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
 
 			Mat4 whole_xform;
 			Vec3 origin;
+			Quaternion net_ori;			// used for fudging conservation of angular momentum
 
 			RigidBody* root_rigid_body;
 			vector<RigidBody*> rigid_bodies;

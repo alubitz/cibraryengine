@@ -119,7 +119,7 @@ namespace InverseKinematics
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
 			ScriptSystem::Init();
-			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/savezzp.lua");
+			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/soldier_zzp.lua");
 
 			string filename = "soldier";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);

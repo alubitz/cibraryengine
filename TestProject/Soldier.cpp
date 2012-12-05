@@ -8,6 +8,8 @@
 
 #include "ConverterWhiz.h"
 
+#define DISABLE_ANIMATIONS 0
+
 namespace Test
 {
 	/*
@@ -354,7 +356,10 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
+		use_cheaty_physics = true;
+
 		p_ag = new PoseAimingGun();
+#if !DISABLE_ANIMATIONS
 		posey->active_poses.push_back(p_ag);
 
 		KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
@@ -369,6 +374,10 @@ namespace Test
 		walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
 		walk_pose->yaw_bone = Bone::string_table["pelvis"];
 		walk_pose->side_anim_rate = 2.5f;
+#else
+		walk_pose = new WalkPose(this, &rest, NULL, NULL, NULL, NULL, NULL, NULL);
+#endif
+
 		posey->active_poses.push_back(walk_pose);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");

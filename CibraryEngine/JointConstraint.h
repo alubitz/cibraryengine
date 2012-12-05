@@ -19,6 +19,8 @@ namespace CibraryEngine
 			Vec3 apply_pos;
 			Vec3 desired_dv;
 
+			Vec3 desired_av;
+
 			Mat3 oriented_axes, reverse_oriented_axes;
 			Quaternion a_to_b, b_to_a;
 
@@ -38,6 +40,9 @@ namespace CibraryEngine
 			Vec3 min_extents;
 			/** Maximum angle the joint can turn in each direction, in the coordinate system specified by axes */
 			Vec3 max_extents;
+
+			Quaternion desired_ori;
+			bool enable_motor;
 
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 

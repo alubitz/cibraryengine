@@ -10,7 +10,7 @@ if not disable_ai then
 
 	-- select a target
 	local my_pos = dood.position
-	local eye_pos = dood.eye_pos
+	local eye_pos = dood.eye_pos + ba.createVector(0, 0.75, 0)			-- TODO: remove this bit of fudge once the model's eye bone is set up properly
 
 	local dood_list = gs.getDoodsList()
 

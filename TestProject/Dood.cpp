@@ -64,7 +64,9 @@ namespace Test
 		model(model),
 		character(NULL),
 		posey(NULL),
+		use_cheaty_physics(false),
 		vis_bs_radius(2.5f),
+		net_ori(Quaternion::Identity()),
 		root_rigid_body(NULL),
 		rigid_bodies(),
 		shootables(),
@@ -361,6 +363,12 @@ namespace Test
 	void Dood::PreUpdatePoses(TimingInfo time) { }
 	void Dood::PostUpdatePoses(TimingInfo time) { }
 
+	static Vec3 ComputeAngularMomentum(RigidBody* body, const float local_moi[9], const Mat3& moi_about_netcom, const Vec3& dcom, const Vec3& net_vel)
+	{
+		//return (Mat3(local_moi) * body->GetAngularVelocity()) + (moi_about_netcom * Vec3::Cross(net_vel - body->GetLinearVelocity(), dcom));
+		return Vec3::Cross(net_vel - body->GetLinearVelocity(), dcom) * body->GetMass();
+	}
+
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
 	{
@@ -395,50 +403,175 @@ namespace Test
 			{
 				unsigned int num_bodies = rigid_bodies.size();
 
-				Vec3 net_vel;
-				Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin
-				float net_mass = 0.0f;
-
-				for(unsigned int i = 0; i < num_bodies; ++i)
+				if(use_cheaty_physics)
 				{
-					RigidBody* body = rigid_bodies[i];
+					// compute center of mass, and the velocity thereof
+					Vec3 net_vel;
+					Vec3 com;
+					float net_mass = 0.0f;
 
-					float mass = body->GetMass();
-					net_vel += body->GetLinearVelocity() * mass;
-					com += body->GetCenterOfMass() * mass;
-					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * mass;
-					net_mass += mass;
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						RigidBody* body = rigid_bodies[i];
+
+						float mass = body->GetMass();
+						net_vel += body->GetLinearVelocity() * mass;
+						com += body->GetCenterOfMass() * mass;
+						net_mass += mass;
+					}
+					net_vel /= net_mass;
+					com /= net_mass;
+
+
+					/*
+					// compute angular momentum, and net angular velocity
+					Vec3 angular_momentum;
+					//Mat3 net_moi;
+
+					Vec3*		body_dcom				= new Vec3		[num_bodies];
+					MassInfo*	body_xformed_massinfo	= new MassInfo	[num_bodies];
+					Mat3*		body_moi_about_netcom	= new Mat3		[num_bodies];
+
+					MassInfo net_moi_massinfo;
+
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						RigidBody* body = rigid_bodies[i];
+
+						MassInfo& xformed_mass_info = body_xformed_massinfo[i] = body->GetTransformedMassInfo();
+						Vec3& dcom = body_dcom[i] = com - xformed_mass_info.com;
+
+						Mat3& result_moi = body_moi_about_netcom[i];
+						MassInfo::GetAlternatePivotMoI(dcom, xformed_mass_info.moi, xformed_mass_info.mass, result_moi.values);
+
+						net_moi_massinfo += MassInfo(xformed_mass_info.com, xformed_mass_info.mass);
+
+						//net_moi += result_moi;
+						angular_momentum += ComputeAngularMomentum(body, xformed_mass_info.moi, result_moi, dcom, net_vel);
+					}
+
+					Mat3 net_moi = Mat3(net_moi_massinfo.moi);
+					Mat3 inv_net_moi = Mat3::Invert(net_moi);
+
+					//net_ori = root_rigid_body->GetOrientation();
+					//net_ori *= Quaternion::FromPYR(inv_net_moi * angular_momentum * timestep);
+
+
+					// orient root bone(s) to match the fudge orientation
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						Bone* bone = rbody_to_posey[i];
+						if(bone->parent == NULL)
+							bone->ori = net_ori;
+					}
+
+					posey->skeleton->InvalidateCachedBoneXforms();
+					*/
+
+					Vec3 rest_com;					// where the com would be if the dood were in this pose at the origin
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						RigidBody* body = rigid_bodies[i];
+						rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
+					}
+					rest_com /= net_mass;
+
+				
+
+					// make bones conform to pose
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						RigidBody* body = rigid_bodies[i];
+						MassInfo mass_info = body->GetMassInfo();
+						float mass = mass_info.mass;
+
+						Bone* bone = rbody_to_posey[i];
+
+						Mat4 bone_xform = bone->GetTransformationMatrix();
+						Vec3 dummy;
+						Quaternion bone_ori;
+						bone_xform.Decompose(dummy, bone_ori);
+
+						Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
+
+						float time_coeff = time.elapsed * 2400.0f;
+
+						Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
+						body->SetLinearVelocity(nu_v);
+
+						Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
+						body->SetAngularVelocity(nu_av);
+					}
+
+					/*
+					// go back and see how the net angular velocity has changed
+					Vec3 nu_angular_momentum;
+					for(unsigned int i = 0; i < num_bodies; ++i)
+						nu_angular_momentum += ComputeAngularMomentum(rigid_bodies[i], body_xformed_massinfo[i].moi, body_moi_about_netcom[i], body_dcom[i], net_vel);
+
+					Vec3 d_avel = inv_net_moi * (angular_momentum - nu_angular_momentum);
+
+					// undo that change in angular velocity
+					for(unsigned int i = 0; i < num_bodies; ++i)
+					{
+						RigidBody* body = rigid_bodies[i];
+
+						Vec3& dcom = body_dcom[i];
+
+						//body->SetAngularVelocity(body->GetAngularVelocity() + d_avel);
+						body->SetLinearVelocity(body->GetLinearVelocity() + Vec3::Cross(d_avel, dcom));
+					}
+
+					Vec3 nu_angular_momentum2;
+					for(unsigned int i = 0; i < num_bodies; ++i)
+						nu_angular_momentum2 += ComputeAngularMomentum(rigid_bodies[i], body_xformed_massinfo[i].moi, body_moi_about_netcom[i], body_dcom[i], net_vel);
+
+					Debug(((stringstream&)(stringstream() << "original error = " << d_avel.ComputeMagnitude() << "; new error = " << (inv_net_moi * (angular_momentum - nu_angular_momentum2)).ComputeMagnitude() << endl)).str());
+
+					// cleanup dynamically allocated memory
+					delete[] body_dcom;
+					delete[] body_xformed_massinfo;
+					delete[] body_moi_about_netcom;
+					*/
 				}
-				net_vel /= net_mass;
-				com /= net_mass;
-				rest_com /= net_mass;
-
-				// make bones conform to pose
-				for(unsigned int i = 0; i < num_bodies; ++i)
+				else
 				{
-					RigidBody* body = rigid_bodies[i];
-					MassInfo mass_info = body->GetMassInfo();
-					float mass = mass_info.mass;
+					for(unsigned int i = 0; i < constraints.size(); ++i)
+					{
+						JointConstraint* jc = (JointConstraint*)constraints[i];
+						jc->enable_motor = true;
 
-					Bone* bone = rbody_to_posey[i];
+						RigidBody *a = jc->obj_a, *b = jc->obj_b;
+						Bone *a_bone = NULL, *b_bone = NULL;
 
-					Mat4 bone_xform = bone->GetTransformationMatrix();
-					Vec3 dummy;
-					Quaternion bone_ori;
-					bone_xform.Decompose(dummy, bone_ori);
+						for(unsigned int j = 0; j < num_bodies; ++j)
+						{
+							RigidBody* c = rigid_bodies[j];
+							if(c == a)
+							{
+								a_bone = rbody_to_posey[j];
+								if(b_bone != NULL)
+									break;
+							}
+							else if(c == b)
+							{
+								b_bone = rbody_to_posey[j];
+								if(a_bone != NULL)
+									break;
+							}
+						}
 
-					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
-
-					float time_coeff = time.elapsed * 2400.0f;
-
-					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
-					Vec3 dv = nu_v - body->GetLinearVelocity();
-					body->ApplyCentralImpulse(dv * mass);
-
-					Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
-					Vec3 d_av = nu_av - body->GetAngularVelocity();
-					body->ApplyAngularImpulse(Mat3(body->GetTransformedMassInfo().moi) * d_av);
+						if(b_bone->parent == a_bone)
+							jc->desired_ori = b_bone->ori * b_bone->rest_ori;
+						else
+							jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
+					}
 				}
+			}
+			else
+			{
+				for(unsigned int i = 0; i < constraints.size(); ++i)
+					((JointConstraint*)constraints[i])->enable_motor = false;
 			}
 
 			PostUpdatePoses(time);

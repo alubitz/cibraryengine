@@ -18,7 +18,7 @@ namespace CibraryEngine
 		/** Initializes a zero matrix */
 		Mat3() { for(int i = 0; i < 9; ++i) { values[i] = 0.0; } }
 		/** Initializes a matrix with the specified values */
-		Mat3(float values_[9]) { for(int i = 0; i < 9; ++i) { values[i] = values_[i]; } }
+		Mat3(const float values_[9]) { for(int i = 0; i < 9; ++i) { values[i] = values_[i]; } }
 		/** Initializes a matrix with the specified values */
 		Mat3(float v11, float v12, float v13, float v21, float v22, float v23, float v31, float v32, float v33)
 		{

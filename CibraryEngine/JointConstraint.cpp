@@ -15,7 +15,9 @@ namespace CibraryEngine
 		pos(pos),
 		axes(axes),
 		min_extents(min_extents),
-		max_extents(max_extents)
+		max_extents(max_extents),
+		desired_ori(Quaternion::Identity()),
+		enable_motor(false)
 	{
 	}
 
@@ -63,6 +65,9 @@ namespace CibraryEngine
 		Vec3 current_av = obj_b->rot - obj_a->rot;
 		Vec3 alpha;												// delta-angular-velocity
 
+		if(enable_motor)
+			alpha = current_av - desired_av;
+
 #if ENFORCE_JOINT_ROTATION_LIMITS
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
@@ -102,6 +107,7 @@ namespace CibraryEngine
 		inv_timestep = 1.0f / timestep;
 
 		const float spring_coeff =				1.0f;
+		const float motor_coeff =				1.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();
@@ -126,6 +132,8 @@ namespace CibraryEngine
 
 		r1 = apply_pos - obj_a->cached_com;
 		r2 = apply_pos - obj_b->cached_com;
+
+		desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
 	}
 
 	void JointConstraint::WriteDataToBuffer(float* ptr)
