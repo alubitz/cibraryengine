@@ -223,6 +223,7 @@ namespace CibraryEngine
 
 
 
+
 	/*
 	 * ModelPhysics scripting stuff
 	 */
@@ -250,21 +251,14 @@ namespace CibraryEngine
 					ModelPhysics::BonePhysics bone;
 					bone.collision_shape = NULL;
 
-					int top;
-					top = lua_gettop(L);
-
 					lua_pushstring(L, "name");
 					lua_gettable(L, -2);
 					if(lua_isstring(L, -1))
 						bone.bone_name = lua_tostring(L, -1);
 					lua_pop(L, 1);
 
-					top = lua_gettop(L);
-
 					lua_pushstring(L, "shape");
 					lua_gettable(L, -2);
-
-					top = lua_gettop(L);
 
 					if(lua_istable(L, -1))
 					{

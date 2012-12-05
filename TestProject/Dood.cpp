@@ -66,7 +66,6 @@ namespace Test
 		posey(NULL),
 		use_cheaty_physics(false),
 		vis_bs_radius(2.5f),
-		net_ori(Quaternion::Identity()),
 		root_rigid_body(NULL),
 		rigid_bodies(),
 		shootables(),
@@ -405,9 +404,10 @@ namespace Test
 
 				if(use_cheaty_physics)
 				{
+					// "cheaty" physics conserves linear but not angular momentum
 					// compute center of mass, and the velocity thereof
 					Vec3 net_vel;
-					Vec3 com;
+					Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin;
 					float net_mass = 0.0f;
 
 					for(unsigned int i = 0; i < num_bodies; ++i)
@@ -417,66 +417,12 @@ namespace Test
 						float mass = body->GetMass();
 						net_vel += body->GetLinearVelocity() * mass;
 						com += body->GetCenterOfMass() * mass;
+						rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
 						net_mass += mass;
 					}
 					net_vel /= net_mass;
 					com /= net_mass;
-
-
-					/*
-					// compute angular momentum, and net angular velocity
-					Vec3 angular_momentum;
-					//Mat3 net_moi;
-
-					Vec3*		body_dcom				= new Vec3		[num_bodies];
-					MassInfo*	body_xformed_massinfo	= new MassInfo	[num_bodies];
-					Mat3*		body_moi_about_netcom	= new Mat3		[num_bodies];
-
-					MassInfo net_moi_massinfo;
-
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						RigidBody* body = rigid_bodies[i];
-
-						MassInfo& xformed_mass_info = body_xformed_massinfo[i] = body->GetTransformedMassInfo();
-						Vec3& dcom = body_dcom[i] = com - xformed_mass_info.com;
-
-						Mat3& result_moi = body_moi_about_netcom[i];
-						MassInfo::GetAlternatePivotMoI(dcom, xformed_mass_info.moi, xformed_mass_info.mass, result_moi.values);
-
-						net_moi_massinfo += MassInfo(xformed_mass_info.com, xformed_mass_info.mass);
-
-						//net_moi += result_moi;
-						angular_momentum += ComputeAngularMomentum(body, xformed_mass_info.moi, result_moi, dcom, net_vel);
-					}
-
-					Mat3 net_moi = Mat3(net_moi_massinfo.moi);
-					Mat3 inv_net_moi = Mat3::Invert(net_moi);
-
-					//net_ori = root_rigid_body->GetOrientation();
-					//net_ori *= Quaternion::FromPYR(inv_net_moi * angular_momentum * timestep);
-
-
-					// orient root bone(s) to match the fudge orientation
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						Bone* bone = rbody_to_posey[i];
-						if(bone->parent == NULL)
-							bone->ori = net_ori;
-					}
-
-					posey->skeleton->InvalidateCachedBoneXforms();
-					*/
-
-					Vec3 rest_com;					// where the com would be if the dood were in this pose at the origin
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						RigidBody* body = rigid_bodies[i];
-						rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
-					}
 					rest_com /= net_mass;
-
-				
 
 					// make bones conform to pose
 					for(unsigned int i = 0; i < num_bodies; ++i)
@@ -502,40 +448,10 @@ namespace Test
 						Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
 						body->SetAngularVelocity(nu_av);
 					}
-
-					/*
-					// go back and see how the net angular velocity has changed
-					Vec3 nu_angular_momentum;
-					for(unsigned int i = 0; i < num_bodies; ++i)
-						nu_angular_momentum += ComputeAngularMomentum(rigid_bodies[i], body_xformed_massinfo[i].moi, body_moi_about_netcom[i], body_dcom[i], net_vel);
-
-					Vec3 d_avel = inv_net_moi * (angular_momentum - nu_angular_momentum);
-
-					// undo that change in angular velocity
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						RigidBody* body = rigid_bodies[i];
-
-						Vec3& dcom = body_dcom[i];
-
-						//body->SetAngularVelocity(body->GetAngularVelocity() + d_avel);
-						body->SetLinearVelocity(body->GetLinearVelocity() + Vec3::Cross(d_avel, dcom));
-					}
-
-					Vec3 nu_angular_momentum2;
-					for(unsigned int i = 0; i < num_bodies; ++i)
-						nu_angular_momentum2 += ComputeAngularMomentum(rigid_bodies[i], body_xformed_massinfo[i].moi, body_moi_about_netcom[i], body_dcom[i], net_vel);
-
-					Debug(((stringstream&)(stringstream() << "original error = " << d_avel.ComputeMagnitude() << "; new error = " << (inv_net_moi * (angular_momentum - nu_angular_momentum2)).ComputeMagnitude() << endl)).str());
-
-					// cleanup dynamically allocated memory
-					delete[] body_dcom;
-					delete[] body_xformed_massinfo;
-					delete[] body_moi_about_netcom;
-					*/
 				}
 				else
 				{
+					// non-"cheaty" physics conserves both linear and angular momentum
 					for(unsigned int i = 0; i < constraints.size(); ++i)
 					{
 						JointConstraint* jc = (JointConstraint*)constraints[i];

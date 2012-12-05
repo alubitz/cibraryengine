@@ -8,6 +8,7 @@
 #include "GameState.h"
 
 #include "ModelPhysics.h"
+#include "UberModel.h"
 
 namespace CibraryEngine
 {
@@ -235,6 +236,8 @@ namespace CibraryEngine
 		lua_setfield(L, 1, "loadModel");
 		lua_pushcclosure(L, ba_saveModelPhysics, 0);
 		lua_setfield(L, 1, "saveModelPhysics");
+		lua_pushcclosure(L, ba_saveUberModel, 0);
+		lua_setfield(L, 1, "saveUberModel");
 
 		lua_setglobal(L, "ba");						// pop; top = 0
 	}

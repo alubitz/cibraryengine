@@ -161,4 +161,6 @@ namespace CibraryEngine
 
 		static void AddSkinnedModel(UberModel* uber, SkinnedModel* skinny, const string& lod_name);
 	};
+
+	int ba_saveUberModel(lua_State* L);
 }

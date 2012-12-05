@@ -1,29 +1,32 @@
+---------------------------------------------------------------------------
+-------- Utility functions for creating a ModelPhysics file (.zzp) --------
+---------------------------------------------------------------------------
 
-local Z = { }
+local P = { }
 
-Z.sphere = function(x, y, z, r) return { center = ba.createVector(x, y, z), radius = r } end
+P.sphere = function(x, y, z, r) return { center = ba.createVector(x, y, z), radius = r } end
 
-Z.add_single_bone = function(add_to, name, mass, shape) 
+P.add_single_bone = function(add_to, name, mass, shape) 
 	local result = { name = name, mass = mass, shape = shape }
 
 	add_to[#add_to + 1] = result
 	return result
 end
 
-Z.add_symetric_bones = function(add_to, name, mass, left_shape)
+P.add_symetric_bones = function(add_to, name, mass, left_shape)
 
 	local right_shape = { }
 	for i, cur_sphere in ipairs(left_shape) do
-		right_shape[i] = Z.sphere(-cur_sphere.center.x, cur_sphere.center.y, cur_sphere.center.z, cur_sphere.radius)
+		right_shape[i] = P.sphere(-cur_sphere.center.x, cur_sphere.center.y, cur_sphere.center.z, cur_sphere.radius)
 	end
 
-	local left_result = Z.add_single_bone(add_to, "l " .. name, mass, left_shape)
-	local right_result = Z.add_single_bone(add_to, "r " .. name, mass, right_shape)
+	local left_result = P.add_single_bone(add_to, "l " .. name, mass, left_shape)
+	local right_result = P.add_single_bone(add_to, "r " .. name, mass, right_shape)
 
 	return left_result, right_result
 end
 
-Z.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes, min_extents, max_extents)
+P.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes, min_extents, max_extents)
 	local joint = { name = name, pos = pos, axes = axes, min_extents = min_extents, max_extents = max_extents }
 	for i, bone in ipairs(bones_list) do
 		if bone.name == parent then
@@ -37,7 +40,7 @@ Z.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes
 	return joint
 end
 
-Z.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, name, left_axes, min_extents, max_extents)
+P.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, name, left_axes, min_extents, max_extents)
 
 	local left_joint = { pos = left_pos, min_extents = min_extents, max_extents = max_extents }
 	local right_joint = { pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z), min_extents = min_extents, max_extents = max_extents }
@@ -88,4 +91,4 @@ Z.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, n
 	return left_joint, right_joint
 end
 
-return Z
+return P

@@ -793,10 +793,12 @@ namespace CibraryEngine
 
 
 
+	static ContentMan* recent_content_man = NULL;			// TODO: come up with a better way to give ba.saveUberModel access to this
+
 	/*
 	 * UberModelLoader methods
 	 */
-	UberModelLoader::UberModelLoader(ContentMan* man) : ContentTypeHandler<UberModel>(man) { }
+	UberModelLoader::UberModelLoader(ContentMan* man) : ContentTypeHandler<UberModel>(man) { recent_content_man = man; }
 
 	UberModel* UberModelLoader::Load(ContentMetadata& what)
 	{
@@ -1071,5 +1073,204 @@ namespace CibraryEngine
 
 		for(unsigned int i = 0; i < skinny->material_names.size(); ++i)
 			uber->materials.push_back(skinny->material_names[i]);
+	}
+
+
+
+
+	/*
+	 * UberModel scripting stuff
+	 */
+	int ba_saveUberModel(lua_State* L)
+	{
+		int n = lua_gettop(L);
+
+		if(n == 3 && lua_istable(L, 1) && lua_istable(L, 2) && lua_isstring(L, 3))
+		{
+			string short_name = lua_tostring(L, 3);
+			string filename = "Files/Models/" + short_name + ".zzz";
+
+			struct ModelEntry
+			{
+				string model;
+				string material;
+			};
+			vector<ModelEntry> models;
+
+			unsigned int num_mmps = lua_objlen(L, 1);
+			for(unsigned int i = 1; i <= num_mmps; ++i)
+			{
+				// load a model entry
+				lua_pushinteger(L, i);
+				lua_gettable(L, 1);
+
+				if(lua_istable(L, -1))
+				{
+					ModelEntry entry;
+
+					lua_pushstring(L, "model");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						entry.model = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "material");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						entry.material = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					models.push_back(entry);
+				}
+
+				lua_pop(L, 1);
+			}
+
+			struct BoneEntry
+			{
+				string name;
+				string parent;
+
+				Vec3 pos;
+				Quaternion ori;
+			};
+			vector<BoneEntry> bones;
+
+			unsigned int num_bones = lua_objlen(L, 2);
+			for(unsigned int i = 1; i <= num_bones; ++i)
+			{
+				// load a bone entry
+				lua_pushinteger(L, i);
+				lua_gettable(L, 2);
+
+				if(lua_istable(L, -1))
+				{
+					BoneEntry entry;
+
+					lua_pushstring(L, "name");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						entry.name = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "parent");
+					lua_gettable(L, -2);
+					if(lua_isstring(L, -1))
+						entry.parent = lua_tostring(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "pos");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+						entry.pos = *(Vec3*)lua_touserdata(L, -1);
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "ori");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+						entry.ori = Quaternion::FromPYR(*(Vec3*)lua_touserdata(L, -1));
+					else
+						entry.ori = Quaternion::Identity();
+					lua_pop(L, 1);
+
+					bones.push_back(entry);
+				}
+
+				lua_pop(L, 1);
+			}
+
+			// now to put the model together
+			ContentMan* content = recent_content_man;
+			Cache<VertexBuffer>* vtn_cache = content->GetCache<VertexBuffer>();
+
+			vector<MaterialModelPair> mmps;
+			vector<string> material_names;
+
+			for(vector<ModelEntry>::iterator iter = models.begin(); iter != models.end(); ++iter)
+			{
+				MaterialModelPair mmp;
+
+				unsigned int material_index;
+				for(material_index = 0; material_index < material_names.size(); ++material_index)
+					if(material_names[material_index] == iter->material)
+						break;
+
+				if(material_index == material_names.size())
+					material_names.push_back(iter->material);
+
+				mmp.material_index = material_index;
+				VertexBuffer* vbo = mmp.vbo = vtn_cache->Load(iter->model);
+
+				vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
+				vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
+
+				mmps.push_back(mmp);
+			}
+
+			Skeleton* skeleton = new Skeleton();
+			
+			vector<BoneEntry> remaining_bones;
+			vector<BoneEntry> nu_remaining;
+
+			nu_remaining.assign(bones.begin(), bones.end());
+
+			do
+			{
+				remaining_bones.assign(nu_remaining.begin(), nu_remaining.end());
+				nu_remaining.clear();
+
+				for(vector<BoneEntry>::iterator iter = remaining_bones.begin(); iter != remaining_bones.end(); ++iter)
+				{
+					if(iter->parent.empty())
+						skeleton->AddBone(Bone::string_table[iter->name], iter->ori, iter->pos);
+					else
+					{
+						unsigned int parent_name = Bone::string_table[iter->parent];
+
+						bool found = false;
+						for(vector<Bone*>::iterator jter = skeleton->bones.begin(); jter != skeleton->bones.end(); ++jter)
+						{
+							if((*jter)->name == parent_name)
+							{
+								skeleton->AddBone(Bone::string_table[iter->name], *jter, iter->ori, iter->pos);
+								found = true;
+								break;
+							}
+						}
+						if(!found)
+							nu_remaining.push_back(*iter);
+					}
+				}
+			} while(!nu_remaining.empty() && nu_remaining.size() < remaining_bones.size());
+
+			SkinnedModel* skinny = new SkinnedModel(mmps, material_names, skeleton);
+
+			vector<VertexBuffer*> submodels;
+			for(vector<BoneEntry>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+				if(VertexBuffer* vbo = vtn_cache->Load(iter->name))
+					submodels.push_back(vbo);
+
+			SkinnedModel::AutoSkinModel(skinny, submodels);
+
+			UberModel* uber = UberModelLoader::CopySkinnedModel(skinny);
+			if(unsigned int error = UberModelLoader::SaveZZZ(uber, filename))
+				Debug(((stringstream&)(stringstream() << "SaveZZZ returned status " << error << "!" << endl)).str());
+			else
+				Debug("Successfully saved UberModel as \"" + filename + "\"\n");
+
+			uber->Dispose();
+			delete uber;
+
+			skinny->Dispose();
+			delete skinny;
+
+			skeleton->Dispose();
+			delete skeleton;
+
+			return 0;
+		}
+
+		Debug("ba.saveUberModel takes 3 parameters: a table of models, a table of bones, and a string (the \"short name\" of the object to save)\n");
+		return 0;
 	}
 }
