@@ -321,12 +321,7 @@ namespace Test
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "dsn shader";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "dsn shader"; }
 
 		// setting the content loader for materials if it hasn't been set already
 		mat_cache = content->GetCache<Material>();
@@ -335,6 +330,7 @@ namespace Test
 
 		ScriptingState thread_script = ScriptSystem::GetGlobalState().NewThread();
 
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "Models..."; }
 		ContentReqList content_req_list(content);
 
 		ScriptSystem::SetContentReqList(&content_req_list);
@@ -384,7 +380,7 @@ namespace Test
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("nbridge").id).fail = false;
 		}
 
-		load_status.task = "sky";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "sky"; }
 
 		// creating sky
 		Cache<Shader>* shader_cache = content->GetCache<Shader>();
@@ -398,12 +394,7 @@ namespace Test
 		imp->sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
 		imp->sky_sphere = vtn_cache->Load("sky_sphere");
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "deferred lighting shader";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "deferred lighting shader"; }
 
 		imp->ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
 
@@ -436,47 +427,19 @@ namespace Test
 		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "soldier";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
 
 		// Dood's model
 		imp->soldier_model = ubermodel_cache->Load("soldier");
 		if(imp->soldier_model == NULL)
 		{
-			vector<BoneEntry> bone_entries;
-			Soldier::GetBoneEntries(bone_entries);
-
-			// non-physical bones... bleh
-			bone_entries.push_back(BoneEntry("eye",		"head",		Vec3(	0,		1.80f,	0.18f	)));
-			bone_entries.push_back(BoneEntry("l grip",	"l hand",	Vec3(	0.9f,	1.15f,	0.04f	)));
-			//Quaternion rgrip_ori = Quaternion::FromPYR(1.47884f, -0.625244f, -0.625244f);
-			bone_entries.push_back(BoneEntry("r grip",	"r hand",	/*Quaternion::Reverse(rgrip_ori) **/ Vec3(	-0.9f,	1.15f,	0.04f	)));
-
-			UberModel* soldier_model = imp->soldier_model = AutoSkinUberModel(content, "nuarmor", "soldier", bone_entries);
-
-			SetUberModelSkeleton(soldier_model, bone_entries);
-			for(vector<UberModel::Bone>::iterator iter = soldier_model->bones.begin(); iter != soldier_model->bones.end(); ++iter)
-			{
-				if(iter->name == "r grip")
-					iter->ori = Quaternion::FromPYR(float(M_PI / 2), 0, 0) * Quaternion::FromPYR(0, -0.8f, 0);
-			}
-
-			UberModelLoader::SaveZZZ(soldier_model, "Files/Models/soldier.zzz");
+			thread_script.DoFile("Files/Scripts/soldier_zzz.lua");
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("soldier").id).fail = false;
 		}
 		imp->soldier_physics = mphys_cache->Load("soldier");
 		if(imp->soldier_physics == NULL)
 		{
-			vector<BoneEntry> bone_entries;
-			Soldier::GetBoneEntries(bone_entries);
-
-			imp->soldier_physics = ModelPhysicsFromBoneEntries(bone_entries);
-
-			ModelPhysicsLoader::SaveZZP(imp->soldier_physics, "Files/Physics/soldier.zzp");
+			thread_script.DoFile("Files/Scripts/soldier_zzp.lua");
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("soldier").id).fail = false;
 		}
 		
@@ -490,12 +453,7 @@ namespace Test
 		imp->blood_blue = (BillboardMaterial*)mat_cache->Load("bug_blood");
 		imp->dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "crab bug";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "crab bug"; }
 
 		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
 		if(imp->crab_bug_model == NULL)
@@ -520,12 +478,8 @@ namespace Test
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("crab_bug").id).fail = false;
 		}
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "artillery bug";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "artillery bug"; }
+
 		imp->artillery_bug_model = ubermodel_cache->Load("flea");
 		if(imp->artillery_bug_model == NULL)
 		{
@@ -570,24 +524,14 @@ namespace Test
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("ground_plane").id).fail = false;
 		}
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "misc";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "misc"; }
 
 		// loading weapon sounds
 		imp->fire_sound = content->GetCache<SoundBuffer>()->Load("shot");
 		imp->chamber_click_sound = NULL;
 		imp->reload_sound = NULL;
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "level";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "level"; }
 
 		LoadLevel(this, "TestLevel");
 
@@ -598,12 +542,7 @@ namespace Test
 			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
 		}
 
-		if(load_status.HasAborted())
-		{
-			load_status.Stop();
-			return;
-		}
-		load_status.task = "starting game";
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "starting game"; }
 
 		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 0.95f, 0.8f), NULL, NULL);
 

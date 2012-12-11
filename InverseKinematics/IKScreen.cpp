@@ -17,7 +17,7 @@ namespace InverseKinematics
 
 		void Vis(SceneRenderer* renderer)
 		{
-			if(shape)
+			if(shape != NULL)
 			{
 				Vec3 pos;
 				Quaternion ori;
@@ -26,43 +26,6 @@ namespace InverseKinematics
 				shape->DebugDraw(renderer, pos, ori);
 			}
 		}
-	};
-
-	class BreathingPose : public Pose
-	{
-		public:
-
-			void UpdatePose(TimingInfo time)
-			{
-				//SetBonePose(Bone::string_table["torso 1"], Vec3(sinf(time.total * 0.5f) * 0.1f, 0, 0), Vec3());
-			}
-	};
-
-	class AimingPose : public Pose
-	{
-		public:
-
-			Bone* bone;					// bone which should be aimed
-
-			Quaternion desired_ori;
-
-
-			AimingPose(Bone* bone) : bone(bone), desired_ori(Quaternion::Identity()) { }
-
-			void UpdatePose(TimingInfo time)
-			{
-				// TODO: implement this for real
-				//SetBonePose(Bone::string_table["r shoulder"], Vec3(0, sinf(time.total) * 0.5f + 0.5f, 0), Vec3());
-			}
-
-			void Vis(SceneRenderer* renderer)
-			{
-				// draw actual aiming line
-				Mat4 bone_xform = bone->GetTransformationMatrix();
-				Vec3 origin = bone_xform.TransformVec3_1(bone->rest_pos);
-				Vec3 direction = bone_xform.TransformVec3_0(Vec3(0, 0, 1));
-				renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(origin, origin + direction * 1000, Vec3(1, 0, 0)), 0));
-			}
 	};
 
 	/*
@@ -75,7 +38,6 @@ namespace InverseKinematics
 		InputState* input_state;
 
 		PosedCharacter* character;
-		AimingPose* aiming_pose;
 
 		Skeleton* skeleton;
 		vector<IKBone*> ik_bones;
@@ -91,7 +53,6 @@ namespace InverseKinematics
 
 		float now, buffered_time;
 
-		Vec3 pos, vel;
 		float yaw, pitch;
 
 		Imp(ProgramWindow* window) :
@@ -99,7 +60,6 @@ namespace InverseKinematics
 			window(window),
 			input_state(window->input_state),
 			character(NULL),
-			aiming_pose(NULL),
 			skeleton(NULL),
 			uber(NULL),
 			ik_bones(),
@@ -107,8 +67,6 @@ namespace InverseKinematics
 			renderer(&camera),
 			cursor(NULL),
 			font(NULL),
-			pos(),
-			vel(),
 			key_listener(),
 			mouse_listener()
 		{
@@ -119,9 +77,9 @@ namespace InverseKinematics
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
 			ScriptSystem::Init();
-			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/soldier_zzp.lua");
+			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/robot_arm_zzp.lua");
 
-			string filename = "soldier";
+			string filename = "robot_arm";
 			ModelPhysics* mphys = window->content->GetCache<ModelPhysics>()->Load(filename);
 			uber = window->content->GetCache<UberModel>()->Load(filename);
 
@@ -132,17 +90,8 @@ namespace InverseKinematics
 					WrapBone(bone, (MultiSphereShape*)iter->collision_shape);
 
 			character = new PosedCharacter(skeleton);
-			character->active_poses.push_back(new BreathingPose());
-
-			if(Bone* aim_bone = skeleton->GetNamedBone("r grip"))
-			{
-				aiming_pose = new AimingPose(aim_bone);
-				character->active_poses.push_back(aiming_pose);
-			}
 
 			bool left_fwd = true;
-
-			pos.y = -0.2f;				// otherwise feet would be at 0.2
 
 			now = buffered_time = 0.0f;
 			yaw = 0.0f;
@@ -161,9 +110,6 @@ namespace InverseKinematics
 			character->Dispose();
 			delete character;
 			character = NULL;
-
-			// these will have been deleted by the above
-			aiming_pose = NULL;
 
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				delete *iter;
@@ -193,25 +139,7 @@ namespace InverseKinematics
 					if(input_state->keys[VK_DOWN])
 						pitch += timestep;
 
-					aiming_pose->desired_ori = Quaternion::Identity();
-
-					if(input_state->keys['A'])
-						vel.x += 5.0f * timestep;
-					if(input_state->keys['D'])
-						vel.x -= 5.0f * timestep;
-					if(input_state->keys['W'])
-						vel.z += 5.0f * timestep;
-					if(input_state->keys['S'])
-						vel.z -= 5.0f * timestep;
-
-					pos += vel * timestep;
-					vel *= exp(-2.0f * timestep);
-
-					skeleton->GetNamedBone("pelvis")->pos = pos;
 					skeleton->InvalidateCachedBoneXforms();
-
-					float speed = vel.ComputeMagnitude();
-					Vec3 u_vel = vel / speed;
 
 					character->UpdatePoses(use_time);
 				}
@@ -242,7 +170,7 @@ namespace InverseKinematics
 			// set up camera
 			float zoom = 2.0f;
 			float aspect_ratio = (float)width / height;
-			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0) * Mat4::Translation(-pos);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0));
 
 			camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
@@ -262,13 +190,10 @@ namespace InverseKinematics
 				renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(i,	0, -2),	Vec3(i, 0, 2)),	0));
 			}
 
-			// aiming pose has some info it can display, too
-			//aiming_pose->Vis(&renderer);
-
 			// draw the skinned character
 			SkinnedCharacterRenderInfo sk_rinfo;
 
-			Bone* pelvis = skeleton->GetNamedBone("pelvis");
+			Bone* pelvis = skeleton->GetNamedBone("robot arm 1");
 			Vec3 offset = pelvis->pos;
 			pelvis->pos = Vec3();
 			skeleton->InvalidateCachedBoneXforms();

@@ -294,8 +294,8 @@ namespace Test
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
-	Vec3 Dood::GetPosition() { return root_rigid_body->GetPosition(); }
-	void Dood::SetPosition(Vec3 pos) { root_rigid_body->SetPosition(pos); }
+	Vec3 Dood::GetPosition()			{ return root_rigid_body->GetPosition(); }
+	void Dood::SetPosition(Vec3 pos)	{ root_rigid_body->SetPosition(pos); }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
@@ -361,12 +361,6 @@ namespace Test
 	// overridden by subclasses
 	void Dood::PreUpdatePoses(TimingInfo time) { }
 	void Dood::PostUpdatePoses(TimingInfo time) { }
-
-	static Vec3 ComputeAngularMomentum(RigidBody* body, const float local_moi[9], const Mat3& moi_about_netcom, const Vec3& dcom, const Vec3& net_vel)
-	{
-		//return (Mat3(local_moi) * body->GetAngularVelocity()) + (moi_about_netcom * Vec3::Cross(net_vel - body->GetLinearVelocity(), dcom));
-		return Vec3::Cross(net_vel - body->GetLinearVelocity(), dcom) * body->GetMass();
-	}
 
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
@@ -557,6 +551,9 @@ namespace Test
 					root_rigid_body = rigid_body;
 			}
 		}
+
+		if(root_rigid_body == NULL && !rigid_bodies.empty())
+			root_rigid_body = rigid_bodies[0];
 
 		// create constraints between bones
 		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)
@@ -771,8 +768,7 @@ namespace Test
 			if(key == "is_valid")						{ lua_pushboolean(	L, *dood_ptr != NULL);									return 1; }
 			else
 			{
-				Dood* dood = *dood_ptr;
-				if(dood)
+				if(Dood* dood = *dood_ptr)
 				{
 					if		(key == "id")				{ lua_pushnumber(	L, dood->GetID());										return 1; }
 					else if	(key == "position")			{ PushLuaVector(	L, dood->pos);											return 1; }
@@ -793,14 +789,8 @@ namespace Test
 
 	int dood_newindex(lua_State* L)
 	{
-		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
-		Dood* dood = *dood_ptr;
-		if(dood == NULL)
-		{
-			Debug("Attempting to modify the properties of an invalid dood handle\n");
-			return 0;
-		}
-		else
+		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);		
+		if(Dood* dood = *dood_ptr)
 		{
 			if(lua_isstring(L, 2))
 			{
@@ -837,6 +827,11 @@ namespace Test
 					Debug("unrecognized key for Dood:newindex: " + key + "\n");
 			}
 		}
+		else
+		{
+			Debug("Attempting to modify the properties of an invalid dood handle\n");
+			return 0;
+		}
 
 		return 0;
 	}
@@ -857,12 +852,9 @@ namespace Test
 
 	int dood_gc(lua_State* L)
 	{
-		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
-		if(dood_ptr)
-		{
+		if(Dood** dood_ptr = (Dood**)lua_touserdata(L, 1))
 			if(Dood* dood = *dood_ptr)
 				dood->TossScriptingHandle();
-		}
 
 		lua_settop(L, 0);
 		return 0;
@@ -945,12 +937,6 @@ namespace Test
 		return false;
 	}
 
-
-
-
-	/*
-	 * If this Dood has a death callback associated with it via Lua-scripting, call that callback
-	 */
 	bool MaybeDoScriptedDeath(Dood* dood)
 	{
 		lua_State* L = ScriptSystem::GetGlobalState().GetLuaState();
