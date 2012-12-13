@@ -113,6 +113,9 @@ namespace Test
 			void PoseCharacter();
 			void PoseCharacter(TimingInfo time);
 
+			void PhysicsToCharacter();
+			virtual void PoseToPhysics(TimingInfo time);
+
 			virtual void Update(TimingInfo time);
 
 			virtual void Spawned();

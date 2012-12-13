@@ -7,7 +7,7 @@ function player_death(dood)
 end
 
 -- figure out which dood is the player, and remember that
-local player_pos = ba.createVector(8.3, 149.2, 69.5)
+local player_pos = ba.createVector(0, 0, 0)							--ba.createVector(8.3, 149.2, 69.5)
 player = gs.spawnPlayer(player_pos)
 player.death_callback = player_death
 
@@ -23,7 +23,7 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = false
+disable_enemies = true
 disable_waves = false
 disable_ai = false
 
@@ -39,6 +39,8 @@ game_over = false
 gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
+
+gs.spawnRobotArm(ba.createVector(-0.5, 0, 5))
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do

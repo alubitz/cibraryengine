@@ -52,6 +52,7 @@ namespace Test
 		pitch_rate(10.0f),
 		team(team),
 		materials(),
+		blood_material(NULL),
 		pos(pos),
 		vel(),
 		yaw(0),
@@ -323,7 +324,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 5.0f;
+			float third_person_distance = 0.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -362,6 +363,125 @@ namespace Test
 	void Dood::PreUpdatePoses(TimingInfo time) { }
 	void Dood::PostUpdatePoses(TimingInfo time) { }
 
+	void Dood::PhysicsToCharacter()
+	{
+		origin = rigid_bodies[0]->GetPosition();
+
+		unsigned int num_bones = bone_to_rbody.size();
+		for(unsigned int i = 0; i < num_bones; ++i)
+		{
+			Bone* bone = character->skeleton->bones[i];
+			if(RigidBody* body = bone_to_rbody[i])
+			{
+				bone->ori = Quaternion::Reverse(body->GetOrientation());
+				bone->pos = body->GetPosition() - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
+			}
+		}
+
+		character->render_info.Invalidate();
+		character->skeleton->InvalidateCachedBoneXforms();
+	}
+
+	void Dood::PoseToPhysics(TimingInfo time)
+	{
+		if(alive)
+		{
+			unsigned int num_bodies = rigid_bodies.size();
+
+			if(use_cheaty_physics)
+			{
+				// "cheaty" physics conserves linear but not angular momentum
+				// compute center of mass, and the velocity thereof
+				Vec3 net_vel;
+				Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin;
+				float net_mass = 0.0f;
+
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+
+					float mass = body->GetMass();
+					net_vel += body->GetLinearVelocity() * mass;
+					com += body->GetCenterOfMass() * mass;
+					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
+					net_mass += mass;
+				}
+				net_vel /= net_mass;
+				com /= net_mass;
+				rest_com /= net_mass;
+
+				// make bones conform to pose
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+					MassInfo mass_info = body->GetMassInfo();
+					float mass = mass_info.mass;
+
+					Bone* bone = rbody_to_posey[i];
+
+					Mat4 bone_xform = bone->GetTransformationMatrix();
+					Vec3 dummy;
+					Quaternion bone_ori;
+					bone_xform.Decompose(dummy, bone_ori);
+
+					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
+
+					float time_coeff = time.elapsed * 2400.0f;
+
+					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
+					body->SetLinearVelocity(nu_v);
+
+					Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
+					body->SetAngularVelocity(nu_av);
+				}
+			}
+			else
+			{
+				// non-"cheaty" physics conserves both linear and angular momentum
+				for(unsigned int i = 0; i < constraints.size(); ++i)
+				{
+					JointConstraint* jc = (JointConstraint*)constraints[i];
+					jc->enable_motor = true;
+
+					RigidBody *a = jc->obj_a, *b = jc->obj_b;
+					Bone *a_bone = NULL, *b_bone = NULL;
+
+					for(unsigned int j = 0; j < num_bodies; ++j)
+					{
+						RigidBody* c = rigid_bodies[j];
+						if(c == a)
+						{
+							a_bone = rbody_to_posey[j];
+							if(b_bone != NULL)
+								break;
+						}
+						else if(c == b)
+						{
+							b_bone = rbody_to_posey[j];
+							if(a_bone != NULL)
+								break;
+						}
+					}
+
+					if(b_bone->parent == a_bone)
+						jc->desired_ori = b_bone->ori * b_bone->rest_ori;
+					else
+						jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
+				}
+			}
+		}
+		else
+		{
+			for(unsigned int i = 0; i < constraints.size(); ++i)
+			{
+				JointConstraint* jc = (JointConstraint*)constraints[i];
+
+				jc->enable_motor = false;
+				jc->motor_torque = Vec3();
+			}
+		}
+	}
+
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
 	{
@@ -373,116 +493,12 @@ namespace Test
 		{
 			float timestep = character_pose_time >= 0 ? now - character_pose_time : 0;
 
-			origin = rigid_bodies[0]->GetPosition();
-
-			unsigned int num_bones = bone_to_rbody.size();
-			for(unsigned int i = 0; i < num_bones; ++i)
-			{
-				Bone* bone = character->skeleton->bones[i];
-				if(RigidBody* body = bone_to_rbody[i])
-				{
-					bone->ori = Quaternion::Reverse(body->GetOrientation());
-					bone->pos = body->GetPosition() - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
-				}
-			}
-
-			character->render_info.Invalidate();
-			character->skeleton->InvalidateCachedBoneXforms();
+			PhysicsToCharacter();
 
 			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(timestep, now));
 
-			if(alive)
-			{
-				unsigned int num_bodies = rigid_bodies.size();
-
-				if(use_cheaty_physics)
-				{
-					// "cheaty" physics conserves linear but not angular momentum
-					// compute center of mass, and the velocity thereof
-					Vec3 net_vel;
-					Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin;
-					float net_mass = 0.0f;
-
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						RigidBody* body = rigid_bodies[i];
-
-						float mass = body->GetMass();
-						net_vel += body->GetLinearVelocity() * mass;
-						com += body->GetCenterOfMass() * mass;
-						rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
-						net_mass += mass;
-					}
-					net_vel /= net_mass;
-					com /= net_mass;
-					rest_com /= net_mass;
-
-					// make bones conform to pose
-					for(unsigned int i = 0; i < num_bodies; ++i)
-					{
-						RigidBody* body = rigid_bodies[i];
-						MassInfo mass_info = body->GetMassInfo();
-						float mass = mass_info.mass;
-
-						Bone* bone = rbody_to_posey[i];
-
-						Mat4 bone_xform = bone->GetTransformationMatrix();
-						Vec3 dummy;
-						Quaternion bone_ori;
-						bone_xform.Decompose(dummy, bone_ori);
-
-						Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
-
-						float time_coeff = time.elapsed * 2400.0f;
-
-						Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
-						body->SetLinearVelocity(nu_v);
-
-						Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
-						body->SetAngularVelocity(nu_av);
-					}
-				}
-				else
-				{
-					// non-"cheaty" physics conserves both linear and angular momentum
-					for(unsigned int i = 0; i < constraints.size(); ++i)
-					{
-						JointConstraint* jc = (JointConstraint*)constraints[i];
-						jc->enable_motor = true;
-
-						RigidBody *a = jc->obj_a, *b = jc->obj_b;
-						Bone *a_bone = NULL, *b_bone = NULL;
-
-						for(unsigned int j = 0; j < num_bodies; ++j)
-						{
-							RigidBody* c = rigid_bodies[j];
-							if(c == a)
-							{
-								a_bone = rbody_to_posey[j];
-								if(b_bone != NULL)
-									break;
-							}
-							else if(c == b)
-							{
-								b_bone = rbody_to_posey[j];
-								if(a_bone != NULL)
-									break;
-							}
-						}
-
-						if(b_bone->parent == a_bone)
-							jc->desired_ori = b_bone->ori * b_bone->rest_ori;
-						else
-							jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
-					}
-				}
-			}
-			else
-			{
-				for(unsigned int i = 0; i < constraints.size(); ++i)
-					((JointConstraint*)constraints[i])->enable_motor = false;
-			}
+			PoseToPhysics(time);
 
 			PostUpdatePoses(time);
 
@@ -517,8 +533,7 @@ namespace Test
 		{
 			ModelPhysics::BonePhysics& phys = mphys->bones[i];
 
-			CollisionShape* shape = phys.collision_shape;
-			if(shape)
+			if(CollisionShape* shape = phys.collision_shape)
 			{
 				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, pos);
 
@@ -592,7 +607,7 @@ namespace Test
 				bone_to_rbody.push_back(NULL);
 		}
 
-		if(rigid_bodies.size() == 0)
+		if(rigid_bodies.empty())
 		{
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
@@ -659,7 +674,7 @@ namespace Test
 
 	void Dood::Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
 	{
-		if(blood_material)
+		if(blood_material != NULL)
 			for(int i = 0; i < 8; ++i)
 			{
 				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);

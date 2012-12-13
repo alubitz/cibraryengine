@@ -1,17 +1,23 @@
 #pragma once
 #include "StdAfx.h"
 
+#include "TimingInfo.h"
+
 namespace CibraryEngine
 {
-	struct TimingInfo;
-
 	class SceneRenderer;
+	class Entity;
 
 	class Component
 	{
 		public:
 
-			virtual void Update(TimingInfo time);
-			virtual void Vis(SceneRenderer* renderer);
+			Entity* entity;
+
+			Component(Entity* entity) : entity(entity) { }
+			virtual ~Component() { }
+
+			virtual void Update(TimingInfo time) { }
+			virtual void Vis(SceneRenderer* renderer) { }
 	};
 }

@@ -17,7 +17,8 @@ namespace CibraryEngine
 		min_extents(min_extents),
 		max_extents(max_extents),
 		desired_ori(Quaternion::Identity()),
-		enable_motor(false)
+		enable_motor(false),
+		motor_torque()
 	{
 	}
 
@@ -134,6 +135,11 @@ namespace CibraryEngine
 		r2 = apply_pos - obj_b->cached_com;
 
 		desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
+
+		// apply motor torque
+		Vec3 motor_aimpulse = reverse_oriented_axes * (motor_torque * timestep);
+		obj_a->ApplyAngularImpulse(motor_aimpulse);
+		obj_b->ApplyAngularImpulse(-motor_aimpulse);
 	}
 
 	void JointConstraint::WriteDataToBuffer(float* ptr)
