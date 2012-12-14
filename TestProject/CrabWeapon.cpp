@@ -67,7 +67,7 @@ namespace Test
 			float damage_amount = dist < inner_r ? full_damage : (outer_r - dist) * coeff;
 			CrabShot shot(game_state, owner, damage_location, Vec3(), damage_amount);
 
-			dood->shootables[0]->GetShot(&shot, damage_location, Vec3());
+			dood->shootables[0]->GetShot(&shot, damage_location, Vec3(), 0.0f);
 		}
 
 		attack_ready_time = now + attack_interval;

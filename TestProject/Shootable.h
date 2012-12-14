@@ -13,6 +13,6 @@ namespace Test
 		public:
 			// Handles how an entity responds to getting shot
 			// Return true to allow the shot to hit, false to prevent it from hitting
-			virtual bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum) = 0;
+			virtual bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass) = 0;
 	};
 }

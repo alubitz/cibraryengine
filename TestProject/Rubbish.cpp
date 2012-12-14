@@ -56,7 +56,7 @@ namespace Test
 
 	void Rubbish::DeSpawned() { if(rigid_body != NULL) { physics->RemoveCollisionObject(rigid_body); } }
 
-	bool Rubbish::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+	bool Rubbish::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass)
 	{
 #if 1
 	#if 1
@@ -69,7 +69,7 @@ namespace Test
 			game_state->Spawn(new Spark(game_state, poi, trail_mat));
 #endif
 
-		rigid_body->ApplyWorldImpulse(momentum, poi);
+		rigid_body->ApplyWorldImpulse(vel * mass, poi);
 		return true;
 
 	}

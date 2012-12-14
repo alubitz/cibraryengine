@@ -8,7 +8,7 @@ namespace Test
 	 */
 	WorldBoundary::WorldBoundary(GameState* gs, Plane plane) : Entity(gs), plane(plane), rigid_body(NULL) { }
 
-	bool WorldBoundary::GetShot(Shot* shot, Vec3 poi, Vec3 momentum) { return true; }
+	bool WorldBoundary::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass) { return true; }
 
 	void WorldBoundary::Spawned()
 	{

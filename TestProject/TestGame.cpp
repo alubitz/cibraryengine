@@ -669,6 +669,8 @@ namespace Test
 		Dood* dood = new RobotArm(this, ubermodel_cache->Load("robot_arm"), mphys_cache->Load("robot_arm"), pos, bug_team);
 		Spawn(dood);
 
+		dood->blood_material = imp->blood_blue;
+
 		return dood;
 	}
 

@@ -74,7 +74,7 @@ namespace CibraryEngine
 		return cached_aabb;
 	}
 
-	void CollisionGroup::AddChild(RigidBody* child)		{ assert(((CollisionGroup*)child)->can_move); child->SetGravity(gravity); children.insert(child); }
+	void CollisionGroup::AddChild(RigidBody* child)		{ child->SetGravity(gravity); children.insert(child); }
 	void CollisionGroup::RemoveChild(RigidBody* child)	{ children.erase(child); }
 
 	void CollisionGroup::UpdateVel(float timestep)

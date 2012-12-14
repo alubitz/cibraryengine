@@ -41,7 +41,7 @@ namespace Test
 			virtual void Update(TimingInfo time);
 
 			virtual Damage GetDamage();
-			virtual Vec3 GetMomentum();
+			virtual void GetMomentumInfo(Vec3& vel_out, float& mass_out);
 
 			struct TrailHead : public BillboardTrail::TrailHead
 			{ 

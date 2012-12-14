@@ -35,7 +35,7 @@ namespace Test
 				BoneShootable(GameState* gs, Dood* dood, RigidBody* body, BillboardMaterial* blood_material) : Entity(gs), dood(dood), body(body), blood_material(blood_material) { }
 				~BoneShootable() { }
 
-				bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
+				bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 			};
 
 			float yaw_rate, pitch_rate;
@@ -122,7 +122,7 @@ namespace Test
 			virtual void DeSpawned();
 
 			void TakeDamage(Damage damage, Vec3 from_dir);
-			void Splatter(Shot* shot, Vec3 poi, Vec3 momentum);
+			void Splatter(Shot* shot, const Vec3& poi, const Vec3& vel);
 
 			virtual void Die(Damage cause);
 

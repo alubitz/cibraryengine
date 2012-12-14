@@ -17,7 +17,7 @@ namespace Test
 		physics(NULL),
 		origin(origin),
 		initial_vel(initial_vel),
-		mass(0.05f),
+		mass(0.02f),
 		collider(NULL),
 		causer(firer),
 		firer(firer),
@@ -53,14 +53,14 @@ namespace Test
 
 	void Shot::DeSpawned()
 	{
-		if(collider)
+		if(collider != NULL)
 			physics->RemoveCollisionObject(collider);
 	}
 
-	void Shot::Update(TimingInfo time) { Entity::Update(time); }
+	void Shot::Update(TimingInfo time)							{ Entity::Update(time); }
 
-	Damage Shot::GetDamage() { return Damage(firer, 0.09f); }						// was .03 in C# version, but it took too many shots to do 1 damage
-	Vec3 Shot::GetMomentum() { return collider->GetLinearVelocity() * mass; }
+	Damage Shot::GetDamage()									{ return Damage(firer, 0.09f); }
+	void Shot::GetMomentumInfo(Vec3& vel_out, float& mass_out)	{ vel_out = collider->GetLinearVelocity(); mass_out = mass; }
 
 
 
@@ -100,12 +100,16 @@ namespace Test
 
 	bool Shot::MyImpactCallback::OnCollision(RayResult& rr)
 	{
+		Vec3 use_vel;
+		float use_mass;
+		shot->GetMomentumInfo(use_vel, use_mass);
+
 		if(shot->is_valid)
 		{
 			Shootable* hit = dynamic_cast<Shootable*>(rr.body->GetUserEntity());
-			if(hit && hit->GetShot(shot, rr.pos, shot->GetMomentum()))
+			if(hit && hit->GetShot(shot, rr.pos, use_vel, use_mass))
 			{
-				if(shot->trail_head)
+				if(shot->trail_head != NULL)
 				{
 					shot->trail_head->end_pos = rr.pos;
 					shot->trail_head->shot = NULL;

@@ -59,7 +59,7 @@ namespace Test
 
 	void StaticLevelGeometry::DeSpawned() { if(rigid_body != NULL) { physics->RemoveCollisionObject(rigid_body); } }
 
-	bool StaticLevelGeometry::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+	bool StaticLevelGeometry::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass)
 	{
 		for(int i = 0; i < 8; ++i)
 		{

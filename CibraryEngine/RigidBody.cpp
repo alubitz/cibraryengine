@@ -64,16 +64,7 @@ namespace CibraryEngine
 		inv_moi = ComputeInvMoi();
 	}
 
-	void RigidBody::InnerDispose()
-	{
-		if(shape_cache)
-		{
-			delete shape_cache;
-			shape_cache = NULL;
-		}
-	}
-
-
+	void RigidBody::InnerDispose()										{ if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
 
 
 	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
@@ -82,7 +73,7 @@ namespace CibraryEngine
 	{
 		if(active)
 		{
-			vel += (force * timestep) / mass_info.mass;
+			vel += force * (inv_mass * timestep);
 			vel *= exp(-linear_damp * timestep);
 
 			if(can_rotate)

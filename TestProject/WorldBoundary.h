@@ -18,7 +18,7 @@ namespace Test
 
 			WorldBoundary(GameState* gs, Plane plane);
 
-			bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
+			bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 
 			void Spawned();
 			void DeSpawned();

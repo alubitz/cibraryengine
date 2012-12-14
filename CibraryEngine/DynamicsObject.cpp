@@ -34,7 +34,7 @@ namespace CibraryEngine
 	{
 		if(active)
 		{
-			vel += (force * timestep) / mass_info.mass;
+			vel += force * (inv_mass * timestep);
 			vel *= exp(-linear_damp * timestep);
 		}
 

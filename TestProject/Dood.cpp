@@ -24,14 +24,14 @@ namespace Test
 	/*
 	 * Dood::BoneShootable methods
 	 */
-	bool Dood::BoneShootable::GetShot(Shot* shot, Vec3 poi, Vec3 momentum)
+	bool Dood::BoneShootable::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass)
 	{
 		Vec3 from_dir = Vec3::Normalize(shot->origin - dood->pos);
 
 		dood->TakeDamage(shot->GetDamage(), from_dir);
-		dood->Splatter(shot, poi, momentum);
+		dood->Splatter(shot, poi, vel);
 
-		body->ApplyWorldImpulse(momentum, poi);
+		body->ApplyWorldImpulse(vel * mass, poi);
 
 		return true;
 	}
@@ -365,7 +365,7 @@ namespace Test
 
 	void Dood::PhysicsToCharacter()
 	{
-		origin = rigid_bodies[0]->GetPosition();
+		origin = root_rigid_body->GetPosition();
 
 		unsigned int num_bones = bone_to_rbody.size();
 		for(unsigned int i = 0; i < num_bones; ++i)
@@ -672,12 +672,12 @@ namespace Test
 		}
 	}
 
-	void Dood::Splatter(Shot* shot, Vec3 poi, Vec3 momentum)
+	void Dood::Splatter(Shot* shot, const Vec3& poi, const Vec3& vel)
 	{
 		if(blood_material != NULL)
 			for(int i = 0; i < 8; ++i)
 			{
-				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + momentum * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
+				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + vel * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
 				p->gravity = 9.8f;
 				p->damp = 0.05f;
 

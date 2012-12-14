@@ -40,7 +40,7 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
-gs.spawnRobotArm(ba.createVector(-0.5, 0, 5))
+gs.spawnRobotArm(ba.createVector(-0.5, 2, 5))
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do

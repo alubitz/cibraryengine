@@ -34,7 +34,7 @@ namespace Test
 			void Spawned();
 			void DeSpawned();
 
-			bool GetShot(Shot* shot, Vec3 poi, Vec3 momentum);
+			bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 
 			void Update(TimingInfo time);
 	};
