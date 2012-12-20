@@ -382,7 +382,7 @@ namespace Test
 		character->skeleton->InvalidateCachedBoneXforms();
 	}
 
-	void Dood::PoseToPhysics(TimingInfo time)
+	void Dood::PoseToPhysics(float timestep)
 	{
 		if(alive)
 		{
@@ -426,7 +426,7 @@ namespace Test
 
 					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
-					float time_coeff = time.elapsed * 2400.0f;
+					float time_coeff = timestep * 2400.0f;
 
 					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
 					body->SetLinearVelocity(nu_v);
@@ -463,10 +463,13 @@ namespace Test
 						}
 					}
 
-					if(b_bone->parent == a_bone)
-						jc->desired_ori = b_bone->ori * b_bone->rest_ori;
-					else
-						jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
+					if(a_bone != NULL && b_bone != NULL)
+					{
+						if(b_bone->parent == a_bone)
+							jc->desired_ori = b_bone->ori * b_bone->rest_ori;
+						else
+							jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
+					}
 				}
 			}
 		}
@@ -497,8 +500,6 @@ namespace Test
 
 			PreUpdatePoses(time);
 			posey->UpdatePoses(TimingInfo(timestep, now));
-
-			PoseToPhysics(time);
 
 			PostUpdatePoses(time);
 
@@ -677,7 +678,7 @@ namespace Test
 		if(blood_material != NULL)
 			for(int i = 0; i < 8; ++i)
 			{
-				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + vel * Random3D::Rand(), NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
+				Particle* p = new Particle(game_state, poi, Random3D::RandomNormalizedVector(Random3D::Rand(5)) + vel * Random3D::Rand() * 0.01f, NULL, blood_material, Random3D::Rand(0.05f, 0.15f), 0.25f);
 				p->gravity = 9.8f;
 				p->damp = 0.05f;
 

@@ -6,11 +6,14 @@ P.add_single_bone(bones,	"root",			0,    { P.sphere(	0.701,	0.906,	0.062,	0.05) 
 P.add_single_bone(bones,	"robot arm 3",	1.08, { P.sphere(	1.660,	1.058,	0.348,	0.10),	P.sphere(	2.068,	0.01,	0.470,	0.01) } )
 local joints = { }
 
-local hinge_axes = { ba.createVector(0.0336, 0.0, 0.1125) }
+local hinge_axes = { ba.createVector(0.0336, 0.0, -0.1125) }
+
+-- rotation limit for things that aren't supposed to rotate much
+local T = 0.0
 
 -- order of these bones is reversed because the first object in a constraint must not be immobile
 P.add_single_joint(joints, bones,	"robot arm 1",	"root",			ba.createVector(0.701,	0.906,	0.062))
-P.add_single_joint(joints, bones,	"robot arm 1",	"robot arm 2",	ba.createVector(1.043,	0.742,	0.164), nil, hinge_axes, ba.createVector(-1.4, -0.1, -0.1), ba.createVector(1.0, 0.1, 0.1))
-P.add_single_joint(joints, bones,	"robot arm 2",	"robot arm 3",	ba.createVector(1.631,	1.050,	0.339), nil, hinge_axes, ba.createVector(-1.0, -0.1, -0.1), ba.createVector(1.3, 0.1, 0.1))
+P.add_single_joint(joints, bones,	"robot arm 1",	"robot arm 2",	ba.createVector(1.043,	0.742,	0.164), nil, hinge_axes,	ba.createVector(-1.4, -T, -T),	ba.createVector(1.0, T, T))
+P.add_single_joint(joints, bones,	"robot arm 2",	"robot arm 3",	ba.createVector(1.631,	1.050,	0.339), nil, hinge_axes,	ba.createVector(-1.0, -T, -T),	ba.createVector(1.3, T, T))
 
 ba.saveModelPhysics(bones, joints, "robot_arm")

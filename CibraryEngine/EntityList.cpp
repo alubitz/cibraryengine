@@ -9,17 +9,17 @@ namespace CibraryEngine
 	 * EntityList methods
 	 */
 	EntityList::EntityList() : entities() { }
-	EntityList::EntityList(vector<Entity*> entities) : entities(entities) { }
+	EntityList::EntityList(const vector<Entity*>& entities) : entities(entities) { }
 
-	unsigned int EntityList::Count() { return entities.size(); }
+	unsigned int EntityList::Count() const { return entities.size(); }
 
-	Entity* EntityList::operator [](unsigned int index) { return entities[index]; }
+	Entity* EntityList::operator [](unsigned int index) const { return entities[index]; }
 
-	EntityList EntityList::Union(EntityList& a, EntityList& b)
+	EntityList EntityList::Union(const EntityList& a, const EntityList& b)
 	{
 		// figure out which one is smaller, so we can have the smaller loop inside the bigger one ... i think it's faster this way?
-		EntityList& smaller = a.entities.size() < b.entities.size() ? a : b;
-		EntityList& bigger = a.entities.size() < b.entities.size() ? b : a;
+		const EntityList& smaller = a.entities.size() < b.entities.size() ? a : b;
+		const EntityList& bigger = a.entities.size() < b.entities.size() ? b : a;
 
 		unsigned int smaller_size = smaller.entities.size();
 		unsigned int bigger_size = bigger.entities.size();
@@ -45,7 +45,7 @@ namespace CibraryEngine
 		return result;
 	}
 
-	EntityList EntityList::Intersection(EntityList& a, EntityList& b)
+	EntityList EntityList::Intersection(const EntityList& a, const EntityList& b)
 	{
 		EntityList result = EntityList();
 
@@ -65,7 +65,7 @@ namespace CibraryEngine
 		return result;
 	}
 
-	EntityList EntityList::Subtract(EntityList& a, EntityList& b)
+	EntityList EntityList::Subtract(const EntityList& a, const EntityList& b)
 	{
 		EntityList result = EntityList();
 

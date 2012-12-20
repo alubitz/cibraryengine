@@ -120,7 +120,7 @@ namespace CibraryEngine
 		alpha_to_obja = obj_a->inv_moi * net_moi;
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
-		oriented_axes = axes.Transpose() * a_ori.ToMat3();
+		oriented_axes = axes * a_ori.ToMat3();
 		reverse_oriented_axes = oriented_axes.Transpose();
 
 

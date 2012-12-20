@@ -96,7 +96,8 @@ namespace CibraryEngine
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
 		cgraph_solver(new CPUConstraintGraphSolver()),
-		orphan_callback(new MyOrphanCallback())
+		orphan_callback(new MyOrphanCallback()),
+		step_callback(NULL)
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
 
@@ -259,6 +260,8 @@ namespace CibraryEngine
 	void PhysicsWorld::DoFixedStep()
 	{
 		float timestep = timer_interval;
+
+		if(step_callback != NULL) { step_callback->OnPhysicsStep(this, timestep); }
 
 #if PROFILE_DOFIXEDSTEP
 		ProfilingTimer timer, timer2;
@@ -587,6 +590,9 @@ namespace CibraryEngine
 		relevant_objects.Clear();
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, RayCallback& callback) { RayTestPrivate(from, to, callback); }
+
+	PhysicsStepCallback* PhysicsWorld::GetStepCallback()				{ return step_callback; }
+	void PhysicsWorld::SetStepCallback(PhysicsStepCallback* callback)	{ step_callback = callback; }
 
 
 

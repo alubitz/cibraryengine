@@ -79,7 +79,7 @@ namespace Test
 
 					string task;
 
-					Loader(TestGame* game);
+					Loader();
 
 					void operator ()();
 

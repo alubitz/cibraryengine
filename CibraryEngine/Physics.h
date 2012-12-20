@@ -32,6 +32,7 @@ namespace CibraryEngine
 
 	class RayCallback;
 	class CollisionCallback;
+	class PhysicsStepCallback;
 
 	class PhysicsRegion;
 	class PhysicsRegionManager;
@@ -76,6 +77,8 @@ namespace CibraryEngine
 			struct MyOrphanCallback;
 			MyOrphanCallback* orphan_callback;
 
+			PhysicsStepCallback* step_callback;
+
 			// no copying!
 			void operator=(PhysicsWorld& other) { }
 			PhysicsWorld(PhysicsWorld& other) { }
@@ -111,6 +114,9 @@ namespace CibraryEngine
 			void SetGravity(const Vec3& gravity);
 
 			void RayTest(const Vec3& from, const Vec3& to, RayCallback& callback);
+
+			PhysicsStepCallback* GetStepCallback();
+			void SetStepCallback(PhysicsStepCallback* callback);
 
 			/** Hard to explain... return value is like mass, and B is like inward velocity */
 			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B);
@@ -214,5 +220,13 @@ namespace CibraryEngine
 
 			/** A collision has occurred! Return whether or not to do the normal collision response behavior */
 			virtual void OnCollision(const ContactPoint& collision) = 0;
+	};
+
+	class PhysicsStepCallback
+	{
+		public:
+			
+			/** The PhysicsWorld is calling DoFixedStep */
+			virtual void OnPhysicsStep(PhysicsWorld* physics, float timestep) = 0;
 	};
 }

@@ -54,7 +54,7 @@ namespace Test
 	/*
 	 * TestGame::Loader methods
 	 */
-	TestGame::Loader::Loader(TestGame* game) : imp(new Imp()), game(game), task("") { }
+	TestGame::Loader::Loader() : imp(new Imp()), game(NULL), task("") { }
 	void TestGame::Loader::InnerDispose() { delete imp; imp = NULL; }
 
 	void TestGame::Loader::operator ()() { game->Load(); }
@@ -113,6 +113,24 @@ namespace Test
 				}
 		} player_damage_handler;
 
+		class CharacterPhysicsHappyFunTime : public PhysicsStepCallback
+		{
+			public:
+				TestGame* game;
+
+				void OnPhysicsStep(PhysicsWorld* physics, float timestep)
+				{
+					struct DoodGetter : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } dood_getter;
+					EntityList doods = game->GetQualifyingEntities(dood_getter);
+
+					for(unsigned int i = 0, count = doods.Count(); i < count; ++i)
+					{
+						Dood* dood = (Dood*)doods[i];
+						dood->PoseToPhysics(timestep);
+					}
+				}
+		} character_physics_happy_fun_time;
+
 		bool alive;
 
 		UberModel* soldier_model;
@@ -159,6 +177,7 @@ namespace Test
 			bot_death_handler(),
 			player_death_handler(),
 			player_damage_handler(),
+			character_physics_happy_fun_time(),
 			alive(true),
 			sky_shader(NULL),
 			renderer(NULL),
@@ -283,7 +302,7 @@ namespace Test
 	/*
 	 * TestGame methods
 	 */
-	TestGame::TestGame(TestScreen* screen, SoundSystem* sound_system) :
+	TestGame::TestGame(TestScreen* screen, SoundSystem* sound_system_) :
 		imp(new Imp()),
 		screen(screen),
 		nav_editor(false),
@@ -304,13 +323,16 @@ namespace Test
 		ubermodel_cache(screen->window->content->GetCache<UberModel>()),
 		mat_cache(NULL),
 		mphys_cache(screen->window->content->GetCache<ModelPhysics>()),
-		load_status(this)
+		load_status()
 	{
-		imp->bot_death_handler.game = this;
-		imp->player_death_handler.game = this;
-		imp->player_damage_handler.game = this;
+		imp->bot_death_handler.game					= this;
+		imp->player_death_handler.game				= this;
+		imp->player_damage_handler.game				= this;
+		imp->character_physics_happy_fun_time.game	= this;
 
-		this->sound_system = sound_system;
+		load_status.game							= this;
+
+		sound_system = sound_system_;
 		content = screen->window->content;
 	}
 
@@ -714,7 +736,7 @@ namespace Test
 
 #define NGDEBUG() DebugNavGraphError(__LINE__, __FILE__)
 
-	string script_string;
+	static string script_string;
 	void TestGame::Update(TimingInfo time)
 	{
 		NGDEBUG();
@@ -722,6 +744,8 @@ namespace Test
 		if(!imp->physics_content_init)
 		{
 			physics_world->InitConstraintGraphSolver(content);
+			physics_world->SetStepCallback(&imp->character_physics_happy_fun_time);
+
 			imp->physics_content_init = true;
 		}
 

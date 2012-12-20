@@ -10,8 +10,22 @@ namespace Test
 	{
 		public:
 
+			struct JointEntry
+			{
+				JointConstraint* constraint;
+				Quaternion desired_ori;
+
+				JointEntry(JointConstraint* constraint, const Quaternion& desired_ori = Quaternion::Identity()) : constraint(constraint), desired_ori(desired_ori) { }
+			};
+
+			vector<JointEntry> joints;
+
+			float claw_timer;
+
 			RobotArm(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
-			void PoseToPhysics(TimingInfo time);
+			void PoseToPhysics(float timestep);
+
+			void Spawned();
 	};
 }
