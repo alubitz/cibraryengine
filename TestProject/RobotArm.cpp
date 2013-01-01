@@ -4,6 +4,7 @@
 #include "Limb.h"
 
 #include "LAClawTest.h"
+#include "LAStep.h"
 
 namespace Test
 {
@@ -33,25 +34,27 @@ namespace Test
 	{
 		Dood::Spawned();
 
-		if(is_valid)
+		if(is_valid)				// there are some conditions where the Dood may become invalid after a call to Dood::Spawned
 		{
-			limb = new Limb();
-
-			limb->joints.reserve(constraints.size());
-
-			for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			JointConstraint* use_joints[] =
 			{
-				JointConstraint* jc = (JointConstraint*)*iter;
+				(JointConstraint*)constraints[0],
+				(JointConstraint*)constraints[1],
+				(JointConstraint*)constraints[2]
+			};
 
-				limb->joints.push_back(Limb::JointEntry(jc));
-			}
+			RigidBody* use_rigid_bodies[] =
+			{
+				rigid_bodies[0],
+				rigid_bodies[1],
+				rigid_bodies[2],
+				rigid_bodies[3]
+			};
 
-			limb->rigid_bodies.reserve(rigid_bodies.size());
+			limb = new Limb(use_joints, use_rigid_bodies, 3);
 
-			for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-				limb->rigid_bodies.push_back(*iter);
-
-			limb->action = new LAClawTest(limb);
+			//limb->action = new LAClawTest(limb);
+			limb->action = new LAStep(limb);
 		}
 	}
 }

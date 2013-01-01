@@ -17,7 +17,7 @@ namespace Test
 		{
 			claw_timer += timestep;
 
-			limb->joints[limb->joints.size() - 1].desired_ori = Quaternion::FromPYR(0, 0, sinf(claw_timer));
+			limb->joints[limb->joints.size() - 1].desired_pyr = Vec3(sinf(claw_timer), 0, 0);
 		}
 	};
 }
