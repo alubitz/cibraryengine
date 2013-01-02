@@ -17,13 +17,16 @@ namespace Test
 				JointConstraint* constraint;
 				Vec3 desired_pyr;
 
+				// pid stuff
 				Vec3 error_integral;
 				Vec3 old_error;
+				Vec3 pid_coeffs;
 
+				// temporary values
 				Mat3 oriented_axes;
-				Vec3 alpha;
+				Vec3 bone_torque;
 
-				JointEntry(JointConstraint* constraint, const Vec3& desired_pyr = Vec3()) : constraint(constraint), desired_pyr(desired_pyr), error_integral(), old_error() { }
+				JointEntry(JointConstraint* constraint, const Vec3& pid_coeffs = Vec3(1.0f, 1.0f, 1.0f)) : constraint(constraint), desired_pyr(), error_integral(), old_error(), pid_coeffs(pid_coeffs) { }
 			};
 
 			vector<JointEntry> joints;

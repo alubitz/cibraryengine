@@ -14,8 +14,11 @@ namespace Test
 	{
 		timer += timestep;
 
-		Limb::JointEntry& joint = limb->joints[limb->joints.size() - 1];
-		joint.desired_pyr = Vec3(0, 0, 0);
+		Limb::JointEntry& shoulder	= limb->joints[0];
+		Limb::JointEntry& elbow		= limb->joints[1];
+		Limb::JointEntry& wrist		= limb->joints[2];
+
+		wrist.desired_pyr = Vec3(sinf(timer), 0, 0);
 
 		// TODO: implement this for real
 	}
