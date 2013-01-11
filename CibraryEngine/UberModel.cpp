@@ -152,7 +152,7 @@ namespace CibraryEngine
 				iter->vbo->Dispose();
 				delete iter->vbo;
 			}
-		
+
 			delete vbos;
 			vbos = NULL;
 		}
@@ -208,7 +208,7 @@ namespace CibraryEngine
 			float y = bone->rest_pos.y;
 			float z = bone->rest_pos.z;
 			Debug(((stringstream&)(stringstream() << "Bone \"" << CibraryEngine::Bone::string_table[bone->name] << "\" at (" << x << ", " << y << ", " << z << ") ")).str());
-			
+
 			if(bone->parent == NULL)
 				Debug("root\n");
 			else
@@ -1208,7 +1208,7 @@ namespace CibraryEngine
 			}
 
 			Skeleton* skeleton = new Skeleton();
-			
+
 			vector<BoneEntry> remaining_bones;
 			vector<BoneEntry> nu_remaining;
 
@@ -1249,6 +1249,8 @@ namespace CibraryEngine
 			for(vector<BoneEntry>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
 				if(VertexBuffer* vbo = vtn_cache->Load(iter->name))
 					submodels.push_back(vbo);
+				else
+					submodels.push_back(NULL);
 
 			SkinnedModel::AutoSkinModel(skinny, submodels);
 

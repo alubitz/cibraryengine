@@ -12,13 +12,15 @@ namespace Test
 
 	void LAStep::Update(float timestep)
 	{
-		timer += timestep;
+		timer += timestep * 2.0f;
 
 		Limb::JointEntry& shoulder	= limb->joints[0];
 		Limb::JointEntry& elbow		= limb->joints[1];
 		Limb::JointEntry& wrist		= limb->joints[2];
 
-		wrist.desired_pyr = Vec3(sinf(timer), 0, 0);
+		shoulder.desired_pyr	= Vec3(	0.5f * cosf(timer) + 0.5f,	sinf(timer),	0	);
+		elbow.desired_pyr		= Vec3(	0.5f * sinf(timer),			0,				0	);
+		wrist.desired_pyr		= Vec3(	-0.5f * sinf(timer),		0,				0	);
 
 		// TODO: implement this for real
 	}

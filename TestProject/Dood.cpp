@@ -374,7 +374,7 @@ namespace Test
 			if(RigidBody* body = bone_to_rbody[i])
 			{
 				bone->ori = Quaternion::Reverse(body->GetOrientation());
-				bone->pos = body->GetPosition() - origin;			//subtract origin to account for that whole-model transform in Dood::Vis
+				bone->pos = body->GetPosition() - origin;			// subtract origin to account for that whole-model transform in Dood::Vis
 			}
 		}
 
