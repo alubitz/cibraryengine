@@ -10,7 +10,7 @@ U.add_single_bone = function(add_to, name, parent_name, pos, ori)
 	return result
 end
 
-U.add_symetric_bones = function(add_to, name, parent_name, left_pos, left_ori)
+U.add_symmetric_bones = function(add_to, name, parent_name, left_pos, left_ori)
 	local left_result = { name = "l " .. name, pos = left_pos, ori = left_ori }
 	local right_result = { name = "r " .. name, pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z) }
 

@@ -5,18 +5,18 @@ local bones = { }
 
 local mass = 98.0 / 18.0;
 
-P.add_single_bone(bones,	"pelvis",	mass, { P.sphere(0.0,		1.07,	-0.12,	0.13),	P.sphere(0.0,		1.05,	0.07,	0.15) } )
-P.add_single_bone(bones,	"torso 1",	mass, { P.sphere(0.0,		1.3,	0.0,	0.15),	P.sphere(0.0,		1.32,	-0.07,	0.15),	P.sphere(0.0,		1.28,	-0.06,	0.15) } )
-P.add_single_bone(bones,	"torso 2",	mass, { P.sphere(0.0,		1.65,	-0.2,	0.2),	P.sphere(0.0,		1.5,	0.05,	0.2) } )
-P.add_single_bone(bones,	"head",		mass, { P.sphere(0.0,		1.8,	0.0,	0.15) } )
+P.add_single_bone(bones,		"pelvis",	mass, { P.sphere(0.0,		1.07,	-0.12,	0.13),	P.sphere(0.0,		1.05,	0.07,	0.15) } )
+P.add_single_bone(bones,		"torso 1",	mass, { P.sphere(0.0,		1.3,	0.0,	0.15),	P.sphere(0.0,		1.32,	-0.07,	0.15),	P.sphere(0.0,		1.28,	-0.06,	0.15) } )
+P.add_single_bone(bones,		"torso 2",	mass, { P.sphere(0.0,		1.65,	-0.2,	0.2),	P.sphere(0.0,		1.5,	0.05,	0.2) } )
+P.add_single_bone(bones,		"head",		mass, { P.sphere(0.0,		1.8,	0.0,	0.15) } )
 
-P.add_symetric_bones(bones,	"shoulder",	mass, { P.sphere(0.32,	1.69,	0.0,	0.14),		P.sphere(0.34,	1.69,	-0.28,	0.12),		P.sphere(0.3,		1.5,	-0.22,	0.1),	P.sphere(0.28,	1.6,	0.15,	0.1) } )
-P.add_symetric_bones(bones,	"arm 1",	mass, { P.sphere(0.28,	1.54,	-0.05,	0.13),		P.sphere(0.53,	1.4,	-0.06,	0.11) } )
-P.add_symetric_bones(bones,	"arm 2",	mass, { P.sphere(0.53,	1.4,	-0.06,	0.11),		P.sphere(0.82,	1.25,	0.01,	0.08) } )
-P.add_symetric_bones(bones,	"hand",		mass, { P.sphere(0.92,	1.2,	0.01,	0.08),		P.sphere(0.9,	1.21,	0.1,	0.08),		P.sphere(1.08,	1.08,	0.09,	0.07) } )
-P.add_symetric_bones(bones,	"leg 1",	mass, { P.sphere(0.15,	1.04,	0.0,	0.15),		P.sphere(0.19,	0.65,	0.01,	0.12),		P.sphere(0.15,	1.04,	-0.09,	0.15) } )
-P.add_symetric_bones(bones,	"leg 2",	mass, { P.sphere(0.19,	0.65,	0.01,	0.13),		P.sphere(0.27,	0.15,	-0.11,	0.09),		P.sphere(0.23,	0.4,	-0.11,	0.13) } )
-P.add_symetric_bones(bones,	"foot",		mass, { P.sphere(0.27,	0.11,	-0.11,	0.11),		P.sphere(0.22,	0.06,	0.25,	0.06),		P.sphere(0.32,	0.06,	0.25,	0.06) } )
+P.add_symmetric_bones(bones,	"shoulder",	mass, { P.sphere(0.32,	1.69,	0.0,	0.14),		P.sphere(0.34,	1.69,	-0.28,	0.12),		P.sphere(0.3,		1.5,	-0.22,	0.1),	P.sphere(0.28,	1.6,	0.15,	0.1) } )
+P.add_symmetric_bones(bones,	"arm 1",	mass, { P.sphere(0.28,	1.54,	-0.05,	0.13),		P.sphere(0.53,	1.4,	-0.06,	0.11) } )
+P.add_symmetric_bones(bones,	"arm 2",	mass, { P.sphere(0.53,	1.4,	-0.06,	0.11),		P.sphere(0.82,	1.25,	0.01,	0.08) } )
+P.add_symmetric_bones(bones,	"hand",		mass, { P.sphere(0.92,	1.2,	0.01,	0.08),		P.sphere(0.9,	1.21,	0.1,	0.08),		P.sphere(1.08,	1.08,	0.09,	0.07) } )
+P.add_symmetric_bones(bones,	"leg 1",	mass, { P.sphere(0.15,	1.04,	0.0,	0.15),		P.sphere(0.19,	0.65,	0.01,	0.12),		P.sphere(0.15,	1.04,	-0.09,	0.15) } )
+P.add_symmetric_bones(bones,	"leg 2",	mass, { P.sphere(0.19,	0.65,	0.01,	0.13),		P.sphere(0.27,	0.15,	-0.11,	0.09),		P.sphere(0.23,	0.4,	-0.11,	0.13) } )
+P.add_symmetric_bones(bones,	"foot",		mass, { P.sphere(0.27,	0.11,	-0.11,	0.11),		P.sphere(0.22,	0.06,	0.25,	0.06),		P.sphere(0.32,	0.06,	0.25,	0.06) } )
 
 local joints = { }
 

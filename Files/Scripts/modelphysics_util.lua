@@ -13,7 +13,7 @@ P.add_single_bone = function(add_to, name, mass, shape)
 	return result
 end
 
-P.add_symetric_bones = function(add_to, name, mass, left_shape)
+P.add_symmetric_bones = function(add_to, name, mass, left_shape)
 
 	local right_shape = { }
 	for i, cur_sphere in ipairs(left_shape) do
