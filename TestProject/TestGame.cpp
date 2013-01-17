@@ -481,23 +481,13 @@ namespace Test
 		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
 		if(imp->crab_bug_model == NULL)
 		{
-			vector<BoneEntry> bone_entries;
-			CrabBug::GetBoneEntries(bone_entries);
-
-			UberModel* crab_bug_model = AutoSkinUberModel(content, "crab_bug", "crab_bug", bone_entries);
-
-			SetUberModelSkeleton(crab_bug_model, bone_entries);
-			UberModelLoader::SaveZZZ(crab_bug_model, "Files/Models/crab_bug.zzz");
+			thread_script.DoFile("Files/Scripts/crab_bug_zzz.lua");
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("crab_bug").id).fail = false;
 		}
 		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
 		if(imp->crab_bug_physics == NULL)
 		{
-			vector<BoneEntry> bone_entries;
-			CrabBug::GetBoneEntries(bone_entries);
-
-			imp->crab_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
-			ModelPhysicsLoader::SaveZZP(imp->crab_bug_physics, "Files/Physics/crab_bug.zzp");
+			thread_script.DoFile("Files/Scripts/crab_bug_zzp.lua");
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("crab_bug").id).fail = false;
 		}
 

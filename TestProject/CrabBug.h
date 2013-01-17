@@ -8,6 +8,8 @@ namespace Test
 {
 	struct BoneEntry;
 
+	class Limb;
+
 	class CrabBug : public Dood
 	{
 		private:
@@ -30,12 +32,18 @@ namespace Test
 
 			void PreUpdatePoses(TimingInfo time);
 
+			void InnerDispose();
+
 		public:
+
+			vector<Limb*> limbs;
 
 			CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void Update(TimingInfo time);
 
-			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
+			void PoseToPhysics(float timestep);
+
+			void Spawned();
 	};
 }

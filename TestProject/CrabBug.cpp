@@ -3,7 +3,11 @@
 
 #include "WalkPose.h"
 
+#include "Limb.h"
+
 #include "ConverterWhiz.h"
+
+#define DIE_AFTER_ONE_SECOND 0
 
 namespace Test
 {
@@ -104,7 +108,8 @@ namespace Test
 	 */
 	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		crab_heading(new CrabHeading())
+		crab_heading(new CrabHeading()),
+		limbs()
 	{
 		hp *= 0.5f;
 
@@ -125,6 +130,15 @@ namespace Test
 		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
 	}
 
+	void CrabBug::InnerDispose()
+	{
+		Dood::InnerDispose();
+
+		for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
+			delete *iter;
+		limbs.clear();
+	}
+
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
 		if(standing_callback.standing > 0 && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
@@ -143,7 +157,7 @@ namespace Test
 
 	void CrabBug::Update(TimingInfo time)
 	{
-#if 0
+#if DIE_AFTER_ONE_SECOND
 		if(time.total > 1.0f)
 			Die(Damage());
 #endif
@@ -151,40 +165,78 @@ namespace Test
 		Dood::Update(time);
 	}
 
-
-
-
-	void CrabBug::GetBoneEntries(vector<BoneEntry>& bone_entries)
+	void CrabBug::PoseToPhysics(float timestep)
 	{
-		vector<Sphere> carapace_spheres;
-		carapace_spheres.push_back(Sphere(	Vec3(	0.0f,	1.07f,	0.56f),		0.10f));
-		carapace_spheres.push_back(Sphere(	Vec3(	0.0f,	1.18f,	-0.34f),	0.15f));
-		carapace_spheres.push_back(Sphere(	Vec3(	0.0f,	1.04f,	-0.63f),	0.15f));
-		carapace_spheres.push_back(Sphere(	Vec3(	0.38f,	1.00f,	-0.55f),	0.12f));
-		carapace_spheres.push_back(Sphere(	Vec3(	0.59f,	1.02f,	-0.09f),	0.15f));
-		carapace_spheres.push_back(Sphere(	Vec3(	-0.38f,	1.00f,	-0.55f),	0.12f));
-		carapace_spheres.push_back(Sphere(	Vec3(	-0.59f,	1.02f,	-0.09f),	0.15f));
+		if(alive)
+		{
+			for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
+				(*iter)->Update(timestep);
+		}
+		else
+		{
+			for(unsigned int i = 0; i < constraints.size(); ++i)
+			{
+				JointConstraint* jc = (JointConstraint*)constraints[i];
 
-		bone_entries.push_back(BoneEntry("carapace",	"",				Vec3(	0.0f,	0.94f,	-0.03f),	carapace_spheres, 15));
-		bone_entries.push_back(BoneEntry("crabhead",	"carapace",		Vec3(	0.0f,	1.02f,	0.48f),		0.10f,	Vec3(	0.0f,	0.75f,	0.16f	),	0.03f,	3));
-		bone_entries.push_back(BoneEntry("tail",		"carapace",		Vec3(	0.0f,	0.94f,	-0.74f),	0.10f,	Vec3(	0.0f,	0.45f,	-0.41f	),	0.02f,	5));
-		bone_entries.push_back(BoneEntry("l leg a 1",	"carapace",		Vec3(	0.31f,	0.84f,	0.43f),		0.10f,	Vec3(	0.40f,	0.55f,	0.58f	),	0.07f,	3));
-		bone_entries.push_back(BoneEntry("l leg a 2",	"l leg a 1",	Vec3(	0.40f,	0.55f,	0.58f),		0.10f,	Vec3(	0.43f,	0.71f,	0.99f	),	0.07f,	4));
-		bone_entries.push_back(BoneEntry("l leg a 3",	"l leg a 2",	Vec3(	0.43f,	0.71f,	0.99f),		0.10f,	Vec3(	0.30f,	0.05f,	1.28f	),	0.05f,	4));
-		bone_entries.push_back(BoneEntry("l leg b 1",	"carapace",		Vec3(	0.73f,	0.90f,	0.06f),		0.10f,	Vec3(	1.06f,	0.72f,	0.19f	),	0.07f,	4));
-		bone_entries.push_back(BoneEntry("l leg b 2",	"l leg b 1",	Vec3(	1.06f,	0.72f,	0.19f),		0.10f,	Vec3(	1.66f,	1.07f,	0.34f	),	0.07f,	7));
-		bone_entries.push_back(BoneEntry("l leg b 3",	"l leg b 2",	Vec3(	1.66f,	1.07f,	0.34f),		0.10f,	Vec3(	1.94f,	0.05f,	0.43f	),	0.05f,	5));
-		bone_entries.push_back(BoneEntry("l leg c 1",	"carapace",		Vec3(	0.47f,	0.82f,	-0.48f),	0.10f,	Vec3(	0.55f,	0.68f,	-0.69f	),	0.07f,	3));
-		bone_entries.push_back(BoneEntry("l leg c 2",	"l leg c 1",	Vec3(	0.55f,	0.68f,	-0.69f),	0.10f,	Vec3(	0.69f,	0.77f,	-1.07f	),	0.07f,	3));
-		bone_entries.push_back(BoneEntry("l leg c 3",	"l leg c 2",	Vec3(	0.69f,	0.77f,	-1.07f),	0.10f,	Vec3(	0.79f,	0.05f,	-1.32f	),	0.05f,	4));
-		bone_entries.push_back(BoneEntry("r leg a 1",	"carapace",		Vec3(	-0.31f,	0.84f,	0.43f),		0.10f,	Vec3(	-0.40f,	0.55f,	0.58f	),	0.07f,	3));
-		bone_entries.push_back(BoneEntry("r leg a 2",	"r leg a 1",	Vec3(	-0.40f,	0.55f,	0.58f),		0.10f,	Vec3(	-0.43f,	0.71f,	0.99f	),	0.07f,	4));
-		bone_entries.push_back(BoneEntry("r leg a 3",	"r leg a 2",	Vec3(	-0.43f,	0.71f,	0.99f),		0.10f,	Vec3(	-0.30f,	0.05f,	1.28f	),	0.05f,	4));
-		bone_entries.push_back(BoneEntry("r leg b 1",	"carapace",		Vec3(	-0.73f,	0.90f,	0.06f),		0.10f,	Vec3(	-1.06f,	0.72f,	0.19f	),	0.07f,	4));
-		bone_entries.push_back(BoneEntry("r leg b 2",	"r leg b 1",	Vec3(	-1.06f,	0.72f,	0.19f),		0.10f,	Vec3(	-1.66f,	1.07f,	0.34f	),	0.07f,	7));
-		bone_entries.push_back(BoneEntry("r leg b 3",	"r leg b 2",	Vec3(	-1.66f,	1.07f,	0.34f),		0.10f,	Vec3(	-1.94f,	0.05f,	0.43f	),	0.05f,	5));
-		bone_entries.push_back(BoneEntry("r leg c 1",	"carapace",		Vec3(	-0.47f,	0.82f,	-0.48f),	0.10f,	Vec3(	-0.55f,	0.68f,	-0.69f	),	0.07f,	3));
-		bone_entries.push_back(BoneEntry("r leg c 2",	"r leg c 1",	Vec3(	-0.55f,	0.68f,	-0.69f),	0.10f,	Vec3(	-0.69f,	0.77f,	-1.07f	),	0.07f,	4));
-		bone_entries.push_back(BoneEntry("r leg c 3",	"r leg c 2",	Vec3(	-0.69f,	0.77f,	-1.07f),	0.10f,	Vec3(	-0.79f,	0.05f,	-1.32f	),	0.05f,	4));
+				jc->enable_motor = false;
+				jc->motor_torque = Vec3();
+			}
+		}
+	}
+
+	void CrabBug::Spawned()
+	{
+		Dood::Spawned();
+
+		JointConstraint* use_joints[3] = { NULL, NULL, NULL };
+		RigidBody* use_rigid_bodies[4] = { NULL, NULL, NULL, NULL };
+
+		const string limb_prefixes[] =
+		{
+			"l leg a ",
+			"r leg a ",
+			"l leg b ",
+			"r leg b ",
+			"l leg c ",
+			"r leg c "
+		};
+
+		use_rigid_bodies[0] = RigidBodyForNamedBone("carapace");			// this value is shared for all six limbs
+
+		unsigned int num_bones = character->skeleton->bones.size();
+		unsigned int num_constraints = constraints.size();
+
+		for(unsigned int i = 0; i < 6; ++i)
+		{
+			for(unsigned int j = 1; j <= 3; ++j)
+			{
+				unsigned int id = Bone::string_table[((stringstream&)(stringstream() << limb_prefixes[i] << j)).str()];
+
+				use_rigid_bodies[j] = NULL;
+				use_joints[j - 1] = NULL;
+
+				for(unsigned int k = 0; k < num_bones; ++k)
+					if(character->skeleton->bones[k]->name == id)
+					{
+						use_rigid_bodies[j] = bone_to_rbody[k];
+						break;
+					}
+				assert(use_rigid_bodies[j] != NULL);
+				
+				for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				{
+					JointConstraint* jc = (JointConstraint*)*iter;
+					if(jc->obj_a == use_rigid_bodies[j] && jc->obj_b == use_rigid_bodies[j - 1])
+					{
+						use_joints[j - 1] = jc;
+						break;
+					}
+				}
+				assert(use_joints[j - 1] != NULL);
+			}
+
+			Limb* limb = new Limb(use_joints, use_rigid_bodies, 3);
+			limbs.push_back(limb);
+		}
 	}
 }

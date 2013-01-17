@@ -45,8 +45,8 @@ P.add_symmetric_joints(joints, bones,	"leg a 3",	"leg a 2",	ba.createVector(0.47
 
 local b_hinge_axes = { ba.createVector(0.0336, 0.0, -0.1125) }
 P.add_symmetric_joints(joints, bones,	"leg b 1",	"carapace",	ba.createVector(0.701,	0.906,	0.062))
-P.add_symmetric_joints(joints, bones,	"leg b 1",	"leg b 2",	ba.createVector(1.043,	0.742,	0.164), nil, b_hinge_axes,	ba.createVector(-1.4, -T, -T),		ba.createVector(1.0, T, T))
-P.add_symmetric_joints(joints, bones,	"leg b 2",	"leg b 3",	ba.createVector(1.631,	1.050,	0.339), nil, b_hinge_axes,	ba.createVector(-1.0, -T, -T),		ba.createVector(1.3, T, T))
+P.add_symmetric_joints(joints, bones,	"leg b 2",	"leg b 1",	ba.createVector(1.043,	0.742,	0.164), nil, b_hinge_axes,	ba.createVector(-1.4, -T, -T),		ba.createVector(1.0, T, T))
+P.add_symmetric_joints(joints, bones,	"leg b 3",	"leg b 2",	ba.createVector(1.631,	1.050,	0.339), nil, b_hinge_axes,	ba.createVector(-1.0, -T, -T),		ba.createVector(1.3, T, T))
 
 local c_hinge_axes = { ba.createVector(0.2552, -0.0232, 0.1112) }
 P.add_symmetric_joints(joints, bones,	"leg c 1",	"carapace",	ba.createVector(0.452,	0.891,	-0.421))

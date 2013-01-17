@@ -48,7 +48,7 @@ namespace Test
 
 			Vec3 error = oriented_axes * a_to_b.ToPYR() + joint.desired_pyr;
 
-			//Debug(((stringstream&)(stringstream() << "error = (" << error.x << ", " << error.y << ", " << error.z << ")" << endl)).str());
+			// TODO: do this in a less hackish manner
 			if(i != 0)
 				error.y = error.z = 0.0f;			// joints other than the shoulder joint can only rotate on their primary axis
 
@@ -61,7 +61,6 @@ namespace Test
 
 			joint.bone_torque = Mat3(obj_b->GetTransformedMassInfo().moi) * oriented_axes.Transpose() * pid_out;
 		}
-		//Debug("\n");
 
 		Vec3 use_torque;
 		for(unsigned int i = num_joints - 1; i < num_joints; --i)			// NOTE: this loop stops when the unsigned int decrements past zero
@@ -78,7 +77,7 @@ namespace Test
 
 			Vec3 alpha = inv_moi * use_torque;
 
-			float max_mag = 25.0f;
+			float max_mag = 100.0f;
 			float mag = alpha.ComputeMagnitude();
 			if(mag > max_mag)
 			{
@@ -86,7 +85,7 @@ namespace Test
 				use_torque = net_moi * alpha;
 			}
 
-			jc->motor_torque = oriented_axes * use_torque * physics_rate;
+			jc->motor_torque = oriented_axes * use_torque;
 		}
 
 		applied_torque = use_torque;
