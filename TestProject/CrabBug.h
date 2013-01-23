@@ -45,5 +45,7 @@ namespace Test
 			void PoseToPhysics(float timestep);
 
 			void Spawned();
+
+			void Die(Damage cause);
 	};
 }

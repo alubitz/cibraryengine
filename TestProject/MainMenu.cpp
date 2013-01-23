@@ -61,7 +61,7 @@ namespace Test
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 			auto_menu_items.push_back(new CreateGameButton(content, row++));
 			//auto_menu_items.push_back(new JoinGameButton(content, row++));
-			auto_menu_items.push_back(new ExperimentalButton(content, row++));
+			//auto_menu_items.push_back(new ExperimentalButton(content, row++));
 			//auto_menu_items.push_back(new AutoMenuItem(content, "Options...", row++, true));		// default implementation does nothing when selected
 			auto_menu_items.push_back(new InstructionsButton(content, row++));
 			auto_menu_items.push_back(new CreditsButton(content, row++));

@@ -517,7 +517,7 @@ namespace Test
 			return;
 		}
 
-		whole_xform = Mat4::Translation(pos);
+		Quaternion ori = Quaternion::FromPYR(0, yaw, 0);
 
 		physics = game_state->physics_world;
 
@@ -536,7 +536,7 @@ namespace Test
 
 			if(CollisionShape* shape = phys.collision_shape)
 			{
-				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, pos);
+				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, pos, ori);
 
 				rigid_body->SetDamp(0.05f);
 

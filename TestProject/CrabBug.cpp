@@ -113,6 +113,10 @@ namespace Test
 	{
 		hp *= 0.5f;
 
+		yaw = Random3D::Rand(float(M_PI) * 2.0f);
+
+		ragdoll_timer = 3600.0f;
+
 		// character animation stuff
 		posey->active_poses.push_back(crab_heading);
 
@@ -172,16 +176,6 @@ namespace Test
 			for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
 				(*iter)->Update(timestep);
 		}
-		else
-		{
-			for(unsigned int i = 0; i < constraints.size(); ++i)
-			{
-				JointConstraint* jc = (JointConstraint*)constraints[i];
-
-				jc->enable_motor = false;
-				jc->motor_torque = Vec3();
-			}
-		}
 	}
 
 	void CrabBug::Spawned()
@@ -199,6 +193,24 @@ namespace Test
 			"r leg b ",
 			"l leg c ",
 			"r leg c "
+		};
+
+		float pid_coeffs[] =
+		{
+			// leg a
+			0,	0,	0,
+			0,	0,	0,
+			0,	0,	0,
+
+			// leg b
+			0,	0,	0,
+			0,	0,	0,
+			0,	0,	0,
+
+			// leg c
+			0,	0,	0,
+			0,	0,	0,
+			0,	0,	0,
 		};
 
 		use_rigid_bodies[0] = RigidBodyForNamedBone("carapace");			// this value is shared for all six limbs
@@ -236,7 +248,31 @@ namespace Test
 			}
 
 			Limb* limb = new Limb(use_joints, use_rigid_bodies, 3);
+
+			float* data_ptr = pid_coeffs + 9 * (i / 2);
+			for(vector<Limb::JointEntry>::iterator iter = limb->joints.begin(); iter != limb->joints.end(); ++iter)
+			{
+				Vec3& pid_coeffs = iter->pid_coeffs;
+
+				pid_coeffs.x = *(data_ptr++);
+				pid_coeffs.y = *(data_ptr++);
+				pid_coeffs.z = *(data_ptr++);
+			}
+
 			limbs.push_back(limb);
+		}
+	}
+
+	void CrabBug::Die(Damage cause)
+	{
+		Dood::Die(cause);
+
+		for(unsigned int i = 0; i < constraints.size(); ++i)
+		{
+			JointConstraint* jc = (JointConstraint*)constraints[i];
+
+			jc->enable_motor = false;
+			jc->motor_torque = Vec3();
 		}
 	}
 }

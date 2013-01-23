@@ -98,6 +98,7 @@ namespace Test
 			Dood* SpawnBot(Vec3 pos);
 			Dood* SpawnArtilleryBug(Vec3 pos);
 			Dood* SpawnRobotArm(Vec3 pos);
+			Dood* SpawnRobotTripod(Vec3 pos);
 			unsigned int GetNumberOfBugs();
 
 			Rubbish* SpawnRubbish(Vec3 pos);

@@ -16,6 +16,13 @@ namespace Test
 		limb(NULL)
 	{
 		hp *= 1000.0f;
+
+		/*
+		// disallow rotation of the shoulder joint
+		float* moi = mphys->bones[0].mass_info.moi;
+		for(int i = 0; i < 9; ++i)
+			moi[i] = 0.0f;
+		*/
 	}
 
 	void RobotArm::InnerDispose()
@@ -52,9 +59,7 @@ namespace Test
 			};
 
 			limb = new Limb(use_joints, use_rigid_bodies, 3);
-
-			//limb->action = new LAClawTest(limb);
-			limb->action = new LAStep(limb);
+			//limb->action = new LAStep(limb);
 		}
 	}
 }

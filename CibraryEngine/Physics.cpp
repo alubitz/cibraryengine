@@ -743,27 +743,16 @@ namespace CibraryEngine
 		// magical anti-penetration displacement! directly modifies position, instead of working with velocity
 		Vec3 dx = b.pos - a.pos;
 
-		static const float undo_penetration_coeff = 8.0f;
-
 		if(dx.x || dx.y || dx.z)
 		{
-			static float saved_timestep = timestep - 1;				// make sure first initialization triggers the if... could instead init move_frac in two places?
-			static float move_frac;
-
-			if(timestep != saved_timestep)
-			{
-				saved_timestep = timestep;
-				move_frac = 1.0f - exp(-undo_penetration_coeff * timestep);
-			}
-
 			if(!obj_b->can_move)
 			{
-				obj_a->pos -= dx * move_frac;
+				obj_a->pos -= dx;
 				obj_a->xform_valid = false;
 			}
 			else
 			{
-				float total = obj_a->inv_mass + obj_b->inv_mass, inv_total = move_frac / total;
+				float total = obj_a->inv_mass + obj_b->inv_mass, inv_total = 1.0f / total;
 
 				obj_a->pos -= dx * (inv_total * obj_a->inv_mass);
 				obj_b->pos += dx * (inv_total * obj_b->inv_mass);

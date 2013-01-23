@@ -17,7 +17,7 @@ namespace Test
 		rigid_bodies.reserve(count + 1);
 
 		for(unsigned int i = 0; i < count; ++i)
-			joints.push_back(JointEntry(joints_[i], Vec3(22.0f, 9.0f, 2.0f)));
+			joints.push_back(JointEntry(joints_[i], Vec3(2000.0f, 2000.0f, 100.0f)));
 
 		for(unsigned int i = 0; i < count + 1; ++i)
 			rigid_bodies.emplace_back(rigid_bodies_[i]);
@@ -27,7 +27,7 @@ namespace Test
 
 	void Limb::Update(float timestep)
 	{
-		const float physics_rate = 1.0f / timestep;
+		const float inv_timestep = 1.0f / timestep;
 
 		if(action != NULL)
 			action->Update(timestep);
@@ -52,7 +52,7 @@ namespace Test
 			if(i != 0)
 				error.y = error.z = 0.0f;			// joints other than the shoulder joint can only rotate on their primary axis
 
-			Vec3 derivative = (error - joint.old_error) * physics_rate;
+			Vec3 derivative = (error - joint.old_error) * inv_timestep;
 			joint.error_integral += error * timestep;
 			joint.old_error = error;
 
@@ -61,6 +61,8 @@ namespace Test
 
 			joint.bone_torque = Mat3(obj_b->GetTransformedMassInfo().moi) * oriented_axes.Transpose() * pid_out;
 		}
+
+		float max_mags[] = { 500, 200, 200 };
 
 		Vec3 use_torque;
 		for(unsigned int i = num_joints - 1; i < num_joints; --i)			// NOTE: this loop stops when the unsigned int decrements past zero
@@ -72,20 +74,15 @@ namespace Test
 
 			use_torque += joint.bone_torque;
 
-			Mat3 net_moi = Mat3(jc->obj_a->GetTransformedMassInfo().moi) + Mat3(jc->obj_b->GetTransformedMassInfo().moi);
-			Mat3 inv_moi = Mat3::Invert(net_moi);
-
-			Vec3 alpha = inv_moi * use_torque;
-
-			float max_mag = 100.0f;
-			float mag = alpha.ComputeMagnitude();
+			float max_mag = max_mags[i];
+			float mag = use_torque.ComputeMagnitude();
 			if(mag > max_mag)
-			{
-				alpha *= max_mag / mag;
-				use_torque = net_moi * alpha;
-			}
+				use_torque *= max_mag / mag;
 
-			jc->motor_torque = oriented_axes * use_torque;
+			Vec3 goal_torque = oriented_axes * use_torque;
+			float a_coeff = 0.75f, b_coeff = 1.0f - a_coeff;
+
+			jc->motor_torque = jc->motor_torque * a_coeff + goal_torque * b_coeff;
 		}
 
 		applied_torque = use_torque;

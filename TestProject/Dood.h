@@ -79,7 +79,6 @@ namespace Test
 
 			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
 
-			Mat4 whole_xform;
 			Vec3 origin;
 
 			RigidBody* root_rigid_body;
