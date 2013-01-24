@@ -27,7 +27,6 @@ disable_enemies = true
 disable_waves = false
 disable_ai = true
 
-num_boxes = 0
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
 god_toggle = false
@@ -42,7 +41,8 @@ gs.setDebugDrawMode(debug_draw_mode)
 
 --spawnBotAtPosition(gs, 0, 10)
 --gs.spawnRobotArm(ba.createVector(-0.5, 2, 5))
-gs.spawnRobotTripod(ba.createVector(0, 0, 5))
+--gs.spawnRobotTripod(ba.createVector(0, 0, 5))
+num_boxes = 100
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do

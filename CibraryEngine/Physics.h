@@ -160,6 +160,7 @@ namespace CibraryEngine
 		Vec3 use_pos;
 		Vec3 normal;
 		float bounce_coeff, sfric_coeff, kfric_coeff;
+		float inward_vel_from_forces;
 		Vec3 moi_n;
 
 		// cached values relating to GetUseMass

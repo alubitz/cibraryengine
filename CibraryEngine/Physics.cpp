@@ -35,6 +35,8 @@
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
+#define UNDO_INTERPENETRATION 1
+
 #define PROFILE_DOFIXEDSTEP 1
 
 #define NUM_THREADS 8
@@ -611,6 +613,8 @@ namespace CibraryEngine
 			kfric_coeff = sfric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
 			//moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;			// this isn't actually used right now, because angular friction is disabled
 
+			inward_vel_from_forces = Vec3::Dot(normal, obj_a->force * obj_a->inv_mass - obj_b->force * obj_b->inv_mass) / PHYSICS_TICK_FREQUENCY;			// TODO: make this less hackish
+
 			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
 			r1 = use_pos - obj_a->cached_com;
 			r2 = use_pos - obj_b->cached_com;
@@ -664,7 +668,10 @@ namespace CibraryEngine
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot < 0.0f)
 		{
-			float impulse_mag = bounce_coeff * GetInwardVelocity() * use_mass;
+			float inward_vel = GetInwardVelocity();
+			float use_bounce_coeff = inward_vel > 2.0f * inward_vel_from_forces ? bounce_coeff : -1.0f;
+			float impulse_mag = use_bounce_coeff * inward_vel * use_mass;
+
 			if(impulse_mag < 0)
 			{
 				Vec3 impulse = normal * impulse_mag;
@@ -740,6 +747,8 @@ namespace CibraryEngine
 
 	void ContactPoint::DoUpdateAction(float timestep)
 	{
+#if UNDO_INTERPENETRATION
+
 		// magical anti-penetration displacement! directly modifies position, instead of working with velocity
 		Vec3 dx = b.pos - a.pos;
 
@@ -761,6 +770,7 @@ namespace CibraryEngine
 				obj_b->xform_valid = false;
 			}
 		}
+#endif
 	}
 
 	void ContactPoint::WriteDataToBuffer(float* ptr)
