@@ -51,7 +51,5 @@ namespace CibraryEngine
 
 			void DoConstraintAction();
 			void DoUpdateAction(float timestep);
-
-			void WriteDataToBuffer(float* ptr);
 	};
 }

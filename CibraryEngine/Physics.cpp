@@ -4,6 +4,7 @@
 #include "RigidBody.h"
 #include "RayCollider.h"
 #include "CollisionGroup.h"
+#include "ContactPoint.h"
 
 #include "PhysicsRegion.h"
 #include "GridRegionManager.h"
@@ -14,7 +15,6 @@
 #include "MultiSphereShape.h"
 
 #include "CPUConstraintGraphSolver.h"
-#include "GPUConstraintGraphSolver.h"
 
 #include "Matrix.h"
 
@@ -30,16 +30,14 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 5
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 15
 
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
-#define UNDO_INTERPENETRATION 1
-
 #define PROFILE_DOFIXEDSTEP 1
 
-#define NUM_THREADS 8
+#define NUM_COLLISION_THREADS 8
 
 namespace CibraryEngine
 {
@@ -97,14 +95,18 @@ namespace CibraryEngine
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
+		cp_allocators(),
 		cgraph_solver(new CPUConstraintGraphSolver()),
 		orphan_callback(new MyOrphanCallback()),
 		step_callback(NULL)
 	{
 		region_man = new GridRegionManager(&all_regions, orphan_callback);
 
-		for(unsigned int i = 0; i < NUM_THREADS; ++i)
+		for(unsigned int i = 0; i < NUM_COLLISION_THREADS; ++i)
+		{
 			task_threads.push_back(new TaskThread());
+			cp_allocators.push_back(ContactPointAllocator::NewAllocator());
+		}
 	}
 
 	void PhysicsWorld::InnerDispose()
@@ -137,7 +139,9 @@ namespace CibraryEngine
 		delete orphan_callback;
 		orphan_callback = NULL;
 
-		ContactPoint::EmptyRecycleBins();
+		for(vector<ContactPointAllocator*>::iterator iter = cp_allocators.begin(); iter != cp_allocators.end(); ++iter)
+			ContactPointAllocator::DeleteAllocator(*iter);
+		cp_allocators.clear();
 
 		for(vector<TaskThread*>::iterator iter = task_threads.begin(); iter != task_threads.end(); ++iter)
 		{
@@ -316,30 +320,31 @@ namespace CibraryEngine
 		{
 			float timestep;
 			vector<CollisionObject*>* objects;
+			ContactPointAllocator* alloc;
 			vector<ContactPoint*> contact_points;
 			unsigned int from, to;
 
 			CollisionInitiator() { }
-			CollisionInitiator(float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), from(from), to(to) { }
+			CollisionInitiator(ContactPointAllocator* alloc, float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), alloc(alloc), from(from), to(to) { }
 
 			void DoTask()
 			{
 				CollisionObject **data = objects->data(), **start_ptr = data + from, **finish_ptr = data + to;
 				for(CollisionObject** obj_ptr = start_ptr; obj_ptr != finish_ptr; ++obj_ptr)
-					(*obj_ptr)->InitiateCollisions(timestep, contact_points);
+					(*obj_ptr)->InitiateCollisions(timestep, alloc, contact_points);
 			}
 		};
-		CollisionInitiator collision_initiators[NUM_THREADS];
+		CollisionInitiator collision_initiators[NUM_COLLISION_THREADS];
 
 		vector<CollisionObject*> dynamic_objects_vector;
 		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
 			dynamic_objects_vector.push_back(*iter);
 		unsigned int num_objects = dynamic_objects_vector.size();
-		unsigned int use_threads = max(1u, min((unsigned)NUM_THREADS, num_objects / 40));
+		unsigned int use_threads = max(1u, min((unsigned)NUM_COLLISION_THREADS, num_objects / 40));
 
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
-			collision_initiators[i] = CollisionInitiator(timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
+			collision_initiators[i] = CollisionInitiator(cp_allocators[i], timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
 			task_threads[i]->StartTask(&collision_initiators[i]);
 		}
 
@@ -347,8 +352,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
 			task_threads[i]->WaitForCompletion();
-			for(vector<ContactPoint*>::iterator iter = collision_initiators[i].contact_points.begin(); iter != collision_initiators[i].contact_points.end(); ++iter)
-				temp_contact_points.push_back(*iter);
+			temp_contact_points.insert(temp_contact_points.end(), collision_initiators[i].contact_points.begin(), collision_initiators[i].contact_points.end());
 		}
 
 #if PROFILE_DOFIXEDSTEP
@@ -595,250 +599,4 @@ namespace CibraryEngine
 
 	PhysicsStepCallback* PhysicsWorld::GetStepCallback()				{ return step_callback; }
 	void PhysicsWorld::SetStepCallback(PhysicsStepCallback* callback)	{ step_callback = callback; }
-
-
-
-
-	/*
-	 * ContactPoint methods
-	 */
-	void ContactPoint::BuildCache()
-	{
-		if(!cache_valid)
-		{
-			use_pos = (a.pos + b.pos) * 0.5f;
-			normal = Vec3::Normalize(a.norm - b.norm);
-
-			bounce_coeff = -(1.0f + obj_a->bounciness * obj_b->bounciness);
-			kfric_coeff = sfric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
-			//moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;			// this isn't actually used right now, because angular friction is disabled
-
-			inward_vel_from_forces = Vec3::Dot(normal, obj_a->force * obj_a->inv_mass - obj_b->force * obj_b->inv_mass) / PHYSICS_TICK_FREQUENCY;			// TODO: make this less hackish
-
-			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
-			r1 = use_pos - obj_a->cached_com;
-			r2 = use_pos - obj_b->cached_com;
-			nr1 = Vec3::Cross(normal, r1);
-			nr2 = Vec3::Cross(normal, r2);
-
-			cache_valid = true;
-		}
-	}
-
-	Vec3 ContactPoint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
-
-	float ContactPoint::GetInwardVelocity() const
-	{
-		// based on the computations in GetUseMass
-		float B = obj_b->can_move ? Vec3::Dot(obj_a->vel - obj_b->vel, normal) : Vec3::Dot(obj_a->vel, normal);
-		if(obj_a->can_rotate)
-			B += Vec3::Dot(obj_a->rot, nr1);
-		if(obj_b->can_rotate)
-			B -= Vec3::Dot(obj_b->rot, nr2);
-		return B;
-	}
-
-	void ContactPoint::ApplyImpulse(const Vec3& impulse) const
-	{
-		if(obj_a->active)
-		{
-			obj_a->vel += impulse * obj_a->inv_mass;
-			if(obj_a->can_rotate)
-				obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
-		}
-
-		if(obj_b->active && obj_b->can_move)
-		{
-			obj_b->vel -= impulse * obj_b->inv_mass;
-			if(obj_b->can_rotate)
-				obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
-		}
-	}
-
-	bool ContactPoint::DoCollisionResponse() const
-	{
-		assert(cache_valid);
-
-		RigidBody* ibody = obj_a;
-		RigidBody* jbody = obj_b;
-
-		bool j_can_move = jbody->can_move;
-
-		Vec3 dv = GetRelativeLocalVelocity();
-		float nvdot = Vec3::Dot(normal, dv);
-		if(nvdot < 0.0f)
-		{
-			float inward_vel = GetInwardVelocity();
-			float use_bounce_coeff = inward_vel > 2.0f * inward_vel_from_forces ? bounce_coeff : -1.0f;
-			float impulse_mag = use_bounce_coeff * inward_vel * use_mass;
-
-			if(impulse_mag < 0)
-			{
-				Vec3 impulse = normal * impulse_mag;
-
-				// normal force
-				if(impulse.ComputeMagnitudeSquared() != 0)
-				{
-					ApplyImpulse(impulse);
-
-					// applying this impulse means we need to recompute dv and nvdot!
-					dv = GetRelativeLocalVelocity();
-					nvdot = Vec3::Dot(normal, dv);
-				}
-
-				Vec3 t_dv = dv - normal * nvdot;
-				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
-
-				// linear friction
-				if(t_dv_magsq > 0)								// object is moving; apply kinetic friction
-				{
-					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
-					Vec3 u_tdv = t_dv * inv_tdmag;
-
-					float use_mass2 = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv);
-					ApplyImpulse(t_dv * min(use_mass2, fabs(impulse_mag * kfric_coeff * inv_tdmag)));
-				}
-				else											// object isn't moving; apply static friction
-				{
-					Vec3 df = jbody->applied_force - ibody->applied_force;
-					float nfdot = Vec3::Dot(normal, df);
-
-					Vec3 t_df = df - normal * nfdot;
-					float t_df_mag = t_df.ComputeMagnitude();
-
-					float fric_i_mag = min(impulse_mag * sfric_coeff, t_df_mag);
-					if(fric_i_mag > 0)
-						ApplyImpulse(t_df * (-fric_i_mag / t_df_mag));
-				}
-
-				// TODO: make angular friction less wrong
-#if 0
-				// angular friction (wip; currently completely undoes angular velocity around the normal vector)
-				float angular_dv = Vec3::Dot(normal, obj_b->rot - obj_a->rot);
-				if(fabs(angular_dv) > 0)
-				{
-					Vec3 angular_impulse = moi_n * angular_dv;
-
-					ibody->ApplyAngularImpulse(angular_impulse);
-					if(j_can_move && jbody->can_rotate)
-						jbody->ApplyAngularImpulse(-angular_impulse);
-				}
-#endif
-
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	void ContactPoint::DoConstraintAction()
-	{
-		BuildCache();
-
-		if(DoCollisionResponse())
-		{
-			if(obj_a->collision_callback)
-				obj_a->collision_callback->OnCollision(*this);
-			if(obj_b->collision_callback)
-				obj_b->collision_callback->OnCollision(*this);
-		}
-	}
-
-	void ContactPoint::DoUpdateAction(float timestep)
-	{
-#if UNDO_INTERPENETRATION
-
-		// magical anti-penetration displacement! directly modifies position, instead of working with velocity
-		Vec3 dx = b.pos - a.pos;
-
-		if(dx.x || dx.y || dx.z)
-		{
-			if(!obj_b->can_move)
-			{
-				obj_a->pos -= dx;
-				obj_a->xform_valid = false;
-			}
-			else
-			{
-				float total = obj_a->inv_mass + obj_b->inv_mass, inv_total = 1.0f / total;
-
-				obj_a->pos -= dx * (inv_total * obj_a->inv_mass);
-				obj_b->pos += dx * (inv_total * obj_b->inv_mass);
-
-				obj_a->xform_valid = false;
-				obj_b->xform_valid = false;
-			}
-		}
-#endif
-	}
-
-	void ContactPoint::WriteDataToBuffer(float* ptr)
-	{
-		BuildCache();
-
-		ptr[0] =	1.0f;
-		ptr[1] =	use_mass;
-		ptr[2] =	bounce_coeff;
-		ptr[3] =	sfric_coeff;
-
-		memcpy(ptr + 4,		&normal,	3 * sizeof(float));			// ptr[4] through ptr[6]
-		memcpy(ptr + 8,		&r1,		3 * sizeof(float));			// ptr[8] through ptr[10]
-		memcpy(ptr + 12,	&r2,		3 * sizeof(float));			// ptr[12] through ptr[14]
-		memcpy(ptr + 16,	&nr1,		3 * sizeof(float));			// ptr[16] through ptr[18]
-		memcpy(ptr + 20,	&use_pos,	3 * sizeof(float));			// ptr[20] through ptr[22]
-
-		ptr[7] =	nr2.x;
-		ptr[11] =	nr2.y;
-		ptr[15] =	nr2.z;
-
-		// ptr[19] is unused
-		// ptr[23] is unused
-	}
-
-	/*
-	 * ContactPoint recycle bin stuffs
-	 */
-	static vector<ContactPoint*> cp_recycle_bin = vector<ContactPoint*>();
-
-	ContactPoint* ContactPoint::New()
-	{
-		/*
-		if(cp_recycle_bin.empty())
-			return new ContactPoint();
-		else
-		{
-			ContactPoint* result = *cp_recycle_bin.rbegin();
-			cp_recycle_bin.pop_back();
-
-			return new (result) ContactPoint();
-		}
-		*/
-		return new ContactPoint();
-	}
-
-	ContactPoint* ContactPoint::New(const ContactPoint& cp)
-	{
-		/*
-		if(cp_recycle_bin.empty())
-			return new ContactPoint(cp);
-		else
-		{
-			ContactPoint* result = *cp_recycle_bin.rbegin();
-			cp_recycle_bin.pop_back();
-
-			return new (result) ContactPoint(cp);
-		}
-		*/
-		return new ContactPoint(cp);
-	}
-
-	void ContactPoint::Delete(ContactPoint* cp) { /*cp->~ContactPoint(); cp_recycle_bin.push_back(cp);*/ delete cp; }
-
-	void ContactPoint::EmptyRecycleBins()
-	{
-		for(vector<ContactPoint*>::iterator iter = cp_recycle_bin.begin(); iter != cp_recycle_bin.end(); ++iter)
-			delete *iter;
-		cp_recycle_bin.clear();
-	}
 }

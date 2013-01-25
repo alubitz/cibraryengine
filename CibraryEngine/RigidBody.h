@@ -27,7 +27,6 @@ namespace CibraryEngine
 		friend class PhysicsRegion;
 		friend struct ContactPoint;
 		friend class JointConstraint;
-		friend class GPUConstraintGraphSolver;
 
 		private:
 
@@ -35,6 +34,8 @@ namespace CibraryEngine
 
 			Quaternion ori;
 			Vec3 rot;
+
+			Vec3 moved_from_pos;								// for magical anti-penetration displacement
 
 			Vec3 torque, applied_torque;
 
@@ -71,7 +72,7 @@ namespace CibraryEngine
 			// removes rigid bodies which are contrained with this one from the collection of eligible bodies
 			void RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies);
 
-			void InitiateCollisionsForMultisphere(float timestep, vector<ContactPoint*>& contact_points);
+			void InitiateCollisionsForMultisphere(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 		protected:
 
@@ -88,7 +89,7 @@ namespace CibraryEngine
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
-			void InitiateCollisions(float timestep, vector<ContactPoint*>& contact_points);
+			void InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 			
 
@@ -155,7 +156,7 @@ namespace CibraryEngine
 
 
 
-			void CollideRigidBody(RigidBody* other, vector<ContactPoint*>& contact_points);
+			void CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 			void ResetForces();
 	};

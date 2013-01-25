@@ -12,6 +12,7 @@
 #include "RayCollider.h"
 #include "CollisionGroup.h"
 #include "ModelPhysics.h"
+#include "ContactPoint.h"
 #include "JointConstraint.h"
 
 #include "CollisionShape.h"

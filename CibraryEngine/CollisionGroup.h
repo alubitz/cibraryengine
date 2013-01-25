@@ -50,7 +50,7 @@ namespace CibraryEngine
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
-			void InitiateCollisions(float timestep, vector<ContactPoint*>& contact_points);
+			void InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 			void DebugDraw(SceneRenderer* renderer);
 
@@ -64,8 +64,8 @@ namespace CibraryEngine
 
 			void SetGravity(const Vec3& gravity);
 
-			void CollideRigidBody(RigidBody* body, vector<ContactPoint*>& contact_points);
-			void CollideCollisionGroup(CollisionGroup* other, vector<ContactPoint*>& contact_points);
+			void CollideRigidBody(RigidBody* body, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+			void CollideCollisionGroup(CollisionGroup* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 			void ResetForces();
 	};

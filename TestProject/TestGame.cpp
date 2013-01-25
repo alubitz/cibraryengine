@@ -518,22 +518,12 @@ namespace Test
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("flea").id).fail = false;
 		}
 
-		if(ubermodel_cache->Load("pill") == NULL)
-		{
-			load_status.task = "pill";
-
-			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("pill"), "pill"));
-			UberModelLoader::SaveZZZ(pill_model, "Files/Models/pill.zzz");
-
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("pill").id).fail = false;
-		}
-
 		if(ubermodel_cache->Load("ground_plane") == NULL)
 		{
 			load_status.task = "ground_plane";
 
-			UberModel* pill_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("ground_plane"), "ground_plane"));
-			UberModelLoader::SaveZZZ(pill_model, "Files/Models/ground_plane.zzz");
+			UberModel* ground_plane_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("ground_plane"), "ground_plane"));
+			UberModelLoader::SaveZZZ(ground_plane_model, "Files/Models/ground_plane.zzz");
 
 			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("ground_plane").id).fail = false;
 		}

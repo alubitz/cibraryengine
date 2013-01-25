@@ -11,6 +11,7 @@
 
 #include "Physics.h"
 #include "PhysicsRegion.h"
+#include "ContactPoint.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"
@@ -25,9 +26,9 @@
 
 namespace CibraryEngine
 {
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint*>& contact_points);
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint*>& contact_points);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint*>& contact_points);
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
 
 
@@ -83,6 +84,8 @@ namespace CibraryEngine
 
 				rot *= exp(-angular_damp * timestep);
 			}
+
+			moved_from_pos = Vec3();				// somewhat hackish place to do this; chosen because it'll come before the anti-penetration displacement
 		}
 
 		ResetToApplied();
@@ -271,12 +274,12 @@ namespace CibraryEngine
 
 
 
-	void RigidBody::InitiateCollisions(float timestep, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		switch(shape->GetShapeType())
 		{
 			case ST_MultiSphere:
-				InitiateCollisionsForMultisphere(timestep, contact_points);
+				InitiateCollisionsForMultisphere(timestep, alloc, contact_points);
 				break;
 
 			default:
@@ -285,7 +288,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::InitiateCollisionsForMultisphere(float timestep, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisionsForMultisphere(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)this->shape;
 
@@ -317,7 +320,7 @@ namespace CibraryEngine
 					{
 						RigidBody* rigid_body = (RigidBody*)*iter;
 						if(rigid_body->GetShapeType() != ST_MultiSphere || rigid_body < this)
-							CollideRigidBody((RigidBody*)*iter, contact_points);
+							CollideRigidBody((RigidBody*)*iter, alloc, contact_points);
 						break;
 					}
 
@@ -325,7 +328,7 @@ namespace CibraryEngine
 					{
 						CollisionGroup* cgroup = (CollisionGroup*)*iter;
 						if(*iter < this)
-							cgroup->CollideRigidBody(this, contact_points);
+							cgroup->CollideRigidBody(this, alloc, contact_points);
 
 						break;
 					}
@@ -333,7 +336,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::CollideRigidBody(RigidBody* other, vector<ContactPoint*>& contact_points)
+	void RigidBody::CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		assert(shape->GetShapeType() == ST_MultiSphere);
 
@@ -342,15 +345,15 @@ namespace CibraryEngine
 		switch(other->GetShapeType())
 		{
 			case ST_TriangleMesh:
-				DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, contact_points);
+				DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
 				break;
 
 			case ST_InfinitePlane:
-				DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, contact_points);
+				DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
 				break;
 
 			case ST_MultiSphere:
-				DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, contact_points);
+				DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, alloc, contact_points);
 				break;
 
 			default:
@@ -365,7 +368,7 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape collision functions
 	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint*>& contact_points)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
@@ -381,30 +384,29 @@ namespace CibraryEngine
 
 		vector<Sphere> my_spheres;															// CollideMesh function will modify this if it's empty, otherwise use existing values
 
-		ContactPoint p;
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
 			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
 
-			if(ishape->CollideMesh(inv_net_xform, my_spheres, tri, p, ibody, jbody))
+			if(ContactPoint* p = ishape->CollideMesh(inv_net_xform, my_spheres, tri, alloc, ibody, jbody))
 			{
-				p.a.pos = j_xform.TransformVec3_1(p.a.pos);
-				p.b.pos = j_xform.TransformVec3_1(p.b.pos);
-				p.b.norm = j_xform.TransformVec3_0(p.b.norm);
-				p.a.norm = -p.b.norm;
+				p->a.pos = j_xform.TransformVec3_1(p->a.pos);
+				p->b.pos = j_xform.TransformVec3_1(p->b.pos);
+				p->b.norm = j_xform.TransformVec3_0(p->b.norm);
+				p->a.norm = -p->b.norm;
 
-				contact_points.push_back(ContactPoint::New(p));
+				contact_points.push_back(p);
 			}
 		}
 	}
 
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, vector<ContactPoint*>& contact_points)
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
-		ishape->CollidePlane(xform, jshape->plane, contact_points, ibody, jbody);
+		ishape->CollidePlane(xform, jshape->plane, alloc, contact_points, ibody, jbody);
 	}
 
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, vector<ContactPoint*>& contact_points)
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
 		struct MaxExtentGetter
 		{
@@ -496,19 +498,19 @@ namespace CibraryEngine
 				}
 			}
 
-			ContactPoint p;
-			p.obj_a = ibody;
-			p.obj_b = jbody;
+			ContactPoint* p = alloc->New();
+			p->obj_a = ibody;
+			p->obj_b = jbody;
 
-			p.a.norm = direction;
-			p.b.norm = -direction;
+			p->a.norm = direction;
+			p->b.norm = -direction;
 
 			Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
 			Vec3 offset = direction * (score * 0.5f);
-			p.a.pos = pos - offset;
-			p.b.pos = pos + offset;
+			p->a.pos = pos - offset;
+			p->b.pos = pos + offset;
 
-			contact_points.push_back(ContactPoint::New(p));
+			contact_points.push_back(p);
 		}
 	}
 }

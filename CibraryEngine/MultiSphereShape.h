@@ -11,6 +11,7 @@ namespace CibraryEngine
 
 	struct Mat4;
 	struct ContactPoint;
+	struct ContactPointAllocator;
 	struct Sphere;
 	struct Ray;
 
@@ -43,9 +44,9 @@ namespace CibraryEngine
 			MassInfo ComputeMassInfo();
 
 			bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider = NULL, RigidBody* body = NULL);										// ray pre-transformed into local coords
-			bool CollideSphere(const Sphere& sphere, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
-			bool CollidePlane(const Mat4& my_xform, const Plane& plane, vector<ContactPoint*>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
-			bool CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPoint& result, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of j xform and inverse i xform
+			ContactPoint* CollideSphere(const Sphere& sphere, ContactPointAllocator* alloc, RigidBody* ibody = NULL, RigidBody* jbody = NULL);								// sphere pre-transformed into local coords
+			bool CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
+			ContactPoint* CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of j xform and inverse i xform
 
 			// multisphere-multisphere is now handled in Physics.cpp
 
