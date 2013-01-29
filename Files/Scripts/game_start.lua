@@ -39,10 +39,10 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
---spawnBotAtPosition(gs, 0, 10)
+spawnBotAtPosition(gs, 0, 10)
 --gs.spawnRobotArm(ba.createVector(-0.5, 2, 5))
 --gs.spawnRobotTripod(ba.createVector(0, 0, 5))
-num_boxes = 500
+num_boxes = 0
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do
@@ -113,7 +113,7 @@ end
 
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
-		local bugs_this_level = 1 --1 + 2 * level + math.floor(math.random() * 3.0)
+		local bugs_this_level = 30 --1 + 2 * level + math.floor(math.random() * 3.0)
 		local num_artillery = 0
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)

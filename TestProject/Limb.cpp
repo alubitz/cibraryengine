@@ -62,7 +62,7 @@ namespace Test
 			joint.bone_torque = Mat3(obj_b->GetTransformedMassInfo().moi) * oriented_axes.Transpose() * pid_out;
 		}
 
-		float max_mags[] = { 500, 200, 200 };
+		float max_mags[] = { 200, 200, 200 };
 
 		Vec3 use_torque;
 		for(unsigned int i = num_joints - 1; i < num_joints; --i)			// NOTE: this loop stops when the unsigned int decrements past zero

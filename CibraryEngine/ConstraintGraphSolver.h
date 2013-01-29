@@ -18,7 +18,7 @@ namespace CibraryEngine
 
 			virtual ~ConstraintGraphSolver() { }
 
-			virtual void Init(ContentMan* content) = 0;
+			virtual void Init(ContentMan* content) { };
 
 			virtual void Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints) = 0;
 	};

@@ -3,6 +3,8 @@
 
 #include "RigidBody.h"
 
+#include "DebugLog.h"
+
 #define ENABLE_ANTI_PENETRATION_DISPLACEMENT 0
 #define ENABLE_ANGULAR_FRICTION 0
 
@@ -19,7 +21,7 @@ namespace CibraryEngine
 			normal = Vec3::Normalize(a.norm - b.norm);
 
 			bounce_coeff = 1.0f + obj_a->bounciness * obj_b->bounciness;
-			fric_coeff = obj_a->friction * obj_b->friction;			// kfric would be * 0.9f but in practice the sim treats everything as kinetic anyway
+			fric_coeff = obj_a->friction * obj_b->friction;
 #if ENABLE_ANGULAR_FRICTION
 			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
 #endif			
@@ -29,6 +31,22 @@ namespace CibraryEngine
 			r2 = use_pos - obj_b->cached_com;
 			nr1 = Vec3::Cross(normal, r1);
 			nr2 = Vec3::Cross(normal, r2);
+
+
+			Mat3 impulse_to_rlv = Mat3::Identity() * (obj_b->inv_mass - obj_a->inv_mass);			// not final value for this quantity
+			Mat3 xr1(
+				    0,	  r1.z,	  -r1.y,
+				-r1.z,	     0,	   r1.x,
+				 r1.y,	 -r1.x,	      0
+			);
+			Mat3 xr2(
+					0,	  r2.z,	  -r2.y,
+				-r2.z,	     0,	   r2.x,
+				 r2.y,	 -r2.x,	      0
+			);
+			impulse_to_rlv += xr1 * obj_a->inv_moi * xr1 - xr2 * obj_b->inv_moi * xr2;
+
+			rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 
 			cache_valid = true;
 		}
@@ -56,11 +74,6 @@ namespace CibraryEngine
 	bool ContactPoint::DoCollisionResponse() const
 	{
 		assert(cache_valid);
-
-		RigidBody* ibody = obj_a;
-		RigidBody* jbody = obj_b;
-
-		bool j_can_move = jbody->can_move;
 
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
@@ -92,7 +105,7 @@ namespace CibraryEngine
 					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
 					Vec3 u_tdv = t_dv * inv_tdmag;
 
-					float use_mass2 = PhysicsWorld::GetUseMass(ibody, jbody, use_pos, u_tdv);
+					float use_mass2 = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, u_tdv);
 					ApplyImpulse(t_dv * min(use_mass2, fabs(impulse_mag * fric_coeff * inv_tdmag)));
 				}
 
@@ -104,9 +117,9 @@ namespace CibraryEngine
 				{
 					Vec3 angular_impulse = moi_n * angular_dv;
 
-					ibody->ApplyAngularImpulse(angular_impulse);
-					if(j_can_move && jbody->can_rotate)
-						jbody->ApplyAngularImpulse(-angular_impulse);
+					obj_a->ApplyAngularImpulse(angular_impulse);
+					if(obj_b->can_move && obj_b->can_rotate)
+						obj_b->ApplyAngularImpulse(-angular_impulse);
 				}
 #endif
 
@@ -181,11 +194,22 @@ namespace CibraryEngine
 #endif
 	}
 
+	
+	static vector<ContactPointAllocator*> cp_allocators = vector<ContactPointAllocator*>();
+	void ContactPoint::Delete(ContactPoint* cp)
+	{
+		for(vector<ContactPointAllocator*>::iterator iter = cp_allocators.begin(); iter != cp_allocators.end(); ++iter)
+			if((*iter)->Delete(cp))
+				return;
+
+		DEBUG();			// unable to delete contact point; the allocator that created it could not be found
+	}
+
 
 
 
 	/*
-	 * ContactPoint allocator class; create one of these for each thread you want to be simultaneously creating create contact points in
+	 * ContactPointAllocator::Chunk struct private implementation
 	 */
 	struct ContactPointAllocator::Chunk
 	{
@@ -193,6 +217,7 @@ namespace CibraryEngine
 
 		ContactPoint	points		[SIZE];
 		ContactPoint*	available	[SIZE];
+
 		unsigned int available_count;
 
 		Chunk() : available_count(SIZE)
@@ -226,10 +251,12 @@ namespace CibraryEngine
 		}
 	};
 
-	static vector<ContactPointAllocator*> cp_allocators = vector<ContactPointAllocator*>();
 
 
 
+	/*
+	 * ContactPointAllocator methods (and global instance tracker)
+	 */
 	ContactPointAllocator::~ContactPointAllocator()
 	{
 		for(vector<Chunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
@@ -280,12 +307,5 @@ namespace CibraryEngine
 				return true;
 
 		return false;
-	}
-
-	void ContactPoint::Delete(ContactPoint* cp)
-	{
-		for(vector<ContactPointAllocator*>::iterator iter = cp_allocators.begin(); iter != cp_allocators.end(); ++iter)
-			if((*iter)->Delete(cp))
-				break;
 	}
 }

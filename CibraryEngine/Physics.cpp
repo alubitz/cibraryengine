@@ -360,13 +360,13 @@ namespace CibraryEngine
 #endif
 
 		vector<PhysicsConstraint*> use_constraints;
-		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(), cp_end = temp_contact_points.end(); iter != cp_end; ++iter)
+		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
 		{
 			(*iter)->DoUpdateAction(timestep);
 			use_constraints.push_back(*iter);
 		}
 
-		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
+		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(), cp_end = temp_contact_points.end(); iter != cp_end; ++iter)
 		{
 			(*iter)->DoUpdateAction(timestep);
 			use_constraints.push_back(*iter);

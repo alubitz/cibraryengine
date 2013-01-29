@@ -124,7 +124,7 @@ namespace Test
 		GenerateHardCodedWalkAnimation(&kw);
 		GenerateRestPose(&kr);
 
-		posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
+		//posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
 
 		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
@@ -171,11 +171,15 @@ namespace Test
 
 	void CrabBug::PoseToPhysics(float timestep)
 	{
+		Dood::PoseToPhysics(0.0f);
+
+		/*
 		if(alive)
 		{
 			for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
 				(*iter)->Update(timestep);
 		}
+		*/
 	}
 
 	void CrabBug::Spawned()

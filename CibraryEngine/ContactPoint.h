@@ -3,6 +3,8 @@
 #include "StdAfx.h"
 
 #include "Vector.h"
+#include "Matrix.h"
+
 #include "Physics.h"
 
 namespace CibraryEngine
@@ -23,6 +25,8 @@ namespace CibraryEngine
 		Vec3 normal;
 		float bounce_coeff, fric_coeff;
 		Vec3 moi_n;
+
+		Mat3 rlv_to_impulse;
 
 		// cached values relating to GetUseMass
 		float use_mass;
@@ -52,6 +56,7 @@ namespace CibraryEngine
 		static void Delete(ContactPoint* cp);
 	};
 
+	// allocator class for contact points; create one for each thread you want to be simultaneously creating create contact points in
 	struct ContactPointAllocator
 	{
 		friend struct ContactPoint;
