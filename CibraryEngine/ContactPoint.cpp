@@ -5,7 +5,6 @@
 
 #include "DebugLog.h"
 
-#define ENABLE_ANTI_PENETRATION_DISPLACEMENT 0
 #define ENABLE_ANGULAR_FRICTION 0
 
 namespace CibraryEngine
@@ -20,20 +19,15 @@ namespace CibraryEngine
 			use_pos = (a.pos + b.pos) * 0.5f;
 			normal = Vec3::Normalize(a.norm - b.norm);
 
-			bounce_coeff = 1.0f + obj_a->bounciness * obj_b->bounciness;
+			restitution_coeff = 1.0f + obj_a->restitution * obj_b->restitution;
 			fric_coeff = obj_a->friction * obj_b->friction;
 #if ENABLE_ANGULAR_FRICTION
 			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
 #endif			
 
-			use_mass = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, normal);
 			r1 = use_pos - obj_a->cached_com;
 			r2 = use_pos - obj_b->cached_com;
-			nr1 = Vec3::Cross(normal, r1);
-			nr2 = Vec3::Cross(normal, r2);
 
-
-			Mat3 impulse_to_rlv = Mat3::Identity() * (obj_b->inv_mass - obj_a->inv_mass);			// not final value for this quantity
 			Mat3 xr1(
 				    0,	  r1.z,	  -r1.y,
 				-r1.z,	     0,	   r1.x,
@@ -44,7 +38,9 @@ namespace CibraryEngine
 				-r2.z,	     0,	   r2.x,
 				 r2.y,	 -r2.x,	      0
 			);
-			impulse_to_rlv += xr1 * obj_a->inv_moi * xr1 - xr2 * obj_b->inv_moi * xr2;
+			Mat3 impulse_to_rlv = Mat3::Identity() * -(obj_a->inv_mass + obj_b->inv_mass)
+									+ xr1 * obj_a->inv_moi * xr1
+									+ xr2 * obj_b->inv_moi * xr2;
 
 			rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 
@@ -79,52 +75,20 @@ namespace CibraryEngine
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot < 0.0f)
 		{
-			float use_bounce_coeff = nvdot < bounce_threshold ? bounce_coeff : 1.0f;
-			float impulse_mag = use_bounce_coeff * nvdot * use_mass;
+			// normal force aka restitution
+			float use_restitution_coeff = nvdot < bounce_threshold ? restitution_coeff : 1.0f;
+			Vec3 restitution_impulse = rlv_to_impulse * (normal * -(use_restitution_coeff * nvdot));
 
-			if(impulse_mag < 0)
-			{
-				Vec3 impulse = normal * impulse_mag;
 
-				// normal force
-				if(impulse.ComputeMagnitudeSquared() != 0)
-				{
-					ApplyImpulse(impulse);
+			// friction
+			Vec3 full_friction_impulse = rlv_to_impulse * (normal * nvdot - dv);
+			float fric_fraction = min(1.0f, fric_coeff * sqrtf(restitution_impulse.ComputeMagnitudeSquared() / full_friction_impulse.ComputeMagnitudeSquared()));
 
-					// applying this impulse means we need to recompute dv and nvdot!
-					dv = GetRelativeLocalVelocity();
-					nvdot = Vec3::Dot(normal, dv);
-				}
 
-				Vec3 t_dv = dv - normal * nvdot;
-				float t_dv_magsq = t_dv.ComputeMagnitudeSquared();
+			// apply computed impulses
+			ApplyImpulse(restitution_impulse + full_friction_impulse * fric_fraction);
 
-				// linear friction
-				if(t_dv_magsq > 0)								// object is moving; apply kinetic friction
-				{
-					float t_dv_mag = sqrtf(t_dv_magsq), inv_tdmag = 1.0f / t_dv_mag;
-					Vec3 u_tdv = t_dv * inv_tdmag;
-
-					float use_mass2 = PhysicsWorld::GetUseMass(obj_a, obj_b, use_pos, u_tdv);
-					ApplyImpulse(t_dv * min(use_mass2, fabs(impulse_mag * fric_coeff * inv_tdmag)));
-				}
-
-				// TODO: make angular friction less wrong
-#if ENABLE_ANGULAR_FRICTION
-				// angular friction (wip; currently completely undoes angular velocity around the normal vector)
-				float angular_dv = Vec3::Dot(normal, obj_b->rot - obj_a->rot);
-				if(fabs(angular_dv) > 0)
-				{
-					Vec3 angular_impulse = moi_n * angular_dv;
-
-					obj_a->ApplyAngularImpulse(angular_impulse);
-					if(obj_b->can_move && obj_b->can_rotate)
-						obj_b->ApplyAngularImpulse(-angular_impulse);
-				}
-#endif
-
-				return true;
-			}
+			return true;
 		}
 
 		return false;
@@ -148,50 +112,6 @@ namespace CibraryEngine
 		this->timestep = timestep;
 
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
-
-#if ENABLE_ANTI_PENETRATION_DISPLACEMENT
-
-		// magical anti-penetration displacement! directly modifies position, instead of working with velocity
-		Vec3 dx = b.pos - a.pos;
-
-		if(dx.x || dx.y || dx.z)
-		{
-			// make sure we don't displace the same object multiple times in the same direction
-			Vec3 cx = obj_a->moved_from_pos - obj_b->moved_from_pos;
-			if(cx.x || cx.y || cx.z)
-			{
-				float cmag = cx.ComputeMagnitude(), dmag = dx.ComputeMagnitude();
-				float dot = Vec3::Dot(cx, dx), comp = dot / cmag;
-				if(comp <= cmag)
-					return;
-				else
-					dx *= (comp - cmag) / dmag;
-			}
-
-			if(!obj_b->can_move)
-			{
-				obj_a->pos -= dx;
-				obj_a->moved_from_pos -= dx;
-
-				obj_a->xform_valid = false;
-			}
-			else
-			{
-				float total = obj_a->inv_mass + obj_b->inv_mass, inv_total = 1.0f / total;
-
-				Vec3 ax = -dx * (inv_total * obj_a->inv_mass);
-				Vec3 bx = dx * (inv_total * obj_b->inv_mass);
-
-				obj_a->pos += ax;
-				obj_b->pos += bx;
-				obj_a->moved_from_pos += ax;
-				obj_b->moved_from_pos += bx;
-
-				obj_a->xform_valid = false;
-				obj_b->xform_valid = false;
-			}
-		}
-#endif
 	}
 
 	

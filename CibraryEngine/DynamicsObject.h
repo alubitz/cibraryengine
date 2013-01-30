@@ -24,7 +24,7 @@ namespace CibraryEngine
 
 			bool xform_valid;
 
-			float bounciness;
+			float restitution;
 			float friction;
 			float linear_damp;
 
@@ -54,9 +54,9 @@ namespace CibraryEngine
 			MassInfo GetMassInfo() const;
 			float GetMass() const;
 
-			void SetBounciness(float bounciness);
+			void SetRestitution(float restitution);
 			void SetFriction(float friction);
-			float GetBounciness() const;
+			float GetRestitution() const;
 			float GetFriction() const;
 
 			void Activate() { active = true; deactivation_timer = 0.5f; }

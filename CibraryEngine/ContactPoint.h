@@ -23,14 +23,11 @@ namespace CibraryEngine
 		// cached values (must be computed if cache_valid is false)
 		Vec3 use_pos;
 		Vec3 normal;
-		float bounce_coeff, fric_coeff;
+		float restitution_coeff, fric_coeff;
 		Vec3 moi_n;
 
+		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
-
-		// cached values relating to GetUseMass
-		float use_mass;
-		Vec3 r1, r2, nr1, nr2;
 
 		// more cached values, but these are computed in DoUpdateAction instead of BuildCache
 		float timestep;

@@ -45,7 +45,7 @@ namespace CibraryEngine
 	{
 		vel = vel_;
 
-		bounciness = 0.8f;
+		restitution = 0.8f;
 		friction = 0.0f;
 		linear_damp = 0.1f;
 	}
@@ -142,9 +142,9 @@ namespace CibraryEngine
 		{
 			float B;
 			float use_mass = PhysicsWorld::GetUseMass(this, body, use_pos, normal, B);
-			float bounciness = this->bounciness * body->bounciness;
+			float restitution = this->restitution * body->restitution;
 			float use_friction = friction * body->friction;
-			float impulse_mag = -(1.0f + bounciness) * B * use_mass;
+			float impulse_mag = -(1.0f + restitution) * B * use_mass;
 
 			if(impulse_mag < 0)
 			{

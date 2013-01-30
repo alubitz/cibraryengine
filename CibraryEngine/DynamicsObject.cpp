@@ -18,7 +18,7 @@ namespace CibraryEngine
 		mass_info(mass_info),
 		inv_mass(mass_info.mass > 0.0f ? 1.0f / mass_info.mass : 0.0f),
 		xform_valid(false),
-		bounciness(1.0f),
+		restitution(1.0f),
 		friction(1.0f),
 		linear_damp(0.1f),
 		deactivation_timer(0.5f)
@@ -56,9 +56,9 @@ namespace CibraryEngine
 	Vec3 DynamicsObject::GetPosition() const								{ return pos; }
 	void DynamicsObject::SetPosition(const Vec3& pos_)						{ pos = pos_; xform_valid = false; }
 
-	void DynamicsObject::SetBounciness(float bounciness_)					{ bounciness = bounciness_; }
+	void DynamicsObject::SetRestitution(float restitution_)					{ restitution = restitution_; }
 	void DynamicsObject::SetFriction(float friction_)						{ friction = friction_; }
-	float DynamicsObject::GetBounciness() const								{ return bounciness; }
+	float DynamicsObject::GetRestitution() const							{ return restitution; }
 	float DynamicsObject::GetFriction() const								{ return friction; }
 
 	void DynamicsObject::ApplyCentralForce(const Vec3& force)				{ applied_force += force; }

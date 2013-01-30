@@ -51,7 +51,7 @@ namespace CibraryEngine
 		can_rotate(false),
 		collision_callback(NULL)
 	{
-		bounciness = shape->CanMove() ? 0.2f : 1.0f;
+		restitution = shape->CanMove() ? 0.2f : 1.0f;
 		friction = 1.0f;
 		linear_damp = 0.1f;
 
