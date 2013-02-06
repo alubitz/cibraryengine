@@ -121,9 +121,6 @@ namespace CibraryEngine
 			void SetStepCallback(PhysicsStepCallback* callback);
 
 			/** Hard to explain... return value is like mass, and B is like inward velocity */
-			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B);
-			static float GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction);
-
 			static float GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B);
 			static float GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction);
 	};
@@ -140,7 +137,7 @@ namespace CibraryEngine
 
 			virtual ~PhysicsConstraint() { }
 
-			virtual void DoConstraintAction() = 0;
+			virtual bool DoConstraintAction() = 0;
 			virtual void DoUpdateAction(float timestep) { }
 
 			RigidBody* obj_a;

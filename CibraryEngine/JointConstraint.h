@@ -25,7 +25,7 @@ namespace CibraryEngine
 			Quaternion a_to_b, b_to_a;
 
 			Vec3 r1, r2;
-			Mat3 net_moi;
+			Mat3 rlv_to_impulse;
 			Mat3 alpha_to_obja, alpha_to_objb;
 
 			float timestep, inv_timestep;
@@ -49,7 +49,7 @@ namespace CibraryEngine
 
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 
-			void DoConstraintAction();
+			bool DoConstraintAction();
 			void DoUpdateAction(float timestep);
 	};
 }

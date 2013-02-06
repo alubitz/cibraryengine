@@ -24,7 +24,6 @@ namespace CibraryEngine
 		Vec3 use_pos;
 		Vec3 normal;
 		float restitution_coeff, fric_coeff;
-		Vec3 moi_n;
 
 		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
@@ -43,7 +42,7 @@ namespace CibraryEngine
 		Vec3 GetRelativeLocalVelocity() const;
 		void ApplyImpulse(const Vec3& impulse) const;
 
-		void DoConstraintAction();
+		bool DoConstraintAction();
 		void DoUpdateAction(float timestep);
 
 		bool DoCollisionResponse() const;

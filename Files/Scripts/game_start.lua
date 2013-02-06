@@ -7,7 +7,10 @@ function player_death(dood)
 end
 
 -- figure out which dood is the player, and remember that
-local player_pos = ba.createVector(0, 0, 0)							--ba.createVector(8.3, 149.2, 69.5)
+
+local player_pos = ba.createVector(0, 0, 0)
+--local player_pos = ba.createVector(8.3, 149.2, 69.5)
+
 player = gs.spawnPlayer(player_pos)
 player.death_callback = player_death
 
@@ -42,7 +45,7 @@ gs.setDebugDrawMode(debug_draw_mode)
 spawnBotAtPosition(gs, 0, 10)
 --gs.spawnRobotArm(ba.createVector(-0.5, 2, 5))
 --gs.spawnRobotTripod(ba.createVector(0, 0, 5))
-num_boxes = 0
+num_boxes = 500
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do

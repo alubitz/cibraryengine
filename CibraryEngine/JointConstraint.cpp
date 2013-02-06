@@ -22,13 +22,15 @@ namespace CibraryEngine
 	{
 	}
 
-	void JointConstraint::DoConstraintAction()
+	bool JointConstraint::DoConstraintAction()
 	{
 		static const float dv_coeff =			1.0f;
 
 		static const float dv_sq_threshold	=	0.01f;
 		static const float alpha_sq_threshold =	0.01f;
 
+
+		bool wakeup = false;
 
 		// linear stuff
 		Vec3 current_dv = obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot);
@@ -37,28 +39,24 @@ namespace CibraryEngine
 		float magsq = dv.ComputeMagnitudeSquared();
 		if(magsq > dv_sq_threshold)
 		{
-			float mag = sqrtf(magsq);
-			Vec3 udv = dv / mag;
-			Vec3 nr1 = Vec3::Cross(udv, r1);
-			Vec3 nr2 = Vec3::Cross(udv, r2);
-			Vec3 moi_imp1 = obj_a->inv_moi * nr1;
-			Vec3 moi_imp2 = obj_b->inv_moi * nr2;
-			float use_mass = 1.0f / (obj_a->inv_mass + obj_b->inv_mass + Vec3::Dot(moi_imp1, nr1) + Vec3::Dot(moi_imp2, nr2));
-			float impulse_mag = -mag * dv_coeff * use_mass;
+			Vec3 impulse = rlv_to_impulse * dv;
 
 			// apply impulse
 			if(obj_a->active)
 			{
-				obj_a->vel += udv * (impulse_mag * obj_a->inv_mass);
+				obj_a->vel += impulse * obj_a->inv_mass;
 				if(obj_a->can_rotate)
-					obj_a->rot += moi_imp1 * impulse_mag;
+					obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
 			}
-			if(obj_b->can_move && obj_b->active)
+
+			if(obj_b->active && obj_b->can_move)
 			{
-				obj_b->vel -= udv * (impulse_mag * obj_b->inv_mass);
+				obj_b->vel -= impulse * obj_b->inv_mass;
 				if(obj_b->can_rotate)
-					obj_b->rot -= moi_imp2 * impulse_mag;
+					obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
 			}
+
+			wakeup = true;
 		}
 
 
@@ -99,7 +97,11 @@ namespace CibraryEngine
 		{
 			obj_a->rot += alpha_to_obja * alpha;
 			obj_b->rot -= alpha_to_objb * alpha;
+
+			wakeup = true;
 		}
+
+		return wakeup;
 	}
 
 	void JointConstraint::DoUpdateAction(float timestep_)
@@ -116,7 +118,7 @@ namespace CibraryEngine
 		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
 		b_to_a = Quaternion::Reverse(a_to_b);
 
-		net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		alpha_to_obja = obj_a->inv_moi * net_moi;
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
@@ -133,6 +135,24 @@ namespace CibraryEngine
 
 		r1 = apply_pos - obj_a->cached_com;
 		r2 = apply_pos - obj_b->cached_com;
+
+		// computing rlv-to-impulse matrix
+		Mat3 xr1(
+				0,	  r1.z,	  -r1.y,
+			-r1.z,	     0,	   r1.x,
+			 r1.y,	 -r1.x,	      0		);
+		Mat3 xr2(
+				0,	  r2.z,	  -r2.y,
+			-r2.z,	     0,	   r2.x,
+			 r2.y,	 -r2.x,	      0		);
+
+		float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
+		Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
+			+ xr1 * obj_a->inv_moi * xr1
+			+ xr2 * obj_b->inv_moi * xr2;
+
+		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
+
 
 		desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
 

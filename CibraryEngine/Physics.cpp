@@ -30,7 +30,7 @@
 
 #include "ProfilingTimer.h"
 
-#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 15
+#define MAX_SEQUENTIAL_SOLVER_ITERATIONS 200
 
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
@@ -169,57 +169,6 @@ namespace CibraryEngine
 
 
 
-	float PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction, float& B)
-	{
-		float A;
-
-		if(jbody->can_move)
-		{
-			A = ibody->inv_mass + jbody->inv_mass;
-			B = Vec3::Dot(ibody->vel, direction) - Vec3::Dot(jbody->vel, direction);
-		}
-		else
-		{
-			A = ibody->inv_mass;
-			B = Vec3::Dot(ibody->vel, direction);
-		}
-
-		if(ibody->can_rotate)
-		{
-			Vec3 nr1 = Vec3::Cross(direction, position - ibody->cached_com);
-			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
-			B += Vec3::Dot(ibody->rot, nr1);
-		}
-
-		if(jbody->can_rotate)
-		{
-			Vec3 nr2 = Vec3::Cross(direction, position - jbody->cached_com);
-			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
-			B -= Vec3::Dot(jbody->rot, nr2);
-		}
-
-		return 1.0f / A;
-	}
-
-	float PhysicsWorld::GetUseMass(RigidBody* ibody, RigidBody* jbody, const Vec3& position, const Vec3& direction)
-	{
-		float A = jbody->can_move ? ibody->inv_mass + jbody->inv_mass : ibody->inv_mass;
-
-		if(ibody->can_rotate)
-		{
-			Vec3 nr1 = Vec3::Cross(direction, position - ibody->cached_com);
-			A += Vec3::Dot(ibody->inv_moi * nr1, nr1);
-		}
-
-		if(jbody->can_rotate)
-		{
-			Vec3 nr2 = Vec3::Cross(direction, position - jbody->cached_com);
-			A += Vec3::Dot(jbody->inv_moi * nr2, nr2);
-		}
-
-		return 1.0f / A;
-	}
-
 	float PhysicsWorld::GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B)
 	{
 		float A;
@@ -262,6 +211,8 @@ namespace CibraryEngine
 
 		return 1.0f / A;
 	}
+
+
 
 	void PhysicsWorld::DoFixedStep()
 	{

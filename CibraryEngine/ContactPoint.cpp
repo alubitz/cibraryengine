@@ -5,8 +5,6 @@
 
 #include "DebugLog.h"
 
-#define ENABLE_ANGULAR_FRICTION 0
-
 namespace CibraryEngine
 {
 	/*
@@ -21,28 +19,27 @@ namespace CibraryEngine
 
 			restitution_coeff = 1.0f + obj_a->restitution * obj_b->restitution;
 			fric_coeff = obj_a->friction * obj_b->friction;
-#if ENABLE_ANGULAR_FRICTION
-			moi_n = Mat3::Invert(obj_a->inv_moi + obj_b->inv_moi) * normal;
-#endif			
 
 			r1 = use_pos - obj_a->cached_com;
 			r2 = use_pos - obj_b->cached_com;
 
+			// computing rlv-to-impulse matrix
 			Mat3 xr1(
-				    0,	  r1.z,	  -r1.y,
+					0,	  r1.z,	  -r1.y,
 				-r1.z,	     0,	   r1.x,
-				 r1.y,	 -r1.x,	      0
-			);
+				 r1.y,	 -r1.x,	      0		);
 			Mat3 xr2(
 					0,	  r2.z,	  -r2.y,
 				-r2.z,	     0,	   r2.x,
-				 r2.y,	 -r2.x,	      0
-			);
-			Mat3 impulse_to_rlv = Mat3::Identity() * -(obj_a->inv_mass + obj_b->inv_mass)
-									+ xr1 * obj_a->inv_moi * xr1
-									+ xr2 * obj_b->inv_moi * xr2;
+				 r2.y,	 -r2.x,	      0		);
+
+			float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
+			Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
+				+ xr1 * obj_a->inv_moi * xr1
+				+ xr2 * obj_b->inv_moi * xr2;
 
 			rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
+
 
 			cache_valid = true;
 		}
@@ -69,32 +66,38 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoCollisionResponse() const
 	{
+		static const float adhesion_threshold = 0.04f;
+		static const float impulse_sq_threshold = 0.1f;
+
 		assert(cache_valid);
 
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
-		if(nvdot < 0.0f)
+		if(nvdot < adhesion_threshold)						// TODO: deal with icky stuff when there's a negative normal forces
 		{
+			Vec3 normal_nvdot = normal * nvdot;
+
 			// normal force aka restitution
 			float use_restitution_coeff = nvdot < bounce_threshold ? restitution_coeff : 1.0f;
-			Vec3 restitution_impulse = rlv_to_impulse * (normal * -(use_restitution_coeff * nvdot));
+			Vec3 restitution_impulse = rlv_to_impulse * normal_nvdot * -use_restitution_coeff;
 
 
 			// friction
-			Vec3 full_friction_impulse = rlv_to_impulse * (normal * nvdot - dv);
+			Vec3 full_friction_impulse = rlv_to_impulse * (normal_nvdot - dv);
 			float fric_fraction = min(1.0f, fric_coeff * sqrtf(restitution_impulse.ComputeMagnitudeSquared() / full_friction_impulse.ComputeMagnitudeSquared()));
 
 
 			// apply computed impulses
-			ApplyImpulse(restitution_impulse + full_friction_impulse * fric_fraction);
+			Vec3 apply_impulse = restitution_impulse + full_friction_impulse * fric_fraction;
+			ApplyImpulse(apply_impulse);
 
-			return true;
+			return apply_impulse.ComputeMagnitudeSquared() > impulse_sq_threshold;
 		}
 
 		return false;
 	}
 
-	void ContactPoint::DoConstraintAction()
+	bool ContactPoint::DoConstraintAction()
 	{
 		BuildCache();
 
@@ -104,7 +107,11 @@ namespace CibraryEngine
 				obj_a->collision_callback->OnCollision(*this);
 			if(obj_b->collision_callback)
 				obj_b->collision_callback->OnCollision(*this);
+
+			return true;
 		}
+		else
+			return false;
 	}
 
 	void ContactPoint::DoUpdateAction(float timestep)
