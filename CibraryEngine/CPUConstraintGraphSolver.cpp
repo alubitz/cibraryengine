@@ -95,12 +95,8 @@ namespace CibraryEngine
 		}
 
 		// iterate until there's no active constraints left to evaluate or we hit the max number of iterations
-		//unsigned int count = edges.size();
-
 		for(unsigned int i = 0; i < iterations && first != NULL; ++i)
 		{
-			//Debug(((stringstream&)(stringstream() << "iteration " << i << ";\tactive constraints = " << count << endl)).str());
-
 			Edge* nu_first = NULL;
 
 			for(Edge* edge = first; edge != NULL; edge = edge->next)
@@ -121,8 +117,7 @@ namespace CibraryEngine
 				}
 			}
 
-		//	count = 0;
-			for(Edge* edge = nu_first; edge != NULL; edge = edge->next)//, ++count)
+			for(Edge* edge = nu_first; edge != NULL; edge = edge->next)
 			{
 				edge->next = edge->nu_next;
 				edge->included = false;
@@ -130,7 +125,5 @@ namespace CibraryEngine
 
 			first = nu_first;
 		}
-
-		//Debug("\n");
 	}
 }

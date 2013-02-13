@@ -75,14 +75,14 @@ namespace CibraryEngine
 		if(active)
 		{
 			vel += force * (inv_mass * timestep);
-			vel *= exp(-linear_damp * timestep);
+			vel *= expf(-linear_damp * timestep);
 
 			if(can_rotate)
 			{
 				inv_moi = ComputeInvMoi();
 				rot += inv_moi * (torque * timestep);
 
-				rot *= exp(-angular_damp * timestep);
+				rot *= expf(-angular_damp * timestep);
 			}
 
 			moved_from_pos = Vec3();				// somewhat hackish place to do this; chosen because it'll come before the anti-penetration displacement
@@ -408,6 +408,7 @@ namespace CibraryEngine
 
 	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
+		// sort of like Separating Axis Theorem, but without a convenient list of prescribed axes to check
 		struct MaxExtentGetter
 		{
 			float operator()(const Vec3& direction, const vector<Sphere>& spheres)
@@ -460,9 +461,9 @@ namespace CibraryEngine
 			char best_test;
 			Vec3 test_dir[8];
 
-			static const float x_offsets[] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
-			static const float y_offsets[] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
-			static const float z_offsets[] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
+			static const float x_offsets[8] = {	-1,	-1,	-1, -1,	1,	1,	1,	1 };
+			static const float y_offsets[8] = {	-1,	-1,	1,	1,	-1,	-1,	1,	1 };
+			static const float z_offsets[8] = {	-1,	1,	-1,	1,	-1,	1,	-1,	1 };
 
 			for(char i = 0; i < 5; ++i)
 			{
@@ -498,6 +499,161 @@ namespace CibraryEngine
 				}
 			}
 
+			// the objects are colliding; find out which of each objects' spheres are relevant
+			vector<unsigned char> my_relevant_spheres, other_relevant_spheres;
+			my_relevant_spheres.reserve(my_spheres.size());
+			other_relevant_spheres.reserve(other_spheres.size());
+
+			float max_extent = GetMaximumExtent(direction, my_spheres);
+			float min_extent = GetMinimumExtent(direction, other_spheres);
+
+			for(unsigned char i = 0, count = my_spheres.size(); i < count; ++i)
+			{
+				Sphere& sphere = my_spheres[i];
+				if(Vec3::Dot(sphere.center, direction) + sphere.radius >= min_extent)
+					my_relevant_spheres.push_back(i);
+			}
+
+			for(unsigned char i = 0, count = other_spheres.size(); i < count; ++i)
+			{
+				Sphere& sphere = other_spheres[i];
+				if(Vec3::Dot(sphere.center, direction) - sphere.radius <= max_extent)
+					other_relevant_spheres.push_back(i);
+			}
+
+			if(my_relevant_spheres.empty() || other_relevant_spheres.empty())
+				return;								// lolwut? silly float math
+
+			// now generate one or more contact points for the collision
+			switch(my_relevant_spheres.size())
+			{
+				case 1:
+				{
+					Sphere& my_sphere = my_spheres[my_relevant_spheres[0]];
+
+					switch(other_relevant_spheres.size())
+					{
+						case 1:						// sphere-sphere
+						{
+							Sphere& other_sphere = other_spheres[other_relevant_spheres[0]];
+
+							ContactPoint* p = alloc->New();
+							p->obj_a = ibody;
+							p->obj_b = jbody;
+
+							Vec3 dx = other_sphere.center - my_sphere.center;
+							if(float magsq = dx.ComputeMagnitudeSquared())
+							{
+								p->a.pos = p->b.pos = (my_sphere.center + other_sphere.center) * 0.5f;			// TODO: can we do better than this, efficiently?
+								p->a.norm = dx / sqrtf(magsq);
+								p->b.norm = -p->a.norm;
+							}
+							else
+							{
+								p->a.pos = p->b.pos = my_sphere.center;
+								p->a.norm = direction;
+								p->b.norm = -direction;
+							}
+
+							contact_points.push_back(p);
+
+							return;
+						}
+
+						case 2:						// sphere-tube
+						{
+							Sphere& other_sphere_a = other_spheres[other_relevant_spheres[0]];
+							Sphere& other_sphere_b = other_spheres[other_relevant_spheres[1]];
+
+							// TODO: implement this
+
+							break;
+						}
+							
+						default:					// sphere-plane
+						{
+							// TODO: implement this
+
+							break;
+						}
+					}
+
+					break;
+				}
+
+				case 2:
+				{
+					Sphere& my_sphere_a = my_spheres[my_relevant_spheres[0]];
+					Sphere& my_sphere_b = my_spheres[my_relevant_spheres[1]];
+
+					switch(other_relevant_spheres.size())
+					{
+						case 1:						// tube-sphere
+						{
+							Sphere& other_sphere = other_spheres[other_relevant_spheres[0]];
+
+							// TODO: implement this
+
+							break;
+						}
+
+						case 2:						// tube-tube
+						{
+							Sphere& other_sphere_a = other_spheres[other_relevant_spheres[0]];
+							Sphere& other_sphere_b = other_spheres[other_relevant_spheres[1]];
+
+							// TODO: implement this
+
+							break;
+						}
+
+						default:					// tube-plane
+						{
+							// TODO: implement this
+
+							break;
+						}
+					}
+
+					break;
+				}
+
+				default:
+				{
+					switch(other_relevant_spheres.size())
+					{
+						case 1:						// plane-sphere
+						{
+							Sphere& other_sphere = other_spheres[other_relevant_spheres[0]];
+
+							// TODO: implement this
+
+							break;
+						}
+
+						case 2:						// plane-tube
+						{
+							Sphere& other_sphere_a = other_spheres[other_relevant_spheres[0]];
+							Sphere& other_sphere_b = other_spheres[other_relevant_spheres[1]];
+
+							// TODO: implement this
+
+							break;
+						}
+
+						default:					// plane-plane
+						{
+							// TODO: implement this
+
+							break;
+						}
+					}
+
+					break;
+				}
+			}
+
+			// fallback contact point generation
 			ContactPoint* p = alloc->New();
 			p->obj_a = ibody;
 			p->obj_b = jbody;
@@ -505,10 +661,7 @@ namespace CibraryEngine
 			p->a.norm = direction;
 			p->b.norm = -direction;
 
-			Vec3 pos = overlap.GetCenterPoint();					// TODO: do this better
-			Vec3 offset = direction * (score * 0.5f);
-			p->a.pos = pos - offset;
-			p->b.pos = pos + offset;
+			p->a.pos = p->b.pos = overlap.GetCenterPoint();					// TODO: do this better
 
 			contact_points.push_back(p);
 		}

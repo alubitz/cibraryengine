@@ -378,7 +378,7 @@ namespace DestructibleTerrain
 				camera_vel += camera_rm * Vec3(	0,		-dv,	0);
 
 
-			camera_vel *= exp(-10.0f * time.elapsed);
+			camera_vel *= expf(-10.0f * time.elapsed);
 			camera_pos += camera_vel * time.elapsed;
 		}
 

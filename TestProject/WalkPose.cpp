@@ -90,7 +90,7 @@ namespace Test
 			m_yaw_v = 0.0f;
 
 		// rather than use instantaneous velocity values, approach the velocities gradually over time
-		float old_coeff = exp(-vsmooth_exp_coeff * time.elapsed), nu_coeff = 1.0f - old_coeff;
+		float old_coeff = expf(-vsmooth_exp_coeff * time.elapsed), nu_coeff = 1.0f - old_coeff;
 		forward_v =		old_coeff * forward_v	+ nu_coeff * m_forward_v;
 		leftward_v =	old_coeff * leftward_v	+ nu_coeff * m_leftward_v;
 		yaw_v =			old_coeff * yaw_v		+ nu_coeff * m_yaw_v;
@@ -113,7 +113,7 @@ namespace Test
 			leftward_speed =	leftward_v	* side_anim_rate;
 			yaw_speed =			yaw_v		* turn_anim_rate;
 
-			float dt = 1.0f - exp(-use_speed * playback_exp_coeff * time.elapsed);
+			float dt = 1.0f - expf(-use_speed * playback_exp_coeff * time.elapsed);
 			anim_timer += dt;
 		}
 

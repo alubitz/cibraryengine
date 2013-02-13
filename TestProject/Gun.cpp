@@ -57,7 +57,7 @@ namespace Test
 				iter = inaccuracy.erase(iter);
 		}
 
-		mflash_size *= exp(-16.0f * timestep);
+		mflash_size *= expf(-16.0f * timestep);
 		mflash_size -= 0.05f * timestep;
 
 		if(reloading)

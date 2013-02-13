@@ -66,14 +66,14 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoCollisionResponse() const
 	{
-		static const float adhesion_threshold = 0.04f;
+		static const float adhesion_threshold = 0.1f;
 		static const float impulse_sq_threshold = 0.01f;
 
 		assert(cache_valid);
 
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
-		if(nvdot < adhesion_threshold)						// TODO: deal with icky stuff when there's a negative normal forces
+		if(nvdot < adhesion_threshold)						// TODO: deal with icky stuff when there's a negative normal force
 		{
 			Vec3 normal_nvdot = normal * nvdot;
 

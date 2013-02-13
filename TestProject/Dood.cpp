@@ -148,7 +148,7 @@ namespace Test
 			if(timestep < 0.01f)			// bit of hackery here to make stuff work properly with extremely high framerates
 				timestep = 0.01f;
 
-			desired_vel = (vel - desired_vel) * exp(-traction * timestep * standing) + desired_vel;
+			desired_vel = (vel - desired_vel) * expf(-traction * timestep * standing) + desired_vel;
 			Vec3 dv = desired_vel - vel;
 
 			standing_callback.ApplyVelocityChange(dv);
@@ -219,7 +219,7 @@ namespace Test
 		// TODO: make this work again; problem now is that collisions are "padded" too much
 		// collision damage!
 		Vec3 delta_v = vel - this->vel;
-		float falling_damage_base = abs(delta_v.ComputeMagnitude()) - 10.0f;
+		float falling_damage_base = fabs(delta_v.ComputeMagnitude()) - 10.0f;
 		if(falling_damage_base > 0)
 			TakeDamage(Damage(this, falling_damage_base * 0.068f), Vec3());						// zero-vector indicates damage came from self
 #endif
@@ -260,7 +260,7 @@ namespace Test
 		float desired_yaw = max(-1.0f, min(1.0f, control_state->GetFloatControl("yaw")));
 		float desired_pitch = max(-1.0f, min(1.0f, control_state->GetFloatControl("pitch")));
 
-		if(abs(desired_yaw) <= timestep * yaw_rate)
+		if(fabs(desired_yaw) <= timestep * yaw_rate)
 		{
 			yaw += desired_yaw;
 			control_state->SetFloatControl("yaw", 0.0f);
@@ -276,7 +276,7 @@ namespace Test
 			control_state->SetFloatControl("yaw", desired_yaw - timestep * yaw_rate);
 		}
 
-		if(abs(desired_pitch) <= timestep * pitch_rate)
+		if(fabs(desired_pitch) <= timestep * pitch_rate)
 		{
 			pitch += desired_pitch;
 			control_state->SetFloatControl("pitch", 0.0f);
