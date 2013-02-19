@@ -733,10 +733,7 @@ namespace Test
 		for(map<unsigned int, RigidBody*>::iterator iter = dood->foot_bones.begin(); iter != dood->foot_bones.end(); ++iter)
 			if(collision.obj_a == iter->second || collision.obj_b == iter->second)
 			{
-				ContactPoint::Part self = collision.obj_a == iter->second ? collision.a : collision.b;
-				ContactPoint::Part other = collision.obj_a == iter->second ? collision.b : collision.a;
-
-				Vec3 normal = other.norm;
+				Vec3 normal = collision.obj_a == iter->second ? -collision.normal : collision.normal;
 				if(normal.y > 0.1f)
 				{
 					standing_on.push_back(collision.obj_a == iter->second ? collision.obj_b : collision.obj_a);

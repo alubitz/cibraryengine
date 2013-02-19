@@ -390,10 +390,8 @@ namespace CibraryEngine
 
 			if(ContactPoint* p = ishape->CollideMesh(inv_net_xform, my_spheres, tri, alloc, ibody, jbody))
 			{
-				p->a.pos = j_xform.TransformVec3_1(p->a.pos);
-				p->b.pos = j_xform.TransformVec3_1(p->b.pos);
-				p->b.norm = j_xform.TransformVec3_0(p->b.norm);
-				p->a.norm = -p->b.norm;
+				p->pos = j_xform.TransformVec3_1(p->pos);
+				p->normal = j_xform.TransformVec3_0(p->normal);
 
 				contact_points.push_back(p);
 			}
@@ -499,6 +497,8 @@ namespace CibraryEngine
 				}
 			}
 
+
+			/*
 			// the objects are colliding; find out which of each objects' spheres are relevant
 			vector<unsigned char> my_relevant_spheres, other_relevant_spheres;
 			my_relevant_spheres.reserve(my_spheres.size());
@@ -544,15 +544,13 @@ namespace CibraryEngine
 							Vec3 dx = other_sphere.center - my_sphere.center;
 							if(float magsq = dx.ComputeMagnitudeSquared())
 							{
-								p->a.pos = p->b.pos = (my_sphere.center + other_sphere.center) * 0.5f;			// TODO: can we do better than this, efficiently?
-								p->a.norm = dx / sqrtf(magsq);
-								p->b.norm = -p->a.norm;
+								p->pos = (my_sphere.center + other_sphere.center) * 0.5f;			// TODO: can we do better than this, efficiently?
+								p->normal = dx / sqrtf(magsq);
 							}
 							else
 							{
-								p->a.pos = p->b.pos = my_sphere.center;
-								p->a.norm = direction;
-								p->b.norm = -direction;
+								p->pos = my_sphere.center;
+								p->normal = direction;
 							}
 
 							contact_points.push_back(p);
@@ -565,20 +563,30 @@ namespace CibraryEngine
 							Sphere& other_sphere_a = other_spheres[other_relevant_spheres[0]];
 							Sphere& other_sphere_b = other_spheres[other_relevant_spheres[1]];
 
-							// TODO: implement this
+							ContactPoint* p = alloc->New();
+							p->obj_a = ibody;
+							p->obj_b = jbody;
+							p->pos = my_sphere.center + direction * my_sphere.radius;				// TODO: can we do better than this, efficiently?
+							p->normal = direction;
 
-							break;
+							contact_points.push_back(p);
+
+							return;
 						}
 							
 						default:					// sphere-plane
 						{
-							// TODO: implement this
+							ContactPoint* p = alloc->New();
+							p->obj_a = ibody;
+							p->obj_b = jbody;
+							p->pos = my_sphere.center + direction * my_sphere.radius;				// TODO: can we do better than this, efficiently?
+							p->normal = direction;
 
-							break;
+							contact_points.push_back(p);
+
+							return;
 						}
 					}
-
-					break;
 				}
 
 				case 2:
@@ -592,9 +600,15 @@ namespace CibraryEngine
 						{
 							Sphere& other_sphere = other_spheres[other_relevant_spheres[0]];
 
-							// TODO: implement this
+							ContactPoint* p = alloc->New();
+							p->obj_a = ibody;
+							p->obj_b = jbody;
+							p->pos = other_sphere.center - direction * other_sphere.radius;				// TODO: can we do better than this, efficiently?
+							p->normal = direction;
 
-							break;
+							contact_points.push_back(p);
+
+							return;
 						}
 
 						case 2:						// tube-tube
@@ -626,9 +640,15 @@ namespace CibraryEngine
 						{
 							Sphere& other_sphere = other_spheres[other_relevant_spheres[0]];
 
-							// TODO: implement this
+							ContactPoint* p = alloc->New();
+							p->obj_a = ibody;
+							p->obj_b = jbody;
+							p->pos = other_sphere.center - direction * other_sphere.radius;				// TODO: can we do better than this, efficiently?
+							p->normal = direction;
 
-							break;
+							contact_points.push_back(p);
+
+							return;
 						}
 
 						case 2:						// plane-tube
@@ -652,16 +672,17 @@ namespace CibraryEngine
 					break;
 				}
 			}
+			*/
+
 
 			// fallback contact point generation
 			ContactPoint* p = alloc->New();
 			p->obj_a = ibody;
 			p->obj_b = jbody;
 
-			p->a.norm = direction;
-			p->b.norm = -direction;
+			p->normal = direction;
 
-			p->a.pos = p->b.pos = overlap.GetCenterPoint();					// TODO: do this better
+			p->pos = overlap.GetCenterPoint();					// TODO: do this better
 
 			contact_points.push_back(p);
 		}

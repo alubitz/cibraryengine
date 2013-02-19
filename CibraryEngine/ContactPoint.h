@@ -12,17 +12,11 @@ namespace CibraryEngine
 	/** A point of contact between two physics objects */
 	struct ContactPoint : public PhysicsConstraint
 	{
-		struct Part
-		{
-			Vec3 pos, norm;					// both are world coords
-
-			Part() : pos(), norm() { }
-		} a, b;
+		Vec3 pos;
+		Vec3 normal;
 
 		bool cache_valid;
 		// cached values (must be computed if cache_valid is false)
-		Vec3 use_pos;
-		Vec3 normal;
 		float restitution_coeff, fric_coeff;
 
 		Vec3 r1, r2;

@@ -935,9 +935,8 @@ namespace CibraryEngine
 
 					result->obj_a = ibody;
 					result->obj_b = jbody;
-					result->a.pos = result->b.pos = sphere_pos + plane_norm * radius;
-					result->b.norm = plane_norm;
-					result->a.norm = -plane_norm;
+					result->pos = sphere_pos + plane_norm * radius;
+					result->normal = -plane_norm;
 
 					results.push_back(result);
 				}
@@ -1053,8 +1052,7 @@ namespace CibraryEngine
 			ContactPoint* result = alloc->New();
 			result->obj_a = ibody;
 			result->obj_b = jbody;
-			result->b.norm = tri.plane.normal;
-			result->a.norm = -result->b.norm;
+			result->normal = tri.plane.normal;
 
 			float best;
 			for(unsigned int i = 0; i < my_spheres.size(); ++i)
@@ -1064,11 +1062,9 @@ namespace CibraryEngine
 				if(i == 0 || best < dist)
 				{
 					best = dist;
-					result->a.pos = sphere.center + scorer.direction * sphere.radius;
+					result->pos = sphere.center + scorer.direction * sphere.radius;
 				}
 			}
-
-			result->b.pos = result->a.pos + result->b.norm * (Vec3::Dot(result->a.pos, result->b.norm) - tri.plane.offset);
 
 			return result;
 		}

@@ -14,14 +14,11 @@ namespace CibraryEngine
 	{
 		if(!cache_valid)
 		{
-			use_pos = (a.pos + b.pos) * 0.5f;
-			normal = Vec3::Normalize(a.norm - b.norm);
-
 			restitution_coeff = 1.0f + obj_a->restitution * obj_b->restitution;
 			fric_coeff = obj_a->friction * obj_b->friction;
 
-			r1 = use_pos - obj_a->cached_com;
-			r2 = use_pos - obj_b->cached_com;
+			r1 = pos - obj_a->cached_com;
+			r2 = pos - obj_b->cached_com;
 
 			// computing rlv-to-impulse matrix
 			Mat3 xr1(
