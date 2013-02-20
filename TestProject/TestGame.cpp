@@ -20,6 +20,8 @@
 
 #include "WorldBoundary.h"
 
+#include "../CibraryEngine/DebugDrawMaterial.h"
+
 #include "LevelLoad.h"
 
 #include "StaticLevelGeometry.h"
@@ -1076,6 +1078,8 @@ namespace Test
 		if(nav_graph) { NavGraph::DeleteNavGraph(nav_graph); nav_graph = 0; }
 
 		sound_system->StopAll();
+
+		DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 
 		GameState::InnerDispose();
 	}

@@ -16,6 +16,8 @@ namespace CibraryEngine
 		VertexBuffer* vbo;
 		SceneRenderer* renderer;
 
+		unsigned int num_verts;
+
 		Imp() : vbo(NULL), renderer(NULL) { }
 
 		~Imp() { KillVBO(); }
@@ -29,6 +31,9 @@ namespace CibraryEngine
 			this->renderer = renderer;
 
 			vbo = new VertexBuffer(Lines);
+			vbo->SetSizeIncrement(4000);
+
+			num_verts = 0;
 
 			vbo->AddAttribute("gl_Vertex", Float, 3);
 			vbo->AddAttribute("gl_Color", Float, 3);
@@ -58,34 +63,33 @@ namespace CibraryEngine
 
 		void Draw(RenderNode node)
 		{
-			unsigned int cur_vert = vbo->GetNumVerts();
-			vbo->SetNumVerts(cur_vert + 2);
+			vbo->SetNumVerts(num_verts + 2);
 
-			float* vert_ptr = &vbo->GetFloatPointer("gl_Vertex")[cur_vert * 3];
-			float* color_ptr = &vbo->GetFloatPointer("gl_Color")[cur_vert * 3];
+			float* vert_ptr = &vbo->GetFloatPointer("gl_Vertex")[num_verts * 3];
+			float* color_ptr = &vbo->GetFloatPointer("gl_Color")[num_verts * 3];
 
 			DebugDrawMaterialNodeData& data = *(DebugDrawMaterialNodeData*)node.data;
 
 			// set vertex positions
-			*(vert_ptr++) = data.p1.x;
-			*(vert_ptr++) = data.p1.y;
-			*(vert_ptr++) = data.p1.z;
+			*(vert_ptr++)	= data.p1.x;
+			*(vert_ptr++)	= data.p1.y;
+			*(vert_ptr++)	= data.p1.z;
 
-			*(vert_ptr++) = data.p2.x;
-			*(vert_ptr++) = data.p2.y;
-			*(vert_ptr++) = data.p2.z;
+			*(vert_ptr++)	= data.p2.x;
+			*(vert_ptr++)	= data.p2.y;
+			*vert_ptr		= data.p2.z;
 
 			// set vertex colors
-			*(color_ptr++) = data.color.x;
-			*(color_ptr++) = data.color.y;
-			*(color_ptr++) = data.color.z;
+			*(color_ptr++)	= data.color.x;
+			*(color_ptr++)	= data.color.y;
+			*(color_ptr++)	= data.color.z;
 
-			*(color_ptr++) = data.color.x;
-			*(color_ptr++) = data.color.y;
-			*(color_ptr++) = data.color.z;
+			*(color_ptr++)	= data.color.x;
+			*(color_ptr++)	= data.color.y;
+			*color_ptr		= data.color.z;
+
+			num_verts += 2;
 		}
-
-		void Cleanup(RenderNode node) { delete (DebugDrawMaterialNodeData*)node.data; }
 	};
 
 
@@ -101,13 +105,52 @@ namespace CibraryEngine
 	void DebugDrawMaterial::BeginDraw(SceneRenderer* renderer)	{ imp->BeginDraw(renderer); }
 	void DebugDrawMaterial::EndDraw()							{ imp->EndDraw(); }
 	void DebugDrawMaterial::Draw(RenderNode node)				{ imp->Draw(node); }
-	void DebugDrawMaterial::Cleanup(RenderNode node)			{ imp->Cleanup(node); }
 
 	bool DebugDrawMaterial::Equals(Material* other)				{ return other->mclass_id == mclass_id; }
 
-	Material* DebugDrawMaterial::GetDebugDrawMaterial()
+	DebugDrawMaterial* DebugDrawMaterial::GetDebugDrawMaterial()
 	{
 		static DebugDrawMaterial* mat = new DebugDrawMaterial();
 		return mat;
 	}
+
+
+	/*
+	 * DebugDrawMaterial dynamic allocation recycle bin stuffs
+	 */
+	static vector<DebugDrawMaterialNodeData*> ddmnd_recycle_bin;
+
+	DebugDrawMaterialNodeData* DebugDrawMaterial::New(const Vec3& p1, const Vec3& p2)
+	{
+		if(ddmnd_recycle_bin.empty())
+			return new DebugDrawMaterialNodeData(p1, p2);
+		else
+		{
+			DebugDrawMaterialNodeData* result = *ddmnd_recycle_bin.rbegin();
+			ddmnd_recycle_bin.pop_back();
+			return new (result) DebugDrawMaterialNodeData(p1, p2);
+		}
+	}
+
+	DebugDrawMaterialNodeData* DebugDrawMaterial::New(const Vec3& p1, const Vec3& p2, const Vec3& color)
+	{
+		if(ddmnd_recycle_bin.empty())
+			return new DebugDrawMaterialNodeData(p1, p2, color);
+		else
+		{
+			DebugDrawMaterialNodeData* result = *ddmnd_recycle_bin.rbegin();
+			ddmnd_recycle_bin.pop_back();
+			return new (result) DebugDrawMaterialNodeData(p1, p2, color);
+		}
+	}
+
+	void DebugDrawMaterial::EmptyRecycleBin()
+	{
+		for(vector<DebugDrawMaterialNodeData*>::iterator iter = ddmnd_recycle_bin.begin(); iter != ddmnd_recycle_bin.end(); ++iter)
+			delete *iter;
+		ddmnd_recycle_bin.clear();
+	}
+
+
+	void DebugDrawMaterial::Cleanup(RenderNode node)			{ ddmnd_recycle_bin.push_back((DebugDrawMaterialNodeData*)node.data); }
 }

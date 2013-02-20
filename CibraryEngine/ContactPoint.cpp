@@ -161,6 +161,17 @@ namespace CibraryEngine
 				return NULL;
 		}
 
+		ContactPoint* New(RigidBody* obj_a, RigidBody* obj_b)
+		{
+			if(available_count != 0)
+			{
+				ContactPoint* cp = available[--available_count];
+				return new (cp) ContactPoint(obj_a, obj_b);
+			}
+			else
+				return NULL;
+		}
+
 		bool Delete(ContactPoint* cp)
 		{
 			if(cp >= points && cp < points + SIZE)
@@ -220,6 +231,18 @@ namespace CibraryEngine
 		chunks.push_back(chunk);
 
 		return chunk->New();
+	}
+
+	ContactPoint* ContactPointAllocator::New(RigidBody* obj_a, RigidBody* obj_b)
+	{
+		for(unsigned int i = 0, size = chunks.size(); i < size; ++i)
+			if(ContactPoint* cp = chunks[i]->New(obj_a, obj_b))
+				return cp;
+
+		Chunk* chunk = new Chunk();
+		chunks.push_back(chunk);
+
+		return chunk->New(obj_a, obj_b);
 	}
 
 	bool ContactPointAllocator::Delete(ContactPoint* cp)

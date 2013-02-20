@@ -312,7 +312,7 @@ namespace CibraryEngine
 		for(vector<Vec3>::iterator iter = vertices.begin(); iter != vertices.end(); ++iter)
 			transformed.push_back(rm * *iter + pos);
 
-		Material* mat = DebugDrawMaterial::GetDebugDrawMaterial();
+		DebugDrawMaterial* mat = DebugDrawMaterial::GetDebugDrawMaterial();
 
 		for(vector<Tri>::iterator iter = triangles.begin(); iter != triangles.end(); ++iter)
 		{
@@ -320,9 +320,9 @@ namespace CibraryEngine
 			Vec3& b = transformed[iter->indices[1]];
 			Vec3& c = transformed[iter->indices[2]];
 
-			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(a, b), 1.0f));
-			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(b, c), 1.0f));
-			renderer->objects.push_back(RenderNode(mat, new DebugDrawMaterialNodeData(c, a), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(a, b), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(b, c), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(c, a), 1.0f));
 		}
 	}
 

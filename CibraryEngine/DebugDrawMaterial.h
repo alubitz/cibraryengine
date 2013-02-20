@@ -7,6 +7,15 @@
 
 namespace CibraryEngine
 {
+	struct DebugDrawMaterialNodeData
+	{
+		Vec3 p1, p2;
+		Vec3 color;
+
+		DebugDrawMaterialNodeData(const Vec3& p1, const Vec3& p2) : p1(p1), p2(p2), color(1.0f, 1.0f, 1.0f) { }
+		DebugDrawMaterialNodeData(const Vec3& p1, const Vec3& p2, const Vec3& color) : p1(p1), p2(p2), color(color) { }
+	};
+
 	class DebugDrawMaterial : public Material
 	{
 		private:
@@ -30,15 +39,13 @@ namespace CibraryEngine
 
 			bool Equals(Material* other);
 
-			static Material* GetDebugDrawMaterial();
-	};
+			static DebugDrawMaterial* GetDebugDrawMaterial();
 
-	struct DebugDrawMaterialNodeData
-	{
-		Vec3 p1, p2;
-		Vec3 color;
 
-		DebugDrawMaterialNodeData(Vec3 p1, Vec3 p2) : p1(p1), p2(p2), color(1.0f, 1.0f, 1.0f) { }
-		DebugDrawMaterialNodeData(Vec3 p1, Vec3 p2, Vec3 color) : p1(p1), p2(p2), color(color) { }
+
+			DebugDrawMaterialNodeData* New(const Vec3& p1, const Vec3& p2);
+			DebugDrawMaterialNodeData* New(const Vec3& p1, const Vec3& p2, const Vec3& color);
+
+			void EmptyRecycleBin();
 	};
 }

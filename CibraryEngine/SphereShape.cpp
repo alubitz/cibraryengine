@@ -45,9 +45,11 @@ namespace CibraryEngine
 
 		static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1);
 
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - x, pos + x, r), 1.0f));
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y, g), 1.0f));
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z, b), 1.0f));
+		DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - x, pos + x, r), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - y, pos + y, g), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - z, pos + z, b), 1.0f));
 	}
 
 	AABB SphereShape::GetTransformedAABB(const Mat4& xform) { return AABB(xform.TransformVec3(0, 0, 0, 1), radius); }

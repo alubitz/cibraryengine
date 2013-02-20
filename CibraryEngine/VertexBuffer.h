@@ -63,6 +63,8 @@ namespace CibraryEngine
 			unsigned int num_verts;
 			unsigned int allocated_size;
 
+			unsigned int size_increment;
+
 			unsigned int vbo_id;
 
 			void InnerDispose();			// for Disposable
@@ -84,6 +86,8 @@ namespace CibraryEngine
 			void SetNumVerts(unsigned int num_verts);
 
 			void SetAllocatedSize(unsigned int n);
+
+			void SetSizeIncrement(unsigned int n);
 
 			void AddAttribute(const string& name, VertexAttributeType type, int n_per_vertex);
 			void RemoveAttribute(const string& name);

@@ -22,8 +22,10 @@ namespace CibraryEngine
 		Vec3 y = Vec3(rm[3], rm[4], rm[5]) * 0.1f;
 		Vec3 z = Vec3(rm[6], rm[7], rm[8]) * 0.1f;
 
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - x, pos + x), 1.0f));
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - y, pos + y), 1.0f));
-		renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(pos - z, pos + z), 1.0f));
+		DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - x, pos + x), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - y, pos + y), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos - z, pos + z), 1.0f));
 	}
 }

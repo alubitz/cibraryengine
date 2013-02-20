@@ -33,9 +33,9 @@ namespace CibraryEngine
 				float red, green, blue, alpha;
 				float front_u, back_u;
 
-				NodeData(Vec3 position, Vec3 back, float width);
+				NodeData(const Vec3& front, const Vec3& back, float width);
 
-				void Execute(Vec3 camera_position);
+				void Execute(const Vec3& camera_position);
 			};
 	};
 }

@@ -28,6 +28,7 @@ namespace CibraryEngine
 
 
 		ContactPoint() : cache_valid(false) { }
+		ContactPoint(RigidBody* obj_a, RigidBody* obj_b) : PhysicsConstraint(obj_a, obj_b), cache_valid(false) { }
 		~ContactPoint() { }
 
 
@@ -67,5 +68,6 @@ namespace CibraryEngine
 			static void DeleteAllocator(ContactPointAllocator* alloc);
 
 			ContactPoint* New();
+			ContactPoint* New(RigidBody* obj_a, RigidBody* obj_b);
 	};
 }

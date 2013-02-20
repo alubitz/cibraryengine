@@ -102,6 +102,8 @@ namespace CibraryEngine
 		static Vec3 Normalize(const Vec3& a)				{ return a * (1.0f / a.ComputeMagnitude()); }
 		/** Returns a vector parallel to the given vector with the specified magnitude */
 		static Vec3 Normalize(const Vec3& a, float len)		{ return a * (len / a.ComputeMagnitude()); }
+		/** Returns a unit vector parallel to the given vector */
+		static Vec3 Normalize(float x, float y, float z)	{ float coeff = 1.0f / Magnitude(x, y, z); return Vec3(x * coeff, y * coeff, z * coeff); }
 
 		/** Computes the magnitude of a vector with the given x, y, and z components */
 		static float Magnitude(float x, float y, float z)				{ return sqrtf(x * x + y * y + z * z); }

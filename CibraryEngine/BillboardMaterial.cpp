@@ -69,8 +69,8 @@ namespace CibraryEngine
 	/*
 	 * BillboardMaterial::NodeData methods
 	 */
-	BillboardMaterial::NodeData::NodeData(Vec3 position, Vec3 back, float width) :
-		front(position),
+	BillboardMaterial::NodeData::NodeData(const Vec3& front, const Vec3& back, float width) :
+		front(front),
 		back(back),
 		width(width),
 		red(1.0f),
@@ -82,24 +82,23 @@ namespace CibraryEngine
 	{
 	}
 
-	void BillboardMaterial::NodeData::Execute(Vec3 camera_position)
+	void BillboardMaterial::NodeData::Execute(const Vec3& camera_position)
 	{
 		glColor4f(red, green, blue, alpha);
 
-		Vec3 normal, pos, anti_normal;
+		Vec3 normal, pos;
 		pos = front - back;
 		normal = Vec3::Normalize(front - camera_position);            // temporarily uses the same variable to store it
 		normal = Vec3::Cross(normal, pos);
 		normal *= width * 0.5f / normal.ComputeMagnitude();
-		anti_normal = -normal;
 
 		Vec3 points[6];
 		points[0] = front + normal;
 		points[1] = front;
-		points[2] = front + anti_normal;
+		points[2] = front - normal;
 		points[3] = back + normal;
 		points[4] = back;
-		points[5] = back + anti_normal;
+		points[5] = back - normal;
 
 		glTexCoord3f(front_u,	0.0f, 0);
 		glVertex3f(points[0].x, points[0].y, points[0].z);

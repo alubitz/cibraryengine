@@ -16,6 +16,7 @@ namespace CibraryEngine
 		storage_mode(storage_mode),
 		num_verts(0),
 		allocated_size(0),
+		size_increment(20),
 		vbo_id(0)
 	{
 	}
@@ -40,7 +41,7 @@ namespace CibraryEngine
 	void VertexBuffer::SetNumVerts(unsigned int verts)
 	{
 		if(verts > allocated_size)
-			SetAllocatedSize(verts + 20);
+			SetAllocatedSize(verts + size_increment);
 
 		num_verts = verts;
 	}
@@ -61,10 +62,7 @@ namespace CibraryEngine
 					{
 						float* new_data = new float[allocated_size * n_per_vertex];
 						if(float* old_data = iter->second.floats)
-						{
-							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
-								new_data[i] = old_data[i];
-						}
+							memcpy(new_data, old_data, num_verts * n_per_vertex * sizeof(float));
 						nu_attribute_data[iter->first] = VertexData(new_data);
 
 						break;
@@ -73,10 +71,7 @@ namespace CibraryEngine
 					{
 						int* new_data = new int[allocated_size * n_per_vertex];
 						if(int* old_data = iter->second.ints)
-						{
-							for(unsigned int i = 0; i < num_verts * n_per_vertex; ++i)
-								new_data[i] = old_data[i];
-						}
+							memcpy(new_data, old_data, num_verts * n_per_vertex * sizeof(float));
 						nu_attribute_data[iter->first] = VertexData(new_data);
 
 						break;
@@ -118,6 +113,8 @@ namespace CibraryEngine
 		if(verts < num_verts)
 			num_verts = verts;
 	}
+
+	void VertexBuffer::SetSizeIncrement(unsigned int increment) { size_increment = increment; }
 
 	void VertexBuffer::AddAttribute(const string& name, VertexAttributeType type, int n_per_vertex)
 	{

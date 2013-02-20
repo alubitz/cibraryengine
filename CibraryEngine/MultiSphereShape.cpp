@@ -779,6 +779,10 @@ namespace CibraryEngine
 			const int num_edges = 32;
 			const float theta_coeff = 2.0f * float(M_PI) / num_edges;
 
+			vector<Circle>::iterator circles_begin = circles.begin(), circles_end = circles.end();
+
+			DebugDrawMaterial* material = DebugDrawMaterial::GetDebugDrawMaterial();
+
 			Vec3 temp;
 			for(int i = 0; i <= num_edges; ++i)
 			{
@@ -788,14 +792,14 @@ namespace CibraryEngine
 				float farthest;
 				Vec3 cur;
 
-				vector<Circle>::iterator iter = circles.begin(), circles_end = circles.end();
+				vector<Circle>::iterator iter = circles_begin;
 				iter->SetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				for(++iter; iter != circles_end; ++iter)
 					iter->MaybeSetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				if(i != 0)
-					renderer->objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(cur, temp, white), 1.0f));
+					renderer->objects.push_back(RenderNode(material, material->New(cur, temp, white), 1.0f));
 				temp = cur;
 			}
 		}
@@ -931,10 +935,7 @@ namespace CibraryEngine
 
 				if(dist < 0.0f)
 				{
-					ContactPoint* result = alloc->New();
-
-					result->obj_a = ibody;
-					result->obj_b = jbody;
+					ContactPoint* result = alloc->New(ibody, jbody);
 					result->pos = sphere_pos + plane_norm * radius;
 					result->normal = -plane_norm;
 
@@ -961,7 +962,7 @@ namespace CibraryEngine
 			// try to find a separating axis
 			struct Scorer
 			{
-				const vector<Sphere>& a;
+				const Sphere *begin, *end;
 				const TriangleMeshShape::TriCache& tri;
 
 				bool first;
@@ -969,12 +970,26 @@ namespace CibraryEngine
 				float least;
 				Vec3 direction;
 
-				Scorer(const vector<Sphere>& a, const TriangleMeshShape::TriCache& tri) : a(a), tri(tri), first(true) { }
+				Scorer(const vector<Sphere>& a, const TriangleMeshShape::TriCache& tri) : begin(a.data()), end(begin + a.size()), tri(tri), first(true) { }
 
 				bool Score(const Vec3& dir)
 				{
-					float max_val = GetMaximumExtent(dir, a);
+					// get max extent of multisphere shape
+					const Sphere* iter = begin;
+
+					float max_val = Vec3::Dot(dir, iter->center) + iter->radius;
+					++iter;
+
+					while(iter != end)
+					{
+						max_val = max(max_val, Vec3::Dot(dir, iter->center) + iter->radius);
+						++iter;
+					}
+
+					// get min extent of triangle
 					float min_val = min(Vec3::Dot(dir, tri.a), min(Vec3::Dot(dir, tri.b), Vec3::Dot(dir, tri.c)));
+
+					// do stuff with the results
 					float value = max_val - min_val;
 
 					if(first)
@@ -1049,9 +1064,7 @@ namespace CibraryEngine
 
 
 			// if we get this far, it means the objects are intersecting
-			ContactPoint* result = alloc->New();
-			result->obj_a = ibody;
-			result->obj_b = jbody;
+			ContactPoint* result = alloc->New(ibody, jbody);
 			result->normal = tri.plane.normal;
 
 			float best;
@@ -1103,24 +1116,6 @@ namespace CibraryEngine
 			}
 
 			return stream.fail() ? 1 : 0;
-		}
-
-
-		// static misc. utility stuff
-		static float GetMaximumExtent(const Vec3& direction, const vector<Sphere>& spheres)
-		{
-			vector<Sphere>::const_iterator iter = spheres.begin(), spheres_end = spheres.end();
-
-			float maximum = Vec3::Dot(direction, iter->center) + iter->radius;
-			++iter;
-
-			while(iter != spheres_end)
-			{
-				maximum = max(maximum, Vec3::Dot(direction, iter->center) + iter->radius);
-				++iter;
-			}
-
-			return maximum;
 		}
 	};
 

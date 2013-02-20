@@ -114,6 +114,8 @@ namespace InverseKinematics
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				delete *iter;
 			ik_bones.clear();
+
+			DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 		}
 
 		void Update(TimingInfo& time)
@@ -183,11 +185,13 @@ namespace InverseKinematics
 			for(vector<IKBone*>::iterator iter = ik_bones.begin(); iter != ik_bones.end(); ++iter)
 				(*iter)->Vis(&renderer);
 
+			DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
 			// draw grid (ground plane)
 			for(short i = -2; i <= 2; ++i)
 			{
-				renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(-2,	0, i),	Vec3(2, 0, i)),	0));
-				renderer.objects.push_back(RenderNode(DebugDrawMaterial::GetDebugDrawMaterial(), new DebugDrawMaterialNodeData(Vec3(i,	0, -2),	Vec3(i, 0, 2)),	0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3(-2,	0, i),	Vec3(2, 0, i)),	0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3(i,	0, -2),		Vec3(i, 0, 2)),	0));
 			}
 
 			// draw the skinned character
