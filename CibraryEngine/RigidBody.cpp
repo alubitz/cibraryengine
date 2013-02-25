@@ -34,13 +34,12 @@ namespace CibraryEngine
 
 
 
-
 	/*
 	 * RigidBody methods
 	 */
 	RigidBody::RigidBody() : DynamicsObject(NULL, COT_RigidBody, MassInfo()), constraints(), shape(NULL), shape_cache(NULL) { }
-	RigidBody::RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info_, Vec3 pos, Quaternion ori) :
-		DynamicsObject(user_entity, COT_RigidBody, mass_info_, pos),
+	RigidBody::RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info, const Vec3& pos, const Quaternion& ori) :
+		DynamicsObject(user_entity, COT_RigidBody, mass_info, pos),
 		constraints(),
 		ori(ori),
 		rot(),
@@ -66,7 +65,7 @@ namespace CibraryEngine
 		inv_moi = ComputeInvMoi();
 	}
 
-	void RigidBody::InnerDispose()										{ if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
+	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
 
 
 	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
@@ -85,8 +84,6 @@ namespace CibraryEngine
 
 				rot *= expf(-angular_damp * timestep);
 			}
-
-			moved_from_pos = Vec3();				// somewhat hackish place to do this; chosen because it'll come before the anti-penetration displacement
 		}
 
 		ResetToApplied();
@@ -504,7 +501,6 @@ namespace CibraryEngine
 			}
 
 
-			
 			// the objects are colliding; find out which of each objects' spheres are relevant
 			vector<Sphere*> my_relevant_spheres, other_relevant_spheres;
 			my_relevant_spheres.reserve(my_spheres.size());
@@ -535,6 +531,173 @@ namespace CibraryEngine
 			// now generate one or more contact points for the collision
 			float contact_plane_offset = (min_extent + max_extent) * 0.5f;
 
+			struct ConvexPoly
+			{
+				struct PolyData
+				{
+					Vec2 pos;
+
+					Vec2 normal;
+					float offset;
+
+					PolyData *next, *prev;
+
+				} data[32], *start;
+
+				ConvexPoly(vector<Sphere*>& other_relevant_spheres, const Vec3& direction, float contact_plane_offset, const Vec3& x_axis, const Vec3& y_axis) : start(&data[0])
+				{
+					unsigned int count = other_relevant_spheres.size();
+
+					unsigned int max_plane_points = sizeof(data) / sizeof(PolyData);
+					if(count >= max_plane_points)
+					{
+						DEBUG();
+						count = max_plane_points;
+					}
+
+					for(unsigned int i = 0; i < count; ++i)
+					{
+						Vec3 in_plane = other_relevant_spheres[i]->center - direction * (Vec3::Dot(direction, other_relevant_spheres[i]->center) - contact_plane_offset);
+
+						Vec2& pos = data[i].pos;
+						pos.x = Vec3::Dot(in_plane, x_axis);
+						pos.y = Vec3::Dot(in_plane, y_axis);
+					}
+								
+					data[0].normal = Vec2::Normalize(data[0].pos.y - data[1].pos.y, data[1].pos.x - data[0].pos.x);
+					data[0].offset = Vec2::Dot(data[0].normal, data[0].pos);
+					data[0].next = data[0].prev = &data[1];
+					data[1].normal = -data[0].normal;
+					data[1].offset = -data[0].offset;
+					data[1].next = data[1].prev = &data[0];
+
+					for(unsigned int i = 2; i < count; ++i)
+					{
+						PolyData* noob = &data[i];
+						PolyData* iter = start;
+
+						do
+						{
+							if(Vec2::Dot(iter->normal, noob->pos) > iter->offset)
+							{
+								PolyData *first = iter, *last = iter;
+
+								if(iter == start)
+									while(Vec2::Dot(first->prev->normal, noob->pos) > first->prev->offset)
+										first = first->prev;
+											
+								while(Vec2::Dot(last->next->normal, noob->pos) > last->next->offset)
+									last = last->next;
+								last = last->next;
+
+								first->next = last->prev = noob;
+								noob->prev = first;
+								noob->next = last;
+
+								first->normal = Vec2::Normalize(first->pos.y - noob->pos.y, noob->pos.x - first->pos.x);
+								first->offset = Vec2::Dot(first->normal, first->pos);
+
+								noob->normal = Vec2::Normalize(noob->pos.y - last->pos.y, last->pos.x - noob->pos.x);
+								noob->offset = Vec2::Dot(noob->normal, noob->pos);
+
+								start = noob;
+
+								break;
+							}
+
+							iter = iter->next;
+						} while(iter != start);
+					}
+				}
+			};
+
+			struct TubePlaneSolver
+			{
+				const Sphere& sphere_a;
+				const Sphere& sphere_b;
+				const Vec3& direction;
+				vector<Sphere*>& poly_spheres;
+				float contact_plane_offset;
+
+				RigidBody *ibody, *jbody;
+
+				TubePlaneSolver(const Sphere& sphere_a, const Sphere& sphere_b, const Vec3& direction, float contact_plane_offset, vector<Sphere*>& poly_spheres, RigidBody* ibody, RigidBody* jbody) : sphere_a(sphere_a), sphere_b(sphere_b), direction(direction), contact_plane_offset(contact_plane_offset), poly_spheres(poly_spheres), ibody(ibody), jbody(jbody) { }
+
+				bool Solve(ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+				{
+					Vec3 a = sphere_a.center - direction * (Vec3::Dot(direction, sphere_a.center) - contact_plane_offset);
+					Vec3 b = sphere_b.center - direction * (Vec3::Dot(direction, sphere_b.center) - contact_plane_offset);
+					Vec3 ab = b - a;
+
+					float magsq = ab.ComputeMagnitudeSquared();
+					if(magsq != 0.0f)
+					{
+						Vec3 u_ab = ab / sqrtf(magsq);
+						Vec3 cross_ab = Vec3::Cross(direction, u_ab);
+
+						float ay =	Vec3::Dot(a, cross_ab);
+						float ax1 =	Vec3::Dot(a, u_ab);
+						float ax2 =	Vec3::Dot(b, u_ab);
+
+						Vec2 tube_p1(ax1, ay), tube_p2(ax2, ay);
+
+						// flatten polygon points onto plane
+						ConvexPoly my_convex_poly(poly_spheres, direction, contact_plane_offset, u_ab, cross_ab);
+
+						// truncate the line segment where it extends beyond the bounds of the polygon
+						ConvexPoly::PolyData *iter = my_convex_poly.start;
+						do
+						{									
+							const Vec2& normal = iter->normal;
+
+							float y_sq = normal.y * normal.y;
+							if(y_sq > 0.001f)
+							{
+								float p1_offness = Vec2::Dot(tube_p1, normal) - iter->offset;
+								if(p1_offness > 0)			// funky control flow branching to only compute offness_coeff once, and only if needed
+								{
+									float offness_coeff = sqrtf(1.0f + (normal.x * normal.x) / y_sq);
+
+									tube_p1.x -= p1_offness * offness_coeff;
+
+									float p2_offness = Vec2::Dot(tube_p2, normal) - iter->offset;
+									if(p2_offness > 0)
+										tube_p2.x -= p2_offness * offness_coeff;
+								}
+								else
+								{
+									float p2_offness = Vec2::Dot(tube_p2, normal) - iter->offset;
+									if(p2_offness > 0)
+									{
+										float offness_coeff = sqrtf(1.0f + (normal.x * normal.x) / y_sq);
+										tube_p2.x -= p2_offness * offness_coeff;
+									}
+								}
+							}
+									
+							iter = iter->next;
+
+						} while(iter != my_convex_poly.start);
+
+						// produce contact points at each endpoint
+						Vec3 origin = direction * contact_plane_offset + cross_ab * ay;
+
+						ContactPoint *p1 = alloc->New(ibody, jbody), *p2 = alloc->New(ibody, jbody);
+						p1->normal = p2->normal = direction;
+
+						p1->pos = origin + u_ab * tube_p1.x;
+						p2->pos = origin + u_ab * tube_p2.x;
+
+						contact_points.push_back(p1);
+						contact_points.push_back(p2);
+
+						return true;
+					}
+
+					return false;
+				}
+			};
+
 			switch(my_relevant_spheres.size())
 			{
 				case 1:
@@ -549,7 +712,6 @@ namespace CibraryEngine
 
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
-
 							p->pos = (my_sphere.center + other_sphere.center) * 0.5f;
 							p->pos -= direction * (Vec3::Dot(direction, p->pos) - contact_plane_offset);
 
@@ -565,7 +727,6 @@ namespace CibraryEngine
 
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
-
 							p->pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
 
 							contact_points.push_back(p);
@@ -577,7 +738,6 @@ namespace CibraryEngine
 						{
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
-
 							p->pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
 							
 							contact_points.push_back(p);
@@ -600,7 +760,6 @@ namespace CibraryEngine
 
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
-
 							p->pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
 
 							contact_points.push_back(p);
@@ -613,14 +772,78 @@ namespace CibraryEngine
 							Sphere& other_sphere_a = *other_relevant_spheres[0];
 							Sphere& other_sphere_b = *other_relevant_spheres[1];
 
-							// TODO: implement this
+							// flatten sphere centers onto contact plane
+							Vec3 my_pa = my_sphere_a.center - direction * (Vec3::Dot(direction, my_sphere_a.center) - contact_plane_offset);
+							Vec3 my_pb = my_sphere_b.center - direction * (Vec3::Dot(direction, my_sphere_b.center) - contact_plane_offset);
+							Vec3 other_pa = other_sphere_a.center - direction * (Vec3::Dot(direction, other_sphere_a.center) - contact_plane_offset);
+							Vec3 other_pb = other_sphere_b.center - direction * (Vec3::Dot(direction, other_sphere_b.center) - contact_plane_offset);
+
+							Vec3 my_ab = my_pb - my_pa;
+							Vec3 other_ab = other_pb - other_pa;
+
+							float my_magsq = my_ab.ComputeMagnitudeSquared(), other_magsq = other_ab.ComputeMagnitudeSquared();
+							if(my_magsq != 0.0f && other_magsq != 0.0f)
+							{
+								float my_mag = sqrtf(my_magsq), other_mag = sqrtf(other_magsq);
+								float my_inv = 1.0f / my_mag, other_inv = 1.0f / other_mag;
+
+								float abdot = Vec3::Dot(my_ab, other_ab);
+								float cosine = abdot * my_inv * other_inv;
+								if(cosine > 0.8f || cosine < -0.8f)			// tubes are nearly parallel/anti-parallel; try to produce two contact points
+								{
+									Vec3 axis = Vec3::Normalize(cosine > 0 ? my_ab + other_ab : my_ab - other_ab);
+
+									float my_adot		= Vec3::Dot(axis, my_pa),		my_bdot		= Vec3::Dot(axis, my_pb);
+									float other_adot	= Vec3::Dot(axis, other_pa),	other_bdot	= Vec3::Dot(axis, other_pb);
+									float near_end	= max(min(my_adot, my_bdot), min(other_adot, other_bdot));
+									float far_end	= min(max(my_adot, my_bdot), max(other_adot, other_bdot));
+
+									Vec3 cross = Vec3::Normalize(Vec3::Cross(axis, direction));
+									float avg_xdot = Vec3::Dot(my_pa + my_pb + other_pa + other_pb, cross) * 0.25f;
+
+									Vec3 origin = direction * contact_plane_offset + cross * avg_xdot;
+
+									ContactPoint* p1 = alloc->New(ibody, jbody);
+									p1->normal = direction;
+									p1->pos = origin + axis * near_end;
+
+									ContactPoint* p2 = alloc->New(ibody, jbody);
+									p2->normal = direction;
+									p2->pos = origin + axis * far_end;
+
+									contact_points.push_back(p1);
+									contact_points.push_back(p2);
+
+									return;
+								}
+								else										// tubes are crossed; try to produce a single contact point where they intersect
+								{
+									// TODO: do this more cleanly; check that the point is reasonable (i.e. somewhere within the extent of both tubes)?
+									Vec3 u_other = other_ab * other_inv;
+									Vec3 x_my = Vec3::Normalize(Vec3::Cross(direction, my_ab));
+
+									float speed = Vec3::Dot(u_other, x_my);
+									float tti = Vec3::Dot(x_my, other_pa - my_pa) / speed;
+
+									ContactPoint* p = alloc->New(ibody, jbody);
+									p->normal = direction;
+									p->pos = other_pa + u_other * tti;
+
+									contact_points.push_back(p);
+
+									return;
+								}
+							}
+
+							DEBUG();				// degenerate case... so far this has yet to ever happen
 
 							break;
 						}
 
 						default:					// tube-plane
 						{
-							// TODO: implement this
+							if(TubePlaneSolver(my_sphere_a, my_sphere_b, direction, contact_plane_offset, other_relevant_spheres, ibody, jbody).Solve(alloc, contact_points))
+								return;
 
 							break;
 						}
@@ -639,7 +862,6 @@ namespace CibraryEngine
 
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
-
 							p->pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
 
 							contact_points.push_back(p);
@@ -649,18 +871,15 @@ namespace CibraryEngine
 
 						case 2:						// plane-tube
 						{
-							Sphere& other_sphere_a = *other_relevant_spheres[0];
-							Sphere& other_sphere_b = *other_relevant_spheres[1];
-
-							// TODO: implement this
+							if(TubePlaneSolver(*other_relevant_spheres[0], *other_relevant_spheres[1], direction, contact_plane_offset, my_relevant_spheres, ibody, jbody).Solve(alloc, contact_points))
+								return;
 
 							break;
 						}
 
 						default:					// plane-plane
 						{
-							// TODO: implement this
-
+							// TODO: find the boolean intersection of the convex polygons (planes); produce contact points at each corner
 							break;
 						}
 					}
@@ -668,13 +887,12 @@ namespace CibraryEngine
 					break;
 				}
 			}
-			
+
 
 
 			// fallback contact point generation
 			ContactPoint* p = alloc->New(ibody, jbody);
 			p->normal = direction;
-
 			p->pos = overlap.GetCenterPoint();
 			p->pos -= direction * (Vec3::Dot(direction, p->pos) - contact_plane_offset);
 

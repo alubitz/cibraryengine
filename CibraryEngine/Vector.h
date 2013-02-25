@@ -22,12 +22,19 @@ namespace CibraryEngine
 		Vec2(float x, float y) : x(x), y(y) { }
 
 		/** Returns the square of the magnitude of the vector (one less step than taking a square root) */
-		float ComputeMagnitudeSquared()						{ return x * x + y * y; }
+		float ComputeMagnitudeSquared() const				{ return x * x + y * y; }
 		/** Returns the magnitude of the vector */
-		float ComputeMagnitude()							{ return sqrtf(x * x + y * y); }
+		float ComputeMagnitude() const						{ return sqrtf(x * x + y * y); }
 
 		/** Computes the dot product of two vectors */
 		static float Dot(const Vec2& a, const Vec2& b)		{ return a.x * b.x + a.y * b.y; }
+
+		/** Returns a unit vector parallel to the given vector */
+		static Vec2 Normalize(const Vec2& a)				{ return a * (1.0f / a.ComputeMagnitude()); }
+		/** Returns a vector parallel to the given vector with the specified magnitude */
+		static Vec2 Normalize(const Vec2& a, float len)		{ return a * (len / a.ComputeMagnitude()); }
+		/** Returns a unit vector parallel to the given vector */
+		static Vec2 Normalize(float x, float y)				{ float coeff = 1.0f / Magnitude(x, y); return Vec2(x * coeff, y * coeff); }
 
 		/** Computes the magnitude of a vector with the given x and y components */
 		static float Magnitude(float x, float y)			{ return sqrtf(x * x + y * y); }

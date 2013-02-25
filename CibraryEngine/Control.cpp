@@ -17,22 +17,22 @@ namespace CibraryEngine
 	ControlState::ControlState() : control_values() { }
 	ControlState::~ControlState() { }
 
-	bool ControlState::GetBoolControl(string control_name) { return GetFloatControl(control_name) != 0.0f; }
+	bool ControlState::GetBoolControl(const string& control_name) { return GetFloatControl(control_name) != 0.0f; }
 
-	float ControlState::GetFloatControl(string control_name)
+	float ControlState::GetFloatControl(const string& control_name)
 	{ 
 		unordered_map<string, float>::iterator found = control_values.find(control_name);
 		return found != control_values.end() ? found->second : 0.0f;
 	}
 
-	void ControlState::SetBoolControl(string control_name, bool value)
+	void ControlState::SetBoolControl(const string& control_name, bool value)
 	{
 		// only change the float value if the bool value has changed
 		if(value != GetBoolControl(control_name))
 			control_values[control_name] = value ? 1.0f : 0.0f;
 	}
 
-	void ControlState::SetFloatControl(string control_name, float value) { control_values[control_name] = value; }
+	void ControlState::SetFloatControl(const string& control_name, float value) { control_values[control_name] = value; }
 
 
 
@@ -90,7 +90,7 @@ namespace CibraryEngine
 	/*
 	 * ScriptedController methods
 	 */
-	ScriptedController::ScriptedController(GameState* gs, string script) : Controller(gs), script(script) { }
+	ScriptedController::ScriptedController(GameState* gs, const string& script) : Controller(gs), script(script) { }
 
 	int cs_newindex(lua_State* L);
 	int cs_index(lua_State* L);

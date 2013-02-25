@@ -698,8 +698,6 @@ namespace CibraryEngine
 
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
 		{
-			static const Vec3 red(1, 0, 0), green(0, 1, 0), blue(0, 0, 1), white(1, 1, 1);
-
 			Mat4 model_mat = Mat4::FromPositionAndOrientation(pos, ori);
 			const Vec3& eye = renderer->camera->GetPosition();
 			const Vec3& forward = renderer->camera->GetForward();
@@ -738,7 +736,7 @@ namespace CibraryEngine
 					pos = wc + on_plane * (wr * inv_mag);
 
 					Vec3 from_eye = pos - eye;
-					farthest = Vec3::Dot(dir, from_eye) / Vec3::Dot(from_eye, forward);
+					farthest = Vec3::Dot(from_eye, dir) / Vec3::Dot(from_eye, forward);
 				}
 
 				void MaybeSetFarthestExtent(const Vec3& dir, const Vec3& eye, const Vec3& forward, float& farthest, Vec3& pos) const
@@ -749,7 +747,7 @@ namespace CibraryEngine
 					Vec3 temp_pos = wc + on_plane * (wr * inv_mag);
 
 					Vec3 from_eye = temp_pos - eye;
-					float extent = Vec3::Dot(dir, from_eye) / Vec3::Dot(from_eye, forward);
+					float extent = Vec3::Dot(from_eye, dir) / Vec3::Dot(from_eye, forward);
 					if(extent > farthest)
 					{
 						pos = temp_pos;
@@ -773,33 +771,49 @@ namespace CibraryEngine
 			if(circles.empty() || !any)
 				return;
 
-			Vec3 right = renderer->camera->GetRight(), up = renderer->camera->GetUp();
+			Vec3 left = -renderer->camera->GetRight(), up = renderer->camera->GetUp();
 
 			// now get the points on the silhouette edge
-			const int num_edges = 32;
-			const float theta_coeff = 2.0f * float(M_PI) / num_edges;
+			static const unsigned int num_edges = 32;
+			static const float theta_coeff = 2.0f * float(M_PI) / num_edges;
 
-			vector<Circle>::iterator circles_begin = circles.begin(), circles_end = circles.end();
+			// cache a unit circle
+			static float *unit_circle_x = NULL, *unit_circle_y = NULL;
+			if(unit_circle_x == NULL)
+			{
+				unit_circle_x = new float[num_edges + 1];
+				unit_circle_y = new float[num_edges + 1];
+
+				for(unsigned int i = 0; i <= num_edges; ++i)
+				{
+					float theta = i * theta_coeff;
+
+					unit_circle_x[i] = cosf(theta);
+					unit_circle_y[i] = sinf(theta);
+				}
+			}
+
+			Circle* circles_begin = circles.data();
+			Circle* circles_end = circles_begin + circles.size();
 
 			DebugDrawMaterial* material = DebugDrawMaterial::GetDebugDrawMaterial();
 
-			Vec3 temp;
-			for(int i = 0; i <= num_edges; ++i)
+			Vec3 temp, cur;
+			float *ucx_ptr = unit_circle_x, *ucy_ptr = unit_circle_y;
+			for(unsigned int i = 0; i <= num_edges; ++i)
 			{
-				float theta = i * theta_coeff;
-				Vec3 world_dir = right * -cosf(theta) + up * sinf(theta);
+				Vec3 world_dir = left * *(ucx_ptr++) + up * (*ucy_ptr++);
 
 				float farthest;
-				Vec3 cur;
 
-				vector<Circle>::iterator iter = circles_begin;
+				Circle* iter = circles_begin;
 				iter->SetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				for(++iter; iter != circles_end; ++iter)
 					iter->MaybeSetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				if(i != 0)
-					renderer->objects.push_back(RenderNode(material, material->New(cur, temp, white), 1.0f));
+					renderer->objects.push_back(RenderNode(material, material->New(cur, temp), 1.0f));
 				temp = cur;
 			}
 		}
@@ -1065,7 +1079,7 @@ namespace CibraryEngine
 
 			// if we get this far, it means the objects are intersecting
 			ContactPoint* result = alloc->New(ibody, jbody);
-			result->normal = tri.plane.normal;
+			result->normal = -tri.plane.normal;
 
 			float best;
 			for(unsigned int i = 0; i < my_spheres.size(); ++i)

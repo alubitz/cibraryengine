@@ -44,10 +44,13 @@ namespace CibraryEngine
 		for(list<ContentHandle<UberModel> >::iterator iter = imp->models.begin(); iter != imp->models.end(); ++iter)
 		{
 			ContentHandle<UberModel> handle = *iter;
-			*status = "Models... " + handle.GetMetadata().name + ".zzz";
+			const string& asset_name = handle.GetMetadata().name;
 
+			*status = "Models... " + asset_name + ".zzz";
 			imp->ubermodel_cache->ForceLoad(handle);
-			imp->mphys_cache->Load(handle.GetMetadata().name);
+
+			*status = "Models... " + asset_name + ".zzp";
+			imp->mphys_cache->Load(asset_name);
 		}
 	}
 }

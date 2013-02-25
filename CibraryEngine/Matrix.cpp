@@ -8,7 +8,7 @@
 namespace CibraryEngine
 {
 	/*
-	 * Mat3 method
+	 * Mat3 methods
 	 */
 	static void row_swap3(float*& r1, float*& r2)
 	{
@@ -78,9 +78,9 @@ namespace CibraryEngine
 	/*
 	 * Mat4 methods
 	 */
-	Mat4 Mat4::FromQuaternion(const Quaternion& q) { return Mat4::FromMat3(q.ToMat3()); }
-	Mat4 Mat4::FromPositionAndOrientation(const Vec3& pos, const Quaternion& ori) { return Mat4::FromPositionAndOrientation(pos, ori.ToMat3()); }
-	Mat4 Mat4::FromPosOriScale(const Vec3& pos, const Quaternion& ori, float scale) { return Mat4::FromPosOriScale(pos, ori.ToMat3(), scale); }
+	Mat4 Mat4::FromQuaternion(const Quaternion& q)									{ return Mat4::FromMat3(q.ToMat3()); }
+	Mat4 Mat4::FromPositionAndOrientation(const Vec3& pos, const Quaternion& ori)	{ return Mat4::FromPositionAndOrientation(pos, ori.ToMat3()); }
+	Mat4 Mat4::FromPosOriScale(const Vec3& pos, const Quaternion& ori, float scale)	{ return Mat4::FromPosOriScale(pos, ori.ToMat3(), scale); }
 
 
 	static void row_swap4(float*& r1, float*& r2)
@@ -202,6 +202,7 @@ namespace CibraryEngine
 		for(int i = 0; i < 9; ++i)
 			WriteSingle(mat.values[i], stream);
 	}
+
 	void WriteMat4(const Mat4& mat, ostream& stream)
 	{
 		for(int i = 0; i < 16; ++i)

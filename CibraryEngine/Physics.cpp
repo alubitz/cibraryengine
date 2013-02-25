@@ -37,7 +37,7 @@
 
 #define PROFILE_DOFIXEDSTEP 1
 
-#define NUM_COLLISION_THREADS 8
+#define NUM_COLLISION_THREADS 1
 
 namespace CibraryEngine
 {

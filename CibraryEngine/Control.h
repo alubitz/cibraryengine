@@ -23,10 +23,10 @@ namespace CibraryEngine
 			ControlState();
 			~ControlState();
 
-			bool GetBoolControl(string control_name);
-			float GetFloatControl(string control_name);
-			void SetBoolControl(string control_name, bool value);
-			void SetFloatControl(string control_name, float value);
+			bool GetBoolControl(const string& control_name);
+			float GetFloatControl(const string& control_name);
+			void SetBoolControl(const string& control_name, bool value);
+			void SetFloatControl(const string& control_name, float value);
 	};
 
 	/** An entity which is being controlled */
@@ -88,7 +88,7 @@ namespace CibraryEngine
 			string script;
 
 			/** Creates a Controller which will execute the script with the given filename */
-			ScriptedController(GameState* gs, string script);
+			ScriptedController(GameState* gs, const string& script);
 
 			void UpdateController(TimingInfo time);
 	};

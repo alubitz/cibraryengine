@@ -26,8 +26,8 @@ namespace CibraryEngine
 	{
 		static const float dv_coeff =			1.0f;
 
-		static const float dv_sq_threshold	=	0.01f;
-		static const float alpha_sq_threshold =	0.01f;
+		static const float dv_sq_threshold	=	0.001f;
+		static const float alpha_sq_threshold =	0.001f;
 
 
 		bool wakeup = false;

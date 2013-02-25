@@ -35,8 +35,6 @@ namespace CibraryEngine
 			Quaternion ori;
 			Vec3 rot;
 
-			Vec3 moved_from_pos;								// for magical anti-penetration displacement
-
 			Vec3 torque, applied_torque;
 
 			CollisionShape* shape;
@@ -83,7 +81,7 @@ namespace CibraryEngine
 			/** Default constructor for a RigidBody; the constructed RigidBody will not work without setting the fields manually */
 			RigidBody();
 			/** Initializes a rigid body with the specified collision shape, mass properties, and optional position and orientation */
-			RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info, Vec3 pos = Vec3(), Quaternion ori = Quaternion::Identity());
+			RigidBody(Entity* user_entity, CollisionShape* shape, const MassInfo& mass_info, const Vec3& pos = Vec3(), const Quaternion& ori = Quaternion::Identity());
 
 			
 			void UpdateVel(float timestep);
