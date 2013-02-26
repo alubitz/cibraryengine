@@ -190,7 +190,6 @@ namespace CibraryEngine
 
 
 
-	
 
 	Quaternion RigidBody::GetOrientation()								{ return ori; }
 	void RigidBody::SetOrientation(Quaternion ori_)						{ ori = ori_; xform_valid = false; }
@@ -223,7 +222,7 @@ namespace CibraryEngine
 		return result;
 	}
 
-	
+
 	Vec3 RigidBody::GetCenterOfMass()									{ ComputeXformAsNeeded(); return cached_com; }
 
 	Mat3 RigidBody::GetInvMoI()											{ return inv_moi; }
@@ -544,9 +543,9 @@ namespace CibraryEngine
 
 				} data[32], *start;
 
-				ConvexPoly(vector<Sphere*>& other_relevant_spheres, const Vec3& direction, float contact_plane_offset, const Vec3& x_axis, const Vec3& y_axis) : start(&data[0])
+				ConvexPoly(vector<Sphere*>& spheres, const Vec3& direction, float contact_plane_offset, const Vec3& x_axis, const Vec3& y_axis) : start(&data[0])
 				{
-					unsigned int count = other_relevant_spheres.size();
+					unsigned int count = spheres.size();
 
 					unsigned int max_plane_points = sizeof(data) / sizeof(PolyData);
 					if(count >= max_plane_points)
@@ -557,13 +556,13 @@ namespace CibraryEngine
 
 					for(unsigned int i = 0; i < count; ++i)
 					{
-						Vec3 in_plane = other_relevant_spheres[i]->center - direction * (Vec3::Dot(direction, other_relevant_spheres[i]->center) - contact_plane_offset);
+						Vec3 in_plane = spheres[i]->center - direction * (Vec3::Dot(direction, spheres[i]->center) - contact_plane_offset);
 
 						Vec2& pos = data[i].pos;
 						pos.x = Vec3::Dot(in_plane, x_axis);
 						pos.y = Vec3::Dot(in_plane, y_axis);
 					}
-								
+
 					data[0].normal = Vec2::Normalize(data[0].pos.y - data[1].pos.y, data[1].pos.x - data[0].pos.x);
 					data[0].offset = Vec2::Dot(data[0].normal, data[0].pos);
 					data[0].next = data[0].prev = &data[1];
@@ -585,7 +584,7 @@ namespace CibraryEngine
 								if(iter == start)
 									while(Vec2::Dot(first->prev->normal, noob->pos) > first->prev->offset)
 										first = first->prev;
-											
+
 								while(Vec2::Dot(last->next->normal, noob->pos) > last->next->offset)
 									last = last->next;
 								last = last->next;
@@ -647,9 +646,10 @@ namespace CibraryEngine
 						// truncate the line segment where it extends beyond the bounds of the polygon
 						ConvexPoly::PolyData *iter = my_convex_poly.start;
 						do
-						{									
+						{
 							const Vec2& normal = iter->normal;
 
+							// TODO: do truncation more cleanly? there's still the potential for some weird behavior here
 							float y_sq = normal.y * normal.y;
 							if(y_sq > 0.001f)
 							{
@@ -674,7 +674,7 @@ namespace CibraryEngine
 									}
 								}
 							}
-									
+
 							iter = iter->next;
 
 						} while(iter != my_convex_poly.start);
@@ -733,13 +733,13 @@ namespace CibraryEngine
 
 							return;
 						}
-							
+
 						default:					// sphere-plane
 						{
 							ContactPoint* p = alloc->New(ibody, jbody);
 							p->normal = direction;
 							p->pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
-							
+
 							contact_points.push_back(p);
 
 							return;
@@ -879,7 +879,90 @@ namespace CibraryEngine
 
 						default:					// plane-plane
 						{
-							// TODO: find the boolean intersection of the convex polygons (planes); produce contact points at each corner
+							Vec3 x_axis = fabs(direction.x) < 0.8f ? Vec3::Normalize(Vec3::Cross(direction, Vec3(1.0f, 0.0f, 0.0f))) : fabs(direction.y) < 0.8f ? Vec3::Normalize(Vec3::Cross(direction, Vec3(0.0f, 1.0f, 0.0f))) : Vec3::Normalize(Vec3::Cross(direction, Vec3(0.0f, 0.0f, 1.0f)));
+							Vec3 y_axis = Vec3::Cross(direction, x_axis);
+
+							ConvexPoly my_poly(my_relevant_spheres, direction, contact_plane_offset, x_axis, y_axis);
+							ConvexPoly other_poly(other_relevant_spheres, direction, contact_plane_offset, x_axis, y_axis);
+
+							Vec2 result_points[64];
+							unsigned int count = 0;
+
+							// add verts from my object, and from edge intersections between the two objects
+							ConvexPoly::PolyData *my_start = my_poly.start, *other_start = other_poly.start, *iter = my_start, *jter;
+							do
+							{
+								bool ok = true;
+								Vec2& pos = iter->pos;
+
+								Vec2 edge_dir(iter->normal.y, -iter->normal.x);
+
+								jter = other_start;
+								do
+								{
+									float p1_jdist = Vec2::Dot(pos - jter->pos, jter->normal);
+									float p2_jdist = Vec2::Dot(iter->next->pos - jter->pos, jter->normal);
+
+									if(p1_jdist * p2_jdist < 0)										// if this edge intersects the other edge, create a point where they intersect
+									{
+										float p1_idist = Vec2::Dot(jter->pos - pos, iter->normal);
+										float p2_idist = Vec2::Dot(jter->next->pos - pos, iter->normal);
+										if(p1_idist * p2_idist < 0)
+											result_points[count++] = pos + edge_dir * fabs(p1_jdist);
+									}
+
+									if(ok && Vec2::Dot(jter->normal, pos) > jter->offset)			// if vert i was on the wrong side of edge j, discard it
+										ok = false;
+
+									jter = jter->next;
+								} while(jter != other_start);
+
+								if(ok)
+									result_points[count++] = iter->pos;
+
+								iter = iter->next;
+							} while(iter != my_start);
+
+							// add verts from other object
+							jter = other_start;
+							do
+							{
+								Vec2& pos = jter->pos;
+								bool ok = true;
+
+								iter = my_start;
+								do
+								{
+									if(Vec2::Dot(iter->normal, pos) > iter->offset)			// if vert j was on the wrong side of edge i, discard it
+									{
+										ok = false;
+										break;
+									}
+
+									iter = iter->next;
+								} while(iter != my_start);
+
+								if(ok)
+									result_points[count++] = jter->pos;
+
+								jter = jter->next;
+							} while(jter != other_start);
+
+							// now create actual contact points from those
+							if(count > 0)
+							{
+								Vec3 origin = direction * contact_plane_offset;
+								for(unsigned int i = 0; i < count; ++i)
+								{
+									ContactPoint* p = alloc->New(ibody, jbody);
+									p->normal = direction;
+									p->pos = origin + x_axis * result_points[i].x  + y_axis * result_points[i].y;
+									contact_points.push_back(p);
+								}
+
+								return;
+							}
+
 							break;
 						}
 					}

@@ -64,7 +64,7 @@ namespace CibraryEngine
 	bool ContactPoint::DoCollisionResponse() const
 	{
 		static const float adhesion_threshold = 0.08f;
-		static const float impulse_sq_threshold = 0.005f;
+		static const float impulse_sq_threshold = 0.001f;
 
 		assert(cache_valid);
 
@@ -78,11 +78,9 @@ namespace CibraryEngine
 			float use_restitution_coeff = nvdot < bounce_threshold ? restitution_coeff : 1.0f;
 			Vec3 restitution_impulse = rlv_to_impulse * normal_nvdot * -use_restitution_coeff;
 
-
 			// friction
 			Vec3 full_friction_impulse = rlv_to_impulse * (normal_nvdot - dv);
 			float fric_fraction = min(1.0f, fric_coeff * sqrtf(restitution_impulse.ComputeMagnitudeSquared() / full_friction_impulse.ComputeMagnitudeSquared()));
-
 
 			// apply computed impulses
 			Vec3 apply_impulse = restitution_impulse + full_friction_impulse * fric_fraction;
