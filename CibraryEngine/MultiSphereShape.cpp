@@ -1110,9 +1110,7 @@ namespace CibraryEngine
 
 		unsigned int Read(istream& stream)
 		{
-			unsigned int count = ReadUInt32(stream);
-
-			if(count > 0)
+			if(unsigned int count = ReadUInt32(stream))
 			{
 				Sphere* spheres = new Sphere[count];
 
@@ -1139,28 +1137,26 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape methods
 	 */
-	MultiSphereShape::MultiSphereShape() : CollisionShape(ST_MultiSphere), imp(new Imp()) { }
-	MultiSphereShape::MultiSphereShape(Sphere* spheres, unsigned int count) : CollisionShape(ST_MultiSphere), imp(new Imp(spheres, count)) { }
+	MultiSphereShape::MultiSphereShape() : CollisionShape(ST_MultiSphere), imp(new Imp())													{ }
+	MultiSphereShape::MultiSphereShape(Sphere* spheres, unsigned int count) : CollisionShape(ST_MultiSphere), imp(new Imp(spheres, count))	{ }
 
-	void MultiSphereShape::InnerDispose() { delete imp; imp = NULL; }
+	void MultiSphereShape::InnerDispose()																{ delete imp; imp = NULL; }
 
-	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { imp->DebugDraw(renderer, pos, ori); }
+	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)	{ imp->DebugDraw(renderer, pos, ori); }
 
-	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform) { return imp->GetTransformedAABB(xform); }
+	AABB MultiSphereShape::GetAABB()																	{ return imp->aabb; }
+	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform)										{ return imp->GetTransformedAABB(xform); }
+	AABB MultiSphereShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)		{ return imp->ComputeCachedWorldAABB(xform, cache); }
 
-	AABB MultiSphereShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache) { return imp->ComputeCachedWorldAABB(xform, cache); }
+	MassInfo MultiSphereShape::ComputeMassInfo()														{ return imp->ComputeMassInfo(); }
 
-	MassInfo MultiSphereShape::ComputeMassInfo() { return imp->ComputeMassInfo(); }
+	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																							{ return imp->CollideRay(ray, result, collider, body); }
+	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)							{ return imp->CollidePlane(my_xform, plane, alloc, results, ibody, jbody); }
+	ContactPoint* MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody)																	{ return imp->CollideSphere(sphere, alloc, ibody, jbody); }
+	ContactPoint* MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody)	{ return imp->CollideMesh(my_xform, my_spheres, tri, ibody, jbody, alloc); }
 
-	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body) { return imp->CollideRay(ray, result, collider, body); }
-	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody) { return imp->CollidePlane(my_xform, plane, alloc, results, ibody, jbody); }
-	ContactPoint* MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody) { return imp->CollideSphere(sphere, alloc, ibody, jbody); }
-	ContactPoint* MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody) { return imp->CollideMesh(my_xform, my_spheres, tri, ibody, jbody, alloc); }
-
-	AABB MultiSphereShape::GetAABB() { return imp->aabb; }
-
-	void MultiSphereShape::Write(ostream& stream) { imp->Write(stream); }
-	unsigned int MultiSphereShape::Read(istream& stream) { return imp->Read(stream); }
+	void MultiSphereShape::Write(ostream& stream)														{ imp->Write(stream); }
+	unsigned int MultiSphereShape::Read(istream& stream)												{ return imp->Read(stream); }
 
 
 

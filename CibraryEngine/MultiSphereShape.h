@@ -38,6 +38,7 @@ namespace CibraryEngine
 
 			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
 
+			AABB GetAABB();
 			AABB GetTransformedAABB(const Mat4& xform);
 			AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
 
@@ -49,8 +50,6 @@ namespace CibraryEngine
 			ContactPoint* CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, RigidBody* ibody = NULL, RigidBody* jbody = NULL);	// xform is product of j xform and inverse i xform
 
 			// multisphere-multisphere is now handled in Physics.cpp
-
-			AABB GetAABB();
 
 			void Write(ostream& stream);
 			unsigned int Read(istream& stream);

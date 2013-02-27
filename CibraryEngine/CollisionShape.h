@@ -37,6 +37,7 @@ namespace CibraryEngine
 		ST_TriangleMesh = 3,
 		ST_InfinitePlane = 4,
 		ST_MultiSphere = 5,
+		ST_ConvexMesh = 6,
 
 		ST_ShapeTypeMax
 	};

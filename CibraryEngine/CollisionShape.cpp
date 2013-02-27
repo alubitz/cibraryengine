@@ -8,6 +8,7 @@
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
+#include "ConvexMeshShape.h"
 
 #include "Serialize.h"
 #include "Physics.h"
@@ -44,6 +45,7 @@ namespace CibraryEngine
 			case ST_Ray:
 			case ST_Sphere:
 			case ST_MultiSphere:
+			case ST_ConvexMesh:
 				return true;
 
 			case ST_TriangleMesh:
@@ -82,6 +84,9 @@ namespace CibraryEngine
 				break;
 			case ST_MultiSphere:
 				temp = new MultiSphereShape();
+				break;
+			case ST_ConvexMesh:
+				temp = new ConvexMeshShape();
 				break;
 			default:
 				return 1;				// error code 1 = invalid shape type
