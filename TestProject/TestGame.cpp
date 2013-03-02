@@ -26,6 +26,7 @@
 
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
+#include "../CibraryEngine/ConvexMeshShape.h"
 
 using namespace std;
 
@@ -598,6 +599,13 @@ namespace Test
 
 			mphys_cache->GetMetadata(mphys_cache->GetHandle("dummycube").id).fail = false;
 		}
+
+		if(ConvexMeshShape* temp = ConvexMeshShape::FromVBO((*ubermodel_cache->Load("dummycube")->lods[0]->GetVBOs())[0].vbo))
+		{
+			temp->Dispose();
+			delete temp;
+		}
+
 #endif
 
 		thread_script.Dispose();

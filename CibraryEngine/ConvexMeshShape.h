@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 
 #include "CollisionShape.h"
+#include "AABB.h"
 
 namespace CibraryEngine
 {
