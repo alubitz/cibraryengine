@@ -3,11 +3,21 @@
 
 #include "MassInfo.h"
 #include "AABB.h"
+#include "Util.h"
+
+#include "RayCollider.h"
+#include "TriangleMeshShape.h"
+
+#include "ContactPoint.h"
 
 #include "DebugLog.h"
 #include "Serialize.h"
 
+#include "SceneRenderer.h"
+#include "CameraView.h"
+#include "RenderNode.h"
 #include "VertexBuffer.h"
+#include "DebugDrawMaterial.h"
 
 namespace CibraryEngine
 {
@@ -210,11 +220,13 @@ namespace CibraryEngine
 			}
 		};
 
+
 		vector<Vertex> verts;
 		vector<Edge> edges;
 		vector<Face> faces;
 
 		AABB aabb;
+
 
 		Imp() : verts(), edges(), faces(), aabb() { }
 		Imp(Vec3* verts, unsigned int count) { Init(verts, count); }
@@ -359,7 +371,7 @@ namespace CibraryEngine
 					delete poly;
 				}
 
-				OutputParts();
+				// OutputParts();
 			}
 			else
 				aabb = AABB();
@@ -406,8 +418,21 @@ namespace CibraryEngine
 		}
 
 
+
 		// misc. utility stuff
-		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { }		// TODO: implement this
+		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+		{
+			Mat4 xform = Mat4::FromPositionAndOrientation(pos, ori);
+
+			Vec3 center = xform.TransformVec3_1(aabb.GetCenterPoint());
+			if(renderer->camera->CheckSphereVisibility(center, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))
+			{
+				DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+				for(vector<Edge>::iterator iter = edges.begin(); iter != edges.end(); ++iter)
+					renderer->objects.push_back(RenderNode(ddm, ddm->New(xform.TransformVec3_1(verts[iter->v1].pos), xform.TransformVec3_1(verts[iter->v2].pos)), 1.0f));
+			}
+		}
 
 		AABB GetTransformedAABB(const Mat4& xform)
 		{
@@ -456,11 +481,294 @@ namespace CibraryEngine
 		}
 
 
+
+		// convex mesh collision functions
+		bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)
+		{
+			Vec3 a = ray.origin, b = ray.origin + ray.direction;
+			AABB ray_aabb(Vec3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)), Vec3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z)));
+
+			if(!AABB::IntersectTest(ray_aabb, aabb))
+				return false;
+
+
+			bool any = false;
+
+			for(vector<Face>::const_iterator iter = faces.begin(), faces_end = faces.end(); iter != faces_end; ++iter)
+			{
+				const Plane& plane = iter->plane;
+				const Vec3& normal = plane.normal;
+
+				float dir_dot = Vec3::Dot(ray.direction, normal);
+				if(dir_dot != 0.0f)
+				{
+					float origin_dot = Vec3::Dot(ray.origin, normal);
+					float tti = (plane.offset - origin_dot) / dir_dot;
+					if(!any || tti < result.t)
+					{
+						Vec3 pos = ray.origin + ray.direction * tti;
+
+						bool ok = true;
+						for(vector<Plane>::const_iterator jter = iter->boundary_planes.begin(), planes_end = iter->boundary_planes.end(); jter != planes_end; ++jter)
+							if(Vec3::Dot(jter->normal, pos) < jter->offset)
+							{
+								ok = false;
+								break;
+							}
+
+						if(ok)
+						{
+							result.t = tti;
+							result.pos = pos;
+							result.norm = normal;
+
+							any = true;
+						}
+					}
+				}
+			}
+
+			if(any)
+			{
+				result.collider = collider;
+				result.body = body;
+
+				return true;
+			}
+			else
+				return false;
+
+			return false;
+		}
+
+		bool CollidePlane(ConvexMeshShapeInstanceCache* my_cache, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)
+		{
+			const Vec3& normal = plane.normal;
+			float offset = plane.offset;
+
+			for(vector<Vec3>::iterator iter = my_cache->verts.begin(), verts_end = my_cache->verts.end(); iter != verts_end; ++iter)
+			{
+				float dot = Vec3::Dot(normal, *iter);
+				if(offset > dot)
+				{
+					ContactPoint* result = alloc->New(ibody, jbody);
+					result->pos = *iter - normal * (dot - offset);
+					result->normal = -normal;
+
+					results.push_back(result);
+				}
+			}
+
+			return !results.empty();
+		}
+
+		bool CollideTri(ConvexMeshShapeInstanceCache* my_cache, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)
+		{
+			struct Scorer
+			{
+				const Vec3 *begin, *end;
+				const TriangleMeshShape::TriCache& tri;
+
+				bool first;
+
+				float least;
+				Vec3 direction;
+
+				Scorer(const vector<Vec3>& a, const TriangleMeshShape::TriCache& tri) : begin(a.data()), end(begin + a.size()), tri(tri), first(true) { }
+				
+				bool Score(const Vec3& dir)
+				{
+					// get max extent of convex mesh shape
+					const Vec3* iter = begin;
+
+					float max_val = Vec3::Dot(dir, *iter);
+					++iter;
+
+					while(iter != end)
+					{
+						max_val = max(max_val, Vec3::Dot(dir, *iter));
+						++iter;
+					}
+
+					// get min extent of triangle
+					float min_val = min(Vec3::Dot(dir, tri.a), min(Vec3::Dot(dir, tri.b), Vec3::Dot(dir, tri.c)));
+
+					// do stuff with the results
+					float value = max_val - min_val;
+
+					if(first)
+					{
+						least = value;
+						direction = dir;
+						first = false;
+					}
+					else if(value < least)
+					{
+						least = value;
+						direction = dir;
+					}
+
+					return value <= 0;
+				}
+			} scorer(my_cache->verts, tri);
+
+			// triangle's planes
+			if(scorer.Score(-tri.plane.normal))	{ return false; }
+			if(scorer.Score(tri.plane.normal))	{ return false; }
+
+			// my faces...
+			for(vector<Vec3>::const_iterator iter = my_cache->face_normals.begin(), normals_end = my_cache->face_normals.end(); iter != normals_end; ++iter)
+				if(scorer.Score(*iter))	{ return false; }
+
+			// my verts...
+			for(vector<Vec3>::const_iterator iter = my_cache->verts.begin(), verts_end = my_cache->verts.end(); iter != verts_end; ++iter)
+			{
+				const Vec3& s = *iter;
+
+				Vec3 sa = tri.a - s;
+				Vec3 sb = tri.b - s;
+				Vec3 sc = tri.c - s;
+
+				// ... vs. triangle's verts
+				if(scorer.Score(Vec3::Normalize(sa)))	{ return false; }
+				if(scorer.Score(Vec3::Normalize(sb)))	{ return false; }
+				if(scorer.Score(Vec3::Normalize(sc)))	{ return false; }
+
+				// ... vs. triangle's edges
+				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(sa, tri.ab)));
+				if(scorer.Score(absnabn))				{ return false; }
+
+				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(sb, tri.bc)));
+				if(scorer.Score(bcsnbcn))				{ return false; }
+
+				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(sc, tri.ac)));		// would be -ac, but there are two of them
+				if(scorer.Score(casncan))				{ return false; }
+			}
+
+			// my edges...
+			for(vector<Vec3>::const_iterator along = my_cache->edges_normalized.begin(), along_end = my_cache->edges_normalized.end(), point = my_cache->edge_points.begin(); along != along_end; ++along, ++point)
+			{
+				Vec3 to_a = tri.a - *point;
+				if(scorer.Score(to_a - *along * Vec3::Dot(*along, to_a)))	{ return false; }
+
+				Vec3 to_b = tri.b - *point;
+				if(scorer.Score(to_b - *along * Vec3::Dot(*along, to_b)))	{ return false; }
+
+				Vec3 to_c = tri.c - *point;
+				if(scorer.Score(to_c - *along * Vec3::Dot(*along, to_c)))	{ return false; }
+			}
+
+			
+
+			// if we get this far, it means the objects are intersecting
+			// TODO: produce the actual contact point(s)
+
+			return true;
+		}
+
+		bool CollideConvexMesh(ConvexMeshShapeInstanceCache* ishape, ConvexMeshShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody, RigidBody* jbody)
+		{
+			struct Scorer
+			{
+				const Vec3 *ibegin, *iend;
+				const Vec3 *jbegin, *jend;
+
+				bool first;
+
+				float least;
+				Vec3 direction;
+
+				Scorer(const vector<Vec3>& a, const vector<Vec3>& b) : ibegin(a.data()), iend(ibegin + a.size()), jbegin(b.data()), jend(jbegin + b.size()), first(true) { }
+
+				bool Score(const Vec3& dir)
+				{
+					// get max extent of first convex mesh shape
+					const Vec3* iter = ibegin;
+
+					float max_val = Vec3::Dot(dir, *iter);
+					++iter;
+
+					while(iter != iend)
+					{
+						max_val = max(max_val, Vec3::Dot(dir, *iter));
+						++iter;
+					}
+
+					// get min extent of second convex mesh shape
+					const Vec3* jter = jbegin;
+
+					float min_val = Vec3::Dot(dir, *jter);
+					++jter;
+
+					while(jter != jend)
+					{
+						min_val = min(min_val, Vec3::Dot(dir, *jter));
+						++jter;
+					}
+
+					// do stuff with the results
+					float value = max_val - min_val;
+
+					if(first)
+					{
+						least = value;
+						direction = dir;
+						first = false;
+					}
+					else if(value < least)
+					{
+						least = value;
+						direction = dir;
+					}
+
+					return value <= 0;
+				}
+			} scorer(ishape->verts, jshape->verts);
+			
+			// my faces...
+			for(vector<Vec3>::const_iterator iter = ishape->face_normals.begin(), normals_end = ishape->face_normals.end(); iter != normals_end; ++iter)
+				if(scorer.Score(*iter))				{ return false; }
+
+			// other faces...
+			for(vector<Vec3>::const_iterator iter = jshape->face_normals.begin(), normals_end = jshape->face_normals.end(); iter != normals_end; ++iter)
+				if(scorer.Score(-*iter))			{ return false; }
+
+			// verts vs. verts...
+			for(vector<Vec3>::const_iterator iter = ishape->verts.begin(), iverts_end = ishape->verts.end(); iter != iverts_end; ++iter)
+				for(vector<Vec3>::const_iterator jter = jshape->verts.begin(), jverts_end = jshape->verts.end(); jter != jverts_end; ++jter)
+					if(scorer.Score(*jter - *iter))	{ return false; }
+
+			// my edges...
+			for(vector<Vec3>::iterator along = ishape->edges_normalized.begin(), along_end = ishape->edges_normalized.end(), point = ishape->edge_points.begin(); along != along_end; ++along, ++point)
+				for(vector<Vec3>::const_iterator iter = jshape->verts.begin(), verts_end = jshape->verts.end(); iter != verts_end; ++iter)
+				{
+					Vec3 to_vert = *iter - *point;
+					if(scorer.Score(to_vert - *along * Vec3::Dot(*along, to_vert)))	{ return false; }
+				}
+
+			// other edges...
+			for(vector<Vec3>::const_iterator along = jshape->edges_normalized.begin(), along_end = jshape->edges_normalized.end(), point = jshape->edge_points.begin(); along != along_end; ++along, ++point)
+				for(vector<Vec3>::const_iterator iter = ishape->verts.begin(), verts_end = ishape->verts.end(); iter != verts_end; ++iter)
+				{
+					Vec3 to_vert = *point - *iter;
+					if(scorer.Score(to_vert - *along * Vec3::Dot(*along, to_vert)))	{ return false; }
+				}
+
+			
+
+			// if we get this far, it means the objects are intersecting
+			// TODO: produce the actual contact point(s)
+
+			return true;
+		}
+
+
+
 		// i/o functions
 		void Write(ostream& stream)
 		{
 			WriteUInt32(verts.size(), stream);
-			for(vector<Vertex>::iterator iter = verts.begin(), verts_end = verts.end(); iter != verts_end; ++iter)
+			for(vector<Vertex>::const_iterator iter = verts.begin(), verts_end = verts.end(); iter != verts_end; ++iter)
 				WriteVec3(iter->pos, stream);
 		}
 
@@ -502,6 +810,11 @@ namespace CibraryEngine
 	void ConvexMeshShape::Write(ostream& stream)														{ imp->Write(stream); }
 	unsigned int ConvexMeshShape::Read(istream& stream)													{ return imp->Read(stream); }
 
+	bool ConvexMeshShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																														{ return imp->CollideRay(ray, result, collider, body); }
+	bool ConvexMeshShape::CollidePlane(ConvexMeshShapeInstanceCache* my_cache, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)								{ return imp->CollidePlane(my_cache, plane, alloc, results, ibody, jbody); }
+	bool ConvexMeshShape::CollideTri(ConvexMeshShapeInstanceCache* my_cache, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)				{ return imp->CollideTri(my_cache, tri, alloc, results, ibody, jbody); }
+	bool ConvexMeshShape::CollideConvexMesh(ConvexMeshShapeInstanceCache* ishape, ConvexMeshShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody, RigidBody* jbody)	{ return imp->CollideConvexMesh(ishape, jshape, alloc, contact_points, ibody, jbody); }
+
 
 
 
@@ -510,6 +823,7 @@ namespace CibraryEngine
 	 */
 	ConvexMeshShape* ConvexMeshShape::FromVBO(VertexBuffer* vbo)
 	{
+		// extract vec3s from vbo data
 		unsigned int num_verts = vbo->GetNumVerts();
 		float* vert_ptr = vbo->GetFloatPointer("gl_Vertex");
 
@@ -535,6 +849,7 @@ namespace CibraryEngine
 			}
 		}
 
+		// eliminate duplicate verts
 		unsigned int unique_count = 0;
 		for(unsigned int i = 0; i < num_verts; ++i)
 		{
@@ -564,11 +879,13 @@ namespace CibraryEngine
 	/*
 	 * ConvexMeshShapeInstanceCache methods
 	 */
-	ConvexMeshShapeInstanceCache::ConvexMeshShapeInstanceCache() : verts(), face_normals(), aabb() { }
+	ConvexMeshShapeInstanceCache::ConvexMeshShapeInstanceCache() : verts(), edges_normalized(), edge_points(), face_normals(), aabb() { }
 
 	void ConvexMeshShapeInstanceCache::Update(const Mat4& xform, ConvexMeshShape::Imp* shape)
 	{
 		verts.clear();
+		edges_normalized.clear();
+		edge_points.clear();
 		face_normals.clear();
 
 		vector<ConvexMeshShape::Imp::Vertex>::iterator vert_iter = shape->verts.begin(), verts_end = shape->verts.end();
@@ -582,6 +899,12 @@ namespace CibraryEngine
 
 			aabb.Expand(xformed_vert);
 			verts.push_back(xformed_vert);
+		}
+
+		for(vector<ConvexMeshShape::Imp::Edge>::iterator iter = shape->edges.begin(), edges_end = shape->edges.end(); iter != edges_end; ++iter)
+		{
+			edges_normalized.push_back(Vec3::Normalize(verts[iter->v2] - verts[iter->v1]));
+			edge_points.push_back(verts[iter->v2]);
 		}
 
 		for(vector<ConvexMeshShape::Imp::Face>::iterator iter = shape->faces.begin(), faces_end = shape->faces.end(); iter != faces_end; ++iter)

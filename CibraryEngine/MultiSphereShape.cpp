@@ -971,8 +971,6 @@ namespace CibraryEngine
 					my_spheres.push_back(Sphere(my_xform.TransformVec3_1(iter->sphere.center), iter->sphere.radius));
 			}
 
-			static const Sphere unit_sphere(Vec3(), 1.0f);
-
 			// try to find a separating axis
 			struct Scorer
 			{
