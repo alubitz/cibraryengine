@@ -46,6 +46,7 @@ namespace CibraryEngine
 			static void CollideMesh(			RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
 			static void CollidePlane(			RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
 			static void CollideMultisphere(		RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
+			static void CollideConvexMesh(		RigidBody* body,		const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider = NULL);
 
 		public:
 

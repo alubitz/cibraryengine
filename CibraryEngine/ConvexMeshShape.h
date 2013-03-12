@@ -74,5 +74,6 @@ namespace CibraryEngine
 			ConvexMeshShapeInstanceCache();
 
 			void Update(const Mat4& xform, ConvexMeshShape::Imp* shape);
+			void Update(const Mat4& xform, ConvexMeshShape* shape);
 	};
 }

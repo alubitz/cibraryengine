@@ -63,8 +63,8 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoCollisionResponse() const
 	{
-		static const float adhesion_threshold = 0.08f;
-		static const float impulse_sq_threshold = 0.001f;
+		static const float adhesion_threshold = 0.0f;
+		static const float impulse_sq_threshold = 0.0f;
 
 		assert(cache_valid);
 
@@ -116,7 +116,7 @@ namespace CibraryEngine
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
 	}
 
-	
+
 	static vector<ContactPointAllocator*> cp_allocators = vector<ContactPointAllocator*>();
 	void ContactPoint::Delete(ContactPoint* cp)
 	{

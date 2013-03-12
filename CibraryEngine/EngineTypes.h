@@ -21,6 +21,7 @@
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
+#include "ConvexMeshShape.h"
 
 #include "NavGraph.h"
 #include "VisionBlocker.h"

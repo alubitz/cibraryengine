@@ -20,6 +20,7 @@
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
+#include "ConvexMeshShape.h"
 
 #include "CollisionGroup.h"
 
@@ -31,7 +32,9 @@ namespace CibraryEngine
 	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
+	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
+	
 
 
 	/*
@@ -256,6 +259,7 @@ namespace CibraryEngine
 
 			case ST_TriangleMesh:
 			case ST_MultiSphere:
+			case ST_ConvexMesh:
 				return GetCachedAABB();
 
 			case ST_InfinitePlane:
@@ -277,6 +281,10 @@ namespace CibraryEngine
 		{
 			case ST_MultiSphere:
 				InitiateCollisionsForMultisphere(timestep, alloc, contact_points);
+				break;
+
+			case ST_ConvexMesh:
+				InitiateCollisionsForConvexMesh(timestep, alloc, contact_points);
 				break;
 
 			default:
@@ -333,30 +341,112 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisionsForConvexMesh(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
 	{
-		assert(shape->GetShapeType() == ST_MultiSphere);
+		ConvexMeshShape* shape = (ConvexMeshShape*)this->shape;
 
 		Mat4 xform = GetTransformationMatrix();
+		Mat4 inv_xform = GetInvTransform();
 
-		switch(other->GetShapeType())
+		ConvexMeshShapeInstanceCache* cache = (ConvexMeshShapeInstanceCache*)shape_cache;
+		AABB xformed_aabb = cache->aabb;
+
+		RelevantObjectsQuery relevant_objects;
+
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
 		{
-			case ST_TriangleMesh:
-				DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
-				break;
+			vector<PhysicsRegion*>& bucket = regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
+		}
 
-			case ST_InfinitePlane:
-				DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
-				break;
+		RemoveDisabledCollisions(relevant_objects);
 
+		// do collision detection with those objects
+		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		{
+			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+				switch((*iter)->GetType())
+				{
+					case COT_RigidBody:
+					{
+						RigidBody* rigid_body = (RigidBody*)*iter;
+						if(rigid_body->GetShapeType() != ST_ConvexMesh || rigid_body < this)
+							CollideRigidBody((RigidBody*)*iter, alloc, contact_points);
+						break;
+					}
+
+					case COT_CollisionGroup:
+					{
+						CollisionGroup* cgroup = (CollisionGroup*)*iter;
+						if(*iter < this)
+							cgroup->CollideRigidBody(this, alloc, contact_points);
+
+						break;
+					}
+				}
+		}
+	}
+
+	void RigidBody::CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	{
+		Mat4 xform = GetTransformationMatrix();
+
+		switch(shape->GetShapeType())
+		{
 			case ST_MultiSphere:
-				DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, alloc, contact_points);
-				break;
+			{
+				switch(other->GetShapeType())
+				{
+					case ST_TriangleMesh:
+						DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
+						return;
+
+					case ST_InfinitePlane:
+						DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
+						return;
+
+					case ST_MultiSphere:
+						DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, alloc, contact_points);
+						return;
+
+					default:
+						DEBUG();
+						return;
+				}
+			}
+
+			case ST_ConvexMesh:
+			{
+
+				ConvexMeshShape* ishape = (ConvexMeshShape*)shape;
+				switch(other->GetShapeType())
+				{
+					case ST_TriangleMesh:
+						DoConvexMeshTriangleMesh(this, other, ishape, xform, alloc, contact_points);
+						return;
+
+					case ST_InfinitePlane:
+						ishape->CollidePlane((ConvexMeshShapeInstanceCache*)shape_cache, ((InfinitePlaneShape*)other->GetCollisionShape())->plane, alloc, contact_points, this, other);
+						return;
+
+					case ST_ConvexMesh:
+						ishape->CollideConvexMesh((ConvexMeshShapeInstanceCache*)shape_cache, (ConvexMeshShapeInstanceCache*)other->shape_cache, alloc, contact_points, this, other);
+						return;
+
+					default:
+						DEBUG();
+						return;
+				}
+			}
 
 			default:
+			{
 				DEBUG();
-				break;
-		}
+				return;
+			}
+		}		
 	}
 
 
@@ -980,6 +1070,47 @@ namespace CibraryEngine
 			p->pos -= direction * (Vec3::Dot(direction, p->pos) - contact_plane_offset);
 
 			contact_points.push_back(p);
+		}
+	}
+
+
+
+
+	/*
+	 * ConvexMeshShape collision functions
+	 */
+	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	{
+		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
+		Mat4 j_xform = jbody->GetTransformationMatrix();
+		Mat4 jinv = jbody->GetInvTransform();
+
+		Mat4 inv_net_xform = jinv * xform;
+		AABB xformed_aabb = ishape->GetTransformedAABB(inv_net_xform);						// the AABB of the multisphere in the coordinate system of the mesh
+
+		vector<unsigned int> relevant_triangles;
+		jshape->GetRelevantTriangles(xformed_aabb, relevant_triangles);
+		if(relevant_triangles.empty())
+			return;
+
+		ConvexMeshShapeInstanceCache cache;
+		cache.Update(inv_net_xform, ishape);
+
+		vector<ContactPoint*> results;
+		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
+		{
+			if(ishape->CollideTri(&cache, jshape->GetTriangleData(*kter), alloc, results, ibody, jbody))
+			{
+				for(vector<ContactPoint*>::iterator iter = results.begin(), results_end = results.end(); iter != results_end; ++iter)
+				{
+					ContactPoint* p = *iter;
+					p->pos = j_xform.TransformVec3_1(p->pos);
+					p->normal = j_xform.TransformVec3_0(p->normal);
+					contact_points.push_back(p);
+				}
+
+				results.clear();
+			}
 		}
 	}
 }

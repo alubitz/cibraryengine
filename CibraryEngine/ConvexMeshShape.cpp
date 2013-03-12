@@ -72,15 +72,15 @@ namespace CibraryEngine
 
 			ConvexPoly(const Plane& plane) : start(NULL), unused(&data[0]), max_count(32), count(0), plane(plane)
 			{
-				float x = fabs(plane.normal.x), y = fabs(plane.normal.y), z = fabs(plane.normal.z);
-				if(x <= y && x <= z)
-					x_axis = Vec3::Normalize(Vec3::Cross(Vec3(1, 0, 0), plane.normal));
-				else if(y <= x && y <= z)
-					x_axis = Vec3::Normalize(Vec3::Cross(Vec3(0, 1, 0), plane.normal));
-				else
-					x_axis = Vec3::Normalize(Vec3::Cross(Vec3(0, 0, 1), plane.normal));
-				y_axis = Vec3::Cross(plane.normal, x_axis);
+				SelectAxes(plane.normal, x_axis, y_axis);
 
+				for(unsigned int i = 1; i < max_count; ++i)
+					data[i - 1].next = &data[i];
+				data[max_count - 1].next = NULL;
+			}
+
+			ConvexPoly(const Plane& plane, const Vec3& x_axis, const Vec3& y_axis) : start(NULL), unused(&data[0]), max_count(32), count(0), plane(plane), x_axis(x_axis), y_axis(y_axis)
+			{
 				for(unsigned int i = 1; i < max_count; ++i)
 					data[i - 1].next = &data[i];
 				data[max_count - 1].next = NULL;
@@ -480,6 +480,18 @@ namespace CibraryEngine
 			}
 		}
 
+		static void SelectAxes(const Vec3& plane_normal, Vec3& x_axis, Vec3& y_axis)
+		{
+			float x = fabs(plane_normal.x), y = fabs(plane_normal.y), z = fabs(plane_normal.z);
+			if(x <= y && x <= z)
+				x_axis = Vec3::Normalize(Vec3::Cross(Vec3(1, 0, 0), plane_normal));
+			else if(y <= x && y <= z)
+				x_axis = Vec3::Normalize(Vec3::Cross(Vec3(0, 1, 0), plane_normal));
+			else
+				x_axis = Vec3::Normalize(Vec3::Cross(Vec3(0, 0, 1), plane_normal));
+			y_axis = Vec3::Cross(plane_normal, x_axis);
+		}
+
 
 
 		// convex mesh collision functions
@@ -510,7 +522,7 @@ namespace CibraryEngine
 
 						bool ok = true;
 						for(vector<Plane>::const_iterator jter = iter->boundary_planes.begin(), planes_end = iter->boundary_planes.end(); jter != planes_end; ++jter)
-							if(Vec3::Dot(jter->normal, pos) < jter->offset)
+							if(Vec3::Dot(jter->normal, pos) > jter->offset)
 							{
 								ok = false;
 								break;
@@ -613,12 +625,12 @@ namespace CibraryEngine
 			} scorer(my_cache->verts, tri);
 
 			// triangle's planes
-			if(scorer.Score(-tri.plane.normal))	{ return false; }
-			if(scorer.Score(tri.plane.normal))	{ return false; }
+			if(scorer.Score(-tri.plane.normal))			{ return false; }
+			if(scorer.Score(tri.plane.normal))			{ return false; }
 
 			// my faces...
 			for(vector<Vec3>::const_iterator iter = my_cache->face_normals.begin(), normals_end = my_cache->face_normals.end(); iter != normals_end; ++iter)
-				if(scorer.Score(*iter))	{ return false; }
+				if(scorer.Score(*iter))					{ return false; }
 
 			// my verts...
 			for(vector<Vec3>::const_iterator iter = my_cache->verts.begin(), verts_end = my_cache->verts.end(); iter != verts_end; ++iter)
@@ -645,25 +657,10 @@ namespace CibraryEngine
 				if(scorer.Score(casncan))				{ return false; }
 			}
 
-			// my edges...
-			for(vector<Vec3>::const_iterator along = my_cache->edges_normalized.begin(), along_end = my_cache->edges_normalized.end(), point = my_cache->edge_points.begin(); along != along_end; ++along, ++point)
-			{
-				Vec3 to_a = tri.a - *point;
-				if(scorer.Score(to_a - *along * Vec3::Dot(*along, to_a)))	{ return false; }
-
-				Vec3 to_b = tri.b - *point;
-				if(scorer.Score(to_b - *along * Vec3::Dot(*along, to_b)))	{ return false; }
-
-				Vec3 to_c = tri.c - *point;
-				if(scorer.Score(to_c - *along * Vec3::Dot(*along, to_c)))	{ return false; }
-			}
-
-			
 
 			// if we get this far, it means the objects are intersecting
-			// TODO: produce the actual contact point(s)
-
-			return true;
+			Vec3 tri_points[3] = { tri.a, tri.b, tri.c };
+			return GenerateContactPoints(my_cache->verts.data(), my_cache->verts.size(), tri_points, 3, -tri.plane.normal, alloc, results, ibody, jbody);
 		}
 
 		bool CollideConvexMesh(ConvexMeshShapeInstanceCache* ishape, ConvexMeshShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody, RigidBody* jbody)
@@ -754,12 +751,303 @@ namespace CibraryEngine
 					if(scorer.Score(to_vert - *along * Vec3::Dot(*along, to_vert)))	{ return false; }
 				}
 
-			
 
 			// if we get this far, it means the objects are intersecting
-			// TODO: produce the actual contact point(s)
+			return GenerateContactPoints(ishape->verts.data(), ishape->verts.size(), jshape->verts.data(), jshape->verts.size(), scorer.direction, alloc, contact_points, ibody, jbody);
+		}
 
-			return true;
+		static bool GenerateContactPoints(Vec3* my_points, unsigned int my_count, Vec3* other_points, unsigned int other_count, const Vec3& direction, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody, RigidBody* jbody)
+		{
+			// find extents of the overlap region
+			float farthest_extent = Vec3::Dot(direction, my_points[0]);
+			for(unsigned int i = 1; i < my_count; ++i)
+				farthest_extent = max(farthest_extent, Vec3::Dot(direction, my_points[i]));
+
+			float nearest_extent = Vec3::Dot(direction, other_points[0]);
+			for(unsigned int i = 1; i < other_count; ++i)
+				nearest_extent = min(nearest_extent, Vec3::Dot(direction, other_points[i]));
+
+			// collect lists of which verts from each object extend into the overlap region
+			vector<Vec3*> my_verts;
+			for(unsigned int i = 0; i < my_count; ++i)
+				if(Vec3::Dot(direction, my_points[i]) >= nearest_extent)
+					my_verts.push_back(&my_points[i]);
+
+			vector<Vec3*> other_verts;
+			for(unsigned int i = 0; i < other_count; ++i)
+				if(Vec3::Dot(direction, other_points[i]) <= farthest_extent)
+					other_verts.push_back(&other_points[i]);
+
+			if(my_verts.empty() || other_verts.empty())			// lolwut? silly float math
+				return false;
+
+			// now generate contact points based on those verts
+			float contact_plane_offset = (nearest_extent + farthest_extent) * 0.5f;
+
+			switch(my_verts.size())
+			{
+				case 1:
+				{
+					switch(other_verts.size())
+					{
+						case 1:			// point-point
+						{
+							ContactPoint* p = alloc->New(ibody, jbody);
+							p->normal = direction;
+							
+							Vec3 pos = (*my_verts[0] + *other_verts[0]) * 0.5f;
+							p->pos = pos - direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
+
+							contact_points.push_back(p);
+
+							return true;
+						}
+
+						default:		// point-edge and point-polygon
+						{
+							ContactPoint* p = alloc->New(ibody, jbody);
+							p->normal = direction;
+
+							const Vec3& pos = *my_verts[0];
+							p->pos = pos - direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
+
+							contact_points.push_back(p);
+
+							return true;
+						}
+					}
+				}
+
+				case 2:
+				{
+					switch(other_verts.size())
+					{
+						case 1:			// edge-point
+						{
+							ContactPoint* p = alloc->New(ibody, jbody);
+							p->normal = direction;
+							
+							const Vec3& pos = *other_verts[0];
+							p->pos = pos - direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
+
+							contact_points.push_back(p);
+
+							return true;
+						}
+
+						case 2:			// edge-edge
+						{
+							Vec3 x_axis, y_axis;
+							SelectAxes(direction, x_axis, y_axis);
+
+							const Vec3& a1(*my_verts	[0]);
+							const Vec3& a2(*my_verts	[1]);
+							const Vec3& b1(*other_verts	[0]);
+							const Vec3& b2(*other_verts	[1]);
+
+							Vec2 result;
+							if(DoEdgeEdge(result,
+									Vec2(Vec3::Dot(x_axis, a1), Vec3::Dot(y_axis, a1)),
+									Vec2(Vec3::Dot(x_axis, a2), Vec3::Dot(y_axis, a2)),
+									Vec2(Vec3::Dot(x_axis, b1), Vec3::Dot(y_axis, b1)),
+									Vec2(Vec3::Dot(x_axis, b2), Vec3::Dot(y_axis, b2))))
+							{
+								ContactPoint* p = alloc->New(ibody, jbody);
+								p->normal = direction;
+								p->pos = direction * contact_plane_offset + x_axis * result.x + y_axis * result.y;
+								contact_points.push_back(p);
+
+								return true;
+							}
+
+							return false;
+						}
+
+						default:		// edge-polygon
+							return DoEdgePolygon(my_verts, other_verts, direction, contact_plane_offset, alloc, contact_points, ibody, jbody);
+					}
+				}
+
+				default:
+				{
+					switch(other_verts.size())
+					{
+						case 1:			// polygon-point
+						{
+							ContactPoint* p = alloc->New(ibody, jbody);
+							p->normal = direction;
+							
+							const Vec3& pos = *other_verts[0];
+							p->pos = pos - direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
+
+							contact_points.push_back(p);
+
+							return true;
+						}
+
+						case 2:			// polygon-edge
+							return DoEdgePolygon(other_verts, my_verts, direction, contact_plane_offset, alloc, contact_points, jbody, ibody);
+
+						default:		// polygon-polygon
+						{
+							Vec3 x_axis, y_axis;
+							SelectAxes(direction, x_axis, y_axis);
+
+							Plane plane(direction, contact_plane_offset);
+
+							ConvexPoly my_poly(plane, x_axis, y_axis);
+							for(unsigned int i = 0, count = my_verts.size(); i < count; ++i)
+								my_poly.AddVert(*my_verts[i], i);
+
+							ConvexPoly other_poly(plane, x_axis, y_axis);
+							for(unsigned int i = 0, count = other_verts.size(); i < count; ++i)
+								other_poly.AddVert(*other_verts[i], i);
+
+							bool any = false;
+
+							Vec2 intersection;
+							Vec3 origin = direction * contact_plane_offset;
+							ConvexPoly::PolyData* iter = my_poly.start;
+							do
+							{
+								ConvexPoly::PolyData* jter = other_poly.start;
+
+								const Vec2& point = iter->pos;
+								bool point_ok = true;
+
+								// add intersection points
+								do
+								{
+									jter = jter->next;
+
+									if(DoEdgeEdge(intersection, point, iter->next->pos, jter->pos, jter->next->pos))
+									{
+										ContactPoint* p = alloc->New(ibody, jbody);
+										p->normal = direction;
+										p->pos = origin + x_axis * intersection.x + y_axis * intersection.y;
+										contact_points.push_back(p);
+
+										any = true;
+									}
+
+									if(Vec2::Dot(iter->normal, point) > iter->offset)
+										point_ok = false;
+
+								} while(jter != other_poly.start);
+
+								// add points from my list which were inside both objects
+								if(point_ok)
+								{
+									ContactPoint* p = alloc->New(ibody, jbody);
+									p->normal = direction;
+									p->pos = origin + x_axis * point.x + y_axis * point.y;
+									contact_points.push_back(p);
+
+									any = true;
+								}
+
+								iter = iter->next;
+							} while(iter != my_poly.start);
+
+							// add points from other list which are inside both objects
+							iter = other_poly.start;
+							do
+							{
+								const Vec2& point = iter->pos;
+								bool point_ok = true;
+
+								ConvexPoly::PolyData* jter = my_poly.start;
+								do
+								{
+									if(Vec2::Dot(jter->normal, point) >= jter->offset)
+									{
+										point_ok = false;
+										break;
+									}
+
+									jter = jter->next;
+								} while(jter != my_poly.start);
+								
+								if(point_ok)
+								{
+									ContactPoint* p = alloc->New(ibody, jbody);
+									p->normal = direction;
+									p->pos = origin + x_axis * point.x + y_axis * point.y;
+									contact_points.push_back(p);
+
+									any = true;
+								}
+
+								iter = iter->next;
+							} while(iter != other_poly.start);
+
+							return any;
+						}
+					}
+				}
+			}
+		}
+
+		static bool DoEdgePolygon(const vector<Vec3*>& edge, const vector<Vec3*>& polygon, const Vec3& direction, float contact_plane_offset, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody, RigidBody* jbody)
+		{
+			ConvexPoly poly(Plane(direction, contact_plane_offset));
+
+			for(unsigned int i = 0, count = polygon.size(); i < count; ++i)
+				poly.AddVert(*polygon[i], i);
+
+			const Vec3& x_axis = poly.x_axis;
+			const Vec3& y_axis = poly.y_axis;
+
+			const Vec3& v1(*edge[0]);
+			const Vec3& v2(*edge[1]);
+
+			Vec2 v1p(Vec3::Dot(x_axis, v1), Vec3::Dot(y_axis, v1));
+			Vec2 v2p(Vec3::Dot(x_axis, v2), Vec3::Dot(y_axis, v2));
+
+			bool any = false;
+
+			Vec2 intersection;
+			ConvexPoly::PolyData* iter = poly.start;
+			do
+			{
+				if(DoEdgeEdge(intersection, v1p, v2p, iter->pos, iter->next->pos))
+				{
+					ContactPoint* p = alloc->New(ibody, jbody);
+					p->normal = direction;
+					p->pos = direction * contact_plane_offset + x_axis * intersection.x + y_axis * intersection.y;
+					contact_points.push_back(p);
+
+					any = true;
+				}
+
+				iter = iter->next;
+			} while(iter != poly.start);
+
+			return any;
+		}
+
+		static bool DoEdgeEdge(Vec2& result, const Vec2& a1, const Vec2& a2, const Vec2& b1, const Vec2& b2)
+		{
+			Vec2 a_dx(a2 - a1);
+			Vec2 b_dx(b2 - b1);
+
+			Vec2 cross_a(-a_dx.y, a_dx.x);
+			Vec2 cross_b(-b_dx.y, b_dx.x);
+
+			float a_pos = Vec2::Dot(a1, cross_a), b1_a = Vec2::Dot(b1, cross_a), b2_a = Vec2::Dot(b2, cross_a);
+			float b_pos = Vec2::Dot(b1, cross_b), a1_b = Vec2::Dot(a1, cross_b), a2_b = Vec2::Dot(a2, cross_b);
+							
+			if((b1_a - a_pos) * (b2_a - a_pos) <= 0.0f && (a1_b - b_pos) * (a2_b - b_pos) <= 0.0f)
+			{
+				float dif = a2_b - a1_b;
+				if(dif != 0)
+				{
+					result = a1 + a_dx * ((b_pos - a1_b) / dif);
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 
@@ -881,14 +1169,14 @@ namespace CibraryEngine
 	 */
 	ConvexMeshShapeInstanceCache::ConvexMeshShapeInstanceCache() : verts(), edges_normalized(), edge_points(), face_normals(), aabb() { }
 
-	void ConvexMeshShapeInstanceCache::Update(const Mat4& xform, ConvexMeshShape::Imp* shape)
+	void ConvexMeshShapeInstanceCache::Update(const Mat4& xform, ConvexMeshShape::Imp* imp)
 	{
 		verts.clear();
 		edges_normalized.clear();
 		edge_points.clear();
 		face_normals.clear();
 
-		vector<ConvexMeshShape::Imp::Vertex>::iterator vert_iter = shape->verts.begin(), verts_end = shape->verts.end();
+		vector<ConvexMeshShape::Imp::Vertex>::iterator vert_iter = imp->verts.begin(), verts_end = imp->verts.end();
 		Vec3 xformed_vert = xform.TransformVec3_1(vert_iter->pos);
 		aabb = AABB(xformed_vert);
 		verts.push_back(xformed_vert);
@@ -901,13 +1189,15 @@ namespace CibraryEngine
 			verts.push_back(xformed_vert);
 		}
 
-		for(vector<ConvexMeshShape::Imp::Edge>::iterator iter = shape->edges.begin(), edges_end = shape->edges.end(); iter != edges_end; ++iter)
+		for(vector<ConvexMeshShape::Imp::Edge>::iterator iter = imp->edges.begin(), edges_end = imp->edges.end(); iter != edges_end; ++iter)
 		{
 			edges_normalized.push_back(Vec3::Normalize(verts[iter->v2] - verts[iter->v1]));
 			edge_points.push_back(verts[iter->v2]);
 		}
 
-		for(vector<ConvexMeshShape::Imp::Face>::iterator iter = shape->faces.begin(), faces_end = shape->faces.end(); iter != faces_end; ++iter)
+		for(vector<ConvexMeshShape::Imp::Face>::iterator iter = imp->faces.begin(), faces_end = imp->faces.end(); iter != faces_end; ++iter)
 			face_normals.push_back(xform.TransformVec3_0(iter->plane.normal));
 	}
+
+	void ConvexMeshShapeInstanceCache::Update(const Mat4& xform, ConvexMeshShape* shape) { Update(xform, shape->imp); }
 }

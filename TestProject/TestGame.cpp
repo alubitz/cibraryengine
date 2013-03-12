@@ -565,20 +565,9 @@ namespace Test
 		ModelPhysics* rubbish_phys = mphys_cache->Load("dummycube");
 		if(rubbish_phys == NULL)
 		{
-			static const float b = 0.4f, r = 0.1f, s = b + r;
+			static const float s = 0.5f;
 
-			Sphere spheres[] = 
-			{
-				Sphere(Vec3(-b,	-b,	-b	), r),
-				Sphere(Vec3(-b,	-b,	b	), r),
-				Sphere(Vec3(-b,	b,	-b	), r),
-				Sphere(Vec3(-b,	b,	b	), r),
-				Sphere(Vec3(b,	-b,	-b	), r),
-				Sphere(Vec3(b,	-b,	b	), r),
-				Sphere(Vec3(b,	b,	-b	), r),
-				Sphere(Vec3(b,	b,	b	), r)
-			};
-			CollisionShape* shape = new MultiSphereShape(spheres, 8);
+			CollisionShape* shape = ConvexMeshShape::FromVBO((*(ubermodel_cache->Load("dummycube")->lods[0]->GetVBOs()))[0].vbo);
 
 			MassInfo mass_info;
 			mass_info.mass = 25;

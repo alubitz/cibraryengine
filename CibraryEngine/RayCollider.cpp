@@ -13,6 +13,7 @@
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"
+#include "ConvexMeshShape.h"
 
 
 namespace CibraryEngine
@@ -58,6 +59,7 @@ namespace CibraryEngine
 			case ST_TriangleMesh:	RayCollider::CollideMesh(		body, ray, max_time, hits, collider); return;
 			case ST_InfinitePlane:	RayCollider::CollidePlane(		body, ray, max_time, hits, collider); return; 
 			case ST_MultiSphere:	RayCollider::CollideMultisphere(body, ray, max_time, hits, collider); return;
+			case ST_ConvexMesh:		RayCollider::CollideConvexMesh(	body, ray, max_time, hits, collider); return;
 		}
 	}
 
@@ -113,6 +115,22 @@ namespace CibraryEngine
 	void RayCollider::CollideMultisphere(RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)body->GetCollisionShape();
+
+		Mat4 inv_mat = body->GetInvTransform();
+
+		Ray nu_ray(inv_mat.TransformVec3_1(ray.origin), inv_mat.TransformVec3_0(ray.direction * max_time));
+
+		RayResult rr;
+		if(shape->CollideRay(nu_ray, rr, collider, body))
+		{
+			rr.pos = body->GetTransformationMatrix().TransformVec3_1(rr.pos);
+			hits.push_back(rr);
+		}
+	}
+
+	void RayCollider::CollideConvexMesh(RigidBody* body, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)
+	{
+		ConvexMeshShape* shape = (ConvexMeshShape*)body->GetCollisionShape();
 
 		Mat4 inv_mat = body->GetInvTransform();
 

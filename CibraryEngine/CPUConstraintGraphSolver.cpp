@@ -17,7 +17,7 @@ namespace CibraryEngine
 			PhysicsConstraint* constraint;
 
 			Edge *next, *nu_next;
-			
+
 			bool included;
 			unsigned int wakeup_index;			// index into edge adjacency table
 		};
@@ -34,7 +34,7 @@ namespace CibraryEngine
 			// create edge
 			Edge* edge = &edges[i];
 			PhysicsConstraint* constraint = edge->constraint = constraints[i];
-			
+
 			edge->next = edge->nu_next = first;
 			first = edge;
 

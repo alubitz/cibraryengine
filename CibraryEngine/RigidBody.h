@@ -72,6 +72,8 @@ namespace CibraryEngine
 
 			void InitiateCollisionsForMultisphere(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
 
+			void InitiateCollisionsForConvexMesh(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+
 		protected:
 
 			void InnerDispose();
