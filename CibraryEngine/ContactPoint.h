@@ -26,7 +26,6 @@ namespace CibraryEngine
 		float timestep;
 		float bounce_threshold;
 
-
 		ContactPoint() : cache_valid(false) { }
 		ContactPoint(RigidBody* obj_a, RigidBody* obj_b) : PhysicsConstraint(obj_a, obj_b), cache_valid(false) { }
 		~ContactPoint() { }
@@ -41,33 +40,5 @@ namespace CibraryEngine
 		void DoUpdateAction(float timestep);
 
 		bool DoCollisionResponse() const;
-
-
-
-		static void Delete(ContactPoint* cp);
-	};
-
-	// allocator class for contact points; create one for each thread you want to be simultaneously creating create contact points in
-	struct ContactPointAllocator
-	{
-		friend struct ContactPoint;
-
-		private:
-
-			struct Chunk;
-			vector<Chunk*> chunks;
-
-			bool Delete(ContactPoint* cp);
-
-			ContactPointAllocator() : chunks() { }
-			~ContactPointAllocator();
-
-		public:
-
-			static ContactPointAllocator* NewAllocator();
-			static void DeleteAllocator(ContactPointAllocator* alloc);
-
-			ContactPoint* New();
-			ContactPoint* New(RigidBody* obj_a, RigidBody* obj_b);
 	};
 }

@@ -9,8 +9,8 @@
 
 namespace CibraryEngine
 {
-	struct ContactPoint;
-	struct ContactPointAllocator;
+	class ContactRegion;
+	class ContactDataCollector;
 
 	struct Plane;
 
@@ -47,9 +47,9 @@ namespace CibraryEngine
 
 
 			bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider = NULL, RigidBody* body = NULL);					// ray has been transformed into coordinate system of mesh
-			bool CollidePlane(ConvexMeshShapeInstanceCache* my_cache, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
-			bool CollideTri(ConvexMeshShapeInstanceCache* my_cache, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);		// my_cache is a cache for collisions between this pair of objects only (not the same as the rigid body's cache)
-			bool CollideConvexMesh(ConvexMeshShapeInstanceCache* ishape, ConvexMeshShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
+			ContactRegion* CollidePlane(ConvexMeshShapeInstanceCache* my_cache, const Plane& plane, ContactDataCollector* results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
+			ContactRegion* CollideTri(ConvexMeshShapeInstanceCache* my_cache, const TriangleMeshShape::TriCache& tri, ContactDataCollector* results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);		// my_cache is a cache for collisions between this pair of objects only (not the same as the rigid body's cache)
+			ContactRegion* CollideConvexMesh(ConvexMeshShapeInstanceCache* ishape, ConvexMeshShapeInstanceCache* jshape, ContactDataCollector* results, RigidBody* ibody = NULL, RigidBody* jbody = NULL);
 
 
 			unsigned int Read(istream& stream);

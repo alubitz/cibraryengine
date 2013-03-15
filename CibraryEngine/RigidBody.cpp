@@ -12,7 +12,10 @@
 
 #include "Physics.h"
 #include "PhysicsRegion.h"
+
 #include "ContactPoint.h"
+#include "ContactRegion.h"
+#include "ContactDataCollector.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"
@@ -28,11 +31,11 @@
 
 namespace CibraryEngine
 {
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactDataCollector* collect);
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactDataCollector* collect);
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactDataCollector* collect);
 
-	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactDataCollector* collect);
 
 	
 
@@ -275,16 +278,16 @@ namespace CibraryEngine
 
 
 
-	void RigidBody::InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisions(float timestep, ContactDataCollector* collect)
 	{
 		switch(shape->GetShapeType())
 		{
 			case ST_MultiSphere:
-				InitiateCollisionsForMultisphere(timestep, alloc, contact_points);
+				InitiateCollisionsForMultisphere(timestep, collect);
 				break;
 
 			case ST_ConvexMesh:
-				InitiateCollisionsForConvexMesh(timestep, alloc, contact_points);
+				InitiateCollisionsForConvexMesh(timestep, collect);
 				break;
 
 			default:
@@ -293,7 +296,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::InitiateCollisionsForMultisphere(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisionsForMultisphere(float timestep, ContactDataCollector* collect)
 	{
 		MultiSphereShape* shape = (MultiSphereShape*)this->shape;
 
@@ -325,7 +328,7 @@ namespace CibraryEngine
 					{
 						RigidBody* rigid_body = (RigidBody*)*iter;
 						if(rigid_body->GetShapeType() != ST_MultiSphere || rigid_body < this)
-							CollideRigidBody((RigidBody*)*iter, alloc, contact_points);
+							CollideRigidBody((RigidBody*)*iter, collect);
 						break;
 					}
 
@@ -333,7 +336,7 @@ namespace CibraryEngine
 					{
 						CollisionGroup* cgroup = (CollisionGroup*)*iter;
 						if(*iter < this)
-							cgroup->CollideRigidBody(this, alloc, contact_points);
+							cgroup->CollideRigidBody(this, collect);
 
 						break;
 					}
@@ -341,7 +344,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::InitiateCollisionsForConvexMesh(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void RigidBody::InitiateCollisionsForConvexMesh(float timestep, ContactDataCollector* collect)
 	{
 		ConvexMeshShape* shape = (ConvexMeshShape*)this->shape;
 
@@ -373,7 +376,7 @@ namespace CibraryEngine
 					{
 						RigidBody* rigid_body = (RigidBody*)*iter;
 						if(rigid_body->GetShapeType() != ST_ConvexMesh || rigid_body < this)
-							CollideRigidBody((RigidBody*)*iter, alloc, contact_points);
+							CollideRigidBody((RigidBody*)*iter, collect);
 						break;
 					}
 
@@ -381,7 +384,7 @@ namespace CibraryEngine
 					{
 						CollisionGroup* cgroup = (CollisionGroup*)*iter;
 						if(*iter < this)
-							cgroup->CollideRigidBody(this, alloc, contact_points);
+							cgroup->CollideRigidBody(this, collect);
 
 						break;
 					}
@@ -389,7 +392,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void RigidBody::CollideRigidBody(RigidBody* other, ContactDataCollector* collect)
 	{
 		Mat4 xform = GetTransformationMatrix();
 
@@ -400,15 +403,15 @@ namespace CibraryEngine
 				switch(other->GetShapeType())
 				{
 					case ST_TriangleMesh:
-						DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
+						DoMultisphereMesh(this, other, (MultiSphereShape*)shape, xform, collect);
 						return;
 
 					case ST_InfinitePlane:
-						DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, alloc, contact_points);
+						DoMultispherePlane(this, other, (MultiSphereShape*)shape, xform, collect);
 						return;
 
 					case ST_MultiSphere:
-						DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, alloc, contact_points);
+						DoMultisphereMultisphere(this, other, (MultiSphereShapeInstanceCache*)shape_cache, (MultiSphereShapeInstanceCache*)other->shape_cache, collect);
 						return;
 
 					default:
@@ -419,20 +422,19 @@ namespace CibraryEngine
 
 			case ST_ConvexMesh:
 			{
-
 				ConvexMeshShape* ishape = (ConvexMeshShape*)shape;
 				switch(other->GetShapeType())
 				{
 					case ST_TriangleMesh:
-						DoConvexMeshTriangleMesh(this, other, ishape, xform, alloc, contact_points);
+						DoConvexMeshTriangleMesh(this, other, ishape, xform, collect);
 						return;
 
 					case ST_InfinitePlane:
-						ishape->CollidePlane((ConvexMeshShapeInstanceCache*)shape_cache, ((InfinitePlaneShape*)other->GetCollisionShape())->plane, alloc, contact_points, this, other);
+						ishape->CollidePlane((ConvexMeshShapeInstanceCache*)shape_cache, ((InfinitePlaneShape*)other->GetCollisionShape())->plane, collect, this, other);
 						return;
 
 					case ST_ConvexMesh:
-						ishape->CollideConvexMesh((ConvexMeshShapeInstanceCache*)shape_cache, (ConvexMeshShapeInstanceCache*)other->shape_cache, alloc, contact_points, this, other);
+						ishape->CollideConvexMesh((ConvexMeshShapeInstanceCache*)shape_cache, (ConvexMeshShapeInstanceCache*)other->shape_cache, collect, this, other);
 						return;
 
 					default:
@@ -455,7 +457,7 @@ namespace CibraryEngine
 	/*
 	 * MultiSphereShape collision functions
 	 */
-	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	static void DoMultisphereMesh(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactDataCollector* collect)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
@@ -475,23 +477,25 @@ namespace CibraryEngine
 		{
 			const TriangleMeshShape::TriCache& tri = jshape->GetTriangleData(*kter);
 
-			if(ContactPoint* p = ishape->CollideMesh(inv_net_xform, my_spheres, tri, alloc, ibody, jbody))
+			if(ContactRegion* r = ishape->CollideMesh(inv_net_xform, my_spheres, tri, collect, ibody, jbody))
 			{
-				p->pos = j_xform.TransformVec3_1(p->pos);
-				p->normal = j_xform.TransformVec3_0(p->normal);
-
-				contact_points.push_back(p);
+				for(vector<ContactPoint*>::iterator iter = r->points.begin(); iter != r->points.end(); ++iter)
+				{
+					ContactPoint* p = *iter;
+					p->pos = j_xform.TransformVec3_1(p->pos);
+					p->normal = j_xform.TransformVec3_0(p->normal);
+				}
 			}
 		}
 	}
 
-	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	static void DoMultispherePlane(RigidBody* ibody, RigidBody* jbody, MultiSphereShape* ishape, const Mat4& xform, ContactDataCollector* collect)
 	{
 		InfinitePlaneShape* jshape = (InfinitePlaneShape*)jbody->GetCollisionShape();
-		ishape->CollidePlane(xform, jshape->plane, alloc, contact_points, ibody, jbody);
+		ishape->CollidePlane(xform, jshape->plane, collect, ibody, jbody);
 	}
 
-	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	static void DoMultisphereMultisphere(RigidBody* ibody, RigidBody* jbody, MultiSphereShapeInstanceCache* ishape, MultiSphereShapeInstanceCache* jshape, ContactDataCollector* collect)
 	{
 		AABB overlap;
 		if(AABB::Intersect(ishape->aabb, jshape->aabb, overlap))
@@ -712,7 +716,7 @@ namespace CibraryEngine
 
 				TubePlaneSolver(const Sphere& sphere_a, const Sphere& sphere_b, const Vec3& direction, float contact_plane_offset, vector<Sphere*>& poly_spheres, RigidBody* ibody, RigidBody* jbody) : sphere_a(sphere_a), sphere_b(sphere_b), direction(direction), contact_plane_offset(contact_plane_offset), poly_spheres(poly_spheres), ibody(ibody), jbody(jbody) { }
 
-				bool Solve(ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+				bool Solve(ContactDataCollector* collect)
 				{
 					Vec3 a = sphere_a.center - direction * (Vec3::Dot(direction, sphere_a.center) - contact_plane_offset);
 					Vec3 b = sphere_b.center - direction * (Vec3::Dot(direction, sphere_b.center) - contact_plane_offset);
@@ -772,14 +776,8 @@ namespace CibraryEngine
 						// produce contact points at each endpoint
 						Vec3 origin = direction * contact_plane_offset + cross_ab * ay;
 
-						ContactPoint *p1 = alloc->New(ibody, jbody), *p2 = alloc->New(ibody, jbody);
-						p1->normal = p2->normal = direction;
-
-						p1->pos = origin + u_ab * tube_p1.x;
-						p2->pos = origin + u_ab * tube_p2.x;
-
-						contact_points.push_back(p1);
-						contact_points.push_back(p2);
+						Vec3 positions[2] = { origin + u_ab * tube_p1.x, origin + u_ab * tube_p2.x };
+						collect->AddRegion(ibody, jbody, direction, 2, positions);
 
 						return true;
 					}
@@ -800,13 +798,10 @@ namespace CibraryEngine
 						{
 							Sphere& other_sphere = *other_relevant_spheres[0];
 
-							ContactPoint* p = alloc->New(ibody, jbody);
-							p->normal = direction;
-							p->pos = (my_sphere.center + other_sphere.center) * 0.5f;
-							p->pos -= direction * (Vec3::Dot(direction, p->pos) - contact_plane_offset);
+							Vec3 pos = (my_sphere.center + other_sphere.center) * 0.5f;
+							pos -= direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
 
-							contact_points.push_back(p);
-
+							collect->AddRegion(ibody, jbody, direction, 1, &pos);
 							return;
 						}
 
@@ -815,23 +810,17 @@ namespace CibraryEngine
 							Sphere& other_sphere_a = *other_relevant_spheres[0];
 							Sphere& other_sphere_b = *other_relevant_spheres[1];
 
-							ContactPoint* p = alloc->New(ibody, jbody);
-							p->normal = direction;
-							p->pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
+							Vec3 pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
 
-							contact_points.push_back(p);
-
+							collect->AddRegion(ibody, jbody, direction, 1, &pos);
 							return;
 						}
 
 						default:					// sphere-plane
 						{
-							ContactPoint* p = alloc->New(ibody, jbody);
-							p->normal = direction;
-							p->pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
+							Vec3 pos = my_sphere.center - direction * (Vec3::Dot(direction, my_sphere.center) - contact_plane_offset);
 
-							contact_points.push_back(p);
-
+							collect->AddRegion(ibody, jbody, direction, 1, &pos);
 							return;
 						}
 					}
@@ -848,12 +837,9 @@ namespace CibraryEngine
 						{
 							Sphere& other_sphere = *other_relevant_spheres[0];
 
-							ContactPoint* p = alloc->New(ibody, jbody);
-							p->normal = direction;
-							p->pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
+							Vec3 pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
 
-							contact_points.push_back(p);
-
+							collect->AddRegion(ibody, jbody, direction, 1, &pos);
 							return;
 						}
 
@@ -893,17 +879,9 @@ namespace CibraryEngine
 
 									Vec3 origin = direction * contact_plane_offset + cross * avg_xdot;
 
-									ContactPoint* p1 = alloc->New(ibody, jbody);
-									p1->normal = direction;
-									p1->pos = origin + axis * near_end;
+									Vec3 positions[2] = { origin + axis * near_end, origin + axis * far_end };
 
-									ContactPoint* p2 = alloc->New(ibody, jbody);
-									p2->normal = direction;
-									p2->pos = origin + axis * far_end;
-
-									contact_points.push_back(p1);
-									contact_points.push_back(p2);
-
+									collect->AddRegion(ibody, jbody, direction, 2, positions);
 									return;
 								}
 								else										// tubes are crossed; try to produce a single contact point where they intersect
@@ -915,12 +893,9 @@ namespace CibraryEngine
 									float speed = Vec3::Dot(u_other, x_my);
 									float tti = Vec3::Dot(x_my, other_pa - my_pa) / speed;
 
-									ContactPoint* p = alloc->New(ibody, jbody);
-									p->normal = direction;
-									p->pos = other_pa + u_other * tti;
+									Vec3 pos = other_pa + u_other * tti;
 
-									contact_points.push_back(p);
-
+									collect->AddRegion(ibody, jbody, direction, 1, &pos);
 									return;
 								}
 							}
@@ -932,7 +907,7 @@ namespace CibraryEngine
 
 						default:					// tube-plane
 						{
-							if(TubePlaneSolver(my_sphere_a, my_sphere_b, direction, contact_plane_offset, other_relevant_spheres, ibody, jbody).Solve(alloc, contact_points))
+							if(TubePlaneSolver(my_sphere_a, my_sphere_b, direction, contact_plane_offset, other_relevant_spheres, ibody, jbody).Solve(collect))
 								return;
 
 							break;
@@ -950,18 +925,15 @@ namespace CibraryEngine
 						{
 							Sphere& other_sphere = *other_relevant_spheres[0];
 
-							ContactPoint* p = alloc->New(ibody, jbody);
-							p->normal = direction;
-							p->pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
+							Vec3 pos = other_sphere.center - direction * (Vec3::Dot(direction, other_sphere.center) - contact_plane_offset);
 
-							contact_points.push_back(p);
-
+							collect->AddRegion(ibody, jbody, direction, 1, &pos);
 							return;
 						}
 
 						case 2:						// plane-tube
 						{
-							if(TubePlaneSolver(*other_relevant_spheres[0], *other_relevant_spheres[1], direction, contact_plane_offset, my_relevant_spheres, ibody, jbody).Solve(alloc, contact_points))
+							if(TubePlaneSolver(*other_relevant_spheres[0], *other_relevant_spheres[1], direction, contact_plane_offset, my_relevant_spheres, ibody, jbody).Solve(collect))
 								return;
 
 							break;
@@ -1041,15 +1013,13 @@ namespace CibraryEngine
 							// now create actual contact points from those
 							if(count > 0)
 							{
+								vector<Vec3> positions;
+
 								Vec3 origin = direction * contact_plane_offset;
 								for(unsigned int i = 0; i < count; ++i)
-								{
-									ContactPoint* p = alloc->New(ibody, jbody);
-									p->normal = direction;
-									p->pos = origin + x_axis * result_points[i].x  + y_axis * result_points[i].y;
-									contact_points.push_back(p);
-								}
+									positions.push_back(origin + x_axis * result_points[i].x  + y_axis * result_points[i].y);
 
+								collect->AddRegion(ibody, jbody, direction, count, positions.data());
 								return;
 							}
 
@@ -1064,12 +1034,11 @@ namespace CibraryEngine
 
 
 			// fallback contact point generation
-			ContactPoint* p = alloc->New(ibody, jbody);
-			p->normal = direction;
-			p->pos = overlap.GetCenterPoint();
-			p->pos -= direction * (Vec3::Dot(direction, p->pos) - contact_plane_offset);
 
-			contact_points.push_back(p);
+			Vec3 pos = overlap.GetCenterPoint();
+			pos -= direction * (Vec3::Dot(direction, pos) - contact_plane_offset);
+
+			collect->AddRegion(ibody, jbody, direction, 1, &pos);
 		}
 	}
 
@@ -1079,7 +1048,7 @@ namespace CibraryEngine
 	/*
 	 * ConvexMeshShape collision functions
 	 */
-	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	static void DoConvexMeshTriangleMesh(RigidBody* ibody, RigidBody* jbody, ConvexMeshShape* ishape, const Mat4& xform, ContactDataCollector* collect)
 	{
 		TriangleMeshShape* jshape = (TriangleMeshShape*)jbody->GetCollisionShape();
 		Mat4 j_xform = jbody->GetTransformationMatrix();
@@ -1096,20 +1065,16 @@ namespace CibraryEngine
 		ConvexMeshShapeInstanceCache cache;
 		cache.Update(inv_net_xform, ishape);
 
-		vector<ContactPoint*> results;
 		for(vector<unsigned int>::iterator kter = relevant_triangles.begin(), triangles_end = relevant_triangles.end(); kter != triangles_end; ++kter)
 		{
-			if(ishape->CollideTri(&cache, jshape->GetTriangleData(*kter), alloc, results, ibody, jbody))
+			if(ContactRegion* r = ishape->CollideTri(&cache, jshape->GetTriangleData(*kter), collect, ibody, jbody))
 			{
-				for(vector<ContactPoint*>::iterator iter = results.begin(), results_end = results.end(); iter != results_end; ++iter)
+				for(vector<ContactPoint*>::iterator iter = r->points.begin(), results_end = r->points.end(); iter != results_end; ++iter)
 				{
 					ContactPoint* p = *iter;
 					p->pos = j_xform.TransformVec3_1(p->pos);
 					p->normal = j_xform.TransformVec3_0(p->normal);
-					contact_points.push_back(p);
 				}
-
-				results.clear();
 			}
 		}
 	}

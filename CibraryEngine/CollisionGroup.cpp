@@ -93,7 +93,7 @@ namespace CibraryEngine
 		region_man->OnObjectUpdate(this, regions, timestep);
 	}
 
-	void CollisionGroup::InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void CollisionGroup::InitiateCollisions(float timestep, ContactDataCollector* collect)
 	{
 		// do collisions between contained objects, if enabled
 		if(collide_within)
@@ -110,7 +110,7 @@ namespace CibraryEngine
 						AABB jaabb = jbody->GetCachedAABB();
 
 						if(AABB::IntersectTest(iaabb, jaabb) && ((CollisionGroup*)ibody)->disabled_collisions.find(jbody) == ((CollisionGroup*)ibody)->disabled_collisions.end())		// ughhhhh
-							ibody->CollideRigidBody(jbody, alloc, contact_points);
+							ibody->CollideRigidBody(jbody, collect);
 					}
 			}
 		}
@@ -137,7 +137,7 @@ namespace CibraryEngine
 					{
 						RigidBody* body = (RigidBody*)*iter;
 						if(*iter < this || !CollisionShape::CanShapeTypeMove(body->GetShapeType()))
-							CollideRigidBody(body, alloc, contact_points);
+							CollideRigidBody(body, collect);
 
 						break;
 					}
@@ -146,7 +146,7 @@ namespace CibraryEngine
 					{
 						CollisionGroup* other = (CollisionGroup*)*iter;
 						if(other < this)
-							CollideCollisionGroup(other, alloc, contact_points);
+							CollideCollisionGroup(other, collect);
 
 						break;
 					}
@@ -154,7 +154,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionGroup::CollideRigidBody(RigidBody* body, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void CollisionGroup::CollideRigidBody(RigidBody* body, ContactDataCollector* collect)
 	{
 		// TODO: consult disabled_collisions for child-other collisions?
 
@@ -165,11 +165,11 @@ namespace CibraryEngine
 		{
 			RigidBody* child = *iter;
 			if(aabb_exempt || AABB::IntersectTest(body_aabb, child->GetCachedAABB()))
-				child->CollideRigidBody(body, alloc, contact_points);
+				child->CollideRigidBody(body, collect);
 		}
 	}
 
-	void CollisionGroup::CollideCollisionGroup(CollisionGroup* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points)
+	void CollisionGroup::CollideCollisionGroup(CollisionGroup* other, ContactDataCollector* collect)
 	{
 		// TODO: consult disabled_collisions for child-group and child-other-child collisions?
 
@@ -181,7 +181,7 @@ namespace CibraryEngine
 			{
 				RigidBody* jbody = *jter;
 				if(AABB::IntersectTest(iaabb, jbody->GetCachedAABB()))
-					ibody->CollideRigidBody(jbody, alloc, contact_points);
+					ibody->CollideRigidBody(jbody, collect);
 			}
 		}
 	}

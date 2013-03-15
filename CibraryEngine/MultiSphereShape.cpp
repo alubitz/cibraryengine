@@ -3,6 +3,7 @@
 
 #include "Physics.h"
 #include "ContactPoint.h"
+#include "ContactDataCollector.h"
 #include "RigidBody.h"
 #include "RayCollider.h"
 
@@ -929,17 +930,18 @@ namespace CibraryEngine
 				return false;
 		}
 
-		ContactPoint* CollideSphere(const Sphere& sphere, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody)
+		ContactRegion* CollideSphere(const Sphere& sphere, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)
 		{
 			// TODO: implement this
 			return NULL;
 		}
 
-		bool CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)
+		ContactRegion* CollidePlane(const Mat4& my_xform, const Plane& plane, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)
 		{
 			Vec3 plane_norm = plane.normal;
 			float plane_offset = plane.offset;
 
+			vector<Vec3> positions;
 			for(vector<SpherePart>::iterator iter = spheres.begin(), spheres_end = spheres.end(); iter != spheres_end; ++iter)
 			{
 				Vec3 sphere_pos = my_xform.TransformVec3_1(iter->sphere.center);
@@ -948,19 +950,16 @@ namespace CibraryEngine
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
 
 				if(dist < 0.0f)
-				{
-					ContactPoint* result = alloc->New(ibody, jbody);
-					result->pos = sphere_pos + plane_norm * radius;
-					result->normal = -plane_norm;
-
-					results.push_back(result);
-				}
+					positions.push_back(sphere_pos + plane_norm * radius);
 			}
 
-			return !results.empty();
+			if(positions.empty())
+				return NULL;
+			else
+				return collect->AddRegion(ibody, jbody, -plane.normal, positions.size(), positions.data());
 		}
 
-		ContactPoint* CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, RigidBody* ibody, RigidBody* jbody, ContactPointAllocator* alloc)
+		ContactRegion* CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, RigidBody* ibody, RigidBody* jbody, ContactDataCollector* collect)
 		{
 			// vector containing just the spheres (no extra stuff like cutting planes, etc.) transformed into the triangle's coordinate system
 			if(my_spheres.empty())		// only compute this if it hasn't been computed already
@@ -1023,8 +1022,8 @@ namespace CibraryEngine
 
 
 			// triangle's planes
-			if(scorer.Score(-tri.plane.normal))	{ return false; }
-			if(scorer.Score(tri.plane.normal))	{ return false; }
+			if(scorer.Score(-tri.plane.normal))	{ return NULL; }
+			if(scorer.Score(tri.plane.normal))	{ return NULL; }
 
 			// my spheres ...
 			for(vector<Sphere>::iterator iter = my_spheres.begin(), spheres_end = my_spheres.end(); iter != spheres_end; ++iter)
@@ -1036,19 +1035,19 @@ namespace CibraryEngine
 				Vec3 sc = tri.c - s;
 
 				// ... vs. triangle's verts
-				if(scorer.Score(Vec3::Normalize(sa)))	{ return false; }
-				if(scorer.Score(Vec3::Normalize(sb)))	{ return false; }
-				if(scorer.Score(Vec3::Normalize(sc)))	{ return false; }
+				if(scorer.Score(Vec3::Normalize(sa)))	{ return NULL; }
+				if(scorer.Score(Vec3::Normalize(sb)))	{ return NULL; }
+				if(scorer.Score(Vec3::Normalize(sc)))	{ return NULL; }
 
 				// ... vs. triangle's edges
 				Vec3 absnabn = Vec3::Normalize(Vec3::Cross(tri.ab, Vec3::Cross(sa, tri.ab)));
-				if(scorer.Score(absnabn))				{ return false; }
+				if(scorer.Score(absnabn))				{ return NULL; }
 
 				Vec3 bcsnbcn = Vec3::Normalize(Vec3::Cross(tri.bc, Vec3::Cross(sb, tri.bc)));
-				if(scorer.Score(bcsnbcn))				{ return false; }
+				if(scorer.Score(bcsnbcn))				{ return NULL; }
 
 				Vec3 casncan = Vec3::Normalize(Vec3::Cross(tri.ac, Vec3::Cross(sc, tri.ac)));		// would be -ac, but there are two of them
-				if(scorer.Score(casncan))				{ return false; }
+				if(scorer.Score(casncan))				{ return NULL; }
 			}
 
 			// my tubes ...
@@ -1064,22 +1063,20 @@ namespace CibraryEngine
 
 				// ... vs. triangle's verts
 				Vec3 atntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.a - p1)), sin_theta);
-				if(scorer.Score(u_cos_theta - atntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - atntn))	{ return NULL; }
 
 				Vec3 btntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.b - p1)), sin_theta);
-				if(scorer.Score(u_cos_theta - btntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - btntn))	{ return NULL; }
 
 				Vec3 ctntn = Vec3::Normalize(Vec3::Cross(u, Vec3::Cross(u, tri.c - p1)), sin_theta);
-				if(scorer.Score(u_cos_theta - ctntn))	{ return false; }
+				if(scorer.Score(u_cos_theta - ctntn))	{ return NULL; }
 			}
 
 
 
 			// if we get this far, it means the objects are intersecting
-			ContactPoint* result = alloc->New(ibody, jbody);
-			result->normal = -tri.plane.normal;
-
 			float best;
+			Vec3 pos;
 			for(unsigned int i = 0; i < my_spheres.size(); ++i)
 			{
 				const Sphere& sphere = my_spheres[i];
@@ -1087,11 +1084,11 @@ namespace CibraryEngine
 				if(i == 0 || best < dist)
 				{
 					best = dist;
-					result->pos = sphere.center + scorer.direction * sphere.radius;
+					pos = sphere.center + scorer.direction * sphere.radius;
 				}
 			}
 
-			return result;
+			return collect->AddRegion(ibody, jbody, -tri.plane.normal, 1, &pos);;
 		}
 
 
@@ -1148,10 +1145,10 @@ namespace CibraryEngine
 
 	MassInfo MultiSphereShape::ComputeMassInfo()														{ return imp->ComputeMassInfo(); }
 
-	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																							{ return imp->CollideRay(ray, result, collider, body); }
-	bool MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactPointAllocator* alloc, vector<ContactPoint*>& results, RigidBody* ibody, RigidBody* jbody)							{ return imp->CollidePlane(my_xform, plane, alloc, results, ibody, jbody); }
-	ContactPoint* MultiSphereShape::CollideSphere(const Sphere& sphere, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody)																	{ return imp->CollideSphere(sphere, alloc, ibody, jbody); }
-	ContactPoint* MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactPointAllocator* alloc, RigidBody* ibody, RigidBody* jbody)	{ return imp->CollideMesh(my_xform, my_spheres, tri, ibody, jbody, alloc); }
+	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																								{ return imp->CollideRay(ray, result, collider, body); }
+	ContactRegion* MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)													{ return imp->CollidePlane(my_xform, plane, collect, ibody, jbody); }
+	ContactRegion* MultiSphereShape::CollideSphere(const Sphere& sphere, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)																		{ return imp->CollideSphere(sphere, collect, ibody, jbody); }
+	ContactRegion* MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)	{ return imp->CollideMesh(my_xform, my_spheres, tri, ibody, jbody, collect); }
 
 	void MultiSphereShape::Write(ostream& stream)														{ imp->Write(stream); }
 	unsigned int MultiSphereShape::Read(istream& stream)												{ return imp->Read(stream); }

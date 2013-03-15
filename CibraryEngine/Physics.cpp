@@ -4,7 +4,10 @@
 #include "RigidBody.h"
 #include "RayCollider.h"
 #include "CollisionGroup.h"
+
 #include "ContactPoint.h"
+#include "ContactRegion.h"
+#include "ContactDataCollector.h"
 
 #include "PhysicsRegion.h"
 #include "GridRegionManager.h"
@@ -95,7 +98,7 @@ namespace CibraryEngine
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
-		cp_allocators(),
+		cp_collectors(),
 		cgraph_solver(new CPUConstraintGraphSolver()),
 		orphan_callback(new MyOrphanCallback()),
 		step_callback(NULL)
@@ -105,7 +108,7 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < NUM_COLLISION_THREADS; ++i)
 		{
 			task_threads.push_back(new TaskThread());
-			cp_allocators.push_back(ContactPointAllocator::NewAllocator());
+			cp_collectors.push_back(ContactDataCollector::NewCollector());
 		}
 	}
 
@@ -139,9 +142,9 @@ namespace CibraryEngine
 		delete orphan_callback;
 		orphan_callback = NULL;
 
-		for(vector<ContactPointAllocator*>::iterator iter = cp_allocators.begin(); iter != cp_allocators.end(); ++iter)
-			ContactPointAllocator::DeleteAllocator(*iter);
-		cp_allocators.clear();
+		for(vector<ContactDataCollector*>::iterator iter = cp_collectors.begin(); iter != cp_collectors.end(); ++iter)
+			ContactDataCollector::DeleteCollector(*iter);
+		cp_collectors.clear();
 
 		for(vector<TaskThread*>::iterator iter = task_threads.begin(); iter != task_threads.end(); ++iter)
 		{
@@ -271,31 +274,29 @@ namespace CibraryEngine
 		{
 			float timestep;
 			vector<CollisionObject*>* objects;
-			ContactPointAllocator* alloc;
-			vector<ContactPoint*> contact_points;
+			ContactDataCollector* collect;
 			unsigned int from, to;
 
 			CollisionInitiator() { }
-			CollisionInitiator(ContactPointAllocator* alloc, float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), alloc(alloc), from(from), to(to) { }
+			CollisionInitiator(ContactDataCollector* collect, float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), collect(collect), from(from), to(to) { }
 
 			void DoTask()
 			{
 				CollisionObject **data = objects->data(), **start_ptr = data + from, **finish_ptr = data + to;
 				for(CollisionObject** obj_ptr = start_ptr; obj_ptr != finish_ptr; ++obj_ptr)
-					(*obj_ptr)->InitiateCollisions(timestep, alloc, contact_points);
+					(*obj_ptr)->InitiateCollisions(timestep, collect);
 			}
 		};
 		CollisionInitiator collision_initiators[NUM_COLLISION_THREADS];
 
-		vector<CollisionObject*> dynamic_objects_vector;
-		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
-			dynamic_objects_vector.push_back(*iter);
+		vector<CollisionObject*> dynamic_objects_vector(dynamic_objects.begin(), dynamic_objects.end());
+
 		unsigned int num_objects = dynamic_objects_vector.size();
 		unsigned int use_threads = max(1u, min((unsigned)NUM_COLLISION_THREADS, num_objects / 40));
 
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
-			collision_initiators[i] = CollisionInitiator(cp_allocators[i], timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
+			collision_initiators[i] = CollisionInitiator(cp_collectors[i], timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
 			task_threads[i]->StartTask(&collision_initiators[i]);
 		}
 
@@ -303,7 +304,8 @@ namespace CibraryEngine
 		for(unsigned int i = 0; i < use_threads; ++i)
 		{
 			task_threads[i]->WaitForCompletion();
-			temp_contact_points.insert(temp_contact_points.end(), collision_initiators[i].contact_points.begin(), collision_initiators[i].contact_points.end());
+			for(vector<ContactRegion*>::iterator iter = collision_initiators[i].collect->results.begin(); iter != collision_initiators[i].collect->results.end(); ++iter)
+				temp_contact_points.insert(temp_contact_points.end(), (*iter)->points.begin(), (*iter)->points.end());
 		}
 
 #if PROFILE_DOFIXEDSTEP
@@ -330,8 +332,8 @@ namespace CibraryEngine
 		//SolveConstraintGraph(use_constraints);
 		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
-		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(); iter != temp_contact_points.end(); ++iter)
-			ContactPoint::Delete(*iter);
+		for(unsigned int i = 0; i < use_threads; ++i)
+			collision_initiators[i].collect->ClearResults();
 
 #if PROFILE_DOFIXEDSTEP
 		timer_cgraph += timer.GetAndRestart();

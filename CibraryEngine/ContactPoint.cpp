@@ -63,14 +63,14 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoCollisionResponse() const
 	{
-		static const float adhesion_threshold = 0.0f;
+		static const float adhesion_threshold = 0.1f;
 		static const float impulse_sq_threshold = 0.0f;
 
 		assert(cache_valid);
 
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
-		if(nvdot < adhesion_threshold)						// TODO: deal with icky stuff when there's a negative normal force
+		if(nvdot <= adhesion_threshold)
 		{
 			Vec3 normal_nvdot = normal * nvdot;
 
@@ -109,148 +109,9 @@ namespace CibraryEngine
 			return false;
 	}
 
-	void ContactPoint::DoUpdateAction(float timestep)
+	void ContactPoint::DoUpdateAction(float timestep_)
 	{
-		this->timestep = timestep;
-
+		timestep = timestep_;
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
-	}
-
-
-	static vector<ContactPointAllocator*> cp_allocators = vector<ContactPointAllocator*>();
-	void ContactPoint::Delete(ContactPoint* cp)
-	{
-		for(vector<ContactPointAllocator*>::iterator iter = cp_allocators.begin(); iter != cp_allocators.end(); ++iter)
-			if((*iter)->Delete(cp))
-				return;
-
-		DEBUG();			// unable to delete contact point; the allocator that created it could not be found
-	}
-
-
-
-
-	/*
-	 * ContactPointAllocator::Chunk struct private implementation
-	 */
-	struct ContactPointAllocator::Chunk
-	{
-		static const unsigned int SIZE = 64;
-
-		ContactPoint	points		[SIZE];
-		ContactPoint*	available	[SIZE];
-
-		unsigned int available_count;
-
-		Chunk() : available_count(SIZE)
-		{
-			for(unsigned int i = 0; i < SIZE; ++i)
-				available[i] = points + i;
-		}
-
-		ContactPoint* New()
-		{
-			if(available_count != 0)
-			{
-				ContactPoint* cp = available[--available_count];
-				return new (cp) ContactPoint();
-			}
-			else
-				return NULL;
-		}
-
-		ContactPoint* New(RigidBody* obj_a, RigidBody* obj_b)
-		{
-			if(available_count != 0)
-			{
-				ContactPoint* cp = available[--available_count];
-				return new (cp) ContactPoint(obj_a, obj_b);
-			}
-			else
-				return NULL;
-		}
-
-		bool Delete(ContactPoint* cp)
-		{
-			if(cp >= points && cp < points + SIZE)
-			{
-				assert(available_count < SIZE);
-
-				available[available_count++] = cp;
-				return true;
-			}
-			else
-				return false;
-		}
-	};
-
-
-
-
-	/*
-	 * ContactPointAllocator methods (and global instance tracker)
-	 */
-	ContactPointAllocator::~ContactPointAllocator()
-	{
-		for(vector<Chunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
-			delete *iter;
-		chunks.clear();
-	}
-
-	ContactPointAllocator* ContactPointAllocator::NewAllocator()
-	{
-		ContactPointAllocator* alloc = new ContactPointAllocator();
-		cp_allocators.push_back(alloc);
-
-		return alloc;
-	}
-
-	void ContactPointAllocator::DeleteAllocator(ContactPointAllocator* alloc)
-	{
-		for(unsigned int i = 0, size = cp_allocators.size(); i < size; ++i)
-			if(cp_allocators[i] == alloc)
-			{
-				cp_allocators[i] = cp_allocators[size - 1];
-				cp_allocators.pop_back();
-
-				break;
-			}
-
-		delete alloc;
-	}
-
-	ContactPoint* ContactPointAllocator::New()
-	{
-		for(unsigned int i = 0, size = chunks.size(); i < size; ++i)
-			if(ContactPoint* cp = chunks[i]->New())
-				return cp;
-
-		Chunk* chunk = new Chunk();
-		chunks.push_back(chunk);
-
-		return chunk->New();
-	}
-
-	ContactPoint* ContactPointAllocator::New(RigidBody* obj_a, RigidBody* obj_b)
-	{
-		for(unsigned int i = 0, size = chunks.size(); i < size; ++i)
-			if(ContactPoint* cp = chunks[i]->New(obj_a, obj_b))
-				return cp;
-
-		Chunk* chunk = new Chunk();
-		chunks.push_back(chunk);
-
-		return chunk->New(obj_a, obj_b);
-	}
-
-	bool ContactPointAllocator::Delete(ContactPoint* cp)
-	{
-		cp->~ContactPoint();
-
-		for(unsigned int i = 0, size = chunks.size(); i < size; ++i)
-			if(chunks[i]->Delete(cp))
-				return true;
-
-		return false;
 	}
 }

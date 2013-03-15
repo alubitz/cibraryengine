@@ -28,7 +28,8 @@ namespace CibraryEngine
 
 	class PhysicsConstraint;
 	struct ContactPoint;
-	struct ContactPointAllocator;
+	class ContactDataCollector;
+
 	class JointConstraint;
 
 	class RayCallback;
@@ -69,7 +70,7 @@ namespace CibraryEngine
 			float internal_timer, timer_interval;
 
 			vector<TaskThread*> task_threads;
-			vector<ContactPointAllocator*> cp_allocators;
+			vector<ContactDataCollector*> cp_collectors;
 			ConstraintGraphSolver* cgraph_solver;
 
 			void DoFixedStep();

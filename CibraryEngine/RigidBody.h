@@ -70,9 +70,9 @@ namespace CibraryEngine
 			// removes rigid bodies which are contrained with this one from the collection of eligible bodies
 			void RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies);
 
-			void InitiateCollisionsForMultisphere(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+			void InitiateCollisionsForMultisphere(float timestep, ContactDataCollector* collect);
 
-			void InitiateCollisionsForConvexMesh(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+			void InitiateCollisionsForConvexMesh(float timestep, ContactDataCollector* collect);
 
 		protected:
 
@@ -89,7 +89,7 @@ namespace CibraryEngine
 			void UpdateVel(float timestep);
 			void UpdatePos(float timestep, PhysicsRegionManager* region_man);
 
-			void InitiateCollisions(float timestep, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+			void InitiateCollisions(float timestep, ContactDataCollector* collect);
 
 			
 
@@ -156,7 +156,7 @@ namespace CibraryEngine
 
 
 
-			void CollideRigidBody(RigidBody* other, ContactPointAllocator* alloc, vector<ContactPoint*>& contact_points);
+			void CollideRigidBody(RigidBody* other, ContactDataCollector* collect);
 
 			void ResetForces();
 	};
