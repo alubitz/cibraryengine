@@ -42,16 +42,16 @@ gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
---spawnBotAtPosition(gs, 0, 10)
+spawnBotAtPosition(gs, 0, 10)
 --gs.spawnRobotArm(ba.createVector(-0.5, 2, 5))
 --gs.spawnRobotTripod(ba.createVector(0, 0, 5))
-num_boxes = 1
+num_boxes = 0
 
 if num_boxes > 0 then
 	for i = 1, num_boxes do
 		local x = math.random() * 10.0 - 5.0
 		local z = math.random() * 10.0 + 30.0
-		local y = gs.getTerrainHeight(x, z) + math.random() * 200.0 + 5.0
+		local y = gs.getTerrainHeight(x, z) + 200.0 * i / num_boxes + 5.0
 
 		gs.spawnRubbish(ba.createVector(x, y, z))
 	end

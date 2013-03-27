@@ -1,9 +1,9 @@
 #include "StdAfx.h"
 #include "CPUConstraintGraphSolver.h"
 
-#include "DebugLog.h"
-
 #include "RigidBody.h"
+
+#define USE_SMART_ITERATION 0
 
 namespace CibraryEngine
 {
@@ -12,6 +12,7 @@ namespace CibraryEngine
 	 */
 	void CPUConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
+#if USE_SMART_ITERATION
 		struct Edge
 		{
 			PhysicsConstraint* constraint;
@@ -125,5 +126,11 @@ namespace CibraryEngine
 
 			first = nu_first;
 		}
+#else
+		PhysicsConstraint **begin = constraints.data(), **end = begin + constraints.size();
+		for(unsigned int i = 0; i < iterations; ++i)
+			for(PhysicsConstraint** iter = begin; iter != end; ++iter)
+				(*iter)->DoConstraintAction();
+#endif
 	}
 }

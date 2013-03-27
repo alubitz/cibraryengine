@@ -63,7 +63,7 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoCollisionResponse() const
 	{
-		static const float adhesion_threshold = 0.1f;
+		static const float adhesion_threshold = 0.0f;
 		static const float impulse_sq_threshold = 0.0f;
 
 		assert(cache_valid);

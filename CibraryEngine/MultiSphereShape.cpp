@@ -949,7 +949,7 @@ namespace CibraryEngine
 
 				float dist = Vec3::Dot(plane_norm, sphere_pos) - plane_offset - radius;
 
-				if(dist < 0.0f)
+				if(dist <= 0.0f)
 					positions.push_back(sphere_pos + plane_norm * radius);
 			}
 

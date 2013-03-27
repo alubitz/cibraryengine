@@ -65,10 +65,6 @@ namespace CibraryEngine
 		public:
 			
 			vector<Vec3> verts;
-			vector<Vec3> edges_normalized;
-			vector<Vec3> edge_points;
-			vector<Vec3> face_normals;
-
 			AABB aabb;
 
 			ConvexMeshShapeInstanceCache();
