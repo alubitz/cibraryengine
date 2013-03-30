@@ -171,7 +171,7 @@ namespace Test
 
 	void CrabBug::PoseToPhysics(float timestep)
 	{
-		Dood::PoseToPhysics(0.0f);
+		Dood::PoseToPhysics(timestep);
 
 		/*
 		if(alive)

@@ -79,8 +79,6 @@ namespace Test
 
 			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
 
-			Vec3 origin;
-
 			RigidBody* root_rigid_body;
 			vector<RigidBody*> rigid_bodies;
 			vector<BoneShootable*> shootables;
@@ -120,7 +118,7 @@ namespace Test
 			virtual void Spawned();
 			virtual void DeSpawned();
 
-			void TakeDamage(Damage damage, Vec3 from_dir);
+			void TakeDamage(Damage damage, const Vec3& from_dir);
 			void Splatter(Shot* shot, const Vec3& poi, const Vec3& vel);
 
 			virtual void Die(Damage cause);
@@ -156,7 +154,7 @@ namespace Test
 				Damage damage;
 				bool cancel;
 
-				DamageTakenEvent(Dood* dood, Vec3 from_dir, Damage damage) : dood(dood), from_dir(from_dir), damage(damage), cancel(false) { }
+				DamageTakenEvent(Dood* dood, const Vec3& from_dir, Damage damage) : dood(dood), from_dir(from_dir), damage(damage), cancel(false) { }
 			};
 			EventDispatcher OnDamageTaken;
 

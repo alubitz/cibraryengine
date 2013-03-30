@@ -65,7 +65,7 @@ namespace Test
 		model(model),
 		character(NULL),
 		posey(NULL),
-		use_cheaty_physics(false),
+		use_cheaty_physics(true),
 		vis_bs_radius(2.5f),
 		root_rigid_body(NULL),
 		rigid_bodies(),
@@ -324,7 +324,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 0.0f;
+			float third_person_distance = 5.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -365,7 +365,7 @@ namespace Test
 
 	void Dood::PhysicsToCharacter()
 	{
-		origin = root_rigid_body->GetPosition();
+		Vec3 origin = root_rigid_body->GetPosition();				// why not just use Dood::pos? idk
 
 		unsigned int num_bones = bone_to_rbody.size();
 		for(unsigned int i = 0; i < num_bones; ++i)
@@ -382,6 +382,28 @@ namespace Test
 		character->skeleton->InvalidateCachedBoneXforms();
 	}
 
+	Vec3 ComputeAngularMomentum(const Vec3& com, const Vec3& com_vel, vector<RigidBody*>& bones)
+	{
+		Vec3 result;
+
+		for(RigidBody **iter = bones.data(), **bones_end = iter + bones.size(); iter != bones_end; ++iter)
+		{
+			RigidBody* body = *iter;
+			MassInfo mass_info = body->GetTransformedMassInfo();
+			
+			// linear component
+			float mass = mass_info.mass;
+			Vec3 vel = body->GetLinearVelocity() - com_vel;
+			Vec3 radius = mass_info.com - com;
+			result += Vec3::Cross(vel, radius) * mass;
+
+			// angular component
+			result += Mat3(mass_info.moi) * body->GetAngularVelocity();
+		}
+
+		return result;
+	}
+
 	void Dood::PoseToPhysics(float timestep)
 	{
 		if(alive)
@@ -390,10 +412,10 @@ namespace Test
 
 			if(use_cheaty_physics)
 			{
-				// "cheaty" physics conserves linear but not angular momentum
+				// "cheaty" physics; conserves linear and angular momentum! finally!
 				// compute center of mass, and the velocity thereof
 				Vec3 net_vel;
-				Vec3 com, rest_com;					// rest_com = where the com would be if the dood were in this pose at the origin;
+				Vec3 com;
 				float net_mass = 0.0f;
 
 				for(unsigned int i = 0; i < num_bodies; ++i)
@@ -403,12 +425,42 @@ namespace Test
 					float mass = body->GetMass();
 					net_vel += body->GetLinearVelocity() * mass;
 					com += body->GetCenterOfMass() * mass;
-					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(body->GetMassInfo().com) * body->GetMass();
+					if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+						rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+					
 					net_mass += mass;
 				}
+				posey->skeleton->InvalidateCachedBoneXforms();
 				net_vel /= net_mass;
 				com /= net_mass;
+
+				// rest_com = where the com would be if the dood were in this pose at the origin
+				Vec3 rest_com;
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+					MassInfo mass_info = body->GetMassInfo();
+
+					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(mass_info.com) * mass_info.mass;
+				}
 				rest_com /= net_mass;
+
+				// compute moment of inertia
+				Mat3 moi;
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+
+					MassInfo xformed_mass_info = body->GetTransformedMassInfo();
+
+					Mat3 temp;
+					MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, temp.values);
+
+					moi += temp;
+				}
+
+				// compute angular momentum
+				Vec3 net_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies);
 
 				// make bones conform to pose
 				for(unsigned int i = 0; i < num_bodies; ++i)
@@ -426,13 +478,21 @@ namespace Test
 
 					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
-					float time_coeff = timestep * 2400.0f;
+					float move_rate_coeff = 40.0f;
 
-					Vec3 nu_v = net_vel + (bone_pos - body->GetCenterOfMass()) * time_coeff;
-					body->SetLinearVelocity(nu_v);
+					body->SetLinearVelocity(net_vel + (bone_pos - body->GetCenterOfMass()) * move_rate_coeff);
+					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
+				}
 
-					Vec3 nu_av = (Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * time_coeff;
-					body->SetAngularVelocity(nu_av);
+				// compute and undo any changes we made to the angular momentum with our cheaty physics
+				Vec3 delta_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies) - net_amom;
+				Vec3 rot = Mat3::Invert(moi) * delta_amom;
+
+				for(unsigned int i = 0; i < num_bodies; ++i)
+				{
+					RigidBody* body = rigid_bodies[i];
+					body->SetAngularVelocity(body->GetAngularVelocity() - rot);
+					body->SetLinearVelocity(body->GetLinearVelocity() - Vec3::Cross(body->GetCenterOfMass() - com, rot));
 				}
 			}
 			else
@@ -658,7 +718,7 @@ namespace Test
 			intrinsic_weapon->is_valid = false;
 	}
 
-	void Dood::TakeDamage(Damage damage, Vec3 from_dir)
+	void Dood::TakeDamage(Damage damage, const Vec3& from_dir)
 	{
 		DamageTakenEvent evt(this, from_dir, damage);
 		OnDamageTaken(&evt);
