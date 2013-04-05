@@ -9,6 +9,8 @@
 
 #include "Particle.h"
 
+#include "PlacedFootConstraint.h"
+
 namespace Test
 {
 	/*
@@ -85,6 +87,7 @@ namespace Test
 		OnDeath()
 	{
 		standing_callback.dood = this;
+		standing_callback.angular_coeff = 0.0f;
 
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
@@ -128,10 +131,10 @@ namespace Test
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		float standing = standing_callback.standing;
+		bool standing = standing_callback.standing;
 
 		float timestep = time.elapsed;
-		float traction = standing * ground_traction + (1 - standing) * air_traction;
+		float traction = standing ? ground_traction : air_traction;
 
 		Vec2 control_vec = Vec2(control_state->GetFloatControl("sidestep"), control_state->GetFloatControl("forward"));
 		if(float magsq = control_vec.ComputeMagnitudeSquared())
@@ -148,7 +151,7 @@ namespace Test
 			if(timestep < 0.01f)			// bit of hackery here to make stuff work properly with extremely high framerates
 				timestep = 0.01f;
 
-			desired_vel = (vel - desired_vel) * expf(-traction * timestep * standing) + desired_vel;
+			desired_vel = (vel - desired_vel) * (standing ? expf(-traction * timestep) : 1.0f) + desired_vel;
 			Vec3 dv = desired_vel - vel;
 
 			standing_callback.ApplyVelocityChange(dv);
@@ -242,8 +245,6 @@ namespace Test
 			DoWeaponControls(time);
 
 		posey->UpdatePoses(time);
-
-		standing_callback.Reset();
 
 		if(!alive)
 		{
@@ -382,11 +383,11 @@ namespace Test
 		character->skeleton->InvalidateCachedBoneXforms();
 	}
 
-	Vec3 ComputeAngularMomentum(const Vec3& com, const Vec3& com_vel, vector<RigidBody*>& bones)
+	static Vec3 ComputeAngularMomentum(const Vec3& com, const Vec3& com_vel, const vector<RigidBody*>& bones)
 	{
 		Vec3 result;
 
-		for(RigidBody **iter = bones.data(), **bones_end = iter + bones.size(); iter != bones_end; ++iter)
+		for(RigidBody *const*iter = bones.data(), *const*bones_end = iter + bones.size(); iter != bones_end; ++iter)
 		{
 			RigidBody* body = *iter;
 			MassInfo mass_info = body->GetTransformedMassInfo();
@@ -434,7 +435,7 @@ namespace Test
 				net_vel /= net_mass;
 				com /= net_mass;
 
-				// rest_com = where the com would be if the dood were in this pose at the origin
+				// rest_com = where the com would be if the dood were in this pose at the origin; computed in its own loop because above loop may change bone xforms
 				Vec3 rest_com;
 				for(unsigned int i = 0; i < num_bodies; ++i)
 				{
@@ -446,17 +447,15 @@ namespace Test
 				rest_com /= net_mass;
 
 				// compute moment of inertia
-				Mat3 moi;
+				Mat3 moi, body_moi;
 				for(unsigned int i = 0; i < num_bodies; ++i)
 				{
 					RigidBody* body = rigid_bodies[i];
 
 					MassInfo xformed_mass_info = body->GetTransformedMassInfo();
+					MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, body_moi.values);
 
-					Mat3 temp;
-					MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, temp.values);
-
-					moi += temp;
+					moi += body_moi;
 				}
 
 				// compute angular momentum
@@ -692,6 +691,8 @@ namespace Test
 		}
 		constraints.clear();
 
+		standing_callback.BreakAllConstraints();
+
 		// clear rigid bodies
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
 		{
@@ -761,6 +762,8 @@ namespace Test
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
 
+		standing_callback.BreakAllConstraints();
+
 		alive = false;
 	}
 
@@ -790,19 +793,29 @@ namespace Test
 	 */
 	void Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
+		if(!dood->alive)
+			return;
+
 		for(map<unsigned int, RigidBody*>::iterator iter = dood->foot_bones.begin(); iter != dood->foot_bones.end(); ++iter)
-			if(collision.obj_a == iter->second || collision.obj_b == iter->second)
+		{
+			RigidBody* foot = iter->second;
+			if(collision.obj_a == foot || collision.obj_b == foot)
 			{
-				Vec3 normal = collision.obj_a == iter->second ? -collision.normal : collision.normal;
+				Vec3 normal = collision.obj_a == foot ? -collision.normal : collision.normal;
 				if(normal.y > 0.1f)
 				{
-					standing_on.push_back(collision.obj_a == iter->second ? collision.obj_b : collision.obj_a);
-					standing = 1.0f;
+					if(foot_bases.find(foot) == foot_bases.end())
+					{
+						RigidBody* surface = collision.obj_a == foot ? collision.obj_b : collision.obj_a;
+						PlacedFootConstraint* pfc = foot_bases[foot] = new PlacedFootConstraint(foot, surface, collision.pos, angular_coeff);
+						dood->physics->AddConstraint(pfc);
+					}
+
+					standing = true;
 				}
 			}
+		}
 	}
-
-	void Dood::StandingCallback::Reset() { standing_on.clear(); standing = 0; }
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
 	{
@@ -817,9 +830,21 @@ namespace Test
 
 		// TODO: divide impulse somehow weighted-ish, instead of evenly? and maybe don't apply these as central impulses?
 
-		Vec3 use_impulse = -net_impulse / float(standing_on.size());
-		for(vector<RigidBody*>::iterator iter = standing_on.begin(); iter != standing_on.end(); ++iter)
-			(*iter)->ApplyCentralImpulse(use_impulse);
+		Vec3 use_impulse = -net_impulse / float(foot_bases.size());
+		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end(); ++iter)
+			(iter->second)->obj_b->ApplyCentralImpulse(use_impulse);
+	}
+
+	void Dood::StandingCallback::BreakAllConstraints()
+	{
+		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end(); ++iter)
+		{
+			dood->physics->RemoveConstraint(iter->second);
+			delete iter->second;
+		}
+		foot_bases.clear();
+
+		standing = false;
 	}
 
 

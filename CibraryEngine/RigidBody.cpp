@@ -213,7 +213,7 @@ namespace CibraryEngine
 		applied_force += force;
 	}
 
-	Vec3 RigidBody::GetAngularVelocity()								{ return rot; }
+	Vec3 RigidBody::GetAngularVelocity() const							{ return rot; }
 	void RigidBody::SetAngularVelocity(const Vec3& vel)					{ rot = vel; }
 
 	MassInfo RigidBody::GetTransformedMassInfo() const

@@ -329,7 +329,6 @@ namespace CibraryEngine
 		timer_constraints += timer.GetAndRestart();
 #endif
 
-		//SolveConstraintGraph(use_constraints);
 		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
 		for(unsigned int i = 0; i < use_threads; ++i)

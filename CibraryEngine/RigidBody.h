@@ -100,7 +100,7 @@ namespace CibraryEngine
 
 			
 
-			Vec3 GetAngularVelocity();
+			Vec3 GetAngularVelocity() const;
 			void SetAngularVelocity(const Vec3& vel);
 
 			

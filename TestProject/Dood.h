@@ -15,6 +15,8 @@ namespace Test
 	class WeaponEquip;
 	class WeaponIntrinsic;
 
+	class PlacedFootConstraint;
+
 	struct Damage;
 
 	class Dood : public Pawn
@@ -129,13 +131,16 @@ namespace Test
 			struct StandingCallback : public CollisionCallback
 			{
 				Dood* dood;
-				vector<RigidBody*> standing_on;
-				float standing;
+				map<RigidBody*, PlacedFootConstraint*> foot_bases;
+				bool standing;
+
+				float angular_coeff;
 
 				void OnCollision(const ContactPoint& collision);
-
-				void Reset();
+				
 				void ApplyVelocityChange(const Vec3& dv);
+
+				void BreakAllConstraints();
 
 			} standing_callback;
 

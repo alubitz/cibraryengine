@@ -398,9 +398,11 @@ namespace Test
 		bool jetted = false;
 		if(control_state->GetBoolControl("jump"))
 		{
-			if(standing_callback.standing > 0 && time.total > jump_start_timer)							// jump off the ground
+			if(standing_callback.standing && time.total > jump_start_timer)							// jump off the ground
 			{
 				standing_callback.ApplyVelocityChange(Vec3(0, jump_speed, 0));
+				standing_callback.BreakAllConstraints();
+
 				jump_start_timer = time.total + jump_to_fly_delay;
 			}
 			else

@@ -132,6 +132,8 @@ namespace Test
 		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
 		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
 		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
+
+		standing_callback.angular_coeff = 0.0f;
 	}
 
 	void CrabBug::InnerDispose()
@@ -145,7 +147,7 @@ namespace Test
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		if(standing_callback.standing > 0 && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
+		if(standing_callback.standing && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
 		{
 			// crab bug leaps forward
 			float leap_angle = 0.4f;
