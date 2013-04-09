@@ -807,7 +807,29 @@ namespace Test
 					if(foot_bases.find(foot) == foot_bases.end())
 					{
 						RigidBody* surface = collision.obj_a == foot ? collision.obj_b : collision.obj_a;
-						PlacedFootConstraint* pfc = foot_bases[foot] = new PlacedFootConstraint(foot, surface, collision.pos, angular_coeff);
+
+						Vec3 use_pos = collision.pos;
+
+						Vec3 surface_pos = surface->GetInvTransform().TransformVec3_1(use_pos);
+						Vec3 foot_pos = foot->GetInvTransform().TransformVec3_1(use_pos);
+
+						PlacedFootConstraint* pfc = NULL;
+						if(angular_coeff > 0.0f)
+						{
+							Quaternion foot_ori = foot->GetOrientation();
+							Quaternion surf_ori = surface->GetOrientation();
+
+							// TODO: modify this to accomodate surfaces with arbitrary slopes
+							Quaternion foot_from_surf = Quaternion::Reverse(surf_ori) * foot_ori;
+							Quaternion desired_foot_ori = surf_ori * Quaternion::FromPYR(0, foot_from_surf.ToPYR().y, 0);
+
+							pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
+						}
+						else
+							pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos);
+
+						foot_bases[foot] = pfc;
+
 						dood->physics->AddConstraint(pfc);
 					}
 

@@ -8,7 +8,7 @@
 
 #include "ConverterWhiz.h"
 
-#define DISABLE_ANIMATIONS 0
+#define DISABLE_ANIMATIONS 1
 
 namespace Test
 {
@@ -359,11 +359,14 @@ namespace Test
 		use_cheaty_physics = true;
 
 		p_ag = new PoseAimingGun();
+
+		KeyframeAnimation rest;
+		GenerateRestPose(&rest);
+
 #if !DISABLE_ANIMATIONS
 		posey->active_poses.push_back(p_ag);
 
-		KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
-		GenerateRestPose(&rest);
+		KeyframeAnimation kf, kb, kr, kl, turnl, turnr;		
 		GenerateHardCodedWalkAnimation(&kf);
 		GenerateReverseWalkanimation(&kb);
 		GenerateRightWalkAnimation(&kr);
@@ -388,6 +391,8 @@ namespace Test
 
 		foot_bones[Bone::string_table["l foot"]] = NULL;
 		foot_bones[Bone::string_table["r foot"]] = NULL;
+
+		standing_callback.angular_coeff = 1.0f;
 	}
 
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)

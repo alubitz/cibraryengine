@@ -9,11 +9,19 @@ namespace Test
 	/*
 	 * PlacedFootConstraint methods
 	 */
-	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& pos, float angular_coeff) :
+	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos) :
 		PhysicsConstraint(foot, surface),
-		a_pos(foot->GetInvTransform().TransformVec3_1(pos)),
-		b_pos(surface->GetInvTransform().TransformVec3_1(pos)),
-		desired_ori(Quaternion::Reverse(foot->GetOrientation()) * surface->GetOrientation()),
+		a_pos(a_pos),
+		b_pos(b_pos),
+		angular_coeff(0.0f)
+	{
+	}
+
+	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos, const Quaternion& relative_ori, float angular_coeff) :
+		PhysicsConstraint(foot, surface),
+		a_pos(a_pos),
+		b_pos(b_pos),
+		desired_ori(relative_ori),
 		angular_coeff(angular_coeff)
 	{
 	}
@@ -22,12 +30,14 @@ namespace Test
 	{
 		bool wakeup = false;
 
-		Vec3 avel = obj_a->GetLinearVelocity(), bvel = obj_b->GetLinearVelocity(), arot = obj_a->GetAngularVelocity(), brot = obj_b->GetAngularVelocity();
-		Vec3 current_dv = bvel - avel + Vec3::Cross(r2, brot) - Vec3::Cross(r1, arot);
+		Vec3 avel = obj_a->GetLinearVelocity();
+		Vec3 bvel = obj_b->GetLinearVelocity();
+		Vec3 arot = obj_a->GetAngularVelocity();
+		Vec3 brot = obj_b->GetAngularVelocity();
 
+		Vec3 current_dv = bvel - avel + Vec3::Cross(r2, brot) - Vec3::Cross(r1, arot);
 		Vec3 dv = desired_dv - current_dv;
-		float magsq = dv.ComputeMagnitudeSquared();
-		if(magsq > 0.0f)
+		if(float magsq = dv.ComputeMagnitudeSquared())
 		{
 			Vec3 impulse = rlv_to_impulse * dv;
 
@@ -44,8 +54,7 @@ namespace Test
 		if(angular_coeff > 0.0f)
 		{
 			Vec3 alpha = (brot - arot) - desired_av;
-			magsq = alpha.ComputeMagnitudeSquared();
-			if(magsq > 0.0f)
+			if(float magsq = alpha.ComputeMagnitudeSquared())
 			{
 				alpha *= angular_coeff;
 
@@ -70,10 +79,9 @@ namespace Test
 			return false;
 	}
 
-	void PlacedFootConstraint::DoUpdateAction(float timestep_)
+	void PlacedFootConstraint::DoUpdateAction(float timestep)
 	{
-		timestep = timestep_;
-		inv_timestep = 1.0f / timestep;
+		float inv_timestep = 1.0f / timestep;
 
 		Vec3 p1 = obj_a->GetTransformationMatrix().TransformVec3_1(a_pos);
 		Vec3 p2 = obj_b->GetTransformationMatrix().TransformVec3_1(b_pos);
@@ -116,7 +124,7 @@ namespace Test
 			alpha_to_objb = b_invmoi * net_moi;
 
 			Quaternion a_to_b = Quaternion::Reverse(obj_a->GetOrientation()) * obj_b->GetOrientation();
-			desired_av = (Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * -inv_timestep;
+			desired_av = (a_to_b * Quaternion::Reverse(desired_ori)).ToPYR() * -inv_timestep;
 		}
 	}
 }

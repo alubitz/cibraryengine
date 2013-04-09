@@ -30,9 +30,8 @@ namespace Test
 			Mat3 rlv_to_impulse, impulse_to_arot, impulse_to_brot;
 			Mat3 alpha_to_obja, alpha_to_objb;
 
-			float timestep, inv_timestep;
-
-			PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& pos, float angular_coeff);
+			PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& foot_pos, const Vec3& surface_pos);
+			PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& foot_pos, const Vec3& surface_pos, const Quaternion& relative_ori, float angular_coeff);
 
 			bool DoConstraintAction();
 			void DoUpdateAction(float timestep);
