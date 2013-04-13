@@ -13,7 +13,8 @@ namespace Test
 		PhysicsConstraint(foot, surface),
 		a_pos(a_pos),
 		b_pos(b_pos),
-		angular_coeff(0.0f)
+		angular_coeff(0.0f),
+		broken(false)
 	{
 	}
 
@@ -22,7 +23,8 @@ namespace Test
 		a_pos(a_pos),
 		b_pos(b_pos),
 		desired_ori(relative_ori),
-		angular_coeff(angular_coeff)
+		angular_coeff(angular_coeff),
+		broken(false)
 	{
 	}
 
@@ -43,8 +45,8 @@ namespace Test
 
 			// apply impulse
 			avel += impulse * inv_amass;
-			arot += impulse_to_arot * impulse;
 			bvel -= impulse * inv_bmass;
+			arot += impulse_to_arot * impulse;
 			brot -= impulse_to_brot * impulse;
 
 			wakeup = true;
@@ -56,10 +58,8 @@ namespace Test
 			Vec3 alpha = (brot - arot) - desired_av;
 			if(float magsq = alpha.ComputeMagnitudeSquared())
 			{
-				alpha *= angular_coeff;
-
-				arot += alpha_to_obja * alpha;
-				brot -= alpha_to_objb * alpha;
+				arot += alpha_to_arot * alpha;
+				brot -= alpha_to_brot * alpha;
 
 				wakeup = true;
 			}
@@ -68,9 +68,8 @@ namespace Test
 		if(wakeup)
 		{
 			obj_a->SetLinearVelocity(avel);
-			obj_a->SetAngularVelocity(arot);
-
 			obj_b->SetLinearVelocity(bvel);
+			obj_a->SetAngularVelocity(arot);
 			obj_b->SetAngularVelocity(brot);
 			
 			return true;
@@ -120,8 +119,8 @@ namespace Test
 		if(angular_coeff > 0.0f)
 		{
 			Mat3 net_moi = Mat3::Invert(a_invmoi + b_invmoi);
-			alpha_to_obja = a_invmoi * net_moi;
-			alpha_to_objb = b_invmoi * net_moi;
+			alpha_to_arot = a_invmoi * net_moi * angular_coeff;
+			alpha_to_brot = b_invmoi * net_moi * angular_coeff;
 
 			Quaternion a_to_b = Quaternion::Reverse(obj_a->GetOrientation()) * obj_b->GetOrientation();
 			desired_av = (a_to_b * Quaternion::Reverse(desired_ori)).ToPYR() * -inv_timestep;

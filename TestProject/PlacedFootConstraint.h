@@ -17,6 +17,8 @@ namespace Test
 
 			float angular_coeff;
 
+			bool broken;
+
 
 			// cached stuff
 
@@ -28,7 +30,7 @@ namespace Test
 
 			float inv_amass, inv_bmass;
 			Mat3 rlv_to_impulse, impulse_to_arot, impulse_to_brot;
-			Mat3 alpha_to_obja, alpha_to_objb;
+			Mat3 alpha_to_arot, alpha_to_brot;
 
 			PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& foot_pos, const Vec3& surface_pos);
 			PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& foot_pos, const Vec3& surface_pos, const Quaternion& relative_ori, float angular_coeff);

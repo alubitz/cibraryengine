@@ -17,7 +17,7 @@ namespace CibraryEngine
 
 		void Start();
 		float Stop();
-		float GetAndRestart() { float result = Stop(); Start(); return result; }
+		float GetAndRestart() { float result = Stop(); _start = _stop; return result; }
 
 		float GetElapsedTime();
 	};

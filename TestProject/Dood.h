@@ -19,6 +19,8 @@ namespace Test
 
 	struct Damage;
 
+	class GaitSelector;
+
 	class Dood : public Pawn
 	{
 		private:
@@ -42,8 +44,11 @@ namespace Test
 
 			float yaw_rate, pitch_rate;
 
+			GaitSelector* gait_selector;
+
 			virtual void InnerDispose();
 
+			virtual GaitSelector* CreateGaitSelector();
 			void DoPitchAndYawControls(TimingInfo time);
 			virtual void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			virtual void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
@@ -136,10 +141,13 @@ namespace Test
 
 				float angular_coeff;
 
-				void OnCollision(const ContactPoint& collision);
-				
-				void ApplyVelocityChange(const Vec3& dv);
+				StandingCallback();
 
+				void OnCollision(const ContactPoint& collision);			// from CibraryEngine::CollisionCallback
+				void MaybeCreateConstraint(RigidBody* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal);
+
+				void ApplyVelocityChange(const Vec3& dv);
+				void OnPhysicsTick(float timestep);
 				void BreakAllConstraints();
 
 			} standing_callback;

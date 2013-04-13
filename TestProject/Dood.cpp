@@ -9,6 +9,7 @@
 
 #include "Particle.h"
 
+#include "GaitSelector.h"
 #include "PlacedFootConstraint.h"
 
 namespace Test
@@ -52,6 +53,7 @@ namespace Test
 		character_pose_time(-1),
 		yaw_rate(10.0f),
 		pitch_rate(10.0f),
+		gait_selector(NULL),
 		team(team),
 		materials(),
 		blood_material(NULL),
@@ -81,13 +83,13 @@ namespace Test
 		mphys(mphys),
 		equipped_weapon(NULL),
 		intrinsic_weapon(NULL),
+		standing_callback(),
 		OnAmmoFailure(),
 		OnDamageTaken(),
 		OnJumpFailure(),
 		OnDeath()
 	{
 		standing_callback.dood = this;
-		standing_callback.angular_coeff = 0.0f;
 
 		// creating character
 		character = new SkinnedCharacter(model->CreateSkeleton());
@@ -127,7 +129,9 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward) { }
+	GaitSelector* Dood::CreateGaitSelector()									{ return NULL; }
+
+	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)	{ }
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
@@ -407,6 +411,11 @@ namespace Test
 
 	void Dood::PoseToPhysics(float timestep)
 	{
+		standing_callback.OnPhysicsTick(timestep);
+
+		if(gait_selector != NULL)
+			gait_selector->Update(timestep);
+
 		if(alive)
 		{
 			unsigned int num_bodies = rigid_bodies.size();
@@ -672,6 +681,8 @@ namespace Test
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
 		}
+		else
+			gait_selector = CreateGaitSelector();
 	}
 
 	void Dood::DeSpawned()
@@ -717,6 +728,13 @@ namespace Test
 			equipped_weapon->is_valid = false;
 		if(intrinsic_weapon)
 			intrinsic_weapon->is_valid = false;
+
+		if(gait_selector)
+		{
+			gait_selector->Dispose();
+			delete gait_selector;
+			gait_selector = NULL;
+		}
 	}
 
 	void Dood::TakeDamage(Damage damage, const Vec3& from_dir)
@@ -791,6 +809,8 @@ namespace Test
 	/*
 	 * Dood::StandingCallback methods
 	 */
+	Dood::StandingCallback::StandingCallback() : standing(false), angular_coeff(0.0f) { }
+
 	void Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
 		if(!dood->alive)
@@ -804,39 +824,47 @@ namespace Test
 				Vec3 normal = collision.obj_a == foot ? -collision.normal : collision.normal;
 				if(normal.y > 0.1f)
 				{
-					if(foot_bases.find(foot) == foot_bases.end())
-					{
-						RigidBody* surface = collision.obj_a == foot ? collision.obj_b : collision.obj_a;
-
-						Vec3 use_pos = collision.pos;
-
-						Vec3 surface_pos = surface->GetInvTransform().TransformVec3_1(use_pos);
-						Vec3 foot_pos = foot->GetInvTransform().TransformVec3_1(use_pos);
-
-						PlacedFootConstraint* pfc = NULL;
-						if(angular_coeff > 0.0f)
-						{
-							Quaternion foot_ori = foot->GetOrientation();
-							Quaternion surf_ori = surface->GetOrientation();
-
-							// TODO: modify this to accomodate surfaces with arbitrary slopes
-							Quaternion foot_from_surf = Quaternion::Reverse(surf_ori) * foot_ori;
-							Quaternion desired_foot_ori = surf_ori * Quaternion::FromPYR(0, foot_from_surf.ToPYR().y, 0);
-
-							pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
-						}
-						else
-							pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos);
-
-						foot_bases[foot] = pfc;
-
-						dood->physics->AddConstraint(pfc);
-					}
-
-					standing = true;
+					RigidBody* surface = collision.obj_a == foot ? collision.obj_b : collision.obj_a;
+					MaybeCreateConstraint(foot, surface, collision.pos, normal);
 				}
 			}
 		}
+	}
+
+	void Dood::StandingCallback::MaybeCreateConstraint(RigidBody* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal)
+	{
+		if(foot_bases.find(foot) == foot_bases.end())
+		{
+			Vec3 surface_pos = surface->GetInvTransform().TransformVec3_1(use_pos);
+			Vec3 foot_pos = foot->GetInvTransform().TransformVec3_1(use_pos);
+
+			PlacedFootConstraint* pfc = NULL;
+			if(angular_coeff > 0.0f)
+			{
+				Quaternion foot_ori = foot->GetOrientation();
+				Quaternion surf_ori = surface->GetOrientation();
+
+				Vec3 xprod = Vec3::Cross(Vec3(0, 1, 0), use_normal);
+				float xmag = xprod.ComputeMagnitude();
+				Quaternion y_to_sloped = (xmag == 0.0f) ? Quaternion::Identity() : Quaternion::FromPYR(xprod * (acosf(use_normal.y) / xmag));
+
+				Quaternion foot_on_slope = foot_ori * y_to_sloped;
+				Quaternion desired_foot_ori = Quaternion::Reverse(y_to_sloped) * Quaternion::FromPYR(0, foot_on_slope.ToPYR().y, 0);
+
+				if((Quaternion::Reverse(foot_ori) * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
+					return;
+
+				pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
+			}
+			else
+				pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos);
+
+			foot_bases[foot] = pfc;
+
+			dood->physics->AddConstraint(pfc);
+		}
+
+		standing = true;
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
@@ -857,11 +885,32 @@ namespace Test
 			(iter->second)->obj_b->ApplyCentralImpulse(use_impulse);
 	}
 
+	void Dood::StandingCallback::OnPhysicsTick(float timestep)
+	{
+		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end();)
+		{
+			if(iter->second->broken)
+			{
+				dood->physics->RemoveConstraint(iter->second);
+				iter->second->Dispose();
+				delete iter->second;
+
+				iter = foot_bases.erase(iter);
+			}
+			else
+				++iter;
+		}
+
+		if(foot_bases.empty())
+			standing = false;
+	}
+
 	void Dood::StandingCallback::BreakAllConstraints()
 	{
 		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end(); ++iter)
 		{
 			dood->physics->RemoveConstraint(iter->second);
+			iter->second->Dispose();
 			delete iter->second;
 		}
 		foot_bases.clear();
