@@ -183,6 +183,7 @@ namespace CibraryEngine
 			unordered_map<unsigned int, BoneInfluence> bones;
 
 			Pose() : active(true), bones() { }
+			virtual ~Pose() { }
 
 			/** Sets how this Pose will affect the specified bone, by modifying the bones map */
 			void SetBonePose(unsigned int which, const Vec3& ori, const Vec3& pos) { bones[which] = BoneInfluence(ori, pos); }

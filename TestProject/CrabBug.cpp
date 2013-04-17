@@ -3,8 +3,6 @@
 
 #include "WalkPose.h"
 
-#include "Limb.h"
-
 #include "ConverterWhiz.h"
 
 #define DIE_AFTER_ONE_SECOND 0
@@ -108,8 +106,7 @@ namespace Test
 	 */
 	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		crab_heading(new CrabHeading()),
-		limbs()
+		crab_heading(new CrabHeading())
 	{
 		hp *= 0.5f;
 
@@ -126,28 +123,12 @@ namespace Test
 
 		//posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
 
-		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
-		foot_bones[Bone::string_table["l leg b 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
-		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
-
 		standing_callback.angular_coeff = 0.0f;
-	}
-
-	void CrabBug::InnerDispose()
-	{
-		Dood::InnerDispose();
-
-		for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
-			delete *iter;
-		limbs.clear();
 	}
 
 	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		if(standing_callback.standing && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
+		if(standing_callback.IsStanding() && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
 		{
 			// crab bug leaps forward
 			float leap_angle = 0.4f;
@@ -171,114 +152,13 @@ namespace Test
 		Dood::Update(time);
 	}
 
-	void CrabBug::PoseToPhysics(float timestep)
+	void CrabBug::RegisterFeet()
 	{
-		Dood::PoseToPhysics(timestep);
-
-		/*
-		if(alive)
-		{
-			for(vector<Limb*>::iterator iter = limbs.begin(); iter != limbs.end(); ++iter)
-				(*iter)->Update(timestep);
-		}
-		*/
-	}
-
-	void CrabBug::Spawned()
-	{
-		Dood::Spawned();
-
-		JointConstraint* use_joints[3] = { NULL, NULL, NULL };
-		RigidBody* use_rigid_bodies[4] = { NULL, NULL, NULL, NULL };
-
-		const string limb_prefixes[] =
-		{
-			"l leg a ",
-			"r leg a ",
-			"l leg b ",
-			"r leg b ",
-			"l leg c ",
-			"r leg c "
-		};
-
-		float pid_coeffs[] =
-		{
-			// leg a
-			0,	0,	0,
-			0,	0,	0,
-			0,	0,	0,
-
-			// leg b
-			0,	0,	0,
-			0,	0,	0,
-			0,	0,	0,
-
-			// leg c
-			0,	0,	0,
-			0,	0,	0,
-			0,	0,	0,
-		};
-
-		use_rigid_bodies[0] = RigidBodyForNamedBone("carapace");			// this value is shared for all six limbs
-
-		unsigned int num_bones = character->skeleton->bones.size();
-		unsigned int num_constraints = constraints.size();
-
-		for(unsigned int i = 0; i < 6; ++i)
-		{
-			for(unsigned int j = 1; j <= 3; ++j)
-			{
-				unsigned int id = Bone::string_table[((stringstream&)(stringstream() << limb_prefixes[i] << j)).str()];
-
-				use_rigid_bodies[j] = NULL;
-				use_joints[j - 1] = NULL;
-
-				for(unsigned int k = 0; k < num_bones; ++k)
-					if(character->skeleton->bones[k]->name == id)
-					{
-						use_rigid_bodies[j] = bone_to_rbody[k];
-						break;
-					}
-				assert(use_rigid_bodies[j] != NULL);
-				
-				for(vector<PhysicsConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				{
-					JointConstraint* jc = (JointConstraint*)*iter;
-					if(jc->obj_a == use_rigid_bodies[j] && jc->obj_b == use_rigid_bodies[j - 1])
-					{
-						use_joints[j - 1] = jc;
-						break;
-					}
-				}
-				assert(use_joints[j - 1] != NULL);
-			}
-
-			Limb* limb = new Limb(use_joints, use_rigid_bodies, 3);
-
-			float* data_ptr = pid_coeffs + 9 * (i / 2);
-			for(vector<Limb::JointEntry>::iterator iter = limb->joints.begin(); iter != limb->joints.end(); ++iter)
-			{
-				Vec3& pid_coeffs = iter->pid_coeffs;
-
-				pid_coeffs.x = *(data_ptr++);
-				pid_coeffs.y = *(data_ptr++);
-				pid_coeffs.z = *(data_ptr++);
-			}
-
-			limbs.push_back(limb);
-		}
-	}
-
-	void CrabBug::Die(Damage cause)
-	{
-		Dood::Die(cause);
-
-		for(unsigned int i = 0; i < constraints.size(); ++i)
-		{
-			JointConstraint* jc = (JointConstraint*)constraints[i];
-
-			jc->enable_motor = false;
-			jc->motor_torque = Vec3();
-		}
+		feet.push_back(new FootState(Bone::string_table["l leg a 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg a 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg b 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg b 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg c 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg c 3"]));
 	}
 }

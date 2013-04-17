@@ -33,5 +33,7 @@ namespace Test
 			SoundSource* jet_loop;
 
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
+
+			void RegisterFeet();
 	};
 }

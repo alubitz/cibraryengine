@@ -20,13 +20,6 @@ namespace Test
 		posey->active_poses.push_back(walk_pose);
 		character->mat_tex_precision = 1024.0f;
 
-		foot_bones[Bone::string_table["l leg a 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg a 3"]] = NULL;
-		foot_bones[Bone::string_table["l leg b 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg b 3"]] = NULL;
-		foot_bones[Bone::string_table["l leg c 3"]] = NULL;
-		foot_bones[Bone::string_table["r leg c 3"]] = NULL;
-
 		vis_bs_radius = 25.0f;
 		ragdoll_timer = 50.0f;
 	}
@@ -64,5 +57,15 @@ namespace Test
 	{
 		walk_pose->pos = pos;
 		walk_pose->yaw = yaw;
+	}
+
+	void ArtilleryBug::RegisterFeet()
+	{
+		feet.push_back(new FootState(Bone::string_table["l leg a 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg a 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg b 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg b 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg c 3"]));
+		feet.push_back(new FootState(Bone::string_table["r leg c 3"]));
 	}
 }

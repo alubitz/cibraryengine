@@ -14,7 +14,7 @@ namespace Test
 {
 	/*
 	 * Soldier constants
-	 */ 
+	 */
 	float fly_accel_up = 15.0f;
 
 	float jump_to_fly_delay = 0.3f;
@@ -389,9 +389,6 @@ namespace Test
 		jet_start_sound = sound_cache->Load("jet_start");
 		jet_loop_sound = sound_cache->Load("jet_loop");
 
-		foot_bones[Bone::string_table["l foot"]] = NULL;
-		foot_bones[Bone::string_table["r foot"]] = NULL;
-
 		standing_callback.angular_coeff = 1.0f;
 	}
 
@@ -403,7 +400,7 @@ namespace Test
 		bool jetted = false;
 		if(control_state->GetBoolControl("jump"))
 		{
-			if(standing_callback.standing && time.total > jump_start_timer)							// jump off the ground
+			if(standing_callback.IsStanding() && time.total > jump_start_timer)							// jump off the ground
 			{
 				standing_callback.ApplyVelocityChange(Vec3(0, jump_speed, 0));
 				standing_callback.BreakAllConstraints();
@@ -497,5 +494,11 @@ namespace Test
 			equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
 			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 		}
+	}
+
+	void Soldier::RegisterFeet()
+	{
+		feet.push_back(new FootState(Bone::string_table["l foot"]));
+		feet.push_back(new FootState(Bone::string_table["r foot"]));
 	}
 }

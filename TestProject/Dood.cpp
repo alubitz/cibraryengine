@@ -9,7 +9,6 @@
 
 #include "Particle.h"
 
-#include "GaitSelector.h"
 #include "PlacedFootConstraint.h"
 
 namespace Test
@@ -53,7 +52,6 @@ namespace Test
 		character_pose_time(-1),
 		yaw_rate(10.0f),
 		pitch_rate(10.0f),
-		gait_selector(NULL),
 		team(team),
 		materials(),
 		blood_material(NULL),
@@ -78,7 +76,6 @@ namespace Test
 		bone_to_rbody(),
 		constraints(),
 		collision_group(NULL),
-		foot_bones(),
 		physics(NULL),
 		mphys(mphys),
 		equipped_weapon(NULL),
@@ -129,13 +126,11 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	GaitSelector* Dood::CreateGaitSelector()									{ return NULL; }
-
-	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)	{ }
+	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward) { }
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		bool standing = standing_callback.standing;
+		bool standing = standing_callback.IsStanding();
 
 		float timestep = time.elapsed;
 		float traction = standing ? ground_traction : air_traction;
@@ -367,6 +362,7 @@ namespace Test
 	// overridden by subclasses
 	void Dood::PreUpdatePoses(TimingInfo time) { }
 	void Dood::PostUpdatePoses(TimingInfo time) { }
+	void Dood::RegisterFeet() { }
 
 	void Dood::PhysicsToCharacter()
 	{
@@ -412,9 +408,6 @@ namespace Test
 	void Dood::PoseToPhysics(float timestep)
 	{
 		standing_callback.OnPhysicsTick(timestep);
-
-		if(gait_selector != NULL)
-			gait_selector->Update(timestep);
 
 		if(alive)
 		{
@@ -486,7 +479,7 @@ namespace Test
 
 					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
 
-					float move_rate_coeff = 40.0f;
+					float move_rate_coeff = 60.0f;
 
 					body->SetLinearVelocity(net_vel + (bone_pos - body->GetCenterOfMass()) * move_rate_coeff);
 					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
@@ -594,6 +587,8 @@ namespace Test
 
 		unsigned int count = mphys->bones.size();
 
+		RegisterFeet();
+
 		// given string id, get index of rigid body
 		map<unsigned int, unsigned int> name_indices;
 
@@ -622,10 +617,10 @@ namespace Test
 				rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
 
 				// give feet a collision callback
-				for(map<unsigned int, RigidBody*>::iterator iter = foot_bones.begin(); iter != foot_bones.end(); ++iter)
-					if(bone_name == iter->first)
+				for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
+					if(bone_name == (*iter)->posey_id)
 					{
-						iter->second = rigid_body;
+						(*iter)->body = rigid_body;
 						rigid_body->SetCollisionCallback(&standing_callback);
 
 						break;
@@ -681,8 +676,6 @@ namespace Test
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
 		}
-		else
-			gait_selector = CreateGaitSelector();
 	}
 
 	void Dood::DeSpawned()
@@ -729,12 +722,14 @@ namespace Test
 		if(intrinsic_weapon)
 			intrinsic_weapon->is_valid = false;
 
-		if(gait_selector)
+		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
 		{
-			gait_selector->Dispose();
-			delete gait_selector;
-			gait_selector = NULL;
+			FootState* foot = *iter;
+
+			foot->Dispose();
+			delete foot;
 		}
+		feet.clear();
 	}
 
 	void Dood::TakeDamage(Damage damage, const Vec3& from_dir)
@@ -809,39 +804,39 @@ namespace Test
 	/*
 	 * Dood::StandingCallback methods
 	 */
-	Dood::StandingCallback::StandingCallback() : standing(false), angular_coeff(0.0f) { }
+	Dood::StandingCallback::StandingCallback() : angular_coeff(0.0f) { }
 
 	void Dood::StandingCallback::OnCollision(const ContactPoint& collision)
 	{
 		if(!dood->alive)
 			return;
 
-		for(map<unsigned int, RigidBody*>::iterator iter = dood->foot_bones.begin(); iter != dood->foot_bones.end(); ++iter)
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
 		{
-			RigidBody* foot = iter->second;
+			FootState* foot_state = *iter;
+			RigidBody* foot = foot_state->body;
 			if(collision.obj_a == foot || collision.obj_b == foot)
 			{
 				Vec3 normal = collision.obj_a == foot ? -collision.normal : collision.normal;
 				if(normal.y > 0.1f)
 				{
 					RigidBody* surface = collision.obj_a == foot ? collision.obj_b : collision.obj_a;
-					MaybeCreateConstraint(foot, surface, collision.pos, normal);
+					MaybeCreateConstraint(foot_state, surface, collision.pos, normal);
 				}
 			}
 		}
 	}
 
-	void Dood::StandingCallback::MaybeCreateConstraint(RigidBody* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal)
+	void Dood::StandingCallback::MaybeCreateConstraint(FootState* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal)
 	{
-		if(foot_bases.find(foot) == foot_bases.end())
+		if(foot->pfc == NULL)
 		{
 			Vec3 surface_pos = surface->GetInvTransform().TransformVec3_1(use_pos);
-			Vec3 foot_pos = foot->GetInvTransform().TransformVec3_1(use_pos);
+			Vec3 foot_pos = foot->body->GetInvTransform().TransformVec3_1(use_pos);
 
-			PlacedFootConstraint* pfc = NULL;
 			if(angular_coeff > 0.0f)
 			{
-				Quaternion foot_ori = foot->GetOrientation();
+				Quaternion foot_ori = foot->body->GetOrientation();
 				Quaternion surf_ori = surface->GetOrientation();
 
 				Vec3 xprod = Vec3::Cross(Vec3(0, 1, 0), use_normal);
@@ -854,17 +849,14 @@ namespace Test
 				if((Quaternion::Reverse(foot_ori) * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
 					return;
 
-				pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
+				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
 			}
 			else
-				pfc = new PlacedFootConstraint(foot, surface, foot_pos, surface_pos);
+				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos);
 
-			foot_bases[foot] = pfc;
 
-			dood->physics->AddConstraint(pfc);
+			dood->physics->AddConstraint(foot->pfc);
 		}
-
-		standing = true;
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
@@ -880,42 +872,57 @@ namespace Test
 
 		// TODO: divide impulse somehow weighted-ish, instead of evenly? and maybe don't apply these as central impulses?
 
-		Vec3 use_impulse = -net_impulse / float(foot_bases.size());
-		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end(); ++iter)
-			(iter->second)->obj_b->ApplyCentralImpulse(use_impulse);
+		unsigned int stand_count = 0;
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+			if((*iter)->pfc != NULL)
+				++stand_count;
+
+		Vec3 use_impulse = -net_impulse / float(stand_count);
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+			if((*iter)->pfc != NULL)
+				(*iter)->pfc->obj_b->ApplyCentralImpulse(use_impulse);
 	}
 
 	void Dood::StandingCallback::OnPhysicsTick(float timestep)
 	{
-		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end();)
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
 		{
-			if(iter->second->broken)
-			{
-				dood->physics->RemoveConstraint(iter->second);
-				iter->second->Dispose();
-				delete iter->second;
+			FootState* foot = *iter;
+			if(PlacedFootConstraint* pfc = foot->pfc)
+				if(pfc->broken)
+				{
+					dood->physics->RemoveConstraint(pfc);
+					pfc->Dispose();
+					delete pfc;
 
-				iter = foot_bases.erase(iter);
-			}
-			else
-				++iter;
+					foot->pfc = NULL;
+				}
 		}
-
-		if(foot_bases.empty())
-			standing = false;
 	}
 
 	void Dood::StandingCallback::BreakAllConstraints()
 	{
-		for(map<RigidBody*, PlacedFootConstraint*>::iterator iter = foot_bases.begin(); iter != foot_bases.end(); ++iter)
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
 		{
-			dood->physics->RemoveConstraint(iter->second);
-			iter->second->Dispose();
-			delete iter->second;
-		}
-		foot_bases.clear();
+			FootState* foot = *iter;
+			if(PlacedFootConstraint* pfc = foot->pfc)
+			{
+				dood->physics->RemoveConstraint(pfc);
+				pfc->Dispose();
+				delete pfc;
 
-		standing = false;
+				foot->pfc = NULL;
+			}
+		}
+	}
+
+	bool Dood::StandingCallback::IsStanding()
+	{
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+			if((*iter)->pfc != NULL)
+				return true;
+
+		return false;
 	}
 
 

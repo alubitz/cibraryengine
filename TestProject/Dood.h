@@ -19,8 +19,6 @@ namespace Test
 
 	struct Damage;
 
-	class GaitSelector;
-
 	class Dood : public Pawn
 	{
 		private:
@@ -44,11 +42,8 @@ namespace Test
 
 			float yaw_rate, pitch_rate;
 
-			GaitSelector* gait_selector;
-
 			virtual void InnerDispose();
 
-			virtual GaitSelector* CreateGaitSelector();
 			void DoPitchAndYawControls(TimingInfo time);
 			virtual void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			virtual void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
@@ -95,8 +90,6 @@ namespace Test
 
 			CollisionGroup* collision_group;
 
-			map<unsigned int, RigidBody*> foot_bones;				// names of bones which should count for "standing"; put pairs with NULL in the constructor and they will be populated in Spawned
-
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
 
@@ -133,22 +126,37 @@ namespace Test
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
 
+			virtual void RegisterFeet();					// use this to create (custom?) FootState instances and add them to feet
+
+			class FootState : public Disposable
+			{
+				public:
+
+					unsigned int posey_id;
+
+					RigidBody* body;
+					PlacedFootConstraint* pfc;
+
+					FootState(unsigned int posey_id) : posey_id(posey_id), body(NULL), pfc(NULL) { }
+			};
+			vector<FootState*> feet;
+
 			struct StandingCallback : public CollisionCallback
 			{
 				Dood* dood;
-				map<RigidBody*, PlacedFootConstraint*> foot_bases;
-				bool standing;
 
 				float angular_coeff;
 
 				StandingCallback();
 
 				void OnCollision(const ContactPoint& collision);			// from CibraryEngine::CollisionCallback
-				void MaybeCreateConstraint(RigidBody* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal);
+				void MaybeCreateConstraint(FootState* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal);
 
 				void ApplyVelocityChange(const Vec3& dv);
 				void OnPhysicsTick(float timestep);
 				void BreakAllConstraints();
+
+				bool IsStanding();
 
 			} standing_callback;
 

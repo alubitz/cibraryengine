@@ -33,5 +33,7 @@ namespace Test
 			ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
+
+			void RegisterFeet();
 	};
 }

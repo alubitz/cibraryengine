@@ -6,8 +6,6 @@
 #include "Dood.h"
 #include "Soldier.h"
 #include "CrabBug.h"
-#include "RobotArm.h"
-#include "RobotTripod.h"
 #include "ArtilleryBug.h"
 #include "Sun.h"
 #include "Weapon.h"
@@ -658,26 +656,6 @@ namespace Test
 		return dood;
 	}
 
-	Dood* TestGame::SpawnRobotArm(Vec3 pos)
-	{
-		Dood* dood = new RobotArm(this, ubermodel_cache->Load("robot_arm"), mphys_cache->Load("robot_arm"), pos, bug_team);
-		Spawn(dood);
-
-		dood->blood_material = imp->blood_blue;
-
-		return dood;
-	}
-
-	Dood* TestGame::SpawnRobotTripod(Vec3 pos)
-	{
-		Dood* dood = new RobotTripod(this, ubermodel_cache->Load("robot_tripod"), mphys_cache->Load("robot_tripod"), pos, bug_team);
-		Spawn(dood);
-
-		dood->blood_material = imp->blood_blue;
-
-		return dood;
-	}
-
 	unsigned int TestGame::GetNumberOfBugs()
 	{
 		BugGetter getter;
@@ -1077,8 +1055,6 @@ namespace Test
 	int gs_spawnArtilleryBug(lua_State* L);
 	int gs_spawnPlayer(lua_State* L);
 	int gs_spawnRubbish(lua_State* L);
-	int gs_spawnRobotArm(lua_State* L);
-	int gs_spawnRobotTripod(lua_State* L);
 	int gs_getTerrainHeight(lua_State* L);
 	int gs_getNumberOfBugs(lua_State* L);
 	int gs_getDoodsList(lua_State* L);
@@ -1111,14 +1087,6 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_spawnRubbish, 1);
 		lua_setfield(L, 1, "spawnRubbish");
-
-		lua_pushlightuserdata(L, (void*)this);
-		lua_pushcclosure(L, gs_spawnRobotArm, 1);
-		lua_setfield(L, 1, "spawnRobotArm");
-
-		lua_pushlightuserdata(L, (void*)this);
-		lua_pushcclosure(L, gs_spawnRobotTripod, 1);
-		lua_setfield(L, 1, "spawnRobotTripod");
 
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_getTerrainHeight, 1);
@@ -1270,58 +1238,6 @@ namespace Test
 		}
 
 		Debug("gs.spawnRubbish takes exactly 1 argument, a position vector; returning nil\n");
-		return 0;
-	}
-
-	int gs_spawnRobotArm(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 1 && lua_isuserdata(L, 1))
-		{
-			void* ptr = lua_touserdata(L, 1);
-			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
-
-			lua_settop(L, 0);
-
-			if(vec != NULL)
-			{
-				lua_pushvalue(L, lua_upvalueindex(1));
-				TestGame* gs = (TestGame*)lua_touserdata(L, 1);
-				lua_pop(L, 1);
-
-				PushDoodHandle(L, gs->SpawnRobotArm(*vec));
-
-				return 1;
-			}
-		}
-
-		Debug("gs.spawnRobotArm takes exactly 1 argument, a position vector; returning nil\n");
-		return 0;
-	}
-
-	int gs_spawnRobotTripod(lua_State* L)
-	{
-		int n = lua_gettop(L);
-		if(n == 1 && lua_isuserdata(L, 1))
-		{
-			void* ptr = lua_touserdata(L, 1);
-			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
-
-			lua_settop(L, 0);
-
-			if(vec != NULL)
-			{
-				lua_pushvalue(L, lua_upvalueindex(1));
-				TestGame* gs = (TestGame*)lua_touserdata(L, 1);
-				lua_pop(L, 1);
-
-				PushDoodHandle(L, gs->SpawnRobotTripod(*vec));
-
-				return 1;
-			}
-		}
-
-		Debug("gs.spawnRobotTripod takes exactly 1 argument, a position vector; returning nil\n");
 		return 0;
 	}
 
