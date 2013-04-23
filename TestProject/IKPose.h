@@ -14,10 +14,12 @@ namespace Test
 
 			struct Limb
 			{
+				Bone* attach;						// the bone this limb attaches to, e.g. the pelvis or the carapace bone
 				Dood::FootState* foot;
+
 				// TODO: add members to this
 
-				Limb(Dood::FootState* foot) : foot(foot) { }
+				Limb(Dood* dood, Bone* attach, Dood::FootState* foot);
 			};
 			vector<Limb*> limbs;
 
@@ -32,6 +34,6 @@ namespace Test
 
 			void UpdatePose(TimingInfo time);
 
-			void AddLimb(Bone* attachment, Dood::FootState* foot);			// TODO: add other params?
+			void AddLimb(Bone* attach, Dood::FootState* foot);			// TODO: add other params?
 	};
 }

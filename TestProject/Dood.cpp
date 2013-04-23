@@ -67,7 +67,6 @@ namespace Test
 		model(model),
 		character(NULL),
 		posey(NULL),
-		use_cheaty_physics(true),
 		vis_bs_radius(2.5f),
 		root_rigid_body(NULL),
 		rigid_bodies(),
@@ -413,135 +412,95 @@ namespace Test
 		{
 			unsigned int num_bodies = rigid_bodies.size();
 
-			if(use_cheaty_physics)
+			// compute center of mass, and the velocity thereof
+			Vec3 net_vel;
+			Vec3 com;
+			float net_mass = 0.0f;
+
+			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
-				// "cheaty" physics; conserves linear and angular momentum! finally!
-				// compute center of mass, and the velocity thereof
-				Vec3 net_vel;
-				Vec3 com;
-				float net_mass = 0.0f;
+				RigidBody* body = rigid_bodies[i];
 
-				for(unsigned int i = 0; i < num_bodies; ++i)
-				{
-					RigidBody* body = rigid_bodies[i];
-
-					float mass = body->GetMass();
-					net_vel += body->GetLinearVelocity() * mass;
-					com += body->GetCenterOfMass() * mass;
-					if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
-						rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+				float mass = body->GetMass();
+				net_vel += body->GetLinearVelocity() * mass;
+				com += body->GetCenterOfMass() * mass;
 					
-					net_mass += mass;
-				}
-				posey->skeleton->InvalidateCachedBoneXforms();
-				net_vel /= net_mass;
-				com /= net_mass;
+				net_mass += mass;
 
-				// rest_com = where the com would be if the dood were in this pose at the origin; computed in its own loop because above loop may change bone xforms
-				Vec3 rest_com;
-				for(unsigned int i = 0; i < num_bodies; ++i)
-				{
-					RigidBody* body = rigid_bodies[i];
-					MassInfo mass_info = body->GetMassInfo();
-
-					rest_com += rbody_to_posey[i]->GetTransformationMatrix().TransformVec3_1(mass_info.com) * mass_info.mass;
-				}
-				rest_com /= net_mass;
-
-				// compute moment of inertia
-				Mat3 moi, body_moi;
-				for(unsigned int i = 0; i < num_bodies; ++i)
-				{
-					RigidBody* body = rigid_bodies[i];
-
-					MassInfo xformed_mass_info = body->GetTransformedMassInfo();
-					MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, body_moi.values);
-
-					moi += body_moi;
-				}
-
-				// compute angular momentum
-				Vec3 net_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies);
-
-				// make bones conform to pose
-				for(unsigned int i = 0; i < num_bodies; ++i)
-				{
-					RigidBody* body = rigid_bodies[i];
-					MassInfo mass_info = body->GetMassInfo();
-					float mass = mass_info.mass;
-
-					Bone* bone = rbody_to_posey[i];
-
-					Mat4 bone_xform = bone->GetTransformationMatrix();
-					Vec3 dummy;
-					Quaternion bone_ori;
-					bone_xform.Decompose(dummy, bone_ori);
-
-					Vec3 bone_pos = bone_xform.TransformVec3_1(mass_info.com) + com - rest_com;
-
-					float move_rate_coeff = 60.0f;
-
-					body->SetLinearVelocity(net_vel + (bone_pos - body->GetCenterOfMass()) * move_rate_coeff);
-					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
-				}
-
-				// compute and undo any changes we made to the angular momentum with our cheaty physics
-				Vec3 delta_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies) - net_amom;
-				Vec3 rot = Mat3::Invert(moi) * delta_amom;
-
-				for(unsigned int i = 0; i < num_bodies; ++i)
-				{
-					RigidBody* body = rigid_bodies[i];
-					body->SetAngularVelocity(body->GetAngularVelocity() - rot);
-					body->SetLinearVelocity(body->GetLinearVelocity() - Vec3::Cross(body->GetCenterOfMass() - com, rot));
-				}
+				// make posey root bones' orientations match those of the corresponding rigid bodies
+				if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
 			}
-			else
+			posey->skeleton->InvalidateCachedBoneXforms();
+			net_vel /= net_mass;
+			com /= net_mass;
+
+			// compute moment of inertia
+			Mat3 moi, body_moi;
+			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
-				// non-"cheaty" physics conserves both linear and angular momentum
-				for(unsigned int i = 0; i < constraints.size(); ++i)
-				{
-					JointConstraint* jc = (JointConstraint*)constraints[i];
-					jc->enable_motor = true;
+				RigidBody* body = rigid_bodies[i];
 
-					RigidBody *a = jc->obj_a, *b = jc->obj_b;
-					Bone *a_bone = NULL, *b_bone = NULL;
+				MassInfo xformed_mass_info = body->GetTransformedMassInfo();
+				MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, body_moi.values);
 
-					for(unsigned int j = 0; j < num_bodies; ++j)
-					{
-						RigidBody* c = rigid_bodies[j];
-						if(c == a)
-						{
-							a_bone = rbody_to_posey[j];
-							if(b_bone != NULL)
-								break;
-						}
-						else if(c == b)
-						{
-							b_bone = rbody_to_posey[j];
-							if(a_bone != NULL)
-								break;
-						}
-					}
-
-					if(a_bone != NULL && b_bone != NULL)
-					{
-						if(b_bone->parent == a_bone)
-							jc->desired_ori = b_bone->ori * b_bone->rest_ori;
-						else
-							jc->desired_ori = Quaternion::Reverse(a_bone->ori * a_bone->rest_ori);
-					}
-				}
+				moi += body_moi;
 			}
-		}
-		else
-		{
-			for(unsigned int i = 0; i < constraints.size(); ++i)
-			{
-				JointConstraint* jc = (JointConstraint*)constraints[i];
 
-				jc->enable_motor = false;
-				jc->motor_torque = Vec3();
+			// record initial angular momentum
+			Vec3 net_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies);
+
+			Quaternion yaw_quat = Quaternion::FromPYR(0, yaw, 0);
+
+			// make bones conform to pose... cheaty stuff happens here
+			for(unsigned int i = 0; i < num_bodies; ++i)
+			{
+				RigidBody* body = rigid_bodies[i];
+				MassInfo mass_info = body->GetMassInfo();
+
+				Bone* bone = rbody_to_posey[i];
+
+				Mat4 bone_xform = bone->GetTransformationMatrix();
+				Vec3 dummy;
+				Quaternion bone_ori;
+				bone_xform.Decompose(dummy, bone_ori);
+				
+				float move_rate_coeff = 60.0f;
+
+				body->SetLinearVelocity((bone_xform.TransformVec3_1(mass_info.com) - body->GetCenterOfMass()) * move_rate_coeff);
+				body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
+				
+				/*
+				// TODO: generalize this
+				string name = Bone::string_table[bone->name];
+				if     (name == "pelvis")
+					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * yaw_quat).ToPYR() * move_rate_coeff);
+				else if(name == "torso 1")				
+					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch * 0.3f, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
+				else if(name == "torso 2")
+					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch * 0.7f, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
+				else if(name == "head")
+					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
+				*/	
+			}
+
+			// compute and undo any changes the cheaty physics made to the net linear velocity or angular momentum
+			Vec3 nu_vel;
+			for(unsigned int i = 0; i < num_bodies; ++i)
+				nu_vel += rigid_bodies[i]->GetLinearVelocity() * rigid_bodies[i]->GetMass();
+			nu_vel /= net_mass;
+			Vec3 delta_vel = net_vel - nu_vel;
+
+			Vec3 delta_amom = ComputeAngularMomentum(com, nu_vel, rigid_bodies) - net_amom;
+			Vec3 rot = Mat3::Invert(moi) * delta_amom;
+
+			// TODO: sink some of the "cheaty" linear and angular momentum into the ground here
+
+			for(unsigned int i = 0; i < num_bodies; ++i)
+			{
+				RigidBody* body = rigid_bodies[i];
+				body->SetAngularVelocity(body->GetAngularVelocity() - rot);
+				body->SetLinearVelocity(delta_vel + body->GetLinearVelocity() - Vec3::Cross(body->GetCenterOfMass() - com, rot));
 			}
 		}
 	}
@@ -765,17 +724,21 @@ namespace Test
 		if(!alive)
 			return;
 
+		// gameplay stuff
 		DeathEvent evt(this, cause);
 		OnDeath(&evt);
 
 		MaybeDoScriptedDeath(this);
 
-		collision_group->SetInternalCollisionsEnabled(true);
-
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
 
+		// physics stuff
+		collision_group->SetInternalCollisionsEnabled(true);
+
 		standing_callback.BreakAllConstraints();
+		for(unsigned int i = 0; i < constraints.size(); ++i)
+			((JointConstraint*)constraints[i])->enable_motor = false;
 
 		alive = false;
 	}

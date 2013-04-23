@@ -44,9 +44,6 @@ namespace CibraryEngine
 			Quaternion desired_ori;
 			bool enable_motor;
 
-			/** Torque in parent bone's coordinate system to apply every tick; applied in DoUpdateAction */
-			Vec3 motor_torque;
-
 			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 
 			bool DoConstraintAction();

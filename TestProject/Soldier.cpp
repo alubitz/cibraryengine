@@ -356,8 +356,6 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
-		use_cheaty_physics = true;
-
 		p_ag = new PoseAimingGun();
 
 		KeyframeAnimation rest;

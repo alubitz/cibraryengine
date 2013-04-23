@@ -77,8 +77,6 @@ namespace Test
 			SkinnedCharacter* character;
 			PosedCharacter* posey;
 
-			bool use_cheaty_physics;
-
 			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
 
 			RigidBody* root_rigid_body;
