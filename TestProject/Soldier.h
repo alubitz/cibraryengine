@@ -6,25 +6,21 @@
 
 namespace Test
 {
-	struct BoneEntry;
-
-	class PoseAimingGun;
-	class WalkPose;
-
 	class Soldier : public Dood
 	{
+		private:
+
+			struct SoldierIKPose;
+			SoldierIKPose* ik_pose;
+
 		protected:
 
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
-			void DoWeaponControls(TimingInfo time);
 			void PostUpdatePoses(TimingInfo time);
 
 		public:
 
 			Bone* gun_hand_bone;
-
-			PoseAimingGun* p_ag;
-			WalkPose* walk_pose;
 
 			float jet_fuel;
 
@@ -35,5 +31,7 @@ namespace Test
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void RegisterFeet();
+
+			void Spawned();
 	};
 }

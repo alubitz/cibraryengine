@@ -436,9 +436,15 @@ namespace CibraryEngine
 			{
 				PhysicsConstraint* c = *iter;
 				if(c->obj_a == r && c->obj_b)
+				{
 					c->obj_b->constraints.erase(c);
+					c->obj_a = NULL;
+				}
 				else if(c->obj_b == r && c->obj_a)
+				{
 					c->obj_a->constraints.erase(c);
+					c->obj_b = NULL;
+				}
 
 				all_constraints.erase(c);
 
