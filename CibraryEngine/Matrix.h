@@ -256,8 +256,11 @@ namespace CibraryEngine
 		/** Decomposes this matrix into a translation, orientation, and scale; assumes no perspective */
 		void Decompose(Vec3& translation, Quaternion& orientation, Vec3& scale) const;
 
-		/** Decomposes this matrix into a translation, and orientation; assumes no perspective and no scaling*/
+		/** Decomposes this matrix into a translation, and orientation; assumes no perspective and no scaling */
 		void Decompose(Vec3& translation, Quaternion& orientation) const;
+
+		/** Extracts the orientation component from this matrix transform; assumes no perspective and no scaling */
+		Quaternion ExtractOrientation() const;
 
 
 

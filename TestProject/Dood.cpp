@@ -461,9 +461,7 @@ namespace Test
 				Bone* bone = rbody_to_posey[i];
 
 				Mat4 bone_xform = bone->GetTransformationMatrix();
-				Vec3 dummy;
-				Quaternion bone_ori;
-				bone_xform.Decompose(dummy, bone_ori);
+				Quaternion bone_ori = bone_xform.ExtractOrientation();
 				
 				float move_rate_coeff = 60.0f;
 

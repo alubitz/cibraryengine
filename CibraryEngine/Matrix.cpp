@@ -191,6 +191,12 @@ namespace CibraryEngine
 		orientation = Quaternion::FromRotationMatrix(Mat3(x.x, x.y, x.z, y.x, y.y, y.z, z.x, z.y, z.z));
 	}
 
+	Quaternion Mat4::ExtractOrientation() const
+	{
+		Vec3 x = TransformVec3_0(1, 0, 0), y = TransformVec3_0(0, 1, 0), z = TransformVec3_0(0, 0, 1);
+		return Quaternion::FromRotationMatrix(Mat3(x.x, x.y, x.z, y.x, y.y, y.z, z.x, z.y, z.z));
+	}
+
 
 
 

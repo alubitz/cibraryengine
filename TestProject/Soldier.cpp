@@ -2,6 +2,7 @@
 #include "Soldier.h"
 
 #include "WeaponEquip.h"
+#include "PlacedFootConstraint.h"
 
 namespace Test
 {
@@ -109,15 +110,43 @@ namespace Test
 				max_hta = upper_len + lower_len;
 			}
 
-			void PoseLeg(const Mat4& pelvis_xform, const TimingInfo& time)
+			Quaternion PoseLegBone(const Vec3& rest, const Vec3& target, const Vec3& desired_fwd)
+			{
+				Vec3 axis = Vec3::Cross(rest, target);
+				float angle = acosf(Vec3::Dot(rest, target) / sqrtf(rest.ComputeMagnitudeSquared() * target.ComputeMagnitudeSquared()));
+
+				Quaternion result = Quaternion::FromPYR(Vec3::Normalize(axis, angle));
+				// TODO: rotate upper_ori and lower_ori around target_* to find an optimal configuration
+				return result;
+			}
+
+			void PoseLeg(SoldierIKPose* pose, const Mat4& pelvis_xform, const TimingInfo& time)
 			{
 				Vec3 hip_pos = pelvis_xform.TransformVec3_1(hip_joint->pos);
+				Quaternion pelvis_ori = pelvis_xform.ExtractOrientation();
 
-				Vec3 cur_ankle_pos = foot_rb->GetTransformationMatrix().TransformVec3_1(ankle_joint->pos);
-				Vec3 cur_knee_pos = upper_rb->GetTransformationMatrix().TransformVec3_1(knee_joint->pos);
+				// select position and orientation for foot bone
+				Mat4 foot_xform;
+				if(foot_state->pfc != NULL)
+				{
+					PlacedFootConstraint* pfc = foot_state->pfc;
+					Quaternion foot_ori = pfc->obj_b->GetOrientation() * Quaternion::Reverse(pfc->desired_ori);
 
-				// TODO: figure out where we want the foot and ankle to be for real
-				Vec3 ankle_pos = cur_ankle_pos;
+					Vec3 constraint_pos = pfc->obj_b->GetTransformationMatrix().TransformVec3_1(pfc->b_pos);
+					Vec3 foot_pos = constraint_pos - Mat4::FromQuaternion(Quaternion::Reverse(foot_ori)).TransformVec3_0(pfc->a_pos);
+
+					foot_xform = Mat4::FromPositionAndOrientation(foot_pos, foot_ori);
+
+					//Debug(((stringstream&)(stringstream() << "foot pos differs by " << (foot_pos - foot_rb->GetPosition()).ComputeMagnitude() << endl)).str());
+					//Debug(((stringstream&)(stringstream() << "\t ori differs by " << (Quaternion::Reverse(foot_ori) * foot_rb->GetOrientation()).ToPYR().ComputeMagnitude() << endl)).str());
+				}
+				else
+				{
+					// TODO: figure out where we want the foot and ankle to be for real
+					foot_xform = foot_rb->GetTransformationMatrix();
+				}
+
+				Vec3 ankle_pos = foot_xform.TransformVec3_1(ankle_joint->pos);
 
 				Vec3 hip_to_ankle = ankle_pos - hip_pos;
 				float hta_dist = hip_to_ankle.ComputeMagnitude();
@@ -136,14 +165,24 @@ namespace Test
 
 				Vec3 u_hta = hip_to_ankle * inv_hta;
 
-				// TODO: decide where we want the knee to go for real
-				Vec3 knee_pos = cur_knee_pos + pelvis_xform.TransformVec3_0(0, 0, 1);
+				// decide where we want the knee to go
+				Vec3 cur_knee_pos = upper_rb->GetTransformationMatrix().TransformVec3_1(knee_joint->pos);
+				Vec3 fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
+				Vec3 knee_pos = cur_knee_pos + fwd * 0.1f;							// TODO: do this better
 				// flatten the desired knee position onto the plane of the circle, and normalize it to the circle's radius
 				knee_pos -= u_hta * Vec3::Dot(u_hta, knee_pos);
 				knee_pos = hip_pos + u_hta * knee_dist + Vec3::Normalize(knee_pos, knee_radius);
 
-				// TODO: select orientations for the two leg bones
-				// set posey bone orientations based on this
+				// select orientations for the two leg
+				Quaternion upper_ori = PoseLegBone(knee_joint->pos	- hip_joint->pos,	knee_pos	- hip_pos,	fwd);
+				Quaternion lower_ori = PoseLegBone(ankle_joint->pos	- knee_joint->pos,	ankle_pos	- knee_pos,	fwd);
+
+				// set posey bone orientations based on the orientations we chose for the foot and leg bones
+				Quaternion foot_ori = foot_xform.ExtractOrientation();
+
+				pose->SetBonePose(foot_bone->name,	(Quaternion::Reverse(lower_ori)		* foot_ori).ToPYR(),	Vec3());
+				pose->SetBonePose(lower_bone->name,	(Quaternion::Reverse(upper_ori)		* lower_ori).ToPYR(),	Vec3());
+				pose->SetBonePose(upper_bone->name,	(Quaternion::Reverse(pelvis_ori)	* upper_ori).ToPYR(),	Vec3());
 			}
 		} left_leg, right_leg;
 
@@ -161,12 +200,24 @@ namespace Test
 
 		void UpdatePose(TimingInfo time)
 		{
+			if(time.total < 0.1f)
+				return;
+
 			// TODO: select desired xform for the pelvis
-			Mat4 pelvis_xform = pelvis->GetTransformationMatrix();
+			Vec3 left_pos = left_leg.foot_rb->GetPosition();
+			Vec3 right_pos = right_leg.foot_rb->GetPosition();
+
+			Quaternion pelvis_ori = pelvis->GetOrientation();
+			Quaternion yaw_ori = Quaternion::FromPYR(0, -dood->yaw, 0);
+
+			Vec3 pelvis_pos = pelvis->GetPosition();
+
+			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation((left_pos + right_pos) * 0.5f, pelvis_ori * 0.7f + yaw_ori * 0.3f);
+			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori * 0.2f + yaw_ori * 0.8f);
 
 			// pose each leg
-			left_leg.PoseLeg(pelvis_xform, time);
-			right_leg.PoseLeg(pelvis_xform, time);
+			left_leg.PoseLeg(this, pelvis_xform, time);
+			right_leg.PoseLeg(this, pelvis_xform, time);
 
 			// TODO: pose arms, head, etc.
 		}
@@ -187,6 +238,8 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
+		yaw = Random3D::Rand(float(M_PI) * 2.0f);
+
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
