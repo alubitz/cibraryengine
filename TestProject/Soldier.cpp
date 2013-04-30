@@ -112,12 +112,22 @@ namespace Test
 
 			Quaternion PoseLegBone(const Vec3& rest, const Vec3& target, const Vec3& desired_fwd)
 			{
+				// rotate to line the rest direction up with the target direction
 				Vec3 axis = Vec3::Cross(rest, target);
 				float angle = acosf(Vec3::Dot(rest, target) / sqrtf(rest.ComputeMagnitudeSquared() * target.ComputeMagnitudeSquared()));
+				Quaternion constrained = Quaternion::FromPYR(Vec3::Normalize(axis, angle));
+				
+				// rotate around the target direction to point the +z axis toward desired_fwd
+				// TODO: implement this for real
+				Vec3 utarget = Vec3::Normalize(target);
 
-				Quaternion result = Quaternion::FromPYR(Vec3::Normalize(axis, angle));
-				// TODO: rotate upper_ori and lower_ori around target_* to find an optimal configuration
-				return result;
+				Vec3 forward = constrained * Vec3(0, 0, 1);
+				forward -= utarget * Vec3::Dot(utarget, forward);
+				Vec3 desired = desired_fwd - utarget * Vec3::Dot(utarget, desired_fwd);
+
+				//float rotate = asinf(Vec3::Dot(utarget, Vec3::Cross(forward, desired)) / sqrtf(forward.ComputeMagnitudeSquared() * desired.ComputeMagnitudeSquared()));
+				float rotate = 0.0f;
+				return constrained * Quaternion::FromPYR(utarget * rotate);
 			}
 
 			void PoseLeg(SoldierIKPose* pose, const Mat4& pelvis_xform, const TimingInfo& time)
@@ -200,7 +210,7 @@ namespace Test
 
 		void UpdatePose(TimingInfo time)
 		{
-			if(time.total < 0.1f)
+			if(time.total < 0.1f || time.elapsed == 0.0f)
 				return;
 
 			// TODO: select desired xform for the pelvis
@@ -213,7 +223,8 @@ namespace Test
 			Vec3 pelvis_pos = pelvis->GetPosition();
 
 			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation((left_pos + right_pos) * 0.5f, pelvis_ori * 0.7f + yaw_ori * 0.3f);
-			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori * 0.2f + yaw_ori * 0.8f);
+			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori * 0.2f + yaw_ori * 0.8f);
+			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori);
 
 			// pose each leg
 			left_leg.PoseLeg(this, pelvis_xform, time);
@@ -352,7 +363,7 @@ namespace Test
 		if(is_valid)
 		{
 			ik_pose = new SoldierIKPose(this);
-			posey->active_poses.push_back(ik_pose);
+		//	posey->active_poses.push_back(ik_pose);
 		}
 	}
 }
