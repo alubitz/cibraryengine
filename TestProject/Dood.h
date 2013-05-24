@@ -48,8 +48,14 @@ namespace Test
 			virtual void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			virtual void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			virtual void DoWeaponControls(TimingInfo time);
+
+			// for PhysicsToCharacter
 			virtual void PreUpdatePoses(TimingInfo time);
 			virtual void PostUpdatePoses(TimingInfo time);
+
+			// for PoseToPhysics
+			virtual void DoCheatyPose(float timestep, const Vec3& net_vel);
+			virtual void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
 
 			RigidBody* RigidBodyForNamedBone(const string& name);
 
@@ -136,6 +142,8 @@ namespace Test
 					PlacedFootConstraint* pfc;
 
 					FootState(unsigned int posey_id) : posey_id(posey_id), body(NULL), pfc(NULL) { }
+
+					bool IsStanding() { return pfc != NULL; }
 			};
 			vector<FootState*> feet;
 

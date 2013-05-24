@@ -9,21 +9,23 @@ namespace Test
 	/*
 	 * Soldier constants
 	 */
-	float fly_accel_up = 15.0f;
+	static float fly_accel_up = 15.0f;
 
-	float jump_to_fly_delay = 0.3f;
-	float jump_speed = 4.0f;
+	static float jump_to_fly_delay = 0.3f;
+	static float jump_speed = 4.0f;
 
-	float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
-	float flying_accel = 8.0f;
+	static float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
+	static float flying_accel = 8.0f;
 
+	static float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static float top_speed_sideways = 5.0f;
 
 
 
 	/*
 	 * Soldier::SoldierIKPose private implementation struct
 	 */
-	struct Soldier::SoldierIKPose : public Pose
+	struct Soldier::SoldierIKPose
 	{
 		Soldier* dood;
 
@@ -117,20 +119,35 @@ namespace Test
 				float angle = acosf(Vec3::Dot(rest, target) / sqrtf(rest.ComputeMagnitudeSquared() * target.ComputeMagnitudeSquared()));
 				Quaternion constrained = Quaternion::FromPYR(Vec3::Normalize(axis, angle));
 				
-				// rotate around the target direction to point the +z axis toward desired_fwd
-				// TODO: implement this for real
 				Vec3 utarget = Vec3::Normalize(target);
 
-				Vec3 forward = constrained * Vec3(0, 0, 1);
-				forward -= utarget * Vec3::Dot(utarget, forward);
-				Vec3 desired = desired_fwd - utarget * Vec3::Dot(utarget, desired_fwd);
+				// now rotate to make the +z axis face a desired forward direction as best as possible
+				Vec3 forward = Quaternion::Reverse(constrained) * Vec3(0, 0, 1);
+				forward = Vec3::Normalize(forward - utarget * Vec3::Dot(utarget, forward));
+				
+				Vec3 desired = Vec3::Normalize(desired_fwd - utarget * Vec3::Dot(utarget, desired_fwd));
+				Vec3 other_axis = Vec3::Cross(desired, utarget);
 
-				//float rotate = asinf(Vec3::Dot(utarget, Vec3::Cross(forward, desired)) / sqrtf(forward.ComputeMagnitudeSquared() * desired.ComputeMagnitudeSquared()));
-				float rotate = 0.0f;
-				return constrained * Quaternion::FromPYR(utarget * rotate);
+				float rotate = atan2f(Vec3::Dot(forward, other_axis), Vec3::Dot(forward, desired));
+				Quaternion result = constrained * Quaternion::FromPYR(Vec3::Normalize(rest, -rotate));
+
+				Vec3 test = Quaternion::Reverse(result) * Vec3(0, 0, 1);
+				test = Vec3::Normalize(test - utarget * Vec3::Dot(utarget, test));
+
+				//Debug(((stringstream&)(stringstream() << "score = " << Vec3::Dot(test, desired) << endl)).str());
+
+				return result;
 			}
 
-			void PoseLeg(SoldierIKPose* pose, const Mat4& pelvis_xform, const TimingInfo& time)
+			Vec3 FlattenOntoCircle(const Vec3& u_hta, const Vec3& hip_pos, float knee_dist, float knee_radius, const Vec3& point)
+			{
+				Vec3 temp = point - hip_pos;
+				temp -= u_hta * Vec3::Dot(u_hta, temp);
+				temp = hip_pos + u_hta * knee_dist + Vec3::Normalize(temp, knee_radius);
+				return temp;
+			}
+
+			void PoseLeg(SoldierIKPose* pose, const Mat4& pelvis_xform, float timestep)
 			{
 				Vec3 hip_pos = pelvis_xform.TransformVec3_1(hip_joint->pos);
 				Quaternion pelvis_ori = pelvis_xform.ExtractOrientation();
@@ -146,9 +163,6 @@ namespace Test
 					Vec3 foot_pos = constraint_pos - Mat4::FromQuaternion(Quaternion::Reverse(foot_ori)).TransformVec3_0(pfc->a_pos);
 
 					foot_xform = Mat4::FromPositionAndOrientation(foot_pos, foot_ori);
-
-					//Debug(((stringstream&)(stringstream() << "foot pos differs by " << (foot_pos - foot_rb->GetPosition()).ComputeMagnitude() << endl)).str());
-					//Debug(((stringstream&)(stringstream() << "\t ori differs by " << (Quaternion::Reverse(foot_ori) * foot_rb->GetOrientation()).ToPYR().ComputeMagnitude() << endl)).str());
 				}
 				else
 				{
@@ -173,26 +187,25 @@ namespace Test
 				float knee_dist = 0.5f * (usqmlsq + hta_dist * hta_dist) * inv_hta;
 				float knee_radius = sqrtf(upper_sq - knee_dist * knee_dist);
 
-				Vec3 u_hta = hip_to_ankle * inv_hta;
-
-				// decide where we want the knee to go
-				Vec3 cur_knee_pos = upper_rb->GetTransformationMatrix().TransformVec3_1(knee_joint->pos);
+				// pick a position on that circle where we want the knee to go
 				Vec3 fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
-				Vec3 knee_pos = cur_knee_pos + fwd * 0.1f;							// TODO: do this better
-				// flatten the desired knee position onto the plane of the circle, and normalize it to the circle's radius
-				knee_pos -= u_hta * Vec3::Dot(u_hta, knee_pos);
-				knee_pos = hip_pos + u_hta * knee_dist + Vec3::Normalize(knee_pos, knee_radius);
+				Vec3 knee_pos = hip_pos + fwd;
+				// flatten the proposed knee position onto the plane of the circle, and normalize it to the circle's radius
+				knee_pos = FlattenOntoCircle(hip_to_ankle * inv_hta, hip_pos, knee_dist, knee_radius, knee_pos);
 
-				// select orientations for the two leg
+				// select orientations for the two leg bones
 				Quaternion upper_ori = PoseLegBone(knee_joint->pos	- hip_joint->pos,	knee_pos	- hip_pos,	fwd);
 				Quaternion lower_ori = PoseLegBone(ankle_joint->pos	- knee_joint->pos,	ankle_pos	- knee_pos,	fwd);
 
 				// set posey bone orientations based on the orientations we chose for the foot and leg bones
 				Quaternion foot_ori = foot_xform.ExtractOrientation();
 
-				pose->SetBonePose(foot_bone->name,	(Quaternion::Reverse(lower_ori)		* foot_ori).ToPYR(),	Vec3());
-				pose->SetBonePose(lower_bone->name,	(Quaternion::Reverse(upper_ori)		* lower_ori).ToPYR(),	Vec3());
-				pose->SetBonePose(upper_bone->name,	(Quaternion::Reverse(pelvis_ori)	* upper_ori).ToPYR(),	Vec3());
+				foot_bone->ori	= Quaternion::Reverse(lower_ori)	* foot_ori;
+				lower_bone->ori	= Quaternion::Reverse(upper_ori)	* lower_ori;
+				upper_bone->ori	= Quaternion::Reverse(pelvis_ori)	* upper_ori;
+
+				Vec3 pyr = (Quaternion::Reverse(pelvis_ori) * lower_ori).ToPYR();
+				Debug(((stringstream&)(stringstream() << "lower from pelvis = (" << pyr.x << ", " << pyr.y << ", " << pyr.z << ")" << endl)).str());
 			}
 		} left_leg, right_leg;
 
@@ -208,9 +221,9 @@ namespace Test
 
 		~SoldierIKPose() { }
 
-		void UpdatePose(TimingInfo time)
+		void UpdatePose(float timestep)
 		{
-			if(time.total < 0.1f || time.elapsed == 0.0f)
+			if(timestep == 0.0f)
 				return;
 
 			// TODO: select desired xform for the pelvis
@@ -218,17 +231,17 @@ namespace Test
 			Vec3 right_pos = right_leg.foot_rb->GetPosition();
 
 			Quaternion pelvis_ori = pelvis->GetOrientation();
-			Quaternion yaw_ori = Quaternion::FromPYR(0, -dood->yaw, 0);
+			Quaternion yaw_ori = Quaternion::FromPYR(0, dood->yaw, 0);
 
 			Vec3 pelvis_pos = pelvis->GetPosition();
 
 			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation((left_pos + right_pos) * 0.5f, pelvis_ori * 0.7f + yaw_ori * 0.3f);
 			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori * 0.2f + yaw_ori * 0.8f);
-			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori);
+			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(Vec3(), yaw_ori);
 
 			// pose each leg
-			left_leg.PoseLeg(this, pelvis_xform, time);
-			right_leg.PoseLeg(this, pelvis_xform, time);
+			left_leg.PoseLeg(this, pelvis_xform, timestep);
+			right_leg.PoseLeg(this, pelvis_xform, timestep);
 
 			// TODO: pose arms, head, etc.
 		}
@@ -363,7 +376,22 @@ namespace Test
 		if(is_valid)
 		{
 			ik_pose = new SoldierIKPose(this);
-		//	posey->active_poses.push_back(ik_pose);
 		}
+	}
+
+	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
+	{
+		if(game_state->total_game_time > 0.1f)
+			ik_pose->UpdatePose(timestep);
+
+		Dood::DoCheatyPose(timestep, net_vel);
+	}
+
+	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
+	{
+		//cheaty_vel = Vec3();
+		//cheaty_rot = Vec3();
+
+		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);
 	}
 }

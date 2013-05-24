@@ -18,6 +18,9 @@ namespace Test
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
 			void PostUpdatePoses(TimingInfo time);
 
+			void DoCheatyPose(float timestep, const Vec3& net_vel);
+			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
+
 		public:
 
 			Bone* gun_hand_bone;

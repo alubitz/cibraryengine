@@ -16,9 +16,9 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	float ground_traction = 20.0f, air_traction = 0.1f;
-	float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	float top_speed_sideways = 5.0f;
+	static float ground_traction = 20.0f, air_traction = 0.1f;
+	static float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static float top_speed_sideways = 5.0f;
 
 
 
@@ -129,6 +129,8 @@ namespace Test
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
+		return;
+
 		bool standing = standing_callback.IsStanding();
 
 		float timestep = time.elapsed;
@@ -410,9 +412,6 @@ namespace Test
 
 		if(alive)
 		{
-			bool standing = standing_callback.IsStanding();
-			Quaternion yaw_quat = Quaternion::FromPYR(0, yaw, 0);
-
 			unsigned int num_bodies = rigid_bodies.size();
 
 			// compute center of mass, and the velocity thereof
@@ -434,7 +433,6 @@ namespace Test
 				if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
 					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
 			}
-			posey->skeleton->InvalidateCachedBoneXforms();
 			net_vel /= net_mass;
 			com /= net_mass;
 
@@ -453,43 +451,10 @@ namespace Test
 			// record initial angular momentum
 			Vec3 net_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies);
 
-			// make bones conform to pose... cheaty stuff happens here
-			for(unsigned int i = 0; i < num_bodies; ++i)
-			{
-				RigidBody* body = rigid_bodies[i];
-				MassInfo mass_info = body->GetMassInfo();
+			// cheaty stuff happens here
+			DoCheatyPose(timestep, net_vel);
 
-				Bone* bone = rbody_to_posey[i];
-
-				Mat4 bone_xform = bone->GetTransformationMatrix();
-				Quaternion bone_ori = bone_xform.ExtractOrientation();
-				
-				float move_rate_coeff = 60.0f;
-
-				//body->SetLinearVelocity((bone_xform.TransformVec3_1(mass_info.com) - body->GetCenterOfMass()) * move_rate_coeff);
-				//body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
-				
-				// TODO: generalize this
-				string name = Bone::string_table[bone->name];
-				if     (name == "pelvis")
-				{
-					body->SetLinearVelocity(vel + Vec3(0, 5.0f, 0));
-					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * yaw_quat).ToPYR() * move_rate_coeff);
-				}
-				else if(name == "torso 1")				
-					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch * 0.3f, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
-				else if(name == "torso 2")
-					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch * 0.7f, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
-				else if(name == "head")
-					body->SetAngularVelocity((Quaternion::Reverse(body->GetOrientation()) * (Quaternion::FromPYR(-pitch, 0, 0) * yaw_quat)).ToPYR() * move_rate_coeff);
-				else if(name == "l foot" || name == "r foot")
-				{
-					if(standing)
-						body->SetLinearVelocity(Vec3());		// TODO: set linear & angular according to PFC
-				}
-			}
-
-			// compute and undo any changes the cheaty physics made to the net linear velocity or angular momentum
+			// compute any changes the cheaty physics made to the net linear velocity or angular momentum
 			Vec3 nu_vel;
 			for(unsigned int i = 0; i < num_bodies; ++i)
 				nu_vel += rigid_bodies[i]->GetLinearVelocity() * rigid_bodies[i]->GetMass();
@@ -499,13 +464,10 @@ namespace Test
 			Vec3 delta_amom = ComputeAngularMomentum(com, nu_vel, rigid_bodies) - net_amom;
 			Vec3 rot = Mat3::Invert(moi) * delta_amom;
 
-			// sink some of the "cheaty" linear and angular momentum into the ground here
-			if(standing)
-			{
-				rot = Vec3();				// TODO: do it better than this
-				delta_vel = Vec3();
-			}
+			// allow derived classes to sink some of the "cheaty" linear and angular momentum into the ground
+			MaybeSinkCheatyVelocity(timestep, delta_vel, rot, net_mass, moi);
 
+			// undo remaining cheaty stuff
 			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
 				RigidBody* body = rigid_bodies[i];
@@ -514,6 +476,28 @@ namespace Test
 			}
 		}
 	}
+
+	void Dood::DoCheatyPose(float timestep, const Vec3& net_vel)
+	{
+		posey->skeleton->InvalidateCachedBoneXforms();
+
+		static const float move_rate_coeff = 60.0f;
+		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+		{
+			RigidBody* rb = rigid_bodies[i];
+			Bone* bone = rbody_to_posey[i];
+
+			MassInfo mass_info = rb->GetMassInfo();
+
+			Mat4 bone_xform = bone->GetTransformationMatrix();
+			Quaternion bone_ori = bone_xform.ExtractOrientation();
+				
+			rb->SetLinearVelocity((bone_xform.TransformVec3_1(mass_info.com) - rb->GetCenterOfMass()) * move_rate_coeff);
+			rb->SetAngularVelocity((Quaternion::Reverse(rb->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
+		}
+	}
+
+	void Dood::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
 
 	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
@@ -892,7 +876,7 @@ namespace Test
 	bool Dood::StandingCallback::IsStanding()
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
-			if((*iter)->pfc != NULL)
+			if((*iter)->IsStanding())
 				return true;
 
 		return false;
