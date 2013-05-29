@@ -26,8 +26,8 @@ namespace Test
 		side_anim_rate(1.0f),
 		turn_anim_rate(4.0f),
 		yaw_bone(0),
-		yaw(0),
-		target_yaw(0)
+		yaw(dood->yaw),
+		target_yaw(dood->yaw)
 	{
 	}
 
@@ -45,6 +45,9 @@ namespace Test
 	// TODO: prevent accidentally stepping when moving to rest animation
 	void WalkPose::UpdatePose(TimingInfo time)
 	{
+		if(time.total < 0.1f)
+			return;
+
 		const float vsmooth_exp_coeff = 4.0f;
 		const float min_speed = 0.9f;
 		const float playback_exp_coeff = 0.25f;

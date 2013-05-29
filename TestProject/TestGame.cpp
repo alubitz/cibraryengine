@@ -25,12 +25,14 @@
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
 
-using namespace std;
-
 #define ENABLE_SHADOWS 1
+
+#define ENABLE_FPS_COUNTER 0
 
 namespace Test
 {
+	using namespace std;
+
 	/*
 	 * TestGame::Loader private implementation struct
 	 */
@@ -717,12 +719,10 @@ namespace Test
 
 		hud->UpdateHUDGauges(clamped_time);
 
+#if ENABLE_FPS_COUNTER
 		if(elapsed > 0)
-		{
-			stringstream fps_counter_ss;
-			fps_counter_ss << "FPS = " << (int)(1.0 / time.elapsed);
-			debug_text = fps_counter_ss.str();
-		}
+			debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
+#endif
 
 		if(script_string.empty())
 			GetFileString("Files/Scripts/update.lua", &script_string);

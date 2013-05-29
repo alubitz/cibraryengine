@@ -329,15 +329,15 @@ namespace Test
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
-			Mat4 ori_derp = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
+			Mat4 use_ori = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
 #else
-			Mat4& ori_derp = eye_xform;
+			Mat4& use_ori = eye_xform;
 #endif
 
 			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
-			Vec3 left		= ori_derp.TransformVec3_0(1, 0, 0);
-			Vec3 up			= ori_derp.TransformVec3_0(0, 1, 0);
-			Vec3 backward	= ori_derp.TransformVec3_0(0, 0, 1);
+			Vec3 left		= use_ori.TransformVec3_0(1, 0, 0);
+			Vec3 up			= use_ori.TransformVec3_0(0, 1, 0);
+			Vec3 backward	= use_ori.TransformVec3_0(0, 0, 1);
 
 			Mat3 rm(left.x, left.y, left.z, up.x, up.y, up.z, backward.x, backward.y, backward.z);
 			return flip * Mat4::FromMat3(rm) * Mat4::Translation(-(pos + pos_vec - backward * third_person_distance));
@@ -426,12 +426,13 @@ namespace Test
 				float mass = body->GetMass();
 				net_vel += body->GetLinearVelocity() * mass;
 				com += body->GetCenterOfMass() * mass;
-					
+
 				net_mass += mass;
 
+				// TODO: revise this part
 				// make posey root bones' orientations match those of the corresponding rigid bodies
-				if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
-					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+				//if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+					//rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
 			}
 			net_vel /= net_mass;
 			com /= net_mass;
@@ -806,10 +807,10 @@ namespace Test
 				if((Quaternion::Reverse(foot_ori) * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
 					return;
 
-				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
+				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
 			}
 			else
-				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos);
+				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal);
 
 
 			dood->physics->AddConstraint(foot->pfc);

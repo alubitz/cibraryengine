@@ -9,19 +9,21 @@ namespace Test
 	/*
 	 * PlacedFootConstraint methods
 	 */
-	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos) :
+	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos, const Vec3& surface_normal) :
 		PhysicsConstraint(foot, surface),
 		a_pos(a_pos),
 		b_pos(b_pos),
+		surface_normal(surface_normal),
 		angular_coeff(0.0f),
 		broken(false)
 	{
 	}
 
-	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos, const Quaternion& relative_ori, float angular_coeff) :
+	PlacedFootConstraint::PlacedFootConstraint(RigidBody* foot, RigidBody* surface, const Vec3& a_pos, const Vec3& b_pos, const Vec3& surface_normal, const Quaternion& relative_ori, float angular_coeff) :
 		PhysicsConstraint(foot, surface),
 		a_pos(a_pos),
 		b_pos(b_pos),
+		surface_normal(surface_normal),
 		desired_ori(relative_ori),
 		angular_coeff(angular_coeff),
 		broken(false)
@@ -30,6 +32,11 @@ namespace Test
 
 	bool PlacedFootConstraint::DoConstraintAction()
 	{
+		// TODO: improve how tangential and angular breakage work so that they can be re-enabled
+		static const float outward_dv_breakage_threshold		= 4.0f;
+		static const float tangential_dvsq_breakage_threshold	= 16000.0f;
+		static const float avsq_breakage_threshold				= 16000.0f;
+
 		bool wakeup = false;
 
 		Vec3 avel = obj_a->GetLinearVelocity();
@@ -38,6 +45,13 @@ namespace Test
 		Vec3 brot = obj_b->GetAngularVelocity();
 
 		Vec3 current_dv = bvel - avel + Vec3::Cross(r2, brot) - Vec3::Cross(r1, arot);
+		if(!broken)
+		{
+			float dot = Vec3::Dot(current_dv, cur_normal);
+			if(dot < -outward_dv_breakage_threshold || (current_dv - cur_normal * dot).ComputeMagnitudeSquared() > tangential_dvsq_breakage_threshold)
+				broken = true;
+		}
+
 		Vec3 dv = desired_dv - current_dv;
 		if(float magsq = dv.ComputeMagnitudeSquared())
 		{
@@ -60,6 +74,9 @@ namespace Test
 			{
 				arot += alpha_to_arot * alpha;
 				brot -= alpha_to_brot * alpha;
+
+				if(magsq > avsq_breakage_threshold)
+					broken = true;
 
 				wakeup = true;
 			}
@@ -84,6 +101,8 @@ namespace Test
 
 		Vec3 p1 = obj_a->GetTransformationMatrix().TransformVec3_1(a_pos);
 		Vec3 p2 = obj_b->GetTransformationMatrix().TransformVec3_1(b_pos);
+
+		cur_normal = obj_b->GetTransformationMatrix().TransformVec3_0(surface_normal);
 
 		apply_pos = (p1 + p2) * 0.5f;
 		desired_dv = (p2 - p1) * -(1.0f * inv_timestep);

@@ -6,16 +6,16 @@
 
 namespace Test
 {
+	class PoseAimingGun;
+	class WalkPose;
+
 	class Soldier : public Dood
 	{
-		private:
-
-			struct SoldierIKPose;
-			SoldierIKPose* ik_pose;
-
 		protected:
 
 			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
+
+			void PreUpdatePoses(TimingInfo time);
 			void PostUpdatePoses(TimingInfo time);
 
 			void DoCheatyPose(float timestep, const Vec3& net_vel);
@@ -24,6 +24,10 @@ namespace Test
 		public:
 
 			Bone* gun_hand_bone;
+
+			PoseAimingGun* p_ag;
+			WalkPose* walk_pose;
+			float walk_timer;
 
 			float jet_fuel;
 
@@ -36,5 +40,6 @@ namespace Test
 			void RegisterFeet();
 
 			void Spawned();
+			void DeSpawned();
 	};
 }

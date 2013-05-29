@@ -4,6 +4,11 @@
 #include "WeaponEquip.h"
 #include "PlacedFootConstraint.h"
 
+#include "TestGame.h"
+
+#include "PoseAimingGun.h"
+#include "WalkPose.h"
+
 namespace Test
 {
 	/*
@@ -22,230 +27,323 @@ namespace Test
 
 
 
+
 	/*
-	 * Soldier::SoldierIKPose private implementation struct
+	 * Soldier animations and related functions
 	 */
-	struct Soldier::SoldierIKPose
+	static void GenerateRestPose(KeyframeAnimation* ka)
 	{
-		Soldier* dood;
+		ka->frames.clear();
+		ka->name = "soldier rest pose";
 
-		struct Leg
-		{
-			RigidBody	*pelvis_rb,		*upper_rb,		*lower_rb,		*foot_rb;
-			Bone		*pelvis_bone,	*upper_bone,	*lower_bone,	*foot_bone;
+		Keyframe kf;
+		kf.duration = 2.0f;
+		kf.next = 0;
+		kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence();
+		kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence();
+		kf.values[Bone::string_table["l foot"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence();
+		kf.values[Bone::string_table["r foot"]] =	BoneInfluence();
 
-			JointConstraint		*hip_joint,		*knee_joint,	*ankle_joint;
-			Dood::FootState		*foot_state;
+		ka->frames.push_back(kf);
+	}
 
-			float upper_len, lower_len;
-			float upper_sq, usqmlsq, max_hta;
+	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
+	{
+		const float A = 0.65f;
+		const float B = 1.5f;
 
-			Leg(Dood* dood, unsigned int pelvis_id, unsigned int upper_id, unsigned int lower_id, unsigned int foot_id) :
-				pelvis_rb(NULL),
-				upper_rb(NULL),
-				lower_rb(NULL),
-				foot_rb(NULL),
-				pelvis_bone(NULL),
-				upper_bone(NULL),
-				lower_bone(NULL),
-				foot_bone(NULL),
-				hip_joint(NULL),
-				knee_joint(NULL),
-				ankle_joint(NULL),
-				foot_state(NULL),
-				upper_len(0.0f),
-				lower_len(0.0f),
-				upper_sq(0.0f),
-				usqmlsq(0.0f),
-				max_hta(0.0f)
-			{
-				// find rigid bodies and posey bones
-				for(unsigned int i = 0, num_bodies = dood->rigid_bodies.size(); i < num_bodies; ++i)
-				{
-					RigidBody* rb = dood->rigid_bodies[i];
-					if(Bone* bone = dood->rbody_to_posey[i])
-						if(bone->name == pelvis_id)
-						{
-							pelvis_rb = rb;
-							pelvis_bone = bone;
-						}
-						else if(bone->name == upper_id)
-						{
-							upper_rb = rb;
-							upper_bone = bone;
-						}
-						else if(bone->name == lower_id)
-						{
-							lower_rb = rb;
-							lower_bone = bone;
-						}
-						else if(bone->name == foot_id)
-						{
-							foot_rb = rb;
-							foot_bone = bone;
-						}
-				}
+		ka->frames.clear();
+		ka->name = "soldier walk forward";
 
-				// find joints
-				for(vector<PhysicsConstraint*>::iterator iter = dood->constraints.begin(); iter != dood->constraints.end(); ++iter)
-				{
-					JointConstraint* jc = (JointConstraint*)(*iter);
-					if(jc->obj_a == pelvis_rb && jc->obj_b == upper_rb)
-						hip_joint = jc;
-					else if(jc->obj_a == upper_rb && jc->obj_b == lower_rb)
-						knee_joint = jc;
-					else if(jc->obj_a == lower_rb && jc->obj_b == foot_rb)
-						ankle_joint = jc;
-				}
+		{	// right foot forward
+			Keyframe kf(0.5f);
+			kf.next = 1;
 
-				// find foot states
-				for(vector<Dood::FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
-					if((*iter)->posey_id == foot_id)
-						foot_state = *iter;
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
 
-				// compute bone lengths
-				upper_len = (knee_joint->pos - hip_joint->pos).ComputeMagnitude();
-				lower_len = (ankle_joint->pos - knee_joint->pos).ComputeMagnitude();
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
 
-				upper_sq = upper_len * upper_len;
-				usqmlsq = upper_sq - lower_len * lower_len;
-				max_hta = upper_len + lower_len;
-			}
-
-			Quaternion PoseLegBone(const Vec3& rest, const Vec3& target, const Vec3& desired_fwd)
-			{
-				// rotate to line the rest direction up with the target direction
-				Vec3 axis = Vec3::Cross(rest, target);
-				float angle = acosf(Vec3::Dot(rest, target) / sqrtf(rest.ComputeMagnitudeSquared() * target.ComputeMagnitudeSquared()));
-				Quaternion constrained = Quaternion::FromPYR(Vec3::Normalize(axis, angle));
-				
-				Vec3 utarget = Vec3::Normalize(target);
-
-				// now rotate to make the +z axis face a desired forward direction as best as possible
-				Vec3 forward = Quaternion::Reverse(constrained) * Vec3(0, 0, 1);
-				forward = Vec3::Normalize(forward - utarget * Vec3::Dot(utarget, forward));
-				
-				Vec3 desired = Vec3::Normalize(desired_fwd - utarget * Vec3::Dot(utarget, desired_fwd));
-				Vec3 other_axis = Vec3::Cross(desired, utarget);
-
-				float rotate = atan2f(Vec3::Dot(forward, other_axis), Vec3::Dot(forward, desired));
-				Quaternion result = constrained * Quaternion::FromPYR(Vec3::Normalize(rest, -rotate));
-
-				Vec3 test = Quaternion::Reverse(result) * Vec3(0, 0, 1);
-				test = Vec3::Normalize(test - utarget * Vec3::Dot(utarget, test));
-
-				//Debug(((stringstream&)(stringstream() << "score = " << Vec3::Dot(test, desired) << endl)).str());
-
-				return result;
-			}
-
-			Vec3 FlattenOntoCircle(const Vec3& u_hta, const Vec3& hip_pos, float knee_dist, float knee_radius, const Vec3& point)
-			{
-				Vec3 temp = point - hip_pos;
-				temp -= u_hta * Vec3::Dot(u_hta, temp);
-				temp = hip_pos + u_hta * knee_dist + Vec3::Normalize(temp, knee_radius);
-				return temp;
-			}
-
-			void PoseLeg(SoldierIKPose* pose, const Mat4& pelvis_xform, float timestep)
-			{
-				Vec3 hip_pos = pelvis_xform.TransformVec3_1(hip_joint->pos);
-				Quaternion pelvis_ori = pelvis_xform.ExtractOrientation();
-
-				// select position and orientation for foot bone
-				Mat4 foot_xform;
-				if(foot_state->pfc != NULL)
-				{
-					PlacedFootConstraint* pfc = foot_state->pfc;
-					Quaternion foot_ori = pfc->obj_b->GetOrientation() * Quaternion::Reverse(pfc->desired_ori);
-
-					Vec3 constraint_pos = pfc->obj_b->GetTransformationMatrix().TransformVec3_1(pfc->b_pos);
-					Vec3 foot_pos = constraint_pos - Mat4::FromQuaternion(Quaternion::Reverse(foot_ori)).TransformVec3_0(pfc->a_pos);
-
-					foot_xform = Mat4::FromPositionAndOrientation(foot_pos, foot_ori);
-				}
-				else
-				{
-					// TODO: figure out where we want the foot and ankle to be for real
-					foot_xform = foot_rb->GetTransformationMatrix();
-				}
-
-				Vec3 ankle_pos = foot_xform.TransformVec3_1(ankle_joint->pos);
-
-				Vec3 hip_to_ankle = ankle_pos - hip_pos;
-				float hta_dist = hip_to_ankle.ComputeMagnitude();
-				if(hta_dist > max_hta)
-				{
-					hip_to_ankle *= max_hta / hta_dist;
-					ankle_pos = hip_pos + hip_to_ankle;
-
-					hta_dist = max_hta;
-				}
-
-				// figure out where the knee can possibly go...
-				float inv_hta = 1.0f / hta_dist;
-				float knee_dist = 0.5f * (usqmlsq + hta_dist * hta_dist) * inv_hta;
-				float knee_radius = sqrtf(upper_sq - knee_dist * knee_dist);
-
-				// pick a position on that circle where we want the knee to go
-				Vec3 fwd = pelvis_xform.TransformVec3_0(0, 0, 1);
-				Vec3 knee_pos = hip_pos + fwd;
-				// flatten the proposed knee position onto the plane of the circle, and normalize it to the circle's radius
-				knee_pos = FlattenOntoCircle(hip_to_ankle * inv_hta, hip_pos, knee_dist, knee_radius, knee_pos);
-
-				// select orientations for the two leg bones
-				Quaternion upper_ori = PoseLegBone(knee_joint->pos	- hip_joint->pos,	knee_pos	- hip_pos,	fwd);
-				Quaternion lower_ori = PoseLegBone(ankle_joint->pos	- knee_joint->pos,	ankle_pos	- knee_pos,	fwd);
-
-				// set posey bone orientations based on the orientations we chose for the foot and leg bones
-				Quaternion foot_ori = foot_xform.ExtractOrientation();
-
-				foot_bone->ori	= Quaternion::Reverse(lower_ori)	* foot_ori;
-				lower_bone->ori	= Quaternion::Reverse(upper_ori)	* lower_ori;
-				upper_bone->ori	= Quaternion::Reverse(pelvis_ori)	* upper_ori;
-
-				Vec3 pyr = (Quaternion::Reverse(pelvis_ori) * lower_ori).ToPYR();
-				Debug(((stringstream&)(stringstream() << "lower from pelvis = (" << pyr.x << ", " << pyr.y << ", " << pyr.z << ")" << endl)).str());
-			}
-		} left_leg, right_leg;
-
-		RigidBody* pelvis;
-
-		SoldierIKPose(Soldier* dood) :
-			dood(dood),
-			left_leg(dood,	Bone::string_table["pelvis"], Bone::string_table["l leg 1"], Bone::string_table["l leg 2"], Bone::string_table["l foot"]),
-			right_leg(dood,	Bone::string_table["pelvis"], Bone::string_table["r leg 1"], Bone::string_table["r leg 2"], Bone::string_table["r foot"]),
-			pelvis(dood->root_rigid_body)
-		{
+			ka->frames.push_back(kf);
 		}
 
-		~SoldierIKPose() { }
-
-		void UpdatePose(float timestep)
 		{
-			if(timestep == 0.0f)
-				return;
+			Keyframe kf(0.5f);
+			kf.next = 2;
 
-			// TODO: select desired xform for the pelvis
-			Vec3 left_pos = left_leg.foot_rb->GetPosition();
-			Vec3 right_pos = right_leg.foot_rb->GetPosition();
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
 
-			Quaternion pelvis_ori = pelvis->GetOrientation();
-			Quaternion yaw_ori = Quaternion::FromPYR(0, dood->yaw, 0);
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
 
-			Vec3 pelvis_pos = pelvis->GetPosition();
-
-			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation((left_pos + right_pos) * 0.5f, pelvis_ori * 0.7f + yaw_ori * 0.3f);
-			//Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori * 0.2f + yaw_ori * 0.8f);
-			Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(Vec3(), yaw_ori);
-
-			// pose each leg
-			left_leg.PoseLeg(this, pelvis_xform, timestep);
-			right_leg.PoseLeg(this, pelvis_xform, timestep);
-
-			// TODO: pose arms, head, etc.
+			ka->frames.push_back(kf);
 		}
-	};
+
+		{	// left foot forward
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateReverseWalkanimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateHardCodedWalkAnimation(&kb);
+		
+		ka->frames.clear();
+		ka->name = "soldier walk backward";
+
+		int frame_order[] = { 3, 2, 1, 0 };
+
+		for(int i = 0; i < 4; ++i)
+		{
+			Keyframe kf = kb.frames[frame_order[i]];
+			kf.next = (i + 1) % 4;
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateRightWalkAnimation(KeyframeAnimation* ka)
+	{
+		const float A = 0.5f;			// sidestep
+		const float B = 1.5f;			// knee bend
+		const float C = -0.65f;			// leg bend to match knees
+		const float D = B + C;
+		const float E = -0.2f;			// left foot past center
+
+		ka->frames.clear();
+		ka->name = "soldier walk right";
+
+		{	// right foot forward
+			Keyframe kf(0.5f);
+			kf.next = 1;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	C,	0,	A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-D,	0,	-A), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{	// left foot forward
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	C,	0,	-A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-D,	0,	A), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void MakeMirrorAnimation(KeyframeAnimation* original, KeyframeAnimation* copy)
+	{
+		copy->frames.clear();
+
+		for(int i = 0; i < 4; ++i)
+		{
+			const Keyframe& frame = original->frames[(i + 2) % 4];
+			Keyframe nu_frame;
+			nu_frame.duration = frame.duration;
+			nu_frame.next = (i + 1) % 4;
+
+			for(boost::unordered_map<unsigned int, BoneInfluence>::const_iterator jter = frame.values.begin(); jter != frame.values.end(); ++jter)
+			{
+				string original_name = Bone::string_table[jter->first];
+				string changed_name = original_name;
+
+				if(original_name.size() > 2 && original_name[1] == ' ')
+					switch(original_name[0])
+					{
+						case 'l':
+							changed_name[0] = 'r';
+							break;
+
+						case 'L':
+							changed_name[0] = 'R';
+							break;
+
+						case 'r':
+							changed_name[0] = 'l';
+							break;
+
+						case 'R':
+							changed_name[0] = 'L';
+							break;
+					}
+
+				BoneInfluence inf = jter->second;
+				const Vec3& pos = inf.pos;
+				const Vec3& ori = inf.ori;
+
+				nu_frame.values[Bone::string_table[changed_name]] = BoneInfluence(Vec3(ori.x, -ori.y, -ori.z), Vec3(-pos.x, pos.y, pos.z));
+			}
+
+			copy->frames.push_back(nu_frame);
+		}
+	}
+
+	static void GenerateTurnRightAnimation(KeyframeAnimation* ka)
+	{
+		const float A = 1.0f;				// foot rotation from center
+		const float B = A / 2;
+		const float C = 1.5f;				// knee bend
+		const float D = 0.65f;				// leg forward/backward
+
+		ka->frames.clear();
+		ka->name = "soldier turn right";
+
+		{	// right foot leading
+			Keyframe kf(0.5f);
+			kf.next = 1;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	A,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-D,	-A,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 2;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{	// left foot leading
+			Keyframe kf(0.5f);
+			kf.next = 3;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-D,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+
+		{
+			Keyframe kf(0.5f);
+			kf.next = 0;
+
+			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+
+			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
+			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+
+			ka->frames.push_back(kf);
+		}
+	}
+
+	static void GenerateLeftWalkAnimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateRightWalkAnimation(&kb);
+
+		MakeMirrorAnimation(&kb, ka);
+		ka->name = "soldier walk left";
+	}
+
+	static void GenerateTurnLeftAnimation(KeyframeAnimation* ka)
+	{
+		KeyframeAnimation kb;
+		GenerateTurnRightAnimation(&kb);
+
+		MakeMirrorAnimation(&kb, ka);
+		ka->name = "soldier turn left";
+	}
 
 
 
@@ -255,8 +353,10 @@ namespace Test
 	 */
 	Soldier::Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		ik_pose(NULL),
 		gun_hand_bone(NULL),
+		p_ag(NULL),
+		walk_pose(NULL),
+		walk_timer(0.0f),
 		jet_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -352,6 +452,15 @@ namespace Test
 			jet_fuel = min(jet_fuel + fuel_refill_rate * timestep, 1.0f);
 	}
 
+	void Soldier::PreUpdatePoses(TimingInfo time)
+	{
+		if(p_ag != NULL)
+		{
+			p_ag->yaw = yaw - walk_pose->yaw;
+			p_ag->pitch = pitch;
+		}
+	}
+
 	void Soldier::PostUpdatePoses(TimingInfo time)
 	{
 		// position and orient the gun
@@ -375,22 +484,42 @@ namespace Test
 
 		if(is_valid)
 		{
-			ik_pose = new SoldierIKPose(this);
+			p_ag = new PoseAimingGun();
+			posey->active_poses.push_back(p_ag);
+
+			KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
+			GenerateRestPose(&rest);
+			GenerateHardCodedWalkAnimation(&kf);
+			GenerateReverseWalkanimation(&kb);
+			GenerateRightWalkAnimation(&kr);
+			GenerateLeftWalkAnimation(&kl);
+			GenerateTurnLeftAnimation(&turnl);
+			GenerateTurnRightAnimation(&turnr);
+
+			walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
+			walk_pose->yaw_bone = Bone::string_table["pelvis"];
+			walk_pose->side_anim_rate = 2.5f;
+
+			walk_timer = game_state->total_game_time;
+
+			posey->active_poses.push_back(walk_pose);
 		}
 	}
 
+	void Soldier::DeSpawned() { Dood::DeSpawned(); }
+
 	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
 	{
-		if(game_state->total_game_time > 0.1f)
-			ik_pose->UpdatePose(timestep);
+		walk_timer += timestep;
+		PoseCharacter(TimingInfo(timestep, walk_timer));
 
 		Dood::DoCheatyPose(timestep, net_vel);
 	}
 
 	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
 	{
-		//cheaty_vel = Vec3();
-		//cheaty_rot = Vec3();
+		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "cheaty rot = " << cheaty_rot.ComputeMagnitude())).str();
+		cheaty_rot = Vec3();
 
 		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);
 	}
