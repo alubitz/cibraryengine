@@ -34,8 +34,8 @@ namespace Test
 	{
 		// TODO: improve how tangential and angular breakage work so that they can be re-enabled
 		static const float outward_dv_breakage_threshold		= 4.0f;
-		static const float tangential_dvsq_breakage_threshold	= 16000.0f;
-		static const float avsq_breakage_threshold				= 16000.0f;
+		static const float friction_bonus_threshold				= 0.1f;
+		static const float av_breakage_threshold				= 50.0f;
 
 		bool wakeup = false;
 
@@ -45,10 +45,17 @@ namespace Test
 		Vec3 brot = obj_b->GetAngularVelocity();
 
 		Vec3 current_dv = bvel - avel + Vec3::Cross(r2, brot) - Vec3::Cross(r1, arot);
-		if(!broken)
+		float dot = Vec3::Dot(current_dv, cur_normal);
+
+		float restitution_impulse_sq = (rlv_to_impulse * cur_normal).ComputeMagnitudeSquared() * dot * dot;
+
+		if(dot < -outward_dv_breakage_threshold)
+			broken = true;
+		else
 		{
-			float dot = Vec3::Dot(current_dv, cur_normal);
-			if(dot < -outward_dv_breakage_threshold || (current_dv - cur_normal * dot).ComputeMagnitudeSquared() > tangential_dvsq_breakage_threshold)
+			Vec3 full_friction_impulse = rlv_to_impulse * (current_dv - cur_normal * dot);
+
+			if(restitution_impulse_sq > full_friction_impulse.ComputeMagnitudeSquared() + friction_bonus_threshold)
 				broken = true;
 		}
 
@@ -75,8 +82,8 @@ namespace Test
 				arot += alpha_to_arot * alpha;
 				brot -= alpha_to_brot * alpha;
 
-				if(magsq > avsq_breakage_threshold)
-					broken = true;
+				//if(magsq > restitution_impulse_sq)
+				//	broken = true;
 
 				wakeup = true;
 			}

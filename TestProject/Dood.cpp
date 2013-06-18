@@ -325,7 +325,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 5.0f;
+			float third_person_distance = 4.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1

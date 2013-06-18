@@ -1199,12 +1199,13 @@ namespace CibraryEngine
 					material_names.push_back(iter->material);
 
 				mmp.material_index = material_index;
-				VertexBuffer* vbo = mmp.vbo = vtn_cache->Load(iter->model);
+				if(VertexBuffer* vbo = mmp.vbo = vtn_cache->Load(iter->model))
+				{
+					vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
+					vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
 
-				vbo->AddAttribute("gl_MultiTexCoord3", Float, 4);
-				vbo->AddAttribute("gl_MultiTexCoord4", Float, 4);
-
-				mmps.push_back(mmp);
+					mmps.push_back(mmp);
+				}
 			}
 
 			Skeleton* skeleton = new Skeleton();
