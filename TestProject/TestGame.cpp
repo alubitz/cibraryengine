@@ -27,7 +27,7 @@
 
 #define ENABLE_SHADOWS 1
 
-#define ENABLE_FPS_COUNTER 0
+#define ENABLE_FPS_COUNTER 1
 
 namespace Test
 {
@@ -604,7 +604,10 @@ namespace Test
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		Spawn(player_pawn);
 
-		Spawn(player_pawn->equipped_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound));
+		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
+		Spawn(player_weapon);
+
+		player_weapon->Equip(player_pawn);
 
 		player_pawn->blood_material = imp->blood_red;
 

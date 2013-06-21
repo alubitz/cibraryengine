@@ -30,8 +30,6 @@ namespace CibraryEngine
 	struct ContactPoint;
 	class ContactDataCollector;
 
-	class JointConstraint;
-
 	class RayCallback;
 	class CollisionCallback;
 	class PhysicsStepCallback;

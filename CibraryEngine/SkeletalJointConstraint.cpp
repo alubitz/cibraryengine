@@ -1,5 +1,5 @@
 #include "StdAfx.h"
-#include "JointConstraint.h"
+#include "SkeletalJointConstraint.h"
 
 #include "RigidBody.h"
 
@@ -8,9 +8,9 @@
 namespace CibraryEngine
 {
 	/*
-	 * JointConstraint methods
+	 * SkeletalJointConstraint methods
 	 */
-	JointConstraint::JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents) :
+	SkeletalJointConstraint::SkeletalJointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents) :
 		PhysicsConstraint(ibody, jbody),
 		pos(pos),
 		axes(axes),
@@ -21,7 +21,7 @@ namespace CibraryEngine
 	{
 	}
 
-	bool JointConstraint::DoConstraintAction()
+	bool SkeletalJointConstraint::DoConstraintAction()
 	{
 		static const float dv_coeff =			1.0f;
 
@@ -103,7 +103,7 @@ namespace CibraryEngine
 		return wakeup;
 	}
 
-	void JointConstraint::DoUpdateAction(float timestep_)
+	void SkeletalJointConstraint::DoUpdateAction(float timestep_)
 	{
 		timestep = timestep_;
 		inv_timestep = 1.0f / timestep;

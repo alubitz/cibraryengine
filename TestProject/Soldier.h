@@ -39,6 +39,8 @@ namespace Test
 
 			void RegisterFeet();
 
+			void Die(Damage cause);
+
 			void Spawned();
 			void DeSpawned();
 	};

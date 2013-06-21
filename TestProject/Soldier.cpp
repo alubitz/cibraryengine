@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "Soldier.h"
 
+#include "Gun.h"
 #include "WeaponEquip.h"
 #include "PlacedFootConstraint.h"
 
@@ -14,16 +15,16 @@ namespace Test
 	/*
 	 * Soldier constants
 	 */
-	static float fly_accel_up = 15.0f;
+	static const float fly_accel_up = 15.0f;
 
-	static float jump_to_fly_delay = 0.3f;
-	static float jump_speed = 4.0f;
+	static const float jump_to_fly_delay = 0.3f;
+	static const float jump_speed = 4.0f;
 
-	static float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
-	static float flying_accel = 8.0f;
+	static const float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
+	static const float flying_accel = 8.0f;
 
-	static float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	static float top_speed_sideways = 5.0f;
+	static const float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static const float top_speed_sideways = 5.0f;
 
 
 
@@ -464,11 +465,19 @@ namespace Test
 	void Soldier::PostUpdatePoses(TimingInfo time)
 	{
 		// position and orient the gun
-		if(equipped_weapon != NULL && gun_hand_bone != NULL)
+		if(equipped_weapon != NULL)
 		{
-			equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos);
-			equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
-			equipped_weapon->sound_vel = equipped_weapon->vel = vel;
+			Gun* gun = dynamic_cast<Gun*>(equipped_weapon);
+			if(gun != NULL && gun->rigid_body != NULL)
+			{
+				// TODO: get xform data from the rigid body, and use that to set gun_xform, sound_pos, and sound_vel
+			}
+			else if(gun_hand_bone != NULL)
+			{
+				equipped_weapon->gun_xform = Mat4::Translation(pos) * gun_hand_bone->GetTransformationMatrix() * Mat4::Translation(gun_hand_bone->rest_pos);
+				equipped_weapon->sound_pos = equipped_weapon->pos = equipped_weapon->gun_xform.TransformVec3_1(0, 0, 0);
+				equipped_weapon->sound_vel = equipped_weapon->vel = vel;
+			}
 		}
 	}
 
@@ -476,6 +485,18 @@ namespace Test
 	{
 		feet.push_back(new FootState(Bone::string_table["l foot"]));
 		feet.push_back(new FootState(Bone::string_table["r foot"]));
+	}
+
+	void Soldier::Die(Damage cause)
+	{
+		if(jet_loop != NULL)
+		{
+			jet_loop->StopLooping();
+			jet_loop->SetLoudness(0.0f);
+			jet_loop = NULL;
+		}
+
+		Dood::Die(cause);
 	}
 
 	void Soldier::Spawned()
@@ -518,7 +539,7 @@ namespace Test
 
 	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
 	{
-		((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "cheaty rot = " << cheaty_rot.ComputeMagnitude())).str();
+		//((TestGame*)game_state)->debug_text = ((stringstream&)(stringstream() << "cheaty rot = " << cheaty_rot.ComputeMagnitude())).str();
 		cheaty_rot = Vec3();
 
 		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);

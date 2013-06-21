@@ -20,5 +20,8 @@ namespace Test
 
 			virtual bool NeedsReloading();
 			virtual void BeginReload();
+
+			virtual void Equip(Dood* new_owner);
+			virtual void UnEquip(Dood* old_owner);
 	};
 }

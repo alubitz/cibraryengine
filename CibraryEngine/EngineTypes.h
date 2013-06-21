@@ -13,7 +13,8 @@
 #include "CollisionGroup.h"
 #include "ModelPhysics.h"
 #include "ContactPoint.h"
-#include "JointConstraint.h"
+#include "SkeletalJointConstraint.h"
+#include "FixedJointConstraint.h"
 
 #include "CollisionShape.h"
 #include "RayShape.h"

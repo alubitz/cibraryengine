@@ -19,4 +19,19 @@ namespace Test
 
 	bool WeaponEquip::NeedsReloading() { return false; }
 	void WeaponEquip::BeginReload() { }
+
+	void WeaponEquip::Equip(Dood* new_owner)
+	{
+		sound_owner = owner = new_owner;
+		owner->equipped_weapon = this;
+	}
+
+	void WeaponEquip::UnEquip(Dood* old_owner)
+	{
+		if(owner != old_owner)
+			DEBUG();
+
+		owner->equipped_weapon = NULL;
+		sound_owner = owner = NULL;
+	}
 }

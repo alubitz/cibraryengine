@@ -6,6 +6,14 @@ namespace Test
 {
 	class Gun : public WeaponEquip
 	{
+		protected:
+
+			virtual void InnerDispose();
+
+			virtual void OwnerUpdate(TimingInfo time);			// called by the owner's Update
+			virtual void UnownedUpdate(TimingInfo time);		// called by our Update if there is no owner
+			virtual void SharedUpdate(TimingInfo time);			// called by the default implementations of OwnerUpdate and UnownedUpdate
+
 		public:
 
 			float reload_time;
@@ -23,13 +31,20 @@ namespace Test
 			vector<Material*> gun_materials;
 			GlowyModelMaterial* mflash_material;
 
+			ModelPhysics* model_phys;
+
+			RigidBody* rigid_body;
+			PhysicsWorld* physics;
+
+			Vec3 barrel_pos;
+
 			SoundBuffer* fire_sound;
 			SoundBuffer* chamber_click_sound;
 			SoundBuffer* reload_sound;
 
 			Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
 
-			virtual void OwnerUpdate(TimingInfo time);
+			void Update(TimingInfo time);
 
 			virtual void Vis(SceneRenderer* renderer);
 
@@ -39,5 +54,11 @@ namespace Test
 			virtual void BeginReload();
 			virtual void FinishReload();
 			virtual bool GetAmmoFraction(float& result);
+
+			virtual void Spawned();
+			virtual void DeSpawned();
+
+			virtual void Equip(Dood* new_owner);
+			virtual void UnEquip(Dood* old_owner);
 	};
 }

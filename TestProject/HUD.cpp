@@ -464,7 +464,7 @@ namespace Test
 
 		// Drawing the reticle
 
-		if(player->hp > 0)
+		if(player->alive)
 		{
 			glBindTexture(GL_TEXTURE_2D, reticle_tex->GetGLName());
 			glBegin(GL_QUADS);

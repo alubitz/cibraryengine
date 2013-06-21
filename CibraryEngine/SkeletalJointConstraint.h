@@ -1,4 +1,5 @@
 #pragma once
+
 #include "StdAfx.h"
 
 #include "Physics.h"
@@ -11,7 +12,7 @@ namespace CibraryEngine
 
 	class RigidBody;
 
-	class JointConstraint : public PhysicsConstraint
+	class SkeletalJointConstraint : public PhysicsConstraint
 	{
 		protected:
 
@@ -44,7 +45,7 @@ namespace CibraryEngine
 			Quaternion desired_ori;
 			bool enable_motor;
 
-			JointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
+			SkeletalJointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 
 			bool DoConstraintAction();
 			void DoUpdateAction(float timestep);

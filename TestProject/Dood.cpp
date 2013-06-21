@@ -16,9 +16,9 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	static float ground_traction = 20.0f, air_traction = 0.1f;
-	static float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	static float top_speed_sideways = 5.0f;
+	static const float ground_traction = 20.0f, air_traction = 0.1f;
+	static const float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static const float top_speed_sideways = 5.0f;
 
 
 
@@ -603,7 +603,7 @@ namespace Test
 
 				bone_a->SetCollisionEnabled(bone_b, false);			// disable collisions between these two bones
 
-				JointConstraint* c = new JointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents);
+				SkeletalJointConstraint* c = new SkeletalJointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents);
 
 				constraints.push_back(c);
 				physics->AddConstraint(c);
@@ -728,12 +728,15 @@ namespace Test
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
 
+		if(equipped_weapon != NULL)
+			equipped_weapon->UnEquip(this);
+
 		// physics stuff
 		collision_group->SetInternalCollisionsEnabled(true);
 
 		standing_callback.BreakAllConstraints();
 		for(unsigned int i = 0; i < constraints.size(); ++i)
-			((JointConstraint*)constraints[i])->enable_motor = false;
+			((SkeletalJointConstraint*)constraints[i])->enable_motor = false;
 
 		alive = false;
 	}

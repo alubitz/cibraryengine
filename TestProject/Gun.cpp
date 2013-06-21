@@ -7,8 +7,6 @@
 
 namespace Test
 {
-	static const Vec3 barrel_pos(0, 0.08f, 0.84f);
-
 	/*
 	 * Gun methods
 	 */
@@ -27,6 +25,10 @@ namespace Test
 		mflash_model(mflash_model),
 		gun_materials(),
 		mflash_material(mflash_material),
+		model_phys(NULL),
+		rigid_body(NULL),
+		physics(NULL),
+		barrel_pos(0, 0.08f, 0.84f),				// TODO: load this from a file... either the ubermodel or the mphys
 		fire_sound(fire_sound),
 		chamber_click_sound(chamber_click_sound),
 		reload_sound(reload_sound)
@@ -39,6 +41,23 @@ namespace Test
 			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
 				gun_materials.push_back(mat_cache->Load(*iter));
 		}
+	}
+
+	void Gun::InnerDispose()
+	{
+		if(rigid_body) { rigid_body->Dispose(); delete rigid_body; rigid_body = NULL; }
+
+		// TODO: dispose and delete physics constraints if they are still around
+
+		WeaponEquip::InnerDispose();
+	}
+
+	void Gun::Update(TimingInfo time)
+	{
+		if(owner == NULL)
+			UnownedUpdate(time);
+
+		WeaponEquip::Update(time);
 	}
 
 	void Gun::OwnerUpdate(TimingInfo time)
@@ -59,8 +78,7 @@ namespace Test
 				iter = inaccuracy.erase(iter);
 		}
 
-		mflash_size *= expf(-16.0f * timestep);
-		mflash_size -= 0.05f * timestep;
+		SharedUpdate(time);
 
 		if(reloading)
 		{
@@ -83,6 +101,25 @@ namespace Test
 					owner->OnAmmoFailure(&evt);
 				}
 			}
+	}
+
+	void Gun::UnownedUpdate(TimingInfo time)
+	{
+		SharedUpdate(time);
+
+		for(list<Inaccuracy>::iterator iter = inaccuracy.begin(); iter != inaccuracy.end(); )
+		{
+			if(time.total > iter->time)
+				iter = inaccuracy.erase(iter);
+			else
+				++iter;
+		}
+	}
+
+	void Gun::SharedUpdate(TimingInfo time)
+	{
+		mflash_size *= expf(-16.0f * time.elapsed);
+		mflash_size -= 0.05f * time.elapsed;
 	}
 
 	void Gun::Fire(float total_inaccuracy, float now)
@@ -154,5 +191,51 @@ namespace Test
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetForward(), bs.center)));
 			}
 		}
+	}
+
+	void Gun::Spawned()
+	{
+		WeaponEquip::Spawned();
+
+		physics = game_state->physics_world;
+		
+		if(model_phys != NULL && model_phys->bones.size() > 0)
+		{
+			Mat4 xform;				// TODO: initialize this from somewhere
+
+			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
+			Vec3 a = xform.TransformVec3_0(1, 0, 0);
+			Vec3 b = xform.TransformVec3_0(0, 1, 0);
+			Vec3 c = xform.TransformVec3_0(0, 0, 1);
+
+			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
+
+			rigid_body = new RigidBody(this, bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)));
+			physics->AddCollisionObject(rigid_body);
+		}
+	}
+
+	void Gun::DeSpawned()
+	{
+		WeaponEquip::DeSpawned();
+
+		if(rigid_body != NULL)
+			physics->RemoveCollisionObject(rigid_body);
+
+		// TODO: break physics constraints if they are still around
+	}
+
+	void Gun::Equip(Dood* new_owner)
+	{
+		WeaponEquip::Equip(new_owner);
+
+		// TODO: create physics constraints, etc.
+	}
+
+	void Gun::UnEquip(Dood* old_owner)
+	{
+		// TODO: break physics constraints, etc.
+
+		WeaponEquip::UnEquip(old_owner);
 	}
 }
