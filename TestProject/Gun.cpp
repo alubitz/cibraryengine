@@ -5,12 +5,14 @@
 #include "Shot.h"
 #include "TestGame.h"
 
+#define USE_GUN_XFORM_AS_SHOT_XFORM 0
+
 namespace Test
 {
 	/*
 	 * Gun methods
 	 */
-	Gun::Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound) :
+	Gun::Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, ModelPhysics* mphys, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound) :
 		WeaponEquip(game_state, owner),
 		reload_time(1.7f),
 		refire_interval(0.089f),
@@ -25,8 +27,10 @@ namespace Test
 		mflash_model(mflash_model),
 		gun_materials(),
 		mflash_material(mflash_material),
-		model_phys(NULL),
+		model_phys(mphys),
 		rigid_body(NULL),
+		l_grip(NULL),
+		r_grip(NULL),
 		physics(NULL),
 		barrel_pos(0, 0.08f, 0.84f),				// TODO: load this from a file... either the ubermodel or the mphys
 		fire_sound(fire_sound),
@@ -45,9 +49,10 @@ namespace Test
 
 	void Gun::InnerDispose()
 	{
-		if(rigid_body) { rigid_body->Dispose(); delete rigid_body; rigid_body = NULL; }
+		if(rigid_body)	{ rigid_body->Dispose();	delete rigid_body;	rigid_body = NULL; }
 
-		// TODO: dispose and delete physics constraints if they are still around
+		if(l_grip)		{ l_grip->Dispose();		delete l_grip;		l_grip = NULL; }
+		if(r_grip)		{ r_grip->Dispose();		delete r_grip;		r_grip = NULL; }
 
 		WeaponEquip::InnerDispose();
 	}
@@ -114,6 +119,13 @@ namespace Test
 			else
 				++iter;
 		}
+
+		if(rigid_body != NULL)
+		{
+			gun_xform = rigid_body->GetTransformationMatrix();
+			sound_pos = rigid_body->GetPosition();
+			sound_vel = rigid_body->GetLinearVelocity();
+		}
 	}
 
 	void Gun::SharedUpdate(TimingInfo time)
@@ -127,11 +139,13 @@ namespace Test
 		owner->PoseCharacter();						// to make sure we have a gun_xform... it will conveniently change our gun_xform for us
 
 		Mat4 shot_mat = gun_xform * Mat4::Translation(barrel_pos);
-
 		Vec3 origin = shot_mat.TransformVec3_1(0, 0, 0);
-		
-		//Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
+
+#if USE_GUN_XFORM_AS_SHOT_XFORM
+		Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
+#else
 		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
+#endif
 
 		if(Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f))))
 			game_state->Spawn(shot);
@@ -143,7 +157,7 @@ namespace Test
 		mflash_size = 1.0f;
 
 		fire_wait = refire_interval;
-		clip--;
+		--clip;
 
 		FireOnce(1);
 	}
@@ -201,7 +215,7 @@ namespace Test
 		
 		if(model_phys != NULL && model_phys->bones.size() > 0)
 		{
-			Mat4 xform;				// TODO: initialize this from somewhere
+			Mat4 xform = Mat4::Translation(0, 1, 0);					// TODO: set initial rb xform to something reasonable
 
 			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
 			Vec3 a = xform.TransformVec3_0(1, 0, 0);
@@ -219,22 +233,74 @@ namespace Test
 	{
 		WeaponEquip::DeSpawned();
 
+		if(owner != NULL)
+			UnEquip(owner);
+
 		if(rigid_body != NULL)
 			physics->RemoveCollisionObject(rigid_body);
-
-		// TODO: break physics constraints if they are still around
 	}
 
 	void Gun::Equip(Dood* new_owner)
 	{
 		WeaponEquip::Equip(new_owner);
 
-		// TODO: create physics constraints, etc.
+		if(rigid_body != NULL)
+		{
+			if(l_grip == NULL)
+			{
+				RigidBody* gripper_rb = NULL;
+			
+				unsigned int id = Bone::string_table["l hand"];
+				for(unsigned int i = 0; i < new_owner->character->skeleton->bones.size(); ++i)
+					if(new_owner->character->skeleton->bones[i]->name == id)
+						gripper_rb = new_owner->bone_to_rbody[i];
+				if(gripper_rb != NULL)
+					l_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f,  0.000f,  0.468f), Vec3( 0.990f,  1.113f,  0.037f), Quaternion::FromPYR(-Vec3(0.0703434f, 0.0146932f, -2.50207f)));
+			}
+			else
+				l_grip->obj_a = rigid_body;
+		
+			if(r_grip == NULL)
+			{
+				RigidBody* gripper_rb = NULL;
+
+				unsigned int id = Bone::string_table["r hand"];
+				for(unsigned int i = 0; i < new_owner->character->skeleton->bones.size(); ++i)
+					if(new_owner->character->skeleton->bones[i]->name == id)
+						gripper_rb = new_owner->bone_to_rbody[i];
+				if(gripper_rb != NULL)
+					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.265f,  0.149f), Quaternion::FromPYR(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
+			}
+			else
+				r_grip->obj_a = rigid_body;
+
+			if(l_grip != NULL)
+				physics->AddConstraint(l_grip);
+			if(r_grip != NULL)
+				physics->AddConstraint(r_grip);
+
+			rigid_body->SetCollisionEnabled(new_owner->collision_group, false);
+		}
 	}
 
 	void Gun::UnEquip(Dood* old_owner)
 	{
-		// TODO: break physics constraints, etc.
+		if(rigid_body != NULL)
+		{
+			// break physics constraints (and mark them in a way that indicates they are broken)
+			if(l_grip != NULL && l_grip->obj_a != NULL)
+			{
+				physics->RemoveConstraint(l_grip);
+				l_grip->obj_a = NULL;
+			}
+			if(r_grip != NULL && r_grip->obj_a != NULL)
+			{
+				physics->RemoveConstraint(r_grip);
+				r_grip->obj_a = NULL;
+			}
+
+			rigid_body->SetCollisionEnabled(old_owner->collision_group, true);
+		}
 
 		WeaponEquip::UnEquip(old_owner);
 	}

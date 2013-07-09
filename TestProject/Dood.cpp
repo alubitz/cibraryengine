@@ -11,6 +11,8 @@
 
 #include "PlacedFootConstraint.h"
 
+#define DROP_EQUIPPED_WEAPON_ON_DEATH 1
+
 namespace Test
 {
 	/*
@@ -638,6 +640,11 @@ namespace Test
 			delete shootables[i];
 		shootables.clear();
 
+		if(equipped_weapon)
+			equipped_weapon->UnEquip(this);
+		if(intrinsic_weapon)
+			intrinsic_weapon->is_valid = false;
+
 		// clear constraints
 		for(unsigned int i = 0; i < constraints.size(); ++i)
 		{
@@ -670,11 +677,6 @@ namespace Test
 			delete collision_group;
 			collision_group = NULL;
 		}
-
-		if(equipped_weapon)
-			equipped_weapon->is_valid = false;
-		if(intrinsic_weapon)
-			intrinsic_weapon->is_valid = false;
 
 		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
 		{
@@ -728,8 +730,10 @@ namespace Test
 		if(this != ((TestGame*)game_state)->player_pawn)
 			controller->is_valid = false;
 
+#if DROP_EQUIPPED_WEAPON_ON_DEATH
 		if(equipped_weapon != NULL)
 			equipped_weapon->UnEquip(this);
+#endif
 
 		// physics stuff
 		collision_group->SetInternalCollisionsEnabled(true);

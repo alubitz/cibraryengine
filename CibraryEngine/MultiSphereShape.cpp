@@ -775,7 +775,7 @@ namespace CibraryEngine
 			Vec3 left = -renderer->camera->GetRight(), up = renderer->camera->GetUp();
 
 			// now get the points on the silhouette edge
-			static const unsigned int num_edges = 32;
+			static const unsigned int num_edges = 64;
 			static const float theta_coeff = 2.0f * float(M_PI) / num_edges;
 
 			// cache a unit circle

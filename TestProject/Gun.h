@@ -34,6 +34,7 @@ namespace Test
 			ModelPhysics* model_phys;
 
 			RigidBody* rigid_body;
+			FixedJointConstraint *l_grip, *r_grip;
 			PhysicsWorld* physics;
 
 			Vec3 barrel_pos;
@@ -42,7 +43,7 @@ namespace Test
 			SoundBuffer* chamber_click_sound;
 			SoundBuffer* reload_sound;
 
-			Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
+			Gun(GameState* game_state, Dood* owner, UberModel* gun_model, VertexBuffer* mflash_model, GlowyModelMaterial* mflash_material, ModelPhysics* mphys, SoundBuffer* fire_sound, SoundBuffer* chamber_click_sound, SoundBuffer* reload_sound);
 
 			void Update(TimingInfo time);
 

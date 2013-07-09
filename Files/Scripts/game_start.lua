@@ -43,13 +43,13 @@ gs.setNavEditMode(nav_edit_mode)
 gs.setDebugDrawMode(debug_draw_mode)
 
 --spawnBotAtPosition(gs, 0, 10)
-num_boxes = 0
+num_rubbish = 0
 
-if num_boxes > 0 then
-	for i = 1, num_boxes do
+if num_rubbish > 0 then
+	for i = 1, num_rubbish do
 		local x = math.random() * 10.0 - 5.0
 		local z = math.random() * 10.0 + 30.0
-		local y = gs.getTerrainHeight(x, z) + 200.0 * i / num_boxes + 5.0
+		local y = gs.getTerrainHeight(x, z) + 200.0 * i / num_rubbish + 5.0
 
 		gs.spawnRubbish(ba.createVector(x, y, z))
 	end

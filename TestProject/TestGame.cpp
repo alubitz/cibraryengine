@@ -10,8 +10,6 @@
 #include "Sun.h"
 #include "Weapon.h"
 
-#include "ConverterWhiz.h"
-
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
 #include "ArtilleryWeapon.h"
@@ -28,6 +26,8 @@
 #define ENABLE_SHADOWS 1
 
 #define ENABLE_FPS_COUNTER 1
+
+#define USE_GUN_AS_RUBBISH 0
 
 namespace Test
 {
@@ -57,15 +57,15 @@ namespace Test
 	/*
 	 * TestGame::Loader methods
 	 */
-	TestGame::Loader::Loader() : imp(new Imp()), game(NULL), task("") { }
-	void TestGame::Loader::InnerDispose() { delete imp; imp = NULL; }
+	TestGame::Loader::Loader() : imp(new Imp()), game(NULL), task("")	{ }
+	void TestGame::Loader::InnerDispose()								{ delete imp; imp = NULL; }
 
-	void TestGame::Loader::operator ()() { game->Load(); }
+	void TestGame::Loader::operator ()()								{ game->Load(); }
 
-	bool TestGame::Loader::HasStopped() { return imp->HasStopped(); }
-	bool TestGame::Loader::HasAborted() { return imp->HasAborted(); }
-	void TestGame::Loader::Stop() { imp->Stop(); }
-	void TestGame::Loader::Abort() { imp->Abort(); }
+	bool TestGame::Loader::HasStopped()									{ return imp->HasStopped(); }
+	bool TestGame::Loader::HasAborted()									{ return imp->HasAborted(); }
+	void TestGame::Loader::Stop()										{ imp->Stop(); }
+	void TestGame::Loader::Abort()										{ imp->Abort(); }
 
 
 
@@ -139,12 +139,15 @@ namespace Test
 		UberModel* soldier_model;
 		UberModel* crab_bug_model;
 		UberModel* artillery_bug_model;
+		UberModel* rubbish_model;
 
 		ModelPhysics* soldier_physics;
 		ModelPhysics* crab_bug_physics;
 		ModelPhysics* artillery_bug_physics;
+		ModelPhysics* rubbish_physics;
 
 		UberModel* gun_model;
+		ModelPhysics* gun_physics;
 		VertexBuffer* mflash_model;
 		VertexBuffer* shot_model;
 		GlowyModelMaterial* mflash_material;
@@ -364,51 +367,9 @@ namespace Test
 		ScriptSystem::SetContentReqList(NULL);
 		content_req_list.LoadContent(&load_status.task);
 
-		if(ubermodel_cache->Load("nbridge") == NULL)
-		{
-			load_status.task = "terrain mesh";
-
-			// create terrain zzz file
-			vector<MaterialModelPair> pairs;
-			vector<string> material_names;
-			MaterialModelPair pair;
-
-			pair.material_index = 0;
-			pair.vbo = vtn_cache->Load("nbridge");
-			pairs.push_back(pair);
-			material_names.push_back("nbridge");
-
-			SkinnedModel* terrain_skinny = new SkinnedModel(pairs, material_names, new Skeleton());
-			UberModel* terrain_model = UberModelLoader::CopySkinnedModel(terrain_skinny);
-
-			UberModelLoader::SaveZZZ(terrain_model, "Files/Models/nbridge.zzz");
-
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("nbridge").id).fail = false;
-		}
-
-		if(mphys_cache->Load("nbridge") == NULL)
-		{
-			load_status.task = "terrain mesh";
-
-			ModelPhysics m;
-			ModelPhysics::BonePhysics phys;
-
-			TriangleMeshShape shape((*ubermodel_cache->Load("nbridge")->lods[0]->GetVBOs())[0].vbo);
-
-			phys.bone_name = "main";
-			phys.collision_shape = &shape;
-			phys.mass_info = MassInfo();
-
-			m.bones.push_back(phys);
-
-			ModelPhysicsLoader::SaveZZP(&m, "Files/Physics/nbridge.zzp");
-			
-			mphys_cache->GetMetadata(mphys_cache->GetHandle("nbridge").id).fail = false;
-		}
-
+		// creating sky
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "sky"; }
 
-		// creating sky
 		Cache<Shader>* shader_cache = content->GetCache<Shader>();
 		Shader* sky_vertex_shader = shader_cache->Load("sky-v");
 		Shader* sky_fragment_shader = shader_cache->Load("sky-f");
@@ -453,82 +414,41 @@ namespace Test
 		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
 		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
 
+		// Dood's model
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
 
-		// Dood's model
 		imp->soldier_model = ubermodel_cache->Load("soldier");
-		if(imp->soldier_model == NULL)
-		{
-			thread_script.DoFile("Files/Scripts/soldier_zzz.lua");
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("soldier").id).fail = false;
-		}
-		imp->soldier_physics = mphys_cache->Load("soldier");
-		if(imp->soldier_physics == NULL)
-		{
-			thread_script.DoFile("Files/Scripts/soldier_zzp.lua");
-			mphys_cache->GetMetadata(mphys_cache->GetHandle("soldier").id).fail = false;
-		}
-		
+		imp->soldier_physics = mphys_cache->Load("soldier");		
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
 		imp->gun_model = ubermodel_cache->Load("gun");
+		imp->gun_physics = mphys_cache->Load("gun");
 		imp->mflash_model = vtn_cache->Load("mflash");
 		imp->shot_model = vtn_cache->Load("shot");
 		imp->blood_red = (BillboardMaterial*)mat_cache->Load("blood");
 		imp->blood_blue = (BillboardMaterial*)mat_cache->Load("bug_blood");
 		imp->dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 
+#if USE_GUN_AS_RUBBISH
+		imp->rubbish_model = imp->gun_model;
+		imp->rubbish_physics = imp->gun_physics;
+#else
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "rubbish"; }
+
+		imp->rubbish_model = ubermodel_cache->Load("dummycube");
+		imp->rubbish_physics = mphys_cache->Load("dummycube");
+#endif
+
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "crab bug"; }
 
 		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
-		if(imp->crab_bug_model == NULL)
-		{
-			thread_script.DoFile("Files/Scripts/crab_bug_zzz.lua");
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("crab_bug").id).fail = false;
-		}
 		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
-		if(imp->crab_bug_physics == NULL)
-		{
-			thread_script.DoFile("Files/Scripts/crab_bug_zzp.lua");
-			mphys_cache->GetMetadata(mphys_cache->GetHandle("crab_bug").id).fail = false;
-		}
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "artillery bug"; }
 
 		imp->artillery_bug_model = ubermodel_cache->Load("flea");
-		if(imp->artillery_bug_model == NULL)
-		{
-			vector<BoneEntry> bone_entries;
-			ArtilleryBug::GetBoneEntries(bone_entries);
-
-			UberModel* flea_model = AutoSkinUberModel(content, "flea", "flea", bone_entries);
-
-			SetUberModelSkeleton(flea_model, bone_entries);
-			UberModelLoader::SaveZZZ(flea_model, "Files/Models/flea.zzz");
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("flea").id).fail = false;
-		}
-
 		imp->artillery_bug_physics = mphys_cache->Load("flea");
-		if(imp->artillery_bug_physics == NULL)
-		{
-			vector<BoneEntry> bone_entries;
-			ArtilleryBug::GetBoneEntries(bone_entries);
-
-			imp->artillery_bug_physics = ModelPhysicsFromBoneEntries(bone_entries);
-			ModelPhysicsLoader::SaveZZP(imp->artillery_bug_physics, "Files/Physics/flea.zzp");
-			mphys_cache->GetMetadata(mphys_cache->GetHandle("flea").id).fail = false;
-		}
-
-		if(ubermodel_cache->Load("ground_plane") == NULL)
-		{
-			load_status.task = "ground_plane";
-
-			UberModel* ground_plane_model = UberModelLoader::CopySkinnedModel(SkinnedModel::WrapVertexBuffer(vtn_cache->Load("ground_plane"), "ground_plane"));
-			UberModelLoader::SaveZZZ(ground_plane_model, "Files/Models/ground_plane.zzz");
-
-			ubermodel_cache->GetMetadata(ubermodel_cache->GetHandle("ground_plane").id).fail = false;
-		}
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "misc"; }
 
@@ -557,37 +477,9 @@ namespace Test
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
 
-		// if your game start script doesn't init the player, there will be trouble
+		// if your game_start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 		hud->SetPlayer(player_pawn);
-
-#if 1
-		ModelPhysics* rubbish_phys = mphys_cache->Load("dummycube");
-		if(rubbish_phys == NULL)
-		{
-			static const float s = 0.5f;
-
-			CollisionShape* shape = ConvexMeshShape::FromVBO((*(ubermodel_cache->Load("dummycube")->lods[0]->GetVBOs()))[0].vbo);
-
-			MassInfo mass_info;
-			mass_info.mass = 25;
-			mass_info.com = Vec3();
-			mass_info.moi[0] = mass_info.moi[4] = mass_info.moi[8] = mass_info.mass * (4.0f * s * s) / 6.0f;
-
-			rubbish_phys = new ModelPhysics();
-
-			ModelPhysics::BonePhysics bone;
-			bone.bone_name = "main";
-			bone.collision_shape = shape;
-			bone.mass_info = mass_info;
-
-			rubbish_phys->bones.push_back(bone);
-
-			ModelPhysicsLoader::SaveZZP(rubbish_phys, "Files/Physics/dummycube.zzp");
-
-			mphys_cache->GetMetadata(mphys_cache->GetHandle("dummycube").id).fail = false;
-		}
-#endif
 
 		thread_script.Dispose();
 
@@ -602,14 +494,13 @@ namespace Test
 			player_controller->is_valid = false;
 
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
+		player_pawn->blood_material = imp->blood_red;
 		Spawn(player_pawn);
 
-		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->shot_model, imp->mflash_material, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
+		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
 		Spawn(player_weapon);
 
 		player_weapon->Equip(player_pawn);
-
-		player_pawn->blood_material = imp->blood_red;
 
 		player_pawn->OnDeath += &imp->player_death_handler;
 		player_pawn->OnDamageTaken += &imp->player_damage_handler;
@@ -617,7 +508,6 @@ namespace Test
 		player_controller = new ScriptedController(this, "player_ai");
 		player_controller->Possess(player_pawn);
 		player_controller->ctrl_update_interval = 0;
-
 		Spawn(player_controller);
 
 		return player_pawn;
@@ -671,8 +561,8 @@ namespace Test
 
 	Rubbish* TestGame::SpawnRubbish(Vec3 pos)
 	{
-		UberModel* rubbish_model = ubermodel_cache->Load("dummycube");
-		ModelPhysics* rubbish_phys = mphys_cache->Load("dummycube");
+		UberModel* rubbish_model = imp->rubbish_model;
+		ModelPhysics* rubbish_phys = imp->rubbish_physics;
 
 		if(rubbish_model && rubbish_phys)
 		{

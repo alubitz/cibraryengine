@@ -3,8 +3,6 @@
 
 #include "WalkPose.h"
 
-#include "ConverterWhiz.h"
-
 #define DIE_AFTER_ONE_SECOND 0
 
 namespace Test

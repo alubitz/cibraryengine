@@ -10,6 +10,8 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
+#define DIE_AFTER_ONE_SECOND 0
+
 namespace Test
 {
 	/*
@@ -372,6 +374,8 @@ namespace Test
 		jet_loop_sound = sound_cache->Load("jet_loop");
 
 		standing_callback.angular_coeff = 1.0f;
+
+		ragdoll_timer = 3600.0f;
 	}
 
 	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
@@ -468,9 +472,15 @@ namespace Test
 		if(equipped_weapon != NULL)
 		{
 			Gun* gun = dynamic_cast<Gun*>(equipped_weapon);
+
 			if(gun != NULL && gun->rigid_body != NULL)
 			{
-				// TODO: get xform data from the rigid body, and use that to set gun_xform, sound_pos, and sound_vel
+				RigidBody* gun_rb = gun->rigid_body;
+				Mat4 gun_xform = gun_rb->GetTransformationMatrix();
+
+				equipped_weapon->gun_xform = gun_xform;
+				equipped_weapon->sound_pos = equipped_weapon->pos = gun_xform.TransformVec3_1(0, 0, 0);
+				equipped_weapon->sound_vel = equipped_weapon->vel = vel;
 			}
 			else if(gun_hand_bone != NULL)
 			{
@@ -533,6 +543,11 @@ namespace Test
 	{
 		walk_timer += timestep;
 		PoseCharacter(TimingInfo(timestep, walk_timer));
+
+#if DIE_AFTER_ONE_SECOND
+		if(walk_timer > 1.0f)
+			Die(Damage());
+#endif
 
 		Dood::DoCheatyPose(timestep, net_vel);
 	}

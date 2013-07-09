@@ -2,6 +2,8 @@ start_time = os.time()
 ba.println("script system started at t = " .. start_time)
 math.randomseed(start_time)
 
+--dofile("Files/Scripts/dummycube_zzp.lua")
+
 dood_properties = {}
 
 -- function to spawn a bot some number of meters above the terrain at the specified x and z coordinates
