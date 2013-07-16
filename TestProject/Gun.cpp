@@ -269,7 +269,7 @@ namespace Test
 					if(new_owner->character->skeleton->bones[i]->name == id)
 						gripper_rb = new_owner->bone_to_rbody[i];
 				if(gripper_rb != NULL)
-					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.265f,  0.149f), Quaternion::FromPYR(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
+					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromPYR(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
 			}
 			else
 				r_grip->obj_a = rigid_body;

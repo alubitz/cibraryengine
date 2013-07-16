@@ -5,14 +5,14 @@ local joints = { }
 
 --[[
 
-	l grip (gun)	=  0.000,  0.000,  0.468
-	l grip (hand)	=  0.990,  1.113,  0.037
+	l grip (gun)        =  0.000,  0.000,  0.468
+	l grip (hand)       =  0.990,  1.113,  0.037
 
-	r grip (gun)	=  0.000, -0.063, -0.152
-	r grip (hand)	= -0.959,  1.265,  0.149
+	r grip (gun)        =  0.000, -0.063, -0.152
+	r grip (hand)       = -0.959,  1.098,  0.077
 
-	gun barrel pos =         0.000,  0.087,  0.842
-	grenade barrel pos =     0.000,  0.034,  0.840
+	gun barrel pos      =  0.000,  0.087,  0.842
+	grenade barrel pos  =  0.000,  0.034,  0.840
 
 ]]--
 

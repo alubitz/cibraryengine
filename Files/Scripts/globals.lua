@@ -2,7 +2,7 @@ start_time = os.time()
 ba.println("script system started at t = " .. start_time)
 math.randomseed(start_time)
 
---dofile("Files/Scripts/dummycube_zzp.lua")
+--dofile("Files/Scripts/soldier_zzp.lua")
 
 dood_properties = {}
 

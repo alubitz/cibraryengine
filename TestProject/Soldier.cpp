@@ -533,7 +533,7 @@ namespace Test
 
 			walk_timer = game_state->total_game_time;
 
-			posey->active_poses.push_back(walk_pose);
+			//posey->active_poses.push_back(walk_pose);
 		}
 	}
 

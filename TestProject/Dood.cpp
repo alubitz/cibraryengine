@@ -327,7 +327,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 4.0f;
+			float third_person_distance = 3.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
@@ -336,7 +336,7 @@ namespace Test
 			Mat4& use_ori = eye_xform;
 #endif
 
-			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
+			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos) + Vec3(0, -0.5f, 0);		// TODO: remove this hack
 			Vec3 left		= use_ori.TransformVec3_0(1, 0, 0);
 			Vec3 up			= use_ori.TransformVec3_0(0, 1, 0);
 			Vec3 backward	= use_ori.TransformVec3_0(0, 0, 1);
