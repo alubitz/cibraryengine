@@ -56,6 +56,8 @@ namespace Test
 			virtual void FinishReload();
 			virtual bool GetAmmoFraction(float& result);
 
+			virtual Mat4 GetInitialXform();
+
 			virtual void Spawned();
 			virtual void DeSpawned();
 

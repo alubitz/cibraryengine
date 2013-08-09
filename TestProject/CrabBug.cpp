@@ -5,6 +5,8 @@
 
 #define DIE_AFTER_ONE_SECOND 0
 
+#define ENABLE_WALK_ANIMATIONS 1
+
 namespace Test
 {
 	using namespace std;
@@ -17,7 +19,7 @@ namespace Test
 
 
 
-
+#if ENABLE_WALK_ANIMATIONS
 	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
 		{
@@ -95,6 +97,7 @@ namespace Test
 
 		ka->frames.push_back(kf);
 	}
+#endif
 
 
 
@@ -115,11 +118,13 @@ namespace Test
 		// character animation stuff
 		posey->active_poses.push_back(crab_heading);
 
+#if ENABLE_WALK_ANIMATIONS
 		KeyframeAnimation kw, kr;
 		GenerateHardCodedWalkAnimation(&kw);
 		GenerateRestPose(&kr);
 
-		//posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
+		posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
+#endif
 
 		standing_callback.angular_coeff = 0.0f;
 	}

@@ -19,5 +19,7 @@ namespace Test
 			Shot* CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction);
 
 			bool GetAmmoCount(int& result);
+
+			Mat4 GetInitialXform();
 	};
 }

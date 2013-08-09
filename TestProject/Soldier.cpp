@@ -12,6 +12,8 @@
 
 #define DIE_AFTER_ONE_SECOND 0
 
+#define ENABLE_WALK_ANIMATIONS 0
+
 namespace Test
 {
 	/*
@@ -34,6 +36,7 @@ namespace Test
 	/*
 	 * Soldier animations and related functions
 	 */
+#if ENABLE_WALK_ANIMATIONS
 	static void GenerateRestPose(KeyframeAnimation* ka)
 	{
 		ka->frames.clear();
@@ -347,6 +350,7 @@ namespace Test
 		MakeMirrorAnimation(&kb, ka);
 		ka->name = "soldier turn left";
 	}
+#endif
 
 
 
@@ -461,7 +465,11 @@ namespace Test
 	{
 		if(p_ag != NULL)
 		{
+#if ENABLE_WALK_ANIMATIONS
 			p_ag->yaw = yaw - walk_pose->yaw;
+#else
+			p_ag->yaw = yaw;
+#endif
 			p_ag->pitch = pitch;
 		}
 	}
@@ -515,9 +523,12 @@ namespace Test
 
 		if(is_valid)
 		{
+			posey->skeleton->GetNamedBone("pelvis")->ori = Quaternion::FromPYR(0, -yaw, 0);
+
 			p_ag = new PoseAimingGun();
 			posey->active_poses.push_back(p_ag);
 
+#if ENABLE_WALK_ANIMATIONS
 			KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
 			GenerateRestPose(&rest);
 			GenerateHardCodedWalkAnimation(&kf);
@@ -533,7 +544,8 @@ namespace Test
 
 			walk_timer = game_state->total_game_time;
 
-			//posey->active_poses.push_back(walk_pose);
+			posey->active_poses.push_back(walk_pose);
+#endif
 		}
 	}
 

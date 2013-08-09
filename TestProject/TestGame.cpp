@@ -670,6 +670,8 @@ namespace Test
 
 			imp->renderer.camera = &camera;
 			physics_world->DebugDrawWorld(&imp->renderer);
+
+			GLDEBUG();
 		}
 		else if(nav_editor)
 		{
@@ -677,6 +679,8 @@ namespace Test
 
 			imp->renderer.camera = &camera;
 			imp->DrawNavEditorInfo(&imp->renderer, nav_graph);
+
+			GLDEBUG();
 		}
 		else
 		{

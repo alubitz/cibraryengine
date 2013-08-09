@@ -207,6 +207,8 @@ namespace Test
 		}
 	}
 
+	Mat4 Gun::GetInitialXform() { return owner->root_rigid_body->GetTransformationMatrix(); }
+
 	void Gun::Spawned()
 	{
 		WeaponEquip::Spawned();
@@ -215,7 +217,7 @@ namespace Test
 		
 		if(model_phys != NULL && model_phys->bones.size() > 0)
 		{
-			Mat4 xform = Mat4::Translation(0, 1, 0);					// TODO: set initial rb xform to something reasonable
+			Mat4 xform = GetInitialXform();
 
 			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
 			Vec3 a = xform.TransformVec3_0(1, 0, 0);
@@ -253,7 +255,10 @@ namespace Test
 				unsigned int id = Bone::string_table["l hand"];
 				for(unsigned int i = 0; i < new_owner->character->skeleton->bones.size(); ++i)
 					if(new_owner->character->skeleton->bones[i]->name == id)
+					{
 						gripper_rb = new_owner->bone_to_rbody[i];
+						break;
+					}
 				if(gripper_rb != NULL)
 					l_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f,  0.000f,  0.468f), Vec3( 0.990f,  1.113f,  0.037f), Quaternion::FromPYR(-Vec3(0.0703434f, 0.0146932f, -2.50207f)));
 			}
@@ -267,7 +272,10 @@ namespace Test
 				unsigned int id = Bone::string_table["r hand"];
 				for(unsigned int i = 0; i < new_owner->character->skeleton->bones.size(); ++i)
 					if(new_owner->character->skeleton->bones[i]->name == id)
+					{
 						gripper_rb = new_owner->bone_to_rbody[i];
+						break;
+					}
 				if(gripper_rb != NULL)
 					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromPYR(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
 			}

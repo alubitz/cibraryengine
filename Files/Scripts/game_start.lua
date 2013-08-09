@@ -8,8 +8,12 @@ end
 
 -- figure out which dood is the player, and remember that
 
-local player_pos = ba.createVector(0, 0, 0)
---local player_pos = ba.createVector(8.3, 149.2, 69.5)
+local player_pos
+if false then					-- true for spawning on flat grid world; false for terrain world
+	player_pos = ba.createVector(0, 0, 0)
+else
+	player_pos = ba.createVector(8.3, 149.2, 69.5)
+end
 
 player = gs.spawnPlayer(player_pos)
 player.death_callback = player_death
@@ -26,7 +30,7 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = true
+disable_enemies = false
 disable_waves = false
 disable_ai = true
 
@@ -114,7 +118,7 @@ end
 
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
-		local bugs_this_level = 30 --1 + 2 * level + math.floor(math.random() * 3.0)
+		local bugs_this_level = 100 --1 + 2 * level + math.floor(math.random() * 3.0)
 		local num_artillery = 0
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)

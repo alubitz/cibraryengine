@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "DefaultWeapon.h"
 
+#include "Dood.h"
 #include "Shot.h"
 
 #include "TestGame.h"
@@ -23,5 +24,7 @@ namespace Test
 		return new Shot(game_state, shot_model, shot_material, origin, vel, owner);
 	}
 
-	bool DefaultWeapon::GetAmmoCount(int& result) { result = clip; return true; }
+	bool DefaultWeapon::GetAmmoCount(int& result)	{ result = clip; return true; }
+
+	Mat4 DefaultWeapon::GetInitialXform()			{ return owner->root_rigid_body->GetTransformationMatrix() * Mat4::Translation(0, 1, 0) * Mat4::FromMat3(Mat3::FromScaledAxis(0, 1.5f, 0)); }
 };

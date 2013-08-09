@@ -49,6 +49,7 @@ namespace Test
 
 		float restitution_impulse_sq = (rlv_to_impulse * cur_normal).ComputeMagnitudeSquared() * dot * dot;
 
+		/*
 		if(dot < -outward_dv_breakage_threshold)
 			broken = true;
 		else
@@ -58,6 +59,7 @@ namespace Test
 			if(restitution_impulse_sq > full_friction_impulse.ComputeMagnitudeSquared() + friction_bonus_threshold)
 				broken = true;
 		}
+		*/
 
 		Vec3 dv = desired_dv - current_dv;
 		if(float magsq = dv.ComputeMagnitudeSquared())

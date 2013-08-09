@@ -62,12 +62,12 @@ namespace CibraryEngine
 				return FromAxisAngle(x * inv, y * inv, z * inv, mag);
 			}
 			else
-				return Identity();		
+				return Identity();
 		}
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
-		static Mat3 FromScaledAxis(const Vec3& xyz) { return FromScaledAxis(xyz.x, xyz.y, xyz.z); }
+		static Mat3 FromScaledAxis(const Vec3& xyz)		{ return FromScaledAxis(xyz.x, xyz.y, xyz.z); }
 		/** Returns the identity matrix */
-		static Mat3 Identity()			{ return Mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0); }
+		static Mat3 Identity()							{ return Mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0); }
 
 		/** Returns an orthonormal 3x3 matrix approximately matching the one given */
 		static Mat3 Normalize(const Mat3& mat)

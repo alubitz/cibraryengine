@@ -43,13 +43,21 @@ namespace CibraryEngine
 				return Vec3();
 		}
 
-		/** Returns a 3x3 rotation matrix representing the same rotation as this quaternion */
+		/** Returns a 3x3 rotation matrix representing the same rotation as this quaternion; assumes the quaternion is already normalized */
 		Mat3 ToMat3() const;
 
 		/** Returns the opposite of this quaternion */
 		Quaternion operator -() const							{ return Quaternion(-w, -x, -y, -z); }
 		/** Transforms (rotates) a 3-component vector by this quaternion */
-		Vec3 operator *(const Vec3& right) const;
+		Vec3 operator *(const Vec3& v) const
+		{
+			// v' = v + 2r cross ((r cross v) + wv)     but the 2x is done by adding it twice instead of multiplying
+
+			Vec3 temp(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);							// cross product of xyz with v
+			temp += v * w;
+			temp = Vec3(y * temp.z - z * temp.y, z * temp.x - x * temp.z, x * temp.y - y * temp.x);		// cross product of xyz with temp
+			return v + temp + temp;
+		}
 
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
 		Quaternion operator *(const Quaternion& right) const	{ Quaternion temp(*this); temp *= right; return temp; }

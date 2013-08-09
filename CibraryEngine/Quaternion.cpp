@@ -12,25 +12,15 @@ namespace CibraryEngine
 	 */
 	Mat3 Quaternion::ToMat3() const
 	{
-		static const float root_two = sqrtf(2.0f);		// rather than multiply 9 things by 2, multiply 4 things by the square root of 2
-
-		Quaternion n = Normalize(*this);				// normalized copy
-
-		float W = n.w, X = n.x, Y = n.y, Z = n.z;
-		W *= root_two;
-		X *= root_two;
-		Y *= root_two;
-		Z *= root_two;
-
-		float xx = X * X;
-		float xy = X * Y;
-		float xz = X * Z;
-		float yy = Y * Y;
-		float yz = Y * Z;
-		float zz = Z * Z;
-		float wx = W * X;
-		float wy = W * Y;
-		float wz = W * Z;
+		float xx = x * x;	xx += xx;
+		float xy = x * y;	xy += xy;
+		float xz = x * z;	xz += xz;
+		float yy = y * y;	yy += yy;
+		float yz = y * z;	yz += yz;
+		float zz = z * z;	zz += zz;
+		float wx = w * x;	wx += wx;
+		float wy = w * y;	wy += wy;
+		float wz = w * z;	wz += wz;
 
 		return Mat3(
 			1.0f - yy - zz,		xy - wz,			xz + wy,
@@ -38,8 +28,6 @@ namespace CibraryEngine
 			xz - wy,			yz + wx,			1.0f - xx - yy
 		);
 	}
-
-	Vec3 Quaternion::operator *(const Vec3& right) const { return ToMat3() * right; }
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
 	{
