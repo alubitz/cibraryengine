@@ -70,6 +70,7 @@ namespace CibraryEngine
 
 
 #if PROFILE_DOFIXEDSTEP
+	static float timer_step_callback = 0.0f;
 	static float timer_update_vel = 0.0f;
 	static float timer_ray_update = 0.0f;
 	static float timer_collide = 0.0f;
@@ -158,13 +159,14 @@ namespace CibraryEngine
 
 #if PROFILE_DOFIXEDSTEP
 		Debug(((stringstream&)(stringstream() << "total for " << counter_dofixedstep << " calls to PhysicsWorld::DoFixedStep = " << timer_total << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "step_callback =\t\t\t"	<< timer_step_callback					<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_vel =\t\t\t"		<< timer_update_vel						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "ray_update =\t\t\t"		<< timer_ray_update						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "collide =\t\t\t\t"		<< timer_collide						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "constraints =\t\t\t"		<< timer_constraints					<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "cgraph =\t\t\t\t"			<< timer_cgraph							<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_pos =\t\t\t"		<< timer_update_pos						<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_step_callback + timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
 #endif
 	}
 
@@ -219,14 +221,17 @@ namespace CibraryEngine
 
 	void PhysicsWorld::DoFixedStep()
 	{
+#if PROFILE_DOFIXEDSTEP
+		ProfilingTimer timer, timer2;
+		timer2.Start();
+		timer.Start();
+#endif
 		float timestep = timer_interval;
 
 		if(step_callback != NULL) { step_callback->OnPhysicsStep(this, timestep); }
 
 #if PROFILE_DOFIXEDSTEP
-		ProfilingTimer timer, timer2;
-		timer2.Start();
-		timer.Start();
+		timer_step_callback += timer.GetAndRestart();
 #endif
 
 		// set forces to what was applied by gravity / user forces; also the objects may deactivate now

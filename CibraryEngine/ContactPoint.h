@@ -15,23 +15,19 @@ namespace CibraryEngine
 		Vec3 pos;
 		Vec3 normal;
 
-		bool cache_valid;
-		// cached values (must be computed if cache_valid is false)
+		// cached values computed in DoUpdateAction
 		float restitution_coeff, fric_coeff;
 
 		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
 
-		// more cached values, but these are computed in DoUpdateAction instead of BuildCache
 		float timestep;
 		float bounce_threshold;
 
-		ContactPoint() : cache_valid(false) { }
-		ContactPoint(RigidBody* obj_a, RigidBody* obj_b) : PhysicsConstraint(obj_a, obj_b), cache_valid(false) { }
+		ContactPoint() { }
+		ContactPoint(RigidBody* obj_a, RigidBody* obj_b) : PhysicsConstraint(obj_a, obj_b) { }
 		~ContactPoint() { }
 
-
-		void BuildCache();
 
 		Vec3 GetRelativeLocalVelocity() const;
 		void ApplyImpulse(const Vec3& impulse) const;

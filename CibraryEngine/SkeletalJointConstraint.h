@@ -29,7 +29,7 @@ namespace CibraryEngine
 			Mat3 rlv_to_impulse;
 			Mat3 alpha_to_obja, alpha_to_objb;
 
-			float timestep, inv_timestep;
+			float timestep, half_timestep, inv_timestep;
 
 		public:
 

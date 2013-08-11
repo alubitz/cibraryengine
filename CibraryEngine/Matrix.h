@@ -16,9 +16,14 @@ namespace CibraryEngine
 		float values[9];
 
 		/** Initializes a zero matrix */
-		Mat3() { for(int i = 0; i < 9; ++i) { values[i] = 0.0; } }
+		Mat3() { values[0] = values[1] = values[2] = values[3] = values[4] = values[5] = values[6] = values[7] = values[8] = 0.0f; }
 		/** Initializes a matrix with the specified values */
-		Mat3(const float values_[9]) { for(int i = 0; i < 9; ++i) { values[i] = values_[i]; } }
+		Mat3(const float v[9])
+		{
+			values[0] = v[0]; values[1] = v[1]; values[2] = v[2];
+			values[3] = v[3]; values[4] = v[4]; values[5] = v[5];
+			values[6] = v[6]; values[7] = v[7]; values[8] = v[8];
+		}
 		/** Initializes a matrix with the specified values */
 		Mat3(float v11, float v12, float v13, float v21, float v22, float v23, float v31, float v32, float v33)
 		{
@@ -67,7 +72,7 @@ namespace CibraryEngine
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
 		static Mat3 FromScaledAxis(const Vec3& xyz)		{ return FromScaledAxis(xyz.x, xyz.y, xyz.z); }
 		/** Returns the identity matrix */
-		static Mat3 Identity()							{ return Mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0); }
+		static Mat3 Identity()							{ return Mat3(1, 0, 0, 0, 1, 0, 0, 0, 1); }
 
 		/** Returns an orthonormal 3x3 matrix approximately matching the one given */
 		static Mat3 Normalize(const Mat3& mat)
@@ -94,11 +99,11 @@ namespace CibraryEngine
 				b.x * values[6] + b.y * values[7] + b.z * values[8]);
 		}
 		/** Transforms a 3x3 matrix by another 3x3 matrix */
-		void operator *=(const Mat3& b)
+		Mat3 operator *(const Mat3& b) const
 		{
 			const float* bvals = b.values;
 
-			*this = Mat3(
+			return Mat3(
 				values[0] * bvals[0] + values[1] * bvals[3] + values[2] * bvals[6],
 				values[0] * bvals[1] + values[1] * bvals[4] + values[2] * bvals[7],
 				values[0] * bvals[2] + values[1] * bvals[5] + values[2] * bvals[8],
@@ -110,18 +115,33 @@ namespace CibraryEngine
 				values[6] * bvals[2] + values[7] * bvals[5] + values[8] * bvals[8]
 			);
 		}
-		/** Transforms a 3x3 matrix by another 3x3 matrix */
-		Mat3 operator *(const Mat3& b) const { Mat3 result(*this); result *= b; return result; }
 		/** Scales the components of a 3x3 matrix by the specified amount */
-		void operator *=(float b)						{ for(int i = 0; i < 9; ++i) { values[i] *= b; } }
+		void operator *=(float b)
+		{
+			values[0] *= b; values[1] *= b; values[2] *= b;
+			values[3] *= b; values[4] *= b; values[5] *= b;
+			values[6] *= b; values[7] *= b; values[8] *= b;
+		}
 		/** Scales the components of a 3x3 matrix by the specified amount */
 		Mat3 operator *(float b) const					{ Mat3 result(*this); result *= b; return result; }
 		/** Adds two matrices */
-		void operator +=(const Mat3& b)					{ const float* bvals = b.values; for(int i = 0; i < 9; ++i) { values[i] += bvals[i]; } }
+		void operator +=(const Mat3& b)
+		{
+			const float* bvals = b.values;
+			values[0] += bvals[0]; values[1] += bvals[1]; values[2] += bvals[2];
+			values[3] += bvals[3]; values[4] += bvals[4]; values[5] += bvals[5];
+			values[6] += bvals[6]; values[7] += bvals[7]; values[8] += bvals[8];
+		}
 		/** Adds two matrices */
 		Mat3 operator +(const Mat3& b) const			{ Mat3 result(*this); result += b; return result; }
 		/** Subtracts two matrices */
-		void operator -=(const Mat3& b)					{ const float* bvals = b.values; for(int i = 0; i < 9; ++i) { values[i] -= bvals[i]; } }
+		void operator -=(const Mat3& b)
+		{
+			const float* bvals = b.values;
+			values[0] -= bvals[0]; values[1] -= bvals[1]; values[2] -= bvals[2];
+			values[3] -= bvals[3]; values[4] -= bvals[4]; values[5] -= bvals[5];
+			values[6] -= bvals[6]; values[7] -= bvals[7]; values[8] -= bvals[8];
+		}
 		/** Subtractss two matrices */
 		Mat3 operator -(const Mat3& b) const			{ Mat3 result(*this); result -= b; return result; }
 	};
@@ -133,15 +153,27 @@ namespace CibraryEngine
 		float values[16];
 
 		/** Initializes a zero matrix */
-		Mat4() { for(int i = 0; i < 16; ++i) { values[i] = 0.0; } }
+		Mat4()
+		{
+			values[0]  = values[1]  = values[2]  = values[3]  =
+			values[4]  = values[5]  = values[6]  = values[7]  =
+			values[8]  = values[9]  = values[10] = values[11] =
+			values[12] = values[13] = values[14] = values[15] = 0.0f;
+		}
 		/** Initializes a matrix with the specified values */
-		Mat4(float values_[16]) { for(int i = 0; i < 16; ++i) { values[i] = values_[i]; } }
+		Mat4(float v[16])
+		{
+			values[0]  = v[0];  values[1]  = v[1];  values[2]  = v[2];  values[3]  = v[3];
+			values[4]  = v[4];  values[5]  = v[5];  values[6]  = v[6];  values[7]  = v[7];
+			values[8]  = v[8];  values[9]  = v[9];  values[10] = v[10]; values[11] = v[11];
+			values[12] = v[12]; values[13] = v[13]; values[14] = v[14]; values[15] = v[15];
+		}
 		/** Initializes a matrix with the specified values */
 		Mat4(float v11, float v12, float v13, float v14, float v21, float v22, float v23, float v24, float v31, float v32, float v33, float v34, float v41, float v42, float v43, float v44)
 		{
-			values[0] = v11;	values[1] = v12;	values[2] = v13;	values[3] = v14;
-			values[4] = v21;	values[5] = v22;	values[6] = v23;	values[7] = v24;
-			values[8] = v31;	values[9] = v32;	values[10] = v33;	values[11] = v34;
+			values[0]  = v11;	values[1]  = v12;	values[2]  = v13;	values[3]  = v14;
+			values[4]  = v21;	values[5]  = v22;	values[6]  = v23;	values[7]  = v24;
+			values[8]  = v31;	values[9]  = v32;	values[10] = v33;	values[11] = v34;
 			values[12] = v41;	values[13] = v42;	values[14] = v43;	values[15] = v44;
 		}
 
@@ -268,51 +300,69 @@ namespace CibraryEngine
 		Vec4 operator *(const Vec4& b) const
 		{
 			return Vec4(
-				b.x * values[0] + b.y * values[1] + b.z * values[2] + b.w * values[3],
-				b.x * values[4] + b.y * values[5] + b.z * values[6] + b.w * values[7],
-				b.x * values[8] + b.y * values[9] + b.z * values[10] + b.w * values[11],
+				b.x * values[0]  + b.y * values[1]  + b.z * values[2]  + b.w * values[3],
+				b.x * values[4]  + b.y * values[5]  + b.z * values[6]  + b.w * values[7],
+				b.x * values[8]  + b.y * values[9]  + b.z * values[10] + b.w * values[11],
 				b.x * values[12] + b.y * values[13] + b.z * values[14] + b.w * values[15]
 			);
 		}
 		/** Transforms a 4x4 matrix by another 4x4 matrix */
-		void operator *=(const Mat4& b)
+		Mat4 operator *(const Mat4& b) const
 		{
 			const float* bvals = b.values;
 
-			*this = Mat4(
-				values[0] * bvals[0] + values[1] * bvals[4] + values[2] * bvals[8] + values[3] * bvals[12],
-				values[0] * bvals[1] + values[1] * bvals[5] + values[2] * bvals[9] + values[3] * bvals[13],
-				values[0] * bvals[2] + values[1] * bvals[6] + values[2] * bvals[10] + values[3] * bvals[14],
-				values[0] * bvals[3] + values[1] * bvals[7] + values[2] * bvals[11] + values[3] * bvals[15],
+			return Mat4(
+				values[0]  * bvals[0] + values[1]  * bvals[4] + values[2]  * bvals[8]  + values[3]  * bvals[12],
+				values[0]  * bvals[1] + values[1]  * bvals[5] + values[2]  * bvals[9]  + values[3]  * bvals[13],
+				values[0]  * bvals[2] + values[1]  * bvals[6] + values[2]  * bvals[10] + values[3]  * bvals[14],
+				values[0]  * bvals[3] + values[1]  * bvals[7] + values[2]  * bvals[11] + values[3]  * bvals[15],
 
-				values[4] * bvals[0] + values[5] * bvals[4] + values[6] * bvals[8] + values[7] * bvals[12],
-				values[4] * bvals[1] + values[5] * bvals[5] + values[6] * bvals[9] + values[7] * bvals[13],
-				values[4] * bvals[2] + values[5] * bvals[6] + values[6] * bvals[10] + values[7] * bvals[14],
-				values[4] * bvals[3] + values[5] * bvals[7] + values[6] * bvals[11] + values[7] * bvals[15],
+				values[4]  * bvals[0] + values[5]  * bvals[4] + values[6]  * bvals[8]  + values[7]  * bvals[12],
+				values[4]  * bvals[1] + values[5]  * bvals[5] + values[6]  * bvals[9]  + values[7]  * bvals[13],
+				values[4]  * bvals[2] + values[5]  * bvals[6] + values[6]  * bvals[10] + values[7]  * bvals[14],
+				values[4]  * bvals[3] + values[5]  * bvals[7] + values[6]  * bvals[11] + values[7]  * bvals[15],
 
-				values[8] * bvals[0] + values[9] * bvals[4] + values[10] * bvals[8] + values[11] * bvals[12],
-				values[8] * bvals[1] + values[9] * bvals[5] + values[10] * bvals[9] + values[11] * bvals[13],
-				values[8] * bvals[2] + values[9] * bvals[6] + values[10] * bvals[10] + values[11] * bvals[14],
-				values[8] * bvals[3] + values[9] * bvals[7] + values[10] * bvals[11] + values[11] * bvals[15],
+				values[8]  * bvals[0] + values[9]  * bvals[4] + values[10] * bvals[8]  + values[11] * bvals[12],
+				values[8]  * bvals[1] + values[9]  * bvals[5] + values[10] * bvals[9]  + values[11] * bvals[13],
+				values[8]  * bvals[2] + values[9]  * bvals[6] + values[10] * bvals[10] + values[11] * bvals[14],
+				values[8]  * bvals[3] + values[9]  * bvals[7] + values[10] * bvals[11] + values[11] * bvals[15],
 
-				values[12] * bvals[0] + values[13] * bvals[4] + values[14] * bvals[8] + values[15] * bvals[12],
-				values[12] * bvals[1] + values[13] * bvals[5] + values[14] * bvals[9] + values[15] * bvals[13],
+				values[12] * bvals[0] + values[13] * bvals[4] + values[14] * bvals[8]  + values[15] * bvals[12],
+				values[12] * bvals[1] + values[13] * bvals[5] + values[14] * bvals[9]  + values[15] * bvals[13],
 				values[12] * bvals[2] + values[13] * bvals[6] + values[14] * bvals[10] + values[15] * bvals[14],
 				values[12] * bvals[3] + values[13] * bvals[7] + values[14] * bvals[11] + values[15] * bvals[15]
 			);
 		}
-		/** Transforms a 4x4 matrix by another 4x4 matrix */
-		Mat4 operator *(const Mat4& b) const			{ Mat4 result(*this); result *= b; return result; }
 		/** Scales the components of a 4x4 matrix by the specified amount */
-		void operator *=(float b)						{ for(int i = 0; i < 16; ++i) { values[i] *= b; } }
+		void operator *=(float b)
+		{
+			values[0]  *= b; values[1]  *= b; values[2]  *= b; values[3]  *= b;
+			values[4]  *= b; values[5]  *= b; values[6]  *= b; values[7]  *= b;
+			values[8]  *= b; values[9]  *= b; values[10] *= b; values[11] *= b;
+			values[12] *= b; values[13] *= b; values[14] *= b; values[15] *= b;
+		}
 		/** Scales the components of a 4x4 matrix by the specified amount */
 		Mat4 operator *(float b) const					{ Mat4 result(*this); result *= b; return result; }
 		/** Adds two matrices */
-		void operator +=(const Mat4& b)					{ const float* bvals = b.values; for(int i = 0; i < 16; ++i) { values[i] += bvals[i]; } }
+		void operator +=(const Mat4& b)
+		{
+			const float* bvals = b.values;
+			values[0]  += bvals[0];  values[1]  += bvals[1];  values[2]  += bvals[2];  values[3]  += bvals[3];
+			values[4]  += bvals[4];  values[5]  += bvals[5];  values[6]  += bvals[6];  values[7]  += bvals[7];
+			values[8]  += bvals[8];  values[9]  += bvals[9];  values[10] += bvals[10]; values[11] += bvals[11];
+			values[12] += bvals[12]; values[13] += bvals[13]; values[14] += bvals[14]; values[15] += bvals[15];
+		}
 		/** Adds two matrices */
 		Mat4 operator +(const Mat4& b) const			{ Mat4 result(*this); result += b; return result; }
 		/** Subtracts two matrices */
-		void operator -=(const Mat4& b)					{ const float* bvals = b.values; for(int i = 0; i < 16; ++i) { values[i] -= bvals[i]; } }
+		void operator -=(const Mat4& b)
+		{
+			const float* bvals = b.values;
+			values[0]  -= bvals[0];  values[1]  -= bvals[1];  values[2]  -= bvals[2];  values[3]  -= bvals[3];
+			values[4]  -= bvals[4];  values[5]  -= bvals[5];  values[6]  -= bvals[6];  values[7]  -= bvals[7];
+			values[8]  -= bvals[8];  values[9]  -= bvals[9];  values[10] -= bvals[10]; values[11] -= bvals[11];
+			values[12] -= bvals[12]; values[13] -= bvals[13]; values[14] -= bvals[14]; values[15] -= bvals[15];
+		}
 		/** Subtracts two matrices */
 		Mat4 operator -(const Mat4& b) const			{ Mat4 result(*this); result -= b; return result; }
 	};

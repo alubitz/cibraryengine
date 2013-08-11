@@ -221,9 +221,9 @@ namespace CibraryEngine
 		MassInfo result;
 		result.mass = mass_info.mass;
 		result.com = ori_rm.Transpose() * mass_info.com + pos;
-		Mat3 moi_data = Mat3::Invert(inv_moi);
-		for(int i = 0; i < 9; ++i)
-			result.moi[i] = moi_data[i];
+
+		Mat3& moi_data = *((Mat3*)((void*)result.moi));			// moi_data.values and result.moi occupy the same space in memory
+		moi_data = Mat3::Invert(inv_moi);
 
 		return result;
 	}

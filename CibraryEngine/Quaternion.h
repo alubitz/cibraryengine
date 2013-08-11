@@ -60,17 +60,16 @@ namespace CibraryEngine
 		}
 
 		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
-		Quaternion operator *(const Quaternion& right) const	{ Quaternion temp(*this); temp *= right; return temp; }
-		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
-		void operator *=(const Quaternion& q)
+		Quaternion operator *(const Quaternion& q) const
 		{
-			float w_ = w * q.w - x * q.x - y * q.y - z * q.z;
-			float x_ = w * q.x + x * q.w + y * q.z - z * q.y;
-			float y_ = w * q.y + y * q.w + z * q.x - x * q.z;
-			float z_ = w * q.z + z * q.w + x * q.y - y * q.x;
-			
-			w = w_; x = x_; y = y_; z = z_;
+			return Quaternion(
+				w * q.w - x * q.x - y * q.y - z * q.z,
+				w * q.x + x * q.w + y * q.z - z * q.y,
+				w * q.y + y * q.w + z * q.x - x * q.z,
+				w * q.z + z * q.w + x * q.y - y * q.x);
 		}
+		/** Transforms a quaternion by another quaternion (maybe the same as concatenation?) */
+		void operator *=(const Quaternion& q)					{ *this = *this * q; }
 
 		/** Scales this quaternion by the specified amount */
 		Quaternion operator *(float right) const				{ Quaternion temp(*this); temp *= right; return temp; }
@@ -98,7 +97,7 @@ namespace CibraryEngine
 		bool operator !=(const Quaternion& b) const				{ return w != b.w || x != b.x || y != b.y || z != b.z; }
 
 		/** Returns the identity quaternion */
-		static Quaternion Identity()							{ return Quaternion(1.0f, 0.0, 0.0, 0.0); }
+		static Quaternion Identity()							{ return Quaternion(1.0f, 0.0f, 0.0f, 0.0f); }
 		/** Returns a quaternion representing the same rotation as the specified 3x3 rotation matrix */
 		static Quaternion FromRotationMatrix(const Mat3& mat);
 		/** Returns a quaternion representing a rotation about the specified axis (should be a unit vector) with the specified magnitude */

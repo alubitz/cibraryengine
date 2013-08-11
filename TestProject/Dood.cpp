@@ -164,19 +164,17 @@ namespace Test
 	{
 		if(control_state->GetBoolControl("reload"))
 		{
-			if(WeaponEquip* we = dynamic_cast<WeaponEquip*>(equipped_weapon))
-				we->BeginReload();
-
+			equipped_weapon->BeginReload();
 			control_state->SetBoolControl("reload", false);
 		}
 
-		if(equipped_weapon)
+		if(equipped_weapon != NULL)
 		{
 			equipped_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 			equipped_weapon->OwnerUpdate(time);
 		}
 
-		if(intrinsic_weapon)
+		if(intrinsic_weapon != NULL)
 		{
 			intrinsic_weapon->SetFiring(1, true, control_state->GetBoolControl("primary_fire"));
 			intrinsic_weapon->OwnerUpdate(time);
@@ -298,8 +296,8 @@ namespace Test
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
-	Vec3 Dood::GetPosition()			{ return root_rigid_body->GetPosition(); }
-	void Dood::SetPosition(Vec3 pos)	{ root_rigid_body->SetPosition(pos); }
+	Vec3 Dood::GetPosition()					{ return root_rigid_body->GetPosition(); }
+	void Dood::SetPosition(Vec3 pos)			{ root_rigid_body->SetPosition(pos); }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
@@ -363,9 +361,9 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	void Dood::PreUpdatePoses(TimingInfo time) { }
-	void Dood::PostUpdatePoses(TimingInfo time) { }
-	void Dood::RegisterFeet() { }
+	void Dood::PreUpdatePoses(TimingInfo time)	{ }
+	void Dood::PostUpdatePoses(TimingInfo time)	{ }
+	void Dood::RegisterFeet()					{ }
 
 	void Dood::PhysicsToCharacter()
 	{
@@ -390,10 +388,13 @@ namespace Test
 	{
 		Vec3 result;
 
+		MassInfo mass_info;
+		Mat3& moi = *((Mat3*)((void*)mass_info.moi));						// moi.values and mass_info.moi occupy the same space in memory
+
 		for(RigidBody *const*iter = bones.data(), *const*bones_end = iter + bones.size(); iter != bones_end; ++iter)
 		{
 			RigidBody* body = *iter;
-			MassInfo mass_info = body->GetTransformedMassInfo();
+			mass_info = body->GetTransformedMassInfo();
 			
 			// linear component
 			float mass = mass_info.mass;
@@ -402,7 +403,7 @@ namespace Test
 			result += Vec3::Cross(vel, radius) * mass;
 
 			// angular component
-			result += Mat3(mass_info.moi) * body->GetAngularVelocity();
+			result += moi * body->GetAngularVelocity();
 		}
 
 		return result;
@@ -490,12 +491,10 @@ namespace Test
 			RigidBody* rb = rigid_bodies[i];
 			Bone* bone = rbody_to_posey[i];
 
-			MassInfo mass_info = rb->GetMassInfo();
-
 			Mat4 bone_xform = bone->GetTransformationMatrix();
 			Quaternion bone_ori = bone_xform.ExtractOrientation();
 				
-			rb->SetLinearVelocity((bone_xform.TransformVec3_1(mass_info.com) - rb->GetCenterOfMass()) * move_rate_coeff);
+			rb->SetLinearVelocity((bone_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_rate_coeff);
 			rb->SetAngularVelocity((Quaternion::Reverse(rb->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
 		}
 	}

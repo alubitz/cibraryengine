@@ -10,38 +10,6 @@ namespace CibraryEngine
 	/*
 	 * ContactPoint methods
 	 */
-	void ContactPoint::BuildCache()
-	{
-		if(!cache_valid)
-		{
-			restitution_coeff = 1.0f + obj_a->restitution * obj_b->restitution;
-			fric_coeff = obj_a->friction * obj_b->friction;
-
-			r1 = pos - obj_a->cached_com;
-			r2 = pos - obj_b->cached_com;
-
-			// computing rlv-to-impulse matrix
-			Mat3 xr1(
-					0,	  r1.z,	  -r1.y,
-				-r1.z,	     0,	   r1.x,
-				 r1.y,	 -r1.x,	      0		);
-			Mat3 xr2(
-					0,	  r2.z,	  -r2.y,
-				-r2.z,	     0,	   r2.x,
-				 r2.y,	 -r2.x,	      0		);
-
-			float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
-			Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
-				+ xr1 * obj_a->inv_moi * xr1
-				+ xr2 * obj_b->inv_moi * xr2;
-
-			rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
-
-
-			cache_valid = true;
-		}
-	}
-
 	Vec3 ContactPoint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
 
 	void ContactPoint::ApplyImpulse(const Vec3& impulse) const
@@ -94,8 +62,6 @@ namespace CibraryEngine
 
 	bool ContactPoint::DoConstraintAction()
 	{
-		BuildCache();
-
 		if(DoCollisionResponse())
 		{
 			if(obj_a->collision_callback)
@@ -111,6 +77,29 @@ namespace CibraryEngine
 
 	void ContactPoint::DoUpdateAction(float timestep_)
 	{
+		restitution_coeff = 1.0f + obj_a->restitution * obj_b->restitution;
+		fric_coeff = obj_a->friction * obj_b->friction;
+
+		r1 = pos - obj_a->cached_com;
+		r2 = pos - obj_b->cached_com;
+
+		// computing rlv-to-impulse matrix
+		Mat3 xr1(
+				0,	  r1.z,	  -r1.y,
+			-r1.z,	     0,	   r1.x,
+				r1.y,	 -r1.x,	      0		);
+		Mat3 xr2(
+				0,	  r2.z,	  -r2.y,
+			-r2.z,	     0,	   r2.x,
+				r2.y,	 -r2.x,	      0		);
+
+		float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
+		Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
+			+ xr1 * obj_a->inv_moi * xr1
+			+ xr2 * obj_b->inv_moi * xr2;
+
+		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
+
 		timestep = timestep_;
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
 	}

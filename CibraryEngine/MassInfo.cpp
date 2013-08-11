@@ -41,19 +41,21 @@ namespace CibraryEngine
 
 	void MassInfo::GetAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result)
 	{
-		float a_squared = a.ComputeMagnitudeSquared();
+		float xx = a.x * a.x;
+		float yy = a.y * a.y;
+		float zz = a.z * a.z;
 
-		result[0] = I[0] + m * (a_squared * 1 - a.x * a.x);
-		result[1] = I[1] + m * (a_squared * 0 - a.x * a.y);
-		result[2] = I[2] + m * (a_squared * 0 - a.x * a.z);
+		*(result++)	= *(I++)	+ m * (yy + zz);
+		*(result++)	= *(I++)	- m * a.x * a.y;
+		*(result++)	= *(I++)	- m * a.x * a.z;
 
-		result[3] = I[3] + m * (a_squared * 0 - a.y * a.x);
-		result[4] = I[4] + m * (a_squared * 1 - a.y * a.y);
-		result[5] = I[5] + m * (a_squared * 0 - a.y * a.z);
+		*(result++)	= *(I++)	- m * a.y * a.x;
+		*(result++)	= *(I++)	+ m * (xx + zz);
+		*(result++)	= *(I++)	- m * a.y * a.z;
 
-		result[6] = I[6] + m * (a_squared * 0 - a.z * a.x);
-		result[7] = I[7] + m * (a_squared * 0 - a.z * a.y);
-		result[8] = I[8] + m * (a_squared * 1 - a.z * a.z);
+		*(result++)	= *(I++)	- m * a.z * a.x;
+		*(result++)	= *(I++)	- m * a.z * a.y;
+		*result		= *I		+ m * (xx + yy);
 	}
 
 	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass) { return shape->ComputeMassInfo() * mass; }

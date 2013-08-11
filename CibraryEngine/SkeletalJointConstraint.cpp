@@ -21,6 +21,19 @@ namespace CibraryEngine
 	{
 	}
 
+	// function to trim a few ops from the computation of Quaternion::FromPYR(p * t, y * t, r * t)
+	static Quaternion QuatFromPYRhT(float p, float y, float r, float half_t)
+	{
+		// assumes t != 0
+		if(float magsq = Vec3::MagnitudeSquared(p, y, r))
+		{
+			float mag = sqrtf(magsq), half = mag * half_t, coeff = sinf(half) / mag;
+			return Quaternion(cosf(half), p * coeff, y * coeff, r * coeff);
+		}
+		else
+			return Quaternion::Identity();
+	}
+
 	bool SkeletalJointConstraint::DoConstraintAction()
 	{
 		static const float dv_coeff =			1.0f;
@@ -40,20 +53,11 @@ namespace CibraryEngine
 		{
 			Vec3 impulse = rlv_to_impulse * dv;
 
-			// apply impulse
-			if(obj_a->active)
-			{
-				obj_a->vel += impulse * obj_a->inv_mass;
-				if(obj_a->can_rotate)
-					obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
-			}
+			obj_a->vel += impulse * obj_a->inv_mass;
+			obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
 
-			if(obj_b->active && obj_b->can_move)
-			{
-				obj_b->vel -= impulse * obj_b->inv_mass;
-				if(obj_b->can_rotate)
-					obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
-			}
+			obj_b->vel -= impulse * obj_b->inv_mass;
+			obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
 
 			wakeup = true;
 		}
@@ -69,7 +73,8 @@ namespace CibraryEngine
 #if ENFORCE_JOINT_ROTATION_LIMITS
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
-		Quaternion proposed_ori = a_to_b * Quaternion::FromPYR(proposed_av.x * timestep, proposed_av.y * timestep, proposed_av.z * timestep);
+
+		Quaternion proposed_ori = a_to_b * QuatFromPYRhT(proposed_av.x, proposed_av.y, proposed_av.z, half_timestep); 
 		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
 
 		bool any_changes = false;
@@ -106,6 +111,7 @@ namespace CibraryEngine
 	void SkeletalJointConstraint::DoUpdateAction(float timestep_)
 	{
 		timestep = timestep_;
+		half_timestep = timestep * 0.5f;
 		inv_timestep = 1.0f / timestep;
 
 		const float spring_coeff =				1.0f;

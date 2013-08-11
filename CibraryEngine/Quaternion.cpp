@@ -12,15 +12,22 @@ namespace CibraryEngine
 	 */
 	Mat3 Quaternion::ToMat3() const
 	{
-		float xx = x * x;	xx += xx;
-		float xy = x * y;	xy += xy;
-		float xz = x * z;	xz += xz;
-		float yy = y * y;	yy += yy;
-		float yz = y * z;	yz += yz;
-		float zz = z * z;	zz += zz;
-		float wx = w * x;	wx += wx;
-		float wy = w * y;	wy += wy;
-		float wz = w * z;	wz += wz;
+		static const float root_two = sqrtf(2);				// only computed once! this lets us do 4 multiplications instead of 9 additions
+
+		float X = x * root_two;
+		float Y = y * root_two;
+		float Z = z * root_two;
+		float W = w * root_two;
+
+		float xx = X * X;
+		float xy = X * Y;
+		float xz = X * Z;
+		float yy = Y * Y;
+		float yz = Y * Z;
+		float zz = Z * Z;
+		float wx = W * X;
+		float wy = W * Y;
+		float wz = W * Z;
 
 		return Mat3(
 			1.0f - yy - zz,		xy - wz,			xz + wy,
