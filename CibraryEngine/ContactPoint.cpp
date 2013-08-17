@@ -34,8 +34,6 @@ namespace CibraryEngine
 		static const float adhesion_threshold = 0.0f;
 		static const float impulse_sq_threshold = 0.0f;
 
-		assert(cache_valid);
-
 		Vec3 dv = GetRelativeLocalVelocity();
 		float nvdot = Vec3::Dot(normal, dv);
 		if(nvdot <= adhesion_threshold)

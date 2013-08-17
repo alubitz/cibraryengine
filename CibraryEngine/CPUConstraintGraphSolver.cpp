@@ -3,7 +3,15 @@
 
 #include "RigidBody.h"
 
-#define USE_SMART_ITERATION 0
+#include "TaskThread.h"
+
+#include "DebugLog.h"
+
+#define STOP_BATCHING_THRESHOLD		100					// when there are less than this many constraints left to put in batches, just lump all the rest in sequentially
+#define MULTITHREADING_THRESHOLD	40					// if there are more than this many constraints in a batch, do multithreading
+#define HASH_SIZE_PER_CONSTRAINT	5					// hash set will have have room for this * (number of constraints) rigid bodies
+
+#define DEBUG_HASH_COLLISIONS		0
 
 namespace CibraryEngine
 {
@@ -12,125 +20,195 @@ namespace CibraryEngine
 	 */
 	void CPUConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
-#if USE_SMART_ITERATION
-		struct Edge
+		// collect batches containing no adjacent edges
+		vector<vector<PhysicsConstraint*>> batches;
+
+		// we'll be doing some back-and-forth updating between these two vectors
+		vector<PhysicsConstraint*> remaining_a, remaining_b;
+		remaining_a.reserve(constraints.size());
+		remaining_b.reserve(constraints.size());
+
+		vector<PhysicsConstraint*>& remaining		= constraints;
+		vector<PhysicsConstraint*>& nu_remaining	= remaining_b;
+
+		struct RBHashSet
 		{
-			PhysicsConstraint* constraint;
+#if DEBUG_HASH_COLLISIONS
+			unsigned int searches;
+			unsigned int hash_collisions;
+#endif
 
-			Edge *next, *nu_next;
+			unsigned int size;
+			RigidBody** data;
+			RigidBody** end;
 
-			bool included;
-			unsigned int wakeup_index;			// index into edge adjacency table
-		};
-
-		vector<Edge> edges(constraints.size());
-
-		Edge* first = NULL;
-
-
-		// map nodes (rigid bodies) to the edges adjacent to them
-		unordered_map<RigidBody*, vector<Edge*> > body_constraints;
-		for(unsigned int i = 0; i < edges.size(); ++i)
-		{
-			// create edge
-			Edge* edge = &edges[i];
-			PhysicsConstraint* constraint = edge->constraint = constraints[i];
-
-			edge->next = edge->nu_next = first;
-			first = edge;
-
-			edge->included = false;
-
-
-			// add edge's endpoints to the map
-			RigidBody* obj_a = constraint->obj_a;
-			unordered_map<RigidBody*, vector<Edge*> >::iterator found = body_constraints.find(obj_a);
-			if(found == body_constraints.end())
+			RBHashSet(unsigned int max_size) :
+#if DEBUG_HASH_COLLISIONS
+				searches(0),
+				hash_collisions(0),
+#endif
+				size(max_size),
+				data(new RigidBody*[max_size]),
+				end(data + max_size)
 			{
-				vector<Edge*>& target = body_constraints[obj_a] = vector<Edge*>();
-				target.push_back(edge);
 			}
-			else
-				found->second.push_back(edge);
 
-			RigidBody* obj_b = constraint->obj_b;
-			if(obj_b->MergesSubgraphs())
+			~RBHashSet()
 			{
-				found = body_constraints.find(obj_b);
-				if(found == body_constraints.end())
-				{
-					vector<Edge*>& target = body_constraints[obj_b] = vector<Edge*>();
-					target.push_back(edge);
-				}
-				else
-					found->second.push_back(edge);
+				delete[] data;
+#if DEBUG_HASH_COLLISIONS
+				Debug(((stringstream&)(stringstream() << hash_collisions << " increments / " << searches << " searches = " << (float)hash_collisions / searches << endl)).str());
+#endif
 			}
-		}
 
-
-		// map edges to the edges adjacent to them
-		vector<Edge*> edge_adjacency;
-		edge_adjacency.reserve(constraints.size() * 3);
-
-		for(unsigned int i = 0; i < edges.size(); ++i)
-		{
-			Edge* edge = &edges[i];
-			PhysicsConstraint* constraint = edge->constraint;
-
-			unordered_set<Edge*> adjacent(100);
-
-			unordered_map<RigidBody*, vector<Edge*> >::iterator found = body_constraints.find(constraint->obj_a);
-			if(found != body_constraints.end())
-				adjacent.insert(found->second.begin(), found->second.end());
-
-			found = body_constraints.find(constraint->obj_b);
-			if(found != body_constraints.end())
-				adjacent.insert(found->second.begin(), found->second.end());
-
-			adjacent.erase(edge);
-
-			edge->wakeup_index = edge_adjacency.size();
-
-			edge_adjacency.insert(edge_adjacency.end(), adjacent.begin(), adjacent.end());
-			edge_adjacency.push_back(NULL);
-		}
-
-		// iterate until there's no active constraints left to evaluate or we hit the max number of iterations
-		for(unsigned int i = 0; i < iterations && first != NULL; ++i)
-		{
-			Edge* nu_first = NULL;
-
-			for(Edge* edge = first; edge != NULL; edge = edge->next)
+			void Reset(unsigned int size_)
 			{
-				if(edge->constraint->DoConstraintAction())
+				assert(size_ <= size);
+
+				memset(data, 0, size_ * sizeof(RigidBody*));
+				end = data + size_;
+
+				size = size_;
+			}
+
+			RigidBody** Find(RigidBody* query)
+			{
+#if DEBUG_HASH_COLLISIONS
+				++searches;
+#endif
+				RigidBody **search_start = data + ((unsigned int)query / sizeof(RigidBody)) % size, **ptr = search_start;
+				while(RigidBody* stored = *ptr)
 				{
-					for(Edge** adjacent_ptr = &edge_adjacency[edge->wakeup_index]; *adjacent_ptr != NULL; ++adjacent_ptr)
+					if(stored == query)
+						return ptr;
+					else
 					{
-						Edge* adjacent = *adjacent_ptr;
-
-						if(!adjacent->included)
-						{
-							adjacent->included = true;
-							adjacent->nu_next = nu_first;
-							nu_first = adjacent;
-						}
+						++ptr;
+#if DEBUG_HASH_COLLISIONS
+						++hash_collisions;
+#endif
+						if(ptr == end)
+							ptr = data;
+						else if(ptr == search_start)
+							return NULL;
 					}
 				}
+
+				return ptr;
 			}
 
-			for(Edge* edge = nu_first; edge != NULL; edge = edge->next)
+		} batch_bodies(remaining.size() * HASH_SIZE_PER_CONSTRAINT + 1);
+
+		// find batches containing no adjacent constraint edges (i.e. no shared rigid bodies, unless they're immobile)
+		while(remaining.size() >= STOP_BATCHING_THRESHOLD)
+		{
+			nu_remaining.clear();
+			batch_bodies.Reset(remaining.size() * HASH_SIZE_PER_CONSTRAINT + 1);
+
+			batches.push_back(vector<PhysicsConstraint*>());
+			vector<PhysicsConstraint*>& batch = *batches.rbegin();
+
+			for(PhysicsConstraint **iter = remaining.data(), **end = iter + remaining.size(); iter != end; ++iter)
 			{
-				edge->next = edge->nu_next;
-				edge->included = false;
+				PhysicsConstraint* c = *iter;
+
+				bool ok = true;
+
+				// find out if this constraint edge is adjacent to any of the ones already in this batch; if it is, this edge will have to wait for another batch
+				RigidBody** found_a = NULL;
+				if(c->obj_a->MergesSubgraphs())
+				{
+					found_a = batch_bodies.Find(c->obj_a);
+
+					if(found_a == NULL)
+						ok = false;
+					else if(*found_a != NULL)
+						ok = false;
+					else
+						*found_a = c->obj_a;					// temporarily fill this position (ensures subsequent call to Find doesn't return the same blank)
+				}
+
+				if(ok)
+				{
+					RigidBody** found_b = NULL;
+					if(c->obj_b->MergesSubgraphs())
+					{
+						found_b = batch_bodies.Find(c->obj_b);
+
+						if(found_b == NULL)
+							ok = false;
+						else if(*found_b != NULL)
+							ok = false;
+						else
+							*found_b = c->obj_b;				// temporarily fill this position
+					}
+
+					// if ok, add to batch; batch_bodies insertions will be permanent
+					if(ok)
+						batch.push_back(c);
+					else if(found_b != NULL)
+						*found_b = NULL;
+				}
+
+				if(!ok)
+				{
+					if(found_a != NULL)
+						*found_a = NULL;
+
+					nu_remaining.push_back(c);
+				}
 			}
 
-			first = nu_first;
+			// would just use swap, but we want to start out using param "constraints", rather than having to copy its contents to "remaining" first
+			if(nu_remaining == remaining_b)
+			{
+				remaining		= remaining_b;
+				nu_remaining	= remaining_a;
+			}
+			else
+			{
+				remaining		= remaining_a;
+				nu_remaining	= remaining_b;
+			}
 		}
-#else
-		PhysicsConstraint **begin = constraints.data(), **end = begin + constraints.size();
+
+		// now process those batches however many times in a row
+		solver_threads.resize(task_threads->size());
+		// TODO: zomg thread safety! particularly in collision callbacks
+		vector<PhysicsConstraint*> *batches_begin = batches.data(), *batches_end = batches_begin + batches.size();
 		for(unsigned int i = 0; i < iterations; ++i)
-			for(PhysicsConstraint** iter = begin; iter != end; ++iter)
-				(*iter)->DoConstraintAction();
-#endif
+		{
+			for(vector<PhysicsConstraint*>* iter = batches_begin; iter != batches_end; ++iter)
+			{
+				vector<PhysicsConstraint*>& batch = *iter;
+				unsigned int num_constraints = batch.size();
+				unsigned int use_threads = num_constraints > MULTITHREADING_THRESHOLD ? task_threads->size() : 1;
+
+				if(use_threads > 1)
+				{
+					// split the work of evaluating the constraints in this batch across multiple threads
+					for(unsigned int j = 0; j < use_threads; ++j)
+					{
+						solver_threads[j].SetVectorRange(&batch, j * num_constraints / use_threads, (j + 1) * num_constraints / use_threads);
+						(*task_threads)[j]->StartTask(&solver_threads[j]);
+					}
+					for(unsigned int j = 0; j < use_threads; ++j)
+						(*task_threads)[j]->WaitForCompletion();
+				}
+				else
+				{
+					// this batch is so small doing multithreading may not be worthwhile; evaluate these constraints sequentially
+					for(PhysicsConstraint **iter = batch.data(), **end = iter + batch.size(); iter != end; ++iter)
+						(*iter)->DoConstraintAction();
+				}
+			}
+
+			// evaluate un-batched constraints sequentially
+			if(!remaining.empty())
+			{
+				for(PhysicsConstraint **iter = remaining.data(), **end = iter + remaining.size(); iter != end; ++iter)
+					(*iter)->DoConstraintAction();
+			}
+		}
 	}
 }

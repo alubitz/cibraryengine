@@ -853,9 +853,10 @@ namespace Test
 		{
 			FootState* foot = *iter;
 			if(PlacedFootConstraint* pfc = foot->pfc)
-				if(pfc->broken)
+				if(pfc->broken || pfc->obj_b == NULL)
 				{
-					dood->physics->RemoveConstraint(pfc);
+					if(pfc->obj_b != NULL)						// in case the thing we're standing on has despawned!
+						dood->physics->RemoveConstraint(pfc);
 					pfc->Dispose();
 					delete pfc;
 
@@ -871,7 +872,8 @@ namespace Test
 			FootState* foot = *iter;
 			if(PlacedFootConstraint* pfc = foot->pfc)
 			{
-				dood->physics->RemoveConstraint(pfc);
+				if(pfc->obj_b != NULL)							// in case the thing we're standing on has despawned! esp. during game shutdown
+					dood->physics->RemoveConstraint(pfc);
 				pfc->Dispose();
 				delete pfc;
 

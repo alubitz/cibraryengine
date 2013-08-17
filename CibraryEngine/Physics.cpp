@@ -40,7 +40,7 @@
 
 #define PROFILE_DOFIXEDSTEP 1
 
-#define NUM_COLLISION_THREADS 4
+#define NUM_COLLISION_THREADS 8
 
 namespace CibraryEngine
 {
@@ -70,16 +70,16 @@ namespace CibraryEngine
 
 
 #if PROFILE_DOFIXEDSTEP
-	static float timer_step_callback = 0.0f;
-	static float timer_update_vel = 0.0f;
-	static float timer_ray_update = 0.0f;
-	static float timer_collide = 0.0f;
-	static float timer_constraints = 0.0f;
-	static float timer_cgraph = 0.0f;
-	static float timer_update_pos = 0.0f;
-	static float timer_total = 0.0f;
+	static float timer_step_callback		= 0.0f;
+	static float timer_update_vel			= 0.0f;
+	static float timer_ray_update			= 0.0f;
+	static float timer_collide				= 0.0f;
+	static float timer_constraints			= 0.0f;
+	static float timer_cgraph				= 0.0f;
+	static float timer_update_pos			= 0.0f;
+	static float timer_total				= 0.0f;
 
-	static unsigned int counter_dofixedstep = 0;
+	static unsigned int counter_dofixedstep	= 0;
 #endif
 
 
@@ -100,7 +100,7 @@ namespace CibraryEngine
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),
 		cp_collectors(),
-		cgraph_solver(new CPUConstraintGraphSolver()),
+		cgraph_solver(new CPUConstraintGraphSolver(&task_threads)),
 		orphan_callback(new MyOrphanCallback()),
 		step_callback(NULL)
 	{
@@ -271,10 +271,10 @@ namespace CibraryEngine
 		}
 
 #if PROFILE_DOFIXEDSTEP
-		timer_ray_update += timer.Stop();
-		timer.Start();
+		timer_ray_update += timer.GetAndRestart();
 #endif
 
+		// detect all the collisions between dynamic objects, collecting contact points for those collisions
 		struct CollisionInitiator : public ThreadTask
 		{
 			float timestep;
@@ -317,6 +317,7 @@ namespace CibraryEngine
 		timer_collide += timer.GetAndRestart();
 #endif
 
+		// do once-per-tick update actions for all the constraints in the physics world
 		vector<PhysicsConstraint*> use_constraints;
 		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
 		{
@@ -334,6 +335,7 @@ namespace CibraryEngine
 		timer_constraints += timer.GetAndRestart();
 #endif
 
+		// evaluate the constraints we collected
 		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
 		for(unsigned int i = 0; i < use_threads; ++i)
@@ -469,9 +471,9 @@ namespace CibraryEngine
 
 	void PhysicsWorld::RemoveConstraint(PhysicsConstraint* c)
 	{
-		if(c->obj_a)
+		if(c->obj_a != NULL)
 			c->obj_a->constraints.erase(c);
-		if(c->obj_b)
+		if(c->obj_b != NULL)
 			c->obj_b->constraints.erase(c);
 
 		all_constraints.erase(c);
