@@ -26,7 +26,6 @@ namespace CibraryEngine
 
 		ContactPoint() { }
 		ContactPoint(RigidBody* obj_a, RigidBody* obj_b) : PhysicsConstraint(obj_a, obj_b) { }
-		~ContactPoint() { }
 
 
 		Vec3 GetRelativeLocalVelocity() const;

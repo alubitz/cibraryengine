@@ -19,7 +19,12 @@ namespace CibraryEngine
 	/*
 	 * TriangleMeshShape::RelevantTriangleGetter methods
 	 */
-	TriangleMeshShape::RelevantTriangleGetter::RelevantTriangleGetter(const AABB& aabb) : relevant_list(), aabb(aabb) { }
+	TriangleMeshShape::RelevantTriangleGetter::RelevantTriangleGetter(vector<unsigned int>& results, vector<unsigned char>& included, const AABB& aabb) :
+		results(results),
+		included(included),
+		aabb(aabb)
+	{
+	}
 
 	void TriangleMeshShape::RelevantTriangleGetter::operator() (Octree<NodeData>* node)
 	{
@@ -29,7 +34,13 @@ namespace CibraryEngine
 			{
 				for(vector<NodeData::TriRef>::iterator iter = node->contents.triangles.begin(), triangles_end = node->contents.triangles.end(); iter != triangles_end; ++iter)
 					if(AABB::IntersectTest(iter->aabb, aabb))
-						relevant_list.insert(iter->face_index);
+					{
+						if(!included[iter->face_index])
+						{
+							included[iter->face_index] = 1;
+							results.push_back(iter->face_index);
+						}
+					}
 			}
 			else
 				node->ForEach(*this);
@@ -336,11 +347,10 @@ namespace CibraryEngine
 		if(octree == NULL)
 			BuildOctree();										// this will in turn call BuildCache if necessary
 
-		RelevantTriangleGetter action(aabb);
+		vector<unsigned char> included(triangles.size());		// TODO: recycle this to save allocations/deallocations
+		results.reserve(triangles.size());
+		RelevantTriangleGetter action(results, included, aabb);
 		action(octree);
-
-		for(set<unsigned int>::iterator iter = action.relevant_list.begin(); iter != action.relevant_list.end(); ++iter)
-			results.push_back(*iter);
 	}
 
 	vector<Intersection> TriangleMeshShape::RayTest(const Ray& ray)

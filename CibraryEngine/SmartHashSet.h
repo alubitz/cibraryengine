@@ -22,7 +22,7 @@ namespace CibraryEngine
 			unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
 
 			vector<T*>& bucket = buckets[hash];
-			for(vector<T*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+			for(T **iter = bucket.data(), **bucket_end = iter + bucket.size(); iter != bucket_end; ++iter)
 				if(*iter == item)
 					return;
 
@@ -32,49 +32,42 @@ namespace CibraryEngine
 
 		void Erase(T* item)
 		{
-			if(count)
-			{
-				unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
+			unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
 
-				vector<T*>& bucket = buckets[hash];
-				for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-					if(bucket[i] == item)
-					{
-						bucket[i] = bucket[bucket_size - 1];			// replace this element with the last one in the array
-						bucket.pop_back();
+			vector<T*>& bucket = buckets[hash];
+			for(T **iter = bucket.data(), **bucket_end = iter + bucket.size(); iter != bucket_end; ++iter)
+				if(*iter == item)
+				{
+					// replace this element with the last one in the array
+					--bucket_end;
+					*iter = *bucket_end;			
+					bucket.pop_back();
 
-						assert(count);
-						--count;
+					assert(count);
+					--count;
 
-						return;
-					}
-			}
+					return;
+				}
 		}
 
 		bool Contains(T* item)
 		{
-			if(count)
-			{
-				unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
+			unsigned int hash = ((unsigned int)item / sizeof(T)) % N;
 
-				vector<T*>& bucket = buckets[hash];
-				for(unsigned int i = 0, bucket_size = bucket.size(); i < bucket_size; ++i)
-					if(bucket[i] == item)
-						return true;
-			}
+			vector<T*>& bucket = buckets[hash];
+			for(T **iter = bucket.data(), **bucket_end = iter + bucket.size(); iter != bucket_end; ++iter)
+				if(*iter == item)
+					return true;
 
 			return false;
 		}
 
 		void Clear()
 		{
-			if(count)
-			{
-				for(unsigned int i = 0; i < hash_size; ++i)
-					buckets[i].clear();
+			for(vector<T*>* iter = buckets, *buckets_end = buckets + N; iter != buckets_end; ++iter)
+				iter->clear();
 
-				count = 0;
-			}
+			count = 0;
 		}
 	};
 }

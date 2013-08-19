@@ -158,7 +158,7 @@ namespace CibraryEngine
 
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 
-
-		desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
+		if(enable_motor)
+			desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
 	}
 }

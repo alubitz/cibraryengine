@@ -17,6 +17,7 @@
 #include "WorldBoundary.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
+#include "../CibraryEngine/TaskThread.h"
 
 #include "LevelLoad.h"
 
@@ -28,6 +29,9 @@
 #define ENABLE_FPS_COUNTER 1
 
 #define USE_GUN_AS_RUBBISH 0
+
+
+#define CPHFT_THREAD_COUNT 4
 
 namespace Test
 {
@@ -119,20 +123,51 @@ namespace Test
 		class CharacterPhysicsHappyFunTime : public PhysicsStepCallback
 		{
 			public:
+
+				struct CPHFTTask : public ThreadTask
+				{
+					float timestep;
+
+					vector<Dood*>* doods;
+					unsigned int from, to;
+
+					void SetTaskParams(float timestep_, vector<Dood*>* doods_, unsigned int from_, unsigned int to_) { timestep = timestep_; doods = doods_; from = from_; to = to_; }
+
+					void DoTask()
+					{
+						for(Dood **data = doods->data(), **iter = data + from, **end = data + to; iter != end; ++iter)
+							(*iter)->PoseToPhysics(timestep);
+					}
+				} tasks[CPHFT_THREAD_COUNT];
+
 				TestGame* game;
+
+				TaskThread** threads;
 
 				void OnPhysicsStep(PhysicsWorld* physics, float timestep)
 				{
 					struct DoodGetter : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } dood_getter;
-					EntityList doods = game->GetQualifyingEntities(dood_getter);
+					EntityList doods_elist = game->GetQualifyingEntities(dood_getter);
 
-					for(unsigned int i = 0, count = doods.Count(); i < count; ++i)
+					unsigned int count = doods_elist.Count();
+					vector<Dood*> doods;
+					doods.reserve(count);
+					for(unsigned int i = 0; i < count; ++i)
+						doods.push_back((Dood*)doods_elist[i]);
+
+					unsigned int use_threads = CPHFT_THREAD_COUNT;
+					for(unsigned int i = 0; i < use_threads; ++i)
 					{
-						Dood* dood = (Dood*)doods[i];
-						dood->PoseToPhysics(timestep);
+						tasks[i].SetTaskParams(timestep, &doods, i * count / use_threads, (i + 1) * count / use_threads);
+						threads[i]->StartTask(&tasks[i]);
 					}
+
+					for(unsigned int i = 0; i < use_threads; ++i)
+						threads[i]->WaitForCompletion();
 				}
 		} character_physics_happy_fun_time;
+
+		TaskThread* threads[CPHFT_THREAD_COUNT];
 
 		bool alive;
 
@@ -194,6 +229,10 @@ namespace Test
 			deferred_lighting(NULL),
 			physics_content_init(false)
 		{
+			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
+				threads[i] = new TaskThread();
+
+			character_physics_happy_fun_time.threads = threads;
 		}
 
 		~Imp()
@@ -207,6 +246,15 @@ namespace Test
 
 			if(deferred_ambient)		{ deferred_ambient->Dispose();		delete deferred_ambient;		deferred_ambient = NULL;		}
 			if(deferred_lighting)		{ deferred_lighting->Dispose();		delete deferred_lighting;		deferred_lighting = NULL;		}
+
+
+
+			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
+			{
+				threads[i]->Shutdown();
+				delete threads[i];
+				threads[i] = NULL;
+			}
 		}
 
 		void DrawBackground(Mat4 view_matrix)

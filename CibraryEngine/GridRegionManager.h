@@ -24,10 +24,12 @@ namespace CibraryEngine
 
 			// size of each cell
 			float cell_dim;
+			float inv_cell_dim;
 
 			// offset of the minimum cell
 			int x0, y0, z0;
 			int dx, dy, dz;
+			int max_x, max_y, max_z;
 
 			vector<vector<vector<PhysicsRegion*> > > region_array;
 			unordered_set<RigidBody*> planes;

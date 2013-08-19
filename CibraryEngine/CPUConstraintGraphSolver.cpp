@@ -13,6 +13,8 @@
 
 #define DEBUG_HASH_COLLISIONS		0
 
+#define MAX_THREADS					4u
+
 namespace CibraryEngine
 {
 	/*
@@ -173,7 +175,9 @@ namespace CibraryEngine
 		}
 
 		// now process those batches however many times in a row
-		solver_threads.resize(task_threads->size());
+		unsigned int max_threads = min(task_threads->size(), MAX_THREADS);
+		solver_threads.resize(max_threads);
+
 		// TODO: zomg thread safety! particularly in collision callbacks
 		vector<PhysicsConstraint*> *batches_begin = batches.data(), *batches_end = batches_begin + batches.size();
 		for(unsigned int i = 0; i < iterations; ++i)
@@ -182,14 +186,14 @@ namespace CibraryEngine
 			{
 				vector<PhysicsConstraint*>& batch = *iter;
 				unsigned int num_constraints = batch.size();
-				unsigned int use_threads = num_constraints > MULTITHREADING_THRESHOLD ? task_threads->size() : 1;
+				unsigned int use_threads = num_constraints > MULTITHREADING_THRESHOLD ? max_threads : 1;
 
 				if(use_threads > 1)
 				{
 					// split the work of evaluating the constraints in this batch across multiple threads
 					for(unsigned int j = 0; j < use_threads; ++j)
 					{
-						solver_threads[j].SetVectorRange(&batch, j * num_constraints / use_threads, (j + 1) * num_constraints / use_threads);
+						solver_threads[j].SetTaskParams(&batch, j * num_constraints / use_threads, (j + 1) * num_constraints / use_threads);
 						(*task_threads)[j]->StartTask(&solver_threads[j]);
 					}
 					for(unsigned int j = 0; j < use_threads; ++j)

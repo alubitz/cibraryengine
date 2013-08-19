@@ -282,8 +282,7 @@ namespace CibraryEngine
 			ContactDataCollector* collect;
 			unsigned int from, to;
 
-			CollisionInitiator() { }
-			CollisionInitiator(ContactDataCollector* collect, float timestep, vector<CollisionObject*>* objects, unsigned int from, unsigned int to) : timestep(timestep), objects(objects), collect(collect), from(from), to(to) { }
+			void SetTaskParams(ContactDataCollector* collect_, float timestep_, vector<CollisionObject*>* objects_, unsigned int from_, unsigned int to_) { collect = collect_; timestep = timestep_; objects = objects_; from = from_; to = to_; }
 
 			void DoTask()
 			{
@@ -291,22 +290,21 @@ namespace CibraryEngine
 				for(CollisionObject** obj_ptr = start_ptr; obj_ptr != finish_ptr; ++obj_ptr)
 					(*obj_ptr)->InitiateCollisions(timestep, collect);
 			}
-		};
-		CollisionInitiator collision_initiators[NUM_COLLISION_THREADS];
+		} collision_initiators[NUM_COLLISION_THREADS];
 
 		vector<CollisionObject*> dynamic_objects_vector(dynamic_objects.begin(), dynamic_objects.end());
 
+		vector<ContactPoint*> temp_contact_points;
 		unsigned int num_objects = dynamic_objects_vector.size();
-		unsigned int use_threads = max(1u, min((unsigned)NUM_COLLISION_THREADS, num_objects / 40));
+		unsigned int use_collider_threads = max(1u, min((unsigned)NUM_COLLISION_THREADS, num_objects / 40));
 
-		for(unsigned int i = 0; i < use_threads; ++i)
+		for(unsigned int i = 0; i < use_collider_threads; ++i)
 		{
-			collision_initiators[i] = CollisionInitiator(cp_collectors[i], timestep, &dynamic_objects_vector, i * num_objects / use_threads, (i + 1) * num_objects / use_threads);
+			collision_initiators[i].SetTaskParams(cp_collectors[i], timestep, &dynamic_objects_vector, i * num_objects / use_collider_threads, (i + 1) * num_objects / use_collider_threads);
 			task_threads[i]->StartTask(&collision_initiators[i]);
 		}
 
-		vector<ContactPoint*> temp_contact_points;
-		for(unsigned int i = 0; i < use_threads; ++i)
+		for(unsigned int i = 0; i < use_collider_threads; ++i)
 		{
 			task_threads[i]->WaitForCompletion();
 			for(vector<ContactRegion*>::iterator iter = collision_initiators[i].collect->results.begin(); iter != collision_initiators[i].collect->results.end(); ++iter)
@@ -320,16 +318,36 @@ namespace CibraryEngine
 		// do once-per-tick update actions for all the constraints in the physics world
 		vector<PhysicsConstraint*> use_constraints;
 		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
-		{
-			(*iter)->DoUpdateAction(timestep);
 			use_constraints.push_back(*iter);
-		}
-
 		for(vector<ContactPoint*>::iterator iter = temp_contact_points.begin(), cp_end = temp_contact_points.end(); iter != cp_end; ++iter)
-		{
-			(*iter)->DoUpdateAction(timestep);
 			use_constraints.push_back(*iter);
+
+		struct ConstraintUpdater : public ThreadTask
+		{
+			float timestep;
+			vector<PhysicsConstraint*>* constraints;
+			unsigned int from, to;
+
+			void SetTaskParams(float timestep_, vector<PhysicsConstraint*>* constraints_, unsigned int from_, unsigned int to_) { timestep = timestep_; constraints = constraints_; from = from_; to = to_; }
+
+			void DoTask()
+			{
+				PhysicsConstraint **data = constraints->data(), **start_ptr = data + from, **finish_ptr = data + to;
+				for(PhysicsConstraint** obj_ptr = start_ptr; obj_ptr != finish_ptr; ++obj_ptr)
+					(*obj_ptr)->DoUpdateAction(timestep);
+			}
+		} constraint_updaters[NUM_COLLISION_THREADS];
+
+		unsigned int num_constraints = use_constraints.size();
+		unsigned int use_constraint_threads = NUM_COLLISION_THREADS;
+
+		for(unsigned int i = 0; i < use_constraint_threads; ++i)
+		{
+			constraint_updaters[i].SetTaskParams(timestep, &use_constraints, i * num_constraints / use_constraint_threads, (i + 1) * num_constraints / use_constraint_threads);
+			task_threads[i]->StartTask(&constraint_updaters[i]);
 		}
+		for(unsigned int i = 0; i < use_constraint_threads; ++i)
+			task_threads[i]->WaitForCompletion();
 
 #if PROFILE_DOFIXEDSTEP
 		timer_constraints += timer.GetAndRestart();
@@ -338,7 +356,7 @@ namespace CibraryEngine
 		// evaluate the constraints we collected
 		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
-		for(unsigned int i = 0; i < use_threads; ++i)
+		for(unsigned int i = 0; i < use_collider_threads; ++i)
 			collision_initiators[i].collect->ClearResults();
 
 #if PROFILE_DOFIXEDSTEP
@@ -526,39 +544,43 @@ namespace CibraryEngine
 		ray_aabb.Expand(endpoint);
 
 		static RelevantObjectsQuery relevant_objects;
+		assert(relevant_objects.count == 0);
 
 		for(set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
 			(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
 
-		// now do the actual collision testing
-		Ray ray(from, to - from);
-
-		list<RayResult> hits;
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		if(relevant_objects.count != 0)
 		{
-			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
-			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+			// now do the actual collision testing
+			Ray ray(from, to - from);
+
+			list<RayResult> hits;
+			for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
 			{
-				CollisionObject* cobj = *iter;
-				switch(cobj->GetType())
+				vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+				for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
 				{
-					case COT_RigidBody:			RayCollider::CollideRigidBody(		(RigidBody*)*iter,		ray, max_time, hits, collider); break;
-					case COT_CollisionGroup:	RayCollider::CollideCollisionGroup(	(CollisionGroup*)*iter,	ray, max_time, hits, collider); break;
+					CollisionObject* cobj = *iter;
+					switch(cobj->GetType())
+					{
+						case COT_RigidBody:			RayCollider::CollideRigidBody(		(RigidBody*)*iter,		ray, max_time, hits, collider); break;
+						case COT_CollisionGroup:	RayCollider::CollideCollisionGroup(	(CollisionGroup*)*iter,	ray, max_time, hits, collider); break;
+					}
 				}
 			}
+
+			// run the collision callback on whatever we found
+			if(!hits.empty())
+			{
+				hits.sort();
+
+				for(list<RayResult>::iterator jter = hits.begin(), hits_end = hits.end(); jter != hits_end; ++jter)
+					if(callback.OnCollision(*jter))
+						break;
+			}
+
+			relevant_objects.Clear();
 		}
-
-		// run the collision callback on whatever we found
-		if(!hits.empty())
-		{
-			hits.sort();
-
-			for(list<RayResult>::iterator jter = hits.begin(), hits_end = hits.end(); jter != hits_end; ++jter)
-				if(callback.OnCollision(*jter))
-					break;
-		}
-
-		relevant_objects.Clear();
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, RayCallback& callback) { RayTestPrivate(from, to, callback); }
 

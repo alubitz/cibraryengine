@@ -105,9 +105,13 @@ namespace CibraryEngine
 #endif
 				pos += vel * timestep;
 
-				pos += ori.ToMat3().Transpose() * mass_info.com;
-				ori *= Quaternion::FromPYR(rot * timestep);
-				pos -= ori.ToMat3().Transpose() * mass_info.com;
+				pos += Quaternion::Reverse(ori) * mass_info.com;
+				if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromPYR(rot * timestep)
+				{
+					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = sinf(half) / mag;
+					ori *= Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff);
+				}
+				pos -= Quaternion::Reverse(ori) * mass_info.com;
 
 				xform_valid = false;
 
@@ -315,32 +319,35 @@ namespace CibraryEngine
 				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
 		}
 
-		RemoveDisabledCollisions(relevant_objects);
-
-		// do collision detection with those objects
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		if(relevant_objects.count != 0)
 		{
-			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
-			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				switch((*iter)->GetType())
-				{
-					case COT_RigidBody:
-					{
-						RigidBody* rigid_body = (RigidBody*)*iter;
-						if(rigid_body->GetShapeType() != ST_MultiSphere || rigid_body < this)
-							CollideRigidBody((RigidBody*)*iter, collect);
-						break;
-					}
+			RemoveDisabledCollisions(relevant_objects);
 
-					case COT_CollisionGroup:
+			// do collision detection with those objects
+			for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+			{
+				vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+				for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+					switch((*iter)->GetType())
 					{
-						CollisionGroup* cgroup = (CollisionGroup*)*iter;
-						if(*iter < this)
-							cgroup->CollideRigidBody(this, collect);
+						case COT_RigidBody:
+						{
+							RigidBody* rigid_body = (RigidBody*)*iter;
+							if(rigid_body->GetShapeType() != ST_MultiSphere || rigid_body < this)
+								CollideRigidBody((RigidBody*)*iter, collect);
+							break;
+						}
 
-						break;
+						case COT_CollisionGroup:
+						{
+							CollisionGroup* cgroup = (CollisionGroup*)*iter;
+							if(*iter < this)
+								cgroup->CollideRigidBody(this, collect);
+
+							break;
+						}
 					}
-				}
+			}
 		}
 	}
 
@@ -363,32 +370,35 @@ namespace CibraryEngine
 				(*iter)->GetRelevantObjects(xformed_aabb, relevant_objects);
 		}
 
-		RemoveDisabledCollisions(relevant_objects);
-
-		// do collision detection with those objects
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		if(relevant_objects.count != 0)
 		{
-			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
-			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				switch((*iter)->GetType())
-				{
-					case COT_RigidBody:
-					{
-						RigidBody* rigid_body = (RigidBody*)*iter;
-						if(rigid_body->GetShapeType() != ST_ConvexMesh || rigid_body < this)
-							CollideRigidBody((RigidBody*)*iter, collect);
-						break;
-					}
+			RemoveDisabledCollisions(relevant_objects);
 
-					case COT_CollisionGroup:
+			// do collision detection with those objects
+			for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+			{
+				vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+				for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+					switch((*iter)->GetType())
 					{
-						CollisionGroup* cgroup = (CollisionGroup*)*iter;
-						if(*iter < this)
-							cgroup->CollideRigidBody(this, collect);
+						case COT_RigidBody:
+						{
+							RigidBody* rigid_body = (RigidBody*)*iter;
+							if(rigid_body->GetShapeType() != ST_ConvexMesh || rigid_body < this)
+								CollideRigidBody((RigidBody*)*iter, collect);
+							break;
+						}
 
-						break;
+						case COT_CollisionGroup:
+						{
+							CollisionGroup* cgroup = (CollisionGroup*)*iter;
+							if(*iter < this)
+								cgroup->CollideRigidBody(this, collect);
+
+							break;
+						}
 					}
-				}
+			}
 		}
 	}
 

@@ -27,7 +27,6 @@ namespace Test
 
 			PoseAimingGun* p_ag;
 			WalkPose* walk_pose;
-			float walk_timer;
 
 			float jet_fuel;
 
@@ -38,6 +37,8 @@ namespace Test
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
 
 			void RegisterFeet();
+
+			void Update(TimingInfo time);
 
 			void Die(Damage cause);
 

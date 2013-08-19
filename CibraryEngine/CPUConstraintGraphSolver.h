@@ -22,7 +22,7 @@ namespace CibraryEngine
 				vector<PhysicsConstraint*>* constraints;
 				unsigned int from, to;
 
-				void SetVectorRange(vector<PhysicsConstraint*>* constraints_, unsigned int from_, unsigned int to_) { constraints = constraints_; from = from_; to = to_; }
+				void SetTaskParams(vector<PhysicsConstraint*>* constraints_, unsigned int from_, unsigned int to_) { constraints = constraints_; from = from_; to = to_; }
 
 				void DoTask()
 				{

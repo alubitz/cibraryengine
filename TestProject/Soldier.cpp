@@ -363,7 +363,6 @@ namespace Test
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		walk_pose(NULL),
-		walk_timer(0.0f),
 		jet_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -505,6 +504,16 @@ namespace Test
 		feet.push_back(new FootState(Bone::string_table["r foot"]));
 	}
 
+	void Soldier::Update(TimingInfo time)
+	{
+#if DIE_AFTER_ONE_SECOND
+		if(time.total > 1.0f)
+			Die(Damage());
+#endif
+
+		Dood::Update(time);
+	}
+
 	void Soldier::Die(Damage cause)
 	{
 		if(jet_loop != NULL)
@@ -542,8 +551,6 @@ namespace Test
 			walk_pose->yaw_bone = Bone::string_table["pelvis"];
 			walk_pose->side_anim_rate = 2.5f;
 
-			walk_timer = game_state->total_game_time;
-
 			posey->active_poses.push_back(walk_pose);
 #endif
 		}
@@ -553,14 +560,6 @@ namespace Test
 
 	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
 	{
-		walk_timer += timestep;
-		PoseCharacter(TimingInfo(timestep, walk_timer));
-
-#if DIE_AFTER_ONE_SECOND
-		if(walk_timer > 1.0f)
-			Die(Damage());
-#endif
-
 		Dood::DoCheatyPose(timestep, net_vel);
 	}
 

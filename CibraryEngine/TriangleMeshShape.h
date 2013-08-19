@@ -62,10 +62,11 @@ namespace CibraryEngine
 
 			struct RelevantTriangleGetter
 			{
-				set<unsigned int> relevant_list;				// list of unique maybe-relevant triangles encountered
+				vector<unsigned int>& results;				// list of unique maybe-relevant triangles encountered
+				vector<unsigned char>& included;
 				const AABB& aabb;
 
-				RelevantTriangleGetter(const AABB& aabb);
+				RelevantTriangleGetter(vector<unsigned int>& results, vector<unsigned char>& included, const AABB& aabb);
 
 				void operator() (Octree<NodeData>* node);
 			};

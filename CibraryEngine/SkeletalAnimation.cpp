@@ -22,17 +22,27 @@ namespace CibraryEngine
 	{
 		if(!cache_valid)
 		{
-			Quaternion rotation = ori * rest_ori;
+			Mat3 rm = (ori * rest_ori).ToMat3();
+			float* arr = rm.values;
 
 			if(parent == NULL)
-				cached_xform = Mat4::Translation(pos) * Mat4::FromQuaternion(rotation);
+			{
+				cached_xform = Mat4(
+					arr[0],	arr[1],	arr[2],	pos.x,
+					arr[3],	arr[4],	arr[5],	pos.y,
+					arr[6],	arr[7],	arr[8],	pos.z,
+					0,		0,		0,		1
+				);
+			}
 			else
 			{
-				Mat4 to_rest_pos = Mat4::Translation(rest_pos);
-				Mat4 from_rest_pos = Mat4::Translation(-rest_pos);
-				Mat4 rotation_mat = Mat4::FromQuaternion(rotation);
-				Mat4 offset = Mat4::Translation(pos);
-				cached_xform = parent->GetTransformationMatrix() * to_rest_pos * rotation_mat * offset * from_rest_pos;
+				Mat4 temp(
+						arr[0],	arr[1],	arr[2],	rest_pos.x,
+						arr[3],	arr[4],	arr[5],	rest_pos.y,
+						arr[6],	arr[7],	arr[8],	rest_pos.z,
+						0,		0,		0,		1
+					);
+				cached_xform = parent->GetTransformationMatrix() * temp * Mat4::Translation(pos - rest_pos);
 			}
 
 			cache_valid = true;

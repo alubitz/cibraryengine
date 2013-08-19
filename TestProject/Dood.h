@@ -23,7 +23,7 @@ namespace Test
 	{
 		private:
 
-			float character_pose_time;
+			float pose_timer;
 
 		protected:
 
@@ -111,7 +111,6 @@ namespace Test
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 
-			void PoseCharacter();
 			void PoseCharacter(TimingInfo time);
 
 			void PhysicsToCharacter();

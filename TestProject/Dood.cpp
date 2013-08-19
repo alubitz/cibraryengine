@@ -51,7 +51,7 @@ namespace Test
 
 	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
 		Pawn(gs),
-		character_pose_time(-1),
+		pose_timer(0.0f),
 		yaw_rate(10.0f),
 		pitch_rate(10.0f),
 		team(team),
@@ -229,6 +229,7 @@ namespace Test
 
 		this->vel = vel;
 
+		PhysicsToCharacter();
 
 		if(alive)
 		{
@@ -239,12 +240,8 @@ namespace Test
 
 		MaybeDoScriptedUpdate(this);
 
-		PoseCharacter(time);
-
 		if(alive)
 			DoWeaponControls(time);
-
-		posey->UpdatePoses(time);
 
 		if(!alive)
 		{
@@ -432,10 +429,11 @@ namespace Test
 
 				net_mass += mass;
 
-				// TODO: revise this part
+#if 0			// TODO: revise this part (use an actual if statement?)
 				// make posey root bones' orientations match those of the corresponding rigid bodies
-				//if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
-					//rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+				if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+#endif
 			}
 			net_vel /= net_mass;
 			com /= net_mass;
@@ -483,7 +481,8 @@ namespace Test
 
 	void Dood::DoCheatyPose(float timestep, const Vec3& net_vel)
 	{
-		posey->skeleton->InvalidateCachedBoneXforms();
+		pose_timer += timestep;
+		PoseCharacter(TimingInfo(timestep, pose_timer));
 
 		static const float move_rate_coeff = 60.0f;
 		for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
@@ -501,25 +500,21 @@ namespace Test
 
 	void Dood::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
 
-	void Dood::PoseCharacter() { PoseCharacter(TimingInfo(game_state->total_game_time - character_pose_time, game_state->total_game_time)); }
 	void Dood::PoseCharacter(TimingInfo time)
 	{
 		if(!is_valid)
 			return;
 
-		float now = time.total;
-		if(now > character_pose_time)
+		if(time.elapsed > 0)
 		{
-			float timestep = character_pose_time >= 0 ? now - character_pose_time : 0;
-
 			PhysicsToCharacter();
 
 			PreUpdatePoses(time);
-			posey->UpdatePoses(TimingInfo(timestep, now));
+			posey->UpdatePoses(time);
 
 			PostUpdatePoses(time);
 
-			character_pose_time = now;
+			posey->skeleton->InvalidateCachedBoneXforms();
 		}
 	}
 

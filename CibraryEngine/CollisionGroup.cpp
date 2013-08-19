@@ -125,32 +125,35 @@ namespace CibraryEngine
 			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
 				(*iter)->GetRelevantObjects(my_aabb, relevant_objects);
 		}
-		RemoveDisabledCollisions(relevant_objects);
-
-		for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+		if(relevant_objects.count != 0)
 		{
-			vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
-			for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
-				switch((*iter)->GetType())
-				{
-					case COT_RigidBody:
+			RemoveDisabledCollisions(relevant_objects);
+
+			for(unsigned int i = 0; i < RelevantObjectsQuery::hash_size; ++i)
+			{
+				vector<CollisionObject*>& bucket = relevant_objects.buckets[i];
+				for(vector<CollisionObject*>::iterator iter = bucket.begin(), bucket_end = bucket.end(); iter != bucket_end; ++iter)
+					switch((*iter)->GetType())
 					{
-						RigidBody* body = (RigidBody*)*iter;
-						if(*iter < this || !CollisionShape::CanShapeTypeMove(body->GetShapeType()))
-							CollideRigidBody(body, collect);
+						case COT_RigidBody:
+						{
+							RigidBody* body = (RigidBody*)*iter;
+							if(*iter < this || !CollisionShape::CanShapeTypeMove(body->GetShapeType()))
+								CollideRigidBody(body, collect);
 
-						break;
+							break;
+						}
+
+						case COT_CollisionGroup:
+						{
+							CollisionGroup* other = (CollisionGroup*)*iter;
+							if(other < this)
+								CollideCollisionGroup(other, collect);
+
+							break;
+						}
 					}
-
-					case COT_CollisionGroup:
-					{
-						CollisionGroup* other = (CollisionGroup*)*iter;
-						if(other < this)
-							CollideCollisionGroup(other, collect);
-
-						break;
-					}
-				}
+			}
 		}
 	}
 

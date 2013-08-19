@@ -44,7 +44,7 @@ namespace CibraryEngine
 				CollisionObject* cobj = *iter;
 				
 				cobj->regions.Erase(this);
-				if(!cobj->regions.count && orphan_callback)
+				if(cobj->regions.count == 0 && orphan_callback)
 					orphan_callback->OnObjectOrphaned(cobj);
 			}
 			bucket.clear();
