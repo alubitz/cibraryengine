@@ -40,6 +40,8 @@ namespace Test
 				bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 			};
 
+			bool use_cheaty_ori;
+			
 			float yaw_rate, pitch_rate;
 
 			virtual void InnerDispose();
@@ -91,6 +93,8 @@ namespace Test
 			vector<Bone*> rbody_to_posey;
 			vector<RigidBody*> bone_to_rbody;
 			vector<PhysicsConstraint*> constraints;
+
+			set<RigidBody*> velocity_change_bodies;		// rigid bodies which should be affected by StandingCallback::ApplyVelocityChange
 
 			CollisionGroup* collision_group;
 

@@ -288,6 +288,8 @@ namespace Test
 				physics->AddConstraint(r_grip);
 
 			rigid_body->SetCollisionEnabled(new_owner->collision_group, false);
+
+			new_owner->velocity_change_bodies.insert(rigid_body);
 		}
 	}
 
@@ -308,6 +310,10 @@ namespace Test
 			}
 
 			rigid_body->SetCollisionEnabled(old_owner->collision_group, true);
+
+			set<RigidBody*>::iterator found = old_owner->velocity_change_bodies.find(rigid_body);
+			if(found != old_owner->velocity_change_bodies.end())
+				old_owner->velocity_change_bodies.erase(found);
 		}
 
 		WeaponEquip::UnEquip(old_owner);

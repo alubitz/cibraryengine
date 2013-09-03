@@ -20,7 +20,7 @@ namespace Test
 
 					CrabHeading() : Pose(), yaw() { }
 
-					void UpdatePose(TimingInfo time) { SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3()); }
+					void UpdatePose(TimingInfo time) { /*SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3());*/ }
 			};
 			CrabHeading* crab_heading;
 

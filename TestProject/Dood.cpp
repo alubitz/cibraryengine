@@ -54,6 +54,7 @@ namespace Test
 		pose_timer(0.0f),
 		yaw_rate(10.0f),
 		pitch_rate(10.0f),
+		use_cheaty_ori(false),
 		team(team),
 		materials(),
 		blood_material(NULL),
@@ -131,8 +132,6 @@ namespace Test
 
 	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
 	{
-		return;
-
 		bool standing = standing_callback.IsStanding();
 
 		float timestep = time.elapsed;
@@ -331,7 +330,7 @@ namespace Test
 			Mat4& use_ori = eye_xform;
 #endif
 
-			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos) + Vec3(0, -0.5f, 0);		// TODO: remove this hack
+			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
 			Vec3 left		= use_ori.TransformVec3_0(1, 0, 0);
 			Vec3 up			= use_ori.TransformVec3_0(0, 1, 0);
 			Vec3 backward	= use_ori.TransformVec3_0(0, 0, 1);
@@ -408,8 +407,6 @@ namespace Test
 
 	void Dood::PoseToPhysics(float timestep)
 	{
-		standing_callback.OnPhysicsTick(timestep);
-
 		if(alive)
 		{
 			unsigned int num_bodies = rigid_bodies.size();
@@ -429,12 +426,11 @@ namespace Test
 
 				net_mass += mass;
 
-#if 0			// TODO: revise this part (use an actual if statement?)
 				// make posey root bones' orientations match those of the corresponding rigid bodies
-				if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+				if(!use_cheaty_ori && rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
 					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
-#endif
 			}
+
 			net_vel /= net_mass;
 			com /= net_mass;
 
@@ -558,6 +554,7 @@ namespace Test
 
 				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
+				velocity_change_bodies.insert(rigid_body);
 
 				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
 				rigid_body->SetUserEntity(shootable);
@@ -812,16 +809,13 @@ namespace Test
 			}
 			else
 				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal);
-
-
-			dood->physics->AddConstraint(foot->pfc);
 		}
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
 	{
 		Vec3 net_impulse;
-		for(vector<RigidBody*>::iterator iter = dood->rigid_bodies.begin(); iter != dood->rigid_bodies.end(); ++iter)
+		for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
 		{
 			Vec3 impulse = dv * (*iter)->GetMassInfo().mass;
 			(*iter)->ApplyCentralImpulse(impulse);
@@ -844,19 +838,29 @@ namespace Test
 
 	void Dood::StandingCallback::OnPhysicsTick(float timestep)
 	{
-		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+		for(FootState **iter = dood->feet.data(), **feet_end = iter + dood->feet.size(); iter != feet_end; ++iter)
 		{
 			FootState* foot = *iter;
 			if(PlacedFootConstraint* pfc = foot->pfc)
-				if(pfc->broken || pfc->obj_b == NULL)
+			{
+				if(pfc->broken)
 				{
-					if(pfc->obj_b != NULL)						// in case the thing we're standing on has despawned!
+					if(pfc->is_in_world)		// in case the thing we're standing on has despawned!
+					{
 						dood->physics->RemoveConstraint(pfc);
+						pfc->is_in_world = false;
+					}
 					pfc->Dispose();
 					delete pfc;
 
 					foot->pfc = NULL;
 				}
+				else if(!pfc->is_in_world)
+				{
+					dood->physics->AddConstraint(pfc);
+					pfc->is_in_world = true;
+				}
+			}
 		}
 	}
 
@@ -867,8 +871,11 @@ namespace Test
 			FootState* foot = *iter;
 			if(PlacedFootConstraint* pfc = foot->pfc)
 			{
-				if(pfc->obj_b != NULL)							// in case the thing we're standing on has despawned! esp. during game shutdown
+				if(pfc->is_in_world)			// in case the thing we're standing on has despawned! esp. during game shutdown
+				{
 					dood->physics->RemoveConstraint(pfc);
+					pfc->is_in_world = false;
+				}
 				pfc->Dispose();
 				delete pfc;
 

@@ -471,6 +471,8 @@ namespace CibraryEngine
 					c->obj_b = NULL;
 				}
 
+				c->OnObjectRemoved(r);
+
 				all_constraints.erase(c);
 
 				// TODO: figure out where the constraint will be deleted?
@@ -494,7 +496,8 @@ namespace CibraryEngine
 		if(c->obj_b != NULL)
 			c->obj_b->constraints.erase(c);
 
-		all_constraints.erase(c);
+		if(all_constraints.find(c) != all_constraints.end())		// TODO: fix this better?
+			all_constraints.erase(c);
 	}
 
 	void PhysicsWorld::Update(TimingInfo time)

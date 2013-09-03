@@ -113,7 +113,7 @@ namespace Test
 
 		yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
-		ragdoll_timer = 3600.0f;
+		ragdoll_timer = 10.0f;
 
 		// character animation stuff
 		posey->active_poses.push_back(crab_heading);

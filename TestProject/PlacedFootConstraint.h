@@ -20,6 +20,7 @@ namespace Test
 			float angular_coeff;
 
 			bool broken;
+			bool is_in_world;
 
 
 			// cached stuff
@@ -40,5 +41,7 @@ namespace Test
 
 			bool DoConstraintAction();
 			void DoUpdateAction(float timestep);
+
+			void OnObjectRemoved(RigidBody* object);
 	};
 }

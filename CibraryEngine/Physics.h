@@ -137,7 +137,9 @@ namespace CibraryEngine
 			virtual ~PhysicsConstraint() { }
 
 			virtual bool DoConstraintAction() = 0;
-			virtual void DoUpdateAction(float timestep) { }
+			virtual void DoUpdateAction(float timestep)		{ }
+
+			virtual void OnObjectRemoved(RigidBody* object)	{ }		// one of our objects has been removed from the world, so this constraint must be removed as well
 
 			RigidBody* obj_a;
 			RigidBody* obj_b;

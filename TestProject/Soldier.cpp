@@ -12,7 +12,7 @@
 
 #define DIE_AFTER_ONE_SECOND 0
 
-#define ENABLE_WALK_ANIMATIONS 0
+#define ENABLE_WALK_ANIMATIONS 1
 
 namespace Test
 {
@@ -368,6 +368,8 @@ namespace Test
 		jet_loop_sound(NULL),
 		jet_loop(NULL)
 	{
+		use_cheaty_ori = true;
+
 		yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");

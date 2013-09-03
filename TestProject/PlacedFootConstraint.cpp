@@ -15,7 +15,8 @@ namespace Test
 		b_pos(b_pos),
 		surface_normal(surface_normal),
 		angular_coeff(0.0f),
-		broken(false)
+		broken(false),
+		is_in_world(false)
 	{
 	}
 
@@ -26,7 +27,8 @@ namespace Test
 		surface_normal(surface_normal),
 		desired_ori(relative_ori),
 		angular_coeff(angular_coeff),
-		broken(false)
+		broken(false),
+		is_in_world(false)
 	{
 	}
 
@@ -36,6 +38,8 @@ namespace Test
 		static const float outward_dv_breakage_threshold		= 4.0f;
 		static const float friction_bonus_threshold				= 0.1f;
 		static const float av_breakage_threshold				= 50.0f;
+
+		assert(is_in_world);
 
 		bool wakeup = false;
 
@@ -49,7 +53,6 @@ namespace Test
 
 		float restitution_impulse_sq = (rlv_to_impulse * cur_normal).ComputeMagnitudeSquared() * dot * dot;
 
-		/*
 		if(dot < -outward_dv_breakage_threshold)
 			broken = true;
 		else
@@ -59,7 +62,6 @@ namespace Test
 			if(restitution_impulse_sq > full_friction_impulse.ComputeMagnitudeSquared() + friction_bonus_threshold)
 				broken = true;
 		}
-		*/
 
 		Vec3 dv = desired_dv - current_dv;
 		if(float magsq = dv.ComputeMagnitudeSquared())
@@ -84,7 +86,7 @@ namespace Test
 				arot += alpha_to_arot * alpha;
 				brot -= alpha_to_brot * alpha;
 
-				//if(magsq > restitution_impulse_sq)
+				//if(magsq > av_breakage_threshold)
 				//	broken = true;
 
 				wakeup = true;
@@ -153,5 +155,10 @@ namespace Test
 			Quaternion a_to_b = Quaternion::Reverse(obj_a->GetOrientation()) * obj_b->GetOrientation();
 			desired_av = (a_to_b * Quaternion::Reverse(desired_ori)).ToPYR() * -inv_timestep;
 		}
+	}
+
+	void PlacedFootConstraint::OnObjectRemoved(RigidBody* object)
+	{
+		is_in_world = false;
 	}
 }
