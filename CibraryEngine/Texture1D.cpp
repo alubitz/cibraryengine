@@ -29,7 +29,7 @@ namespace CibraryEngine
 
 	unsigned int Texture1D::GetGLName()
 	{
-		if(!gl_name)
+		if(gl_name == 0)
 		{
 			GLDEBUG();
 

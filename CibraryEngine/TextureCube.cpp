@@ -35,7 +35,7 @@ namespace CibraryEngine
 
 	unsigned int TextureCube::GetGLName()
 	{
-		if(!gl_name)
+		if(gl_name == 0)
 		{
 			GLDEBUG();
 
@@ -49,10 +49,10 @@ namespace CibraryEngine
 			if(mipmaps)
 			{
 				glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, (int)GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, (int)GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, (int)GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR_MIPMAP_LINEAR);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,		(int)GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T,		(int)GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,		(int)GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER,	(int)GL_LINEAR_MIPMAP_LINEAR);
 			}
 
 			glDisable(GL_TEXTURE_CUBE_MAP);

@@ -65,10 +65,11 @@ namespace CibraryEngine
 		if(n_buffers > 0)
 		{
 			my_color_buffers.resize(n_buffers);
-			my_textures.resize(n_buffers);
-			glGenRenderbuffers(my_color_buffers.size(), &my_color_buffers[0]);
+			glGenRenderbuffers(my_color_buffers.size(), my_color_buffers.data());
 		}
 		glGenRenderbuffers(1, &my_depth_buffer);
+
+		my_textures.resize(n_buffers + 1);
 
 		// generate an fbo
 		glGenFramebuffers(1, &my_fbo);
@@ -83,7 +84,6 @@ namespace CibraryEngine
 
 		// and the depth buffer too
 		glBindRenderbuffer(GL_RENDERBUFFER, my_depth_buffer);
-		//glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
 		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
 
 
@@ -100,6 +100,7 @@ namespace CibraryEngine
 		bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
 		
 		glEnable(GL_TEXTURE_2D);
+		// create and attach color textures
 		for(int i = 0; i < n_buffers; ++i)
 		{
 			my_textures[i] = new Texture2D(width, height, NULL, false, true);
@@ -111,7 +112,28 @@ namespace CibraryEngine
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, id, 0);
+
+			GLDEBUG();
 		}
+		// create and attach depth texture
+		{
+			unsigned int id;
+			glGenTextures(1, &id);
+			my_textures[n_buffers] = new Texture2D(id);
+
+			glBindTexture(GL_TEXTURE_2D, id);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, id, 0);
+
+			GLDEBUG();
+		}
+
 		if(!were_textures_enabled)
 			glDisable(GL_TEXTURE_2D);
 
@@ -125,15 +147,16 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	GLsizei RenderTarget::GetWidth() { return my_width; }
-	GLsizei RenderTarget::GetHeight() { return my_height; }
-	GLsizei RenderTarget::GetSampleCount() { return my_samples; }
+	GLsizei RenderTarget::GetWidth()						{ return my_width; }
+	GLsizei RenderTarget::GetHeight()						{ return my_height; }
+	GLsizei RenderTarget::GetSampleCount()					{ return my_samples; }
 
-	Texture2D* RenderTarget::GetColorBufferTex(int which) { return my_textures[which]; }
+	Texture2D* RenderTarget::GetColorBufferTex(int which)	{ return my_textures[which]; }
+	Texture2D* RenderTarget::GetDepthBufferTex()			{ return *my_textures.rbegin(); }
 
 
 	// global variable!!!
-	RenderTarget* bound_rt = NULL;
+	static RenderTarget* bound_rt = NULL;
 
 	void RenderTarget::Bind(RenderTarget* target)
 	{

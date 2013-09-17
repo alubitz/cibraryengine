@@ -5,42 +5,39 @@
 varying	vec3			position;
 
 uniform	sampler2D		diffuse, normal, specular, depth;
+uniform	float			camera_near, camera_far;
+
+uniform	mat4			inv_view_matrix;
+
+vec3 cameraVecToWorld(vec3 v) { return (vec4(v, 0.0) * inv_view_matrix).xyz; }
+vec3 cameraPosToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_view_matrix; return temp.xyz / temp.w; }
 
 #if ENABLE_SHADOWS
 
 	uniform	sampler2D		shadow_depth;
 	uniform	mat4			shadow_matrix, inv_shadow_matrix;
 
-	vec3 worldToShadow(vec3 v) { vec4 temp = vec4(v, 1.0) * shadow_matrix; return temp.xyz / temp.w; }
+	uniform	float			shadow_near, shadow_far;
+
+	vec3 worldToShadow(vec3 v) { vec4 temp = vec4(v, 1.0) * shadow_matrix;     return temp.xyz / temp.w; }
 	vec3 shadowToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_shadow_matrix; return temp.xyz / temp.w; }
+
+	float getUnshadowedAmount(vec3 uLight, vec3 world_pos, vec2 shadow_coord)
+	{
+		float depth_sample = texture2D(shadow_depth, shadow_coord.xy * 0.5 + 0.5).x;
+		float shadow_z = depth_sample * (shadow_far - shadow_near) + shadow_near;			// don't use depth_to_z for an orthographic shadow map
+		vec3 shadow_pos = shadowToWorld(vec3(shadow_coord.xy, -shadow_z));
+
+		float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
+		return distance_past_shadow < 0.0 ? 1.0 : 0.0;
+	}
 
 #endif
 
-uniform	mat4			inv_view_matrix;
-
-const float inv_256 = 1.0 / 256.0;
-const float inv_255 = 1.0 / 255.0;
-
-float color_to_distance(vec3 color)
+float depth_to_z(float depth_value, float near, float far)
 {
-	color *= 255.0;
-	float frac = color.z * 256.0 + color.y + color.x * inv_256;
-	return frac;
-}
-
-vec3 cameraVecToWorld(vec3 v) { return (vec4(v, 0.0) * inv_view_matrix).xyz; }
-vec3 cameraPosToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_view_matrix; return temp.xyz / temp.w; }
-
-float getUnshadowedAmount(vec3 uLight, vec3 world_pos, vec2 shadow_coord)
-{
-	vec4 shadow_depth_sample = texture2D(shadow_depth, shadow_coord.xy * 0.5 + 0.5);
-	float shadow_z = color_to_distance(shadow_depth_sample.xyz);
-	vec3 shadow_pos = shadowToWorld(vec3(shadow_coord.xy, -shadow_z));
-
-	float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
-
-	float shadow_threshold = 0.0 * inv_256;
-	return distance_past_shadow < shadow_threshold ? 1.0 : 0.0;
+	float temp = 2.0 * depth_value - 1.0;
+	return 2.0 * near * far / (far + near - temp * (far - near));
 }
 
 void main()
@@ -51,9 +48,7 @@ void main()
 
 	vec2 uv = gl_TexCoord[0].xy;
 
-	vec4 depth_sample = texture2D(depth, uv);
-	float z = color_to_distance(depth_sample.xyz);
-
+	float z = depth_to_z(texture2D(depth, uv).x, camera_near, camera_far);
 	vec3 pos = vec3(position.xy * z, -z);
 	vec3 uPos = normalize(pos);
 
@@ -63,19 +58,9 @@ void main()
 #if ENABLE_SHADOWS
 
 	vec3 shadow_coord = worldToShadow(world_pos);
-	float out_of_region = min(1.0, length(vec2(shadow_coord.x, shadow_coord.y)));
 
-	const float soft_d = 1.0 / 4096.0;
-
+	float out_of_region = min(1.0, length(shadow_coord.xy));
 	float shadow_br = getUnshadowedAmount(uLight, world_pos, shadow_coord.xy);
-	/*
-	float shadow_br = 0.25 * (
-		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	soft_d	))	+
-		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(soft_d,	-soft_d	))	+
-		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	-soft_d	))	+
-		getUnshadowedAmount(uLight, world_pos, shadow_coord.xy + vec2(-soft_d,	soft_d	)));
-	*/
-
 	float br = max(out_of_region, shadow_br);
 
 	if(br > 0.0)
@@ -104,13 +89,11 @@ void main()
 		vec3 base_color = diffuse_color * diffuse_amount * gl_LightSource[0].diffuse.xyz + specular_color * specular_amount * gl_LightSource[0].specular.xyz;
 
 #if ENABLE_SHADOWS
-
 		gl_FragColor.xyz = base_color * br;
 	}
 	else
 		discard;
 #else
-		gl_FragColor.xyz = base_color;
+	gl_FragColor.xyz = base_color;
 #endif
-
 }

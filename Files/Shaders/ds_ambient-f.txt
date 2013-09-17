@@ -1,19 +1,23 @@
-#define ENVIRONMENT_MAPPING 0
+#define ENABLE_ENVIRONMENT_MAPPING 0
 
 varying	vec3			position;
 
 uniform	sampler2D		diffuse, normal, specular, depth;
-uniform	samplerCube		ambient_cubemap, env_cubemap;
+uniform	samplerCube		ambient_cubemap;
+#if ENABLE_ENVIRONMENT_MAPPING
+	uniform	samplerCube		env_cubemap;
+#endif
+
 uniform	mat4			view_matrix;
+uniform	float			camera_near, camera_far;
 
 const float inv_256 = 1.0 / 256.0;
 const float inv_255 = 1.0 / 255.0;
 
-float color_to_distance(vec3 color)
+float depth_to_z(float depth_value, float near, float far)
 {
-	color *= 255.0;
-	float frac = color.z * 256.0 + color.y + color.x * inv_256;
-	return frac;
+	float temp = 2.0 * depth_value - 1.0;
+	return 2.0 * near * far / (far + near - temp * (far - near));
 }
 
 vec3 cameraVecToWorld(vec3 v) { return (view_matrix * vec4(v, 0.0)).xyz; }
@@ -30,7 +34,7 @@ void main()
 
 	vec3 emission_color = vec3(diffuse_sample.w, normal_sample.w, specular_sample.w);
 
-	float z = color_to_distance(depth_sample.xyz);
+	float z = depth_to_z(depth_sample.x, camera_near, camera_far);
 	vec3 uPos = normalize(vec3(position.xy * z, -z) - cameraPosToWorld(vec3(0.0)));
 
 	vec3 uNorm = normal_sample.xyz * 2.0 - 1.0;
@@ -39,12 +43,14 @@ void main()
 	vec3 uBounce = uPos - (2.0 * eye_dot) * uNorm;
 
 	vec4 ambient_color = textureCube(ambient_cubemap, cameraVecToWorld(uNorm));
-	vec4 env_color = textureCube(env_cubemap, cameraVecToWorld(uBounce));
-
 	vec3 diffuse_color = diffuse_sample.xyz;
 	vec3 specular_color = specular_sample.xyz;
 
 	vec3 base_color = diffuse_color * (ambient_color.xyz) + emission_color;
+
+#if ENABLE_ENVIRONMENT_MAPPING
+	base_color += textureCube(env_cubemap, cameraVecToWorld(uBounce)).xyz * specular_color;
+#endif
 
 	gl_FragColor.xyz = base_color;
 	gl_FragColor.w = 1.0;

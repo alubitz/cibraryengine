@@ -9,7 +9,7 @@ uniform	float			precision_scaler;
 varying	vec3			position, normal;
 
 
-#define BONES 1
+#define ENABLE_BONES 1
 
 vec2 ReadElements(int texel_index)
 {
@@ -33,7 +33,7 @@ void main()
 
 	mat4x4 model_mat = gl_ModelViewMatrix;
 
-#if BONES != 0
+#if ENABLE_BONES
 	vec4 x_mat = vec4(0.0);
 	vec4 y_mat = vec4(0.0);
 	vec4 z_mat = vec4(0.0);

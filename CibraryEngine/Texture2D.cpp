@@ -19,6 +19,13 @@ namespace CibraryEngine
 	{
 	}
 
+	Texture2D::Texture2D(unsigned int gl_name_) :
+		Texture(),
+		byte_data(NULL)
+	{
+		gl_name = gl_name_;
+	}
+
 	void Texture2D::InnerDispose()
 	{
 		glDeleteTextures(1, &gl_name);
@@ -33,7 +40,7 @@ namespace CibraryEngine
 
 	unsigned int Texture2D::GetGLName()
 	{
-		if(!gl_name)
+		if(gl_name == 0)
 		{
 			GLDEBUG();
 

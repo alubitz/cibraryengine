@@ -41,6 +41,7 @@ namespace CibraryEngine
 			GLsizei GetSampleCount();
 
 			Texture2D* GetColorBufferTex(int which);
+			Texture2D* GetDepthBufferTex();
 
 
 

@@ -18,7 +18,7 @@ namespace CibraryEngine
 
 	unsigned int TextureBuffer::GetGLName()
 	{
-		if(!gl_name)
+		if(gl_name == 0)
 		{
 			GLDEBUG();
 

@@ -26,6 +26,7 @@ namespace CibraryEngine
 			bool clamp;
 
 			Texture2D(int width, int height, unsigned char* byte_data, bool mipmaps, bool clamp);
+			Texture2D(unsigned int gl_name);
 
 			unsigned int GetGLName();
 	};

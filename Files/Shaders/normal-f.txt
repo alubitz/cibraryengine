@@ -4,25 +4,6 @@ varying	vec3			normal, position;
 
 uniform	sampler2D		diffuse, specular, normal_map;
 
-const float near_plane = 0.1;
-const float far_plane = 16384.0;
-const float inv_near_plane = 1.0 / near_plane;
-const float log_plane_ratio = log(far_plane * inv_near_plane) - 1.0;
-const float inv_log_plane_ratio = 1.0 / log_plane_ratio;
-const float inv_255 = 1.0 / 255.0;
-const float inv_256 = 1.0 / 256.0;
-
-vec3 distance_to_color(float dist)
-{
-	int tot = int(dist * 256.0);
-
-	float a = (tot / 65536) % 256;
-	float b = (tot / 256) % 256;
-	float c = (tot / 1) % 256;
-
-	return vec3(c, b, a) * inv_255;
-}
-
 vec3 fragmentNormal(sampler2D normal_map)
 {
 	vec3 grain_color = texture2D(normal_map, gl_TexCoord[0].xy).xyz;
@@ -51,7 +32,4 @@ void main()
 
 	// specular color (x4)
 	gl_FragData[2] = vec4(texture2D(specular, gl_TexCoord[0].xy).xyz, 0.0);
-
-	// depth (x3)
-	gl_FragData[3].xyz = distance_to_color(-position.z);
 }

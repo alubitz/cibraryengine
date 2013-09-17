@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 	unsigned int Texture3D::GetGLName()
 	{
-		if(!gl_name)
+		if(gl_name == 0)
 		{
 			GLDEBUG();
 
