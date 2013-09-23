@@ -1,6 +1,7 @@
 #extension GL_EXT_gpu_shader4 : enable
 
 #define ENABLE_SHADOWS 1
+#define N_SHADOW_MAPS 3
 
 varying	vec3			position;
 
@@ -14,22 +15,39 @@ vec3 cameraPosToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_view_matrix; retu
 
 #if ENABLE_SHADOWS
 
-	uniform	sampler2D		shadow_depth;
-	uniform	mat4			shadow_matrix, inv_shadow_matrix;
+	uniform	sampler2D[N_SHADOW_MAPS]	shadow_depths;
+	uniform	mat4     [N_SHADOW_MAPS]	shadow_matrices, inv_shadow_matrices;
 
-	uniform	float			shadow_near, shadow_far;
+	uniform	float						shadow_near, shadow_far;
 
-	vec3 worldToShadow(vec3 v) { vec4 temp = vec4(v, 1.0) * shadow_matrix;     return temp.xyz / temp.w; }
-	vec3 shadowToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_shadow_matrix; return temp.xyz / temp.w; }
+	vec3 worldToShadow(int index, vec3 v) { vec4 temp = vec4(v, 1.0) *     shadow_matrices[index]; return temp.xyz / temp.w; }
+	vec3 shadowToWorld(int index, vec3 v) { vec4 temp = vec4(v, 1.0) * inv_shadow_matrices[index]; return temp.xyz / temp.w; }
 
-	float getUnshadowedAmount(vec3 uLight, vec3 world_pos, vec2 shadow_coord)
+	float getDepthSample(int index, vec2 shadow_coord)
 	{
-		float depth_sample = texture2D(shadow_depth, shadow_coord.xy * 0.5 + 0.5).x;
-		float shadow_z = depth_sample * (shadow_far - shadow_near) + shadow_near;			// don't use depth_to_z for an orthographic shadow map
-		vec3 shadow_pos = shadowToWorld(vec3(shadow_coord.xy, -shadow_z));
+		if(index == 0)
+			return texture2D(shadow_depths[0], shadow_coord * 0.5 + 0.5).x;
+		else if(index == 1)
+			return texture2D(shadow_depths[1], shadow_coord * 0.5 + 0.5).x;
+		else
+			return texture2D(shadow_depths[2], shadow_coord * 0.5 + 0.5).x;
+	}
 
-		float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
-		return distance_past_shadow < 0.0 ? 1.0 : 0.0;
+	bool getUnshadowedAmount(int index, vec3 uLight, vec3 world_pos, in out float brightness)
+	{
+		vec3 shadow_coord = worldToShadow(index, world_pos);
+		if(abs(shadow_coord.x) <= 1.0 && abs(shadow_coord.y) <= 1.0)
+		{
+			float depth_sample = getDepthSample(index, shadow_coord.xy);
+			float shadow_z = depth_sample * (shadow_far - shadow_near) + shadow_near;				// don't use depth_to_z for an orthographic shadow map
+			vec3 shadow_pos = shadowToWorld(index, vec3(shadow_coord.xy, -shadow_z));
+
+			float distance_past_shadow = dot(cameraVecToWorld(uLight), shadow_pos - world_pos);
+			brightness = distance_past_shadow < 0.0 ? 1.0 : 0.0;
+			return true;
+		}
+		else
+			return false;
 	}
 
 #endif
@@ -44,8 +62,6 @@ void main()
 {
 	gl_FragColor.w = 1.0;
 
-	vec3 camera_position = cameraPosToWorld(vec3(0.0));
-
 	vec2 uv = gl_TexCoord[0].xy;
 
 	float z = depth_to_z(texture2D(depth, uv).x, camera_near, camera_far);
@@ -57,13 +73,14 @@ void main()
 
 #if ENABLE_SHADOWS
 
-	vec3 shadow_coord = worldToShadow(world_pos);
+	float brightness = 1.0;
+	for(int i = 0; i < N_SHADOW_MAPS; ++i)
+	{
+		if(getUnshadowedAmount(i, uLight, world_pos, brightness))
+			break;
+	}
 
-	float out_of_region = min(1.0, length(shadow_coord.xy));
-	float shadow_br = getUnshadowedAmount(uLight, world_pos, shadow_coord.xy);
-	float br = max(out_of_region, shadow_br);
-
-	if(br > 0.0)
+	if(brightness > 0.0)
 	{
 
 #endif
@@ -89,7 +106,7 @@ void main()
 		vec3 base_color = diffuse_color * diffuse_amount * gl_LightSource[0].diffuse.xyz + specular_color * specular_amount * gl_LightSource[0].specular.xyz;
 
 #if ENABLE_SHADOWS
-		gl_FragColor.xyz = base_color * br;
+		gl_FragColor.xyz = base_color * brightness;
 	}
 	else
 		discard;

@@ -9,31 +9,34 @@ namespace Test
 		rm = Util::FindOrientationZEdge(position);
 	}
 
-	void Sun::SetLight(int which)
+	void Sun::SetLight(int index)
 	{
-		float ambient[] = {color.x, color.y, color.z, 1};
-		float diffuse[] = {color.x, color.y, color.z, 1};
-		float specular[] = {color.x, color.y, color.z, 1};
-		Vec3 current_dir = view_matrix.TransformVec3_0(position);
-		float pos_f[] = { current_dir.x, current_dir.y, current_dir.z, 0 };
+		Vec3 light_dir = view_matrix.TransformVec3_0(position);
+
+		float dir_f   [] = { light_dir.x, light_dir.y, light_dir.z, 0 };
+		float ambient [] = { color.x,     color.y,     color.z,     1 };
+		float diffuse [] = { color.x,     color.y,     color.z,     1 };
+		float specular[] = { color.x,     color.y,     color.z,     1 };
+
+		int name = GL_LIGHT0 + index;
 
 		glEnable(GL_LIGHTING);
-
-		int name = GL_LIGHT0 + which;
 		glEnable(name);
-		glLightfv(name, GL_AMBIENT, ambient);
-		glLightfv(name, GL_DIFFUSE, diffuse);
-		glLightfv(name, GL_SPECULAR, specular);
-		glLightf(name, GL_LINEAR_ATTENUATION, 0);
-		glLightf(name, GL_QUADRATIC_ATTENUATION, 0);
 
 		glPushMatrix();
 		glLoadIdentity();
-		glLightfv(name, GL_POSITION, pos_f);
+
+		glLightfv( name, GL_AMBIENT,               ambient  );
+		glLightfv( name, GL_DIFFUSE,               diffuse  );
+		glLightfv( name, GL_SPECULAR,              specular );
+		glLightfv( name, GL_POSITION,              dir_f    );
+		glLightf ( name, GL_LINEAR_ATTENUATION,    0        );
+		glLightf ( name, GL_QUADRATIC_ATTENUATION, 0        );
+
 		glPopMatrix();
 	}
 
-	void Sun::UnsetLight(int which) { glDisable(GL_LIGHT0 + which); }
+	void Sun::UnsetLight(int index) { glDisable(GL_LIGHT0 + index); }
 
 	void Sun::Draw()
 	{
@@ -68,7 +71,7 @@ namespace Test
 	}
 
 	/** Generates the view matrix for shadow-mapping purposes */
-	Mat4 Sun::GenerateShadowMatrix(CameraView& camera)
+	void Sun::GenerateShadowMatrices(CameraView& camera, unsigned int n, const float* shadow_region_radii, Mat4* results_out)
 	{
 		Vec3 light_dir = Vec3::Normalize(position);
 
@@ -77,16 +80,15 @@ namespace Test
 		Mat4 inv_camera_matrix = Mat4::Invert(camera_matrix);
 
 		// we'll be doing a bunch of transforms on these same verts
+		int n_verts = 2;								// number of verts in the array below; if you change that, change this!
 		Vec3 verts[] =
 		{
 			Vec3(	0.0f,	0.0f,	0.0f),				// centers of near and far planes
 			Vec3(	0.0f,	0.0f,	1.0f)
 		};
 
-		int n = 2;										// number of verts in the above array; if you change that, change this!
-
 		// transform screen-space coords to world-space, and flatten onto plane
-		for(int i = 0; i < n; ++i)
+		for(int i = 0; i < n_verts; ++i)
 		{
 			verts[i] = inv_camera_matrix.TransformVec3(verts[i], 1.0f);
 			verts[i] -= light_dir * Vec3::Dot(verts[i], light_dir);
@@ -103,13 +105,20 @@ namespace Test
 		);
 		Mat4 rotation(Mat4::FromMat3(shadow_rm));
 
-		float shadow_w = 50.0f;
-		float shadow_l = 50.0f;
-		Vec3 light_translation_vec(camera.GetPosition());
+		static const float sun_reverse_translation = 256.0f;
+		static const float eye_forward_translation_coeff = 0.7071068f;			// looked like it needed to be between 0.7 and 0.8, so maybe it wants sqrt(0.5)?
 
-		Mat4 scale_mat(Mat4::Scale(1.0f / shadow_w, 1.0f / shadow_l, 1.0f));
-		Mat4 light_translation(Mat4::Translation(-light_translation_vec));
+		for(unsigned int i = 0; i < n; ++i)
+		{
+			float radius = *(shadow_region_radii++);
+			float inv_radius = 1.0f / radius;
 
-		return Mat4::Translation(0, 0, -256.0f) * scale_mat * rotation * light_translation;		
+			Vec3 light_translation_vec(camera.GetPosition() + forward_f * radius * eye_forward_translation_coeff);
+
+			Mat4 scale_mat(Mat4::Scale(inv_radius, inv_radius, 1.0f));
+			Mat4 light_translation(Mat4::Translation(-light_translation_vec));
+
+			*(results_out++) = Mat4::Translation(0, 0, -sun_reverse_translation) * scale_mat * rotation * light_translation;
+		}
 	}
 }

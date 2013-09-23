@@ -22,11 +22,11 @@ namespace Test
 
 			Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture);
 
-			void SetLight(int which);
-			void UnsetLight(int which);
+			void SetLight(int index);
+			void UnsetLight(int index);
 
 			void Draw();
 
-			Mat4 GenerateShadowMatrix(CameraView& camera);
+			void GenerateShadowMatrices(CameraView& camera, unsigned int n, const float* shadow_region_radii, Mat4* results_out);
 	};
 }

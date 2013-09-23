@@ -11,9 +11,6 @@ uniform	samplerCube		ambient_cubemap;
 uniform	mat4			view_matrix;
 uniform	float			camera_near, camera_far;
 
-const float inv_256 = 1.0 / 256.0;
-const float inv_255 = 1.0 / 255.0;
-
 float depth_to_z(float depth_value, float near, float far)
 {
 	float temp = 2.0 * depth_value - 1.0;

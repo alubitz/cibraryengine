@@ -92,9 +92,8 @@ namespace CibraryEngine
 
 		// fill in the fbo's data
 		for(unsigned int i = 0; i < my_color_buffers.size(); ++i)
-			glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER,	GL_COLOR_ATTACHMENT0 + i,	GL_RENDERBUFFER,	my_color_buffers[i] );
-
-		glFramebufferRenderbuffer(		GL_DRAW_FRAMEBUFFER,	GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer );
+			glFramebufferRenderbuffer(	GL_DRAW_FRAMEBUFFER,	GL_COLOR_ATTACHMENT0 + i,	GL_RENDERBUFFER,	my_color_buffers[i]	);
+		glFramebufferRenderbuffer(		GL_DRAW_FRAMEBUFFER,	GL_DEPTH_ATTACHMENT,		GL_RENDERBUFFER,	my_depth_buffer		);
 
 		// create and attach textures
 		bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;

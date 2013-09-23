@@ -19,17 +19,15 @@ vec3 fragmentNormal(sampler2D normal_map)
 
 void main()
 {
-	vec3 uNorm = fragmentNormal(normal_map);
 
-	// diffuse color (x3)
-	gl_FragData[0] = vec4(texture2D(diffuse, gl_TexCoord[0].xy).xyz, 0.0);
+	vec4 diffuse_sample = texture2D(diffuse, gl_TexCoord[0].xy);
 
-	if(texture2D(diffuse, gl_TexCoord[0].xy).w < 0.5)
+	if(diffuse_sample.w < 0.5)
 		discard;
 
-	// normal (x3)
-	gl_FragData[1] = vec4(uNorm * 0.5 + 0.5, 0.0);
+	vec3 uNorm = fragmentNormal(normal_map);
 
-	// specular color (x4)
-	gl_FragData[2] = vec4(texture2D(specular, gl_TexCoord[0].xy).xyz, 0.0);
+	gl_FragData[0] = vec4(diffuse_sample.xyz, 0.0);									// diffuse color
+	gl_FragData[1] = vec4(uNorm * 0.5 + 0.5, 0.0);									// normal vector
+	gl_FragData[2] = vec4(texture2D(specular, gl_TexCoord[0].xy).xyz, 0.0);			// specular color
 }

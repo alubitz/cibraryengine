@@ -1,14 +1,13 @@
 varying	vec3		normal;
 
-uniform samplerCube	sky_texture;
+uniform	samplerCube	sky_texture;
 
 void main()
 {
 	vec3 uNorm = normalize(normal);
-
 	vec4 sky_sample = textureCube(sky_texture, uNorm);
+
 	gl_FragData[0] = vec4(vec3(0.0), sky_sample.r);
 	gl_FragData[1] = vec4(vec3(0.0), sky_sample.g);
 	gl_FragData[2] = vec4(vec3(0.0), sky_sample.b);
-	gl_FragData[3] = vec4(vec3(1.0), 0.0);
 }

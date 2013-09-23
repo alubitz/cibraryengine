@@ -25,14 +25,18 @@
 #include "Rubbish.h"
 
 #define ENABLE_SHADOWS 1
+#define SHADOW_MAP_SIZE 1024
+#define N_SHADOW_MAPS 3
+
 #define ENABLE_ENVIRONMENT_MAPPING 0
+
 
 #define ENABLE_FPS_COUNTER 1
 
 #define USE_GUN_AS_RUBBISH 0
 
-
 #define CPHFT_THREAD_COUNT 4
+
 
 namespace Test
 {
@@ -83,7 +87,7 @@ namespace Test
 		bool Accept(Entity* ent)
 		{
 			Dood* dood = dynamic_cast<Dood*>(ent);
-			if(dood != NULL && dood->team == TestGame::bug_team && dood->hp > 0)
+			if(dood != NULL && dood->team == TestGame::bug_team && dood->alive)
 				return true;
 			else
 				return false;
@@ -209,7 +213,7 @@ namespace Test
 
 		TextureCube* ambient_cubemap;
 		RenderTarget* render_target;
-		RenderTarget* shadow_render_target;
+		RenderTarget* shadow_render_targets[N_SHADOW_MAPS];
 
 		ShaderProgram* deferred_ambient;
 		ShaderProgram* deferred_lighting;
@@ -230,7 +234,7 @@ namespace Test
 			renderer(NULL),
 			sun(NULL),
 			render_target(NULL),
-			shadow_render_target(NULL),
+			shadow_render_targets(),
 			deferred_ambient(NULL),
 			deferred_lighting(NULL),
 			physics_content_init(false)
@@ -246,14 +250,13 @@ namespace Test
 			if(sun)						{ delete sun; sun = NULL; }
 
 			if(render_target)			{ render_target->Dispose();			delete render_target;			render_target = NULL;			}
-			if(shadow_render_target)	{ shadow_render_target->Dispose();	delete shadow_render_target;	shadow_render_target = NULL;	}
+
+			for(unsigned int i = 0; i < N_SHADOW_MAPS; ++i)
+				if(shadow_render_targets[i]) { shadow_render_targets[i]->Dispose(); delete shadow_render_targets[i]; shadow_render_targets[i] = NULL; }
 
 			if(sky_shader)				{ sky_shader->Dispose();			delete sky_shader;				sky_shader = NULL;				}
-
 			if(deferred_ambient)		{ deferred_ambient->Dispose();		delete deferred_ambient;		deferred_ambient = NULL;		}
 			if(deferred_lighting)		{ deferred_lighting->Dispose();		delete deferred_lighting;		deferred_lighting = NULL;		}
-
-
 
 			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
 			{
@@ -444,38 +447,40 @@ namespace Test
 		Shader* ds_ambient = shader_cache->Load("ds_ambient-f");
 
 		ShaderProgram* deferred_lighting = imp->deferred_lighting = new ShaderProgram(ds_vertex, ds_lighting);
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
-		deferred_lighting->AddUniform<float>(new UniformFloat("camera_near"));
-		deferred_lighting->AddUniform<float>(new UniformFloat("camera_far"));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "diffuse",             0     ));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "normal",              1     ));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "specular",            2     ));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "depth",               3     ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "camera_near"                ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "camera_far"                 ));
 #if ENABLE_SHADOWS
-		deferred_lighting->AddUniform<Texture2D>(new UniformTexture2D("shadow_depth", 4));
-		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("shadow_matrix", false));
-		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_shadow_matrix", false));
-		deferred_lighting->AddUniform<float>(new UniformFloat("shadow_near"));
-		deferred_lighting->AddUniform<float>(new UniformFloat("shadow_far"));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "shadow_depths[0]",    4     ));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "shadow_depths[1]",    5     ));
+		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "shadow_depths[2]",    6     ));
+		deferred_lighting->AddUniform<vector<Mat4>>( new UniformMatrix4Array( "shadow_matrices",     false ));
+		deferred_lighting->AddUniform<vector<Mat4>>( new UniformMatrix4Array( "inv_shadow_matrices", false ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "shadow_near"                ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "shadow_far"                 ));
 #endif
-		deferred_lighting->AddUniform<Mat4>(new UniformMatrix4("inv_view_matrix", false));
-		deferred_lighting->AddUniform<float>(new UniformFloat("aspect_ratio"));
-		deferred_lighting->AddUniform<float>(new UniformFloat("zoom"));
+		deferred_lighting->AddUniform<Mat4>        ( new UniformMatrix4     ( "inv_view_matrix",     false ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "aspect_ratio"               ));
+		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "zoom"                       ));
 		
 
 		ShaderProgram* deferred_ambient = imp->deferred_ambient = new ShaderProgram(ds_vertex, ds_ambient);
-		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
-		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("normal", 1));
-		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("specular", 2));
+		deferred_ambient->AddUniform<Texture2D>    ( new UniformTexture2D   ( "diffuse",             0     ));
+		deferred_ambient->AddUniform<Texture2D>    ( new UniformTexture2D   ( "normal",              1     ));
+		deferred_ambient->AddUniform<Texture2D>    ( new UniformTexture2D   ( "specular",            2     ));
 #if ENABLE_ENVIRONMENT_MAPPING
-		deferred_ambient->AddUniform<Texture2D>(new UniformTexture2D("depth", 3));
-		deferred_ambient->AddUniform<float>(new UniformFloat("camera_near"));
-		deferred_ambient->AddUniform<float>(new UniformFloat("camera_far"));
-		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("env_cubemap", 5));
+		deferred_ambient->AddUniform<Texture2D>    ( new UniformTexture2D   ( "depth",               3     ));
+		deferred_ambient->AddUniform<float>        ( new UniformFloat       ( "camera_near"                ));
+		deferred_ambient->AddUniform<float>        ( new UniformFloat       ( "camera_far"                 ));
+		deferred_ambient->AddUniform<TextureCube>  ( new UniformTextureCube ( "env_cubemap",         5     ));
 #endif
-		deferred_ambient->AddUniform<TextureCube>(new UniformTextureCube("ambient_cubemap", 4));
-		deferred_ambient->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
-		deferred_ambient->AddUniform<float>(new UniformFloat("aspect_ratio"));
-		deferred_ambient->AddUniform<float>(new UniformFloat("zoom"));
+		deferred_ambient->AddUniform<TextureCube>  ( new UniformTextureCube ( "ambient_cubemap",     4     ));
+		deferred_ambient->AddUniform<Mat4>         ( new UniformMatrix4     ( "view_matrix",         false ));
+		deferred_ambient->AddUniform<float>        ( new UniformFloat       ( "aspect_ratio"               ));
+		deferred_ambient->AddUniform<float>        ( new UniformFloat       ( "zoom"                       ));
 
 		// Dood's model
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
@@ -693,7 +698,7 @@ namespace Test
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
 	void ClearDepthAndColor();
 #if ENABLE_SHADOWS
-	Texture2D* RenderShadowTexture(RenderTarget* target, Mat4& shadow_matrix, float& near_plane, float& far_plane, Sun* sun, SceneRenderer& renderer);
+	Texture2D* RenderShadowTexture(RenderTarget* target, const Mat4& shadow_matrix, float near_plane, float far_plane, Sun* sun, SceneRenderer& renderer);
 #endif
 
 	void TestGame::Draw(int width_, int height_)
@@ -758,8 +763,9 @@ namespace Test
 			}
 
 #if ENABLE_SHADOWS
-			if(imp->shadow_render_target == NULL)
-				imp->shadow_render_target = new RenderTarget(4096, 4096, 0, 0);
+			for(unsigned int i = 0; i < N_SHADOW_MAPS; ++i)
+				if(imp->shadow_render_targets[i] == NULL)
+					imp->shadow_render_targets[i] = new RenderTarget(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0, 0);
 #endif
 
 			GLDEBUG();
@@ -824,17 +830,27 @@ namespace Test
 			DrawScreenQuad(deferred_ambient, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 #if ENABLE_SHADOWS
-			// these 3 variables are passed by reference to RenderShadowTexture to have values assigned to them
-			Mat4 shadow_matrix;
-			float shadow_near, shadow_far;
 
-			Texture2D* shadow_texture = RenderShadowTexture(imp->shadow_render_target, shadow_matrix, shadow_near, shadow_far, imp->sun, imp->renderer);
+			float shadow_near = 0, shadow_far = 1000;
 
-			glBindTexture(GL_TEXTURE_2D, shadow_texture->GetGLName());
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			float        shadow_region_radii[N_SHADOW_MAPS] = { 8.0f, 32.0f, 100.0f };
+			vector<Mat4>     shadow_matrices(N_SHADOW_MAPS);
+			vector<Mat4> inv_shadow_matrices(N_SHADOW_MAPS);
 
-			Mat4 inv_shadow_matrix = Mat4::Invert(shadow_matrix);
+			imp->sun->GenerateShadowMatrices(*imp->renderer.camera, N_SHADOW_MAPS, shadow_region_radii, shadow_matrices.data());
+
+			Texture2D* shadow_textures[N_SHADOW_MAPS];
+			for(int i = 0; i < N_SHADOW_MAPS; ++i)
+			{
+				Texture2D* shadow_tex = shadow_textures[i] = RenderShadowTexture(imp->shadow_render_targets[i], shadow_matrices[i], shadow_near, shadow_far, imp->sun, imp->renderer);
+
+				glBindTexture(GL_TEXTURE_2D, shadow_tex->GetGLName());
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				inv_shadow_matrices[i] = Mat4::Invert(shadow_matrices[i]);
+			}
+
 #endif
 
 			glEnable(GL_BLEND);
@@ -846,22 +862,25 @@ namespace Test
 			imp->sun->SetLight(0);
 
 			ShaderProgram* deferred_lighting = imp->deferred_lighting;
-			deferred_lighting->SetUniform<Texture2D>	("diffuse",				render_target->GetColorBufferTex(0));
-			deferred_lighting->SetUniform<Texture2D>	("normal",				render_target->GetColorBufferTex(1));
-			deferred_lighting->SetUniform<Texture2D>	("specular",			render_target->GetColorBufferTex(2));
-			deferred_lighting->SetUniform<Texture2D>	("depth",				render_target->GetDepthBufferTex());
-			deferred_lighting->SetUniform<float>		("camera_near",			&camera_near);
-			deferred_lighting->SetUniform<float>		("camera_far",			&camera_far);
+			deferred_lighting->SetUniform<Texture2D>	( "diffuse",             render_target->GetColorBufferTex(0));
+			deferred_lighting->SetUniform<Texture2D>	( "normal",              render_target->GetColorBufferTex(1));
+			deferred_lighting->SetUniform<Texture2D>	( "specular",            render_target->GetColorBufferTex(2));
+			deferred_lighting->SetUniform<Texture2D>	( "depth",               render_target->GetDepthBufferTex());
+			deferred_lighting->SetUniform<float>		( "camera_near",         &camera_near         );
+			deferred_lighting->SetUniform<float>		( "camera_far",          &camera_far          );
 #if ENABLE_SHADOWS
-			deferred_lighting->SetUniform<Texture2D>	("shadow_depth",		shadow_texture);
-			deferred_lighting->SetUniform<Mat4>			("shadow_matrix",		&shadow_matrix);
-			deferred_lighting->SetUniform<Mat4>			("inv_shadow_matrix",	&inv_shadow_matrix);
-			deferred_lighting->SetUniform<float>		("shadow_near",			&shadow_near);
-			deferred_lighting->SetUniform<float>		("shadow_far",			&shadow_far);
+			// TODO: actually use the multiple shadow maps
+			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[0]",    shadow_textures[0]   );
+			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[1]",    shadow_textures[1]   );
+			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[2]",    shadow_textures[2]   );
+			deferred_lighting->SetUniform<vector<Mat4>>	( "shadow_matrices",     &shadow_matrices     );
+			deferred_lighting->SetUniform<vector<Mat4>>	( "inv_shadow_matrices", &inv_shadow_matrices );
+			deferred_lighting->SetUniform<float>		( "shadow_near",         &shadow_near         );
+			deferred_lighting->SetUniform<float>		( "shadow_far",          &shadow_far          );
 #endif
-			deferred_lighting->SetUniform<Mat4>			("inv_view_matrix",		&inv_view_matrix);
-			deferred_lighting->SetUniform<float>		("aspect_ratio",		&aspect_ratio);
-			deferred_lighting->SetUniform<float>		("zoom",				&zoom);
+			deferred_lighting->SetUniform<Mat4>			( "inv_view_matrix",     &inv_view_matrix     );
+			deferred_lighting->SetUniform<float>		( "aspect_ratio",        &aspect_ratio        );
+			deferred_lighting->SetUniform<float>		( "zoom",                &zoom                );
 
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
@@ -934,19 +953,14 @@ namespace Test
 	}
 
 #if ENABLE_SHADOWS
-	Texture2D* RenderShadowTexture(RenderTarget* target, Mat4& shadow_matrix, float& near_plane, float& far_plane, Sun* sun, SceneRenderer& renderer)
+	Texture2D* RenderShadowTexture(RenderTarget* target, const Mat4& shadow_matrix, float near_plane, float far_plane, Sun* sun, SceneRenderer& renderer)
 	{
-		shadow_matrix = sun->GenerateShadowMatrix(*renderer.camera);
-
 		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();
 		RenderTarget::Bind(target);
 
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
 		glLoadIdentity();
-
-		near_plane = 0;
-		far_plane = 1000;
 
 		glOrtho(-1, 1, -1, 1, near_plane, far_plane);
 
