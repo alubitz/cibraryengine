@@ -24,31 +24,34 @@ namespace CibraryEngine
 		tex_cache(man->GetCache<Texture2D>())
 	{
 		// dsn shader stuff...
-		Shader* vertex_shader = shader_cache->Load("skel-v");
-		Shader* fragment_shader = shader_cache->Load("normal-f");
+		Shader* vertex_shader          = shader_cache->Load("skel-v");
+		Shader* fragment_shader        = shader_cache->Load("normal-f");
 		Shader* shadow_fragment_shader = shader_cache->Load("shadow-f");
 
 		ShaderProgram* shader = new ShaderProgram(vertex_shader, fragment_shader);
 
-		shader->AddUniform<Texture2D>(new UniformTexture2D("diffuse", 0));
-		shader->AddUniform<Texture2D>(new UniformTexture2D("specular", 1));
-		shader->AddUniform<Texture2D>(new UniformTexture2D("normal_map", 2));
-		shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 4));
-		shader->AddUniform<int>(new UniformInt("bone_count"));
-		shader->AddUniform<float>(new UniformFloat("precision_scaler"));
+		shader->AddUniform<Texture2D>( new UniformTexture2D( "diffuse",         0 ));
+		shader->AddUniform<Texture2D>( new UniformTexture2D( "specular",        1 ));
+		shader->AddUniform<Texture2D>( new UniformTexture2D( "normal_map",      2 ));
+		shader->AddUniform<Texture1D>( new UniformTexture1D( "bone_matrices",   4 ));
+		shader->AddUniform<int>      ( new UniformInt      ( "bone_count"         ));
+		shader->AddUniform<float>    ( new UniformFloat    ( "precision_scaler"   ));
 
 		ShaderProgram* shadow_shader = new ShaderProgram(vertex_shader, shadow_fragment_shader);
-		shadow_shader->AddUniform<Texture1D>(new UniformTexture1D("bone_matrices", 0));
-		shadow_shader->AddUniform<int>(new UniformInt("bone_count"));
-		shadow_shader->AddUniform<float>(new UniformFloat("precision_scaler"));
+		shadow_shader->AddUniform<Texture1D>( new UniformTexture1D( "bone_matrices", 0 ));
+		shadow_shader->AddUniform<int>      ( new UniformInt      ( "bone_count"       ));
+		shadow_shader->AddUniform<float>    ( new UniformFloat    ( "precision_scaler" ));
 
-		dsn_opaque_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Opaque);
-		dsn_additive_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Additive);
-		dsn_alpha_loader = new DSNLoader(man, shader, shadow_shader, tex_cache->Load("default-n"), tex_cache->Load("default-s"), Alpha);
+		Texture2D* default_n = tex_cache->Load("default-n");
+		Texture2D* default_s = tex_cache->Load("default-s");
+
+		dsn_opaque_loader   = new DSNLoader(man, shader, shadow_shader, default_n, default_s, Opaque);
+		dsn_additive_loader = new DSNLoader(man, shader, shadow_shader, default_n, default_s, Additive);
+		dsn_alpha_loader    = new DSNLoader(man, shader, shadow_shader, default_n, default_s, Alpha);
 
 
 		// glowy shader stuff...
-		Shader* glowy_v = shader_cache->Load("pass-v");
+		Shader* glowy_v   = shader_cache->Load("pass-v");
 		Shader* glowy2d_f = shader_cache->Load("glowy2d-f");
 		Shader* glowy3d_f = shader_cache->Load("glowy3d-f");
 
@@ -132,9 +135,9 @@ namespace CibraryEngine
 		{
 			field_setters["col_size"] = &col_size;
 			field_setters["row_size"] = &row_size;
-			field_setters["cols"] = &cols;
-			field_setters["rows"] = &rows;
-			field_setters["frames"] = &frames;
+			field_setters["cols"]     = &cols;
+			field_setters["rows"]     = &rows;
+			field_setters["frames"]   = &frames;
 		}
 
 		void End()
@@ -195,9 +198,9 @@ namespace CibraryEngine
 		{
 			field_setters["col_size"] = &col_size;
 			field_setters["row_size"] = &row_size;
-			field_setters["cols"] = &cols;
-			field_setters["rows"] = &rows;
-			field_setters["frames"] = &frames;
+			field_setters["cols"]     = &cols;
+			field_setters["rows"]     = &rows;
+			field_setters["frames"]   = &frames;
 		}
 
 		void End()
@@ -251,27 +254,27 @@ namespace CibraryEngine
 
 		NamedItemDictionaryTableParser parser(&file);
 
-		DSNMaterialSetter dsn_opaque_setter(&file, dsn_opaque_loader, result_out);
-		DSNMaterialSetter dsn_additive_setter(&file, dsn_additive_loader, result_out);
-		DSNMaterialSetter dsn_alpha_setter(&file, dsn_alpha_loader, result_out);
-		GlowyMaterialSetter glowy_setter(&file, man, glowy2d_shader, glowy3d_shader, result_out);
-		ParticleMaterialSetter particle_alpha_setter(&file, man, Alpha, result_out);
-		ParticleMaterialSetter particle_glowy_setter(&file, man, Additive, result_out);
-		BillboardMaterialSetter billboard_setter(&file, man, Additive, glowy2d_shader, result_out);
-		BillboardMaterialSetter billboard_alpha_setter(&file, man, Alpha, glowy2d_shader, result_out);
+		DSNMaterialSetter       dsn_opaque_setter     (&file, dsn_opaque_loader,                   result_out);
+		DSNMaterialSetter       dsn_additive_setter   (&file, dsn_additive_loader,                 result_out);
+		DSNMaterialSetter       dsn_alpha_setter      (&file, dsn_alpha_loader,                    result_out);
+		GlowyMaterialSetter     glowy_setter          (&file, man, glowy2d_shader, glowy3d_shader, result_out);
+		ParticleMaterialSetter  particle_alpha_setter (&file, man, Alpha,                          result_out);
+		ParticleMaterialSetter  particle_glowy_setter (&file, man, Additive,                       result_out);
+		BillboardMaterialSetter billboard_setter      (&file, man, Additive, glowy2d_shader,       result_out);
+		BillboardMaterialSetter billboard_alpha_setter(&file, man, Alpha,    glowy2d_shader,       result_out);
 
-		parser.field_setters["dsn"] = &dsn_opaque_setter;				// duplicates, lol
-		parser.field_setters["dsn_opaque"] = &dsn_opaque_setter;
+		parser.field_setters["dsn"]             = &dsn_opaque_setter;				// "dsn" and "dsn_opaque" are synonyms
+		parser.field_setters["dsn_opaque"]      = &dsn_opaque_setter;
 
-		parser.field_setters["dsn_additive"] = &dsn_additive_setter;
-		parser.field_setters["dsn_alpha"] = &dsn_alpha_setter;
+		parser.field_setters["dsn_additive"]    = &dsn_additive_setter;
+		parser.field_setters["dsn_alpha"]       = &dsn_alpha_setter;
 
-		parser.field_setters["glowy"] = &glowy_setter;
+		parser.field_setters["glowy"]           = &glowy_setter;
 
-		parser.field_setters["particle"] = &particle_glowy_setter;
-		parser.field_setters["particle_alpha"] = &particle_alpha_setter;
+		parser.field_setters["particle"]        = &particle_glowy_setter;
+		parser.field_setters["particle_alpha"]  = &particle_alpha_setter;
 
-		parser.field_setters["billboard"] = &billboard_setter;
+		parser.field_setters["billboard"]       = &billboard_setter;
 		parser.field_setters["billboard_alpha"] = &billboard_alpha_setter;
 
 		parser.ParseTable();

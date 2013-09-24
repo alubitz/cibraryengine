@@ -203,15 +203,15 @@ namespace Test
 
 		ParticleMaterial* dirt_particle;
 
-		VertexBuffer* sky_sphere;
 		TextureCube* sky_texture;
+		TextureCube* ambient_cubemap;
+		VertexBuffer* sky_sphere;
 		ShaderProgram* sky_shader;
 
 		SceneRenderer renderer;
 
 		Sun* sun;
 
-		TextureCube* ambient_cubemap;
 		RenderTarget* render_target;
 		RenderTarget* shadow_render_targets[N_SHADOW_MAPS];
 
@@ -275,8 +275,8 @@ namespace Test
 
 			GLDEBUG();
 
-			sky_shader->SetUniform<TextureCube>	(	"sky_texture",	sky_texture		);
-			sky_shader->SetUniform<Mat4>		(	"view_matrix",	&view_matrix	);
+			sky_shader->SetUniform<TextureCube>	( "sky_texture",	sky_texture  );
+			sky_shader->SetUniform<Mat4>		( "view_matrix",	&view_matrix );
 			ShaderProgram::SetActiveProgram(sky_shader);
 
 			GLDEBUG();
@@ -427,24 +427,27 @@ namespace Test
 		// creating sky
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "sky"; }
 
-		Cache<Shader>* shader_cache = content->GetCache<Shader>();
-		Shader* sky_vertex_shader = shader_cache->Load("sky-v");
-		Shader* sky_fragment_shader = shader_cache->Load("sky-f");
+		Cache<TextureCube>* cubemap_cache = content->GetCache<TextureCube>();
+		Cache<Shader     >* shader_cache  = content->GetCache<Shader>();
+		Cache<SoundBuffer>* sound_cache   = content->GetCache<SoundBuffer>();
+
+		Shader* sky_vertex_shader	= shader_cache->Load("sky-v");
+		Shader* sky_fragment_shader	= shader_cache->Load("sky-f");
 
 		ShaderProgram* sky_shader = imp->sky_shader = new ShaderProgram(sky_vertex_shader, sky_fragment_shader);
-		sky_shader->AddUniform<TextureCube>(new UniformTextureCube("sky_texture", 0));
-		sky_shader->AddUniform<Mat4>(new UniformMatrix4("view_matrix", false));
+		sky_shader->AddUniform<TextureCube>        ( new UniformTextureCube ( "sky_texture",         0     ));
+		sky_shader->AddUniform<Mat4>               ( new UniformMatrix4(      "view_matrix",         false ));
 
-		imp->sky_texture = content->GetCache<TextureCube>()->Load("sky_cubemap");
-		imp->sky_sphere = vtn_cache->Load("sky_sphere");
+		imp->sky_texture = cubemap_cache->Load("sky_cubemap");
+		imp->sky_sphere  = vtn_cache->Load("sky_sphere");
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "deferred lighting shader"; }
 
-		imp->ambient_cubemap = content->GetCache<TextureCube>()->Load("ambient_cubemap");
+		imp->ambient_cubemap = cubemap_cache->Load("ambient_cubemap");
 
-		Shader* ds_vertex = shader_cache->Load("ds-v");
+		Shader* ds_vertex   = shader_cache->Load("ds-v");
 		Shader* ds_lighting = shader_cache->Load("ds_light-f");
-		Shader* ds_ambient = shader_cache->Load("ds_ambient-f");
+		Shader* ds_ambient  = shader_cache->Load("ds_ambient-f");
 
 		ShaderProgram* deferred_lighting = imp->deferred_lighting = new ShaderProgram(ds_vertex, ds_lighting);
 		deferred_lighting->AddUniform<Texture2D>   ( new UniformTexture2D   ( "diffuse",             0     ));
@@ -485,45 +488,45 @@ namespace Test
 		// Dood's model
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
 
-		imp->soldier_model = ubermodel_cache->Load("soldier");
+		imp->soldier_model   = ubermodel_cache->Load("soldier");
 		imp->soldier_physics = mphys_cache->Load("soldier");		
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
-		imp->shot_material = (BillboardMaterial*)mat_cache->Load("shot");
-		imp->gun_model = ubermodel_cache->Load("gun");
-		imp->gun_physics = mphys_cache->Load("gun");
-		imp->mflash_model = vtn_cache->Load("mflash");
-		imp->shot_model = vtn_cache->Load("shot");
-		imp->blood_red = (BillboardMaterial*)mat_cache->Load("blood");
-		imp->blood_blue = (BillboardMaterial*)mat_cache->Load("bug_blood");
-		imp->dirt_particle = (ParticleMaterial*)mat_cache->Load("dirt_impact");
+		imp->shot_material   = (BillboardMaterial*)mat_cache->Load("shot");
+		imp->gun_model       = ubermodel_cache->Load("gun");
+		imp->gun_physics     = mphys_cache->Load("gun");
+		imp->mflash_model    = vtn_cache->Load("mflash");
+		imp->shot_model      = vtn_cache->Load("shot");
+		imp->blood_red       = (BillboardMaterial*)mat_cache->Load("blood");
+		imp->blood_blue      = (BillboardMaterial*)mat_cache->Load("bug_blood");
+		imp->dirt_particle   = (ParticleMaterial*)mat_cache->Load("dirt_impact");
 
 #if USE_GUN_AS_RUBBISH
-		imp->rubbish_model = imp->gun_model;
-		imp->rubbish_physics = imp->gun_physics;
+		imp->rubbish_model         = imp->gun_model;
+		imp->rubbish_physics       = imp->gun_physics;
 #else
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "rubbish"; }
 
-		imp->rubbish_model = ubermodel_cache->Load("dummycube");
-		imp->rubbish_physics = mphys_cache->Load("dummycube");
+		imp->rubbish_model         = ubermodel_cache->Load("dummycube");
+		imp->rubbish_physics       = mphys_cache->Load("dummycube");
 #endif
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "crab bug"; }
 
-		imp->crab_bug_model = ubermodel_cache->Load("crab_bug");
-		imp->crab_bug_physics = mphys_cache->Load("crab_bug");
+		imp->crab_bug_model        = ubermodel_cache->Load("crab_bug");
+		imp->crab_bug_physics      = mphys_cache->Load("crab_bug");
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "artillery bug"; }
 
-		imp->artillery_bug_model = ubermodel_cache->Load("flea");
+		imp->artillery_bug_model   = ubermodel_cache->Load("flea");
 		imp->artillery_bug_physics = mphys_cache->Load("flea");
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "misc"; }
 
 		// loading weapon sounds
-		imp->fire_sound = content->GetCache<SoundBuffer>()->Load("shot");
+		imp->fire_sound          = sound_cache->Load("shot");
 		imp->chamber_click_sound = NULL;
-		imp->reload_sound = NULL;
+		imp->reload_sound        = NULL;
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "level"; }
 
@@ -697,8 +700,39 @@ namespace Test
 	// forward-declare a few functions which we'll be using in TestGame::Draw
 	void DrawScreenQuad(ShaderProgram* shader, float sw, float sh, float tw, float th);
 	void ClearDepthAndColor();
+
 #if ENABLE_SHADOWS
-	Texture2D* RenderShadowTexture(RenderTarget* target, const Mat4& shadow_matrix, float near_plane, float far_plane, Sun* sun, SceneRenderer& renderer);
+	Texture2D* RenderShadowTexture(RenderTarget* target, const Mat4& shadow_matrix, float near_plane, float far_plane, Sun* sun, SceneRenderer& renderer)
+	{
+		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();
+		RenderTarget::Bind(target);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+
+		glOrtho(-1, 1, -1, 1, near_plane, far_plane);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+		glMultMatrixf(shadow_matrix.Transpose().values);
+
+		glViewport(0, 0, target->GetWidth(), target->GetHeight());
+
+		ClearDepthAndColor();
+		renderer.RenderDepth(true, true);
+
+		// in case render functions changed the matrix mode
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+
+		RenderTarget::Bind(previous_render_target);
+
+		return target->GetDepthBufferTex();
+	}
 #endif
 
 	void TestGame::Draw(int width_, int height_)
@@ -716,19 +750,23 @@ namespace Test
 		static CameraView camera(Mat4::Identity(), 1.0f, 1.0f);
 		if(imp->alive)
 			camera = CameraView(((Dood*)player_controller->GetControlledPawn())->GetViewMatrix(), zoom, aspect_ratio);
-		Mat4 proj_t = camera.GetProjectionMatrix().Transpose();
-		Mat4 view_t = camera.GetViewMatrix().Transpose();
+
+		Mat4 camera_proj   = camera.GetProjectionMatrix();
+		Mat4 camera_view   = camera.GetViewMatrix();
+		Mat4 camera_proj_t = camera_proj.Transpose();
+		Mat4 camera_view_t = camera_view.Transpose();
+		Vec3 camera_pos    = camera.GetPosition();
 
 		// TODO: find a better place for this sound-related code?
-		sound_system->SetListenerPos(-camera.GetViewMatrix().TransformVec3_1(0, 0, 0));
-		sound_system->SetListenerUp(camera.GetViewMatrix().TransformVec3_0(0, 1, 0));
-		sound_system->SetListenerForward(camera.GetViewMatrix().TransformVec3_0(0, 0, 1));
+		sound_system->SetListenerPos    (-camera_view.TransformVec3_1(0, 0, 0));
+		sound_system->SetListenerUp     ( camera_view.TransformVec3_0(0, 1, 0));
+		sound_system->SetListenerForward( camera_view.TransformVec3_0(0, 0, 1));
 
 		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(&proj_t.values[0]);
+		glLoadMatrixf(camera_proj_t.values);
 
 		glMatrixMode(GL_MODELVIEW);
-		glLoadMatrixf(&view_t.values[0]);
+		glLoadMatrixf(camera_view_t.values);
 
 		GLDEBUG();
 
@@ -776,8 +814,9 @@ namespace Test
 
 			glViewport(0, 0, width, height);
 
-			imp->sun->view_matrix = camera.GetViewMatrix();
-			imp->DrawBackground(camera.GetViewMatrix().Transpose());
+			// draw opaque stuff to buffers for use in deferred lighting shaders
+			imp->sun->view_matrix = camera_view;
+			imp->DrawBackground(camera_view_t);
 
 			imp->renderer.camera = &camera;
 
@@ -791,6 +830,7 @@ namespace Test
 			imp->renderer.RenderOpaque();
 			GLDEBUG();
 
+			// do ambient and emissive lighting (deferred)
 			glDepthMask(false);
 
 			RenderTarget::Bind(NULL);
@@ -804,31 +844,31 @@ namespace Test
 			glDisable(GL_CULL_FACE);
 			glDisable(GL_BLEND);
 
-			Mat4 view_matrix = imp->renderer.camera->GetViewMatrix();
-			Mat4 inv_view_matrix = Mat4::Invert(view_matrix);
+			Mat4 inv_view_matrix = Mat4::Invert(camera_view);
 
-			float camera_near = -imp->renderer.camera->GetNearPlane().PointDistance(imp->renderer.camera->GetPosition());
-			float camera_far = imp->renderer.camera->GetFarPlane().PointDistance(imp->renderer.camera->GetPosition());
+			float camera_near = -imp->renderer.camera->GetNearPlane().PointDistance(camera_pos);
+			float camera_far  = imp->renderer.camera->GetFarPlane().PointDistance(camera_pos);
 
 			ShaderProgram* deferred_ambient = imp->deferred_ambient;
 			RenderTarget* render_target = imp->render_target;
 
-			deferred_ambient->SetUniform<Texture2D>		(	"diffuse",			render_target->GetColorBufferTex(0)	);
-			deferred_ambient->SetUniform<Texture2D>		(	"normal",			render_target->GetColorBufferTex(1)	);
-			deferred_ambient->SetUniform<Texture2D>		(	"specular",			render_target->GetColorBufferTex(2)	);
+			deferred_ambient->SetUniform<Texture2D>  ( "diffuse",         render_target->GetColorBufferTex(0));
+			deferred_ambient->SetUniform<Texture2D>  ( "normal",          render_target->GetColorBufferTex(1));
+			deferred_ambient->SetUniform<Texture2D>  ( "specular",        render_target->GetColorBufferTex(2));
 #if ENABLE_ENVIRONMENT_MAPPING
-			deferred_ambient->SetUniform<Texture2D>		(	"depth",			render_target->GetDepthBufferTex()	);
-			deferred_ambient->SetUniform<float>			(	"camera_near",		&camera_near				);
-			deferred_ambient->SetUniform<float>			(	"camera_far",		&camera_far					);
-			deferred_ambient->SetUniform<TextureCube>	(	"env_cubemap",		imp->sky_texture			);
+			deferred_ambient->SetUniform<Texture2D>  ( "depth",           render_target->GetDepthBufferTex());
+			deferred_ambient->SetUniform<float>      ( "camera_near",     &camera_near         );
+			deferred_ambient->SetUniform<float>      ( "camera_far",      &camera_far          );
+			deferred_ambient->SetUniform<TextureCube>( "env_cubemap",     imp->sky_texture     );
 #endif
-			deferred_ambient->SetUniform<TextureCube>	(	"ambient_cubemap",	imp->ambient_cubemap		);
-			deferred_ambient->SetUniform<Mat4>			(	"view_matrix",		&view_matrix				);
-			deferred_ambient->SetUniform<float>			(	"aspect_ratio",		&aspect_ratio				);
-			deferred_ambient->SetUniform<float>			(	"zoom",				&zoom						);
+			deferred_ambient->SetUniform<TextureCube>( "ambient_cubemap", imp->ambient_cubemap );
+			deferred_ambient->SetUniform<Mat4>       ( "view_matrix",     &camera_view         );
+			deferred_ambient->SetUniform<float>      ( "aspect_ratio",    &aspect_ratio        );
+			deferred_ambient->SetUniform<float>      ( "zoom",            &zoom                );
 
 			DrawScreenQuad(deferred_ambient, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
+			// do lighting from the sun (deferred)
 #if ENABLE_SHADOWS
 
 			float shadow_near = 0, shadow_far = 1000;
@@ -836,10 +876,10 @@ namespace Test
 			float        shadow_region_radii[N_SHADOW_MAPS] = { 8.0f, 32.0f, 100.0f };
 			vector<Mat4>     shadow_matrices(N_SHADOW_MAPS);
 			vector<Mat4> inv_shadow_matrices(N_SHADOW_MAPS);
+			Texture2D*       shadow_textures[N_SHADOW_MAPS];
 
 			imp->sun->GenerateShadowMatrices(*imp->renderer.camera, N_SHADOW_MAPS, shadow_region_radii, shadow_matrices.data());
 
-			Texture2D* shadow_textures[N_SHADOW_MAPS];
 			for(int i = 0; i < N_SHADOW_MAPS; ++i)
 			{
 				Texture2D* shadow_tex = shadow_textures[i] = RenderShadowTexture(imp->shadow_render_targets[i], shadow_matrices[i], shadow_near, shadow_far, imp->sun, imp->renderer);
@@ -850,7 +890,6 @@ namespace Test
 
 				inv_shadow_matrices[i] = Mat4::Invert(shadow_matrices[i]);
 			}
-
 #endif
 
 			glEnable(GL_BLEND);
@@ -869,7 +908,6 @@ namespace Test
 			deferred_lighting->SetUniform<float>		( "camera_near",         &camera_near         );
 			deferred_lighting->SetUniform<float>		( "camera_far",          &camera_far          );
 #if ENABLE_SHADOWS
-			// TODO: actually use the multiple shadow maps
 			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[0]",    shadow_textures[0]   );
 			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[1]",    shadow_textures[1]   );
 			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[2]",    shadow_textures[2]   );
@@ -885,8 +923,9 @@ namespace Test
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 			imp->sun->UnsetLight(0);
-
-			// re-draw the depth buffer (previous draw was on a different RenderTarget)
+			
+			// draw translucent stuff on top of our opaque stuff
+			// we need to re-draw the depth buffer because the previous draw was on a different RenderTarget
 			glDepthMask(true);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -951,40 +990,6 @@ namespace Test
 		glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
 	}
-
-#if ENABLE_SHADOWS
-	Texture2D* RenderShadowTexture(RenderTarget* target, const Mat4& shadow_matrix, float near_plane, float far_plane, Sun* sun, SceneRenderer& renderer)
-	{
-		RenderTarget* previous_render_target = RenderTarget::GetBoundRenderTarget();
-		RenderTarget::Bind(target);
-
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadIdentity();
-
-		glOrtho(-1, 1, -1, 1, near_plane, far_plane);
-
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
-		glMultMatrixf(shadow_matrix.Transpose().values);
-
-		glViewport(0, 0, target->GetWidth(), target->GetHeight());
-
-		ClearDepthAndColor();
-		renderer.RenderDepth(true, true);
-
-		// in case render functions changed the matrix mode
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
-
-		RenderTarget::Bind(previous_render_target);
-
-		return target->GetDepthBufferTex();
-	}
-#endif
 
 	void TestGame::ShowChapterText(string text, string subtitle, float fade_time)
 	{
@@ -1572,7 +1577,6 @@ namespace Test
 		return graph;
 	}
 
-	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target);
 	int gs_newPathSearch(lua_State* L)
 	{
 		int n = lua_gettop(L);
@@ -1593,15 +1597,5 @@ namespace Test
 		
 		Debug("gs.newPathSearch takes exactly 2 arguments, nav points on the same graph; returning nil\n");
 		return 0;
-	}
-
-	/*
-	 * NavGraph Pathfinding function! Uses A* (in theory)
-	 */
-	list<unsigned int> FindPath(unsigned int graph, unsigned int source, unsigned int target)
-	{
-		PathSearch search(graph, source, target);
-		search.Solve();
-		return search.GetSolution();
 	}
 }
