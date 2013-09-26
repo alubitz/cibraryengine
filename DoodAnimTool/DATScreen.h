@@ -2,11 +2,11 @@
 
 #include "StdAfx.h"
 
-namespace InverseKinematics
+namespace DoodAnimTool
 {
 	using namespace CibraryEngine;
 
-	class IKScreen : public ProgramScreen
+	class DATScreen : public ProgramScreen
 	{
 		private:
 
@@ -15,8 +15,8 @@ namespace InverseKinematics
 
 		public:
 
-			IKScreen(ProgramWindow* win);
-			~IKScreen();
+			DATScreen(ProgramWindow* win);
+			~DATScreen();
 
 			ProgramScreen* Update(TimingInfo time);
 

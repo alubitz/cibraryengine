@@ -1,24 +1,24 @@
 #include "StdAfx.h"
 
-#include "IKScreen.h"
+#include "DATScreen.h"
 
 using namespace std;
 
 using namespace CibraryEngine;
-using namespace InverseKinematics;
+using namespace DoodAnimTool;
 
 int main(int argc, char** argv)
 {
 	InitEndianness();
 
-	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Inverse Kinematics Test Program", 0, 0, 0, false);
+	ProgramWindow* win = ProgramWindow::CreateProgramWindow("Dood Animation Tool", 0, 0, 0, false);
 	if(win == NULL)
 		return 1;
 
 	ScreenshotGrabber grabber(win);
 	win->input_state->KeyStateChanged += &grabber;
 
-	ProgramScreen* first_screen = new IKScreen(win);
+	ProgramScreen* first_screen = new DATScreen(win);
 	int result = win->Run(first_screen);
 
 	win->input_state->KeyStateChanged -= &grabber;

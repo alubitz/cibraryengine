@@ -307,10 +307,10 @@ namespace CibraryEngine
 		while(use_size < size)
 			use_size <<= 1;				// multiply by 2, lol
 
-		if(existing_texture && existing_texture->size != use_size / 4)
+		if(existing_texture != NULL && existing_texture->size != use_size / 4)
 			Debug("Existing texture's size doesn't match required size!\n");
 
-		unsigned char* bytes = existing_texture ? existing_texture->byte_data : new unsigned char[use_size];
+		unsigned char* bytes = existing_texture != NULL ? existing_texture->byte_data : new unsigned char[use_size];
 		unsigned char* target = bytes;
 
 		for(unsigned int i = 0; i < matrix_count; ++i)
@@ -328,7 +328,7 @@ namespace CibraryEngine
 			}
 		}
 
-		if(existing_texture)
+		if(existing_texture != NULL)
 		{
 			existing_texture->UpdateTextureData();
 			return existing_texture;
