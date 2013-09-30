@@ -32,6 +32,8 @@ namespace DoodAnimTool
 		vector<DATKeyframe> keyframes;
 		float anim_timer;
 
+		Bone* selected_bone;
+
 		CameraView camera;
 		SceneRenderer renderer;
 
@@ -49,6 +51,7 @@ namespace DoodAnimTool
 			skeleton(NULL),
 			uber(NULL),
 			mphys(NULL),
+			selected_bone(NULL),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
 			cursor(NULL),
@@ -256,10 +259,13 @@ namespace DoodAnimTool
 				Quaternion bone_ori;
 				for(vector<pair<Bone*, CollisionShape*>>::iterator iter = bone_shapes.begin(); iter != bone_shapes.end(); ++iter)
 				{	
-					Mat4 xform = iter->first->GetTransformationMatrix();
-					xform.Decompose(bone_pos, bone_ori);
+					if(iter->first != selected_bone)
+					{
+						Mat4 xform = iter->first->GetTransformationMatrix();
+						xform.Decompose(bone_pos, bone_ori);
 
-					iter->second->DebugDraw(&renderer, bone_pos, bone_ori);
+						iter->second->DebugDraw(&renderer, bone_pos, bone_ori);
+					}
 				}
 			}
 
@@ -302,7 +308,61 @@ namespace DoodAnimTool
 		{
 			Imp* imp;
 
-			void HandleEvent(Event* evt) { }
+			void HandleEvent(Event* evt)
+			{
+				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
+				if(mbse->state)
+				{
+					if(mbse->button == 0)
+					{
+						// convert mouse click position to a world-space ray
+						int mx = imp->input_state->mx;
+						int my = imp->input_state->my;
+
+						int window_height = imp->window->GetHeight();
+
+						Vec3 origin, direction;
+						imp->camera.GetRayFromDimCoeffs((float)mx / imp->window->GetWidth(), (float)(window_height - my) / window_height, origin, direction);
+
+						float target_t = 0.0f;
+						Bone* target = NULL;
+
+						for(vector<pair<Bone*, CollisionShape*>>::iterator iter = imp->bone_shapes.begin(); iter != imp->bone_shapes.end(); ++iter)
+						{
+							Bone* bone = iter->first;
+							CollisionShape* shape = iter->second;
+							Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
+
+							const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
+							Ray ray(inv_xform.TransformVec3_1(origin), inv_xform.TransformVec3_0(direction) * ray_length);
+							RayResult ray_result;
+
+							switch(shape->GetShapeType())
+							{
+								case ST_MultiSphere:
+								{
+									MultiSphereShape* mss = (MultiSphereShape*)shape;
+									if(mss->CollideRay(ray, ray_result))
+									{
+										if(ray_result.t < target_t || target == NULL)
+										{
+											target = bone;
+											target_t = ray_result.t;
+										}
+									}
+
+									break;
+								}
+
+								default:
+									break;
+							}
+						}
+
+						imp->selected_bone = target;
+					}
+				}
+			}
 		} mouse_listener;
 	};
 

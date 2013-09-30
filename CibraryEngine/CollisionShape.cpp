@@ -27,16 +27,16 @@ namespace CibraryEngine
 	 */
 	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
 
-	MassInfo CollisionShape::ComputeMassInfo() { return MassInfo(); }
+	MassInfo CollisionShape::ComputeMassInfo()													{ return MassInfo(); }
 
 	// default orientation returns a degenerate AABB
-	AABB CollisionShape::GetTransformedAABB(const Mat4& xform) { return AABB(); }
+	AABB CollisionShape::GetTransformedAABB(const Mat4& xform)									{ return AABB(); }
 
-	AABB CollisionShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache) { return GetTransformedAABB(xform); }
+	AABB CollisionShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)	{ return GetTransformedAABB(xform); }
 
-	ShapeType CollisionShape::GetShapeType() { return type; }
+	ShapeType CollisionShape::GetShapeType() const												{ return type; }
 
-	bool CollisionShape::CanMove() { return CanShapeTypeMove(type); }
+	bool CollisionShape::CanMove() const														{ return CanShapeTypeMove(type); }
 
 	bool CollisionShape::CanShapeTypeMove(ShapeType type)
 	{
@@ -57,8 +57,8 @@ namespace CibraryEngine
 
 	void CollisionShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { }
 
-	unsigned int CollisionShape::Read(istream& stream) { return 1; }
-	void CollisionShape::Write(ostream& stream) { }
+	unsigned int CollisionShape::Read(istream& stream)	{ return 1; }
+	void CollisionShape::Write(ostream& stream)			{ }
 
 	unsigned int CollisionShape::ReadCollisionShape(CollisionShape*& shape, istream& stream)
 	{

@@ -64,9 +64,9 @@ namespace CibraryEngine
 			/** Like GetTransformedAABB, except the xform is a RigidBody's world xform, and it can be used to cache other data with the RigidBody; default implementation returns GetTransformedAABB */
 			virtual AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
 
-			ShapeType GetShapeType();
+			ShapeType GetShapeType() const;
 
-			bool CanMove();
+			bool CanMove() const;
 			static bool CanShapeTypeMove(ShapeType type);
 
 			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
