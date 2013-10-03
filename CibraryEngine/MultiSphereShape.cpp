@@ -214,7 +214,7 @@ namespace CibraryEngine
 				return false;
 			}
 
-			vector<Vec3> GetVerts()
+			vector<Vec3> GetVerts() const
 			{
 				vector<Vec3> result;
 
@@ -572,6 +572,53 @@ namespace CibraryEngine
 								}
 							}
 
+#if 0
+				stringstream ss;
+				ss << "here's a shape:" << endl;
+
+				for(unsigned int i = 0; i < num_spheres; ++i)
+				{
+					const Sphere& s = spheres[i].sphere;
+					const Vec3& c = s.center;
+
+					ss << "\tsphere[" << i << "] center = (" << c.x << ", " << c.y << ", " << c.z << "), radius = " << s.radius << endl;
+				}
+
+				for(unsigned int i = 0; i < num_spheres; ++i)
+					for(unsigned int j = i + 1; j < num_spheres; ++j)
+					{
+						if(const TubePart* tube = sphere_tubes[i * num_spheres + j])
+						{
+							const Vec3& c1 = tube->p1;
+							const Vec3& c2 = tube->p2;
+
+							ss << "\ttube between spheres " << i << " and " << j << "; c1 = (" << c1.x << ", " << c1.y << ", " << c1.z << "), r1 = " << tube->r1 << "; c2 = (" << c2.x << ", " << c2.y << ", " << c2.z << "), r2 = " << tube->r2 << endl;
+						}
+					}
+
+				for(unsigned int i = 0; i < num_spheres; ++i)
+					for(unsigned int j = i + 1; j < num_spheres; ++j)
+						for(unsigned int k = j + 1; k < num_spheres; ++k)
+							for(unsigned char m = 0; m < 2; ++m)
+							{
+								unsigned int plane_index = (i * n_sq + j * num_spheres + k) * 2 + m;
+								if(planes_valid[plane_index])
+								{
+									const PlanePart* pp = sphere_planes[plane_index];
+									const Plane& plane = pp->plane;
+									const Vec3& n = plane.normal;
+
+									vector<Vec3> verts = pp->GetVerts();
+
+									ss << "\tplane between spheres " << i << ", " << j << ", and " << k << ":" << endl;
+									for(vector<Vec3>::iterator iter = verts.begin(); iter != verts.end(); ++iter)
+										ss << "\t\tvertex = (" << iter->x << ", " << iter->y << ", " << iter->z << ")" << endl;
+								}
+							}
+
+				Debug(ss.str());
+#endif
+
 				for(unsigned int i = 0; i < n_sq; ++i)
 				{
 					if(TubePart* tube_p = sphere_tubes[i])
@@ -591,29 +638,24 @@ namespace CibraryEngine
 									if(Vec3::Dot(iter->normal, jter->normal) > 0.9999f && fabs(iter->offset - jter->offset) < 0.000001f)
 										break;
 								if(jter == nu_planes_adjoining.end())
-									if(nu_planes_adjoining.size() < 2)					// if count of unique planes is ever > 2, something is fishy
-										nu_planes_adjoining.push_back(*iter);
-									else
-									{
-										DEBUG();
-
-										worthy = false;
-										break;
-									}
+									nu_planes_adjoining.push_back(*iter);
 							}
 
 							if(worthy)
 							{
-								if(nu_planes_adjoining.size() == 2)
+								unsigned int nu_planes_count = nu_planes_adjoining.size();
+								if(nu_planes_count == 2 || nu_planes_count == 4)
 								{
-									part.planes.resize(2);
+									part.planes.resize(2);		// remove any planes besides the ones from the spheres that created this tube
 
-									for(unsigned char j = 0; j < 2; ++j)
+									Vec3 tube_center = (part.p1 + part.p2) * 0.5f;
+
+									for(unsigned char j = 0; j < nu_planes_count; ++j)
 									{
 										Plane plane = Plane::FromTriangleVertices(part.p1, part.p2, part.p1 + nu_planes_adjoining[j].normal);
 
 										// make sure the plane is facing the correct direction
-										if(Vec3::Dot(plane.normal, nu_planes_adjoining[1 - j].normal) < 0.0f)
+										if(Vec3::Dot(plane.normal, tube_center) > plane.offset)			// TODO: double-check this
 											plane = Plane::Reverse(plane);
 
 										part.planes.push_back(plane);
