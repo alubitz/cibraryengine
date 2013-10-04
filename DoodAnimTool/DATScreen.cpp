@@ -286,6 +286,12 @@ namespace DoodAnimTool
 
 			font->Print(((stringstream&)(stringstream() << "time:  " << now)).str(), 0, 0);
 
+			stringstream ss;
+			ss << "selected bone:  ";
+			if(selected_bone != NULL)
+				ss << Bone::string_table[selected_bone->name];
+			font->Print(ss.str(), 0, font->font_height);
+
 			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
 

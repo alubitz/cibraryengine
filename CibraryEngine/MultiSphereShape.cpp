@@ -50,7 +50,7 @@ namespace CibraryEngine
 		struct SpherePart : Part
 		{
 			Sphere sphere;
-			SpherePart(Sphere sphere) : Part(), sphere(sphere) { }
+			SpherePart(const Sphere& sphere) : Part(), sphere(sphere) { }
 
 			int RayTest(const Ray& ray) const
 			{
@@ -112,15 +112,7 @@ namespace CibraryEngine
 
 			float opzsq, trz;
 
-			int sphere1, sphere2;
-
-			TubePart(Vec3 p1, Vec3 p2, float r1, float r2, int sphere1, int sphere2) : Part(), p1(p1), p2(p2), r1(r1), r2(r2), sphere1(sphere1), sphere2(sphere2)
-			{
-				Vec3 n = Vec3::Normalize(p2 - p1);
-
-				planes.push_back(Plane(n, Vec3::Dot(n, p1)));
-				planes.push_back(Plane(-n, -Vec3::Dot(n, p2)));
-			}
+			TubePart(const Vec3& p1, const Vec3& p2, float r1, float r2) : Part(), p1(p1), p2(p2), r1(r1), r2(r2) { }
 
 			bool RayTestInfinite(const Ray& ray, float& t1, float& t2) const
 			{
@@ -182,7 +174,7 @@ namespace CibraryEngine
 		{
 			Plane plane;
 
-			PlanePart(Plane plane) : Part(), plane(plane) { }
+			PlanePart(const Plane& plane) : Part(), plane(plane) { }
 
 			int RayTest(const Ray& ray) const
 			{
@@ -250,6 +242,45 @@ namespace CibraryEngine
 
 		~Imp() { }
 
+		TubePart MakeTube(const Sphere& i_sphere, const Sphere& j_sphere)
+		{
+			const Vec3& i_center = i_sphere.center;
+			float i_radius = i_sphere.radius;
+
+			const Vec3& j_center = j_sphere.center;
+			float j_radius = j_sphere.radius;
+
+			// finding a tube tangent to both spheres
+			Vec3 ij = j_center - i_center;
+			float ijmag = ij.ComputeMagnitude(), inv_ijmag = 1.0f / ijmag;
+			Vec3 uij = ij * inv_ijmag;
+
+			// "theta" would be the angle from the axis vector to the point of tangency
+			float cos_theta = (j_radius - i_radius) * inv_ijmag, sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+
+			Vec3 p1 = i_center + uij * (i_radius * cos_theta);					// center points of the circles where the tube touches the spheres
+			Vec3 p2 = j_center + uij * (j_radius * cos_theta);
+			float r1 = i_radius * sin_theta, r2 = j_radius * sin_theta;			// radii of those circles
+
+			TubePart tp(p1, p2, r1, r2);
+
+			// cache some parts of the ray-test formula
+			tp.cos_theta = cos_theta;
+			tp.sin_theta = sin_theta;
+			tp.u = uij;
+			tp.inv_dmag = 1.0f / (p2 - p1).ComputeMagnitude();
+
+			float z = (r2 - r1) * inv_ijmag;
+			tp.opzsq = 1 + z * z;
+			tp.trz = 2.0f * r1 * z;
+
+			// add cutting planes for the spheres capping off the ends
+			tp.planes.push_back(Plane( uij,  Vec3::Dot(uij, p1)));
+			tp.planes.push_back(Plane(-uij, -Vec3::Dot(uij, p2)));
+
+			return tp;
+		}
+
 		void Init(Sphere* input_spheres, unsigned int count)
 		{
 			spheres = vector<SpherePart>();
@@ -258,188 +289,131 @@ namespace CibraryEngine
 
 			if(count > 0)
 			{
-				// creating spheres
-				vector<Sphere> spheres_temp;
+				const float plane_nonplanar_threshold		= 0.0001f;
+				const float plane_noncontribution_threshold	= 0.000001f;
+				const float plane_dup_normal_threshold		= 0.9999f;
+				const float plane_dup_offset_threshold		= 0.000001f;
+				const float cut_noncontribution_threshold	= 0.0000001f;
+
+				unsigned int num_spheres = 0;
+				Sphere* spheres_temp = new Sphere[count];
+
+				// get a condensed list of spheres (discarding anything that is completely contained inside another sphere)
 				for(unsigned int i = 0; i < count; ++i)
 				{
-					const Sphere& sphere = input_spheres[i];
-
-					Vec3 i_center = sphere.center;
-					float i_radius = sphere.radius;
-
-					spheres_temp.push_back(Sphere(i_center, i_radius));
-
-					if(i == 0)
-						aabb = AABB(i_center, i_radius);
-					else
-						aabb.Expand(AABB(i_center, i_radius));
-				}
-
-				// add those spheres to the list, eliminating any that are completely contained inside another sphere
-				for(unsigned int i = 0; i < count; ++i)
-				{
-					const Sphere& a = spheres_temp[i];
+					const Sphere& i_sphere = input_spheres[i];
+					const Vec3& i_center = i_sphere.center;
+					float i_radius = i_sphere.radius;
 
 					unsigned int j;
-					for(j = 0; j < count; ++j)
-						if(i != j)
-						{
-							const Sphere& b = spheres_temp[j];
-
-							float dr = a.radius - b.radius;
-							float dif = (a.center - b.center).ComputeMagnitudeSquared() - dr * dr;
-
-							if(dif <= 0 && (dr < 0 || dr == 0 && i < j))
-								break;
-						}
-					if(j == count)											// did we make it all the way through without a larger sphere eating this one?
-						spheres.push_back(SpherePart(a));
-				}
-
-				unsigned int num_spheres = spheres.size();					// may differ from count, if spheres got discarded
-				unsigned int n_sq = num_spheres * num_spheres;
-				unsigned int n_cubed = n_sq * num_spheres;
-
-				// creating tubes
-				TubePart** sphere_tubes = new TubePart* [n_sq];
-				memset(sphere_tubes, 0, sizeof(TubePart*) * n_sq);
-
-				bool* tube_tried_planes = new bool[n_sq];
-				memset(tube_tried_planes, 0, sizeof(bool) * n_sq);
-
-				for(unsigned int i = 0; i < num_spheres; ++i)
-				{
-					SpherePart& i_sphere = spheres[i];
-					unsigned int i_n = i * num_spheres;
-
-					Vec3 i_center = i_sphere.sphere.center;
-					float i_radius = i_sphere.sphere.radius;
-
-					for(unsigned int j = i + 1; j < num_spheres; ++j)
+					for(j = 0; j < num_spheres; ++j)
 					{
-						SpherePart& j_sphere = spheres[j];
+						const Sphere& j_sphere = spheres_temp[j];
 
-						Vec3 j_center = j_sphere.sphere.center;
-						float j_radius = j_sphere.sphere.radius;
+						float dr = i_radius - j_sphere.radius;
+						float dif = (i_center - j_sphere.center).ComputeMagnitudeSquared() - dr * dr;
+						if(dif <= 0)
+						{
+							if(dr <= 0)				// this sphere was eaten by a sphere that was already added
+								break;
+							else					// this sphere eats a sphere that has already been added
+								swap(spheres_temp[j], spheres_temp[num_spheres--]);
+						}
+					}
 
-						// finding a tube tangent to both spheres
-						Vec3 d = j_center - i_center;
-						float dmag = d.ComputeMagnitude(), inv_dmag = 1.0f / dmag;
-						Vec3 ud = d * inv_dmag;
+					if(j >= num_spheres)			// need to check >= in case we end up decrementing num_spheres on the last action
+					{
+						spheres_temp[num_spheres++] = i_sphere;
 
-						// "theta" would be the angle from the axis vector to the point of tangency
-						float cos_theta = (j_radius - i_radius) * inv_dmag, sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
-
-						Vec3 p1 = i_center + ud * (i_radius * cos_theta);					// center points of the circles where the tube touches the spheres
-						Vec3 p2 = j_center + ud * (j_radius * cos_theta);
-						float r1 = i_radius * sin_theta, r2 = j_radius * sin_theta;			// radii of those circles
-
-						TubePart tube(p1, p2, r1, r2, i, j);
-
-						// cache some parts of the ray-test formula
-						tube.cos_theta = cos_theta;
-						tube.sin_theta = sin_theta;
-						tube.u = ud;
-						tube.inv_dmag = 1.0f / (p2 - p1).ComputeMagnitude();				// careful! it's not the same as the inv_dmag used here!
-
-						float z = (r2 - r1) * inv_dmag;
-						tube.opzsq = 1 + z * z;
-						tube.trz = 2.0f * r1 * z;
-
-						sphere_tubes[i_n + j] = new TubePart(tube);
+						if(i == 0)
+							aabb = AABB(i_center, i_radius);
+						else
+							aabb.Expand(AABB(i_center, i_radius));
 					}
 				}
 
-				// creating planes
-				PlanePart** sphere_planes = new PlanePart* [n_cubed * 2];
-				memset(sphere_planes, 0, sizeof(PlanePart*) * n_cubed * 2);
 
-				bool* planes_valid = new bool[n_cubed * 2];
-				memset(planes_valid, 0, sizeof(bool) * n_cubed * 2);
+				// construct planes (and adjoining tubes)
+				Plane* planes_temp = NULL;
+				bool* plane_spheres = NULL;			// for each possible plane, booleans for whether each sphere contributed to it
+				
+				unsigned int* twospheres_to_tube = new unsigned int[num_spheres * num_spheres];
+				memset(twospheres_to_tube, 0, sizeof(unsigned int) * num_spheres * num_spheres);
 
-				for(unsigned int i = 0; i < num_spheres; ++i)
+				unsigned int num_planes = 0;
+
+				if(num_spheres >= 3)
 				{
-					unsigned int i_n = i * num_spheres;
-					SpherePart& i_sphere = spheres[i];									// looking to make planes from this sphere...
+					unsigned int max_planes = num_spheres * (num_spheres - 1) * (num_spheres - 2);
+					planes_temp = new Plane[max_planes];
+					plane_spheres = new bool[max_planes * num_spheres];
+					memset(plane_spheres, 0, sizeof(bool) * max_planes * num_spheres);
 
-					Vec3 i_center = i_sphere.sphere.center;
-					float i_radius = i_sphere.sphere.radius;
-
-					for(unsigned int j = i + 1; j < num_spheres; ++j)
+					for(unsigned int i = 2; i < num_spheres; ++i)
 					{
-						if(TubePart* ij_tubep = sphere_tubes[i_n + j])
+						const Sphere& i_sphere = spheres_temp[i];
+						const Vec3& i_center = i_sphere.center;
+						float i_radius = i_sphere.radius;
+
+						for(unsigned int j = 1; j < i; ++j)
 						{
-							TubePart& ij_tube = *ij_tubep;								// found one tube connected to this sphere
+							const Sphere& j_sphere = spheres_temp[j];
+							const Vec3& j_center = j_sphere.center;
+							float j_radius = j_sphere.radius;
 
-							unsigned int j_n = j * num_spheres;
-							SpherePart& j_sphere = spheres[j];
+							Vec3 ij = j_center - i_center;
+							float ijmag = ij.ComputeMagnitude(), inv_ijmag = 1.0f / ijmag;
+							float ij_costheta = (j_radius - i_radius) * inv_ijmag;
 
-							Vec3 j_center = j_sphere.sphere.center;
-							float j_radius = j_sphere.sphere.radius;
+							Plane ij_tubenormals = Plane(ij * inv_ijmag, -ij_costheta);
 
-							for(unsigned int k = j + 1; k < num_spheres; ++k)
+							for(unsigned int k = 0;	k < j; ++k)
 							{
-								if(TubePart* ik_tubep = sphere_tubes[i_n + k])
+								const Sphere& k_sphere = spheres_temp[k];
+								const Vec3& k_center = k_sphere.center;
+								float k_radius = k_sphere.radius;
+
+								Vec3 jk = k_center - j_center;
+								float jkmag = jk.ComputeMagnitude(), inv_jkmag = 1.0f / jkmag;
+								float jk_costheta = (k_radius - j_radius) * inv_jkmag;
+
+								// construct 0 or 2 planes for these 3 spheres
+								Vec3 centerplane_normal = Vec3::Cross(ij, k_sphere.center - i_sphere.center);
+								if(float cpn_magsq = centerplane_normal.ComputeMagnitudeSquared())
 								{
-									TubePart& ik_tube = *ik_tubep;											// found a second tube; make planes between them
-									SpherePart& k_sphere = spheres[k];
+									centerplane_normal /= sqrtf(cpn_magsq);
 
-									Vec3 k_center = k_sphere.sphere.center;
-									float k_radius = k_sphere.sphere.radius;
+									Plane jk_tubenormals = Plane(jk * inv_jkmag, -jk_costheta);
 
-									TubePart* jk_tubep = sphere_tubes[j_n + k];
-
-									Vec3 cross = Vec3::Cross(ij_tube.u, ik_tube.u);
-									float cross_magsq = cross.ComputeMagnitudeSquared();
-									if(cross_magsq > 0)
+									Line line;
+									if(Plane::Intersect(ij_tubenormals, jk_tubenormals, line))
 									{
-										Vec3 n = cross / sqrtf(cross_magsq);									// normal to plane containing the spheres' centers
-
-										Plane ij_tubenormals = Plane(ij_tube.u, -ij_tube.cos_theta);
-										Plane jk_tubenormals = Plane(jk_tubep->u, -jk_tubep->cos_theta);
-										//Plane ki_tubenormals = Plane(ik_tube.u, -ik_tube.cos_theta);
-										Line line;
-										if(Plane::Intersect(ij_tubenormals, jk_tubenormals, line))
+										float intersections[2];			// intersecting a ray with the unit sphere of possible normal vectors
+										if(Util::RaySphereIntersect(Ray(line), Sphere(Vec3(), 1.0f), intersections[0], intersections[1]))
 										{
-											float first, second;
-											if(Util::RaySphereIntersect(Ray(line), Sphere(Vec3(), 1.0f), first, second))
+											for(unsigned char m = 0; m < 2; ++m)
 											{
-												Vec3 normal_1 = line.origin + line.direction * first;
-												Vec3 normal_2 = line.origin + line.direction * second;
+												Vec3 normal = line.origin + line.direction * intersections[m];
+												float offset = Vec3::Dot(normal, i_center) + i_radius;
 
-												PlanePart plane_parts[] =
-												{
-													PlanePart(Plane::FromPositionNormal(i_center + normal_1 * i_radius, normal_1)),
-													PlanePart(Plane::FromPositionNormal(i_center + normal_2 * i_radius, normal_2))
-												};
+												Plane plane = Plane(normal, offset);
 
-												for(unsigned char m = 0; m < 2; ++m)
-												{
-													PlanePart& pp = plane_parts[m];
+												// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
+												if(fabs(fabs(plane.PointDistance(i_center)) - i_radius) > plane_nonplanar_threshold || fabs(fabs(plane.PointDistance(j_center)) - j_radius) > plane_nonplanar_threshold || fabs(fabs(plane.PointDistance(k_center)) - k_radius) > plane_nonplanar_threshold)
+													continue;
 
-													// in some odd cases it may not actually be possible to place a plane tangent to 3 spheres
-													if(fabs(fabs(pp.plane.PointDistance(i_center)) - i_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(j_center)) - j_radius) > 0.0001f || fabs(fabs(pp.plane.PointDistance(k_center)) - k_radius) > 0.0001f)
-														continue;
+												// go through existing planes and see if this is a duplicate
+												unsigned int n;
+												for(n = 0; n < num_planes; ++n)
+													if(Vec3::Dot(normal, planes_temp[n].normal) > plane_dup_normal_threshold && fabs(offset - planes_temp[n].offset) < plane_dup_offset_threshold)
+														break;
 
-													pp.planes.push_back(Plane::FromTriangleVertices(i_center, j_center, i_center + pp.plane.normal));
-													pp.planes.push_back(Plane::FromTriangleVertices(j_center, k_center, j_center + pp.plane.normal));
-													pp.planes.push_back(Plane::FromTriangleVertices(k_center, i_center, k_center + pp.plane.normal));
+												if(n == num_planes)
+													planes_temp[num_planes++] = plane;													
 
-													Vec3 center = (i_center + j_center + k_center) / 3.0f;
-
-													for(vector<Plane>::iterator iter = pp.planes.begin(); iter != pp.planes.end(); ++iter)
-														if(iter->PointDistance(center) < 0)
-															*iter = Plane::Reverse(*iter);
-
-													tube_tried_planes[i_n + j] = true;
-													tube_tried_planes[i_n + k] = true;
-													tube_tried_planes[j_n + k] = true;
-
-													unsigned int index = (i * n_sq + j * num_spheres + k) * 2 + m;
-
-													sphere_planes[index] = new PlanePart(pp);
-													planes_valid[index] = true;
-												}
+												// register these spheres with the appropriate plane
+												bool* spheres_registry = &plane_spheres[n * num_spheres];
+												spheres_registry[i] = spheres_registry[j] = spheres_registry[k] = true;
 											}
 										}
 									}
@@ -447,260 +421,165 @@ namespace CibraryEngine
 							}
 						}
 					}
-				}
 
-				// detect and discard unworthy planes (ones that do not contribute to the surface of the final shape)
-				for(unsigned int i = 0; i < n_cubed * 2; ++i)
-				{
-					if(planes_valid[i])
+					// now that we've got all our planes and we know which spheres are relevant to each of them, let's create the actual PlanePart objects
+					Vec3* plane_verts = new Vec3[num_spheres];
+					unsigned int* vert_ids = new unsigned int[num_spheres];
+
+					for(unsigned int i = 0; i < num_planes; ++i)
 					{
-						if(PlanePart* part_p = sphere_planes[i])
-						{
-							PlanePart part(*part_p);
+						const Plane& plane = planes_temp[i];
+						const Vec3& normal = plane.normal;
+						float offset = plane.offset;
 
-							bool worthy = true;
-
-							// if anything sticks out farther than this plane, this plane is unworthy
-							float my_dist = part.plane.offset;
-							const Vec3& normal = part.plane.normal;
-							for(unsigned int j = 0; j < num_spheres; ++j)
-							{
-								const Sphere& sphere = spheres[j].sphere;
-								float dist = Vec3::Dot(normal, sphere.center) + sphere.radius;
-
-								if(dist > my_dist + 0.000001f)
-								{
-									worthy = false;
-									planes_valid[i] = false;
-
-									break;
-								}
-							}
-
-							if(worthy)
-							{
-								vector<Vec3> my_verts = part.GetVerts();
-
-								// go through existing planes and see if this is a duplicate
-								unsigned int j = 0;
-								for(vector<PlanePart>::iterator jter = planes.begin(); jter != planes.end(); ++jter, ++j)
-								{
-									PlanePart part2(*jter);
-
-									if(Vec3::Dot(normal, part2.plane.normal) > 0.9999f && fabs(my_dist - part2.plane.offset) < 0.000001f)
-									{
-										// merge duplicate planes
-										vector<Vec3> verts = part2.GetVerts();
-										for(vector<Vec3>::iterator iter = my_verts.begin(); iter != my_verts.end(); ++iter)
-											verts.push_back(*iter);
-
-										vector<Plane> possible_planes;
-										for(vector<Vec3>::iterator iter = verts.begin(); iter != verts.end(); ++iter)
-											for(vector<Vec3>::iterator kter = verts.begin(); kter != verts.end(); ++kter)
-												if(kter != iter)
-												{
-													Vec3 dx = *kter - *iter;
-													if(dx.ComputeMagnitudeSquared() > 0.0000001f)
-														possible_planes.push_back(Plane::FromTriangleVertices(*iter, *kter, *iter + normal));
-												}
-
-										vector<Plane> nu_planes;
-
-										for(vector<Plane>::iterator iter = possible_planes.begin(); iter != possible_planes.end(); ++iter)
-										{
-											const Plane& boundary = *iter;
-
-											// eliminate boundary planes that aren't the farthest thing in their direction
-											bool worthy2 = true;
-											for(vector<Vec3>::iterator kter = verts.begin(); kter != verts.end(); ++kter)
-												if(Vec3::Dot(boundary.normal, *kter) < boundary.offset - 0.0000001f)
-												{
-													worthy2 = false;
-													break;
-												}
-
-											// also check that the boundary planes aren't equivalent
-											if(worthy2)
-												for(vector<Plane>::iterator kter = nu_planes.begin(); kter != nu_planes.end(); ++kter)
-													if(Vec3::Dot(boundary.normal, kter->normal) > 0.9999f && fabs(boundary.offset - kter->offset) < 0.000001f)
-													{
-														worthy2 = false;
-														break;
-													}
-
-											if(worthy2)
-												nu_planes.push_back(boundary);
-										}
-
-										jter->planes = nu_planes;
-
-										worthy = false;
-										break;
-									}
-								}
-							}
-
-							if(worthy)
-								planes.push_back(part);
-						}
-					}
-				}
-
-				// detect and discard unworthy tubes; if a tube generated any planes then it should have exactly 2 planes neighboring it or it is unworthy
-				vector<Plane>* tube_planes_adjoining = new vector<Plane>[n_sq];
-				for(unsigned int i = 0; i < n_sq; ++i)
-					tube_planes_adjoining[i] = vector<Plane>();
-
-				for(unsigned int i = 0; i < num_spheres; ++i)
-					for(unsigned int j = i + 1; j < num_spheres; ++j)
-						for(unsigned int k = j + 1; k < num_spheres; ++k)
-							for(unsigned char m = 0; m < 2; ++m)
-							{
-								unsigned int plane_index = (i * n_sq + j * num_spheres + k) * 2 + m;
-								if(planes_valid[plane_index])
-								{
-									unsigned int indices[] = { i * num_spheres + j, i * num_spheres + k, j * num_spheres + k };
-									for(unsigned char n = 0; n < 3; ++n)
-									{
-										int index = indices[n];
-
-										TubePart* tube = sphere_tubes[index];
-										PlanePart* plane = sphere_planes[plane_index];
-
-										tube_planes_adjoining[index].push_back(plane->plane);
-									}
-								}
-							}
-
-#if 0
-				stringstream ss;
-				ss << "here's a shape:" << endl;
-
-				for(unsigned int i = 0; i < num_spheres; ++i)
-				{
-					const Sphere& s = spheres[i].sphere;
-					const Vec3& c = s.center;
-
-					ss << "\tsphere[" << i << "] center = (" << c.x << ", " << c.y << ", " << c.z << "), radius = " << s.radius << endl;
-				}
-
-				for(unsigned int i = 0; i < num_spheres; ++i)
-					for(unsigned int j = i + 1; j < num_spheres; ++j)
-					{
-						if(const TubePart* tube = sphere_tubes[i * num_spheres + j])
-						{
-							const Vec3& c1 = tube->p1;
-							const Vec3& c2 = tube->p2;
-
-							ss << "\ttube between spheres " << i << " and " << j << "; c1 = (" << c1.x << ", " << c1.y << ", " << c1.z << "), r1 = " << tube->r1 << "; c2 = (" << c2.x << ", " << c2.y << ", " << c2.z << "), r2 = " << tube->r2 << endl;
-						}
-					}
-
-				for(unsigned int i = 0; i < num_spheres; ++i)
-					for(unsigned int j = i + 1; j < num_spheres; ++j)
-						for(unsigned int k = j + 1; k < num_spheres; ++k)
-							for(unsigned char m = 0; m < 2; ++m)
-							{
-								unsigned int plane_index = (i * n_sq + j * num_spheres + k) * 2 + m;
-								if(planes_valid[plane_index])
-								{
-									const PlanePart* pp = sphere_planes[plane_index];
-									const Plane& plane = pp->plane;
-									const Vec3& n = plane.normal;
-
-									vector<Vec3> verts = pp->GetVerts();
-
-									ss << "\tplane between spheres " << i << ", " << j << ", and " << k << ":" << endl;
-									for(vector<Vec3>::iterator iter = verts.begin(); iter != verts.end(); ++iter)
-										ss << "\t\tvertex = (" << iter->x << ", " << iter->y << ", " << iter->z << ")" << endl;
-								}
-							}
-
-				Debug(ss.str());
-#endif
-
-				for(unsigned int i = 0; i < n_sq; ++i)
-				{
-					if(TubePart* tube_p = sphere_tubes[i])
-					{
-						TubePart part(*tube_p);
-
+						// see whether or not this plane actually contributes to the surface of the shape
 						bool worthy = true;
-
-						if(tube_tried_planes[i])
+						for(unsigned int n = 0; n < num_spheres; ++n)
 						{
-							// remove duplicate planes before taking a count!
-							vector<Plane> nu_planes_adjoining;
-							for(vector<Plane>::iterator iter = tube_planes_adjoining[i].begin(); iter != tube_planes_adjoining[i].end(); ++iter)
+							float dist = Vec3::Dot(spheres_temp[n].center, normal) + spheres_temp[n].radius;
+							if(dist > offset + plane_noncontribution_threshold)
 							{
-								vector<Plane>::iterator jter;
-								for(jter = nu_planes_adjoining.begin(); jter != nu_planes_adjoining.end(); ++jter)
-									if(Vec3::Dot(iter->normal, jter->normal) > 0.9999f && fabs(iter->offset - jter->offset) < 0.000001f)
-										break;
-								if(jter == nu_planes_adjoining.end())
-									nu_planes_adjoining.push_back(*iter);
-							}
-
-							if(worthy)
-							{
-								unsigned int nu_planes_count = nu_planes_adjoining.size();
-								if(nu_planes_count == 2 || nu_planes_count == 4)
-								{
-									part.planes.resize(2);		// remove any planes besides the ones from the spheres that created this tube
-
-									Vec3 tube_center = (part.p1 + part.p2) * 0.5f;
-
-									for(unsigned char j = 0; j < nu_planes_count; ++j)
-									{
-										Plane plane = Plane::FromTriangleVertices(part.p1, part.p2, part.p1 + nu_planes_adjoining[j].normal);
-
-										// make sure the plane is facing the correct direction
-										if(Vec3::Dot(plane.normal, tube_center) > plane.offset)			// TODO: double-check this
-											plane = Plane::Reverse(plane);
-
-										part.planes.push_back(plane);
-									}
-								}
-								else
-									worthy = false;
+								worthy = false;
+								break;
 							}
 						}
 
 						if(worthy)
 						{
-							tubes.push_back(part);
+							bool* spheres_registry = &plane_spheres[i * num_spheres];
 
-							spheres[i / num_spheres].planes.push_back(Plane::Reverse(part.planes[0]));
-							spheres[i % num_spheres].planes.push_back(Plane::Reverse(part.planes[1]));
+							PlanePart pp = PlanePart(plane);
+
+							// project relevant spheres' centers onto plane
+							unsigned int num_verts = 0;
+							for(unsigned int j = 0; j < num_spheres; ++j)
+								if(spheres_registry[j])
+								{
+									const Vec3& sphere_center = spheres_temp[j].center;
+									plane_verts[num_verts] = sphere_center - normal * (Vec3::Dot(sphere_center, normal) - offset);
+									vert_ids[num_verts] = j;
+
+									++num_verts;
+								}
+
+							// add cutting planes
+							for(unsigned int j = 1; j < num_verts; ++j)
+							{
+								const Vec3& j_vert = plane_verts[j];
+								for(unsigned int k = 0; k < j; ++k)
+								{
+									const Vec3& k_vert = plane_verts[k];
+
+									Plane cps[] = { Plane::FromTriangleVertices(j_vert, k_vert, j_vert + normal), Plane::FromTriangleVertices(k_vert, j_vert, j_vert + normal) };
+									for(unsigned char m = 0; m < 2; ++m)
+									{
+										const Plane& cp = cps[m];
+
+										// see if all the verts are on the correct side of the proposed cutting plane
+										unsigned int n;
+										for(n = 0; n < num_verts; ++n)
+											if(Vec3::Dot(cp.normal, plane_verts[n]) < cp.offset - cut_noncontribution_threshold)
+												break;
+								
+										if(n == num_verts)
+										{
+											// add the cutting plane to this PlanePart
+											pp.planes.push_back(cp);
+
+											// and also add it to the appropriate TubePart (creating one if necessary)
+											unsigned int sphere_i = vert_ids[j];
+											unsigned int sphere_j = vert_ids[k];
+
+											if(sphere_i < sphere_j)
+												swap(sphere_i, sphere_j);
+
+											unsigned int& tube_index = twospheres_to_tube[sphere_i * num_spheres + sphere_j];
+											if(tube_index == 0)
+											{
+												tubes.push_back(MakeTube(spheres_temp[sphere_i], spheres_temp[sphere_j]));
+												tube_index = tubes.size();
+											}
+
+											TubePart& tp = tubes[tube_index - 1];
+											tp.planes.push_back(Plane::Reverse(cp));
+										}
+									}
+								}
+							}
+
+							planes.push_back(pp);
 						}
+					}
 
-						delete tube_p;
+					delete[] plane_verts;
+					delete[] vert_ids;
+				}
+
+				// construct tubes (with no adjoining planes)
+				unsigned int num_tubes = 0;
+				if(num_spheres >= 2)
+				{
+					unsigned int max_tubes = num_spheres * (num_spheres - 1);
+
+					for(unsigned int i = 1; i < num_spheres; ++i)
+					{
+						for(unsigned int j = 0; j < i; ++j)
+						{
+							// we only create a tube here if there weren't any attempted planes
+							unsigned int k;
+							for(k = 0; k < num_planes; ++k)
+								if(plane_spheres[k * num_spheres + i] && plane_spheres[k * num_spheres + j])
+									break;
+
+							if(k == num_planes)
+							{
+								tubes.push_back(MakeTube(spheres_temp[i], spheres_temp[j]));
+								twospheres_to_tube[i * num_spheres + j] = tubes.size();
+							}
+						}
 					}
 				}
 
-				// eliminate orphaned spheres
-				if(num_spheres > 1)
+				// construct final spheres
+				for(unsigned int i = 0; i < num_spheres; ++i)
 				{
-					vector<SpherePart> nu_spheres;
+					const Sphere& i_sphere = spheres_temp[i];
+					const Vec3& i_center = i_sphere.center;
+					float i_radius = i_sphere.radius;
 
-					for(vector<SpherePart>::iterator iter = spheres.begin(); iter != spheres.end(); ++iter)
-						if(!iter->planes.empty())
-							nu_spheres.push_back(*iter);
+					SpherePart* sp = NULL;
 
-					spheres = nu_spheres;
+					if(!tubes.empty())
+					{
+						for(unsigned int j = 0; j < num_spheres; ++j)
+						{
+							if(unsigned int tube_index = twospheres_to_tube[max(i, j) * num_spheres + min(i, j)])
+							{
+								if(sp == NULL)
+								{
+									spheres.push_back(SpherePart(i_sphere));
+									sp = &*spheres.rbegin();
+								}
+
+								TubePart& tp = tubes[tube_index - 1];
+								if(i > j)
+									sp->planes.push_back(Plane::Reverse(tp.planes[0]));
+								else
+									sp->planes.push_back(Plane::Reverse(tp.planes[1]));
+							}
+						}
+					}
+					else
+						spheres.push_back(SpherePart(i_sphere));
 				}
 
-				delete[] sphere_tubes;
-				delete[] tube_planes_adjoining;
-				delete[] tube_tried_planes;
+				// clean up temporary arrays
+				delete[] spheres_temp;
+				if(planes_temp) { delete[] planes_temp; }
+				if(plane_spheres) { delete[] plane_spheres; }
+				delete[] twospheres_to_tube;
 
-				for(unsigned int i = 0; i < n_cubed * 2; ++i)
-					if(PlanePart* p = sphere_planes[i])
-						delete p;
-				delete[] sphere_planes;
-				delete[] planes_valid;
-
-				//OutputParts();
+				// OutputParts();
 			}
 			else
 				aabb = AABB();
