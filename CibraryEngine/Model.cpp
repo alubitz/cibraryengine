@@ -309,36 +309,30 @@ namespace CibraryEngine
 		}
 	}
 
-	void AddTriangleVertexInfo(VertexBuffer* vbo, VTNTT a, VTNTT b, VTNTT c)
+	static void AddVertTangentSpaceInfo(VTNTT& info, const VTNTT& a, const VTNTT& b, const VTNTT& c, const Vec3& b_minus_a, const Vec3& c_minus_a)
+	{
+		Vec3 non_edge_ab = Vec3::Cross(info.n, c_minus_a);
+		Vec3 non_edge_ac = Vec3::Cross(info.n, b_minus_a);
+		float ab_denom = Vec3::Dot(non_edge_ab, b.x) - Vec3::Dot(non_edge_ab, a.x);
+		float ac_denom = Vec3::Dot(non_edge_ac, c.x) - Vec3::Dot(non_edge_ac, a.x);
+		non_edge_ab /= ab_denom;
+		non_edge_ac /= ac_denom;
+		info.tan_1 = non_edge_ab * (b.uvw.x - a.uvw.x) + non_edge_ac * (c.uvw.x - a.uvw.x);
+		info.tan_2 = non_edge_ab * (b.uvw.y - a.uvw.y) + non_edge_ac * (c.uvw.y - a.uvw.y);
+	}
+
+	void AddTangentSpaceInfo(VTNTT& a, VTNTT& b, VTNTT& c)
 	{
 		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
 
-		for(int i = 0; i < 3; ++i)
-		{
-			VTNTT* info;
-			switch (i)
-			{
-				case 0:
-					info = &a;
-					break;
-				case 1:
-					info = &b;
-					break;
-				case 2:
-				default:
-					info = &c;
-					break;
-			}
+		AddVertTangentSpaceInfo(a, a, b, c, b_minus_a, c_minus_a);
+		AddVertTangentSpaceInfo(b, a, b, c, b_minus_a, c_minus_a);
+		AddVertTangentSpaceInfo(c, a, b, c, b_minus_a, c_minus_a);
+	}
 
-			Vec3 non_edge_ab = Vec3::Cross(info->n, c_minus_a);
-			Vec3 non_edge_ac = Vec3::Cross(info->n, b_minus_a);
-			float ab_denom = Vec3::Dot(non_edge_ab, b.x) - Vec3::Dot(non_edge_ab, a.x);
-			float ac_denom = Vec3::Dot(non_edge_ac, c.x) - Vec3::Dot(non_edge_ac, a.x);
-			non_edge_ab /= ab_denom;
-			non_edge_ac /= ac_denom;
-			info->tan_1 = non_edge_ab * (b.uvw.x - a.uvw.x) + non_edge_ac * (c.uvw.x - a.uvw.x);
-			info->tan_2 = non_edge_ab * (b.uvw.y - a.uvw.y) + non_edge_ac * (c.uvw.y - a.uvw.y);
-		}
+	void AddTriangleVertexInfo(VertexBuffer* vbo, VTNTT a, VTNTT b, VTNTT c)
+	{
+		AddTangentSpaceInfo(a, b, c);
 
 		AddVertexInfo(vbo, a);
 		AddVertexInfo(vbo, b);
@@ -347,34 +341,7 @@ namespace CibraryEngine
 
 	void AddTriangleVertexInfo(VertexBuffer* vbo, SkinVInfo a, SkinVInfo b, SkinVInfo c)
 	{
-		Vec3 b_minus_a = b.x - a.x, c_minus_a = c.x - a.x;
-
-		for(int i = 0; i < 3; ++i)
-		{
-			SkinVInfo* info;
-			switch (i)
-			{
-				case 0:
-					info = &a;
-					break;
-				case 1:
-					info = &b;
-					break;
-				case 2:
-				default:
-					info = &c;
-					break;
-			}
-
-			Vec3 non_edge_ab = Vec3::Cross(info->n, c_minus_a);
-			Vec3 non_edge_ac = Vec3::Cross(info->n, b_minus_a);
-			float ab_denom = Vec3::Dot(non_edge_ab, b.x) - Vec3::Dot(non_edge_ab, a.x);
-			float ac_denom = Vec3::Dot(non_edge_ac, c.x) - Vec3::Dot(non_edge_ac, a.x);
-			non_edge_ab /= ab_denom;
-			non_edge_ac /= ac_denom;
-			info->tan_1 = non_edge_ab * (b.uvw.x - a.uvw.x) + non_edge_ac * (c.uvw.x - a.uvw.x);
-			info->tan_2 = non_edge_ab * (b.uvw.y - a.uvw.y) + non_edge_ac * (c.uvw.y - a.uvw.y);
-		}
+		AddTangentSpaceInfo(a, b, c);
 
 		AddVertexInfo(vbo, a);
 		AddVertexInfo(vbo, b);

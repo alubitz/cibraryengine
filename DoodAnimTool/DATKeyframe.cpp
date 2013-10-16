@@ -19,6 +19,8 @@ namespace DoodAnimTool
 
 		num_joints = other.num_joints;
 		ori_data = new Vec3[num_joints];
+
+		memcpy(ori_data, other.ori_data, num_joints * sizeof(Vec3));
 	}
 
 	DATKeyframe::~DATKeyframe() { delete[] ori_data; ori_data = NULL; }

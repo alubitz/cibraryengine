@@ -42,6 +42,8 @@ namespace CibraryEngine
 
 				Vec3 min_extents, max_extents;
 				Vec3 angular_damp;
+
+				void ClampAngles(Vec3& ori) const;
 			};
 
 			vector<BonePhysics> bones;

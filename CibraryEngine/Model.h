@@ -70,6 +70,8 @@ namespace CibraryEngine
 		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices, unsigned char* weights);
 	};
 
+	void AddTangentSpaceInfo(VTNTT& a, VTNTT& b, VTNTT& c);
+
 	void AddTriangleVertexInfo(VertexBuffer* vbo, VTNTT a, VTNTT b, VTNTT c);
 	void AddTriangleVertexInfo(VertexBuffer* vbo, SkinVInfo a, SkinVInfo b, SkinVInfo c);
 	VTNTT GetVTNTT(VertexBuffer* vbo, int index);

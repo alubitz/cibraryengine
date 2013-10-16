@@ -2,6 +2,7 @@
 #include "DATScreen.h"
 
 #include "DATJoint.h"
+#include "DATBone.h"
 #include "DATKeyframe.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
@@ -28,11 +29,12 @@ namespace DoodAnimTool
 		ModelPhysics* mphys;
 
 		vector<DATJoint> joints;
-		vector<pair<Bone*, CollisionShape*>> bone_shapes;
+		vector<DATBone> bones;
 		vector<DATKeyframe> keyframes;
 		float anim_timer;
+		unsigned int edit_keyframe;
 
-		Bone* selected_bone;
+		unsigned int selection_count;
 
 		CameraView camera;
 		SceneRenderer renderer;
@@ -51,7 +53,6 @@ namespace DoodAnimTool
 			skeleton(NULL),
 			uber(NULL),
 			mphys(NULL),
-			selected_bone(NULL),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
 			cursor(NULL),
@@ -101,13 +102,17 @@ namespace DoodAnimTool
 			skeleton = uber->CreateSkeleton();
 
 			joints.clear();
+			bones.clear();
 			keyframes.clear();
 
 			anim_timer = 0.0f;
+			edit_keyframe = 0;
 
-			for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); ++iter)
+			selection_count = 0;
+
+			for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
 			{
-				Bone* bone = *iter;
+				Bone* bone = skeleton->bones[i];
 				string bone_name = Bone::string_table[bone->name];
 
 				for(vector<ModelPhysics::BonePhysics>::iterator jter = mphys->bones.begin(); jter != mphys->bones.end(); ++jter)
@@ -118,7 +123,7 @@ namespace DoodAnimTool
 						if(bone->parent != NULL)
 						{
 							DATJoint dat_joint;
-							dat_joint.child_bone = bone;
+							dat_joint.child_index = i;
 
 							string parent_name = Bone::string_table[bone->parent->name];
 
@@ -140,7 +145,7 @@ namespace DoodAnimTool
 							}
 						}
 
-						bone_shapes.push_back(pair<Bone*, CollisionShape*>(bone, pbone->collision_shape));
+						bones.push_back(DATBone(bone, pbone->collision_shape));
 					}
 				}
 			}
@@ -170,19 +175,82 @@ namespace DoodAnimTool
 						pitch -= timestep;
 					if(input_state->keys[VK_DOWN])
 						pitch += timestep;
+
+					// control the selected bone
+					/*
+					if(selected_bone_index != -1)
+					{
+						DATKeyframe& keyframe = keyframes[edit_keyframe];
+
+						Vec3 bone_controls
+						(
+							(float)((input_state->keys['W'] ? 1 : 0) - (input_state->keys['S'] ? 1 : 0)),
+							(float)((input_state->keys['A'] ? 1 : 0) - (input_state->keys['D'] ? 1 : 0)),
+							(float)((input_state->keys['Q'] ? 1 : 0) - (input_state->keys['E'] ? 1 : 0))
+						);
+
+						if(bone_controls.x != 0 || bone_controls.y != 0 || bone_controls.z != 0)
+						{
+							PoseBones(skeleton, keyframe);
+
+							Bone* bone = bones[selected_bone_index].bone;
+							if(Bone* parent = bone->parent)
+							{
+								Quaternion ori = bone->GetTransformationMatrix().ExtractOrientation();
+								Quaternion parent_ori = parent->GetTransformationMatrix().ExtractOrientation();
+
+								Quaternion desired_ori = ori * Quaternion::FromPYR(bone_controls * timestep);
+								Quaternion ori_from_parent = desired_ori * Quaternion::Reverse(parent_ori);
+
+								for(unsigned int i = 0; i < joints.size(); ++i)
+								{
+									const DATJoint& joint = joints[i];
+									if(joint.child_index == selected_bone_index)
+									{
+										const ModelPhysics::JointPhysics& jp = *joint.joint;
+										Vec3 ori_pyr = ori_from_parent.ToPYR();
+
+										Vec3& ori_data = keyframe.ori_data[i];
+
+										ori_data = jp.axes * (joint.child_reversed ? ori_pyr : -ori_pyr);
+										jp.ClampAngles(ori_data);
+									
+										break;
+									}
+								}
+							}
+
+
+						//	Nudge(keyframe, selected_bone_index, Vec3(), bone_controls);
+						}
+					}
+					*/
 				}
 			}
 		}
 
-		void PoseBones()
+		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
+
+		void PoseBones(Skeleton* skeleeton, const DATKeyframe& pose)
+		{
+			Vec3 pyr;
+			Quaternion quat_ori;
+
+			unsigned int num_joints = joints.size();
+			DATJoint* joint_ptr = joints.data();
+			for(unsigned int i = 0; i < num_joints; ++i, ++joint_ptr)
+			{
+				const DATJoint& joint = *joint_ptr;
+
+				quat_ori = Quaternion::FromPYR(joint.joint->axes.Transpose() * pose.ori_data[i]);
+				skeleton->bones[joint.child_index]->ori = joint.child_reversed ? Quaternion::Reverse(quat_ori) : quat_ori;
+			}
+		}
+
+		void PoseBones(Skeleton* skeleton, const DATKeyframe& frame_a, const DATKeyframe& frame_b, float b_frac)
 		{
 			skeleton->InvalidateCachedBoneXforms();
 
-			// TODO: use anim_timer to select which keyframes to lerp and what value to use for b_frac
-			DATKeyframe& frame_a = keyframes[0];
-			DATKeyframe& frame_b = keyframes[0];
-
-			float b_frac = 0.0f;
 			float a_frac = 1.0f - b_frac;
 
 			Vec3 pyr;
@@ -195,17 +263,59 @@ namespace DoodAnimTool
 				DATJoint& joint = *joint_ptr;
 
 				const ModelPhysics::JointPhysics& jp = *joint.joint;
-				const Vec3& mins  = jp.min_extents;
-				const Vec3& maxes = jp.max_extents;
 
 				pyr = frame_a.ori_data[i] * a_frac + frame_b.ori_data[i] * b_frac;
-				pyr.x = max(mins.x, min(maxes.x, pyr.x));
-				pyr.y = max(mins.y, min(maxes.y, pyr.y));
-				pyr.z = max(mins.z, min(maxes.z, pyr.z));
+				jp.ClampAngles(pyr);
 
-				quat_ori = Quaternion::FromPYR(jp.axes * pyr);
-				joint.child_bone->ori = joint.child_reversed ? Quaternion::Reverse(quat_ori) : quat_ori;
+				quat_ori = Quaternion::FromPYR(jp.axes.Transpose() * pyr);
+				skeleton->bones[joint.child_index]->ori = joint.child_reversed ? Quaternion::Reverse(quat_ori) : quat_ori;
 			}
+		}
+
+		void ResetSelectedBone()
+		{
+			/*
+			if(selected_bone_index != -1)
+			{
+				DATKeyframe& keyframe = keyframes[edit_keyframe];
+
+				for(unsigned int i = 0; i < joints.size(); ++i)
+					if(joints[i].child_index == selected_bone_index)
+					{
+						keyframe.ori_data[i] = Vec3();
+						break;
+					}
+			}
+			*/
+		}
+
+		void Nudge(DATKeyframe& keyframe, int bone_index, const Vec3& push_pos, const Vec3& push_ori)
+		{
+			assert(bone_index >= 0);
+
+			Skeleton* original = new Skeleton(skeleton);
+			Skeleton* test_skeleton = new Skeleton(skeleton);
+
+			PoseBones(original, keyframe);
+
+			Mat4 current_xform = original->bones[bone_index]->GetTransformationMatrix();
+			Vec3 pos;
+			Quaternion ori;
+			current_xform.Decompose(pos, ori);
+
+			// TODO: subtract centerpoint before rotating, and add it back afterwards
+			Vec3 desired_pos = pos + push_pos;
+			Quaternion desired_ori = ori * Quaternion::FromPYR(push_ori);
+
+			// TODO: run solver thingy
+		}
+
+		void ClearSelection()
+		{
+			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+				iter->selected = false;
+
+			selection_count = 0;
 		}
 
 		void Draw(int width, int height)
@@ -240,7 +350,7 @@ namespace DoodAnimTool
 			}
 
 			// draw the skinned character
-			PoseBones();
+			PoseBones(skeleton);
 
 			Bone* root_bone = skeleton->bones[0];
 			Vec3 offset = root_bone->pos;
@@ -255,16 +365,16 @@ namespace DoodAnimTool
 
 			// draw outlines of bones' collision shapes
 			{
+				bool show_selected_bones = ((now * 4.0f) - int(now * 4.0f)) < 0.5f;
 				Vec3 bone_pos;
 				Quaternion bone_ori;
-				for(vector<pair<Bone*, CollisionShape*>>::iterator iter = bone_shapes.begin(); iter != bone_shapes.end(); ++iter)
-				{	
-					if(iter->first != selected_bone)
+				for(unsigned int i = 0; i < bones.size(); ++i)
+				{
+					DATBone& bone = bones[i];
+					if(show_selected_bones || !bone.selected)
 					{
-						Mat4 xform = iter->first->GetTransformationMatrix();
-						xform.Decompose(bone_pos, bone_ori);
-
-						iter->second->DebugDraw(&renderer, bone_pos, bone_ori);
+						bone.bone->GetTransformationMatrix().Decompose(bone_pos, bone_ori);
+						bone.shape->DebugDraw(&renderer, bone_pos, bone_ori);
 					}
 				}
 			}
@@ -286,11 +396,18 @@ namespace DoodAnimTool
 
 			font->Print(((stringstream&)(stringstream() << "time:  " << now)).str(), 0, 0);
 
-			stringstream ss;
-			ss << "selected bone:  ";
-			if(selected_bone != NULL)
-				ss << Bone::string_table[selected_bone->name];
-			font->Print(ss.str(), 0, font->font_height);
+			if(selection_count != 0)
+			{
+				float x = font->font_spacing * 2;
+				int row = 1;
+
+				font->Print("selected bones:", 0, ++row * font->font_height);
+				for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+					if(iter->selected)
+						font->Print(Bone::string_table[iter->bone->name], x, ++row * font->font_height);
+			}
+			else
+				font->Print("nothing selected", 0, 2 * font->font_height);
 
 			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
@@ -304,8 +421,14 @@ namespace DoodAnimTool
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
 				if(kse->state)
 				{
-					if(kse->key == VK_ESCAPE)
-						imp->next_screen = NULL;
+					switch(kse->key)
+					{
+						case 'R':		{ imp->ResetSelectedBone(); break; }
+						case VK_SPACE:	{ imp->ClearSelection();    break; }
+						case VK_ESCAPE:	{ imp->next_screen = NULL;  break; }
+
+						default:		{ break; }
+					}
 				}
 			}
 		} key_listener;
@@ -331,12 +454,13 @@ namespace DoodAnimTool
 						imp->camera.GetRayFromDimCoeffs((float)mx / imp->window->GetWidth(), (float)(window_height - my) / window_height, origin, direction);
 
 						float target_t = 0.0f;
-						Bone* target = NULL;
+						int target = -1;
 
-						for(vector<pair<Bone*, CollisionShape*>>::iterator iter = imp->bone_shapes.begin(); iter != imp->bone_shapes.end(); ++iter)
+						for(unsigned int i = 0; i < imp->bones.size(); ++i)
 						{
-							Bone* bone = iter->first;
-							CollisionShape* shape = iter->second;
+							DATBone& dat_bone = imp->bones[i];
+							Bone* bone = dat_bone.bone;
+							CollisionShape* shape = dat_bone.shape;
 							Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
 
 							const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
@@ -350,9 +474,9 @@ namespace DoodAnimTool
 									MultiSphereShape* mss = (MultiSphereShape*)shape;
 									if(mss->CollideRay(ray, ray_result))
 									{
-										if(ray_result.t < target_t || target == NULL)
+										if(ray_result.t < target_t || target == -1)
 										{
-											target = bone;
+											target = (signed)i;
 											target_t = ray_result.t;
 										}
 									}
@@ -365,7 +489,17 @@ namespace DoodAnimTool
 							}
 						}
 
-						imp->selected_bone = target;
+						if(target >= 0)
+						{
+							bool& selected = imp->bones[target].selected;
+
+							if(selected)
+								--imp->selection_count;
+							else
+								++imp->selection_count;
+
+							selected = !selected;
+						}
 					}
 				}
 			}

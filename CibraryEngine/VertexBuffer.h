@@ -38,6 +38,7 @@ namespace CibraryEngine
 		TriangleStrip	= GL_TRIANGLE_STRIP,
 		TriangleFan		= GL_TRIANGLE_FAN,
 		Triangles		= GL_TRIANGLES,
+		Quads			= GL_QUADS,
 	};
 
 	union VertexData

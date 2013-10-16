@@ -8,13 +8,42 @@
 
 namespace CibraryEngine
 {
+	struct VertexBuffer;
+
 	class BillboardMaterial : public Material
 	{
+		public:
+
+			struct NodeData
+			{
+				Vec3 front, back;
+				float width;
+				float red, green, blue, alpha;
+				float front_u, back_u;
+
+				NodeData(const Vec3& front, const Vec3& back, float width);
+
+				void PutUV(float*& uv_ptr, float u, float v);
+				void PutColor(float*& color_ptr, const Vec4& color);
+				void PutVertex(float*& vert_ptr, const Vec3& xyz);
+				void PutQuad(float*& vert_ptr, float*& uv_ptr, float*& color_ptr, const Vec3& camera_position);
+			};
+
 		private:
 
-			Vec3 camera_position;
-
 			Texture2D* texture;
+
+			// temporary stuff for between calls to BeginDraw and EndDraw
+			Vec3 camera_position;
+			vector<NodeData*> node_data;
+			VertexBuffer* nodes_vbo;
+
+			// NodeData recycling stuff
+			vector<NodeData*> recycle_bin;
+
+		protected:
+
+			void InnerDispose();
 
 		public:
 
@@ -26,16 +55,6 @@ namespace CibraryEngine
 			void Cleanup(RenderNode node);
 			bool Equals(Material* other);
 
-			struct NodeData
-			{
-				Vec3 front, back;
-				float width;
-				float red, green, blue, alpha;
-				float front_u, back_u;
-
-				NodeData(const Vec3& front, const Vec3& back, float width);
-
-				void Execute(const Vec3& camera_position);
-			};
+			NodeData* NewNodeData(const Vec3& front, const Vec3& rear, float width);
 	};
 }

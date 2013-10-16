@@ -5,34 +5,58 @@
 #include "RenderNode.h"
 #include "SceneRenderer.h"
 
+#include "VertexBuffer.h"
+
 namespace CibraryEngine
 {
 	/*
 	 * BillboardMaterial methods
 	 */
-	BillboardMaterial::BillboardMaterial(Texture2D* texture, BlendStyle mode) : Material(5, mode, false), texture(texture) { texture->clamp = true; }
+	BillboardMaterial::BillboardMaterial(Texture2D* texture, BlendStyle mode) : Material(5, mode, false), texture(texture), recycle_bin() { texture->clamp = true; }
+
+	void BillboardMaterial::InnerDispose()
+	{
+		Material::InnerDispose();
+
+		for(vector<NodeData*>::iterator iter = recycle_bin.begin(); iter != recycle_bin.end(); ++iter)
+			delete *iter;
+		recycle_bin.clear();
+	}
 
 	void BillboardMaterial::BeginDraw(SceneRenderer* renderer)
 	{
-		GLDEBUG();
-
 		camera_position = renderer->camera->GetPosition();
+
+		node_data.clear();
+	}
+
+	void BillboardMaterial::EndDraw()
+	{
+		if(nodes_vbo != NULL)
+		{
+			nodes_vbo = new VertexBuffer(Quads);
+			nodes_vbo->AddAttribute("gl_Vertex", Float, 3);
+			nodes_vbo->AddAttribute("gl_MultiTexCoord0", Float, 2);
+			nodes_vbo->AddAttribute("gl_Color", Float, 4);
+		}
+
+		nodes_vbo->SetNumVerts(0);							// so we don't bother copying old verts that'll just end up getting overwritten later
+		nodes_vbo->SetNumVerts(8 * node_data.size());
+
+		float* vert_ptr = nodes_vbo->GetFloatPointer("gl_Vertex");
+		float* uv_ptr = nodes_vbo->GetFloatPointer("gl_MultiTexCoord0");
+		float* color_ptr = nodes_vbo->GetFloatPointer("gl_Color");
+
+		for(NodeData **iter = node_data.data(), **nodes_end = iter + node_data.size(); iter != nodes_end; ++iter)
+			(**iter).PutQuad(vert_ptr, uv_ptr, color_ptr, camera_position);
+
+		GLDEBUG();
 
 		switch(blend_style)
 		{
-			case Additive:
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				break;
-
-			case Alpha:
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-
-			default:
-				glDisable(GL_BLEND);
-				break;
+			case Additive:	{ glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);                 break; }
+			case Alpha:		{ glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break; }
+			default:		{ glDisable(GL_BLEND); break; }
 		}
 
 		glDisable(GL_CULL_FACE);
@@ -46,13 +70,37 @@ namespace CibraryEngine
 		glDepthMask(false);
 
 		GLDEBUG();
-		glBegin(GL_QUADS);
+
+		nodes_vbo->Draw();
+
+		nodes_vbo->Dispose();
+		delete nodes_vbo;
+
+		node_data.clear();
 	}
 
-	void BillboardMaterial::EndDraw() { glEnd(); }
+	void BillboardMaterial::Draw(RenderNode node) { node_data.push_back((NodeData*)node.data); }
 
-	void BillboardMaterial::Draw(RenderNode node) { ((NodeData*)node.data)->Execute(camera_position); }
-	void BillboardMaterial::Cleanup(RenderNode node) { delete node.data; }
+	void BillboardMaterial::Cleanup(RenderNode node)
+	{
+		NodeData* nd = (NodeData*)node.data;
+
+		nd->~NodeData();
+		recycle_bin.push_back(nd);
+	}
+
+	BillboardMaterial::NodeData* BillboardMaterial::NewNodeData(const Vec3& front, const Vec3& back, float width)
+	{
+		vector<NodeData*>::reverse_iterator found = recycle_bin.rbegin();
+		if(found != recycle_bin.rend())
+		{
+			NodeData* nub = *found;
+			recycle_bin.pop_back();
+			return new (nub) NodeData(front, back, width);
+		}
+		else
+			return new NodeData(front, back, width);
+	}
 
 	bool BillboardMaterial::Equals(Material* other)
 	{ 
@@ -82,9 +130,30 @@ namespace CibraryEngine
 	{
 	}
 
-	void BillboardMaterial::NodeData::Execute(const Vec3& camera_position)
+	void BillboardMaterial::NodeData::PutUV(float*& uv_ptr, float u, float v)
 	{
-		glColor4f(red, green, blue, alpha);
+		*(uv_ptr++) = u;
+		*(uv_ptr++) = v;
+	}
+
+	void BillboardMaterial::NodeData::PutColor(float*& color_ptr, const Vec4& color)
+	{
+		*(color_ptr++) = color.x;
+		*(color_ptr++) = color.y;
+		*(color_ptr++) = color.z;
+		*(color_ptr++) = color.w;
+	}
+
+	void BillboardMaterial::NodeData::PutVertex(float*& vert_ptr, const Vec3& xyz)
+	{
+		*(vert_ptr++) = xyz.x;
+		*(vert_ptr++) = xyz.y;
+		*(vert_ptr++) = xyz.z;
+	}
+
+	void BillboardMaterial::NodeData::PutQuad(float*& vert_ptr, float*& uv_ptr, float*& color_ptr, const Vec3& camera_position)
+	{
+		Vec4 color(red, green, blue, alpha);
 
 		Vec3 normal, pos;
 		pos = front - back;
@@ -92,30 +161,16 @@ namespace CibraryEngine
 		normal = Vec3::Cross(normal, pos);
 		normal *= width * 0.5f / normal.ComputeMagnitude();
 
-		Vec3 points[6];
-		points[0] = front + normal;
-		points[1] = front;
-		points[2] = front - normal;
-		points[3] = back + normal;
-		points[4] = back;
-		points[5] = back - normal;
+		Vec3 points[6] = { front + normal, front, front - normal, back + normal, back, back - normal };
 
-		glTexCoord3f(front_u,	0.0f, 0);
-		glVertex3f(points[0].x, points[0].y, points[0].z);
-		glTexCoord3f(front_u,	0.5f, 0);
-		glVertex3f(points[1].x, points[1].y, points[1].z);
-		glTexCoord3f(back_u,	0.5f, 0);
-		glVertex3f(points[4].x, points[4].y, points[4].z);
-		glTexCoord3f(back_u,	0.0f, 0);
-		glVertex3f(points[3].x, points[3].y, points[3].z);
+		PutUV(uv_ptr, front_u, 0.0f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[0]);
+		PutUV(uv_ptr, front_u, 0.5f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[1]);
+		PutUV(uv_ptr, back_u,  0.5f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[4]);
+		PutUV(uv_ptr, back_u,  0.0f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[3]);
 
-		glTexCoord3f(front_u,	0.5f, 0);
-		glVertex3f(points[1].x, points[1].y, points[1].z);
-		glTexCoord3f(front_u,	1.0f, 0);
-		glVertex3f(points[2].x, points[2].y, points[2].z);
-		glTexCoord3f(back_u,	1.0f, 0);
-		glVertex3f(points[5].x, points[5].y, points[5].z);
-		glTexCoord3f(back_u,	0.5f, 0);
-		glVertex3f(points[4].x, points[4].y, points[4].z);
+		PutUV(uv_ptr, front_u, 0.5f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[1]);
+		PutUV(uv_ptr, front_u, 1.0f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[2]);
+		PutUV(uv_ptr, back_u,  1.0f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[5]);
+		PutUV(uv_ptr, back_u,  0.5f); PutColor(color_ptr, color); PutVertex(vert_ptr, points[4]);
 	}
 }

@@ -121,7 +121,7 @@ namespace CibraryEngine
 				Vec3 cameraPos = renderer->camera->GetPosition();
 				Vec3 fromCamera = a.pos - cameraPos;
 
-				BillboardMaterial::NodeData* node_data = new BillboardMaterial::NodeData(front, rear, width);
+				BillboardMaterial::NodeData* node_data = material->NewNodeData(front, rear, width);
 
 				node_data->front_u = a.age / a.max_age;
 				node_data->back_u = b.age / b.max_age;

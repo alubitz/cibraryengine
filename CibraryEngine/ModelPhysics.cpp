@@ -30,6 +30,19 @@ namespace CibraryEngine
 
 
 	/*
+	 * ModelPhysics::JointPhysics method
+	 */
+	void ModelPhysics::JointPhysics::ClampAngles(Vec3& ori) const
+	{
+		ori.x = max(min_extents.x, min(max_extents.x, ori.x));
+		ori.y = max(min_extents.y, min(max_extents.y, ori.y));
+		ori.z = max(min_extents.z, min(max_extents.z, ori.z));
+	}
+
+
+
+
+	/*
 	 * CollisionShapeLoader methods
 	 */
 	ModelPhysicsLoader::ModelPhysicsLoader(ContentMan* man) : ContentTypeHandler<ModelPhysics>(man) { }

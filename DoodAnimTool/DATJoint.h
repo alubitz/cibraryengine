@@ -8,11 +8,11 @@ namespace DoodAnimTool
 
 	struct DATJoint
 	{
-		Bone* child_bone;
+		int child_index;
 
 		ModelPhysics::JointPhysics* joint;
 		bool child_reversed;
 
-		DATJoint() : child_bone(NULL), joint(NULL), child_reversed(false) { }
+		DATJoint() : child_index(-1), joint(NULL), child_reversed(false) { }
 	};
 }
