@@ -11,8 +11,10 @@ namespace DoodAnimTool
 		Bone* bone;
 		CollisionShape* shape;
 
+		int parent_index;
+
 		bool selected;
 
-		DATBone(Bone* bone, CollisionShape* shape);
+		DATBone(Bone* bone, CollisionShape* shape, int parent_index);
 	};
 }
