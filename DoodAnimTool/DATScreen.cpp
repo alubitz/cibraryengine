@@ -5,7 +5,11 @@
 #include "DATBone.h"
 #include "DATKeyframe.h"
 
+#include "DATConstraint.h"
+
 #include "../CibraryEngine/DebugDrawMaterial.h"
+
+#define MAX_SOLVER_ITERATIONS 50
 
 namespace DoodAnimTool
 {
@@ -33,6 +37,8 @@ namespace DoodAnimTool
 		vector<DATKeyframe> keyframes;
 		float anim_timer;
 		unsigned int edit_keyframe;
+
+		vector<DATConstraint*> constraints;
 
 		unsigned int selection_count;
 
@@ -69,6 +75,7 @@ namespace DoodAnimTool
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
 			LoadDood("soldier");
+			SelectAll();
 
 			now = buffered_time = 0.0f;
 			yaw = 0.0f;
@@ -86,6 +93,8 @@ namespace DoodAnimTool
 
 			if(skeleton)				{ skeleton->Dispose();					delete skeleton;				skeleton = NULL; }
 			if(sk_rinfo.bone_matrices)	{ sk_rinfo.bone_matrices->Dispose();	delete sk_rinfo.bone_matrices;	sk_rinfo.bone_matrices = NULL; }
+
+			DeleteConstraints();
 
 			DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 		}
@@ -106,6 +115,8 @@ namespace DoodAnimTool
 			joints.clear();
 			bones.clear();
 			keyframes.clear();
+
+			DeleteConstraints();
 
 			anim_timer = 0.0f;
 			edit_keyframe = 0;
@@ -164,7 +175,24 @@ namespace DoodAnimTool
 				}
 			}
 
-			keyframes.push_back(DATKeyframe(joints.size()));
+			keyframes.push_back(DATKeyframe(bones.size(), joints.size()));
+
+			// emancipate all the bones
+			for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
+				skeleton->bones[i]->parent = NULL;
+
+			// TODO: initialize constraints list for real
+			for(unsigned int i = 0; i < joints.size(); ++i)
+			{
+				constraints.push_back(new DATConstraint());
+			}
+		}
+
+		void DeleteConstraints()
+		{
+			for(vector<DATConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				delete *iter;
+			constraints.clear();
 		}
 
 		void Update(TimingInfo& time)
@@ -193,8 +221,6 @@ namespace DoodAnimTool
 					// control the selected bone
 					if(selection_count > 0)
 					{
-						DATKeyframe& keyframe = keyframes[edit_keyframe];
-
 						Vec3 bone_controls
 						(
 							(float)((input_state->keys['W'] ? 1 : 0) - (input_state->keys['S'] ? 1 : 0)),
@@ -203,120 +229,65 @@ namespace DoodAnimTool
 						);
 
 						if(bone_controls.x != 0 || bone_controls.y != 0 || bone_controls.z != 0)							
-							ModifyPose(keyframe, bone_controls * timestep);
+						{
+							Quaternion delta_quat = Quaternion::FromPYR(bone_controls * timestep);
+
+							DATKeyframe& keyframe = keyframes[edit_keyframe];
+							for(unsigned int i = 0; i < keyframe.num_bones; ++i)
+							{
+								if(bones[i].selected)
+								{
+									Quaternion& ori = keyframe.data[i].ori;
+									ori = delta_quat * ori;
+								}
+							}
+
+							ApplyConstraints(keyframe);
+						}
 					}
 				}
 			}
 		}
 
-		void ModifyPose(DATKeyframe& pose, const Vec3& delta)
+		void ApplyConstraints(DATKeyframe& pose)
 		{
-			PoseBones(skeleton, pose);
+			unsigned int num_constraints = constraints.size();
 
-			Quaternion delta_quat = Quaternion::FromPYR(delta);
-
-			unsigned int num_bones = bones.size();
-			unsigned int num_joints = joints.size();
-
-			struct PerBone
+			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
 			{
-				DATBone* bone;
-				int joint_index;
+				bool any_changes = false;
 
-				Quaternion ori;
-				Vec3 pos;
-
-				bool needs_rotation;
-
-				PerBone() : bone(NULL),joint_index(-1) { }
-				PerBone(DATBone& bone) : bone(&bone), joint_index(-1), needs_rotation(bone.selected) { bone.bone->GetTransformationMatrix().Decompose(pos, ori); }
-			} *bone_extras = new PerBone[num_bones];
-
-			for(unsigned int i = 0; i < num_bones; ++i)
-				bone_extras[i] = PerBone(bones[i]);
-
-			// figure out which bones need to be rotated
-			for(unsigned int i = 0; i < num_bones; ++i)
-			{
-				if(bones[i].selected)
-					bone_extras[i].needs_rotation = true;
-				else
+				for(unsigned int j = 0; j < num_constraints; ++j)
 				{
-					PerBone* bone = &bone_extras[i];
-					PerBone* ancestor = bone;
-					while(ancestor->bone->parent_index != -1)
+					if(pose.enabled_constraints[j] && constraints[j]->ApplyConstraint(pose))
 					{
-						ancestor = &bone_extras[ancestor->bone->parent_index];
-						if(ancestor->needs_rotation)
-						{
-							bone->needs_rotation = true;
-							break;
-						}
+						any_changes = true;
+
+						for(++j; j < num_constraints; ++j)
+							if(pose.enabled_constraints[j])
+								constraints[j]->ApplyConstraint(pose);
+
+						break;
 					}
 				}
+
+				if(!any_changes)
+					break;
 			}
-
-			// map joints to per-bone extras
-			for(unsigned int i = 0; i < num_joints; ++i)
-				bone_extras[joints[i].child_index].joint_index = (signed)i;
-
-			for(unsigned int i = 0; i < num_bones; ++i)
-			{
-				PerBone& extra = bone_extras[i];
-				if(extra.needs_rotation)
-				{
-					int j = extra.joint_index;
-					if(j == -1)
-						pose.root_ori = (delta_quat * Quaternion::FromPYR(pose.root_ori)).ToPYR();
-					else if(!bone_extras[extra.bone->parent_index].needs_rotation)
-					{
-						Vec3& datum = pose.joint_ori_data[j];
-						const ModelPhysics::JointPhysics& jp = *joints[j].joint;
-
-						Quaternion nu_ori = delta_quat * extra.ori;
-						const Quaternion& parent_ori = bone_extras[extra.bone->parent_index].ori;
-
-						datum = jp.axes * (parent_ori * Quaternion::Reverse(nu_ori)).ToPYR();
-						jp.ClampAngles(datum);
-					}
-				}
-			}
-
-			delete[] bone_extras;
-
-			/*
-			 * TODO: implement this:
-			 *
-			 *   modify the pose to rotate the selected bones by delta_quat
-			 *   wherever possible,
-			 *       the relative orientation of bones lower in the hierarchy will be preserved
-			 *       the absolute orientations of bones higher in the hierarchy will be preserved
-			 */
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
 
 		void PoseBones(Skeleton* skeleton, const DATKeyframe& pose)
 		{
-			Vec3 pyr;
-			Quaternion quat_ori;
+			skeleton->InvalidateCachedBoneXforms();
 
-			unsigned int num_joints = joints.size();
-			DATJoint* joint_ptr = joints.data();
-			for(unsigned int i = 0; i < num_joints; ++i, ++joint_ptr)
+			unsigned int num_bones = bones.size();
+			for(unsigned int i = 0; i < num_bones; ++i)
 			{
-				const DATJoint& joint = *joint_ptr;
-
-				quat_ori = Quaternion::FromPYR(joint.joint->axes.Transpose() * pose.joint_ori_data[i]);
-				skeleton->bones[joint.child_index]->ori = joint.child_reversed ? Quaternion::Reverse(quat_ori) : quat_ori;
+				skeleton->bones[i]->ori = pose.data[i].ori;
+				skeleton->bones[i]->pos = pose.data[i].pos;
 			}
-
-			for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); ++iter)
-				if((*iter)->parent == NULL)
-				{
-					(*iter)->pos = pose.root_pos;
-					(*iter)->ori = Quaternion::FromPYR(pose.root_ori);
-				}
 		}
 
 		void PoseBones(Skeleton* skeleton, const DATKeyframe& frame_a, const DATKeyframe& frame_b, float b_frac)
@@ -325,27 +296,12 @@ namespace DoodAnimTool
 
 			float a_frac = 1.0f - b_frac;
 
-			Vec3 pyr;
-			Quaternion quat_ori;
-
-			unsigned int num_joints = joints.size();
-			DATJoint* joint_ptr = joints.data();
-			for(unsigned int i = 0; i < num_joints; ++i, ++joint_ptr)
+			unsigned int num_bones = bones.size();
+			for(unsigned int i = 0; i < num_bones; ++i)
 			{
-				DATJoint& joint = *joint_ptr;
-
-				const ModelPhysics::JointPhysics& jp = *joint.joint;
-
-				quat_ori = Quaternion::FromPYR(joint.joint->axes.Transpose() * (Quaternion::FromPYR(frame_a.joint_ori_data[i]) * a_frac + Quaternion::FromPYR(frame_b.joint_ori_data[i]) * b_frac).ToPYR());
-				skeleton->bones[joint.child_index]->ori = joint.child_reversed ? Quaternion::Reverse(quat_ori) : quat_ori;
+				skeleton->bones[i]->ori = frame_a.data[i].ori * a_frac + frame_b.data[i].ori * b_frac;
+				skeleton->bones[i]->pos = frame_a.data[i].pos * a_frac + frame_b.data[i].pos * b_frac;
 			}
-
-			for(vector<Bone*>::iterator iter = skeleton->bones.begin(); iter != skeleton->bones.end(); ++iter)
-				if((*iter)->parent == NULL)
-				{
-					(*iter)->pos = frame_a.root_pos * a_frac + frame_b.root_pos * b_frac;
-					(*iter)->ori = Quaternion::FromPYR(frame_a.root_ori) * a_frac + Quaternion::FromPYR(frame_b.root_ori) * b_frac;
-				}
 		}
 
 		void ClearSelection()
@@ -354,6 +310,14 @@ namespace DoodAnimTool
 				iter->selected = false;
 
 			selection_count = 0;
+		}
+
+		void SelectAll()
+		{
+			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+				iter->selected = true;
+
+			selection_count = bones.size();
 		}
 
 		void Draw(int width, int height)

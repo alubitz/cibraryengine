@@ -10,13 +10,21 @@ namespace DoodAnimTool
 	{
 		public:
 
-			unsigned int num_joints;
-			Vec3* joint_ori_data;
+			struct KBone
+			{
+				Vec3 pos;
+				Quaternion ori;
 
-			Vec3 root_ori;
-			Vec3 root_pos;
+				KBone() : pos(), ori(Quaternion::Identity()) { }
+			};
 
-			DATKeyframe(unsigned int num_joints);
+			unsigned int num_bones;
+			KBone* data;
+
+			unsigned int num_constraints;
+			bool* enabled_constraints;
+
+			DATKeyframe(unsigned int num_bones, unsigned int num_constraints);
 			DATKeyframe(const DATKeyframe& other);
 
 			void operator =(const DATKeyframe& other);

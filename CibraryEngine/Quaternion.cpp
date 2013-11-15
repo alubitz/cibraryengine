@@ -36,6 +36,25 @@ namespace CibraryEngine
 		);
 	}
 
+	static Quaternion GetQFRMGivenBiggestPoint(const Mat3& mat, const Vec3& axis, Vec3& dir, float magsq)
+	{
+		if(float dmagsq = dir.ComputeMagnitudeSquared())
+		{
+			dir /= sqrtf(dmagsq);
+
+			Vec3 other_axis = Vec3::Cross(axis, dir);
+			Vec3 mx = mat * dir;
+
+			float angle = atan2f(Vec3::Dot(mx, other_axis), Vec3::Dot(mx, dir));
+			float half = angle * 0.5f;
+			float sine = sinf(half);
+
+			return Quaternion(cosf(half), axis.x * sine, axis.y * sine, axis.z * sine);
+		}
+		else
+			return Quaternion::Identity();
+	}
+
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
 	{
 		const float* arr = mat.values;
@@ -43,49 +62,72 @@ namespace CibraryEngine
 		float t = arr[0] + arr[4] + arr[8] + 1.0f;
 		if(t > 0)
 		{
-			float s = 0.5f / sqrtf(t);
+#if 0
+			float s = 2.0f * sqrtf(t);
+			float inv_s = 1.0f / s;
 			return Quaternion::Normalize(Quaternion(
-				0.25f / s,
-				(arr[7] - arr[5]) * s,
-				(arr[2] - arr[6]) * s,
-				(arr[3] - arr[1]) * s
+				0.25f * s,
+				(arr[7] - arr[5]) * inv_s,
+				(arr[2] - arr[6]) * inv_s,
+				(arr[3] - arr[1]) * inv_s
+			));
+#else
+			Vec3 dx(arr[0] - 1, arr[3],     arr[6]    );
+			Vec3 dy(arr[1],     arr[4] - 1, arr[7]    );
+			Vec3 dz(arr[2],     arr[5],     arr[8] - 1);
+
+			Vec3 axis = Vec3::Cross(dx, dy) + Vec3::Cross(dx, dz) + Vec3::Cross(dz, dy);
+			if(float magsq = axis.ComputeMagnitudeSquared())
+			{
+				axis /= sqrtf(magsq);
+
+				float dxsq = dx.ComputeMagnitudeSquared(), dysq = dy.ComputeMagnitudeSquared(), dzsq = dz.ComputeMagnitudeSquared();
+
+				if(dxsq > dysq && dxsq > dzsq)
+					return GetQFRMGivenBiggestPoint(mat, axis, dx, dxsq);
+				else if(dysq > dxsq && dysq > dzsq)
+					return GetQFRMGivenBiggestPoint(mat, axis, dy, dysq);
+				else
+					return GetQFRMGivenBiggestPoint(mat, axis, dz, dzsq);
+			}
+			else
+				return Quaternion::Identity();
+
+			
+#endif
+		}
+		else if(arr[0] > arr[4] && arr[0] > arr[8])
+		{
+ 			float s = 2.0f * sqrtf(1.0f + arr[0] - arr[4] - arr[8]);
+			float inv_s = 1.0f / s;
+			return Quaternion::Normalize(Quaternion(
+				(arr[5] + arr[7]) * inv_s,
+				0.25f * s,
+				(arr[1] + arr[3]) * inv_s,
+				(arr[2] + arr[6]) * inv_s
+			));
+		}
+		else if(arr[4] > arr[0] && arr[4] > arr[8])
+		{
+			float s = 2.0f * sqrtf(1.0f + arr[4] - arr[0] - arr[8]);
+			float inv_s = 1.0f / s;
+			return Quaternion::Normalize(Quaternion(
+				(arr[2] + arr[6]) * inv_s,
+				(arr[1] + arr[3]) * inv_s,
+				0.25f * s,
+				(arr[5] + arr[7]) * inv_s
 			));
 		}
 		else
 		{
-			if(arr[0] > arr[4] && arr[0] > arr[8])
-			{
-				float s = 2.0f * sqrtf(1.0f + arr[0] - arr[4] - arr[8]);
-				float inv_s = 1.0f / s;
-				return Quaternion::Normalize(Quaternion(
-					(arr[5] + arr[7]) * inv_s,
-					0.25f * s,
-					(arr[1] + arr[3]) * inv_s,
-					(arr[2] + arr[6]) * inv_s
-				));
-			}
-			else if(arr[4] > arr[0] && arr[4] > arr[8])
-			{
-				float s = 2.0f * sqrtf(1.0f + arr[4] - arr[0] - arr[8]);
-				float inv_s = 1.0f / s;
-				return Quaternion::Normalize(Quaternion(
-					(arr[2] + arr[6]) * inv_s,
-					(arr[1] + arr[3]) * inv_s,
-					0.25f * s,
-					(arr[5] + arr[7]) * inv_s
-				));
-			}
-			else
-			{
-				float s = 2.0f * sqrtf(1.0f + arr[8] - arr[0] - arr[4]);
-				float inv_s = 1.0f / s;
-				return Quaternion::Normalize(Quaternion(
-					(arr[1] + arr[3]) * inv_s,
-					(arr[2] + arr[6]) * inv_s,
-					(arr[5] + arr[7]) * inv_s,
-					0.25f * s
-				));
-			}
+			float s = 2.0f * sqrtf(1.0f + arr[8] - arr[0] - arr[4]);
+			float inv_s = 1.0f / s;
+			return Quaternion::Normalize(Quaternion(
+				(arr[1] + arr[3]) * inv_s,
+				(arr[2] + arr[6]) * inv_s,
+				(arr[5] + arr[7]) * inv_s,
+				0.25f * s
+			));
 		}
 	}
 

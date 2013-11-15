@@ -6,24 +6,52 @@ namespace DoodAnimTool
 	/*
 	 * DATKeyframe methods
 	 */
-	DATKeyframe::DATKeyframe(unsigned int num_joints) : num_joints(num_joints), joint_ori_data(new Vec3[num_joints]), root_ori(), root_pos() { }
-
-	DATKeyframe::DATKeyframe(const DATKeyframe& other) : num_joints(other.num_joints), joint_ori_data(new Vec3[num_joints]), root_ori(other.root_ori), root_pos(other.root_pos)
+	DATKeyframe::DATKeyframe(unsigned int num_bones, unsigned int num_constraints) :
+		num_bones(num_bones),
+		data(new KBone[num_bones]),
+		num_constraints(num_constraints),
+		enabled_constraints(new bool[num_constraints])
 	{
-		memcpy(joint_ori_data, other.joint_ori_data, num_joints * sizeof(Vec3));
+	}
+
+	DATKeyframe::DATKeyframe(const DATKeyframe& other) :
+		num_bones(other.num_bones),
+		data(new KBone[num_bones]),
+		num_constraints(other.num_constraints),
+		enabled_constraints(new bool[num_constraints])
+	{
+		memcpy(data,				other.data,					num_bones		* sizeof(KBone));
+		memcpy(enabled_constraints,	other.enabled_constraints,	num_constraints	* sizeof(bool) );
 	}
 
 	void DATKeyframe::operator =(const DATKeyframe& other)
 	{
-		if(joint_ori_data) { delete[] joint_ori_data; }
+		if(data && num_bones == other.num_bones)
+			memcpy(data, other.data, num_bones * sizeof(KBone));
+		else
+		{
+			if(data) { delete[] data; }
 
-		num_joints = other.num_joints;
-		joint_ori_data = new Vec3[num_joints];
-		root_ori = other.root_ori;
-		root_pos = other.root_pos;
+			num_bones = other.num_bones;
+			data = new KBone[num_bones];
+			memcpy(data, other.data, num_bones * sizeof(KBone));
+		}
 
-		memcpy(joint_ori_data, other.joint_ori_data, num_joints * sizeof(Vec3));
+		if(enabled_constraints && num_constraints == other.num_constraints)
+			memcpy(enabled_constraints, other.enabled_constraints, num_constraints * sizeof(bool));
+		else
+		{
+			if(enabled_constraints) { delete[] enabled_constraints; }
+
+			num_constraints = other.num_constraints;
+			enabled_constraints = new bool[num_constraints];
+			memcpy(enabled_constraints, other.enabled_constraints, num_constraints * sizeof(bool));
+		}
 	}
 
-	DATKeyframe::~DATKeyframe() { delete[] joint_ori_data; joint_ori_data = NULL; }
+	DATKeyframe::~DATKeyframe()
+	{
+		if(data)				{ delete[] data;				data = NULL; }
+		if(enabled_constraints)	{ delete[] enabled_constraints;	enabled_constraints = NULL; }
+	}
 }
