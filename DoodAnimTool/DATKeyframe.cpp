@@ -12,6 +12,7 @@ namespace DoodAnimTool
 		num_constraints(num_constraints),
 		enabled_constraints(new bool[num_constraints])
 	{
+		memset(enabled_constraints, true, num_constraints * sizeof(bool));		// all constraints are enabled by default
 	}
 
 	DATKeyframe::DATKeyframe(const DATKeyframe& other) :

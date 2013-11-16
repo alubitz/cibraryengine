@@ -5,11 +5,15 @@
 #include "DATBone.h"
 #include "DATKeyframe.h"
 
-#include "DATConstraint.h"
+#include "PoseSolverState.h"
+
+#include "Constraint.h"
+#include "CSkeletalJoint.h"
+#include "CFixedJoint.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
-#define MAX_SOLVER_ITERATIONS 50
+#define MAX_SOLVER_ITERATIONS 200
 
 namespace DoodAnimTool
 {
@@ -38,7 +42,7 @@ namespace DoodAnimTool
 		float anim_timer;
 		unsigned int edit_keyframe;
 
-		vector<DATConstraint*> constraints;
+		vector<Constraint*> constraints;
 
 		unsigned int selection_count;
 
@@ -74,8 +78,11 @@ namespace DoodAnimTool
 			mouse_listener.imp = this;
 			input_state->MouseButtonStateChanged += &mouse_listener;
 
+			ScriptSystem::Init();
+			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/soldier_zzp.lua");
+
 			LoadDood("soldier");
-			SelectAll();
+			//SelectAll();
 
 			now = buffered_time = 0.0f;
 			yaw = 0.0f;
@@ -181,16 +188,36 @@ namespace DoodAnimTool
 			for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
 				skeleton->bones[i]->parent = NULL;
 
-			// TODO: initialize constraints list for real
+
+			// initialize constraints list
 			for(unsigned int i = 0; i < joints.size(); ++i)
+				constraints.push_back(new CSkeletalJoint(joints[i]));
+
+			// create fixed joint constraint between soldier's gun hands		// TODO: make this less hard-coded
+			unsigned int lname = Bone::string_table["l hand"], rname = Bone::string_table["r hand"];
+			int lhand = -1, rhand = -1;
+			for(unsigned int i = 0; i < num_bones; ++i)
 			{
-				constraints.push_back(new DATConstraint());
+				if(bones[i].bone->name == lname)
+				{
+					lhand = i;
+					if(rhand != -1)
+						break;
+				}
+				else if(bones[i].bone->name == rname)
+				{
+					rhand = i;
+					if(lhand != -1)
+						break;
+				}
 			}
+			if(lhand >= 0 && rhand >= 0)
+				constraints.push_back(new CFixedJoint((unsigned int)lhand, (unsigned int)rhand, Vec3(), Quaternion::Identity()));		// TODO: use actual values
 		}
 
 		void DeleteConstraints()
 		{
-			for(vector<DATConstraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 				delete *iter;
 			constraints.clear();
 		}
@@ -251,29 +278,34 @@ namespace DoodAnimTool
 
 		void ApplyConstraints(DATKeyframe& pose)
 		{
-			unsigned int num_constraints = constraints.size();
+			PoseSolverState pss(pose);
 
+			unsigned int num_constraints = constraints.size();
+			for(unsigned int i = 0; i < num_constraints; ++i)
+				if(pose.enabled_constraints[i])
+					constraints[i]->InitCachedStuff(pss);
+			
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
 			{
-				bool any_changes = false;
+				unsigned int num_changes = 0;
 
 				for(unsigned int j = 0; j < num_constraints; ++j)
-				{
-					if(pose.enabled_constraints[j] && constraints[j]->ApplyConstraint(pose))
-					{
-						any_changes = true;
+					if(pose.enabled_constraints[j] && constraints[j]->ApplyConstraint(pss))
+						++num_changes;
 
-						for(++j; j < num_constraints; ++j)
-							if(pose.enabled_constraints[j])
-								constraints[j]->ApplyConstraint(pose);
-
-						break;
-					}
-				}
-
-				if(!any_changes)
+				if(num_changes == 0)
 					break;
+				else
+				{
+					pss.current = pss.next;
+
+					for(unsigned int j = 0; j < num_constraints; ++j)
+						if(pose.enabled_constraints[j])
+							constraints[j]->OnAnyChanges(pss);
+				}
 			}
+
+			pose = pss.GetFinalPose();
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
@@ -354,16 +386,13 @@ namespace DoodAnimTool
 			// draw the skinned character
 			PoseBones(skeleton);
 
-			Bone* root_bone = skeleton->bones[0];
-			Vec3 offset = root_bone->pos;
-			root_bone->pos = Vec3();
 			skeleton->InvalidateCachedBoneXforms();
 			
 			skeleton->GetBoneMatrices(bone_matrices);
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices, sk_rinfo.bone_matrices);
 
-			uber->Vis(&renderer, 0, Mat4::Translation(offset), &sk_rinfo, &materials);
+			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, &materials);
 
 			// draw outlines of bones' collision shapes
 			{
@@ -374,14 +403,10 @@ namespace DoodAnimTool
 				{
 					DATBone& bone = bones[i];
 					if(show_selected_bones || !bone.selected)
-					{
-						bone.bone->GetTransformationMatrix().Decompose(bone_pos, bone_ori);
-						bone.shape->DebugDraw(&renderer, bone_pos, bone_ori);
-					}
+						bone.shape->DebugDraw(&renderer, skeleton->bones[i]->pos, Quaternion::Reverse(skeleton->bones[i]->ori));
 				}
 			}
 
-			root_bone->pos = offset;
 			skeleton->InvalidateCachedBoneXforms();
 
 			renderer.Render();
@@ -481,6 +506,8 @@ namespace DoodAnimTool
 					{
 						case VK_SPACE:	{ imp->ClearSelection();    break; }
 						case VK_ESCAPE:	{ imp->next_screen = NULL;  break; }
+
+						case 'R':		{ imp->LoadDood("soldier"); break; }
 
 						default:		{ break; }
 					}
