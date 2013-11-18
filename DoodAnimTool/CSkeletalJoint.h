@@ -10,11 +10,14 @@ namespace DoodAnimTool
 	using namespace std;
 	using namespace CibraryEngine;
 
+	struct DATBone;
 	struct DATJoint;
 
 	class CSkeletalJoint : public Constraint
 	{
 		private:
+
+			int bone_a, bone_b;
 
 			DATKeyframe::KBone* initial_a;
 			DATKeyframe::KBone* initial_b;
@@ -26,13 +29,14 @@ namespace DoodAnimTool
 			DATKeyframe::KBone* nextb;
 
 			Vec3 joint_pos;
+			Vec3 lcenter_a, lcenter_b;
 
 		public:
 
 			ModelPhysics::JointPhysics* joint;
 			bool enforce_rotation_limits;
 
-			CSkeletalJoint(const DATJoint& joint);
+			CSkeletalJoint(const DATJoint& joint, const vector<DATBone>& bones);
 			~CSkeletalJoint();
 
 			void InitCachedStuff(PoseSolverState& pose);

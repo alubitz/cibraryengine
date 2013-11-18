@@ -11,10 +11,13 @@ namespace DoodAnimTool
 		Bone* bone;
 		CollisionShape* shape;
 
+		unsigned int bone_index;			// index into a skeleton
 		int parent_index;
 
 		bool selected;
 
-		DATBone(Bone* bone, CollisionShape* shape, int parent_index);
+		Vec3 center;
+
+		DATBone(Bone* bone, CollisionShape* shape, unsigned int bone_index, int parent_index);
 	};
 }
