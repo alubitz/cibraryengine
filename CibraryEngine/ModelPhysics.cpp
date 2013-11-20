@@ -39,6 +39,15 @@ namespace CibraryEngine
 		ori.z = max(min_extents.z, min(max_extents.z, ori.z));
 	}
 
+	Vec3 ModelPhysics::JointPhysics::GetClampedAngles(const Vec3& ori) const
+	{
+		return Vec3(
+			max(min_extents.x, min(max_extents.x, ori.x)),
+			max(min_extents.y, min(max_extents.y, ori.y)),
+			max(min_extents.z, min(max_extents.z, ori.z))
+		);
+	}
+
 
 
 

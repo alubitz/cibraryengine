@@ -61,6 +61,8 @@ namespace DoodAnimTool
 
 		float yaw, pitch;
 
+		float errors[5];
+
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
 			window(window),
@@ -256,6 +258,8 @@ namespace DoodAnimTool
 
 					TimingInfo use_time = TimingInfo(timestep, now);
 
+					bool applied_constraints = false;
+
 					// control the selected bone
 					if(selection_count > 0)
 					{
@@ -270,7 +274,7 @@ namespace DoodAnimTool
 						{
 							DATKeyframe& keyframe = keyframes[edit_keyframe];
 
-							if(input_state->keys['Z'])
+							if(input_state->keys[VK_LSHIFT])
 							{
 								Vec3 delta = bone_controls * timestep;
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
@@ -310,8 +314,12 @@ namespace DoodAnimTool
 							}
 
 							ApplyConstraints(keyframe);
+							applied_constraints = true;
 						}
 					}
+
+					if(!applied_constraints && input_state->keys[VK_RETURN])
+						ApplyConstraints(keyframes[0]);
 				}
 			}
 		}
@@ -327,23 +335,28 @@ namespace DoodAnimTool
 			
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
 			{
+				pss.PreIteration();
+
 				unsigned int num_changes = 0;
 
 				for(unsigned int j = 0; j < num_constraints; ++j)
 					if(pose.enabled_constraints[j] && constraints[j]->ApplyConstraint(pss))
 						++num_changes;
 
+				pss.PostIteration();
+
 				if(num_changes == 0)
 					break;
 				else
 				{
-					pss.current = pss.next;
-
 					for(unsigned int j = 0; j < num_constraints; ++j)
 						if(pose.enabled_constraints[j])
 							constraints[j]->OnAnyChanges(pss);
 				}
 			}
+
+			for(int i = 0; i < 5; ++i)
+				errors[i] = pss.errors[i];
 
 			pose = pss.GetFinalPose();
 		}
@@ -558,6 +571,11 @@ namespace DoodAnimTool
 			else
 				font->Print("nothing selected", 0, 2 * font->font_height);
 
+			float errx = float(width) - font->font_spacing * 25;
+			string errnames[5] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : " };
+			for(int i = 0; i < 5; ++i)
+				font->Print(((stringstream&)(stringstream() << errnames[i] << errors[i])).str(), errx, font->font_height * i);
+
 			FindMouseoverBone();
 			if(mouseover_bone >= 0)
 				font->Print(Bone::string_table[bones[mouseover_bone].bone->name], float(input_state->mx), input_state->my - font->font_height);
@@ -630,7 +648,7 @@ namespace DoodAnimTool
 						case VK_ESCAPE:	{ imp->next_screen = NULL;  break; }
 
 						case 'R':		{ imp->LoadDood("soldier"); break; }
-						case VK_RETURN:
+						case VK_BACK:
 						{
 							DATKeyframe& k = imp->keyframes[0];
 							bool& b = k.enabled_constraints[0];

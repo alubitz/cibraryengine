@@ -26,10 +26,10 @@ P.add_single_joint(joints, bones,		"pelvis",	"torso 1",	ba.createVector(0.0,	1.3
 P.add_single_joint(joints, bones,		"torso 1",	"torso 2",	ba.createVector(0.0,	1.57,	0.0),	nil, nil,										ba.createVector(-0.5,	-0.5,	-0.5),	ba.createVector(0.25,	0.5,	0.5))
 P.add_single_joint(joints, bones,		"torso 2",	"head",		ba.createVector(0.0,	1.73,	0.0),	nil, nil,										ba.createVector(-0.26,	-1.2,	-0.26),	ba.createVector(0.26,	1.2,	0.26))
 
-P.add_symmetric_joints(joints, bones,	"torso 2",	"shoulder",	ba.createVector(0.25,	1.7,	-0.16),	nil, nil,										ba.createVector(-0.2,	-0.2,	-0.2),	ba.createVector(0.2,	0.2,	0.2))
+P.add_symmetric_joints(joints, bones,	"torso 2",	"shoulder",	ba.createVector(0.25,	1.7,	-0.16),	nil, nil,										ba.createVector(-0.25,	-0.25,	-0.25),	ba.createVector(0.25,	0.25,	0.25))
 P.add_symmetric_joints(joints, bones,	"shoulder",	"arm 1",	ba.createVector(0.25,	1.54,	-0.05),	nil, nil,										ba.createVector(-2.0,	-2.0,	-2.0),	ba.createVector(2.0,	2.0,	2.0))
-P.add_symmetric_joints(joints, bones,	"arm 1",	"arm 2",	ba.createVector(0.53,	1.4,	-0.06),	nil, hand_axes,									ba.createVector(-4,	-4,	-4),	ba.createVector(4, 4, 4))
-P.add_symmetric_joints(joints, bones,	"arm 2",	"hand",		ba.createVector(0.82,	1.25,	0.01),	nil, hand_axes,									ba.createVector(-4, -4, -4), ba.createVector(4, 4, 4))
+P.add_symmetric_joints(joints, bones,	"arm 1",	"arm 2",	ba.createVector(0.53,	1.4,	-0.06),	nil, hand_axes,									ba.createVector(-2.0,	-2.0,	-2.0),	ba.createVector(2.0,	2.0,	2.0))
+P.add_symmetric_joints(joints, bones,	"arm 2",	"hand",		ba.createVector(0.82,	1.25,	0.01),	nil, hand_axes,									ba.createVector(-3.0,	-3.0,	-3.0),	ba.createVector(3.0,	3.0,	3.0))
 
 P.add_symmetric_joints(joints, bones,	"pelvis",	"leg 1",	ba.createVector(0.15,	1.04,	-0.02),	nil, nil,										ba.createVector(-1.0,	-0.25,	-0.2),	ba.createVector(1.0,	0.25,	1.0))
 P.add_symmetric_joints(joints, bones,	"leg 1",	"leg 2",	ba.createVector(0.19,	0.65,	0.01),	nil, {	ba.createVector(28.2,	2.5,	0.0) },	ba.createVector(-0.02,	-0.02,	-0.02),	ba.createVector(2.618,	0.02,	0.02))

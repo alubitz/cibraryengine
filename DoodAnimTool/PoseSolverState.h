@@ -14,8 +14,15 @@ namespace DoodAnimTool
 			DATKeyframe current;
 			DATKeyframe next;
 
+			unsigned int* contrib_count;
+
+			float errors[5];
+
 			PoseSolverState(const DATKeyframe& initial);
 			~PoseSolverState();
+
+			void PreIteration();
+			void PostIteration();
 
 			DATKeyframe GetFinalPose();
 	};

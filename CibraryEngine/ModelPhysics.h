@@ -44,6 +44,7 @@ namespace CibraryEngine
 				Vec3 angular_damp;
 
 				void ClampAngles(Vec3& ori) const;
+				Vec3 GetClampedAngles(const Vec3& ori) const;
 			};
 
 			vector<BonePhysics> bones;

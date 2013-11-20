@@ -38,61 +38,123 @@ namespace DoodAnimTool
 
 	bool CSkeletalJoint::ApplyConstraint(PoseSolverState& pose)
 	{
+		static const float rotation_threshold    = 0.001f;
+		static const float translation_threshold = 0.000001f;
+
 		bool did_stuff = false;
 
 		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-		Quaternion aori_inv = Quaternion::Reverse(a_ori), bori_inv = Quaternion::Reverse(b_ori);
+		Quaternion aori_inv = Quaternion::Reverse(a_ori);//, bori_inv = Quaternion::Reverse(b_ori);
 
-		// bones staying in their sockets
-		Mat4 amat = Mat4::FromPositionAndOrientation(obja->pos, aori_inv);
-		Mat4 bmat = Mat4::FromPositionAndOrientation(objb->pos, bori_inv);
+		Quaternion nextori_a = a_ori, nextori_b = b_ori;
+		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
+
+		// bones rotating to stay in their sockets
+		Mat4 amat = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a));
+		Mat4 bmat = Mat4::FromPositionAndOrientation(nextpos_b, Quaternion::Reverse(nextori_b));
 		Vec3 apos = amat.TransformVec3_1(joint_pos);
 		Vec3 bpos = bmat.TransformVec3_1(joint_pos);
-
 		Vec3 dx = bpos - apos;
-		if(dx.ComputeMagnitudeSquared() > 0)
+		if(float err = dx.ComputeMagnitudeSquared())
 		{
-			dx *= 0.25f;
+			pose.errors[0] += err;
 
-			nexta->pos += dx;
-			nextb->pos -= dx;
+			if(err > rotation_threshold)
+			{
+				static const float rotation_coeff = 0.01f;
 
-			// also affect bone orientations
-			static const float rotation_coeff = -0.25f;
+				Vec3 acen = amat.TransformVec3_1(lcenter_a), bcen = bmat.TransformVec3_1(lcenter_b);
+				Vec3 midpoint = (apos + bpos) * 0.5f;
+				Vec3 aa = acen - apos, ab = acen - midpoint;
+				Vec3 ba = bcen - apos, bb = bcen - midpoint;
+				Vec3 ax = Vec3::Cross(aa, ab);
+				Vec3 bx = Vec3::Cross(ba, bb);
 
-			Vec3 ax = Vec3::Cross(dx, amat.TransformVec3_1(lcenter_a) - apos);
-			Vec3 bx = Vec3::Cross(dx, bmat.TransformVec3_1(lcenter_b) - bpos);
-			nexta->ori = Quaternion::FromPYR(ax * rotation_coeff) * nexta->ori;
-			nextb->ori = Quaternion::FromPYR(bx * rotation_coeff) * nextb->ori;
+				if(float axmagsq = ax.ComputeMagnitudeSquared())
+				{
+					float axmag = sqrtf(axmagsq);
+					float acoeff = rotation_coeff * asinf(axmag / sqrtf(aa.ComputeMagnitudeSquared() * ab.ComputeMagnitudeSquared())) / axmag;
+					nextori_a = Quaternion::FromPYR(ax * acoeff) * nextori_a;
+				
+					did_stuff = true;
+				}
 
-			did_stuff = true;
+				if(float bxmagsq = bx.ComputeMagnitudeSquared())
+				{
+					float bxmag = sqrtf(bxmagsq);
+					float bcoeff = rotation_coeff * asinf(bxmag / sqrtf(ba.ComputeMagnitudeSquared() * bb.ComputeMagnitudeSquared())) / bxmag;		
+					nextori_b = Quaternion::FromPYR(bx * bcoeff) * nextori_b;
+
+					did_stuff = true;
+				}
+			}
 		}
+
 
 		// joint staying within its rotation limits
 		if(enforce_rotation_limits)
 		{
-			Quaternion a_to_b = aori_inv * b_ori;
-			Mat3 oriented_axes = joint->axes * a_ori.ToMat3();
+			Quaternion a_to_b = Quaternion::Reverse(nextori_a) * nextori_b;
+			Mat3 oriented_axes = joint->axes * nextori_a.ToMat3();
 
 			Vec3 proposed_pyr = oriented_axes * -a_to_b.ToPYR();
-			Vec3 nupyr = proposed_pyr;
-			joint->ClampAngles(nupyr);
+			Vec3 nupyr = joint->GetClampedAngles(proposed_pyr);
 
-			if((proposed_pyr - nupyr).ComputeMagnitudeSquared() > 0)
+			if(float err = (proposed_pyr - nupyr).ComputeMagnitudeSquared())
 			{
+				pose.errors[1] += err;
+
 				Quaternion actual_ori = Quaternion::FromPYR(oriented_axes.Transpose() * -nupyr);
 				Vec3 av = (Quaternion::Reverse(a_to_b) * actual_ori).ToPYR();
-				av *= 0.25f;
+
+				av *= 0.5f;
 
 				Quaternion delta_quat = Quaternion::FromPYR(av);
-				nexta->ori = Quaternion::Reverse(delta_quat) * nexta->ori;
-				nextb->ori = delta_quat * nextb->ori;
+				nextori_a = Quaternion::Reverse(delta_quat) * nextori_a;
+				nextori_b = delta_quat * nextori_b;
+
+				did_stuff = true;
+			}
+		}
+
+		
+
+		// bones translating to stay in their sockets
+		amat = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a));		// recompute these values using the updated bone orientations
+		bmat = Mat4::FromPositionAndOrientation(nextpos_b, Quaternion::Reverse(nextori_b));
+		apos = amat.TransformVec3_1(joint_pos);
+		bpos = bmat.TransformVec3_1(joint_pos);
+
+		dx = bpos - apos;
+		if(float err = dx.ComputeMagnitudeSquared())
+		{
+			pose.errors[2] += err;
+
+			if(err > translation_threshold)
+			{
+				dx *= 0.5f;
+
+				nextpos_a += dx;
+				nextpos_b -= dx;
 
 				did_stuff = true;
 			}
 		}
 		
-		return did_stuff;
+		if(did_stuff)
+		{
+			nexta->pos += nextpos_a;
+			nexta->ori += nextori_a;
+			nextb->pos += nextpos_b;
+			nextb->ori += nextori_b;
+
+			++pose.contrib_count[bone_a];
+			++pose.contrib_count[bone_b];
+
+			return true;
+		}
+		else
+			return false;
 	}
 
 	void CSkeletalJoint::OnAnyChanges(PoseSolverState& pose)
