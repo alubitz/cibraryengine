@@ -38,15 +38,16 @@ namespace DoodAnimTool
 
 	bool CSkeletalJoint::ApplyConstraint(PoseSolverState& pose)
 	{
-		static const float rotation_threshold    = 0.001f;
-		static const float translation_threshold = 0.000001f;
+		static const float rotation_threshold           = 0.0f;
+		static const float translation_threshold        = 0.0f;
+
+		static const float linear_offset_rotation_coeff = 1.0f;
+		static const float joint_limit_rotation_coeff   = 1.0f;
+		static const float linear_offset_linear_coeff   = 1.0f;
 
 		bool did_stuff = false;
 
-		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-		Quaternion aori_inv = Quaternion::Reverse(a_ori);//, bori_inv = Quaternion::Reverse(b_ori);
-
-		Quaternion nextori_a = a_ori, nextori_b = b_ori;
+		Quaternion nextori_a = obja->ori, nextori_b = objb->ori;
 		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
 
 		// bones rotating to stay in their sockets
@@ -61,29 +62,47 @@ namespace DoodAnimTool
 
 			if(err > rotation_threshold)
 			{
-				static const float rotation_coeff = 0.01f;
-
 				Vec3 acen = amat.TransformVec3_1(lcenter_a), bcen = bmat.TransformVec3_1(lcenter_b);
 				Vec3 midpoint = (apos + bpos) * 0.5f;
-				Vec3 aa = acen - apos, ab = acen - midpoint;
-				Vec3 ba = bcen - apos, bb = bcen - midpoint;
-				Vec3 ax = Vec3::Cross(aa, ab);
-				Vec3 bx = Vec3::Cross(ba, bb);
+				
+				Vec3 rot;
 
+				Vec3 acur = acen - apos;
+				Vec3 agoal = acen - midpoint;
+				Vec3 ax = Vec3::Cross(acur, agoal);
 				if(float axmagsq = ax.ComputeMagnitudeSquared())
 				{
 					float axmag = sqrtf(axmagsq);
-					float acoeff = rotation_coeff * asinf(axmag / sqrtf(aa.ComputeMagnitudeSquared() * ab.ComputeMagnitudeSquared())) / axmag;
-					nextori_a = Quaternion::FromPYR(ax * acoeff) * nextori_a;
-				
-					did_stuff = true;
+					float bone_lensq = acur.ComputeMagnitudeSquared();
+					float actual_angle = asinf(axmag / sqrtf(bone_lensq * agoal.ComputeMagnitudeSquared()));
+					float length_factor = min(1.0f, max(0.1f, bone_lensq));
+					float use_angle = length_factor * actual_angle;
+					float coeff = use_angle / axmag;
+
+					rot += ax * coeff;
 				}
 
+				Vec3 bcur = bcen - apos;
+				Vec3 bgoal = bcen - midpoint;
+				Vec3 bx = Vec3::Cross(bcur, bgoal);
 				if(float bxmagsq = bx.ComputeMagnitudeSquared())
 				{
 					float bxmag = sqrtf(bxmagsq);
-					float bcoeff = rotation_coeff * asinf(bxmag / sqrtf(ba.ComputeMagnitudeSquared() * bb.ComputeMagnitudeSquared())) / bxmag;		
-					nextori_b = Quaternion::FromPYR(bx * bcoeff) * nextori_b;
+					float bone_lensq = bcur.ComputeMagnitudeSquared();
+					float actual_angle = asinf(bxmag / sqrtf(bone_lensq * bgoal.ComputeMagnitudeSquared()));
+					float length_factor = min(1.0f, max(0.1f, bone_lensq));
+					float use_angle = length_factor * actual_angle;
+					float coeff = use_angle / bxmag;
+
+					rot += bx * coeff;
+				}
+
+				if(rot.ComputeMagnitudeSquared() > 0)
+				{
+					Quaternion delta_quat = Quaternion::FromPYR(rot * (0.5f * linear_offset_rotation_coeff));
+
+					nextori_a = delta_quat * nextori_a;
+					nextori_b = Quaternion::Reverse(delta_quat) * nextori_b;
 
 					did_stuff = true;
 				}
@@ -107,7 +126,7 @@ namespace DoodAnimTool
 				Quaternion actual_ori = Quaternion::FromPYR(oriented_axes.Transpose() * -nupyr);
 				Vec3 av = (Quaternion::Reverse(a_to_b) * actual_ori).ToPYR();
 
-				av *= 0.5f;
+				av *= 0.5f * joint_limit_rotation_coeff;
 
 				Quaternion delta_quat = Quaternion::FromPYR(av);
 				nextori_a = Quaternion::Reverse(delta_quat) * nextori_a;
@@ -132,7 +151,7 @@ namespace DoodAnimTool
 
 			if(err > translation_threshold)
 			{
-				dx *= 0.5f;
+				dx *= 0.5f * linear_offset_linear_coeff;
 
 				nextpos_a += dx;
 				nextpos_b -= dx;
@@ -141,6 +160,7 @@ namespace DoodAnimTool
 			}
 		}
 		
+		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{
 			nexta->pos += nextpos_a;

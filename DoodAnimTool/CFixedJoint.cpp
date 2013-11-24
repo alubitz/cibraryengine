@@ -33,28 +33,29 @@ namespace DoodAnimTool
 
 	bool CFixedJoint::ApplyConstraint(PoseSolverState& pose)
 	{
-		static const float rotation_threshold    = 0.00000001f;
-		static const float translation_threshold = 0.00000001f;
+		static const float rotation_threshold            = 0.0f;
+		static const float translation_threshold         = 0.0f;
+
+		static const float linear_offset_linear_coeff    = 1.0f;
+		static const float angular_offset_rotation_coeff = 1.0f;
 
 		bool did_stuff = false;
 
 		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-		Quaternion aori_inv = Quaternion::Reverse(a_ori);//, bori_inv = Quaternion::Reverse(b_ori);
+		Quaternion aori_inv = Quaternion::Reverse(a_ori);
 
 		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
 		Quaternion nextori_a = a_ori, nextori_b = b_ori;
 
 		// keep the relative orientations of the two bones constant
-		Quaternion a_to_b = aori_inv * b_ori;
-
-		Vec3 av = (Quaternion::Reverse(a_to_b) * relative_ori).ToPYR();
+		Vec3 av = (Quaternion::Reverse(aori_inv * b_ori) * relative_ori).ToPYR();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[3] += err;
 
 			if(err > rotation_threshold)
 			{
-				av *= 0.5f;
+				av *= 0.5f * linear_offset_linear_coeff;
 
 				Quaternion delta_quat = Quaternion::FromPYR(av);
 				nextori_a = Quaternion::Reverse(delta_quat) * nextori_a;
@@ -75,7 +76,7 @@ namespace DoodAnimTool
 
 			if(err > translation_threshold)
 			{
-				dx *= 0.5f;
+				dx *= 0.5f * angular_offset_rotation_coeff;
 
 				nextpos_a += dx;
 				nextpos_b -= dx;
@@ -84,7 +85,7 @@ namespace DoodAnimTool
 			}
 		}
 
-
+		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{
 			nexta->pos += nextpos_a;

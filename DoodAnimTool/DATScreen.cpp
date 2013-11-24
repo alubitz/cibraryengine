@@ -498,8 +498,9 @@ namespace DoodAnimTool
 			// set up camera
 			float zoom = 2.0f;
 			float aspect_ratio = (float)width / height;
-			Mat4 view_matrix = Mat4::Translation(0, 0, -5) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(0, -1, 0);
-
+			float view_distance = 3.5f;
+			Vec3 view_center = Vec3(0, 1.0f, 0);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -view_distance) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(-view_center);
 			camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
 			glMatrixMode(GL_PROJECTION);
@@ -556,12 +557,10 @@ namespace DoodAnimTool
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
 
-			font->Print(((stringstream&)(stringstream() << "time:  " << now)).str(), 0, 0);
-
 			if(selection_count != 0)
 			{
 				float x = font->font_spacing * 2;
-				int row = 1;
+				int row = -1;
 
 				font->Print("selected bones:", 0, ++row * font->font_height);
 				for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
@@ -569,7 +568,7 @@ namespace DoodAnimTool
 						font->Print(Bone::string_table[iter->bone->name], x, ++row * font->font_height);
 			}
 			else
-				font->Print("nothing selected", 0, 2 * font->font_height);
+				font->Print("nothing selected", 0, 0);
 
 			float errx = float(width) - font->font_spacing * 25;
 			string errnames[5] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : " };
