@@ -34,7 +34,22 @@ namespace CibraryEngine
 		ContentMan* content;
 		InputState* input_state;
 
-		Imp(MenuScreen* handle, ProgramWindow* window, ProgramScreen* previous) : handle(handle), no_delete(false), window(window), previous(previous), next(handle), font(NULL), cursor(NULL), selected_item(NULL), menu_items(), content(handle->content), input_state(handle->input_state), click_handler(this), key_handler(this) { }
+		Imp(MenuScreen* handle, ProgramWindow* window, ProgramScreen* previous) :
+			handle(handle),
+			no_delete(false),
+			window(window),
+			previous(previous),
+			next(handle),
+			font(NULL),
+			cursor(NULL),
+			selected_item(NULL),
+			menu_items(),
+			content(handle->content),
+			input_state(handle->input_state)
+		{
+			click_handler.imp = this;
+			key_handler.imp = this;
+		}
 
 		void Draw(int w, int h)
 		{
@@ -114,8 +129,6 @@ namespace CibraryEngine
 		{
 			Imp* imp;
 
-			ClickHandler(Imp* imp) : imp(imp) { }
-
 			void HandleEvent(Event* evt)
 			{
 				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
@@ -134,8 +147,6 @@ namespace CibraryEngine
 		struct KeyHandler : public EventHandler
 		{
 			Imp* imp;
-
-			KeyHandler(Imp* imp) : imp(imp) { }
 
 			void HandleEvent(Event* evt)
 			{
@@ -185,18 +196,18 @@ namespace CibraryEngine
 	/*
 	 * MenuScreen methods
 	 */
-	MenuScreen::MenuScreen(ProgramWindow* window, ProgramScreen* previous) : ProgramScreen(window), imp(new Imp(this, window, previous)) { }
+	MenuScreen::MenuScreen(ProgramWindow* window, ProgramScreen* previous) : ProgramScreen(window), imp(NULL) { imp = new Imp(this, window, previous); }
 	MenuScreen::~MenuScreen() { }
 
-	ProgramScreen* MenuScreen::GetPreviousScreen() { return imp->previous; }
-	void MenuScreen::SetPreviousScreen(ProgramScreen* screen) { imp->previous = screen; }
+	ProgramScreen* MenuScreen::GetPreviousScreen()				{ return imp->previous; }
+	void MenuScreen::SetPreviousScreen(ProgramScreen* screen)	{ imp->previous = screen; }
 
-	void MenuScreen::Draw(int width, int height) { imp->Draw(width, height); }
+	void MenuScreen::Draw(int width, int height)				{ imp->Draw(width, height); }
 
-	ProgramScreen* MenuScreen::Update(TimingInfo time) { return imp->Update(time); }
+	ProgramScreen* MenuScreen::Update(TimingInfo time)			{ return imp->Update(time); }
 
-	ProgramScreen* MenuScreen::GetNextScreen() { return imp->next; }
-	void MenuScreen::SetNextScreen(ProgramScreen* screen) { imp->next = screen; }
+	ProgramScreen* MenuScreen::GetNextScreen()					{ return imp->next; }
+	void MenuScreen::SetNextScreen(ProgramScreen* screen)		{ imp->next = screen; }
 
 	void MenuScreen::Activate()
 	{

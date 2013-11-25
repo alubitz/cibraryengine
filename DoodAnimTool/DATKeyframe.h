@@ -30,5 +30,11 @@ namespace DoodAnimTool
 			void operator =(const DATKeyframe& other);
 
 			~DATKeyframe();
+
+
+
+
+			unsigned int Read(istream& stream);
+			void Write(ostream& stream) const;
 	};
 }

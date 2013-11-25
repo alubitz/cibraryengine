@@ -6,13 +6,12 @@ namespace DoodAnimTool
 	/*
 	 * DATBone methods
 	 */
-	DATBone::DATBone(Bone* bone, CollisionShape* shape, unsigned int bone_index, int parent_index) :
-		bone(bone),
-		shape(shape),
+	DATBone::DATBone(unsigned int bone_index, unsigned int name, CollisionShape* shape) :
 		bone_index(bone_index),
-		parent_index(parent_index),
-		selected(false),
-		center(shape->ComputeMassInfo().com)
+		name(name),
+		shape(shape),
+		center(shape->ComputeMassInfo().com),
+		selected(false)
 	{
 	}
 }

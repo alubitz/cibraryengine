@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "CSkeletalJoint.h"
 
-#include "DATJoint.h"
 #include "DATBone.h"
 #include "PoseSolverState.h"
 
@@ -10,15 +9,16 @@ namespace DoodAnimTool
 	/*
 	 * CSkeletalJoint methods
 	 */
-	CSkeletalJoint::CSkeletalJoint(const DATJoint& joint, const vector<DATBone>& bones) :
-		bone_a(joint.joint->bone_a - 1),
-		bone_b(joint.joint->bone_b - 1),
-		joint_pos(joint.joint->pos),
+	CSkeletalJoint::CSkeletalJoint(ModelPhysics::JointPhysics* joint, const vector<DATBone>& bones) :
+		joint(joint),
+		bone_a(joint->bone_a - 1),
+		bone_b(joint->bone_b - 1),
+		joint_pos(joint->pos),
 		lcenter_a(bones[bone_a].center),
 		lcenter_b(bones[bone_b].center),
-		joint(joint.joint),
 		enforce_rotation_limits(true)
-	{ }
+	{
+	}
 
 	CSkeletalJoint::~CSkeletalJoint() { }
 
@@ -49,6 +49,7 @@ namespace DoodAnimTool
 
 		Quaternion nextori_a = obja->ori, nextori_b = objb->ori;
 		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
+
 
 		// bones rotating to stay in their sockets
 		Mat4 amat = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a));
@@ -135,7 +136,6 @@ namespace DoodAnimTool
 				did_stuff = true;
 			}
 		}
-
 		
 
 		// bones translating to stay in their sockets
@@ -159,7 +159,8 @@ namespace DoodAnimTool
 				did_stuff = true;
 			}
 		}
-		
+
+
 		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{

@@ -51,7 +51,7 @@ namespace CibraryEngine
 	{
 		public:
 			/** Whether certain keys are pressed */
-			bool keys[1024];
+			bool keys[256];
 
 			/** Whether certain mouse buttons are pressed */
 			bool mb[3];

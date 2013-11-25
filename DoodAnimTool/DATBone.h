@@ -8,16 +8,14 @@ namespace DoodAnimTool
 
 	struct DATBone
 	{
-		Bone* bone;
-		CollisionShape* shape;
-
 		unsigned int bone_index;			// index into a skeleton
-		int parent_index;
+		unsigned int name;
+
+		CollisionShape* shape;
+		Vec3 center;
 
 		bool selected;
 
-		Vec3 center;
-
-		DATBone(Bone* bone, CollisionShape* shape, unsigned int bone_index, int parent_index);
+		DATBone(unsigned int bone_index, unsigned int name, CollisionShape* shape);
 	};
 }

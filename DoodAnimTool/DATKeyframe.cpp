@@ -55,4 +55,64 @@ namespace DoodAnimTool
 		if(data)				{ delete[] data;				data = NULL; }
 		if(enabled_constraints)	{ delete[] enabled_constraints;	enabled_constraints = NULL; }
 	}
+
+	unsigned int DATKeyframe::Read(istream& stream)
+	{
+		BinaryChunk whole;
+		whole.Read(stream);
+
+		if(!stream)
+			return 1;
+
+		if(whole.GetName() != "POSE____")
+			return 2;
+		else
+		{
+			istringstream ss(whole.data);
+					
+			unsigned int num_bones = ReadUInt32(ss);
+			unsigned int num_constraints = ReadUInt32(ss);
+
+			DATKeyframe k(num_bones, num_constraints);
+
+			for(unsigned int i = 0; i < num_bones; ++i)
+			{
+				DATKeyframe::KBone& bone = k.data[i];
+				bone.pos = ReadVec3(ss);
+				bone.ori = ReadQuaternion(ss);
+			}
+
+			for(unsigned int i = 0; i < num_constraints; ++i)
+				k.enabled_constraints[i] = ReadBool(ss);					
+
+			if(!ss)
+				return 3;
+			else
+			{
+				*this = k;
+				return 0;
+			}
+		}
+	}
+
+	void DATKeyframe::Write(ostream& stream) const
+	{
+		stringstream ss;
+		WriteUInt32(num_bones, ss);
+		WriteUInt32(num_constraints, ss);
+
+		for(unsigned int i = 0; i < num_bones; ++i)
+		{
+			const DATKeyframe::KBone& bone = data[i];
+			WriteVec3(bone.pos, ss);
+			WriteQuaternion(bone.ori, ss);
+		}
+
+		for(unsigned int i = 0; i < num_constraints; ++i)
+			WriteBool(enabled_constraints[i], ss);
+
+		BinaryChunk bc("POSE____");
+		bc.data = ss.str();
+		bc.Write(stream);
+	}
 }

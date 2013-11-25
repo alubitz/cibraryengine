@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "DATScreen.h"
 
-#include "DATJoint.h"
 #include "DATBone.h"
 #include "DATKeyframe.h"
 
@@ -39,7 +38,6 @@ namespace DoodAnimTool
 		UberModel* gun_model;
 		vector<Material*> gun_materials;
 
-		vector<DATJoint> joints;
 		vector<DATBone> bones;
 		vector<DATKeyframe> keyframes;
 		float anim_timer;
@@ -90,7 +88,6 @@ namespace DoodAnimTool
 			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/soldier_zzp.lua");
 
 			LoadDood("soldier");
-			//SelectAll();
 
 			now = buffered_time = 0.0f;
 			yaw = 0.0f;
@@ -117,24 +114,21 @@ namespace DoodAnimTool
 
 		void LoadDood(const string& dood_name)
 		{
-			mphys = window->content->GetCache<ModelPhysics>()->Load(dood_name);
-			uber = window->content->GetCache<UberModel>()->Load(dood_name);
-
+			Cache<ModelPhysics>* mphys_cache = window->content->GetCache<ModelPhysics>();
+			Cache<UberModel>* uber_cache = window->content->GetCache<UberModel>();
 			Cache<Material>* mat_cache = window->content->GetCache<Material>();
+
+			mphys = mphys_cache->Load(dood_name);
+			uber = uber_cache->Load(dood_name);
 
 			materials.clear();
 			for(vector<string>::iterator iter = uber->materials.begin(); iter != uber->materials.end(); ++iter)
 				materials.push_back(mat_cache->Load(*iter));
 
 			skeleton = uber->CreateSkeleton();
-			skeleton->AddBone(Bone::string_table["gun"], Quaternion::Identity(), Vec3());
-			gun_model = window->content->GetCache<UberModel>()->Load("gun");
 
-			gun_materials.clear();
-			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
-				gun_materials.push_back(mat_cache->Load(*iter));
+			CreateSoldierSpecificHelperBones(uber_cache, mat_cache);			// adds a bone for the gun at the end of the skeleton's bones array
 
-			joints.clear();
 			bones.clear();
 			keyframes.clear();
 
@@ -147,6 +141,7 @@ namespace DoodAnimTool
 
 			mouseover_bone = -1;
 
+			// match up skeleton bones with ModelPhysics bones
 			unsigned int num_bones = skeleton->bones.size();
 			for(unsigned int i = 0; i < num_bones; ++i)
 			{
@@ -158,84 +153,75 @@ namespace DoodAnimTool
 					ModelPhysics::BonePhysics* pbone = &*jter;
 					if(pbone->bone_name == bone_name)
 					{
-						int parent_index = -1;
-
-						if(Bone* parent_bone = bone->parent)
-						{
-							DATJoint dat_joint;
-							dat_joint.child_index = i;
-
-							string parent_name = Bone::string_table[bone->parent->name];
-
-							for(vector<ModelPhysics::JointPhysics>::iterator kter = mphys->joints.begin(); kter != mphys->joints.end(); ++kter)
-							{
-								ModelPhysics::JointPhysics& joint = *kter;
-								ModelPhysics::BonePhysics* bone_a = joint.bone_a == 0 ? NULL : &mphys->bones[joint.bone_a - 1];
-								ModelPhysics::BonePhysics* bone_b = joint.bone_b == 0 ? NULL : &mphys->bones[joint.bone_b - 1];
-
-								if(bone_a == pbone && bone_b->bone_name == parent_name || bone_b == pbone && bone_a->bone_name == parent_name)
-								{
-									dat_joint.joint = &joint;
-									dat_joint.child_reversed = bone_b == pbone;
-
-									joints.push_back(dat_joint);
-
-									break;
-								}
-							}
-
-							for(unsigned int j = 0; j < num_bones; ++j)
-								if(skeleton->bones[j] == parent_bone)
-								{
-									parent_index = j;
-									break;
-								}
-						}
-
-						bones.push_back(DATBone(bone, pbone->collision_shape, i, parent_index));
+						bones.push_back(DATBone(i, bone->name, pbone->collision_shape));
+						break;
 					}
 				}
 			}
-
-			bones.push_back(DATBone(skeleton->bones[skeleton->bones.size() - 1], window->content->GetCache<ModelPhysics>()->Load("gun")->bones[0].collision_shape, skeleton->bones.size() - 1, -1));
 
 			// emancipate all the bones
 			for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
 				skeleton->bones[i]->parent = NULL;
 
-			DoSoldierSpecificStuff();
+			CreateSoldierSpecificConstraints(mphys_cache);		// creates DATBone for gun, and adds 2 CFixedJoints at the beginning of the constraints list
 
 			// add default constraints to the constraints list
-			for(unsigned int i = 0; i < joints.size(); ++i)
-				constraints.push_back(new CSkeletalJoint(joints[i], bones));
+			for(unsigned int i = 0; i < mphys->joints.size(); ++i)
+				constraints.push_back(new CSkeletalJoint(&mphys->joints[i], bones));
 
 			DATKeyframe initial_pose(bones.size(), constraints.size());
-			initial_pose.data[bones.size() - 1].pos = Vec3(0, 1, 0.5f);
-			initial_pose.data[bones.size() - 1].ori = Quaternion::FromPYR(0, 1.5f, 0);
-			initial_pose.enabled_constraints[0] = false;
+			
+			DoSoldierSpecificKeyframeStuff(initial_pose);
+
 			ApplyConstraints(initial_pose);
 			keyframes.push_back(initial_pose);
 		}
 
-		void DoSoldierSpecificStuff()
+		void CreateSoldierSpecificHelperBones(Cache<UberModel>* uber_cache, Cache<Material>* mat_cache)
 		{
-			// create fixed joint constraint between soldier's gun hands
+			skeleton->AddBone(Bone::string_table["gun"], Quaternion::Identity(), Vec3());
+			gun_model = uber_cache->Load("gun");
+			gun_materials.clear();
+
+			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
+				gun_materials.push_back(mat_cache->Load(*iter));
+		}
+
+		void CreateSoldierSpecificConstraints(Cache<ModelPhysics>* mphys_cache)
+		{
 			unsigned int lname = Bone::string_table["l hand"], rname = Bone::string_table["r hand"], gname = Bone::string_table["gun"];
+
+			// create a DATBone for the gun (it's been tacked onto the end of the skeleton's bones array)
+			bones.push_back(DATBone(skeleton->bones.size() - 1, gname, mphys_cache->Load("gun")->bones[0].collision_shape));
+
+			// figure out the indices of the DATBones for the left hand, right hand, and gun
 			int lhand = -1, rhand = -1, gun = -1;
 			for(unsigned int i = 0; i < bones.size(); ++i)
 			{
-				if(bones[i].bone->name == lname)
+				if(bones[i].name == lname)
 					lhand = i;
-				else if(bones[i].bone->name == rname)
+				else if(bones[i].name == rname)
 					rhand = i;
-				else if(bones[i].bone->name == gname)
+				else if(bones[i].name == gname)
 					gun = i;
 			}
+
+			// if we managed to find all of those, create a fixed joint contraint between each hand and the gun
 			if(lhand >= 0 && rhand >= 0 && gun >= 0)
 			{
 				constraints.push_back(new CFixedJoint((unsigned int)lhand, (unsigned int)gun, Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
 				constraints.push_back(new CFixedJoint((unsigned int)rhand, (unsigned int)gun, Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
 			}
+		}
+
+		void DoSoldierSpecificKeyframeStuff(DATKeyframe& initial_pose)
+		{
+			// we need to position the gun in a way that won't give the soldier too violent of an initial jerk
+			initial_pose.data[bones.size() - 1].pos = Vec3(0, 1, 0.5f);
+			initial_pose.data[bones.size() - 1].ori = Quaternion::FromPYR(0, 1.5f, 0);
+
+			// we'll also want to disable one of the two constraints between the gun and the hands; trying to enforce it immediately would result in some weird poses
+			initial_pose.enabled_constraints[0] = false;
 		}
 
 		void DeleteConstraints()
@@ -260,7 +246,7 @@ namespace DoodAnimTool
 
 					bool applied_constraints = false;
 
-					// control the selected bone
+					// rotate the selected bones using QWEASD, or translate using Shift + QWEASD
 					if(selection_count > 0)
 					{
 						Vec3 bone_controls
@@ -274,9 +260,10 @@ namespace DoodAnimTool
 						{
 							DATKeyframe& keyframe = keyframes[edit_keyframe];
 
-							if(input_state->keys[VK_LSHIFT])
+							if(input_state->keys[VK_SHIFT])
 							{
-								Vec3 delta = bone_controls * timestep;
+								// translate the selected bones
+								Vec3 delta = bone_controls * (2.0f * timestep);
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
@@ -285,14 +272,16 @@ namespace DoodAnimTool
 							}
 							else
 							{
+								// find the center of the selected bones
 								Quaternion delta_quat = Quaternion::FromPYR(bone_controls * timestep);
 
 								Vec3 center;
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 									if(bones[i].selected)
-										center += bones[i].bone->GetTransformationMatrix().TransformVec3_1(bones[i].center);
+										center += skeleton->bones[i]->GetTransformationMatrix().TransformVec3_1(bones[i].center);
 								center /= float(selection_count);
 
+								// rotate the selected bones around their center
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
@@ -313,11 +302,13 @@ namespace DoodAnimTool
 								}
 							}
 
+							// enforce constraints
 							ApplyConstraints(keyframe);
 							applied_constraints = true;
 						}
 					}
 
+					// control to force additional iterations of the constraint solver
 					if(!applied_constraints && input_state->keys[VK_RETURN])
 						ApplyConstraints(keyframes[0]);
 				}
@@ -326,6 +317,7 @@ namespace DoodAnimTool
 
 		void ApplyConstraints(DATKeyframe& pose)
 		{
+			// setup
 			PoseSolverState pss(pose);
 
 			unsigned int num_constraints = constraints.size();
@@ -333,6 +325,7 @@ namespace DoodAnimTool
 				if(pose.enabled_constraints[i])
 					constraints[i]->InitCachedStuff(pss);
 			
+			// actually doing the iterations
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
 			{
 				pss.PreIteration();
@@ -355,6 +348,7 @@ namespace DoodAnimTool
 				}
 			}
 
+			// getting the results
 			for(int i = 0; i < 5; ++i)
 				errors[i] = pss.errors[i];
 
@@ -418,66 +412,21 @@ namespace DoodAnimTool
 				Debug("Unable to load pose!\n");
 			else
 			{
-				BinaryChunk whole;
-				whole.Read(file);
-
-				if(whole.GetName() != "POSE____")
-					Debug("Pose file is no good!\n");
+				if(unsigned int error = keyframes[0].Read(file))
+					Debug(((stringstream&)(stringstream() << "Error loading pose! DATKeyframe::Read returned error " << error << "!" << endl)).str());
 				else
-				{
-					istringstream ss(whole.data);
-					
-					unsigned int num_bones = ReadUInt32(ss);
-					unsigned int num_constraints = ReadUInt32(ss);
-
-					DATKeyframe& k = keyframes[0];
-					k = DATKeyframe(num_bones, num_constraints);
-
-					for(unsigned int i = 0; i < num_bones; ++i)
-					{
-						DATKeyframe::KBone& bone = k.data[i];
-						bone.pos = ReadVec3(ss);
-						bone.ori = ReadQuaternion(ss);
-					}
-
-					for(unsigned int i = 0; i < num_constraints; ++i)
-						k.enabled_constraints[i] = ReadBool(ss);					
-
-					if(!ss)
-						Debug("Something may have gone wrong loading pose!\n");
-					else
-						Debug("Loaded pose successfully!\n");
-				}
+					Debug("Loaded pose successfully!\n");
 			}
 		}
 
 		void SavePose()
 		{
-			const DATKeyframe& k = keyframes[0];
-
-			stringstream ss;
-			WriteUInt32(k.num_bones, ss);
-			WriteUInt32(k.num_constraints, ss);
-
-			for(unsigned int i = 0; i < k.num_bones; ++i)
-			{
-				const DATKeyframe::KBone& bone = k.data[i];
-				WriteVec3(bone.pos, ss);
-				WriteQuaternion(bone.ori, ss);
-			}
-
-			for(unsigned int i = 0; i < k.num_constraints; ++i)
-				WriteBool(k.enabled_constraints[i], ss);
-
-			BinaryChunk bc("POSE____");
-			bc.data = ss.str();
-
 			ofstream file("Files/pose.pose", ios::out | ios::binary);
 			if(!file)
 				Debug("Failed to save pose!\n");
 			else
 			{
-				bc.Write(file);
+				keyframes[0].Write(file);
 				if(!file)
 					Debug("Something may have gone wrong saving pose!\n");
 				else
@@ -525,8 +474,9 @@ namespace DoodAnimTool
 			skeleton->GetBoneMatrices(bone_matrices);
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices, sk_rinfo.bone_matrices);
-
 			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, &materials);
+
+			// draw the gun
 			gun_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 1].bone_index]->GetTransformationMatrix(), NULL, &gun_materials);
 
 			// draw outlines of bones' collision shapes
@@ -565,7 +515,7 @@ namespace DoodAnimTool
 				font->Print("selected bones:", 0, ++row * font->font_height);
 				for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
 					if(iter->selected)
-						font->Print(Bone::string_table[iter->bone->name], x, ++row * font->font_height);
+						font->Print(Bone::string_table[iter->name], x, ++row * font->font_height);
 			}
 			else
 				font->Print("nothing selected", 0, 0);
@@ -577,7 +527,7 @@ namespace DoodAnimTool
 
 			FindMouseoverBone();
 			if(mouseover_bone >= 0)
-				font->Print(Bone::string_table[bones[mouseover_bone].bone->name], float(input_state->mx), input_state->my - font->font_height);
+				font->Print(Bone::string_table[bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
 
 			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
@@ -599,7 +549,7 @@ namespace DoodAnimTool
 			for(unsigned int i = 0; i < bones.size(); ++i)
 			{
 				DATBone& dat_bone = bones[i];
-				Bone* bone = dat_bone.bone;
+				Bone* bone = skeleton->bones[dat_bone.bone_index];
 				CollisionShape* shape = dat_bone.shape;
 				Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
 
