@@ -6,7 +6,6 @@
 #include "CollisionGroup.h"
 
 #include "CollisionShape.h"
-#include "RayShape.h"
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"

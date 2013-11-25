@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 	enum ShapeType
 	{
-		ST_Ray = 1,
+		ST_Ray = 1,							// no longer supported
 		ST_Sphere = 2,
 		ST_TriangleMesh = 3,
 		ST_InfinitePlane = 4,
@@ -69,7 +69,7 @@ namespace CibraryEngine
 			bool CanMove() const;
 			static bool CanShapeTypeMove(ShapeType type);
 
-			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color = Vec3(1, 1, 1));
 
 			/** Reads a collision shape of the appropriate type from an input stream */
 			virtual unsigned int Read(istream& stream);

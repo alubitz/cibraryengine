@@ -18,7 +18,6 @@
 #include "ContactDataCollector.h"
 
 #include "CollisionShape.h"
-#include "RayShape.h"
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
@@ -207,7 +206,7 @@ namespace CibraryEngine
 	Mat4 RigidBody::GetTransformationMatrix()							{ ComputeXformAsNeeded(); return xform; }
 	Mat4 RigidBody::GetInvTransform()									{ ComputeXformAsNeeded(); return inv_xform; }
 
-	bool RigidBody::MergesSubgraphs()									{ return shape->CanMove() && shape->GetShapeType() != ST_Ray; }
+	bool RigidBody::MergesSubgraphs()									{ return shape->CanMove(); }
 
 	void RigidBody::ApplyWorldForce(const Vec3& force, const Vec3& poi)
 	{
@@ -249,13 +248,6 @@ namespace CibraryEngine
 	{
 		switch(shape->GetShapeType())
 		{
-			case ST_Ray:
-			{
-				AABB result(pos);
-				result.Expand(pos + vel * timestep);
-				return result;
-			}
-
 			case ST_Sphere:
 			{
 				float radius = ((SphereShape*)shape)->radius;
@@ -271,6 +263,12 @@ namespace CibraryEngine
 
 			case ST_InfinitePlane:
 				return AABB();
+
+			case ST_Ray:
+			{
+				Debug("A RigidBody is using the unsupported ShapeType ST_Ray!\n");
+				return AABB();
+			}
 
 			default:
 				return AABB();

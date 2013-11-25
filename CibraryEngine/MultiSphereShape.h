@@ -37,7 +37,7 @@ namespace CibraryEngine
 			MultiSphereShape();
 			MultiSphereShape(Sphere* spheres, unsigned int count);
 
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color);
 
 			AABB GetAABB();
 			AABB GetTransformedAABB(const Mat4& xform);

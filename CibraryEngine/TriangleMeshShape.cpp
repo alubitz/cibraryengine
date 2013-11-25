@@ -315,7 +315,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void TriangleMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	void TriangleMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 	{
 		Mat3 rm(ori.ToMat3());
 
@@ -331,9 +331,9 @@ namespace CibraryEngine
 			Vec3& b = transformed[iter->indices[1]];
 			Vec3& c = transformed[iter->indices[2]];
 
-			renderer->objects.push_back(RenderNode(mat, mat->New(a, b), 1.0f));
-			renderer->objects.push_back(RenderNode(mat, mat->New(b, c), 1.0f));
-			renderer->objects.push_back(RenderNode(mat, mat->New(c, a), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(a, b, color), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(b, c, color), 1.0f));
+			renderer->objects.push_back(RenderNode(mat, mat->New(c, a, color), 1.0f));
 		}
 	}
 

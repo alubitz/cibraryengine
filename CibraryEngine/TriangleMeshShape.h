@@ -101,7 +101,7 @@ namespace CibraryEngine
 			TriangleMeshShape();
 			TriangleMeshShape(VertexBuffer* vbo);
 
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color);
 
 			void GetRelevantTriangles(const AABB& aabb, vector<unsigned int>& results);
 			vector<Intersection> RayTest(const Ray& ray);

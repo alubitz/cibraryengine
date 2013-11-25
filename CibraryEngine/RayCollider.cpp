@@ -15,6 +15,10 @@
 #include "MultiSphereShape.h"
 #include "ConvexMeshShape.h"
 
+#include "DebugDrawMaterial.h"
+#include "SceneRenderer.h"
+#include "RenderNode.h"
+
 
 namespace CibraryEngine
 {
@@ -208,4 +212,21 @@ namespace CibraryEngine
 
 	RayCallback* RayCollider::GetRayCallback() const		{ return ray_callback; }
 	void RayCollider::SetRayCallback(RayCallback* callback)	{ ray_callback = callback; }
+
+
+	void RayCollider::DebugDraw(SceneRenderer* renderer)
+	{
+		static const float r         = 0.1f;			// tickmark draw radius
+		static const float vel_coeff = 0.1f;			// scaling factor with which to draw the velocity vector
+
+		DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+		float px = pos.x, py = pos.y, pz = pos.z;
+
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(Vec3(px - r, py,     pz    ), Vec3(px + r, py,     pz    )), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(Vec3(px,     py - r, pz    ), Vec3(px,     py + r, pz    )), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(Vec3(px,     py,     pz - r), Vec3(px,     py,     pz + r)), 1.0f));
+
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(pos, pos + vel * vel_coeff, Vec3(1, 0, 0)), 1.0f));
+	}
 }

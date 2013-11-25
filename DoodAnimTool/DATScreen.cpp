@@ -75,15 +75,14 @@ namespace DoodAnimTool
 			key_listener(),
 			mouse_listener()
 		{
-			key_listener.imp = this;
+			key_listener.imp = mouse_listener.imp = mouse_motion_listener.imp = this;
+
 			input_state->KeyStateChanged += &key_listener;
-
-			mouse_listener.imp = this;
 			input_state->MouseButtonStateChanged += &mouse_listener;
-
-			mouse_motion_listener.imp = this;
 			input_state->MouseMoved += &mouse_motion_listener;
 
+
+			// make sure soldier physics file is up to date... these lines should probably be removed at some point
 			ScriptSystem::Init();
 			ScriptSystem::GetGlobalState().DoFile("Files/Scripts/soldier_zzp.lua");
 
@@ -169,11 +168,7 @@ namespace DoodAnimTool
 			for(unsigned int i = 0; i < mphys->joints.size(); ++i)
 				constraints.push_back(new CSkeletalJoint(&mphys->joints[i], bones));
 
-			DATKeyframe initial_pose(bones.size(), constraints.size());
-			
-			DoSoldierSpecificKeyframeStuff(initial_pose);
-
-			ApplyConstraints(initial_pose);
+			DATKeyframe initial_pose = GetDefaultPose();
 			keyframes.push_back(initial_pose);
 		}
 
@@ -222,6 +217,16 @@ namespace DoodAnimTool
 
 			// we'll also want to disable one of the two constraints between the gun and the hands; trying to enforce it immediately would result in some weird poses
 			initial_pose.enabled_constraints[0] = false;
+		}
+
+		DATKeyframe GetDefaultPose()
+		{
+			DATKeyframe pose(bones.size(), constraints.size());
+
+			DoSoldierSpecificKeyframeStuff(pose);
+			ApplyConstraints(pose);
+
+			return pose;
 		}
 
 		void DeleteConstraints()
@@ -481,15 +486,14 @@ namespace DoodAnimTool
 
 			// draw outlines of bones' collision shapes
 			{
-				bool show_selected_bones = ((now * 4.0f) - int(now * 4.0f)) < 0.5f;
-				Vec3 bone_pos;
-				Quaternion bone_ori;
+				Vec3 unselected_color = Vec3(0.5f, 0.5f, 0.5f);
+				Vec3 selected_color   = Vec3(1.0f, 1.0f, 0.5f) * (0.5f + 0.5f * sinf(now * float(M_PI) * 2.0f * 4.0f));
+
 				for(unsigned int i = 0; i < bones.size(); ++i)
 				{
 					const DATBone& bone = bones[i];
 					const Bone* skel_bone = skeleton->bones[bone.bone_index];
-					if(show_selected_bones || !bone.selected)
-						bone.shape->DebugDraw(&renderer, skel_bone->pos, Quaternion::Reverse(skel_bone->ori));
+					bone.shape->DebugDraw(&renderer, skel_bone->pos, Quaternion::Reverse(skel_bone->ori), bone.selected ? selected_color : unselected_color);
 				}
 			}
 
@@ -593,10 +597,11 @@ namespace DoodAnimTool
 				{
 					switch(kse->key)
 					{
-						case VK_SPACE:	{ imp->ClearSelection();    break; }
-						case VK_ESCAPE:	{ imp->next_screen = NULL;  break; }
+						case VK_SPACE:	{ imp->ClearSelection();                     break; }
+						case VK_ESCAPE:	{ imp->next_screen = NULL;                   break; }
 
-						case 'R':		{ imp->LoadDood("soldier"); break; }
+						case 'R':		{ imp->keyframes[0] = imp->GetDefaultPose(); break; }
+
 						case VK_BACK:
 						{
 							DATKeyframe& k = imp->keyframes[0];
@@ -609,8 +614,8 @@ namespace DoodAnimTool
 							break;
 						}
 
-						case VK_HOME:   { imp->LoadPose();         break; }
-						case VK_END:    { imp->SavePose();         break; }
+						case VK_HOME:   { imp->LoadPose(); break; }
+						case VK_END:    { imp->SavePose(); break; }
 
 						default:		{ break; }
 					}

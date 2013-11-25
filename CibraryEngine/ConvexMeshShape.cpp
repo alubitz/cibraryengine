@@ -421,7 +421,7 @@ namespace CibraryEngine
 
 
 		// misc. utility stuff
-		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 		{
 			Mat4 xform = Mat4::FromPositionAndOrientation(pos, ori);
 
@@ -431,7 +431,7 @@ namespace CibraryEngine
 				DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
 
 				for(vector<Edge>::iterator iter = edges.begin(); iter != edges.end(); ++iter)
-					renderer->objects.push_back(RenderNode(ddm, ddm->New(xform.TransformVec3_1(verts[iter->v1].pos), xform.TransformVec3_1(verts[iter->v2].pos)), 1.0f));
+					renderer->objects.push_back(RenderNode(ddm, ddm->New(xform.TransformVec3_1(verts[iter->v1].pos), xform.TransformVec3_1(verts[iter->v2].pos), color), 1.0f));
 			}
 		}
 
@@ -1026,17 +1026,17 @@ namespace CibraryEngine
 	ConvexMeshShape::ConvexMeshShape() : CollisionShape(ST_ConvexMesh), imp(new Imp())												{ }
 	ConvexMeshShape::ConvexMeshShape(Vec3* verts, unsigned int count) : CollisionShape(ST_ConvexMesh), imp(new Imp(verts, count))	{ }
 
-	void ConvexMeshShape::InnerDispose()																{ if(imp) { delete imp; imp = NULL; } }
+	void ConvexMeshShape::InnerDispose()															{ if(imp) { delete imp; imp = NULL; } }
 
-	MassInfo ConvexMeshShape::ComputeMassInfo()															{ return imp->ComputeMassInfo(); }
+	MassInfo ConvexMeshShape::ComputeMassInfo()														{ return imp->ComputeMassInfo(); }
 
-	AABB ConvexMeshShape::GetTransformedAABB(const Mat4& xform)											{ return imp->GetTransformedAABB(xform); }
-	AABB ConvexMeshShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)			{ return imp->ComputeCachedWorldAABB(xform, cache); }
+	AABB ConvexMeshShape::GetTransformedAABB(const Mat4& xform)										{ return imp->GetTransformedAABB(xform); }
+	AABB ConvexMeshShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)		{ return imp->ComputeCachedWorldAABB(xform, cache); }
 
-	void ConvexMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)	{ imp->DebugDraw(renderer, pos, ori); }
+	void ConvexMeshShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color) { imp->DebugDraw(renderer, pos, ori, color); }
 
-	void ConvexMeshShape::Write(ostream& stream)														{ imp->Write(stream); }
-	unsigned int ConvexMeshShape::Read(istream& stream)													{ return imp->Read(stream); }
+	void ConvexMeshShape::Write(ostream& stream)													{ imp->Write(stream); }
+	unsigned int ConvexMeshShape::Read(istream& stream)												{ return imp->Read(stream); }
 
 	bool ConvexMeshShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																							{ return imp->CollideRay(ray, result, collider, body); }
 	ContactRegion* ConvexMeshShape::CollidePlane(ConvexMeshShapeInstanceCache* my_cache, const Plane& plane, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)							{ return imp->CollidePlane(my_cache, plane, collect, ibody, jbody); }

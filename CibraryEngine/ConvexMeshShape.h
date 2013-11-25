@@ -43,7 +43,7 @@ namespace CibraryEngine
 			AABB GetTransformedAABB(const Mat4& xform);
 			AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
 
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color);
 
 
 			bool CollideRay(const Ray& ray, RayResult& result, RayCollider* collider = NULL, RigidBody* body = NULL);					// ray has been transformed into coordinate system of mesh

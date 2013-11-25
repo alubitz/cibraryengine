@@ -36,14 +36,14 @@ namespace CibraryEngine
 		return result;
 	}
 
-	void SphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+	void SphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 	{
 		Mat3 rm = ori.ToMat3();
 		Vec3 x = Vec3(rm[0], rm[1], rm[2]) * radius;
 		Vec3 y = Vec3(rm[3], rm[4], rm[5]) * radius;
 		Vec3 z = Vec3(rm[6], rm[7], rm[8]) * radius;
 
-		static const Vec3 r(1, 0, 0), g(0, 1, 0), b(0, 0, 1);
+		static const Vec3 r(color.x, 0, 0), g(0, color.y, 0), b(0, 0, color.z);		// unit vectors in each direction, modulated by color param
 
 		DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
 

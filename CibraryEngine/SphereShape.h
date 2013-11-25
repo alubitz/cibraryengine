@@ -17,7 +17,7 @@ namespace CibraryEngine
 
 			MassInfo ComputeMassInfo();
 
-			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori);
+			void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color);
 
 			AABB GetTransformedAABB(const Mat4& xform);
 

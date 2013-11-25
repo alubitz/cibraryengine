@@ -12,7 +12,6 @@
 #include "PhysicsRegion.h"
 #include "GridRegionManager.h"
 
-#include "RayShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
 #include "MultiSphereShape.h"

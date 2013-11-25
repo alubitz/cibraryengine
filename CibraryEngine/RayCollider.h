@@ -58,6 +58,8 @@ namespace CibraryEngine
 
 			RayCallback* GetRayCallback() const;
 			void SetRayCallback(RayCallback* callback);
+
+			void DebugDraw(SceneRenderer* renderer);
 	};
 
 	class RayCallback

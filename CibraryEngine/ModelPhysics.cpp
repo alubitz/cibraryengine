@@ -108,7 +108,8 @@ namespace CibraryEngine
 			bone.bone_name = ReadString1(ss);
 
 			bone.collision_shape = NULL;
-			CollisionShape::ReadCollisionShape(bone.collision_shape, ss);
+			if(unsigned int error = CollisionShape::ReadCollisionShape(bone.collision_shape, ss))
+				Debug(((stringstream&)(stringstream() << "Failed to read collision shape from stream (error code = " << error << ")" << endl)).str());
 
 			bone.mass_info = MassInfo::ReadMassInfo(ss);
 			

@@ -3,7 +3,6 @@
 
 #include "AABB.h"
 
-#include "RayShape.h"
 #include "SphereShape.h"
 #include "TriangleMeshShape.h"
 #include "InfinitePlaneShape.h"
@@ -42,7 +41,7 @@ namespace CibraryEngine
 	{
 		switch(type)
 		{
-			case ST_Ray:
+			case ST_Ray:			// no longer supported
 			case ST_Sphere:
 			case ST_MultiSphere:
 			case ST_ConvexMesh:
@@ -55,7 +54,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori) { }
+	void CollisionShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color) { }
 
 	unsigned int CollisionShape::Read(istream& stream)	{ return 1; }
 	void CollisionShape::Write(ostream& stream)			{ }
@@ -70,9 +69,6 @@ namespace CibraryEngine
 		CollisionShape* temp = NULL;
 		switch(type)
 		{
-			case ST_Ray:
-				temp = new RayShape();
-				break;
 			case ST_Sphere:
 				temp = new SphereShape();
 				break;
@@ -88,6 +84,10 @@ namespace CibraryEngine
 			case ST_ConvexMesh:
 				temp = new ConvexMeshShape();
 				break;
+
+			case ST_Ray:
+				return 2;				// error code 2 = shape type no longer supported
+
 			default:
 				return 1;				// error code 1 = invalid shape type
 		}
@@ -97,7 +97,7 @@ namespace CibraryEngine
 			temp->Dispose();
 			delete temp;
 
-			return error + 1;			// error code > 1 = shape load error
+			return error + 2;			// error code > 2 = shape load error
 		}
 		else
 		{

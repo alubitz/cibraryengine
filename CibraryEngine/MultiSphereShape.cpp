@@ -618,7 +618,7 @@ namespace CibraryEngine
 			Debug(ss.str());
 		}
 
-		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)
+		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 		{
 			Mat4 model_mat = Mat4::FromPositionAndOrientation(pos, ori);
 			const Vec3& eye = renderer->camera->GetPosition();
@@ -735,7 +735,7 @@ namespace CibraryEngine
 					iter->MaybeSetFarthestExtent(world_dir, eye, forward, farthest, cur);
 
 				if(i != 0)
-					renderer->objects.push_back(RenderNode(material, material->New(cur, temp), 1.0f));
+					renderer->objects.push_back(RenderNode(material, material->New(cur, temp, color), 1.0f));
 				temp = cur;
 			}
 		}
@@ -1056,23 +1056,23 @@ namespace CibraryEngine
 	MultiSphereShape::MultiSphereShape() : CollisionShape(ST_MultiSphere), imp(new Imp())													{ }
 	MultiSphereShape::MultiSphereShape(Sphere* spheres, unsigned int count) : CollisionShape(ST_MultiSphere), imp(new Imp(spheres, count))	{ }
 
-	void MultiSphereShape::InnerDispose()																{ delete imp; imp = NULL; }
+	void MultiSphereShape::InnerDispose()															{ delete imp; imp = NULL; }
 
-	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori)	{ imp->DebugDraw(renderer, pos, ori); }
+	void MultiSphereShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color) { imp->DebugDraw(renderer, pos, ori, color); }
 
-	AABB MultiSphereShape::GetAABB()																	{ return imp->aabb; }
-	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform)										{ return imp->GetTransformedAABB(xform); }
-	AABB MultiSphereShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)		{ return imp->ComputeCachedWorldAABB(xform, cache); }
+	AABB MultiSphereShape::GetAABB()																{ return imp->aabb; }
+	AABB MultiSphereShape::GetTransformedAABB(const Mat4& xform)									{ return imp->GetTransformedAABB(xform); }
+	AABB MultiSphereShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)	{ return imp->ComputeCachedWorldAABB(xform, cache); }
 
-	MassInfo MultiSphereShape::ComputeMassInfo()														{ return imp->ComputeMassInfo(); }
+	MassInfo MultiSphereShape::ComputeMassInfo()													{ return imp->ComputeMassInfo(); }
 
 	bool MultiSphereShape::CollideRay(const Ray& ray, RayResult& result, RayCollider* collider, RigidBody* body)																								{ return imp->CollideRay(ray, result, collider, body); }
 	ContactRegion* MultiSphereShape::CollidePlane(const Mat4& my_xform, const Plane& plane, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)													{ return imp->CollidePlane(my_xform, plane, collect, ibody, jbody); }
 	ContactRegion* MultiSphereShape::CollideSphere(const Sphere& sphere, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)																		{ return imp->CollideSphere(sphere, collect, ibody, jbody); }
 	ContactRegion* MultiSphereShape::CollideMesh(const Mat4& my_xform, vector<Sphere>& my_spheres, const TriangleMeshShape::TriCache& tri, ContactDataCollector* collect, RigidBody* ibody, RigidBody* jbody)	{ return imp->CollideMesh(my_xform, my_spheres, tri, ibody, jbody, collect); }
 
-	void MultiSphereShape::Write(ostream& stream)														{ imp->Write(stream); }
-	unsigned int MultiSphereShape::Read(istream& stream)												{ return imp->Read(stream); }
+	void MultiSphereShape::Write(ostream& stream)													{ imp->Write(stream); }
+	unsigned int MultiSphereShape::Read(istream& stream)											{ return imp->Read(stream); }
 
 
 
