@@ -9,6 +9,7 @@
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
 #include "CFixedJoint.h"
+#include "CFlatFoot.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
@@ -35,8 +36,8 @@ namespace DoodAnimTool
 		UberModel* uber;
 		ModelPhysics* mphys;
 
-		UberModel* gun_model;
-		vector<Material*> gun_materials;
+		UberModel *gun_model, *foothelper_model;
+		vector<Material*> gun_materials, foothelper_materials;
 
 		vector<DATBone> bones;
 		vector<DATKeyframe> keyframes;
@@ -48,6 +49,7 @@ namespace DoodAnimTool
 		unsigned int selection_count;
 
 		int mouseover_bone;
+		int mouseover_checkbox;
 
 		CameraView camera;
 		SceneRenderer renderer;
@@ -60,6 +62,17 @@ namespace DoodAnimTool
 		float yaw, pitch;
 
 		float errors[5];
+
+		struct ConstraintCheckbox
+		{
+			string name, display_name;
+
+			unsigned int index;
+			float x1, y1, x2, y2;		// set by draw method; determines where to click
+
+			ConstraintCheckbox(const string& name, unsigned int index) : name(name), index(index), x1(-1), y1(-1), x2(-2), y2(-2) { }
+		};
+		vector<ConstraintCheckbox> checkboxes;
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
@@ -130,6 +143,7 @@ namespace DoodAnimTool
 
 			bones.clear();
 			keyframes.clear();
+			checkboxes.clear();
 
 			DeleteConstraints();
 
@@ -139,6 +153,7 @@ namespace DoodAnimTool
 			selection_count = 0;
 
 			mouseover_bone = -1;
+			mouseover_checkbox = -1;
 
 			// match up skeleton bones with ModelPhysics bones
 			unsigned int num_bones = skeleton->bones.size();
@@ -172,6 +187,12 @@ namespace DoodAnimTool
 			keyframes.push_back(initial_pose);
 		}
 
+		void AddSpecialConstraint(const string& name, Constraint* c)
+		{
+			checkboxes.push_back(ConstraintCheckbox(name, constraints.size()));
+			constraints.push_back(c);
+		}
+
 		void CreateSoldierSpecificHelperBones(Cache<UberModel>* uber_cache, Cache<Material>* mat_cache)
 		{
 			skeleton->AddBone(Bone::string_table["gun"], Quaternion::Identity(), Vec3());
@@ -180,17 +201,29 @@ namespace DoodAnimTool
 
 			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
 				gun_materials.push_back(mat_cache->Load(*iter));
+
+			skeleton->AddBone(Bone::string_table["l ground"], Quaternion::Identity(), Vec3());
+			skeleton->AddBone(Bone::string_table["r ground"], Quaternion::Identity(), Vec3());
+			foothelper_model = uber_cache->Load("foot_helper");
+			foothelper_materials.clear();
+
+			for(vector<string>::iterator iter = foothelper_model->materials.begin(); iter != foothelper_model->materials.end(); ++iter)
+				foothelper_materials.push_back(mat_cache->Load(*iter));
 		}
 
 		void CreateSoldierSpecificConstraints(Cache<ModelPhysics>* mphys_cache)
 		{
 			unsigned int lname = Bone::string_table["l hand"], rname = Bone::string_table["r hand"], gname = Bone::string_table["gun"];
+			unsigned int lfname = Bone::string_table["l foot"], rfname = Bone::string_table["r foot"];
+			unsigned int lgname = Bone::string_table["l ground"], rgname = Bone::string_table["r ground"];
 
-			// create a DATBone for the gun (it's been tacked onto the end of the skeleton's bones array)
-			bones.push_back(DATBone(skeleton->bones.size() - 1, gname, mphys_cache->Load("gun")->bones[0].collision_shape));
+			// create a DATBone for the gun and both ground objects (they've been tacked onto the end of the skeleton's bones array)
+			bones.push_back(DATBone(skeleton->bones.size() - 3, gname, mphys_cache->Load("gun")->bones[0].collision_shape));
+			bones.push_back(DATBone(skeleton->bones.size() - 2, lgname, mphys_cache->Load("foot_helper")->bones[0].collision_shape));
+			bones.push_back(DATBone(skeleton->bones.size() - 1, rgname, mphys_cache->Load("foot_helper")->bones[0].collision_shape));
 
 			// figure out the indices of the DATBones for the left hand, right hand, and gun
-			int lhand = -1, rhand = -1, gun = -1;
+			int lhand = -1, rhand = -1, gun = -1, lfoot = -1, rfoot = -1, lground = -1, rground = -1;
 			for(unsigned int i = 0; i < bones.size(); ++i)
 			{
 				if(bones[i].name == lname)
@@ -199,24 +232,42 @@ namespace DoodAnimTool
 					rhand = i;
 				else if(bones[i].name == gname)
 					gun = i;
+				else if(bones[i].name == lgname)
+					lground = i;
+				else if(bones[i].name == rgname)
+					rground = i;
+				else if(bones[i].name == lfname)
+					lfoot = i;
+				else if(bones[i].name == rfname)
+					rfoot = i;
 			}
 
 			// if we managed to find all of those, create a fixed joint contraint between each hand and the gun
 			if(lhand >= 0 && rhand >= 0 && gun >= 0)
 			{
-				constraints.push_back(new CFixedJoint((unsigned int)lhand, (unsigned int)gun, Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
-				constraints.push_back(new CFixedJoint((unsigned int)rhand, (unsigned int)gun, Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
+				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun, Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
+				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun, Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
+			}
+
+			if(lfoot >= 0 && lground >= 0 && rfoot >= 0 && rground >= 0)
+			{
+				AddSpecialConstraint("l ground", new CFlatFoot((unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
+				AddSpecialConstraint("r ground", new CFlatFoot((unsigned int)rfoot, (unsigned int)rground, Vec3(-0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
 			}
 		}
 
 		void DoSoldierSpecificKeyframeStuff(DATKeyframe& initial_pose)
 		{
 			// we need to position the gun in a way that won't give the soldier too violent of an initial jerk
-			initial_pose.data[bones.size() - 1].pos = Vec3(0, 1, 0.5f);
-			initial_pose.data[bones.size() - 1].ori = Quaternion::FromPYR(0, 1.5f, 0);
+			initial_pose.data[bones.size() - 3].pos = Vec3(0, 1, 0.5f);
+			initial_pose.data[bones.size() - 3].ori = Quaternion::FromPYR(0, 1.5f, 0);
 
 			// we'll also want to disable one of the two constraints between the gun and the hands; trying to enforce it immediately would result in some weird poses
 			initial_pose.enabled_constraints[0] = false;
+
+			// and set the appropriate positions for the objects under foot
+			initial_pose.data[bones.size() - 2].pos = Vec3( 0.238f, 0.000f, 0.065f);
+			initial_pose.data[bones.size() - 1].pos = Vec3(-0.238f, 0.000f, 0.065f);
 		}
 
 		DATKeyframe GetDefaultPose()
@@ -283,7 +334,7 @@ namespace DoodAnimTool
 								Vec3 center;
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 									if(bones[i].selected)
-										center += skeleton->bones[i]->GetTransformationMatrix().TransformVec3_1(bones[i].center);
+										center += skeleton->bones[bones[i].bone_index]->GetTransformationMatrix().TransformVec3_1(bones[i].center);
 								center /= float(selection_count);
 
 								// rotate the selected bones around their center
@@ -325,10 +376,19 @@ namespace DoodAnimTool
 			// setup
 			PoseSolverState pss(pose);
 
-			unsigned int num_constraints = constraints.size();
-			for(unsigned int i = 0; i < num_constraints; ++i)
+			vector<Constraint*> active_constraints;
+			active_constraints.reserve(constraints.size());
+
+			for(unsigned int i = 0; i < constraints.size(); ++i)
 				if(pose.enabled_constraints[i])
-					constraints[i]->InitCachedStuff(pss);
+				{
+					Constraint* c = constraints[i];
+
+					c->InitCachedStuff(pss);
+					active_constraints.push_back(c);
+				}
+			Constraint** constraints_begin = active_constraints.data();
+			Constraint** constraints_end = constraints_begin + active_constraints.size();
 			
 			// actually doing the iterations
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
@@ -337,8 +397,8 @@ namespace DoodAnimTool
 
 				unsigned int num_changes = 0;
 
-				for(unsigned int j = 0; j < num_constraints; ++j)
-					if(pose.enabled_constraints[j] && constraints[j]->ApplyConstraint(pss))
+				for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
+					if((*jter)->ApplyConstraint(pss))
 						++num_changes;
 
 				pss.PostIteration();
@@ -346,11 +406,8 @@ namespace DoodAnimTool
 				if(num_changes == 0)
 					break;
 				else
-				{
-					for(unsigned int j = 0; j < num_constraints; ++j)
-						if(pose.enabled_constraints[j])
-							constraints[j]->OnAnyChanges(pss);
-				}
+					for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
+						(*jter)->OnAnyChanges(pss);
 			}
 
 			// getting the results
@@ -482,7 +539,11 @@ namespace DoodAnimTool
 			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, &materials);
 
 			// draw the gun
-			gun_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 1].bone_index]->GetTransformationMatrix(), NULL, &gun_materials);
+			gun_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 3].bone_index]->GetTransformationMatrix(), NULL, &gun_materials);
+
+			// draw the objects under foot
+			foothelper_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 2].bone_index]->GetTransformationMatrix(), NULL, &foothelper_materials);
+			foothelper_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 1].bone_index]->GetTransformationMatrix(), NULL, &foothelper_materials);
 
 			// draw outlines of bones' collision shapes
 			{
@@ -529,11 +590,67 @@ namespace DoodAnimTool
 			for(int i = 0; i < 5; ++i)
 				font->Print(((stringstream&)(stringstream() << errnames[i] << errors[i])).str(), errx, font->font_height * i);
 
-			FindMouseoverBone();
-			if(mouseover_bone >= 0)
-				font->Print(Bone::string_table[bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
+			mouseover_checkbox = DrawConstraintCheckboxes(keyframes[edit_keyframe], width, height);
+
+			if(mouseover_checkbox == -1)
+			{
+				FindMouseoverBone();
+				if(mouseover_bone >= 0)
+					font->Print(Bone::string_table[bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
+			}
+			else
+				mouseover_bone = -1;
 
 			cursor->Draw(float(input_state->mx), float(input_state->my));
+		}
+
+		// returns which checkbox the cursor is over, or -1 if none
+		int DrawConstraintCheckboxes(DATKeyframe& frame, int w, int h)
+		{
+			int mouseover = -1;
+			unsigned int count = checkboxes.size();
+
+			float widest = 0.0f;
+
+			float border = 20.0f;
+			float cb_vspacing = font->font_height * 1.5f;			// an extra 0.5 lines of spacing between each line of text
+			float top = h - border - (count - 1) * cb_vspacing - font->font_height;
+
+			for(unsigned int i = 0; i < count; ++i)
+			{
+				ConstraintCheckbox& cb = checkboxes[i];
+
+				cb.display_name = (frame.enabled_constraints[cb.index] ? "[x]  " : "[ ]  ") + cb.name;
+
+				cb.x1 = 0;
+				cb.x2 = cb.display_name.length() * font->font_spacing;
+				cb.y1 = top + cb_vspacing * i;
+				cb.y2 = cb.y1 + font->font_height;
+
+				widest = max(widest, cb.x2);
+			}
+
+			float left = w - widest - border;
+			for(unsigned int i = 0; i < count; ++i)
+			{
+				ConstraintCheckbox& cb = checkboxes[i];
+				cb.x1 += left;
+				cb.x2 += left;
+
+				if(input_state->mx >= cb.x1 && input_state->mx <= cb.x2 && input_state->my >= cb.y1 && input_state->my <= cb.y2)
+				{
+					mouseover = (signed)i;
+					glColor4f(1.0f,	1.0f, 0.5f, 1.0f);
+				}
+				else
+					glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+				font->Print(cb.display_name, cb.x1, cb.y1);
+			}
+
+			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+			return mouseover;
 		}
 
 		// convert cursor position to a world-space ray
@@ -602,18 +719,6 @@ namespace DoodAnimTool
 
 						case 'R':		{ imp->keyframes[0] = imp->GetDefaultPose(); break; }
 
-						case VK_BACK:
-						{
-							DATKeyframe& k = imp->keyframes[0];
-							bool& b = k.enabled_constraints[0];
-
-							b = !b;
-							if(b)
-								imp->ApplyConstraints(k);
-
-							break;
-						}
-
 						case VK_HOME:   { imp->LoadPose(); break; }
 						case VK_END:    { imp->SavePose(); break; }
 
@@ -636,7 +741,16 @@ namespace DoodAnimTool
 					{
 						case 0:
 
-							if(imp->mouseover_bone >= 0)
+							if(imp->mouseover_checkbox >= 0)
+							{
+								DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
+								bool& selected = keyframe.enabled_constraints[imp->mouseover_checkbox];
+
+								selected = !selected;
+								if(selected)
+									imp->ApplyConstraints(keyframe);
+							}
+							else if(imp->mouseover_bone >= 0)
 							{
 								bool& selected = imp->bones[imp->mouseover_bone].selected;
 
