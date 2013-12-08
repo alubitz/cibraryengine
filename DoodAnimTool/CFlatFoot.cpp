@@ -51,7 +51,7 @@ namespace DoodAnimTool
 		Vec3 av = (Quaternion::Reverse(aori_inv * b_ori) * relative_ori).ToPYR();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
-			pose.errors[3] += err;
+			pose.errors[5] += err;
 
 			if(err > rotation_threshold)
 			{
@@ -71,7 +71,7 @@ namespace DoodAnimTool
 		Vec3 dx = bpos - apos;
 		if(float err = dx.ComputeMagnitudeSquared())
 		{
-			pose.errors[4] += err;
+			pose.errors[6] += err;
 
 			if(err > translation_threshold)
 			{

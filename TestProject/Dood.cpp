@@ -56,7 +56,6 @@ namespace Test
 		pitch_rate(10.0f),
 		use_cheaty_ori(false),
 		team(team),
-		materials(),
 		blood_material(NULL),
 		pos(pos),
 		vel(),
@@ -95,11 +94,6 @@ namespace Test
 		posey = new PosedCharacter(new Skeleton(character->skeleton));
 
 		eye_bone = character->skeleton->GetNamedBone("eye");
-
-		// look up all the materials the model uses in advance
-		Cache<Material>* mat_cache = ((TestGame*)gs)->mat_cache;
-		for(vector<string>::iterator iter = model->materials.begin(); iter != model->materials.end(); ++iter)
-			materials.push_back(mat_cache->Load(*iter));
 	}
 
 	void Dood::InnerDispose()
@@ -303,7 +297,7 @@ namespace Test
 			int use_lod = dist < 45.0f ? 0 : 1;
 
 			SkinnedCharacterRenderInfo render_info = character->GetRenderInfo();
-			model->Vis(renderer, use_lod, Mat4::Translation(pos), &render_info, &materials);
+			model->Vis(renderer, use_lod, Mat4::Translation(pos), &render_info);
 		}
 	}
 

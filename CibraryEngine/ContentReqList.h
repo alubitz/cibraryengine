@@ -29,6 +29,6 @@ namespace CibraryEngine
 
 			ContentHandle<UberModel> LoadModel(const string& model_name);
 
-			void LoadContent(string* status);
+			void LoadContent(string* status, bool materials = true);
 	};
 }

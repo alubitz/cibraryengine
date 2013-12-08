@@ -31,16 +31,16 @@ namespace DoodAnimTool
 		Skeleton* skeleton;
 		vector<Mat4> bone_matrices;
 		SkinnedCharacterRenderInfo sk_rinfo;
-		vector<Material*> materials;
 
-		UberModel* uber;
 		ModelPhysics* mphys;
 
-		UberModel *gun_model, *foothelper_model;
-		vector<Material*> gun_materials, foothelper_materials;
+		UberModel *dood_uber, *gun_uber, *ground_uber;
 
 		vector<DATBone> bones;
+		vector<unsigned int> id_to_bones;		// given a bone's "name", returns index into the above +1
+
 		vector<DATKeyframe> keyframes;
+
 		float anim_timer;
 		unsigned int edit_keyframe;
 
@@ -61,7 +61,7 @@ namespace DoodAnimTool
 
 		float yaw, pitch;
 
-		float errors[5];
+		float errors[PoseSolverState::ERROR_TYPES];
 
 		struct ConstraintCheckbox
 		{
@@ -79,8 +79,10 @@ namespace DoodAnimTool
 			window(window),
 			input_state(window->input_state),
 			skeleton(NULL),
-			uber(NULL),
 			mphys(NULL),
+			dood_uber(NULL),
+			gun_uber(NULL),
+			ground_uber(NULL),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
 			cursor(NULL),
@@ -127,19 +129,14 @@ namespace DoodAnimTool
 		void LoadDood(const string& dood_name)
 		{
 			Cache<ModelPhysics>* mphys_cache = window->content->GetCache<ModelPhysics>();
-			Cache<UberModel>* uber_cache = window->content->GetCache<UberModel>();
-			Cache<Material>* mat_cache = window->content->GetCache<Material>();
+			Cache<UberModel>*    uber_cache  = window->content->GetCache<UberModel>();
+			Cache<Material>*     mat_cache   = window->content->GetCache<Material>();
 
 			mphys = mphys_cache->Load(dood_name);
-			uber = uber_cache->Load(dood_name);
+			dood_uber = uber_cache->Load(dood_name);
+			dood_uber->LoadCachedMaterials(mat_cache);
 
-			materials.clear();
-			for(vector<string>::iterator iter = uber->materials.begin(); iter != uber->materials.end(); ++iter)
-				materials.push_back(mat_cache->Load(*iter));
-
-			skeleton = uber->CreateSkeleton();
-
-			CreateSoldierSpecificHelperBones(uber_cache, mat_cache);			// adds a bone for the gun at the end of the skeleton's bones array
+			skeleton = dood_uber->CreateSkeleton();
 
 			bones.clear();
 			keyframes.clear();
@@ -177,7 +174,23 @@ namespace DoodAnimTool
 			for(unsigned int i = 0; i < skeleton->bones.size(); ++i)
 				skeleton->bones[i]->parent = NULL;
 
-			CreateSoldierSpecificConstraints(mphys_cache);		// creates DATBone for gun, and adds 2 CFixedJoints at the beginning of the constraints list
+			CreateSoldierSpecificHelperBones(mphys_cache, uber_cache, mat_cache);
+
+			// setup to make GetBoneIndex work
+			{
+				id_to_bones.clear();
+
+				unsigned int biggest_bone = 0;
+				for(unsigned int i = 0; i < bones.size(); ++i)
+					biggest_bone = max(biggest_bone, bones[i].name);
+			
+				id_to_bones.resize(biggest_bone + 1);
+
+				for(unsigned int i = 0; i < bones.size(); ++i)
+					id_to_bones[bones[i].name] = i + 1;
+			}
+
+			CreateSoldierSpecificConstraints();
 
 			// add default constraints to the constraints list
 			for(unsigned int i = 0; i < mphys->joints.size(); ++i)
@@ -187,87 +200,85 @@ namespace DoodAnimTool
 			keyframes.push_back(initial_pose);
 		}
 
+		int GetBoneIndex(const string& bone_name)
+		{
+			unsigned int id = Bone::string_table[bone_name];
+			return id < id_to_bones.size() ? (signed)id_to_bones[id] - 1 : -1;
+		}
+
 		void AddSpecialConstraint(const string& name, Constraint* c)
 		{
 			checkboxes.push_back(ConstraintCheckbox(name, constraints.size()));
 			constraints.push_back(c);
 		}
 
-		void CreateSoldierSpecificHelperBones(Cache<UberModel>* uber_cache, Cache<Material>* mat_cache)
+		void AddHelperBone(const string& bone_name, CollisionShape* shape, UberModel* uber)
 		{
-			skeleton->AddBone(Bone::string_table["gun"], Quaternion::Identity(), Vec3());
-			gun_model = uber_cache->Load("gun");
-			gun_materials.clear();
-
-			for(vector<string>::iterator iter = gun_model->materials.begin(); iter != gun_model->materials.end(); ++iter)
-				gun_materials.push_back(mat_cache->Load(*iter));
-
-			skeleton->AddBone(Bone::string_table["l ground"], Quaternion::Identity(), Vec3());
-			skeleton->AddBone(Bone::string_table["r ground"], Quaternion::Identity(), Vec3());
-			foothelper_model = uber_cache->Load("foot_helper");
-			foothelper_materials.clear();
-
-			for(vector<string>::iterator iter = foothelper_model->materials.begin(); iter != foothelper_model->materials.end(); ++iter)
-				foothelper_materials.push_back(mat_cache->Load(*iter));
+			unsigned int id = Bone::string_table[bone_name];
+			skeleton->AddBone(id, Quaternion::Identity(), Vec3());
+			bones.push_back(DATBone(skeleton->bones.size() - 1, id, shape, uber));
 		}
 
-		void CreateSoldierSpecificConstraints(Cache<ModelPhysics>* mphys_cache)
+		void CreateSoldierSpecificHelperBones(Cache<ModelPhysics>* mphys_cache, Cache<UberModel>* uber_cache, Cache<Material>* mat_cache)
 		{
-			unsigned int lname = Bone::string_table["l hand"], rname = Bone::string_table["r hand"], gname = Bone::string_table["gun"];
-			unsigned int lfname = Bone::string_table["l foot"], rfname = Bone::string_table["r foot"];
-			unsigned int lgname = Bone::string_table["l ground"], rgname = Bone::string_table["r ground"];
+			CollisionShape* gun_shape        = mphys_cache->Load( "gun"         )->bones[0].collision_shape;
+			CollisionShape* foothelper_shape = mphys_cache->Load( "foot_helper" )->bones[0].collision_shape;
 
-			// create a DATBone for the gun and both ground objects (they've been tacked onto the end of the skeleton's bones array)
-			bones.push_back(DATBone(skeleton->bones.size() - 3, gname, mphys_cache->Load("gun")->bones[0].collision_shape));
-			bones.push_back(DATBone(skeleton->bones.size() - 2, lgname, mphys_cache->Load("foot_helper")->bones[0].collision_shape));
-			bones.push_back(DATBone(skeleton->bones.size() - 1, rgname, mphys_cache->Load("foot_helper")->bones[0].collision_shape));
+			gun_uber    = uber_cache->Load( "gun"         );
+			ground_uber = uber_cache->Load( "foot_helper" );
 
-			// figure out the indices of the DATBones for the left hand, right hand, and gun
-			int lhand = -1, rhand = -1, gun = -1, lfoot = -1, rfoot = -1, lground = -1, rground = -1;
-			for(unsigned int i = 0; i < bones.size(); ++i)
-			{
-				if(bones[i].name == lname)
-					lhand = i;
-				else if(bones[i].name == rname)
-					rhand = i;
-				else if(bones[i].name == gname)
-					gun = i;
-				else if(bones[i].name == lgname)
-					lground = i;
-				else if(bones[i].name == rgname)
-					rground = i;
-				else if(bones[i].name == lfname)
-					lfoot = i;
-				else if(bones[i].name == rfname)
-					rfoot = i;
-			}
+			gun_uber->LoadCachedMaterials(mat_cache);
+			ground_uber->LoadCachedMaterials(mat_cache);
 
-			// if we managed to find all of those, create a fixed joint contraint between each hand and the gun
-			if(lhand >= 0 && rhand >= 0 && gun >= 0)
-			{
-				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun, Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
-				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun, Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
-			}
+			AddHelperBone( "gun",      gun_shape,        gun_uber    );
+			AddHelperBone( "l ground", foothelper_shape, ground_uber );
+			AddHelperBone( "r ground", foothelper_shape, ground_uber );
+		}
 
-			if(lfoot >= 0 && lground >= 0 && rfoot >= 0 && rground >= 0)
-			{
+		void CreateSoldierSpecificConstraints()
+		{
+			// create constraints for the soldier holding the gun, and constraints between the soldier's feet and the ground under them
+			int lhand   = GetBoneIndex( "l hand"   ), rhand   = GetBoneIndex( "r hand"   );
+			int lfoot   = GetBoneIndex( "l foot"   ), rfoot   = GetBoneIndex( "r foot"   );
+			int lground = GetBoneIndex( "l ground" ), rground = GetBoneIndex( "r ground" );
+			int gun     = GetBoneIndex( "gun"      );
+
+			if(lhand >= 0 && gun >= 0)
+				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun,     Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
+			if(rhand >= 0 && gun >= 0)
+				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun,     Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
+			if(lfoot >= 0 && lground >= 0)
 				AddSpecialConstraint("l ground", new CFlatFoot((unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
+			 if(rfoot >= 0 && rground >= 0)
 				AddSpecialConstraint("r ground", new CFlatFoot((unsigned int)rfoot, (unsigned int)rground, Vec3(-0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
-			}
+
+			// while we're at it, let's lock the torso bone so it can't be affected by the constraint solver
+			int torso2 = GetBoneIndex( "torso 2"  );
+			if(torso2 >= 0)
+				bones[torso2].locked = true;
 		}
 
 		void DoSoldierSpecificKeyframeStuff(DATKeyframe& initial_pose)
 		{
 			// we need to position the gun in a way that won't give the soldier too violent of an initial jerk
-			initial_pose.data[bones.size() - 3].pos = Vec3(0, 1, 0.5f);
-			initial_pose.data[bones.size() - 3].ori = Quaternion::FromPYR(0, 1.5f, 0);
-
-			// we'll also want to disable one of the two constraints between the gun and the hands; trying to enforce it immediately would result in some weird poses
-			initial_pose.enabled_constraints[0] = false;
+			int gun = GetBoneIndex("gun");
+			if(gun >= 0)
+			{
+				initial_pose.data[gun].pos = Vec3(0, 1, 0.5f);
+				initial_pose.data[gun].ori = Quaternion::FromPYR(0, 1.5f, 0);
+			}
 
 			// and set the appropriate positions for the objects under foot
-			initial_pose.data[bones.size() - 2].pos = Vec3( 0.238f, 0.000f, 0.065f);
-			initial_pose.data[bones.size() - 1].pos = Vec3(-0.238f, 0.000f, 0.065f);
+			int lground = GetBoneIndex("l ground");
+			if(lground >= 0)
+				initial_pose.data[lground].pos = Vec3( 0.238f, 0.000f, 0.065f);
+
+			int rground = GetBoneIndex("r ground");
+			if(rground >= 0)
+				initial_pose.data[rground].pos = Vec3(-0.238f, 0.000f, 0.065f);
+
+			// we'll also want to disable one of the two grip; trying to enforce both immediately would result in some weird poses
+			initial_pose.enabled_constraints[checkboxes[0].index] = false;
 		}
 
 		DATKeyframe GetDefaultPose()
@@ -389,6 +400,8 @@ namespace DoodAnimTool
 				}
 			Constraint** constraints_begin = active_constraints.data();
 			Constraint** constraints_end = constraints_begin + active_constraints.size();
+
+			unsigned int num_bones = pose.num_bones;
 			
 			// actually doing the iterations
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
@@ -401,6 +414,10 @@ namespace DoodAnimTool
 					if((*jter)->ApplyConstraint(pss))
 						++num_changes;
 
+				for(unsigned int j = 0; j < num_bones; ++j)
+					if(bones[j].locked)
+						pss.contrib_count[j] = 0;
+
 				pss.PostIteration();
 
 				if(num_changes == 0)
@@ -411,7 +428,7 @@ namespace DoodAnimTool
 			}
 
 			// getting the results
-			for(int i = 0; i < 5; ++i)
+			for(int i = 0; i < PoseSolverState::ERROR_TYPES; ++i)
 				errors[i] = pss.errors[i];
 
 			pose = pss.GetFinalPose();
@@ -536,14 +553,11 @@ namespace DoodAnimTool
 			skeleton->GetBoneMatrices(bone_matrices);
 			sk_rinfo.num_bones = bone_matrices.size();
 			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices, sk_rinfo.bone_matrices);
-			uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo, &materials);
+			dood_uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo);
 
-			// draw the gun
-			gun_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 3].bone_index]->GetTransformationMatrix(), NULL, &gun_materials);
-
-			// draw the objects under foot
-			foothelper_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 2].bone_index]->GetTransformationMatrix(), NULL, &foothelper_materials);
-			foothelper_model->Vis(&renderer, 0, skeleton->bones[bones[bones.size() - 1].bone_index]->GetTransformationMatrix(), NULL, &foothelper_materials);
+			// draw helper bones (e.g. gun, ground placeholder for placed foot constraints)
+			for(unsigned int i = 0; i < bones.size(); ++i)
+				bones[i].DrawHelperObject(&renderer, skeleton);
 
 			// draw outlines of bones' collision shapes
 			{
@@ -586,8 +600,8 @@ namespace DoodAnimTool
 				font->Print("nothing selected", 0, 0);
 
 			float errx = float(width) - font->font_spacing * 25;
-			string errnames[5] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : " };
-			for(int i = 0; i < 5; ++i)
+			string errnames[PoseSolverState::ERROR_TYPES] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : ", "foot ori : ", "foot pos : " };
+			for(int i = 0; i < PoseSolverState::ERROR_TYPES; ++i)
 				font->Print(((stringstream&)(stringstream() << errnames[i] << errors[i])).str(), errx, font->font_height * i);
 
 			mouseover_checkbox = DrawConstraintCheckboxes(keyframes[edit_keyframe], width, height);

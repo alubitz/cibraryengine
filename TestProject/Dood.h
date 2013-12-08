@@ -65,7 +65,6 @@ namespace Test
 
 			Team team;
 
-			vector<Material*> materials;
 			BillboardMaterial* blood_material;
 
 			Vec3 pos;

@@ -121,6 +121,7 @@ namespace Test
 			ContentMan* content = game->content;
 
 			UberModel* uber = content->GetCache<UberModel>()->Load(model_name);
+			uber->LoadCachedMaterials(content->GetCache<Material>());
 
 			CollisionShape* shape = NULL;
 

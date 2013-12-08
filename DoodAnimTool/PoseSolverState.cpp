@@ -26,7 +26,7 @@ namespace DoodAnimTool
 			contrib_count[i] = 1;
 		}
 
-		for(unsigned int i = 0; i < 5; ++i)
+		for(unsigned int i = 0; i < ERROR_TYPES; ++i)
 			errors[i] = 0.0f;
 	}
 

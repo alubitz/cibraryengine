@@ -33,6 +33,8 @@ namespace CibraryEngine
 	{
 		protected:
 
+			vector<Material*> cached_materials;
+
 			void InnerDispose();
 
 		public:
@@ -143,7 +145,9 @@ namespace CibraryEngine
 
 			Skeleton* CreateSkeleton();
 
-			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, Cache<Material>* mat_cache);
+			void LoadCachedMaterials(Cache<Material>* mat_cache, bool force = false);
+
+			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info);
 			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials);
 	};
 

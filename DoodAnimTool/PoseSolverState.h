@@ -9,6 +9,8 @@ namespace DoodAnimTool
 	class PoseSolverState
 	{
 		public:
+
+			static const unsigned int ERROR_TYPES = 7;
 			
 			DATKeyframe initial;
 			DATKeyframe current;
@@ -16,7 +18,7 @@ namespace DoodAnimTool
 
 			unsigned int* contrib_count;
 
-			float errors[5];
+			float errors[ERROR_TYPES];
 
 			PoseSolverState(const DATKeyframe& initial);
 			~PoseSolverState();

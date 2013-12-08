@@ -14,8 +14,8 @@ namespace CibraryEngine
 	{
 		/** The vertex buffer */
 		VertexBuffer* vbo;
-		/** The material index... I don't think this does anything yet? */
-		unsigned int material_index;			// index into an array of materials in the model class
+		/** Index into an array of materials stored somewhere else, e.g. by the model instance */
+		unsigned int material_index;
 
 		MaterialModelPair() : vbo(NULL), material_index(0) { }
 	};

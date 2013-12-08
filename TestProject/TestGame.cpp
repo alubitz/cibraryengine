@@ -509,6 +509,8 @@ namespace Test
 
 		imp->rubbish_model         = ubermodel_cache->Load("dummycube");
 		imp->rubbish_physics       = mphys_cache->Load("dummycube");
+
+		imp->rubbish_model->LoadCachedMaterials(mat_cache);
 #endif
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "crab bug"; }

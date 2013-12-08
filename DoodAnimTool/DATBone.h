@@ -15,7 +15,13 @@ namespace DoodAnimTool
 		Vec3 center;
 
 		bool selected;
+		bool locked;
+
+		UberModel* helper;
 
 		DATBone(unsigned int bone_index, unsigned int name, CollisionShape* shape);
+		DATBone(unsigned int bone_index, unsigned int name, CollisionShape* shape, UberModel* helper);
+
+		void DrawHelperObject(SceneRenderer* renderer, Skeleton* skeleton);
 	};
 }

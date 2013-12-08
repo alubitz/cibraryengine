@@ -166,6 +166,7 @@ namespace CibraryEngine
 	 */
 	UberModel::UberModel() :
 		Disposable(),
+		cached_materials(),
 		lods(),
 		materials(),
 		bones(),
@@ -219,13 +220,20 @@ namespace CibraryEngine
 		return skel;
 	}
 
-	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, Cache<Material>* mat_cache)
+	void UberModel::LoadCachedMaterials(Cache<Material>* mat_cache, bool force)
 	{
-		vector<Material*> use_materials;
-		for(unsigned int i = 0; i < materials.size(); ++i)
-			use_materials.push_back(mat_cache->Load(materials[i]));
+		if(force || materials.size() != cached_materials.size())
+		{
+			cached_materials.clear();
+			for(vector<string>::iterator iter = materials.begin(); iter != materials.end(); ++iter)
+				cached_materials.push_back(mat_cache->Load(*iter));
+		}
+	}
 
-		Vis(renderer, lod, xform, char_render_info, &use_materials);
+	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info)
+	{
+		assert(cached_materials.size() == materials.size());
+		Vis(renderer, lod, xform, char_render_info, &cached_materials);
 	}
 
 	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials)
