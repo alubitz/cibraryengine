@@ -13,6 +13,10 @@
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
+#include "GCanvas.h"
+#include "GColumnList.h"
+#include "GCheckbox.h"
+
 #define MAX_SOLVER_ITERATIONS 200
 
 namespace DoodAnimTool
@@ -33,8 +37,7 @@ namespace DoodAnimTool
 		SkinnedCharacterRenderInfo sk_rinfo;
 
 		ModelPhysics* mphys;
-
-		UberModel *dood_uber, *gun_uber, *ground_uber;
+		UberModel *dood_uber;
 
 		vector<DATBone> bones;
 		vector<unsigned int> id_to_bones;		// given a bone's "name", returns index into the above +1
@@ -49,8 +52,8 @@ namespace DoodAnimTool
 		unsigned int selection_count;
 
 		int mouseover_bone;
-		int mouseover_checkbox;
 
+		float yaw, pitch;
 		CameraView camera;
 		SceneRenderer renderer;
 
@@ -59,20 +62,63 @@ namespace DoodAnimTool
 
 		float now, buffered_time;
 
-		float yaw, pitch;
-
 		float errors[PoseSolverState::ERROR_TYPES];
 
-		struct ConstraintCheckbox
+		class ConstraintCheckbox : public GCheckbox
 		{
-			string name, display_name;
-
+		public:
+			Imp* imp;
 			unsigned int index;
-			float x1, y1, x2, y2;		// set by draw method; determines where to click
 
-			ConstraintCheckbox(const string& name, unsigned int index) : name(name), index(index), x1(-1), y1(-1), x2(-2), y2(-2) { }
+			ConstraintCheckbox(Imp* imp, const string& text, unsigned int index) : GCheckbox(imp->font, text), imp(imp), index(index) { }
+			void LayoutChildren() { selected = imp->keyframes[imp->edit_keyframe].enabled_constraints[index]; }
+			void OnClick(int x, int y)
+			{
+				DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
+				bool& val = keyframe.enabled_constraints[index];
+				val = !val;
+				if(val)
+					imp->ApplyConstraints(keyframe);
+			}
 		};
-		vector<ConstraintCheckbox> checkboxes;
+		vector<ConstraintCheckbox*> constraint_checkboxes;
+
+		class BoneLockCheckbox : public GCheckbox
+		{
+		public:
+			Imp* imp;
+			unsigned int index;
+
+			BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font, Bone::string_table[imp->bones[index].name]), imp(imp), index(index) { }
+			void LayoutChildren() { selected = imp->bones[index].locked; }
+			void OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; }
+		};
+		vector<BoneLockCheckbox*> lock_checkboxes;
+
+		class BoneSelectCheckbox : public GCheckbox
+		{
+		public:
+			Imp* imp;
+			unsigned int index;
+
+			BoneSelectCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font, ""), imp(imp), index(index) { }
+			void LayoutChildren() { selected = imp->bones[index].selected; }
+			void OnClick(int x, int y)
+			{
+				bool& val = imp->bones[index].selected;
+				if(val)
+					--imp->selection_count;
+				else
+					++imp->selection_count;
+				val = !val;
+			}
+		};
+		vector<BoneSelectCheckbox*> select_checkboxes;
+
+		GLabel sel_label, lock_label;
+
+		GColumnList constraints_listbox, bones_listbox;
+		GCanvas canvas;
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
@@ -81,8 +127,6 @@ namespace DoodAnimTool
 			skeleton(NULL),
 			mphys(NULL),
 			dood_uber(NULL),
-			gun_uber(NULL),
-			ground_uber(NULL),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
 			cursor(NULL),
@@ -96,6 +140,19 @@ namespace DoodAnimTool
 			input_state->MouseButtonStateChanged += &mouse_listener;
 			input_state->MouseMoved += &mouse_motion_listener;
 
+			cursor = window->content->GetCache<Cursor>()->Load("Cursor");
+			font = window->content->GetCache<BitmapFont>()->Load("../Font");
+
+			constraints_listbox = GColumnList(5, GColumnList::Left);
+
+			bones_listbox = GColumnList(5, GColumnList::Left);
+			bones_listbox.AddColumn(5, GColumnList::Left);
+
+			sel_label = GLabel(font, "sel");
+			lock_label = GLabel(font, "lock");
+
+			canvas.AddChild(&constraints_listbox, GCanvas::HAlign(20, NULL), GCanvas::VAlign(20, NULL));
+			canvas.AddChild(&bones_listbox, GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
 
 			// make sure soldier physics file is up to date... these lines should probably be removed at some point
 			ScriptSystem::Init();
@@ -104,12 +161,7 @@ namespace DoodAnimTool
 			LoadDood("soldier");
 
 			now = buffered_time = 0.0f;
-			yaw = 0.0f;
-			pitch = 0.0f;
-
-			font = window->content->GetCache<BitmapFont>()->Load("../Font");
-
-			cursor = window->content->GetCache<Cursor>()->Load("Cursor");
+			yaw = pitch = 0.0f;
 		}
 
 		~Imp()
@@ -140,7 +192,21 @@ namespace DoodAnimTool
 
 			bones.clear();
 			keyframes.clear();
-			checkboxes.clear();
+
+			for(vector<BoneLockCheckbox*>::iterator iter = lock_checkboxes.begin(); iter != lock_checkboxes.end(); ++iter)
+				delete *iter;
+			lock_checkboxes.clear();
+
+			for(vector<BoneSelectCheckbox*>::iterator iter = select_checkboxes.begin(); iter != select_checkboxes.end(); ++iter)
+				delete *iter;
+			select_checkboxes.clear();
+
+			for(vector<ConstraintCheckbox*>::iterator iter = constraint_checkboxes.begin(); iter != constraint_checkboxes.end(); ++iter)
+				delete *iter;
+			constraint_checkboxes.clear();
+
+			bones_listbox.rows.clear();
+			constraints_listbox.rows.clear();
 
 			DeleteConstraints();
 
@@ -150,7 +216,6 @@ namespace DoodAnimTool
 			selection_count = 0;
 
 			mouseover_bone = -1;
-			mouseover_checkbox = -1;
 
 			// match up skeleton bones with ModelPhysics bones
 			unsigned int num_bones = skeleton->bones.size();
@@ -190,6 +255,23 @@ namespace DoodAnimTool
 					id_to_bones[bones[i].name] = i + 1;
 			}
 
+			// create bone select and lock checkbox lists
+			bones_listbox.BeginRow();
+			bones_listbox.AddToLastRow(&sel_label);
+			bones_listbox.AddToLastRow(&lock_label);
+
+			for(unsigned int i = 0; i < bones.size(); ++i)
+			{
+				select_checkboxes.push_back(new BoneSelectCheckbox(this, i));
+				lock_checkboxes.push_back(new BoneLockCheckbox(this, i));
+
+				bones_listbox.BeginRow();
+				
+				bones_listbox.AddToLastRow(*select_checkboxes.rbegin());
+				bones_listbox.AddToLastRow(*lock_checkboxes.rbegin());
+			}
+
+			// create constraints (starting with the soldier-specific ones)
 			CreateSoldierSpecificConstraints();
 
 			// add default constraints to the constraints list
@@ -208,7 +290,10 @@ namespace DoodAnimTool
 
 		void AddSpecialConstraint(const string& name, Constraint* c)
 		{
-			checkboxes.push_back(ConstraintCheckbox(name, constraints.size()));
+			constraint_checkboxes.push_back(new ConstraintCheckbox(this, name, constraints.size()));
+			constraints_listbox.BeginRow();
+			constraints_listbox.AddToLastRow(*constraint_checkboxes.rbegin());
+
 			constraints.push_back(c);
 		}
 
@@ -224,8 +309,8 @@ namespace DoodAnimTool
 			CollisionShape* gun_shape        = mphys_cache->Load( "gun"         )->bones[0].collision_shape;
 			CollisionShape* foothelper_shape = mphys_cache->Load( "foot_helper" )->bones[0].collision_shape;
 
-			gun_uber    = uber_cache->Load( "gun"         );
-			ground_uber = uber_cache->Load( "foot_helper" );
+			UberModel* gun_uber    = uber_cache->Load( "gun"         );
+			UberModel* ground_uber = uber_cache->Load( "foot_helper" );
 
 			gun_uber->LoadCachedMaterials(mat_cache);
 			ground_uber->LoadCachedMaterials(mat_cache);
@@ -251,11 +336,6 @@ namespace DoodAnimTool
 				AddSpecialConstraint("l ground", new CFlatFoot((unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
 			 if(rfoot >= 0 && rground >= 0)
 				AddSpecialConstraint("r ground", new CFlatFoot((unsigned int)rfoot, (unsigned int)rground, Vec3(-0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
-
-			// while we're at it, let's lock the torso bone so it can't be affected by the constraint solver
-			int torso2 = GetBoneIndex( "torso 2"  );
-			if(torso2 >= 0)
-				bones[torso2].locked = true;
 		}
 
 		void DoSoldierSpecificKeyframeStuff(DATKeyframe& initial_pose)
@@ -264,7 +344,7 @@ namespace DoodAnimTool
 			int gun = GetBoneIndex("gun");
 			if(gun >= 0)
 			{
-				initial_pose.data[gun].pos = Vec3(0, 1, 0.5f);
+				initial_pose.data[gun].pos = Vec3(-0.5f, 1, 0.5f);
 				initial_pose.data[gun].ori = Quaternion::FromPYR(0, 1.5f, 0);
 			}
 
@@ -278,7 +358,7 @@ namespace DoodAnimTool
 				initial_pose.data[rground].pos = Vec3(-0.238f, 0.000f, 0.065f);
 
 			// we'll also want to disable one of the two grip; trying to enforce both immediately would result in some weird poses
-			initial_pose.enabled_constraints[checkboxes[0].index] = false;
+			initial_pose.enabled_constraints[constraint_checkboxes[0]->index] = false;
 		}
 
 		DATKeyframe GetDefaultPose()
@@ -330,7 +410,7 @@ namespace DoodAnimTool
 							if(input_state->keys[VK_SHIFT])
 							{
 								// translate the selected bones
-								Vec3 delta = bone_controls * (2.0f * timestep);
+								Vec3 delta = bone_controls * (1.0f * timestep);
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
@@ -586,27 +666,18 @@ namespace DoodAnimTool
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
 
-			if(selection_count != 0)
-			{
-				float x = font->font_spacing * 2;
-				int row = -1;
-
-				font->Print("selected bones:", 0, ++row * font->font_height);
-				for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
-					if(iter->selected)
-						font->Print(Bone::string_table[iter->name], x, ++row * font->font_height);
-			}
-			else
-				font->Print("nothing selected", 0, 0);
-
 			float errx = float(width) - font->font_spacing * 25;
 			string errnames[PoseSolverState::ERROR_TYPES] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : ", "foot ori : ", "foot pos : " };
 			for(int i = 0; i < PoseSolverState::ERROR_TYPES; ++i)
 				font->Print(((stringstream&)(stringstream() << errnames[i] << errors[i])).str(), errx, font->font_height * i);
+			
+			// draw GUI
+			canvas.Layout(width, height);
+			canvas.OnMouseMoved(input_state->mx, input_state->my);
+			canvas.Draw(width, height);
 
-			mouseover_checkbox = DrawConstraintCheckboxes(keyframes[edit_keyframe], width, height);
-
-			if(mouseover_checkbox == -1)
+			GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
+			if(comp == NULL || comp == &canvas)
 			{
 				FindMouseoverBone();
 				if(mouseover_bone >= 0)
@@ -616,55 +687,6 @@ namespace DoodAnimTool
 				mouseover_bone = -1;
 
 			cursor->Draw(float(input_state->mx), float(input_state->my));
-		}
-
-		// returns which checkbox the cursor is over, or -1 if none
-		int DrawConstraintCheckboxes(DATKeyframe& frame, int w, int h)
-		{
-			int mouseover = -1;
-			unsigned int count = checkboxes.size();
-
-			float widest = 0.0f;
-
-			float border = 20.0f;
-			float cb_vspacing = font->font_height * 1.5f;			// an extra 0.5 lines of spacing between each line of text
-			float top = h - border - (count - 1) * cb_vspacing - font->font_height;
-
-			for(unsigned int i = 0; i < count; ++i)
-			{
-				ConstraintCheckbox& cb = checkboxes[i];
-
-				cb.display_name = (frame.enabled_constraints[cb.index] ? "[x]  " : "[ ]  ") + cb.name;
-
-				cb.x1 = 0;
-				cb.x2 = cb.display_name.length() * font->font_spacing;
-				cb.y1 = top + cb_vspacing * i;
-				cb.y2 = cb.y1 + font->font_height;
-
-				widest = max(widest, cb.x2);
-			}
-
-			float left = w - widest - border;
-			for(unsigned int i = 0; i < count; ++i)
-			{
-				ConstraintCheckbox& cb = checkboxes[i];
-				cb.x1 += left;
-				cb.x2 += left;
-
-				if(input_state->mx >= cb.x1 && input_state->mx <= cb.x2 && input_state->my >= cb.y1 && input_state->my <= cb.y2)
-				{
-					mouseover = (signed)i;
-					glColor4f(1.0f,	1.0f, 0.5f, 1.0f);
-				}
-				else
-					glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-				font->Print(cb.display_name, cb.x1, cb.y1);
-			}
-
-			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-			return mouseover;
 		}
 
 		// convert cursor position to a world-space ray
@@ -755,16 +777,9 @@ namespace DoodAnimTool
 					{
 						case 0:
 
-							if(imp->mouseover_checkbox >= 0)
-							{
-								DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
-								bool& selected = keyframe.enabled_constraints[imp->mouseover_checkbox];
+							imp->canvas.OnClick(imp->input_state->mx, imp->input_state->my);
 
-								selected = !selected;
-								if(selected)
-									imp->ApplyConstraints(keyframe);
-							}
-							else if(imp->mouseover_bone >= 0)
+							if(imp->mouseover_bone >= 0)
 							{
 								bool& selected = imp->bones[imp->mouseover_bone].selected;
 
