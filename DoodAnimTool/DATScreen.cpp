@@ -49,6 +49,8 @@ namespace DoodAnimTool
 
 		vector<Constraint*> constraints;
 
+		vector<Vec3> debug_dots;
+
 		unsigned int selection_count;
 
 		int mouseover_bone;
@@ -590,6 +592,162 @@ namespace DoodAnimTool
 			selection_count = bones.size();
 		}
 
+		bool DoBoneFrustumTest(Vec3* points, Sphere* spheres_begin, Sphere* spheres_end)
+		{
+			const char NUM_ITERATIONS = 50;
+			const char NUM_OFFSETS = 8;
+
+
+			Vec3* points_end = points + 8;			// 8 vertices of the frustum
+
+			// try to find a separating axis
+			Vec3 direction;
+			float score = -1;
+			float search_scale = 0.6f;
+
+			static const float x_offsets[NUM_OFFSETS] = { -1, -1, -1, -1,  1,  1,  1,  1 };
+			static const float y_offsets[NUM_OFFSETS] = { -1, -1,  1,  1, -1, -1,  1,  1 };
+			static const float z_offsets[NUM_OFFSETS] = { -1,  1, -1,  1, -1,  1, -1,  1 };
+
+			for(char i = 0; i < NUM_ITERATIONS; ++i)
+			{
+				float best_score;
+				Vec3 best_test;
+
+				for(char j = 0; j < NUM_OFFSETS; ++j)
+				{
+					Vec3 dir(Vec3::Normalize(
+						direction.x + x_offsets[j] * search_scale,
+						direction.y + y_offsets[j] * search_scale,
+						direction.z + z_offsets[j] * search_scale));
+
+					Sphere* iter = spheres_begin;
+					float max_extent = Vec3::Dot(dir, iter->center) + iter->radius;
+					++iter;
+
+					while(iter != spheres_end)
+					{
+						max_extent = max(max_extent, Vec3::Dot(dir, iter->center) + iter->radius);
+						++iter;
+					}
+
+					Vec3* jter = points;
+					float min_extent = Vec3::Dot(dir, *jter);
+					++jter;
+					while(jter != points_end)
+					{
+						min_extent = min(min_extent, Vec3::Dot(dir, *jter));
+						++jter;
+					}
+
+					float test_score = max_extent - min_extent;
+
+					if(test_score < 0)							// found a separating plane? go home early
+						return false;
+					else if(j == 0 || test_score < best_score)
+					{
+						best_test = dir;
+						best_score = test_score;
+					}
+				}
+
+				if(i != 0 && best_score >= score)
+					search_scale *= 0.75f;
+				else
+				{
+					direction = best_test;
+					score = best_score;
+				}
+			}
+
+			return true;
+		}
+
+		void SelectBonesInRectangle(int x1, int y1, int x2, int y2)
+		{
+			if(x2 < x1)
+				swap(x1, x2);
+			if(y2 < y1)
+				swap(y1, y2);
+
+			vector<unsigned int> unselected_indices;
+			for(unsigned int i = 0; i < bones.size(); ++i)
+				if(!bones[i].selected)
+					unselected_indices.push_back(i);
+
+			int ww = window->GetWidth(), wh = window->GetHeight();	
+			float inv_w = 1.0f / ww, inv_h = 1.0f / wh;
+			Vec3 origin, direction;
+			float t;
+
+			float fx1 = (float)x1 * inv_w, fx2 = (float)x2 * inv_w;
+			float fy1 = (float)(wh - y1) * inv_h, fy2 = (float)(wh - y2) * inv_h;
+
+			Vec3 normal = camera.GetForward();
+			float base_offset = Vec3::Dot(normal, camera.GetPosition());
+
+			Plane near_plane(normal, base_offset);
+			Plane far_plane(normal, base_offset + 1);
+
+			Vec3 points[8];
+
+			for(int n = 0; n < 10; ++n, ++near_plane.offset, ++far_plane.offset)
+			{
+				camera.GetRayFromDimCoeffs(fx1, fy1, origin, direction);
+				t = Util::RayPlaneIntersect(Ray(origin, direction), near_plane);
+				points[0] = origin + direction * t;
+				t = Util::RayPlaneIntersect(Ray(origin, direction), far_plane);
+				points[1] = origin + direction * t;
+
+				camera.GetRayFromDimCoeffs(fx1, fy2, origin, direction);
+				t = Util::RayPlaneIntersect(Ray(origin, direction), near_plane);
+				points[2] = origin + direction * t;
+				t = Util::RayPlaneIntersect(Ray(origin, direction), far_plane);
+				points[3] = origin + direction * t;
+
+				camera.GetRayFromDimCoeffs(fx2, fy1, origin, direction);
+				t = Util::RayPlaneIntersect(Ray(origin, direction), near_plane);
+				points[4] = origin + direction * t;
+				t = Util::RayPlaneIntersect(Ray(origin, direction), far_plane);
+				points[5] = origin + direction * t;
+
+				camera.GetRayFromDimCoeffs(fx2, fy2, origin, direction);
+				t = Util::RayPlaneIntersect(Ray(origin, direction), near_plane);
+				points[6] = origin + direction * t;
+				t = Util::RayPlaneIntersect(Ray(origin, direction), far_plane);
+				points[7] = origin + direction * t;
+
+				for(unsigned int i = 0; i < unselected_indices.size(); ++i)
+				{
+					DATBone& dat_bone = bones[unselected_indices[i]];
+					Bone* bone = skeleton->bones[dat_bone.bone_index];
+					CollisionShape* shape = dat_bone.shape;
+					Mat4 xform = bone->GetTransformationMatrix();
+
+					switch(shape->GetShapeType())
+					{
+						case ST_MultiSphere:
+						{
+							MultiSphereShapeInstanceCache mssic;
+							ShapeInstanceCache* sic = &mssic;
+
+							((MultiSphereShape*)shape)->ComputeCachedWorldAABB(xform, sic);
+							if(DoBoneFrustumTest(points, mssic.spheres.data(), mssic.spheres.data() + mssic.spheres.size()))
+							{
+								dat_bone.selected = true;
+								++selection_count;
+							}
+
+							break;
+						}
+
+						default:
+							break;
+					}
+				}
+			}
+		}
+
 		void LoadPose()
 		{
 			ifstream file("Files/pose.pose", ios::in | ios::binary);
@@ -649,6 +807,18 @@ namespace DoodAnimTool
 			{
 				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3(-2, 0,  i ), Vec3( 2, 0, i )), 0));
 				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3( i, 0, -2 ), Vec3( i, 0, 2 )), 0));
+			}
+
+			for(vector<Vec3>::iterator iter = debug_dots.begin(); iter != debug_dots.end(); ++iter)
+			{
+				static const float R = 0.01f;
+				static const Vec3 xvec(R, 0, 0);
+				static const Vec3 yvec(0, R, 0);
+				static const Vec3 zvec(0, 0, R);
+
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - xvec, *iter + xvec), 0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - yvec, *iter + yvec), 0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - zvec, *iter + zvec), 0));
 			}
 
 			// draw the skinned character
@@ -856,69 +1026,7 @@ namespace DoodAnimTool
 						case 0:
 
 							if(imp->box_selecting == Box)
-							{
-								int x1 = imp->box_x1, y1 = imp->box_y1;
-								int x2 = mx, y2 = my;
-								if(x2 < x1)
-									swap(x1, x2);
-								if(y2 < y1)
-									swap(y1, y2);
-
-								vector<unsigned int> unselected_indices;
-								for(unsigned int i = 0; i < imp->bones.size(); ++i)
-									if(!imp->bones[i].selected)
-										unselected_indices.push_back(i);
-
-								int window_height = imp->window->GetHeight();	
-								Vec3 origin, direction;
-
-								for(int x = x1; x <= x2; ++x)
-									for(int y = y1; y <= y2; ++y)
-									{
-										imp->camera.GetRayFromDimCoeffs((float)x / imp->window->GetWidth(), (float)(window_height - y) / window_height, origin, direction);
-
-										for(unsigned int i = 0; i < unselected_indices.size();)
-										{
-											// this code was copied from FindBoneAtScreenPos; it might be possible to extract a method from the shared code
-											DATBone& dat_bone = imp->bones[unselected_indices[i]];
-											Bone* bone = imp->skeleton->bones[dat_bone.bone_index];
-											CollisionShape* shape = dat_bone.shape;
-											Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
-
-											const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
-											Ray ray(inv_xform.TransformVec3_1(origin), inv_xform.TransformVec3_0(direction) * ray_length);
-											RayResult ray_result;
-
-											bool select = false;
-
-											switch(shape->GetShapeType())
-											{
-												case ST_MultiSphere:
-												{
-													MultiSphereShape* mss = (MultiSphereShape*)shape;
-													if(mss->CollideRay(ray, ray_result))
-														select = true;
-
-													break;
-												}
-
-												default:
-													break;
-											}
-
-											if(select)
-											{
-												dat_bone.selected = true;
-												++imp->selection_count;
-
-												swap(unselected_indices[i], unselected_indices[unselected_indices.size() - 1]);
-												unselected_indices.pop_back();
-											}
-											else
-												++i;
-										}
-									}
-							}
+								imp->SelectBonesInRectangle(imp->box_x1, imp->box_y1, mx, my);
 							imp->box_selecting = None;
 
 							break;
