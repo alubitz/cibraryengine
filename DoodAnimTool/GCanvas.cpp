@@ -235,10 +235,12 @@ namespace DoodAnimTool
 		}
 	}
 
-	void GCanvas::OnClick(int x, int y)
+	bool GCanvas::OnClick(int x, int y)
 	{
 		GUIComponent* clicky = GetComponentAtPos(x, y);
 		if(clicky != this && clicky != NULL)
-			clicky->OnClick(x - clicky->x1, y - clicky->y1);
+			return clicky->OnClick(x - clicky->x1, y - clicky->y1);
+
+		return false;
 	}
 }

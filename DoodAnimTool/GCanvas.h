@@ -57,6 +57,6 @@ namespace DoodAnimTool
 			GUIComponent* GetComponentAtPos(int x, int y);
 
 			void OnMouseMoved(int x, int y);
-			void OnClick(int x, int y);
+			bool OnClick(int x, int y);
 	};
 }

@@ -60,6 +60,10 @@ namespace DoodAnimTool
 		Cursor* cursor;
 		BitmapFont* font;
 
+		enum BoxSelectMode { None, Disable, Waiting, Box } box_selecting;
+
+		int box_x1, box_y1;
+
 		float now, buffered_time;
 
 		float errors[PoseSolverState::ERROR_TYPES];
@@ -70,18 +74,21 @@ namespace DoodAnimTool
 			Imp* imp;
 			unsigned int index;
 
-			ConstraintCheckbox(Imp* imp, const string& text, unsigned int index) : GCheckbox(imp->font, text), imp(imp), index(index) { }
+			ConstraintCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
 			void LayoutChildren() { selected = imp->keyframes[imp->edit_keyframe].enabled_constraints[index]; }
-			void OnClick(int x, int y)
+			bool OnClick(int x, int y)
 			{
 				DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
 				bool& val = keyframe.enabled_constraints[index];
 				val = !val;
 				if(val)
 					imp->ApplyConstraints(keyframe);
+
+				return true;
 			}
 		};
 		vector<ConstraintCheckbox*> constraint_checkboxes;
+		vector<GLabel*> constraint_labels;
 
 		class BoneLockCheckbox : public GCheckbox
 		{
@@ -89,9 +96,9 @@ namespace DoodAnimTool
 			Imp* imp;
 			unsigned int index;
 
-			BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font, Bone::string_table[imp->bones[index].name]), imp(imp), index(index) { }
+			BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
 			void LayoutChildren() { selected = imp->bones[index].locked; }
-			void OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; }
+			bool OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; return true; }
 		};
 		vector<BoneLockCheckbox*> lock_checkboxes;
 
@@ -101,9 +108,9 @@ namespace DoodAnimTool
 			Imp* imp;
 			unsigned int index;
 
-			BoneSelectCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font, ""), imp(imp), index(index) { }
+			BoneSelectCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
 			void LayoutChildren() { selected = imp->bones[index].selected; }
-			void OnClick(int x, int y)
+			bool OnClick(int x, int y)
 			{
 				bool& val = imp->bones[index].selected;
 				if(val)
@@ -111,9 +118,12 @@ namespace DoodAnimTool
 				else
 					++imp->selection_count;
 				val = !val;
+
+				return true;
 			}
 		};
 		vector<BoneSelectCheckbox*> select_checkboxes;
+		vector<GLabel*> bone_labels;
 
 		GLabel sel_label, lock_label;
 
@@ -131,6 +141,7 @@ namespace DoodAnimTool
 			renderer(&camera),
 			cursor(NULL),
 			font(NULL),
+			box_selecting(None),
 			key_listener(),
 			mouse_listener()
 		{
@@ -144,9 +155,11 @@ namespace DoodAnimTool
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
 			constraints_listbox = GColumnList(5, GColumnList::Left);
+			constraints_listbox.AddColumn(20, GColumnList::Left);
 
-			bones_listbox = GColumnList(5, GColumnList::Left);
-			bones_listbox.AddColumn(5, GColumnList::Left);
+			bones_listbox = GColumnList(5, GColumnList::Center);
+			bones_listbox.AddColumn(5, GColumnList::Center);
+			bones_listbox.AddColumn(20, GColumnList::Left);
 
 			sel_label = GLabel(font, "sel");
 			lock_label = GLabel(font, "lock");
@@ -204,6 +217,14 @@ namespace DoodAnimTool
 			for(vector<ConstraintCheckbox*>::iterator iter = constraint_checkboxes.begin(); iter != constraint_checkboxes.end(); ++iter)
 				delete *iter;
 			constraint_checkboxes.clear();
+
+			for(vector<GLabel*>::iterator iter = constraint_labels.begin(); iter != constraint_labels.end(); ++iter)
+				delete *iter;
+			constraint_labels.clear();
+
+			for(vector<GLabel*>::iterator iter = bone_labels.begin(); iter != bone_labels.end(); ++iter)
+				delete *iter;
+			bone_labels.clear();
 
 			bones_listbox.rows.clear();
 			constraints_listbox.rows.clear();
@@ -264,11 +285,13 @@ namespace DoodAnimTool
 			{
 				select_checkboxes.push_back(new BoneSelectCheckbox(this, i));
 				lock_checkboxes.push_back(new BoneLockCheckbox(this, i));
+				bone_labels.push_back(new GLabel(font, Bone::string_table[bones[i].name]));
 
 				bones_listbox.BeginRow();
 				
 				bones_listbox.AddToLastRow(*select_checkboxes.rbegin());
 				bones_listbox.AddToLastRow(*lock_checkboxes.rbegin());
+				bones_listbox.AddToLastRow(*bone_labels.rbegin());
 			}
 
 			// create constraints (starting with the soldier-specific ones)
@@ -290,9 +313,12 @@ namespace DoodAnimTool
 
 		void AddSpecialConstraint(const string& name, Constraint* c)
 		{
-			constraint_checkboxes.push_back(new ConstraintCheckbox(this, name, constraints.size()));
+			constraint_checkboxes.push_back(new ConstraintCheckbox(this, constraints.size()));
+			constraint_labels.push_back(new GLabel(font, name));
+
 			constraints_listbox.BeginRow();
 			constraints_listbox.AddToLastRow(*constraint_checkboxes.rbegin());
+			constraints_listbox.AddToLastRow(*constraint_labels.rbegin());
 
 			constraints.push_back(c);
 		}
@@ -676,29 +702,40 @@ namespace DoodAnimTool
 			canvas.OnMouseMoved(input_state->mx, input_state->my);
 			canvas.Draw(width, height);
 
-			GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
-			if(comp == NULL || comp == &canvas)
+			mouseover_bone = -1;
+
+			if(box_selecting == Box)
 			{
-				FindMouseoverBone();
-				if(mouseover_bone >= 0)
-					font->Print(Bone::string_table[bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
+				glDisable(GL_TEXTURE_2D);
+				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+				glBegin(GL_LINE_LOOP);
+				glVertex2i(box_x1, box_y1);
+				glVertex2i(input_state->mx, box_y1);
+				glVertex2i(input_state->mx, input_state->my);
+				glVertex2i(box_x1, input_state->my);
+				glEnd();
 			}
 			else
-				mouseover_bone = -1;
+			{
+				GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
+				if(comp == NULL || comp == &canvas)
+				{
+					FindMouseoverBone();
+					if(mouseover_bone >= 0)
+						font->Print(Bone::string_table[bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
+				}
+			}
 
 			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
 
-		// convert cursor position to a world-space ray
-		void FindMouseoverBone()
+		int FindBoneAtScreenPos(int x, int y)
 		{
-			int mx = input_state->mx;
-			int my = input_state->my;
-
 			int window_height = window->GetHeight();
 
 			Vec3 origin, direction;
-			camera.GetRayFromDimCoeffs((float)mx / window->GetWidth(), (float)(window_height - my) / window_height, origin, direction);
+			camera.GetRayFromDimCoeffs((float)x / window->GetWidth(), (float)(window_height - y) / window_height, origin, direction);
 
 			float target_t = 0.0f;
 			int target = -1;
@@ -736,8 +773,10 @@ namespace DoodAnimTool
 				}
 			}
 
-			mouseover_bone = target;
+			return target;
 		}
+
+		void FindMouseoverBone() { mouseover_bone = FindBoneAtScreenPos(input_state->mx, input_state->my); }
 
 		struct KeyListener : public EventHandler
 		{
@@ -771,25 +810,116 @@ namespace DoodAnimTool
 			void HandleEvent(Event* evt)
 			{
 				MouseButtonStateEvent* mbse = (MouseButtonStateEvent*)evt;
+				int mx = imp->input_state->mx;
+				int my = imp->input_state->my;
+
 				if(mbse->state)
 				{
 					switch(mbse->button)
 					{
 						case 0:
 
-							imp->canvas.OnClick(imp->input_state->mx, imp->input_state->my);
-
-							if(imp->mouseover_bone >= 0)
+							if(!imp->canvas.OnClick(mx, my))
 							{
-								bool& selected = imp->bones[imp->mouseover_bone].selected;
+								if(imp->mouseover_bone >= 0)
+								{
+									bool& selected = imp->bones[imp->mouseover_bone].selected;
 
-								if(selected)
-									--imp->selection_count;
+									if(selected)
+										--imp->selection_count;
+									else
+										++imp->selection_count;
+
+									selected = !selected;
+
+									imp->box_selecting = Disable;
+								}
 								else
-									++imp->selection_count;
+								{
+									imp->box_x1 = mx;
+									imp->box_y1 = my;
 
-								selected = !selected;
+									imp->box_selecting = Waiting;
+								}
 							}
+
+							break;
+
+						default:
+							break;
+					}
+				}
+				else
+				{
+					switch(mbse->button)
+					{
+						case 0:
+
+							if(imp->box_selecting == Box)
+							{
+								int x1 = imp->box_x1, y1 = imp->box_y1;
+								int x2 = mx, y2 = my;
+								if(x2 < x1)
+									swap(x1, x2);
+								if(y2 < y1)
+									swap(y1, y2);
+
+								vector<unsigned int> unselected_indices;
+								for(unsigned int i = 0; i < imp->bones.size(); ++i)
+									if(!imp->bones[i].selected)
+										unselected_indices.push_back(i);
+
+								int window_height = imp->window->GetHeight();	
+								Vec3 origin, direction;
+
+								for(int x = x1; x <= x2; ++x)
+									for(int y = y1; y <= y2; ++y)
+									{
+										imp->camera.GetRayFromDimCoeffs((float)x / imp->window->GetWidth(), (float)(window_height - y) / window_height, origin, direction);
+
+										for(unsigned int i = 0; i < unselected_indices.size();)
+										{
+											// this code was copied from FindBoneAtScreenPos; it might be possible to extract a method from the shared code
+											DATBone& dat_bone = imp->bones[unselected_indices[i]];
+											Bone* bone = imp->skeleton->bones[dat_bone.bone_index];
+											CollisionShape* shape = dat_bone.shape;
+											Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
+
+											const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
+											Ray ray(inv_xform.TransformVec3_1(origin), inv_xform.TransformVec3_0(direction) * ray_length);
+											RayResult ray_result;
+
+											bool select = false;
+
+											switch(shape->GetShapeType())
+											{
+												case ST_MultiSphere:
+												{
+													MultiSphereShape* mss = (MultiSphereShape*)shape;
+													if(mss->CollideRay(ray, ray_result))
+														select = true;
+
+													break;
+												}
+
+												default:
+													break;
+											}
+
+											if(select)
+											{
+												dat_bone.selected = true;
+												++imp->selection_count;
+
+												swap(unselected_indices[i], unselected_indices[unselected_indices.size() - 1]);
+												unselected_indices.pop_back();
+											}
+											else
+												++i;
+										}
+									}
+							}
+							imp->box_selecting = None;
 
 							break;
 
@@ -807,6 +937,11 @@ namespace DoodAnimTool
 			void HandleEvent(Event* evt)
 			{
 				MouseMotionEvent* mme = (MouseMotionEvent*)evt;
+				if(imp->input_state->mb[0])
+				{
+					if(imp->box_selecting == Waiting && (abs(mme->x - imp->box_x1) > 2 || abs(mme->y - imp->box_y1) > 2))
+						imp->box_selecting = Box;
+				}
 				if(imp->input_state->mb[2])
 				{
 					imp->yaw   += mme->dx * 0.01f;

@@ -21,6 +21,6 @@ namespace DoodAnimTool
 
 			virtual GUIComponent* GetComponentAtPos(int x, int y) { return this; }
 
-			virtual void OnClick(int x, int y) { }
+			virtual bool OnClick(int x, int y) { return false; }
 	};
 }
