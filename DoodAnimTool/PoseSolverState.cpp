@@ -22,8 +22,14 @@ namespace DoodAnimTool
 	{
 		for(unsigned int i = 0; i < initial.num_bones; ++i)
 		{
+#if 1
+			next.data[i].pos = Vec3();
+			next.data[i].ori = Quaternion();		// zero quaternion on purpose
+			contrib_count[i] = 0;
+#else
 			next.data[i] = current.data[i];
 			contrib_count[i] = 1;
+#endif
 		}
 
 		for(unsigned int i = 0; i < ERROR_TYPES; ++i)

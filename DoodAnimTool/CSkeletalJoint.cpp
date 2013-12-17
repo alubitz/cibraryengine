@@ -42,7 +42,6 @@ namespace DoodAnimTool
 		static const float translation_threshold        = 0.0f;
 
 		static const float linear_offset_rotation_coeff = 1.0f;
-		static const float joint_limit_rotation_coeff   = 1.0f;
 		static const float linear_offset_linear_coeff   = 1.0f;
 
 		bool did_stuff = false;
@@ -115,23 +114,21 @@ namespace DoodAnimTool
 		if(enforce_rotation_limits)
 		{
 			Quaternion a_to_b = Quaternion::Reverse(nextori_a) * nextori_b;
-			Mat3 oriented_axes = joint->axes * nextori_a.ToMat3();
 
-			Vec3 proposed_pyr = oriented_axes * -a_to_b.ToPYR();
+			Vec3 proposed_pyr = joint->axes * -a_to_b.ToPYR();
 			Vec3 nupyr = joint->GetClampedAngles(proposed_pyr);
 
 			if(float err = (proposed_pyr - nupyr).ComputeMagnitudeSquared())
 			{
 				pose.errors[1] += err;
 
-				Quaternion actual_ori = Quaternion::FromPYR(oriented_axes.Transpose() * -nupyr);
-				Vec3 av = (Quaternion::Reverse(a_to_b) * actual_ori).ToPYR();
+				Quaternion actual_ori = Quaternion::FromPYR(joint->axes.Transpose() * -nupyr);
 
-				av *= 0.5f * joint_limit_rotation_coeff;
+				Quaternion bprime = nextori_a * actual_ori;
+				Quaternion aprime = nextori_b * Quaternion::Reverse(actual_ori);
 
-				Quaternion delta_quat = Quaternion::FromPYR(av);
-				nextori_a = Quaternion::Reverse(delta_quat) * nextori_a;
-				nextori_b = delta_quat * nextori_b;
+				nextori_a = aprime;
+				nextori_b = bprime;
 
 				did_stuff = true;
 			}

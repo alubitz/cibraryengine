@@ -385,7 +385,7 @@ namespace DoodAnimTool
 			if(rground >= 0)
 				initial_pose.data[rground].pos = Vec3(-0.238f, 0.000f, 0.065f);
 
-			// we'll also want to disable one of the two grip; trying to enforce both immediately would result in some weird poses
+			// we'll also want to disable one of the two grips; trying to enforce both immediately would result in some weird poses
 			initial_pose.enabled_constraints[constraint_checkboxes[0]->index] = false;
 		}
 

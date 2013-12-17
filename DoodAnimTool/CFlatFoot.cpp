@@ -37,28 +37,24 @@ namespace DoodAnimTool
 		static const float translation_threshold         = 0.0f;
 
 		static const float linear_offset_linear_coeff    = 1.0f;
-		static const float angular_offset_rotation_coeff = 1.0f;
 
 		bool did_stuff = false;
 
 		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-		Quaternion aori_inv = Quaternion::Reverse(a_ori), bori_inv = Quaternion::Reverse(b_ori);
+		Quaternion bori_inv = Quaternion::Reverse(b_ori);
 
 		Vec3 nextpos_a = obja->pos;
 		Quaternion nextori_a = a_ori;
 
 		// keep the relative orientations of the two bones constant
-		Vec3 av = (Quaternion::Reverse(aori_inv * b_ori) * relative_ori).ToPYR();
+		Vec3 av = (bori_inv * a_ori * relative_ori).ToPYR();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[5] += err;
 
 			if(err > rotation_threshold)
 			{
-				av *= linear_offset_linear_coeff;
-
-				Quaternion delta_quat = Quaternion::FromPYR(av);
-				nextori_a = Quaternion::Reverse(delta_quat) * nextori_a;
+				nextori_a = b_ori * relative_ori;
 
 				did_stuff = true;
 			}
@@ -75,7 +71,7 @@ namespace DoodAnimTool
 
 			if(err > translation_threshold)
 			{
-				dx *= angular_offset_rotation_coeff;
+				dx *= linear_offset_linear_coeff;
 				nextpos_a += dx;
 
 				did_stuff = true;
