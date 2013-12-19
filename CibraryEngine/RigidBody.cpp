@@ -133,7 +133,7 @@ namespace CibraryEngine
 	void RigidBody::ComputeXform()
 	{
 		ori_rm = ori.ToMat3();
-		xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
+		xform = Mat4::FromPositionAndOrientation(pos, ori_rm.Transpose());
 		inv_xform = Mat4::Invert(xform);
 
 		cached_aabb = shape->ComputeCachedWorldAABB(xform, shape_cache);

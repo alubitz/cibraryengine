@@ -463,13 +463,13 @@ namespace DoodAnimTool
 									{
 										DATKeyframe::KBone& bone = keyframe.data[i];
 
-										Mat4 oldmat = Mat4::FromPositionAndOrientation(bone.pos, Quaternion::Reverse(bone.ori));
+										Mat4 oldmat = Mat4::FromPositionAndOrientation(bone.pos, bone.ori);
 										Vec3 oldcenter = Mat4::Invert(oldmat).TransformVec3_1(center);
 
 										Quaternion& ori = bone.ori;
 										ori = delta_quat * ori;
 
-										Mat4 newmat = Mat4::FromPositionAndOrientation(bone.pos, Quaternion::Reverse(bone.ori));
+										Mat4 newmat = Mat4::FromPositionAndOrientation(bone.pos, bone.ori);
 										Vec3 newcenter = newmat.TransformVec3_1(oldcenter);
 
 										bone.pos += center - newcenter;

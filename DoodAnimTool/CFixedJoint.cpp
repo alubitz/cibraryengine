@@ -64,8 +64,8 @@ namespace DoodAnimTool
 		}
 
 		// keep the corresponding points in each bone in the same position
-		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a)).TransformVec3_1(point_in_a);
-		Vec3 bpos = Mat4::FromPositionAndOrientation(nextpos_b, Quaternion::Reverse(nextori_b)).TransformVec3_1(point_in_b);
+		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a).TransformVec3_1(point_in_a);
+		Vec3 bpos = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b).TransformVec3_1(point_in_b);
 
 		Vec3 dx = bpos - apos;
 		if(float err = dx.ComputeMagnitudeSquared())

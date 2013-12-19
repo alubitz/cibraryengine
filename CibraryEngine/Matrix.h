@@ -233,9 +233,9 @@ namespace CibraryEngine
 		{
 			const float* arr = ori.values;
 			return Mat4(
-				arr[0],	arr[3],	arr[6],	pos.x,
-				arr[1],	arr[4],	arr[7],	pos.y,
-				arr[2],	arr[5],	arr[8],	pos.z,
+				arr[0],	arr[1],	arr[2],	pos.x,
+				arr[3],	arr[4],	arr[5],	pos.y,
+				arr[6],	arr[7],	arr[8],	pos.z,
 				0,		0,		0,		1
 			);
 		}
@@ -246,9 +246,9 @@ namespace CibraryEngine
 		{
 			const float* arr = ori.values;
 			return Mat4(
-				arr[0] * scale,	arr[3] * scale,	arr[6] * scale,	pos.x,
-				arr[1] * scale,	arr[4] * scale,	arr[7] * scale,	pos.y,
-				arr[2] * scale,	arr[5] * scale,	arr[8] * scale,	pos.z,
+				arr[0] * scale,	arr[1] * scale,	arr[2] * scale,	pos.x,
+				arr[3] * scale,	arr[4] * scale,	arr[5] * scale,	pos.y,
+				arr[6] * scale,	arr[7] * scale,	arr[8] * scale,	pos.z,
 				0,				0,				0,				1
 			);
 		}

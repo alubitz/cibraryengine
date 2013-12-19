@@ -42,7 +42,7 @@ namespace Test
 	void StaticLevelGeometry::Vis(SceneRenderer* renderer)
 	{
 		if(renderer->camera->CheckSphereVisibility(bs))
-			model->Vis(renderer, 0, Mat4::FromPositionAndOrientation(pos, ori), NULL, &materials);
+			model->Vis(renderer, 0, Mat4::FromPositionAndOrientation(pos, Quaternion::Reverse(ori)), NULL, &materials);
 	}
 
 	void StaticLevelGeometry::Spawned() 

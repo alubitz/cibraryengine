@@ -12,7 +12,7 @@ namespace Test
 		model(model),
 		materials(),
 		dirt_particle(dirt_particle),
-		xform(Mat4::FromPositionAndOrientation(pos, ori)),
+		xform(Mat4::FromPositionAndOrientation(pos, Quaternion::Reverse(ori))),
 		bs(model->GetBoundingSphere()),
 		model_phys(model_phys),
 		rigid_body(NULL),

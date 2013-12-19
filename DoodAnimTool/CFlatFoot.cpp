@@ -41,13 +41,12 @@ namespace DoodAnimTool
 		bool did_stuff = false;
 
 		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-		Quaternion bori_inv = Quaternion::Reverse(b_ori);
 
 		Vec3 nextpos_a = obja->pos;
 		Quaternion nextori_a = a_ori;
 
 		// keep the relative orientations of the two bones constant
-		Vec3 av = (bori_inv * a_ori * relative_ori).ToPYR();
+		Vec3 av = (Quaternion::Reverse(b_ori) * a_ori * relative_ori).ToPYR();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[5] += err;
@@ -61,8 +60,8 @@ namespace DoodAnimTool
 		}
 
 		// keep the corresponding points in each bone in the same position
-		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a)).TransformVec3_1(point_in_a);
-		Vec3 bpos = Mat4::FromPositionAndOrientation(objb->pos, bori_inv).TransformVec3_1(point_in_b);
+		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a).TransformVec3_1(point_in_a);
+		Vec3 bpos = Mat4::FromPositionAndOrientation(objb->pos, b_ori).TransformVec3_1(point_in_b);
 
 		Vec3 dx = bpos - apos;
 		if(float err = dx.ComputeMagnitudeSquared())

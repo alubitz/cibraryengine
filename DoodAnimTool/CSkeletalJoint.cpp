@@ -51,8 +51,8 @@ namespace DoodAnimTool
 
 
 		// bones rotating to stay in their sockets
-		Mat4 amat = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a));
-		Mat4 bmat = Mat4::FromPositionAndOrientation(nextpos_b, Quaternion::Reverse(nextori_b));
+		Mat4 amat = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a);
+		Mat4 bmat = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b);
 		Vec3 apos = amat.TransformVec3_1(joint_pos);
 		Vec3 bpos = bmat.TransformVec3_1(joint_pos);
 		Vec3 dx = bpos - apos;
@@ -136,8 +136,8 @@ namespace DoodAnimTool
 		
 
 		// bones translating to stay in their sockets
-		amat = Mat4::FromPositionAndOrientation(nextpos_a, Quaternion::Reverse(nextori_a));		// recompute these values using the updated bone orientations
-		bmat = Mat4::FromPositionAndOrientation(nextpos_b, Quaternion::Reverse(nextori_b));
+		amat = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a);		// recompute these values using the updated bone orientations
+		bmat = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b);
 		apos = amat.TransformVec3_1(joint_pos);
 		bpos = bmat.TransformVec3_1(joint_pos);
 
