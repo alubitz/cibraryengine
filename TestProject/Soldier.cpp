@@ -534,7 +534,7 @@ namespace Test
 
 		if(is_valid)
 		{
-			posey->skeleton->GetNamedBone("pelvis")->ori = Quaternion::FromPYR(0, -yaw, 0);
+			posey->skeleton->GetNamedBone("pelvis")->ori = Quaternion::FromRVec(0, -yaw, 0);
 
 			p_ag = new PoseAimingGun();
 			posey->active_poses.push_back(p_ag);

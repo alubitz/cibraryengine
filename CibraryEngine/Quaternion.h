@@ -32,7 +32,7 @@ namespace CibraryEngine
 		/** Returns the norm (comparable to magnitude) of this quaternion */
 		float Norm() const										{ return sqrtf(w * w + x * x + y * y + z * z); }
 		/** Returns a 3-component vector parallel to the axis of rotation represented by this quaternion, whose magnitude is the angle of rotation */
-		Vec3 ToPYR() const
+		Vec3 ToRVec() const
 		{
 			if(float magsq = Vec3::MagnitudeSquared(x, y, z))
 			{
@@ -107,9 +107,9 @@ namespace CibraryEngine
 			return Quaternion(cosf(half), x * sine, y * sine, z * sine);
 		}
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
-		static Quaternion FromPYR(const Vec3& pyrVector)							{ return Quaternion::FromPYR(pyrVector.x, pyrVector.y, pyrVector.z); }
+		static Quaternion FromRVec(const Vec3& rVector)							{ return Quaternion::FromRVec(rVector.x, rVector.y, rVector.z); }
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
-		static Quaternion FromPYR(float p, float y, float r)
+		static Quaternion FromRVec(float p, float y, float r)
 		{
 			if(float magsq = Vec3::MagnitudeSquared(p, y, r))
 			{

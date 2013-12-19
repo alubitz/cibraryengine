@@ -32,7 +32,7 @@ namespace Test
 
 	void ArtilleryWeapon::LaunchRocketBug(float now)
 	{
-		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
+		Vec3 direction = Mat3::FromRVec(0, -owner->yaw, 0) * Mat3::FromRVec(owner->pitch, 0, 0) * Vec3(0, 0, 1);
 
 		game_state->Spawn(new RocketBug(
 			game_state,

@@ -81,7 +81,7 @@ namespace Test
 			game_state->Spawn(p);
 		}
 
-		//game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), ((TestGame*)game_state)->mphys_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromPYR(0, Random3D::Rand(2.0f * M_PI), 0), dirt_particle));
+		//game_state->Spawn(new Rubbish(game_state, ((TestGame*)game_state)->ubermodel_cache->Load("dummycube"), ((TestGame*)game_state)->mphys_cache->Load("dummycube"), poi + Vec3(0, 0.5f, 0), Quaternion::FromRVec(0, Random3D::Rand(2.0f * M_PI), 0), dirt_particle));
 
 		return true;
 	}

@@ -1175,7 +1175,7 @@ namespace CibraryEngine
 					lua_pushstring(L, "ori");
 					lua_gettable(L, -2);
 					if(lua_isuserdata(L, -1))
-						entry.ori = Quaternion::FromPYR(*(Vec3*)lua_touserdata(L, -1));
+						entry.ori = Quaternion::FromRVec(*(Vec3*)lua_touserdata(L, -1));
 					else
 						entry.ori = Quaternion::Identity();
 					lua_pop(L, 1);

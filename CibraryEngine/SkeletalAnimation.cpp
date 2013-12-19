@@ -255,7 +255,7 @@ namespace CibraryEngine
 			if(found != bone_states.end())
 			{
 				BoneInfluence state = found->second;
-				bone->ori = Quaternion::FromPYR(state.ori);
+				bone->ori = Quaternion::FromRVec(state.ori);
 				bone->pos = state.pos;
 			}
 		}

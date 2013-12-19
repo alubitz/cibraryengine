@@ -303,12 +303,12 @@ namespace Test
 
 	Mat4 Dood::GetViewMatrix()
 	{
-		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromPYR(0, float(M_PI), 0));
+		Mat4 flip = Mat4::FromQuaternion(Quaternion::FromRVec(0, float(M_PI), 0));
 
 		if(eye_bone == NULL)
 		{
-			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	-pitch,	0,		0 ));
-			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromPYR(	0,		yaw,	0 ));
+			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromRVec(	-pitch,	0,		0 ));
+			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromRVec(	0,		yaw,	0 ));
 			Mat4 loc		= Mat4::Translation(-pos);
 
 			return flip * pitch_mat * yaw_mat * loc;
@@ -319,7 +319,7 @@ namespace Test
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if 1
-			Mat4 use_ori = Mat4::FromQuaternion(Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0));
+			Mat4 use_ori = Mat4::FromQuaternion(Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0));
 #else
 			Mat4& use_ori = eye_xform;
 #endif
@@ -484,7 +484,7 @@ namespace Test
 			Quaternion bone_ori = bone_xform.ExtractOrientation();
 				
 			rb->SetLinearVelocity((bone_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_rate_coeff);
-			rb->SetAngularVelocity((rb->GetOrientation() * bone_ori).ToPYR() * move_rate_coeff);
+			rb->SetAngularVelocity((rb->GetOrientation() * bone_ori).ToRVec() * move_rate_coeff);
 		}
 	}
 
@@ -518,7 +518,7 @@ namespace Test
 			return;
 		}
 
-		Quaternion ori = Quaternion::FromPYR(0, -yaw, 0);
+		Quaternion ori = Quaternion::FromRVec(0, -yaw, 0);
 
 		physics = game_state->physics_world;
 
@@ -791,12 +791,12 @@ namespace Test
 
 				Vec3 xprod = Vec3::Cross(Vec3(0, 1, 0), use_normal);
 				float xmag = xprod.ComputeMagnitude();
-				Quaternion y_to_sloped = (xmag == 0.0f) ? Quaternion::Identity() : Quaternion::FromPYR(xprod * (acosf(use_normal.y) / xmag));
+				Quaternion y_to_sloped = (xmag == 0.0f) ? Quaternion::Identity() : Quaternion::FromRVec(xprod * (acosf(use_normal.y) / xmag));
 
 				Quaternion foot_on_slope = Quaternion::Reverse(foot_ori) * y_to_sloped;
-				Quaternion desired_foot_ori = Quaternion::Reverse(y_to_sloped) * Quaternion::FromPYR(0, foot_on_slope.ToPYR().y, 0);
+				Quaternion desired_foot_ori = Quaternion::Reverse(y_to_sloped) * Quaternion::FromRVec(0, foot_on_slope.ToRVec().y, 0);
 
-				if((foot_ori * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
+				if((foot_ori * desired_foot_ori).ToRVec().ComputeMagnitude() > float(M_PI) * 0.25f)
 					return;
 
 				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal, Quaternion::Reverse(desired_foot_ori) * Quaternion::Reverse(surf_ori), angular_coeff);

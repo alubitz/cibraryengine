@@ -144,7 +144,7 @@ namespace Test
 #if USE_GUN_XFORM_AS_SHOT_XFORM
 		Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
 #else
-		Vec3 direction = Mat3::FromScaledAxis(0, -owner->yaw, 0) * Mat3::FromScaledAxis(owner->pitch, 0, 0) * Vec3(0, 0, 1);
+		Vec3 direction = Mat3::FromRVec(0, -owner->yaw, 0) * Mat3::FromRVec(owner->pitch, 0, 0) * Vec3(0, 0, 1);
 #endif
 
 		if(Shot* shot = CreateShot(origin, vel, (direction + Random3D::RandomNormalizedVector(total_inaccuracy + 0.001f))))
@@ -201,7 +201,7 @@ namespace Test
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{
-				Mat4 mflash_xform = gun_xform * Mat4::Translation(barrel_pos) * Mat4::FromQuaternion(Quaternion::FromPYR(0, 0, -float(M_PI) * 0.5f)) * Mat4::UniformScale(mflash_size);
+				Mat4 mflash_xform = gun_xform * Mat4::Translation(barrel_pos) * Mat4::FromQuaternion(Quaternion::FromRVec(0, 0, -float(M_PI) * 0.5f)) * Mat4::UniformScale(mflash_size);
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetForward(), bs.center)));
 			}
 		}
@@ -260,7 +260,7 @@ namespace Test
 						break;
 					}
 				if(gripper_rb != NULL)
-					l_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f,  0.000f,  0.468f), Vec3( 0.990f,  1.113f,  0.037f), Quaternion::FromPYR(-Vec3(0.0703434f, 0.0146932f, -2.50207f)));
+					l_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f,  0.000f,  0.468f), Vec3( 0.990f,  1.113f,  0.037f), Quaternion::FromRVec(-Vec3(0.0703434f, 0.0146932f, -2.50207f)));
 			}
 			else
 				l_grip->obj_a = rigid_body;
@@ -277,7 +277,7 @@ namespace Test
 						break;
 					}
 				if(gripper_rb != NULL)
-					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromPYR(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
+					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromRVec(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
 			}
 			else
 				r_grip->obj_a = rigid_body;

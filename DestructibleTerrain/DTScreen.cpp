@@ -265,7 +265,7 @@ namespace DestructibleTerrain
 			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			camera_ori = Quaternion::FromPYR(0, -yaw, 0) * Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, float(M_PI), 0);
+			camera_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, float(M_PI), 0);
 			
 			Mat3 rm = camera_ori.ToMat3();
 			Vec3 forward(Vec3::Normalize(rm * Vec3(0, 0, -1)));

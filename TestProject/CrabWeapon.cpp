@@ -36,7 +36,7 @@ namespace Test
 
 	void CrabWeapon::ClawAttackNormal(float now)
 	{
-		Mat4 mat = Mat4::FromPositionAndOrientation(owner->pos, Quaternion::FromPYR(0, -owner->yaw, 0));
+		Mat4 mat = Mat4::FromPositionAndOrientation(owner->pos, Quaternion::FromRVec(0, -owner->yaw, 0));
 
 		Vec3 damage_location = mat.TransformVec3_1(0, 0, 0.8f);
 

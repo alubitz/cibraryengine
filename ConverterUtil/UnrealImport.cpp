@@ -299,7 +299,7 @@ namespace ConverterUtil
 				{
 					VQuatAnimKey key = *key_pointer;
 
-					Vec3 ori = Quaternion(-key.Orientation.X, key.Orientation.Y, key.Orientation.Z, key.Orientation.W).ToPYR();
+					Vec3 ori = Quaternion(-key.Orientation.X, key.Orientation.Y, key.Orientation.Z, key.Orientation.W).ToRVec();
 					//Vec3 pos = Vec3(key.Position.X, key.Position.Y, key.Position.Z) * scale;
 					Vec3 pos = Vec3(-key.Position.X, key.Position.Z, key.Position.Y) * scale;
 

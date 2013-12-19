@@ -153,7 +153,7 @@ namespace Test
 			alpha_to_brot = b_invmoi * net_moi * angular_coeff;
 
 			Quaternion a_to_b = obj_a->GetOrientation() * Quaternion::Reverse(obj_b->GetOrientation());
-			desired_av = (a_to_b * Quaternion::Reverse(desired_ori)).ToPYR() * -inv_timestep;
+			desired_av = (a_to_b * Quaternion::Reverse(desired_ori)).ToRVec() * -inv_timestep;
 		}
 	}
 

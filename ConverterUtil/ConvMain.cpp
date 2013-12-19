@@ -301,7 +301,7 @@ void RotateModel()
 	cin >> input;
 	float z = (float)atof(input.c_str());
 
-	Mat3 rm = Mat3::FromScaledAxis(x, y, z);
+	Mat3 rm = Mat3::FromRVec(x, y, z);
 
 	if(model != NULL)
 	{

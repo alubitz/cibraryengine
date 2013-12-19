@@ -21,8 +21,8 @@ namespace CibraryEngine
 	{
 	}
 
-	// function to trim a few ops from the computation of Quaternion::FromPYR(p * t, y * t, r * t)
-	static Quaternion QuatFromPYRhT(float p, float y, float r, float half_t)
+	// function to trim a few ops from the computation of Quaternion::FromRVec(p * t, y * t, r * t)
+	static Quaternion QuatFromRVhT(float p, float y, float r, float half_t)
 	{
 		// assumes t != 0
 		if(float magsq = Vec3::MagnitudeSquared(p, y, r))
@@ -74,22 +74,22 @@ namespace CibraryEngine
 		// enforce joint rotation limits
 		Vec3 proposed_av = current_av - alpha;
 
-		Quaternion proposed_ori = a_to_b * QuatFromPYRhT(proposed_av.x, proposed_av.y, proposed_av.z, half_timestep); 
-		Vec3 proposed_pyr = oriented_axes * -proposed_ori.ToPYR();
+		Quaternion proposed_ori = a_to_b * QuatFromRVhT(proposed_av.x, proposed_av.y, proposed_av.z, half_timestep); 
+		Vec3 proposed_rvec = oriented_axes * -proposed_ori.ToRVec();
 
 		bool any_changes = false;
-		if      (proposed_pyr.x < min_extents.x) { proposed_pyr.x = min_extents.x; any_changes = true; }
-		else if (proposed_pyr.x > max_extents.x) { proposed_pyr.x = max_extents.x; any_changes = true; }
-		if      (proposed_pyr.y < min_extents.y) { proposed_pyr.y = min_extents.y; any_changes = true; }
-		else if (proposed_pyr.y > max_extents.y) { proposed_pyr.y = max_extents.y; any_changes = true; }
-		if      (proposed_pyr.z < min_extents.z) { proposed_pyr.z = min_extents.z; any_changes = true; }
-		else if (proposed_pyr.z > max_extents.z) { proposed_pyr.z = max_extents.z; any_changes = true; }
+		if      (proposed_rvec.x < min_extents.x) { proposed_rvec.x = min_extents.x; any_changes = true; }
+		else if (proposed_rvec.x > max_extents.x) { proposed_rvec.x = max_extents.x; any_changes = true; }
+		if      (proposed_rvec.y < min_extents.y) { proposed_rvec.y = min_extents.y; any_changes = true; }
+		else if (proposed_rvec.y > max_extents.y) { proposed_rvec.y = max_extents.y; any_changes = true; }
+		if      (proposed_rvec.z < min_extents.z) { proposed_rvec.z = min_extents.z; any_changes = true; }
+		else if (proposed_rvec.z > max_extents.z) { proposed_rvec.z = max_extents.z; any_changes = true; }
 
 		if(any_changes)
 		{
 			// at least one rotation limit was violated, so we must recompute alpha
-			Quaternion actual_ori = Quaternion::FromPYR(reverse_oriented_axes * -proposed_pyr);
-			Vec3 actual_av = (b_to_a * actual_ori).ToPYR() * inv_timestep;
+			Quaternion actual_ori = Quaternion::FromRVec(reverse_oriented_axes * -proposed_rvec);
+			Vec3 actual_av = (b_to_a * actual_ori).ToRVec() * inv_timestep;
 
 			alpha = current_av - actual_av;
 		}
@@ -159,6 +159,6 @@ namespace CibraryEngine
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 
 		if(enable_motor)
-			desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToPYR() * (motor_coeff * inv_timestep);
+			desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToRVec() * (motor_coeff * inv_timestep);
 	}
 }

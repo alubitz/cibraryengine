@@ -105,7 +105,7 @@ namespace CibraryEngine
 				pos += vel * timestep;
 
 				pos += ori * mass_info.com;
-				if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromPYR(rot * timestep)
+				if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromRVec(rot * timestep)
 				{
 					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = sinf(half) / mag;
 

@@ -99,7 +99,7 @@ namespace DoodAnimTool
 
 				if(rot.ComputeMagnitudeSquared() > 0)
 				{
-					Quaternion delta_quat = Quaternion::FromPYR(rot * (0.5f * linear_offset_rotation_coeff));
+					Quaternion delta_quat = Quaternion::FromRVec(rot * (0.5f * linear_offset_rotation_coeff));
 
 					nextori_a = delta_quat * nextori_a;
 					nextori_b = Quaternion::Reverse(delta_quat) * nextori_b;
@@ -115,14 +115,14 @@ namespace DoodAnimTool
 		{
 			Quaternion a_to_b = Quaternion::Reverse(nextori_a) * nextori_b;
 
-			Vec3 proposed_pyr = joint->axes * -a_to_b.ToPYR();
-			Vec3 nupyr = joint->GetClampedAngles(proposed_pyr);
+			Vec3 proposed_rvec = joint->axes * -a_to_b.ToRVec();
+			Vec3 nu_rvec = joint->GetClampedAngles(proposed_rvec);
 
-			if(float err = (proposed_pyr - nupyr).ComputeMagnitudeSquared())
+			if(float err = (proposed_rvec - nu_rvec).ComputeMagnitudeSquared())
 			{
 				pose.errors[1] += err;
 
-				Quaternion actual_ori = Quaternion::FromPYR(joint->axes.Transpose() * -nupyr);
+				Quaternion actual_ori = Quaternion::FromRVec(joint->axes.Transpose() * -nu_rvec);
 
 				Quaternion bprime = nextori_a * actual_ori;
 				Quaternion aprime = nextori_b * Quaternion::Reverse(actual_ori);

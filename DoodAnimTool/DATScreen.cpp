@@ -357,9 +357,9 @@ namespace DoodAnimTool
 			int gun     = GetBoneIndex( "gun"      );
 
 			if(lhand >= 0 && gun >= 0)
-				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun,     Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromPYR(-0.0703434f, -0.0146932f,  2.50207f)));
+				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun,     Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromRVec(-0.0703434f, -0.0146932f,  2.50207f)));
 			if(rhand >= 0 && gun >= 0)
-				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun,     Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromPYR( 1.27667f,   -0.336123f,  -0.64284f)));
+				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun,     Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromRVec( 1.27667f,   -0.336123f,  -0.64284f)));
 			if(lfoot >= 0 && lground >= 0)
 				AddSpecialConstraint("l ground", new CFlatFoot((unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
 			 if(rfoot >= 0 && rground >= 0)
@@ -373,7 +373,7 @@ namespace DoodAnimTool
 			if(gun >= 0)
 			{
 				initial_pose.data[gun].pos = Vec3(-0.5f, 1, 0.5f);
-				initial_pose.data[gun].ori = Quaternion::FromPYR(0, 1.5f, 0);
+				initial_pose.data[gun].ori = Quaternion::FromRVec(0, 1.5f, 0);
 			}
 
 			// and set the appropriate positions for the objects under foot
@@ -448,7 +448,7 @@ namespace DoodAnimTool
 							else
 							{
 								// find the center of the selected bones
-								Quaternion delta_quat = Quaternion::FromPYR(bone_controls * timestep);
+								Quaternion delta_quat = Quaternion::FromRVec(bone_controls * timestep);
 
 								Vec3 center;
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
@@ -792,7 +792,7 @@ namespace DoodAnimTool
 			float aspect_ratio = (float)width / height;
 			float view_distance = 3.5f;
 			Vec3 view_center = Vec3(0, 1.0f, 0);
-			Mat4 view_matrix = Mat4::Translation(0, 0, -view_distance) * Mat4::FromQuaternion(Quaternion::FromPYR(pitch, 0, 0) * Quaternion::FromPYR(0, yaw, 0)) * Mat4::Translation(-view_center);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -view_distance) * Mat4::FromQuaternion(Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, yaw, 0)) * Mat4::Translation(-view_center);
 			camera = CameraView(view_matrix, zoom, aspect_ratio);
 			
 			glMatrixMode(GL_PROJECTION);

@@ -46,7 +46,7 @@ namespace DoodAnimTool
 		Quaternion nextori_a = a_ori;
 
 		// keep the relative orientations of the two bones constant
-		Vec3 av = (Quaternion::Reverse(b_ori) * a_ori * relative_ori).ToPYR();
+		Vec3 av = (Quaternion::Reverse(b_ori) * a_ori * relative_ori).ToRVec();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[5] += err;

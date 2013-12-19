@@ -59,7 +59,7 @@ namespace CibraryEngine
 			);
 		}
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
-		static Mat3 FromScaledAxis(float x, float y, float z)
+		static Mat3 FromRVec(float x, float y, float z)
 		{
 			if(float magsq = Vec3::MagnitudeSquared(x, y, z))
 			{
@@ -70,9 +70,9 @@ namespace CibraryEngine
 				return Identity();
 		}
 		/** Returns a 3x3 matrix which represents a rotation about the specified axis, where the angle of rotation is the magnitude of the axis vector */
-		static Mat3 FromScaledAxis(const Vec3& xyz)		{ return FromScaledAxis(xyz.x, xyz.y, xyz.z); }
+		static Mat3 FromRVec(const Vec3& xyz)		{ return FromRVec(xyz.x, xyz.y, xyz.z); }
 		/** Returns the identity matrix */
-		static Mat3 Identity()							{ return Mat3(1, 0, 0, 0, 1, 0, 0, 0, 1); }
+		static Mat3 Identity()						{ return Mat3(1, 0, 0, 0, 1, 0, 0, 0, 1); }
 
 		/** Returns an orthonormal 3x3 matrix approximately matching the one given */
 		static Mat3 Normalize(const Mat3& mat)
@@ -254,8 +254,6 @@ namespace CibraryEngine
 		}
 		/** Returns a 4x4 matrix with the specified orientation, translation, and uniform scale */
 		static Mat4 FromPosOriScale(const Vec3& pos, const Quaternion& ori, float scale);
-		/** Returns a 4x4 matrix representing a rotation around the specified point */
-		static Mat4 RotationAroundPoint(const Mat3& rot, const Vec3& point);
 		/** Returns a translation matrix */
 		static Mat4 Translation(const Vec3& translation)		{ return Mat4::Translation(translation.x, translation.y, translation.z); }
 		/** Returns a translation matrix */
