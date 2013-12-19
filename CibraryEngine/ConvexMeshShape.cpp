@@ -423,7 +423,7 @@ namespace CibraryEngine
 		// misc. utility stuff
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 		{
-			Mat4 xform = Mat4::FromPositionAndOrientation(pos, Quaternion::Reverse(ori));
+			Mat4 xform = Mat4::FromPositionAndOrientation(pos, ori);
 
 			Vec3 center = xform.TransformVec3_1(aabb.GetCenterPoint());
 			if(renderer->camera->CheckSphereVisibility(center, (aabb.max - aabb.min).ComputeMagnitude() * 0.5f))

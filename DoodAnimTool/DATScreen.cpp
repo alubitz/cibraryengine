@@ -844,7 +844,7 @@ namespace DoodAnimTool
 				{
 					const DATBone& bone = bones[i];
 					const Bone* skel_bone = skeleton->bones[bone.bone_index];
-					bone.shape->DebugDraw(&renderer, skel_bone->pos, Quaternion::Reverse(skel_bone->ori), bone.selected ? selected_color : unselected_color);
+					bone.shape->DebugDraw(&renderer, skel_bone->pos, skel_bone->ori, bone.selected ? selected_color : unselected_color);
 				}
 			}
 

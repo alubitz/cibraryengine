@@ -120,14 +120,14 @@ namespace CibraryEngine
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();
 
-		a_to_b = Quaternion::Reverse(a_ori) * b_ori;
+		a_to_b = a_ori * Quaternion::Reverse(b_ori);
 		b_to_a = Quaternion::Reverse(a_to_b);
 
 		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		alpha_to_obja = obj_a->inv_moi * net_moi;
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
-		oriented_axes = axes * a_ori.ToMat3();
+		oriented_axes = axes * Quaternion::Reverse(a_ori).ToMat3();
 		reverse_oriented_axes = oriented_axes.Transpose();
 
 

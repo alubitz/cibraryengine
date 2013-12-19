@@ -97,7 +97,7 @@ namespace CibraryEngine
 			/** Gets the orientation of this rigid body */
 			Quaternion GetOrientation();
 			/** Sets the orientation of this rigid body */
-			void SetOrientation(Quaternion ori);
+			void SetOrientation(const Quaternion& ori);
 
 			
 

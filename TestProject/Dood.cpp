@@ -365,7 +365,7 @@ namespace Test
 			Bone* bone = character->skeleton->bones[i];
 			if(RigidBody* body = bone_to_rbody[i])
 			{
-				bone->ori = Quaternion::Reverse(body->GetOrientation());
+				bone->ori = body->GetOrientation();
 				bone->pos = body->GetPosition() - origin;			// subtract origin to account for that whole-model transform in Dood::Vis
 			}
 		}
@@ -422,7 +422,7 @@ namespace Test
 
 				// make posey root bones' orientations match those of the corresponding rigid bodies
 				if(!use_cheaty_ori && rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
-					rbody_to_posey[i]->ori = Quaternion::Reverse(rigid_bodies[i]->GetOrientation());
+					rbody_to_posey[i]->ori = rigid_bodies[i]->GetOrientation();
 			}
 
 			net_vel /= net_mass;
@@ -484,7 +484,7 @@ namespace Test
 			Quaternion bone_ori = bone_xform.ExtractOrientation();
 				
 			rb->SetLinearVelocity((bone_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_rate_coeff);
-			rb->SetAngularVelocity((Quaternion::Reverse(rb->GetOrientation()) * bone_ori).ToPYR() * move_rate_coeff);
+			rb->SetAngularVelocity((rb->GetOrientation() * bone_ori).ToPYR() * move_rate_coeff);
 		}
 	}
 
@@ -518,7 +518,7 @@ namespace Test
 			return;
 		}
 
-		Quaternion ori = Quaternion::FromPYR(0, yaw, 0);
+		Quaternion ori = Quaternion::FromPYR(0, -yaw, 0);
 
 		physics = game_state->physics_world;
 
@@ -793,13 +793,13 @@ namespace Test
 				float xmag = xprod.ComputeMagnitude();
 				Quaternion y_to_sloped = (xmag == 0.0f) ? Quaternion::Identity() : Quaternion::FromPYR(xprod * (acosf(use_normal.y) / xmag));
 
-				Quaternion foot_on_slope = foot_ori * y_to_sloped;
+				Quaternion foot_on_slope = Quaternion::Reverse(foot_ori) * y_to_sloped;
 				Quaternion desired_foot_ori = Quaternion::Reverse(y_to_sloped) * Quaternion::FromPYR(0, foot_on_slope.ToPYR().y, 0);
 
-				if((Quaternion::Reverse(foot_ori) * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
+				if((foot_ori * desired_foot_ori).ToPYR().ComputeMagnitude() > float(M_PI) * 0.25f)
 					return;
 
-				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal, Quaternion::Reverse(desired_foot_ori) * surf_ori, angular_coeff);
+				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal, Quaternion::Reverse(desired_foot_ori) * Quaternion::Reverse(surf_ori), angular_coeff);
 			}
 			else
 				foot->pfc = new PlacedFootConstraint(foot->body, surface, foot_pos, surface_pos, use_normal);

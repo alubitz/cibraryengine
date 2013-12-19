@@ -620,7 +620,7 @@ namespace CibraryEngine
 
 		void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color)
 		{
-			Mat4 model_mat = Mat4::FromPositionAndOrientation(pos, Quaternion::Reverse(ori));
+			Mat4 model_mat = Mat4::FromPositionAndOrientation(pos, ori);
 			const Vec3& eye = renderer->camera->GetPosition();
 			const Vec3& forward = renderer->camera->GetForward();
 

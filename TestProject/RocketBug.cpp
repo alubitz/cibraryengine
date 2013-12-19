@@ -50,7 +50,7 @@ namespace Test
 			Explode();
 		else
 		{
-			Mat3 rm = ori.ToMat3().Transpose();
+			Mat3 rm = ori.ToMat3();
 			Vec3 fwd = rm * Vec3(0, 0, 1);
 
 			float mass = rigid_body->GetMass();

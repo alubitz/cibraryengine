@@ -73,7 +73,7 @@ namespace CibraryEngine
 	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
 
 
-	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm.Transpose() * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm; }
+	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
 
 	void RigidBody::UpdateVel(float timestep)
 	{
@@ -104,13 +104,16 @@ namespace CibraryEngine
 #endif
 				pos += vel * timestep;
 
-				pos += Quaternion::Reverse(ori) * mass_info.com;
+				pos += ori * mass_info.com;
 				if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromPYR(rot * timestep)
 				{
 					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = sinf(half) / mag;
+
+					ori = Quaternion::Reverse(ori);				// TODO: figure out the correct way to remove the Quaternion::Reverse business
 					ori *= Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff);
+					ori = Quaternion::Reverse(ori);
 				}
-				pos -= Quaternion::Reverse(ori) * mass_info.com;
+				pos -= ori * mass_info.com;
 
 				xform_valid = false;
 
@@ -133,7 +136,7 @@ namespace CibraryEngine
 	void RigidBody::ComputeXform()
 	{
 		ori_rm = ori.ToMat3();
-		xform = Mat4::FromPositionAndOrientation(pos, ori_rm.Transpose());
+		xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
 		inv_xform = Mat4::Invert(xform);
 
 		cached_aabb = shape->ComputeCachedWorldAABB(xform, shape_cache);
@@ -154,9 +157,9 @@ namespace CibraryEngine
 		ComputeXformAsNeeded();
 		Vec3 offset = local_poi - mass_info.com;
 		Vec3 radius_vector(
-			offset.x * ori_rm.values[0] + offset.y * ori_rm.values[3] + offset.z * ori_rm.values[6],
-			offset.x * ori_rm.values[1] + offset.y * ori_rm.values[4] + offset.z * ori_rm.values[7],
-			offset.x * ori_rm.values[2] + offset.y * ori_rm.values[5] + offset.z * ori_rm.values[8]
+			offset.x * ori_rm.values[0] + offset.y * ori_rm.values[1] + offset.z * ori_rm.values[2],
+			offset.x * ori_rm.values[3] + offset.y * ori_rm.values[4] + offset.z * ori_rm.values[5],
+			offset.x * ori_rm.values[6] + offset.y * ori_rm.values[7] + offset.z * ori_rm.values[8]
 		);
 		return Vec3::Cross(force, radius_vector);
 	}
@@ -201,7 +204,7 @@ namespace CibraryEngine
 
 
 	Quaternion RigidBody::GetOrientation()								{ return ori; }
-	void RigidBody::SetOrientation(Quaternion ori_)						{ ori = ori_; xform_valid = false; }
+	void RigidBody::SetOrientation(const Quaternion& ori_)				{ ori = ori_; xform_valid = false; }
 
 	Mat4 RigidBody::GetTransformationMatrix()							{ ComputeXformAsNeeded(); return xform; }
 	Mat4 RigidBody::GetInvTransform()									{ ComputeXformAsNeeded(); return inv_xform; }
@@ -223,7 +226,7 @@ namespace CibraryEngine
 	{
 		MassInfo result;
 		result.mass = mass_info.mass;
-		result.com = ori_rm.Transpose() * mass_info.com + pos;
+		result.com = ori_rm * mass_info.com + pos;
 
 		Mat3& moi_data = *((Mat3*)((void*)result.moi));			// moi_data.values and result.moi occupy the same space in memory
 		moi_data = Mat3::Invert(inv_moi);

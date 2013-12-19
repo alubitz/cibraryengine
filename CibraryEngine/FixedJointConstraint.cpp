@@ -106,6 +106,6 @@ namespace CibraryEngine
 		alpha_to_brot = b_invmoi * net_moi;
 
 		Quaternion a_ori = obj_a->GetOrientation(), b_ori = obj_b->GetOrientation();
-		desired_av = (Quaternion::Reverse(a_ori) * Quaternion::Reverse(desired_ori) * b_ori).ToPYR() * -inv_timestep;
+		desired_av = (a_ori * Quaternion::Reverse(desired_ori) * Quaternion::Reverse(b_ori)).ToPYR() * -inv_timestep;
 	}
 }

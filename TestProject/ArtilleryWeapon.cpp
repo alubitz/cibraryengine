@@ -41,7 +41,7 @@ namespace Test
 			proj_mphys,
 			owner->pos + mount_bone->GetTransformationMatrix().TransformVec3_1(mount_pos),
 			owner->vel,// + direction * 50.0f,
-			Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction))));
+			Quaternion::Reverse(Quaternion::FromRotationMatrix(Util::FindOrientationZEdge(direction)))));
 
 		attack_ready_time = now + attack_interval;
 	}

@@ -49,7 +49,7 @@ namespace Test
 
 			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
 
-			rigid_body = new RigidBody(this, bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)));
+			rigid_body = new RigidBody(this, bone.collision_shape, bone.mass_info, pos, Quaternion::FromRotationMatrix(Mat3(a.x, b.x, c.x, a.y, b.y, c.y, a.z, b.z, c.z)));
 			physics->AddCollisionObject(rigid_body);
 		}
 	}
