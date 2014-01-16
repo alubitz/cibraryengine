@@ -72,57 +72,57 @@ namespace DoodAnimTool
 
 		class ConstraintCheckbox : public GCheckbox
 		{
-		public:
-			Imp* imp;
-			unsigned int index;
+			public:
+				Imp* imp;
+				unsigned int index;
 
-			ConstraintCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
-			void LayoutChildren() { selected = imp->keyframes[imp->edit_keyframe].enabled_constraints[index]; }
-			bool OnClick(int x, int y)
-			{
-				DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
-				bool& val = keyframe.enabled_constraints[index];
-				val = !val;
-				if(val)
-					imp->ApplyConstraints(keyframe);
+				ConstraintCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
+				void LayoutChildren() { selected = imp->keyframes[imp->edit_keyframe].enabled_constraints[index]; }
+				bool OnClick(int x, int y)
+				{
+					DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
+					bool& val = keyframe.enabled_constraints[index];
+					val = !val;
+					if(val)
+						imp->ApplyConstraints(keyframe);
 
-				return true;
-			}
+					return true;
+				}
 		};
 		vector<ConstraintCheckbox*> constraint_checkboxes;
 		vector<GLabel*> constraint_labels;
 
 		class BoneLockCheckbox : public GCheckbox
 		{
-		public:
-			Imp* imp;
-			unsigned int index;
+			public:
+				Imp* imp;
+				unsigned int index;
 
-			BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
-			void LayoutChildren() { selected = imp->bones[index].locked; }
-			bool OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; return true; }
+				BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
+				void LayoutChildren() { selected = imp->bones[index].locked; }
+				bool OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; return true; }
 		};
 		vector<BoneLockCheckbox*> lock_checkboxes;
 
 		class BoneSelectCheckbox : public GCheckbox
 		{
-		public:
-			Imp* imp;
-			unsigned int index;
+			public:
+				Imp* imp;
+				unsigned int index;
 
-			BoneSelectCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
-			void LayoutChildren() { selected = imp->bones[index].selected; }
-			bool OnClick(int x, int y)
-			{
-				bool& val = imp->bones[index].selected;
-				if(val)
-					--imp->selection_count;
-				else
-					++imp->selection_count;
-				val = !val;
+				BoneSelectCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
+				void LayoutChildren() { selected = imp->bones[index].selected; }
+				bool OnClick(int x, int y)
+				{
+					bool& val = imp->bones[index].selected;
+					if(val)
+						--imp->selection_count;
+					else
+						++imp->selection_count;
+					val = !val;
 
-				return true;
-			}
+					return true;
+				}
 		};
 		vector<BoneSelectCheckbox*> select_checkboxes;
 		vector<GLabel*> bone_labels;
@@ -130,7 +130,33 @@ namespace DoodAnimTool
 		GLabel sel_label, lock_label;
 
 		GColumnList constraints_listbox, bones_listbox;
+		GColumnList file_menu;
 		GCanvas canvas;
+
+		class FileNew : public GLabel
+		{
+			public:
+				Imp* imp;
+				FileNew(BitmapFont* font) : GLabel(font, "New", true) { }
+				bool OnClick(int x, int y) { imp->ResetPose(); return true; }
+		} *file_new;
+
+		class FileOpen : public GLabel
+		{
+			public:
+				Imp* imp;
+				FileOpen(BitmapFont* font) : GLabel(font, "Open", true) { }
+				bool OnClick(int x, int y) { imp->LoadPose(); return true; } 
+		} *file_open;
+
+		class FileSave : public GLabel
+		{
+			public:
+				Imp* imp;
+				FileSave(BitmapFont* font) : GLabel(font, "Save", true) { }
+				bool OnClick(int x, int y) { imp->SavePose(); return true; }
+		} *file_save;
+
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
@@ -144,30 +170,45 @@ namespace DoodAnimTool
 			cursor(NULL),
 			font(NULL),
 			box_selecting(None),
+			file_new(NULL),
+			file_open(NULL),
+			file_save(NULL),
 			key_listener(),
 			mouse_listener()
 		{
 			key_listener.imp = mouse_listener.imp = mouse_motion_listener.imp = this;
 
-			input_state->KeyStateChanged += &key_listener;
+			input_state->KeyStateChanged         += &key_listener;
 			input_state->MouseButtonStateChanged += &mouse_listener;
-			input_state->MouseMoved += &mouse_motion_listener;
+			input_state->MouseMoved              += &mouse_motion_listener;
 
 			cursor = window->content->GetCache<Cursor>()->Load("Cursor");
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
 			constraints_listbox = GColumnList(5, GColumnList::Left);
-			constraints_listbox.AddColumn(20, GColumnList::Left);
+			constraints_listbox.AddColumn(  20, GColumnList::Left);
 
-			bones_listbox = GColumnList(5, GColumnList::Center);
-			bones_listbox.AddColumn(5, GColumnList::Center);
-			bones_listbox.AddColumn(20, GColumnList::Left);
+			bones_listbox = GColumnList(5,      GColumnList::Center);
+			bones_listbox.AddColumn(        5,  GColumnList::Center);
+			bones_listbox.AddColumn(        20, GColumnList::Left);
 
-			sel_label = GLabel(font, "sel");
+			sel_label  = GLabel(font, "sel");
 			lock_label = GLabel(font, "lock");
 
+			file_new  = new FileNew(font);
+			file_open = new FileOpen(font);
+			file_save = new FileSave(font);
+
+			file_new->imp = file_open->imp = file_save->imp = this;
+
+			file_menu = GColumnList(5, GColumnList::Left);
+			file_menu.BeginRow();   file_menu.AddToLastRow(file_new);
+			file_menu.BeginRow();   file_menu.AddToLastRow(file_open);
+			file_menu.BeginRow();   file_menu.AddToLastRow(file_save);
+
 			canvas.AddChild(&constraints_listbox, GCanvas::HAlign(20, NULL), GCanvas::VAlign(20, NULL));
-			canvas.AddChild(&bones_listbox, GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
+			canvas.AddChild(&bones_listbox,       GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
+			canvas.AddChild(&file_menu,           GCanvas::HAlign(NULL, 20), GCanvas::VAlign(NULL, 20));
 
 			// make sure soldier physics file is up to date... these lines should probably be removed at some point
 			ScriptSystem::Init();
@@ -777,6 +818,8 @@ namespace DoodAnimTool
 			}
 		}
 
+		void ResetPose() { keyframes[0] = GetDefaultPose(); }
+
 		void Draw(int width, int height)
 		{
 			glViewport(0, 0, width, height);
@@ -961,11 +1004,6 @@ namespace DoodAnimTool
 					{
 						case VK_SPACE:	{ imp->ClearSelection();                     break; }
 						case VK_ESCAPE:	{ imp->next_screen = NULL;                   break; }
-
-						case 'R':		{ imp->keyframes[0] = imp->GetDefaultPose(); break; }
-
-						case VK_HOME:   { imp->LoadPose(); break; }
-						case VK_END:    { imp->SavePose(); break; }
 
 						default:		{ break; }
 					}
