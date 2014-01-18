@@ -54,6 +54,7 @@ namespace DoodAnimTool
 		unsigned int selection_count;
 
 		int mouseover_bone;
+		bool draw_model;
 
 		float yaw, pitch;
 		CameraView camera;
@@ -133,19 +134,19 @@ namespace DoodAnimTool
 		GColumnList file_menu;
 		GCanvas canvas;
 
-		class FileNew : public GLabel
+		class FileReset : public GLabel
 		{
 			public:
 				Imp* imp;
-				FileNew(BitmapFont* font) : GLabel(font, "New", true) { }
+				FileReset(BitmapFont* font) : GLabel(font, "Reset Pose", true) { }
 				bool OnClick(int x, int y) { imp->ResetPose(); return true; }
-		} *file_new;
+		} *file_reset;
 
 		class FileOpen : public GLabel
 		{
 			public:
 				Imp* imp;
-				FileOpen(BitmapFont* font) : GLabel(font, "Open", true) { }
+				FileOpen(BitmapFont* font) : GLabel(font, "Open Pose", true) { }
 				bool OnClick(int x, int y) { imp->LoadPose(); return true; } 
 		} *file_open;
 
@@ -153,7 +154,7 @@ namespace DoodAnimTool
 		{
 			public:
 				Imp* imp;
-				FileSave(BitmapFont* font) : GLabel(font, "Save", true) { }
+				FileSave(BitmapFont* font) : GLabel(font, "Save Pose", true) { }
 				bool OnClick(int x, int y) { imp->SavePose(); return true; }
 		} *file_save;
 
@@ -165,12 +166,13 @@ namespace DoodAnimTool
 			skeleton(NULL),
 			mphys(NULL),
 			dood_uber(NULL),
+			draw_model(true),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
 			cursor(NULL),
 			font(NULL),
 			box_selecting(None),
-			file_new(NULL),
+			file_reset(NULL),
 			file_open(NULL),
 			file_save(NULL),
 			key_listener(),
@@ -195,14 +197,14 @@ namespace DoodAnimTool
 			sel_label  = GLabel(font, "sel");
 			lock_label = GLabel(font, "lock");
 
-			file_new  = new FileNew(font);
-			file_open = new FileOpen(font);
-			file_save = new FileSave(font);
+			file_reset = new FileReset(font);
+			file_open  = new FileOpen(font);
+			file_save  = new FileSave(font);
 
-			file_new->imp = file_open->imp = file_save->imp = this;
+			file_reset->imp = file_open->imp = file_save->imp = this;
 
 			file_menu = GColumnList(5, GColumnList::Left);
-			file_menu.BeginRow();   file_menu.AddToLastRow(file_new);
+			file_menu.BeginRow();   file_menu.AddToLastRow(file_reset);
 			file_menu.BeginRow();   file_menu.AddToLastRow(file_open);
 			file_menu.BeginRow();   file_menu.AddToLastRow(file_save);
 
@@ -228,6 +230,10 @@ namespace DoodAnimTool
 
 			if(skeleton)				{ skeleton->Dispose();					delete skeleton;				skeleton = NULL; }
 			if(sk_rinfo.bone_matrices)	{ sk_rinfo.bone_matrices->Dispose();	delete sk_rinfo.bone_matrices;	sk_rinfo.bone_matrices = NULL; }
+
+			if(file_reset) { delete file_reset;  file_reset = NULL; }
+			if(file_open)  { delete file_open;   file_open  = NULL; }
+			if(file_save)  { delete file_save;   file_save  = NULL; }
 
 			DeleteConstraints();
 
@@ -413,8 +419,8 @@ namespace DoodAnimTool
 			int gun = GetBoneIndex("gun");
 			if(gun >= 0)
 			{
-				initial_pose.data[gun].pos = Vec3(-0.5f, 1, 0.5f);
-				initial_pose.data[gun].ori = Quaternion::FromRVec(0, 1.5f, 0);
+				initial_pose.data[gun].pos = Vec3(-1.02937f, 0.989617f, 0.178852f);
+				initial_pose.data[gun].ori = Quaternion::FromRVec(1.27667f, -0.336123f, -0.64284f);
 			}
 
 			// and set the appropriate positions for the objects under foot
@@ -436,6 +442,19 @@ namespace DoodAnimTool
 
 			DoSoldierSpecificKeyframeStuff(pose);
 			ApplyConstraints(pose);
+
+#if 0
+			int gun = GetBoneIndex("gun");
+			if(gun >= 0)
+			{
+				const DATKeyframe::KBone& gunpose = pose.data[gun];
+				const Vec3& pos = gunpose.pos;
+				Vec3 ori = gunpose.ori.ToRVec();
+
+				Debug(((stringstream&)(stringstream() << "gun pos = (" << pos.x << ", " << pos.y << ", " << pos.z << ")" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "gun ori = (" << ori.x << ", " << ori.y << ", " << ori.z << ")" << endl)).str());
+			}
+#endif
 
 			return pose;
 		}
@@ -557,11 +576,16 @@ namespace DoodAnimTool
 			{
 				pss.PreIteration();
 
-				unsigned int num_changes = 0;
-
+				bool any_changes = false;
 				for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
 					if((*jter)->ApplyConstraint(pss))
-						++num_changes;
+					{
+						for(++jter; jter != constraints_end; ++jter)
+							(*jter)->ApplyConstraint(pss);
+
+						any_changes = true;
+						break;
+					}
 
 				for(unsigned int j = 0; j < num_bones; ++j)
 					if(bones[j].locked)
@@ -569,7 +593,7 @@ namespace DoodAnimTool
 
 				pss.PostIteration();
 
-				if(num_changes == 0)
+				if(!any_changes)
 					break;
 				else
 					for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
@@ -633,13 +657,13 @@ namespace DoodAnimTool
 			selection_count = bones.size();
 		}
 
-		bool DoBoneFrustumTest(Vec3* points, Sphere* spheres_begin, Sphere* spheres_end)
+		bool DoBoneFrustumTest(Vec3* eight_points, Sphere* spheres_begin, Sphere* spheres_end)
 		{
 			const char NUM_ITERATIONS = 50;
 			const char NUM_OFFSETS = 8;
 
 
-			Vec3* points_end = points + 8;			// 8 vertices of the frustum
+			Vec3* points_end = eight_points + 8;			// 8 vertices of the frustum
 
 			// try to find a separating axis
 			Vec3 direction;
@@ -672,7 +696,7 @@ namespace DoodAnimTool
 						++iter;
 					}
 
-					Vec3* jter = points;
+					Vec3* jter = eight_points;
 					float min_extent = Vec3::Dot(dir, *jter);
 					++jter;
 					while(jter != points_end)
@@ -818,7 +842,7 @@ namespace DoodAnimTool
 			}
 		}
 
-		void ResetPose() { keyframes[0] = GetDefaultPose(); }
+		void ResetPose() { keyframes[edit_keyframe] = GetDefaultPose(); }
 
 		void Draw(int width, int height)
 		{
@@ -852,6 +876,7 @@ namespace DoodAnimTool
 				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3( i, 0, -2 ), Vec3( i, 0, 2 )), 0));
 			}
 
+			// draw debug dots
 			for(vector<Vec3>::iterator iter = debug_dots.begin(); iter != debug_dots.end(); ++iter)
 			{
 				static const float R = 0.01f;
@@ -864,19 +889,22 @@ namespace DoodAnimTool
 				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - zvec, *iter + zvec), 0));
 			}
 
-			// draw the skinned character
+			// draw the dood
 			PoseBones(skeleton);
-
 			skeleton->InvalidateCachedBoneXforms();
-			
-			skeleton->GetBoneMatrices(bone_matrices);
-			sk_rinfo.num_bones = bone_matrices.size();
-			sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices, sk_rinfo.bone_matrices);
-			dood_uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo);
 
-			// draw helper bones (e.g. gun, ground placeholder for placed foot constraints)
-			for(unsigned int i = 0; i < bones.size(); ++i)
-				bones[i].DrawHelperObject(&renderer, skeleton);
+			if(draw_model)
+			{
+				// draw the skinned character
+				skeleton->GetBoneMatrices(bone_matrices);
+				sk_rinfo.num_bones = bone_matrices.size();
+				sk_rinfo.bone_matrices = SkinnedCharacter::MatricesToTexture1D(bone_matrices, sk_rinfo.bone_matrices);
+				dood_uber->Vis(&renderer, 0, Mat4::Identity(), &sk_rinfo);
+
+				// draw helper bones (e.g. gun, ground placeholder for placed foot constraints)
+				for(unsigned int i = 0; i < bones.size(); ++i)
+					bones[i].DrawHelperObject(&renderer, skeleton);
+			}
 
 			// draw outlines of bones' collision shapes
 			{
@@ -890,8 +918,6 @@ namespace DoodAnimTool
 					bone.shape->DebugDraw(&renderer, skel_bone->pos, skel_bone->ori, bone.selected ? selected_color : unselected_color);
 				}
 			}
-
-			skeleton->InvalidateCachedBoneXforms();
 
 			renderer.Render();
 			renderer.Cleanup();
@@ -1002,8 +1028,10 @@ namespace DoodAnimTool
 				{
 					switch(kse->key)
 					{
-						case VK_SPACE:	{ imp->ClearSelection();                     break; }
-						case VK_ESCAPE:	{ imp->next_screen = NULL;                   break; }
+						case VK_SPACE:	{ imp->ClearSelection();				break; }
+						case VK_F3:		{ imp->draw_model = !imp->draw_model;	break; }
+
+						case VK_ESCAPE:	{ imp->next_screen = NULL;				break; }
 
 						default:		{ break; }
 					}

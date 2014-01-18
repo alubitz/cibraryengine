@@ -177,8 +177,6 @@ namespace DoodAnimTool
 
 	void CSkeletalJoint::OnAnyChanges(PoseSolverState& pose)
 	{
-		int bone_a = joint->bone_a - 1, bone_b = joint->bone_b - 1;
-
 		obja = &pose.current.data[bone_a];
 		objb = &pose.current.data[bone_b];
 	}
