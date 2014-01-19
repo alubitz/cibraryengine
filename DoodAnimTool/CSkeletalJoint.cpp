@@ -36,6 +36,36 @@ namespace DoodAnimTool
 		nextb = &pose.next.data[bone_b];
 	}
 
+	float CSkeletalJoint::ComputeMatricesAndEndpoints(const Vec3& apos, const Vec3& bpos, const Quaternion& aori, const Quaternion& bori, Mat4& amat, Mat4& bmat, Vec3& aend, Vec3& bend, Vec3& dx)
+	{
+		amat = Mat4::FromPositionAndOrientation(apos, aori);
+		bmat = Mat4::FromPositionAndOrientation(bpos, bori);
+		aend = amat.TransformVec3_1(joint_pos);
+		bend = bmat.TransformVec3_1(joint_pos);
+		dx = bend - aend;
+
+		return dx.ComputeMagnitudeSquared();
+	}
+
+	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& bone_cen, const Vec3& meet)
+	{
+		Vec3 cur = bone_cen - endpoint;
+		Vec3 goal = bone_cen - meet;
+		Vec3 axis = Vec3::Cross(cur, goal);
+		if(float axissq = axis.ComputeMagnitudeSquared())
+		{
+			float axismag = sqrtf(axissq);
+			float bonesq = cur.ComputeMagnitudeSquared();						// would "compute once and save" but can't because aend/bend issue (see TODO below)
+			float goalsq = goal.ComputeMagnitudeSquared();
+			float actual_angle = asinf(axismag / sqrtf(bonesq * goalsq));
+			float length_factor = min(1.0f, max(0.1f, bonesq));					// the formula used here is somewhat arbitrary, but it seems to work most of the time
+			float use_angle = length_factor * actual_angle;
+			float coeff = use_angle / axismag;
+
+			rot += axis * coeff;
+		}
+	}
+
 	bool CSkeletalJoint::ApplyConstraint(PoseSolverState& pose)
 	{
 		static const float rotation_threshold           = 0.0f;
@@ -46,63 +76,33 @@ namespace DoodAnimTool
 
 		bool did_stuff = false;
 
-		Quaternion nextori_a = obja->ori, nextori_b = objb->ori;
-		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
+		Vec3 apos = obja->pos, bpos = objb->pos;
+		Quaternion aori = obja->ori, bori = objb->ori;
 
+		Mat4 amat, bmat;
+		Vec3 aend, bend, dx;
 
 		// bones rotating to stay in their sockets
-		Mat4 amat = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a);
-		Mat4 bmat = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b);
-		Vec3 apos = amat.TransformVec3_1(joint_pos);
-		Vec3 bpos = bmat.TransformVec3_1(joint_pos);
-		Vec3 dx = bpos - apos;
-		if(float err = dx.ComputeMagnitudeSquared())
+		if(float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx))
 		{
 			pose.errors[0] += err;
 
 			if(err > rotation_threshold)
 			{
 				Vec3 acen = amat.TransformVec3_1(lcenter_a), bcen = bmat.TransformVec3_1(lcenter_b);
-				Vec3 midpoint = (apos + bpos) * 0.5f;
+				Vec3 midpoint = (aend + bend) * 0.5f;
 				
 				Vec3 rot;
 
-				Vec3 acur = acen - apos;
-				Vec3 agoal = acen - midpoint;
-				Vec3 ax = Vec3::Cross(acur, agoal);
-				if(float axmagsq = ax.ComputeMagnitudeSquared())
-				{
-					float axmag = sqrtf(axmagsq);
-					float bone_lensq = acur.ComputeMagnitudeSquared();
-					float actual_angle = asinf(axmag / sqrtf(bone_lensq * agoal.ComputeMagnitudeSquared()));
-					float length_factor = min(1.0f, max(0.1f, bone_lensq));
-					float use_angle = length_factor * actual_angle;
-					float coeff = use_angle / axmag;
-
-					rot += ax * coeff;
-				}
-
-				Vec3 bcur = bcen - apos;
-				Vec3 bgoal = bcen - midpoint;
-				Vec3 bx = Vec3::Cross(bcur, bgoal);
-				if(float bxmagsq = bx.ComputeMagnitudeSquared())
-				{
-					float bxmag = sqrtf(bxmagsq);
-					float bone_lensq = bcur.ComputeMagnitudeSquared();
-					float actual_angle = asinf(bxmag / sqrtf(bone_lensq * bgoal.ComputeMagnitudeSquared()));
-					float length_factor = min(1.0f, max(0.1f, bone_lensq));
-					float use_angle = length_factor * actual_angle;
-					float coeff = use_angle / bxmag;
-
-					rot += bx * coeff;
-				}
+				DoHalfRot(rot, aend, acen, midpoint);
+				DoHalfRot(rot, aend, bcen, midpoint);		// TODO: investigate why this works with aend but not bend (even though bend would make more sense)
 
 				if(rot.ComputeMagnitudeSquared() > 0)
 				{
 					Quaternion delta_quat = Quaternion::FromRVec(rot * (0.5f * linear_offset_rotation_coeff));
 
-					nextori_a = delta_quat * nextori_a;
-					nextori_b = Quaternion::Reverse(delta_quat) * nextori_b;
+					aori = delta_quat * aori;
+					bori = Quaternion::Reverse(delta_quat) * bori;
 
 					did_stuff = true;
 				}
@@ -113,7 +113,7 @@ namespace DoodAnimTool
 		// joint staying within its rotation limits
 		if(enforce_rotation_limits)
 		{
-			Quaternion a_to_b = Quaternion::Reverse(nextori_a) * nextori_b;
+			Quaternion a_to_b = Quaternion::Reverse(aori) * bori;
 
 			Vec3 proposed_rvec = joint->axes * -a_to_b.ToRVec();
 			Vec3 nu_rvec = joint->GetClampedAngles(proposed_rvec);
@@ -124,11 +124,9 @@ namespace DoodAnimTool
 
 				Quaternion actual_ori = Quaternion::FromRVec(joint->axes.Transpose() * -nu_rvec);
 
-				Quaternion bprime = nextori_a * actual_ori;
-				Quaternion aprime = nextori_b * Quaternion::Reverse(actual_ori);
-
-				nextori_a = aprime;
-				nextori_b = bprime;
+				Quaternion newb = aori * actual_ori;
+				aori = bori * Quaternion::Reverse(actual_ori);
+				bori = newb;
 
 				did_stuff = true;
 			}
@@ -136,13 +134,7 @@ namespace DoodAnimTool
 		
 
 		// bones translating to stay in their sockets
-		amat = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a);		// recompute these values using the updated bone orientations
-		bmat = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b);
-		apos = amat.TransformVec3_1(joint_pos);
-		bpos = bmat.TransformVec3_1(joint_pos);
-
-		dx = bpos - apos;
-		if(float err = dx.ComputeMagnitudeSquared())
+		if(float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx))
 		{
 			pose.errors[2] += err;
 
@@ -150,8 +142,8 @@ namespace DoodAnimTool
 			{
 				dx *= 0.5f * linear_offset_linear_coeff;
 
-				nextpos_a += dx;
-				nextpos_b -= dx;
+				apos += dx;
+				bpos -= dx;
 
 				did_stuff = true;
 			}
@@ -161,10 +153,10 @@ namespace DoodAnimTool
 		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{
-			nexta->pos += nextpos_a;
-			nexta->ori += nextori_a;
-			nextb->pos += nextpos_b;
-			nextb->ori += nextori_b;
+			nexta->pos += apos;
+			nexta->ori += aori;
+			nextb->pos += bpos;
+			nextb->ori += bori;
 
 			++pose.contrib_count[bone_a];
 			++pose.contrib_count[bone_b];
