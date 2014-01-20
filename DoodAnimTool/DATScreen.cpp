@@ -5,6 +5,7 @@
 #include "DATKeyframe.h"
 
 #include "PoseSolverState.h"
+#include "JointOrientations.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -313,12 +314,11 @@ namespace DoodAnimTool
 
 			// setup to make GetBoneIndex work
 			{
-				id_to_bones.clear();
-
 				unsigned int biggest_bone = 0;
 				for(unsigned int i = 0; i < bones.size(); ++i)
 					biggest_bone = max(biggest_bone, bones[i].name);
-			
+
+				id_to_bones.clear();
 				id_to_bones.resize(biggest_bone + 1);
 
 				for(unsigned int i = 0; i < bones.size(); ++i)
@@ -605,6 +605,8 @@ namespace DoodAnimTool
 				errors[i] = pss.errors[i];
 
 			pose = pss.GetFinalPose();
+
+			TryJointOrientations(DATKeyframe(pose), JointOrientations(mphys->joints.size()));
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
@@ -843,6 +845,18 @@ namespace DoodAnimTool
 		}
 
 		void ResetPose() { keyframes[edit_keyframe] = GetDefaultPose(); }
+
+		void TryJointOrientations(DATKeyframe& kf, const JointOrientations& jo)
+		{
+			jo.PoseBones(kf, mphys);
+
+			float tot = 0.0f;
+			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				if(float err = (*iter)->GetErrorAmount(kf))
+					tot += err;
+
+			Debug(((stringstream&)(stringstream() << "error tot = " << tot << endl)).str());
+		}
 
 		void Draw(int width, int height)
 		{

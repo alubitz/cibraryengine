@@ -105,4 +105,19 @@ namespace DoodAnimTool
 		obja = &pose.current.data[bone_a];
 		objb = &pose.current.data[bone_b];
 	}
+
+	float CFixedJoint::GetErrorAmount(const DATKeyframe& pose)
+	{
+		Vec3 apos = pose.data[bone_a].pos, bpos = pose.data[bone_b].pos;
+		Quaternion aori = pose.data[bone_a].ori, bori = pose.data[bone_b].ori;
+
+		float err = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec().ComputeMagnitudeSquared();
+
+		Vec3 aend = Mat4::FromPositionAndOrientation(apos, aori).TransformVec3_1(point_in_a);
+		Vec3 bend = Mat4::FromPositionAndOrientation(bpos, bori).TransformVec3_1(point_in_b);
+
+		err += (bend - aend).ComputeMagnitudeSquared();
+		
+		return err;
+	}
 }

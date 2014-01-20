@@ -172,4 +172,23 @@ namespace DoodAnimTool
 		obja = &pose.current.data[bone_a];
 		objb = &pose.current.data[bone_b];
 	}
+
+	float CSkeletalJoint::GetErrorAmount(const DATKeyframe& pose)
+	{
+		Vec3 apos = pose.data[bone_a].pos, bpos = pose.data[bone_b].pos;
+		Quaternion aori = pose.data[bone_a].ori, bori = pose.data[bone_b].ori;
+
+		Mat4 amat, bmat;
+		Vec3 aend, bend, dx;
+
+		float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx);
+
+		Quaternion a_to_b = Quaternion::Reverse(aori) * bori;
+		Vec3 proposed_rvec = joint->axes * -a_to_b.ToRVec();
+		Vec3 nu_rvec = joint->GetClampedAngles(proposed_rvec);
+
+		err += (proposed_rvec - nu_rvec).ComputeMagnitudeSquared();
+
+		return err;
+	}
 }

@@ -33,5 +33,7 @@ namespace DoodAnimTool
 			void InitCachedStuff(PoseSolverState& pose);
 			bool ApplyConstraint(PoseSolverState& pose);
 			void OnAnyChanges(PoseSolverState& pose);
+
+			float GetErrorAmount(const DATKeyframe& pose);
 	};
 }
