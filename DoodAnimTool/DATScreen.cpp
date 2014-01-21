@@ -349,7 +349,7 @@ namespace DoodAnimTool
 
 			// add default constraints to the constraints list
 			for(unsigned int i = 0; i < mphys->joints.size(); ++i)
-				constraints.push_back(new CSkeletalJoint(&mphys->joints[i], bones));
+				constraints.push_back(new CSkeletalJoint(mphys, i, bones));
 
 			DATKeyframe initial_pose = GetDefaultPose();
 			keyframes.push_back(initial_pose);

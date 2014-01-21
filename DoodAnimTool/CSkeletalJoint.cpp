@@ -9,15 +9,39 @@ namespace DoodAnimTool
 	/*
 	 * CSkeletalJoint methods
 	 */
-	CSkeletalJoint::CSkeletalJoint(const ModelPhysics::JointPhysics* joint, const vector<DATBone>& bones) :
-		joint(joint),
+	CSkeletalJoint::CSkeletalJoint(const ModelPhysics* mphys, unsigned int joint_index, const vector<DATBone>& bones) :
+		joint(&mphys->joints[joint_index]),
 		bone_a(joint->bone_a - 1),
 		bone_b(joint->bone_b - 1),
+		lpivot_a(),
+		lpivot_b(),
 		joint_pos(joint->pos),
-		lcenter_a(bones[bone_a].center),
-		lcenter_b(bones[bone_b].center),
 		enforce_rotation_limits(true)
 	{
+		// find other joints with this bone and use the average of their positions as this bone's pivot point
+		unsigned int ajoints = 0, bjoints = 0;
+
+		unsigned int mya = joint->bone_a, myb = joint->bone_b;
+		for(unsigned int i = 0; i < mphys->joints.size(); ++i)
+			if(i != joint_index)
+			{
+				const ModelPhysics::JointPhysics& ijoint = mphys->joints[i];
+				unsigned int ija = ijoint.bone_a, ijb = ijoint.bone_b;
+
+				if(ija == mya || ijb == mya)
+				{
+					lpivot_a += mphys->joints[i].pos;
+					++ajoints;
+				}
+				else if(ija == myb || ijb == myb)
+				{
+					lpivot_b += mphys->joints[i].pos;
+					++bjoints;
+				}
+			}
+
+		if(ajoints == 0) { lpivot_a = bones[bone_a].center; } else { lpivot_a /= float(ajoints); }
+		if(bjoints == 0) { lpivot_b = bones[bone_b].center; } else { lpivot_b /= float(bjoints); }
 	}
 
 	CSkeletalJoint::~CSkeletalJoint() { }
@@ -45,20 +69,20 @@ namespace DoodAnimTool
 		return dx.ComputeMagnitudeSquared();
 	}
 
-	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& bone_cen, const Vec3& meet) const
+	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& pivot, const Vec3& meet) const
 	{
-		Vec3 cur = bone_cen - endpoint;
-		Vec3 goal = bone_cen - meet;
+		Vec3 cur  = pivot - endpoint;
+		Vec3 goal = pivot - meet;
 		Vec3 axis = Vec3::Cross(cur, goal);
 		if(float axissq = axis.ComputeMagnitudeSquared())
 		{
-			float axismag = sqrtf(axissq);
-			float bonesq = cur.ComputeMagnitudeSquared();						// would "compute once and save" but can't because aend/bend issue (see TODO below)
-			float goalsq = goal.ComputeMagnitudeSquared();
-			float actual_angle = asinf(axismag / sqrtf(bonesq * goalsq));
-			float length_factor = min(1.0f, max(0.1f, bonesq));					// the formula used here is somewhat arbitrary, but it seems to work most of the time
-			float use_angle = length_factor * actual_angle;
-			float coeff = use_angle / axismag;
+			float axismag       = sqrtf(axissq);
+			float bonesq        = cur.ComputeMagnitudeSquared();				// would "compute once and save" but can't because aend/bend issue (see TODO below)
+			float goalsq        = goal.ComputeMagnitudeSquared();
+			float actual_angle  = asinf(axismag / sqrtf(bonesq * goalsq));
+			float length_factor = 0.1f; //min(1.0f, max(0.1f, bonesq));					// the formula used here is somewhat arbitrary, but it seems to work most of the time
+			float use_angle     = length_factor * actual_angle;
+			float coeff         = use_angle / axismag;
 
 			rot += axis * coeff;
 		}
@@ -88,17 +112,18 @@ namespace DoodAnimTool
 
 			if(err > rotation_threshold)
 			{
-				Vec3 acen = aori * lcenter_a + apos, bcen = bori * lcenter_b + bpos;
-				Vec3 midpoint = (aend + bend) * 0.5f;
+				Vec3 apivot = aori * lpivot_a + apos;
+				Vec3 bpivot = bori * lpivot_b + bpos;
+				Vec3 meet = (aend + bend) * 0.5f;
 				
 				Vec3 rot;
 
-				DoHalfRot(rot, aend, acen, midpoint);
-				DoHalfRot(rot, aend, bcen, midpoint);		// TODO: investigate why this works with aend but not bend (even though bend would make more sense)
+				DoHalfRot(rot, aend, apivot, meet);
+				DoHalfRot(rot, aend, bpivot, meet);		// TODO: investigate why this works with aend but not bend (even though bend would make more sense)
 
 				if(rot.ComputeMagnitudeSquared() > 0)
 				{
-					Quaternion delta_quat = Quaternion::FromRVec(rot * (linear_offset_rotation_coeff));
+					Quaternion delta_quat = Quaternion::FromRVec(rot * linear_offset_rotation_coeff);
 
 					aori = delta_quat * aori;
 					bori = Quaternion::Reverse(delta_quat) * bori;
@@ -115,7 +140,7 @@ namespace DoodAnimTool
 			Quaternion a_to_b = Quaternion::Reverse(aori) * bori;
 
 			Vec3 proposed_rvec = joint->axes * -a_to_b.ToRVec();
-			Vec3 nu_rvec = joint->GetClampedAngles(proposed_rvec);
+			Vec3 nu_rvec       = joint->GetClampedAngles(proposed_rvec);
 
 			if(float err = (proposed_rvec - nu_rvec).ComputeMagnitudeSquared())
 			{
