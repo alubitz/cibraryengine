@@ -11,12 +11,13 @@ namespace DoodAnimTool
 	 */
 	CSkeletalJoint::CSkeletalJoint(const ModelPhysics* mphys, unsigned int joint_index, const vector<DATBone>& bones) :
 		joint(&mphys->joints[joint_index]),
+		joint_index(joint_index),
 		bone_a(joint->bone_a - 1),
 		bone_b(joint->bone_b - 1),
 		lpivot_a(),
 		lpivot_b(),
 		joint_pos(joint->pos),
-		enforce_rotation_limits(true)
+		enforce_rotation_limits(false)
 	{
 		// find other joints with this bone and use the average of their positions as this bone's pivot point
 		unsigned int ajoints = 0, bjoints = 0;
@@ -58,6 +59,8 @@ namespace DoodAnimTool
 
 		nexta = &pose.next.data[bone_a];
 		nextb = &pose.next.data[bone_b];
+
+		relative_ori = Quaternion::FromRVec(joint->axes.Transpose() * -pose.joints.data[joint_index]);
 	}
 
 	float CSkeletalJoint::ComputeDx(const Vec3& apos, const Vec3& bpos, const Quaternion& aori, const Quaternion& bori, Vec3& aend, Vec3& bend, Vec3& dx) const
@@ -67,25 +70,6 @@ namespace DoodAnimTool
 		dx = bend - aend;
 
 		return dx.ComputeMagnitudeSquared();
-	}
-
-	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& pivot, const Vec3& meet) const
-	{
-		Vec3 cur  = pivot - endpoint;
-		Vec3 goal = pivot - meet;
-		Vec3 axis = Vec3::Cross(cur, goal);
-		if(float axissq = axis.ComputeMagnitudeSquared())
-		{
-			float axismag       = sqrtf(axissq);
-			float bonesq        = cur.ComputeMagnitudeSquared();				// would "compute once and save" but can't because aend/bend issue (see TODO below)
-			float goalsq        = goal.ComputeMagnitudeSquared();
-			float actual_angle  = asinf(axismag / sqrtf(bonesq * goalsq));
-			float length_factor = 0.1f; //min(1.0f, max(0.1f, bonesq));					// the formula used here is somewhat arbitrary, but it seems to work most of the time
-			float use_angle     = length_factor * actual_angle;
-			float coeff         = use_angle / axismag;
-
-			rot += axis * coeff;
-		}
 	}
 
 	bool CSkeletalJoint::ApplyConstraint(PoseSolverState& pose)
@@ -105,34 +89,24 @@ namespace DoodAnimTool
 
 		Vec3 aend, bend, dx;
 
-		// bones rotating to stay in their sockets
-		if(float err = ComputeDx(apos, bpos, aori, bori, aend, bend, dx))
+		
+		// keep the relative orientations of the two bones constant
+		Vec3 av = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec();
+		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[0] += err;
 
 			if(err > rotation_threshold)
-			{
-				Vec3 apivot = aori * lpivot_a + apos;
-				Vec3 bpivot = bori * lpivot_b + bpos;
-				Vec3 meet = (aend + bend) * 0.5f;
-				
-				Vec3 rot;
+			{				
+				Quaternion bprime = aori * relative_ori;
+				Quaternion aprime = bori * Quaternion::Reverse(relative_ori);
 
-				DoHalfRot(rot, aend, apivot, meet);
-				DoHalfRot(rot, aend, bpivot, meet);		// TODO: investigate why this works with aend but not bend (even though bend would make more sense)
+				aori = aprime;
+				bori = bprime;
 
-				if(rot.ComputeMagnitudeSquared() > 0)
-				{
-					Quaternion delta_quat = Quaternion::FromRVec(rot * linear_offset_rotation_coeff);
-
-					aori = delta_quat * aori;
-					bori = Quaternion::Reverse(delta_quat) * bori;
-
-					did_stuff = true;
-				}
+				did_stuff = true;
 			}
 		}
-
 
 		// joint staying within its rotation limits
 		if(enforce_rotation_limits)

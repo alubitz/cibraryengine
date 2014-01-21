@@ -4,8 +4,8 @@
 #include "DATBone.h"
 #include "DATKeyframe.h"
 
-#include "PoseSolverState.h"
 #include "PoseDelta.h"
+#include "JointOrientations.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -17,8 +17,6 @@
 #include "GCanvas.h"
 #include "GColumnList.h"
 #include "GCheckbox.h"
-
-#define MAX_SOLVER_ITERATIONS 200
 
 namespace DoodAnimTool
 {
@@ -48,6 +46,7 @@ namespace DoodAnimTool
 		float anim_timer;
 		unsigned int edit_keyframe;
 
+		vector<CSkeletalJoint*> skeletal_joints;
 		vector<Constraint*> constraints;
 
 		vector<Vec3> debug_dots;
@@ -69,8 +68,6 @@ namespace DoodAnimTool
 		int box_x1, box_y1;
 
 		float now, buffered_time;
-
-		float errors[PoseSolverState::ERROR_TYPES];
 
 		class ConstraintCheckbox : public GCheckbox
 		{
@@ -349,7 +346,11 @@ namespace DoodAnimTool
 
 			// add default constraints to the constraints list
 			for(unsigned int i = 0; i < mphys->joints.size(); ++i)
-				constraints.push_back(new CSkeletalJoint(mphys, i, bones));
+			{
+				CSkeletalJoint* sj = new CSkeletalJoint(mphys, i, bones); 
+				skeletal_joints.push_back(sj);
+				constraints.push_back(sj);
+			}
 
 			DATKeyframe initial_pose = GetDefaultPose();
 			keyframes.push_back(initial_pose);
@@ -462,6 +463,7 @@ namespace DoodAnimTool
 
 		void DeleteConstraints()
 		{
+			skeletal_joints.clear();
 			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
 				delete *iter;
 			constraints.clear();
@@ -540,7 +542,9 @@ namespace DoodAnimTool
 							}
 
 							// enforce constraints
-							ApplyConstraints(keyframe, &deltas);
+					//		ApplyConstraints(keyframe, &deltas);
+							for(vector<PoseDelta>::iterator iter = deltas.begin(); iter != deltas.end(); ++iter)
+								keyframe.data[iter->bone] = iter->new_state;
 							applied_constraints = true;
 						}
 					}
@@ -552,72 +556,100 @@ namespace DoodAnimTool
 			}
 		}
 
+		JointOrientations JointOrientationsFromPose(const DATKeyframe& pose)
+		{
+			unsigned int num_joints = skeletal_joints.size();
+
+			JointOrientations result(num_joints);
+			for(unsigned int i = 0; i < num_joints; ++i)
+			{
+				const ModelPhysics::JointPhysics& joint = *skeletal_joints[i]->joint;
+				unsigned int bone_a = joint.bone_a - 1;
+				unsigned int bone_b = joint.bone_b - 1;
+
+				Quaternion a_to_b = Quaternion::Reverse(pose.data[bones[bone_a].bone_index].ori) * pose.data[bones[bone_b].bone_index].ori;
+				result.data[i] = joint.GetClampedAngles(joint.axes * -a_to_b.ToRVec());
+			}
+
+			return result;
+		}
+
 		void ApplyConstraints(DATKeyframe& pose, const vector<PoseDelta>* deltas = NULL)
 		{
 			// setup
-			PoseSolverState pss(pose);
+			if(deltas != NULL)
+				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
+					pose.data[iter->bone] = iter->new_state;
+
+			JointOrientations target_jos = JointOrientationsFromPose(pose);
+			vector<JointOrientations::PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys);
 
 			vector<Constraint*> active_constraints;
 			active_constraints.reserve(constraints.size());
 
 			for(unsigned int i = 0; i < constraints.size(); ++i)
 				if(pose.enabled_constraints[i])
-				{
-					Constraint* c = constraints[i];
+					active_constraints.push_back(constraints[i]);
 
-					c->InitCachedStuff(pss);
-					active_constraints.push_back(c);
-				}
 			Constraint** constraints_begin = active_constraints.data();
 			Constraint** constraints_end   = constraints_begin + active_constraints.size();
 
 			unsigned int num_bones = pose.num_bones;
 
-			// initial application of user edits (affects "current" pose, not "initial")
-			if(deltas != NULL)
-				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
-					pss.current.data[iter->bone] = iter->new_state;
-			
-			// actually doing the iterations
-			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
+			DATKeyframe best_pose(pose);
+			JointOrientations best_jos(target_jos);
+			float best_score;
+
+			for(unsigned int i = 0; i < 10000; ++i)
 			{
-				pss.PreIteration();
+				JointOrientations test_jos(best_jos);
+				if(i != 0)
+				{
+					if(i % 500 == 0)
+						target_jos = best_jos;
 
-				bool any_changes = false;
-				for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
-					if((*jter)->ApplyConstraint(pss))
+					// mutate jos
+					float mutation_rate = 0.3f * sqrtf(best_score);
+					for(unsigned int j = 0; j < 3; ++j)
 					{
-						for(++jter; jter != constraints_end; ++jter)
-							(*jter)->ApplyConstraint(pss);
-
-						any_changes = true;
-						break;
+						unsigned int index = Random3D::RandInt(test_jos.num_joints);
+						const ModelPhysics::JointPhysics& jp = *skeletal_joints[index]->joint;
+						Vec3& mutant = test_jos.data[index];
+						mutant.x += (Random3D::Rand() - 0.5f) * mutation_rate;
+						mutant.y += (Random3D::Rand() - 0.5f) * mutation_rate;
+						mutant.z += (Random3D::Rand() - 0.5f) * mutation_rate;
+						jp.ClampAngles(mutant);
 					}
+				}
 
-				for(unsigned int j = 0; j < num_bones; ++j)
-					if(bones[j].locked)
-						pss.contrib_count[j] = 0;
+				DATKeyframe test_pose(best_pose);
+				test_jos.UsePoseChain(pose_chain, test_pose);
 
-#if 0
-				if(deltas != NULL)
-					for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
-						pss.contrib_count[iter->bone] = 0;
-#endif
+				float test_score = ScoreJOs(test_pose, test_jos, target_jos, constraints_begin, constraints_end);
 
-				pss.PostIteration();
-
-				if(!any_changes)
-					break;
-				else
-					for(Constraint** jter = constraints_begin; jter != constraints_end; ++jter)
-						(*jter)->OnAnyChanges(pss);
+				if(i == 0 || test_score < best_score)
+				{
+					best_score = test_score;
+					best_pose  = test_pose;
+					best_jos   = test_jos;
+				}
 			}
 
-			// getting the results
-			for(int i = 0; i < PoseSolverState::ERROR_TYPES; ++i)
-				errors[i] = pss.errors[i];
+			Debug(((stringstream&)(stringstream() << "score = " << best_score << endl)).str());
+			pose = best_pose;
+		}
 
-			pose = pss.GetFinalPose();
+		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, const JointOrientations& target, Constraint** constraints_begin, Constraint** constraints_end)
+		{
+			float score = 0.0f;
+			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)
+				score += (*iter)->GetErrorAmount(test_pose);
+
+			float cost = 0.0f;
+			for(unsigned int i = 0; i < jos.num_joints; ++i)
+				cost += (jos.data[i] - target.data[i]).ComputeMagnitudeSquared();
+
+			return score * cost + score + cost * 0.01f;
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
@@ -943,11 +975,6 @@ namespace DoodAnimTool
 			glOrtho(0, width, height, 0, -1, 1);
 			glMatrixMode(GL_MODELVIEW);
 			glLoadIdentity();
-
-			float errx = float(width) - font->font_spacing * 25;
-			string errnames[PoseSolverState::ERROR_TYPES] = { "skel rot : ", "skel lim : ", "skel pos : ", " fix ori : ", " fix pos : ", "foot ori : ", "foot pos : " };
-			for(int i = 0; i < PoseSolverState::ERROR_TYPES; ++i)
-				font->Print(((stringstream&)(stringstream() << errnames[i] << errors[i])).str(), errx, font->font_height * i);
 			
 			// draw GUI
 			canvas.Layout(width, height);

@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 
 #include "DATKeyframe.h"
+#include "JointOrientations.h"
 
 namespace DoodAnimTool
 {
@@ -12,6 +13,8 @@ namespace DoodAnimTool
 
 			static const unsigned int ERROR_TYPES = 7;
 			
+			JointOrientations joints;
+
 			DATKeyframe initial;
 			DATKeyframe current;
 			DATKeyframe next;
@@ -20,7 +23,7 @@ namespace DoodAnimTool
 
 			float errors[ERROR_TYPES];
 
-			PoseSolverState(const DATKeyframe& initial);
+			PoseSolverState(const DATKeyframe& initial, const JointOrientations& joints);
 			~PoseSolverState();
 
 			void PreIteration();

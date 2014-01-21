@@ -29,9 +29,13 @@ namespace DoodAnimTool
 		}
 	}
 
-	void JointOrientations::PoseBones(DATKeyframe& pose, const ModelPhysics* mphys, unsigned int start_where) const
+
+
+	vector<JointOrientations::PoseChainNode> JointOrientations::GetPoseChain(const ModelPhysics* mphys, unsigned int start_where) const
 	{
-		unsigned int num_bones = pose.num_bones;
+		vector<PoseChainNode> result;
+
+		unsigned int num_bones = mphys->bones.size();
 		bool* bones_known = new bool[num_bones];
 		memset(bones_known, 0, num_bones * sizeof(bool));
 
@@ -59,36 +63,8 @@ namespace DoodAnimTool
 					{
 						if(!a_known || !b_known)
 						{
-							if(a_known)
-							{
-								DATKeyframe::KBone&       b_state = pose.data[bone_b];
-								const DATKeyframe::KBone& a_state = pose.data[bone_a];
-
-								Quaternion actual_ori = Quaternion::FromRVec(joint.axes.Transpose() * -data[i]);
-								b_state.ori = a_state.ori * actual_ori;
-
-								Vec3 apos = Mat4::FromPositionAndOrientation(a_state.pos, a_state.ori).TransformVec3_1(joint.pos);
-								Vec3 bpos = Mat4::FromPositionAndOrientation(b_state.pos, b_state.ori).TransformVec3_1(joint.pos);
-
-								b_state.pos += apos - bpos;
-
-								bones_known[bone_b] = true;
-							}
-							else
-							{
-								DATKeyframe::KBone&       a_state = pose.data[bone_a];
-								const DATKeyframe::KBone& b_state = pose.data[bone_b];
-
-								Quaternion actual_ori = Quaternion::FromRVec(joint.axes.Transpose() * -data[i]);
-								a_state.ori = b_state.ori * Quaternion::Reverse(actual_ori);
-
-								Vec3 apos = Mat4::FromPositionAndOrientation(a_state.pos, a_state.ori).TransformVec3_1(joint.pos);
-								Vec3 bpos = Mat4::FromPositionAndOrientation(b_state.pos, b_state.ori).TransformVec3_1(joint.pos);
-
-								a_state.pos += bpos - apos;
-
-								bones_known[bone_a] = true;
-							}
+							result.push_back(PoseChainNode(i, bone_a, bone_b, a_known, joint.pos, joint.axes.Transpose()));
+							bones_known[bone_a] = bones_known[bone_b] = true;
 						}
 
 						joints_done[i] = true;
@@ -100,12 +76,47 @@ namespace DoodAnimTool
 
 			if(!any)
 			{
-				Debug(((stringstream&)(stringstream() << "JointOrientations::PoseBones was unable to resolve the transforms of all bones; " << remaining << " bones were left unresolved" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "JointOrientations::GetPoseChain was unable to resolve the transforms of all bones; " << remaining << " bones were left unresolved" << endl)).str());
 				break;
 			}
 		}
 
-		delete[] joints_done;
 		delete[] bones_known;
+		delete[] joints_done;
+
+		return result;
+	}
+
+	void JointOrientations::UsePoseChain(const vector<PoseChainNode>& chain, DATKeyframe& pose) const
+	{
+		for(vector<PoseChainNode>::const_iterator iter = chain.begin(); iter != chain.end(); ++iter)
+		{
+			if(iter->a_known)
+			{
+				DATKeyframe::KBone&       b_state = pose.data[iter->b];
+				const DATKeyframe::KBone& a_state = pose.data[iter->a];
+
+				Quaternion actual_ori = Quaternion::FromRVec(iter->axest * -data[iter->index]);
+				b_state.ori = a_state.ori * actual_ori;
+
+				Vec3 apos = a_state.ori * iter->pos + a_state.pos;
+				Vec3 bpos = b_state.ori * iter->pos + b_state.pos;
+
+				b_state.pos += apos - bpos;
+			}
+			else
+			{
+				DATKeyframe::KBone&       a_state = pose.data[iter->a];
+				const DATKeyframe::KBone& b_state = pose.data[iter->b];
+
+				Quaternion actual_ori = Quaternion::FromRVec(iter->axest * -data[iter->index]);
+				a_state.ori = b_state.ori * Quaternion::Reverse(actual_ori);
+
+				Vec3 apos = a_state.ori * iter->pos + a_state.pos;
+				Vec3 bpos = b_state.ori * iter->pos + b_state.pos;
+
+				a_state.pos += bpos - apos;
+			}
+		}
 	}
 }

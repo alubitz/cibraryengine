@@ -26,6 +26,19 @@ namespace DoodAnimTool
 
 			void operator =(const JointOrientations& other);
 
-			void PoseBones(DATKeyframe& pose, const ModelPhysics* mphys, unsigned int start_where = 0) const;
+			struct PoseChainNode
+			{
+				unsigned int index;
+				unsigned int a, b;
+				bool a_known;
+				Vec3 pos;
+				Mat3 axest;
+
+				PoseChainNode() { }
+				PoseChainNode(unsigned int index, unsigned int a, unsigned int b, bool a_known, const Vec3& pos, const Mat3& axest) : index(index), a(a), b(b), a_known(a_known), pos(pos), axest(axest) { }
+			};
+
+			vector<PoseChainNode> GetPoseChain(const ModelPhysics* mphys, unsigned int start_where = 0) const;
+			void UsePoseChain(const vector<PoseChainNode>& chain, DATKeyframe& pose) const;
 	};
 }

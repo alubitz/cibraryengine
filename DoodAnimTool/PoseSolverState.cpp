@@ -1,14 +1,13 @@
 #include "StdAfx.h"
 #include "PoseSolverState.h"
 
-#include "DATKeyframe.h"
-
 namespace DoodAnimTool
 {
 	/*
 	 * PoseSolverState methods
 	 */
-	PoseSolverState::PoseSolverState(const DATKeyframe& initial) :
+	PoseSolverState::PoseSolverState(const DATKeyframe& initial, const JointOrientations& joints) :
+		joints(joints),
 		initial(initial),
 		current(initial),
 		next(initial.num_bones, initial.num_constraints),

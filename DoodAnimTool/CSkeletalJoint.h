@@ -19,6 +19,7 @@ namespace DoodAnimTool
 
 		private:
 
+			unsigned int joint_index;
 			int bone_a, bone_b;
 
 			DATKeyframe::KBone* initial_a;
@@ -33,8 +34,9 @@ namespace DoodAnimTool
 			Vec3 joint_pos;
 			Vec3 lpivot_a, lpivot_b;
 
+			Quaternion relative_ori;
+
 			float ComputeDx(const Vec3& apos, const Vec3& bpos, const Quaternion& aori, const Quaternion& bori, Vec3& aend, Vec3& bend, Vec3& dx) const;
-			void DoHalfRot(Vec3& rot, const Vec3& bone_point, const Vec3& bone_center, const Vec3& midpoint) const;
 
 		public:
 
