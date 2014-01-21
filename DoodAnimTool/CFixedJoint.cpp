@@ -8,11 +8,11 @@ namespace DoodAnimTool
 	/*
 	 * CFixedJoint methods
 	 */
-	CFixedJoint::CFixedJoint(unsigned int bone_a, unsigned int bone_b, const Vec3& point_in_a, const Vec3& point_in_b, const Quaternion& relative_ori) :
+	CFixedJoint::CFixedJoint(unsigned int bone_a, unsigned int bone_b, const Vec3& socket_a, const Vec3& socket_b, const Quaternion& relative_ori) :
 		bone_a(bone_a),
 		bone_b(bone_b),
-		point_in_a(point_in_a),
-		point_in_b(point_in_b),
+		socket_a(socket_a),
+		socket_b(socket_b),
 		relative_ori(relative_ori)
 	{
 	}
@@ -36,48 +36,48 @@ namespace DoodAnimTool
 		static const float rotation_threshold            = 0.0f;
 		static const float translation_threshold         = 0.0f;
 
-		static const float linear_offset_linear_coeff    = 1.0f;
+		static const float linear_offset_linear_coeff    = 1.0f * 0.5f;
 
 		bool did_stuff = false;
 
-		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-
-		Vec3 nextpos_a = obja->pos, nextpos_b = objb->pos;
-		Quaternion nextori_a = a_ori, nextori_b = b_ori;
+		Quaternion aori = obja->ori;
+		Quaternion bori = objb->ori;
+		Vec3       apos = obja->pos;
+		Vec3       bpos = objb->pos;
 
 		// keep the relative orientations of the two bones constant
-		Vec3 av = (Quaternion::Reverse(b_ori) * a_ori * relative_ori).ToRVec();
+		Vec3 av = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[3] += err;
 
 			if(err > rotation_threshold)
 			{				
-				Quaternion bprime = nextori_a * relative_ori;
-				Quaternion aprime = nextori_b * Quaternion::Reverse(relative_ori);
+				Quaternion bprime = aori * relative_ori;
+				Quaternion aprime = bori * Quaternion::Reverse(relative_ori);
 
-				nextori_a = aprime;
-				nextori_b = bprime;
+				aori = aprime;
+				bori = bprime;
 
 				did_stuff = true;
 			}
 		}
 
 		// keep the corresponding points in each bone in the same position
-		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a).TransformVec3_1(point_in_a);
-		Vec3 bpos = Mat4::FromPositionAndOrientation(nextpos_b, nextori_b).TransformVec3_1(point_in_b);
+		Vec3 aend = aori * socket_a + apos;
+		Vec3 bend = bori * socket_b + bpos;
 
-		Vec3 dx = bpos - apos;
+		Vec3 dx = bend - aend;
 		if(float err = dx.ComputeMagnitudeSquared())
 		{
 			pose.errors[4] += err;
 
 			if(err > translation_threshold)
 			{
-				dx *= 0.5f * linear_offset_linear_coeff;
+				dx *= linear_offset_linear_coeff;
 
-				nextpos_a += dx;
-				nextpos_b -= dx;
+				apos += dx;
+				bpos -= dx;
 
 				did_stuff = true;
 			}
@@ -86,10 +86,10 @@ namespace DoodAnimTool
 		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{
-			nexta->pos += nextpos_a;
-			nexta->ori += nextori_a;
-			nextb->pos += nextpos_b;
-			nextb->ori += nextori_b;
+			nexta->pos += apos;
+			nexta->ori += aori;
+			nextb->pos += bpos;
+			nextb->ori += bori;
 
 			++pose.contrib_count[bone_a];
 			++pose.contrib_count[bone_b];
@@ -108,13 +108,15 @@ namespace DoodAnimTool
 
 	float CFixedJoint::GetErrorAmount(const DATKeyframe& pose)
 	{
-		Vec3 apos = pose.data[bone_a].pos, bpos = pose.data[bone_b].pos;
-		Quaternion aori = pose.data[bone_a].ori, bori = pose.data[bone_b].ori;
+		const Vec3&       apos = pose.data[bone_a].pos;
+		const Vec3&       bpos = pose.data[bone_b].pos;
+		const Quaternion& aori = pose.data[bone_a].ori;
+		const Quaternion& bori = pose.data[bone_b].ori;
 
 		float err = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec().ComputeMagnitudeSquared();
 
-		Vec3 aend = Mat4::FromPositionAndOrientation(apos, aori).TransformVec3_1(point_in_a);
-		Vec3 bend = Mat4::FromPositionAndOrientation(bpos, bori).TransformVec3_1(point_in_b);
+		Vec3 aend = aori * socket_a + apos;
+		Vec3 bend = bori * socket_b + bpos;
 
 		err += (bend - aend).ComputeMagnitudeSquared();
 		

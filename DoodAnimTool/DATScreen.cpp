@@ -5,7 +5,7 @@
 #include "DATKeyframe.h"
 
 #include "PoseSolverState.h"
-#include "JointOrientations.h"
+#include "PoseDelta.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -247,8 +247,8 @@ namespace DoodAnimTool
 			Cache<UberModel>*    uber_cache  = window->content->GetCache<UberModel>();
 			Cache<Material>*     mat_cache   = window->content->GetCache<Material>();
 
-			mphys = mphys_cache->Load(dood_name);
-			dood_uber = uber_cache->Load(dood_name);
+			mphys     = mphys_cache->Load(dood_name);
+			dood_uber = uber_cache->Load (dood_name);
 			dood_uber->LoadCachedMaterials(mat_cache);
 
 			skeleton = dood_uber->CreateSkeleton();
@@ -256,6 +256,7 @@ namespace DoodAnimTool
 			bones.clear();
 			keyframes.clear();
 
+			// cleanup gui items created by a previous call to LoadDood (if that were possible)
 			for(vector<BoneLockCheckbox*>::iterator iter = lock_checkboxes.begin(); iter != lock_checkboxes.end(); ++iter)
 				delete *iter;
 			lock_checkboxes.clear();
@@ -495,6 +496,9 @@ namespace DoodAnimTool
 						{
 							DATKeyframe& keyframe = keyframes[edit_keyframe];
 
+							static vector<PoseDelta> deltas;
+							deltas.clear();
+
 							if(input_state->keys[VK_SHIFT])
 							{
 								// translate the selected bones
@@ -502,7 +506,10 @@ namespace DoodAnimTool
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
-										keyframe.data[i].pos += delta;
+									{
+										const DATKeyframe::KBone& oldstate = keyframe.data[i];
+										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(oldstate.pos + delta, oldstate.ori)));
+									}
 								}
 							}
 							else
@@ -521,36 +528,31 @@ namespace DoodAnimTool
 								{
 									if(bones[i].selected)
 									{
-										DATKeyframe::KBone& bone = keyframe.data[i];
+										const DATKeyframe::KBone &oldstate = keyframe.data[i];
 
-										Mat4 oldmat = Mat4::FromPositionAndOrientation(bone.pos, bone.ori);
+										Mat4 oldmat = Mat4::FromPositionAndOrientation(oldstate.pos, oldstate.ori);
 										Vec3 oldcenter = Mat4::Invert(oldmat).TransformVec3_1(center);
 
-										Quaternion& ori = bone.ori;
-										ori = delta_quat * ori;
-
-										Mat4 newmat = Mat4::FromPositionAndOrientation(bone.pos, bone.ori);
-										Vec3 newcenter = newmat.TransformVec3_1(oldcenter);
-
-										bone.pos += center - newcenter;
+										Quaternion ori = delta_quat * oldstate.ori;
+										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(center - ori * oldcenter, ori)));
 									}
 								}
 							}
 
 							// enforce constraints
-							ApplyConstraints(keyframe);
+							ApplyConstraints(keyframe, &deltas);
 							applied_constraints = true;
 						}
 					}
 
 					// control to force additional iterations of the constraint solver
 					if(!applied_constraints && input_state->keys[VK_RETURN])
-						ApplyConstraints(keyframes[0]);
+						ApplyConstraints(keyframes[edit_keyframe]);
 				}
 			}
 		}
 
-		void ApplyConstraints(DATKeyframe& pose)
+		void ApplyConstraints(DATKeyframe& pose, const vector<PoseDelta>* deltas = NULL)
 		{
 			// setup
 			PoseSolverState pss(pose);
@@ -567,9 +569,14 @@ namespace DoodAnimTool
 					active_constraints.push_back(c);
 				}
 			Constraint** constraints_begin = active_constraints.data();
-			Constraint** constraints_end = constraints_begin + active_constraints.size();
+			Constraint** constraints_end   = constraints_begin + active_constraints.size();
 
 			unsigned int num_bones = pose.num_bones;
+
+			// initial application of user edits (affects "current" pose, not "initial")
+			if(deltas != NULL)
+				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
+					pss.current.data[iter->bone] = iter->new_state;
 			
 			// actually doing the iterations
 			for(unsigned int i = 0; i < MAX_SOLVER_ITERATIONS; ++i)
@@ -591,6 +598,12 @@ namespace DoodAnimTool
 					if(bones[j].locked)
 						pss.contrib_count[j] = 0;
 
+#if 0
+				if(deltas != NULL)
+					for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
+						pss.contrib_count[iter->bone] = 0;
+#endif
+
 				pss.PostIteration();
 
 				if(!any_changes)
@@ -605,8 +618,6 @@ namespace DoodAnimTool
 				errors[i] = pss.errors[i];
 
 			pose = pss.GetFinalPose();
-
-			TryJointOrientations(DATKeyframe(pose), JointOrientations(mphys->joints.size()));
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
@@ -845,18 +856,6 @@ namespace DoodAnimTool
 		}
 
 		void ResetPose() { keyframes[edit_keyframe] = GetDefaultPose(); }
-
-		void TryJointOrientations(DATKeyframe& kf, const JointOrientations& jo)
-		{
-			jo.PoseBones(kf, mphys);
-
-			float tot = 0.0f;
-			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				if(float err = (*iter)->GetErrorAmount(kf))
-					tot += err;
-
-			Debug(((stringstream&)(stringstream() << "error tot = " << tot << endl)).str());
-		}
 
 		void Draw(int width, int height)
 		{

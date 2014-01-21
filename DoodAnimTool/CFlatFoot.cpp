@@ -8,11 +8,11 @@ namespace DoodAnimTool
 	/*
 	 * CFlatFoot methods
 	 */
-	CFlatFoot::CFlatFoot(unsigned int bone_a, unsigned int bone_b, const Vec3& point_in_a, const Vec3& point_in_b, const Quaternion& relative_ori) :
+	CFlatFoot::CFlatFoot(unsigned int bone_a, unsigned int bone_b, const Vec3& socket_a, const Vec3& socket_b, const Quaternion& relative_ori) :
 		bone_a(bone_a),
 		bone_b(bone_b),
-		point_in_a(point_in_a),
-		point_in_b(point_in_b),
+		socket_a(socket_a),
+		socket_b(socket_b),
 		relative_ori(relative_ori)
 	{
 	}
@@ -40,30 +40,30 @@ namespace DoodAnimTool
 
 		bool did_stuff = false;
 
-		Quaternion a_ori = obja->ori, b_ori = objb->ori;
-
-		Vec3 nextpos_a = obja->pos;
-		Quaternion nextori_a = a_ori;
+		Quaternion aori = obja->ori;
+		Quaternion bori = objb->ori;
+		Vec3       apos = obja->pos;
+		Vec3       bpos = objb->pos;
 
 		// keep the relative orientations of the two bones constant
-		Vec3 av = (Quaternion::Reverse(b_ori) * a_ori * relative_ori).ToRVec();
+		Vec3 av = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec();
 		if(float err = av.ComputeMagnitudeSquared())
 		{
 			pose.errors[5] += err;
 
 			if(err > rotation_threshold)
 			{
-				nextori_a = b_ori * relative_ori;
+				aori = bori * relative_ori;
 
 				did_stuff = true;
 			}
 		}
 
 		// keep the corresponding points in each bone in the same position
-		Vec3 apos = Mat4::FromPositionAndOrientation(nextpos_a, nextori_a).TransformVec3_1(point_in_a);
-		Vec3 bpos = Mat4::FromPositionAndOrientation(objb->pos, b_ori).TransformVec3_1(point_in_b);
+		Vec3 aend = aori * socket_a + apos;
+		Vec3 bend = bori * socket_b + bpos;
 
-		Vec3 dx = bpos - apos;
+		Vec3 dx = bend - aend;
 		if(float err = dx.ComputeMagnitudeSquared())
 		{
 			pose.errors[6] += err;
@@ -71,7 +71,7 @@ namespace DoodAnimTool
 			if(err > translation_threshold)
 			{
 				dx *= linear_offset_linear_coeff;
-				nextpos_a += dx;
+				apos += dx;
 
 				did_stuff = true;
 			}
@@ -80,8 +80,8 @@ namespace DoodAnimTool
 		// if we made any changes, let the solver know about it
 		if(did_stuff)
 		{
-			nexta->pos += nextpos_a;
-			nexta->ori += nextori_a;
+			nexta->pos += apos;
+			nexta->ori += aori;
 
 			++pose.contrib_count[bone_a];
 
@@ -99,13 +99,15 @@ namespace DoodAnimTool
 
 	float CFlatFoot::GetErrorAmount(const DATKeyframe& pose)
 	{
-		Vec3 apos = pose.data[bone_a].pos, bpos = pose.data[bone_b].pos;
-		Quaternion aori = pose.data[bone_a].ori, bori = pose.data[bone_b].ori;
+		const Vec3&       apos = pose.data[bone_a].pos;
+		const Vec3&       bpos = pose.data[bone_b].pos;
+		const Quaternion& aori = pose.data[bone_a].ori;
+		const Quaternion& bori = pose.data[bone_b].ori;
 
 		float err = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec().ComputeMagnitudeSquared();
 
-		Vec3 aend = Mat4::FromPositionAndOrientation(apos, aori).TransformVec3_1(point_in_a);
-		Vec3 bend = Mat4::FromPositionAndOrientation(bpos, bori).TransformVec3_1(point_in_b);
+		Vec3 aend = aori * socket_a + apos;
+		Vec3 bend = bori * socket_b + bpos;
 
 		err += (bend - aend).ComputeMagnitudeSquared();
 

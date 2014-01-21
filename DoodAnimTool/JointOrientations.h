@@ -4,11 +4,9 @@
 
 namespace DoodAnimTool
 {
-	using namespace std;
 	using namespace CibraryEngine;
 
 	class DATKeyframe;
-	struct DATBone;
 
 	class JointOrientations
 	{

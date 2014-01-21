@@ -9,7 +9,7 @@ namespace DoodAnimTool
 	/*
 	 * CSkeletalJoint methods
 	 */
-	CSkeletalJoint::CSkeletalJoint(ModelPhysics::JointPhysics* joint, const vector<DATBone>& bones) :
+	CSkeletalJoint::CSkeletalJoint(const ModelPhysics::JointPhysics* joint, const vector<DATBone>& bones) :
 		joint(joint),
 		bone_a(joint->bone_a - 1),
 		bone_b(joint->bone_b - 1),
@@ -36,18 +36,16 @@ namespace DoodAnimTool
 		nextb = &pose.next.data[bone_b];
 	}
 
-	float CSkeletalJoint::ComputeMatricesAndEndpoints(const Vec3& apos, const Vec3& bpos, const Quaternion& aori, const Quaternion& bori, Mat4& amat, Mat4& bmat, Vec3& aend, Vec3& bend, Vec3& dx)
+	float CSkeletalJoint::ComputeDx(const Vec3& apos, const Vec3& bpos, const Quaternion& aori, const Quaternion& bori, Vec3& aend, Vec3& bend, Vec3& dx) const
 	{
-		amat = Mat4::FromPositionAndOrientation(apos, aori);
-		bmat = Mat4::FromPositionAndOrientation(bpos, bori);
-		aend = amat.TransformVec3_1(joint_pos);
-		bend = bmat.TransformVec3_1(joint_pos);
+		aend = aori * joint_pos + apos;
+		bend = bori * joint_pos + bpos;
 		dx = bend - aend;
 
 		return dx.ComputeMagnitudeSquared();
 	}
 
-	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& bone_cen, const Vec3& meet)
+	void CSkeletalJoint::DoHalfRot(Vec3& rot, const Vec3& endpoint, const Vec3& bone_cen, const Vec3& meet) const
 	{
 		Vec3 cur = bone_cen - endpoint;
 		Vec3 goal = bone_cen - meet;
@@ -71,25 +69,26 @@ namespace DoodAnimTool
 		static const float rotation_threshold           = 0.0f;
 		static const float translation_threshold        = 0.0f;
 
-		static const float linear_offset_rotation_coeff = 1.0f;
-		static const float linear_offset_linear_coeff   = 1.0f;
+		static const float linear_offset_rotation_coeff = 1.0f * 0.5f;
+		static const float linear_offset_linear_coeff   = 1.0f * 0.5f;
 
 		bool did_stuff = false;
 
-		Vec3 apos = obja->pos, bpos = objb->pos;
-		Quaternion aori = obja->ori, bori = objb->ori;
+		Vec3       apos = obja->pos;
+		Vec3       bpos = objb->pos;
+		Quaternion aori = obja->ori;
+		Quaternion bori = objb->ori;
 
-		Mat4 amat, bmat;
 		Vec3 aend, bend, dx;
 
 		// bones rotating to stay in their sockets
-		if(float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx))
+		if(float err = ComputeDx(apos, bpos, aori, bori, aend, bend, dx))
 		{
 			pose.errors[0] += err;
 
 			if(err > rotation_threshold)
 			{
-				Vec3 acen = amat.TransformVec3_1(lcenter_a), bcen = bmat.TransformVec3_1(lcenter_b);
+				Vec3 acen = aori * lcenter_a + apos, bcen = bori * lcenter_b + bpos;
 				Vec3 midpoint = (aend + bend) * 0.5f;
 				
 				Vec3 rot;
@@ -99,7 +98,7 @@ namespace DoodAnimTool
 
 				if(rot.ComputeMagnitudeSquared() > 0)
 				{
-					Quaternion delta_quat = Quaternion::FromRVec(rot * (0.5f * linear_offset_rotation_coeff));
+					Quaternion delta_quat = Quaternion::FromRVec(rot * (linear_offset_rotation_coeff));
 
 					aori = delta_quat * aori;
 					bori = Quaternion::Reverse(delta_quat) * bori;
@@ -134,13 +133,13 @@ namespace DoodAnimTool
 		
 
 		// bones translating to stay in their sockets
-		if(float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx))
+		if(float err = ComputeDx(apos, bpos, aori, bori, aend, bend, dx))
 		{
 			pose.errors[2] += err;
 
 			if(err > translation_threshold)
 			{
-				dx *= 0.5f * linear_offset_linear_coeff;
+				dx *= linear_offset_linear_coeff;
 
 				apos += dx;
 				bpos -= dx;
@@ -175,17 +174,17 @@ namespace DoodAnimTool
 
 	float CSkeletalJoint::GetErrorAmount(const DATKeyframe& pose)
 	{
-		Vec3 apos = pose.data[bone_a].pos, bpos = pose.data[bone_b].pos;
-		Quaternion aori = pose.data[bone_a].ori, bori = pose.data[bone_b].ori;
+		const Vec3&       apos = pose.data[bone_a].pos;
+		const Vec3&       bpos = pose.data[bone_b].pos;
+		const Quaternion& aori = pose.data[bone_a].ori;
+		const Quaternion& bori = pose.data[bone_b].ori;
 
-		Mat4 amat, bmat;
 		Vec3 aend, bend, dx;
+		float err = ComputeDx(apos, bpos, aori, bori, aend, bend, dx);
 
-		float err = ComputeMatricesAndEndpoints(apos, bpos, aori, bori, amat, bmat, aend, bend, dx);
-
-		Quaternion a_to_b = Quaternion::Reverse(aori) * bori;
+		Quaternion a_to_b  = Quaternion::Reverse(aori) * bori;
 		Vec3 proposed_rvec = joint->axes * -a_to_b.ToRVec();
-		Vec3 nu_rvec = joint->GetClampedAngles(proposed_rvec);
+		Vec3 nu_rvec       = joint->GetClampedAngles(proposed_rvec);
 
 		err += (proposed_rvec - nu_rvec).ComputeMagnitudeSquared();
 

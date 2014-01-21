@@ -16,6 +16,7 @@ namespace DoodAnimTool
 				Quaternion ori;
 
 				KBone() : pos(), ori(Quaternion::Identity()) { }
+				KBone(const Vec3& pos, const Quaternion& ori) : pos(pos), ori(ori) { }
 			};
 
 			unsigned int num_bones;

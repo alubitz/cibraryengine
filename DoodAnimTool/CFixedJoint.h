@@ -24,15 +24,15 @@ namespace DoodAnimTool
 
 			unsigned int bone_a, bone_b;
 
-			Vec3 point_in_a, point_in_b;
+			Vec3 socket_a, socket_b;
 			Quaternion relative_ori;
 
-			CFixedJoint(unsigned int bone_a, unsigned int bone_b, const Vec3& point_in_a, const Vec3& point_in_b, const Quaternion& relative_ori);
+			CFixedJoint(unsigned int bone_a, unsigned int bone_b, const Vec3& socket_a, const Vec3& socket_b, const Quaternion& relative_ori);
 			~CFixedJoint();
 
 			void InitCachedStuff(PoseSolverState& pose);
 			bool ApplyConstraint(PoseSolverState& pose);
-			void OnAnyChanges(PoseSolverState& pose);
+			void OnAnyChanges   (PoseSolverState& pose);
 
 			float GetErrorAmount(const DATKeyframe& pose);
 	};
