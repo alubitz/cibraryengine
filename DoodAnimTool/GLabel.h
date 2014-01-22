@@ -19,5 +19,8 @@ namespace DoodAnimTool
 			GLabel(BitmapFont* font, const string& text, bool hover_glows = false);
 
 			void Draw(int cx1, int cy1, int cx2, int cy2);
+
+			void Measure();
+			void SetText(const string& text);			// sets text and remeasures width and height
 	};
 }

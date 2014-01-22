@@ -2,6 +2,7 @@
 #include "JointOrientations.h"
 
 #include "DATKeyframe.h"
+#include "PoseChainNode.h"
 
 namespace DoodAnimTool
 {
@@ -31,19 +32,19 @@ namespace DoodAnimTool
 
 
 
-	vector<JointOrientations::PoseChainNode> JointOrientations::GetPoseChain(const ModelPhysics* mphys, unsigned int start_where) const
+	vector<PoseChainNode> JointOrientations::GetPoseChain(const ModelPhysics* mphys, bool* starters) const
 	{
-		vector<PoseChainNode> result;
-
 		unsigned int num_bones = mphys->bones.size();
-		bool* bones_known = new bool[num_bones];
-		memset(bones_known, 0, num_bones * sizeof(bool));
 
-		bones_known[start_where] = true;
+		unsigned int arraysize = num_bones + num_joints;
+		bool* boolarray   = new bool[arraysize];
+		bool* bones_known = boolarray;
+		bool* joints_done = boolarray + num_bones;
 
-		bool* joints_done = new bool[num_joints];
+		memcpy(bones_known, starters, num_bones * sizeof(bool));
 		memset(joints_done, 0, num_joints * sizeof(bool));
-
+		
+		vector<PoseChainNode> results;
 		unsigned int remaining = num_joints;
 		while(remaining != 0)
 		{
@@ -63,7 +64,11 @@ namespace DoodAnimTool
 					{
 						if(!a_known || !b_known)
 						{
-							result.push_back(PoseChainNode(i, bone_a, bone_b, a_known, joint.pos, joint.axes.Transpose()));
+							if(a_known)
+								results.push_back(PoseChainNode(i, joint.pos, bone_a, bone_b, -joint.axes.Transpose()));
+							else
+								results.push_back(PoseChainNode(i, joint.pos, bone_b, bone_a, joint.axes.Transpose()));
+
 							bones_known[bone_a] = bones_known[bone_b] = true;
 						}
 
@@ -76,47 +81,27 @@ namespace DoodAnimTool
 
 			if(!any)
 			{
-				Debug(((stringstream&)(stringstream() << "JointOrientations::GetPoseChain was unable to resolve the transforms of all bones; " << remaining << " bones were left unresolved" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "JointOrientations::GetPoseChain was unable to resolve all of the bones' transforms; " << remaining << " bones were left unresolved" << endl)).str());
 				break;
 			}
 		}
 
-		delete[] bones_known;
-		delete[] joints_done;
+		delete[] boolarray;
 
-		return result;
+		return results;
 	}
 
-	void JointOrientations::UsePoseChain(const vector<PoseChainNode>& chain, DATKeyframe& pose) const
+	void JointOrientations::UsePoseChain(const PoseChainNode* chain_begin, const PoseChainNode* chain_end, DATKeyframe& pose) const
 	{
-		for(vector<PoseChainNode>::const_iterator iter = chain.begin(); iter != chain.end(); ++iter)
+		for(const PoseChainNode* iter = chain_begin; iter != chain_end; ++iter)
 		{
-			if(iter->a_known)
-			{
-				DATKeyframe::KBone&       b_state = pose.data[iter->b];
-				const DATKeyframe::KBone& a_state = pose.data[iter->a];
+			const DATKeyframe::KBone& from_state = pose.data[iter->from];
+			DATKeyframe::KBone&       to_state   = pose.data[iter->to];
 
-				Quaternion actual_ori = Quaternion::FromRVec(iter->axest * -data[iter->index]);
-				b_state.ori = a_state.ori * actual_ori;
+			const Vec3& ipos = iter->pos;
 
-				Vec3 apos = a_state.ori * iter->pos + a_state.pos;
-				Vec3 bpos = b_state.ori * iter->pos + b_state.pos;
-
-				b_state.pos += apos - bpos;
-			}
-			else
-			{
-				DATKeyframe::KBone&       a_state = pose.data[iter->a];
-				const DATKeyframe::KBone& b_state = pose.data[iter->b];
-
-				Quaternion actual_ori = Quaternion::FromRVec(iter->axest * -data[iter->index]);
-				a_state.ori = b_state.ori * Quaternion::Reverse(actual_ori);
-
-				Vec3 apos = a_state.ori * iter->pos + a_state.pos;
-				Vec3 bpos = b_state.ori * iter->pos + b_state.pos;
-
-				a_state.pos += bpos - apos;
-			}
+			to_state.ori = from_state.ori * Quaternion::FromRVec(iter->mat * data[iter->index]);
+			to_state.pos = from_state.ori * ipos - to_state.ori * ipos + from_state.pos;				// apparently my Quaternion*Vec3 is not distributive
 		}
 	}
 }

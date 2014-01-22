@@ -5,7 +5,9 @@
 #include "DATKeyframe.h"
 
 #include "PoseDelta.h"
+
 #include "JointOrientations.h"
+#include "PoseChainNode.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -17,6 +19,8 @@
 #include "GCanvas.h"
 #include "GColumnList.h"
 #include "GCheckbox.h"
+
+#define ENABLE_IMMEDIATE_EDIT_FEEDBACK 1
 
 namespace DoodAnimTool
 {
@@ -130,6 +134,7 @@ namespace DoodAnimTool
 
 		GColumnList constraints_listbox, bones_listbox;
 		GColumnList file_menu;
+		GLabel debug_text;
 		GCanvas canvas;
 
 		class FileReset : public GLabel
@@ -194,6 +199,7 @@ namespace DoodAnimTool
 
 			sel_label  = GLabel(font, "sel");
 			lock_label = GLabel(font, "lock");
+			debug_text = GLabel(font, string());
 
 			file_reset = new FileReset(font);
 			file_open  = new FileOpen(font);
@@ -209,6 +215,7 @@ namespace DoodAnimTool
 			canvas.AddChild(&constraints_listbox, GCanvas::HAlign(20, NULL), GCanvas::VAlign(20, NULL));
 			canvas.AddChild(&bones_listbox,       GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
 			canvas.AddChild(&file_menu,           GCanvas::HAlign(NULL, 20), GCanvas::VAlign(NULL, 20));
+			canvas.AddChild(&debug_text,          GCanvas::HAlign(20, NULL), GCanvas::VAlign(NULL, 20));
 
 			// make sure soldier physics file is up to date... these lines should probably be removed at some point
 			ScriptSystem::Init();
@@ -504,7 +511,7 @@ namespace DoodAnimTool
 							if(input_state->keys[VK_SHIFT])
 							{
 								// translate the selected bones
-								Vec3 delta = bone_controls * (1.0f * timestep);
+								Vec3 delta = bone_controls * (0.5f * timestep);
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
@@ -541,11 +548,13 @@ namespace DoodAnimTool
 								}
 							}
 
-							// enforce constraints
-					//		ApplyConstraints(keyframe, &deltas);
+#if ENABLE_IMMEDIATE_EDIT_FEEDBACK
+							ApplyConstraints(keyframe, &deltas);
+							applied_constraints = true;
+#else
 							for(vector<PoseDelta>::iterator iter = deltas.begin(); iter != deltas.end(); ++iter)
 								keyframe.data[iter->bone] = iter->new_state;
-							applied_constraints = true;
+#endif
 						}
 					}
 
@@ -576,67 +585,89 @@ namespace DoodAnimTool
 
 		void ApplyConstraints(DATKeyframe& pose, const vector<PoseDelta>* deltas = NULL)
 		{
-			// setup
+			// apply user edits
 			if(deltas != NULL)
 				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
 					pose.data[iter->bone] = iter->new_state;
 
-			JointOrientations target_jos = JointOrientationsFromPose(pose);
-			vector<JointOrientations::PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys);
-
+			// get a condensed list of the active constraints
 			vector<Constraint*> active_constraints;
 			active_constraints.reserve(constraints.size());
-
 			for(unsigned int i = 0; i < constraints.size(); ++i)
 				if(pose.enabled_constraints[i])
 					active_constraints.push_back(constraints[i]);
-
 			Constraint** constraints_begin = active_constraints.data();
 			Constraint** constraints_end   = constraints_begin + active_constraints.size();
 
-			unsigned int num_bones = pose.num_bones;
+			// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
+			unsigned int num_bones = mphys->bones.size();
+			bool* locked_bones = new bool[num_bones];
+			memset(locked_bones, 0, num_bones * sizeof(bool));
+			bool locked_any = false;
+			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+				if(iter->locked && iter->bone_index < num_bones)
+					locked_any = locked_bones[iter->bone_index] = true;
+			if(!locked_any)
+				locked_bones[0] = true;
 
-			DATKeyframe best_pose(pose);
-			JointOrientations best_jos(target_jos);
-			float best_score;
+			JointOrientations target_jos = JointOrientationsFromPose(pose);
+			vector<PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys, locked_bones);
+			PoseChainNode* chain_begin = pose_chain.data();
+			PoseChainNode* chain_end   = chain_begin + pose_chain.size();
 
-			for(unsigned int i = 0; i < 10000; ++i)
+			delete[] locked_bones;
+
+			// search for optimal solution
+			DATKeyframe       best_pose(pose),      test_pose(pose);
+			JointOrientations best_jos(target_jos), test_jos(target_jos);
+			float             best_score,           test_score;
+
+			unsigned int found_count = 0;
+			float first_score;
+
+			for(unsigned int i = 0; i < 1000; ++i)
 			{
-				JointOrientations test_jos(best_jos);
+				test_jos = best_jos;
 				if(i != 0)
 				{
-					if(i % 500 == 0)
-						target_jos = best_jos;
-
 					// mutate jos
-					float mutation_rate = 0.3f * sqrtf(best_score);
+					float mutation_rate = 0.05f * sqrtf(best_score);
+					float coeff = mutation_rate * 2.0f, sub = mutation_rate;
 					for(unsigned int j = 0; j < 3; ++j)
 					{
 						unsigned int index = Random3D::RandInt(test_jos.num_joints);
-						const ModelPhysics::JointPhysics& jp = *skeletal_joints[index]->joint;
+
 						Vec3& mutant = test_jos.data[index];
-						mutant.x += (Random3D::Rand() - 0.5f) * mutation_rate;
-						mutant.y += (Random3D::Rand() - 0.5f) * mutation_rate;
-						mutant.z += (Random3D::Rand() - 0.5f) * mutation_rate;
-						jp.ClampAngles(mutant);
+						mutant.x += Random3D::Rand() * coeff - sub;
+						mutant.y += Random3D::Rand() * coeff - sub;
+						mutant.z += Random3D::Rand() * coeff - sub;
+
+						skeletal_joints[index]->joint->ClampAngles(mutant);
 					}
 				}
 
-				DATKeyframe test_pose(best_pose);
-				test_jos.UsePoseChain(pose_chain, test_pose);
+				test_pose = best_pose;
+				test_jos.UsePoseChain(chain_begin, chain_end, test_pose);
 
-				float test_score = ScoreJOs(test_pose, test_jos, target_jos, constraints_begin, constraints_end);
+				test_score = ScoreJOs(test_pose, test_jos, target_jos, constraints_begin, constraints_end);
 
 				if(i == 0 || test_score < best_score)
 				{
 					best_score = test_score;
 					best_pose  = test_pose;
 					best_jos   = test_jos;
+
+					++found_count;
+
+					if(i == 0)
+						first_score = best_score;
 				}
 			}
 
-			Debug(((stringstream&)(stringstream() << "score = " << best_score << endl)).str());
 			pose = best_pose;
+
+			debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
+			Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
 		}
 
 		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, const JointOrientations& target, Constraint** constraints_begin, Constraint** constraints_end)
@@ -645,11 +676,15 @@ namespace DoodAnimTool
 			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)
 				score += (*iter)->GetErrorAmount(test_pose);
 
+#if 1
+			return score;
+#else
 			float cost = 0.0f;
-			for(unsigned int i = 0; i < jos.num_joints; ++i)
-				cost += (jos.data[i] - target.data[i]).ComputeMagnitudeSquared();
+			for(const Vec3 *jos_begin = jos.data, *jos_end = jos_begin + jos.num_joints, *jos_iter = jos_begin, *target_iter = target.data; jos_iter != jos_end; ++jos_iter, ++target_iter)
+				cost += (*jos_iter - *target_iter).ComputeMagnitudeSquared();
 
-			return score * cost + score + cost * 0.01f;
+			return score * cost + score;
+#endif
 		}
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }

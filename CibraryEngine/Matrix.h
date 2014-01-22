@@ -144,6 +144,15 @@ namespace CibraryEngine
 		}
 		/** Subtractss two matrices */
 		Mat3 operator -(const Mat3& b) const			{ Mat3 result(*this); result -= b; return result; }
+		/** Returns the opposite of the matrix */
+		Mat3 operator -() const
+		{
+			return Mat3(
+				-values[0], -values[1], -values[2],
+				-values[3], -values[4], -values[5],
+				-values[6], -values[7], -values[8]
+			);
+		}
 	};
 
 	/** Class representing a 4x4 matrix */
@@ -363,6 +372,16 @@ namespace CibraryEngine
 		}
 		/** Subtracts two matrices */
 		Mat4 operator -(const Mat4& b) const			{ Mat4 result(*this); result -= b; return result; }
+		/** Returns the opposite of the matrix */
+		Mat4 operator -() const
+		{
+			return Mat4(
+				-values[0],  -values[1],  -values[2],  -values[3],
+				-values[4],  -values[5],  -values[6],  -values[7],
+				-values[8],  -values[9],  -values[10], -values[11],
+				-values[12], -values[13], -values[14], -values[15]
+			);
+		}
 	};
 
 

@@ -104,7 +104,8 @@ namespace DoodAnimTool
 		const Quaternion& aori = pose.data[bone_a].ori;
 		const Quaternion& bori = pose.data[bone_b].ori;
 
-		float err = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec().ComputeMagnitudeSquared();
+		float err = (Quaternion::Reverse(bori) * aori * relative_ori).GetRotationAngle();
+		err *= err;
 
 		Vec3 aend = aori * socket_a + apos;
 		Vec3 bend = bori * socket_b + bpos;

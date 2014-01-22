@@ -42,6 +42,14 @@ namespace CibraryEngine
 			else
 				return Vec3();
 		}
+		/** Returns the measure of the angle of the rotation represented by this quaternion, more efficiently than calling ToRVec().ComputeMagnitude[Squared]() */
+		float GetRotationAngle()
+		{
+			if(float magsq = Vec3::MagnitudeSquared(x, y, z))
+				return 2.0f * atanf(sqrtf(magsq) / w);
+			else
+				return 0.0f;
+		}
 
 		/** Returns a 3x3 rotation matrix representing the same rotation as this quaternion; assumes the quaternion is already normalized */
 		Mat3 ToMat3() const;
