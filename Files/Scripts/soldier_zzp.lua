@@ -22,8 +22,8 @@ local joints = { }
 
 local hand_axes = {	ba.createVector(11.6, 22.0, 0.0), ba.createVector(0, 0, -1) }
 
-P.add_single_joint(joints, bones,		"pelvis",	"torso 1",	ba.createVector(0.00, 1.34, -0.10),	nil, nil,									ba.createVector(-0.8,  -0.5,  -0.25),	ba.createVector(0.35,  0.5,  0.25))
-P.add_single_joint(joints, bones,		"torso 1",	"torso 2",	ba.createVector(0.00, 1.57,  0.00),	nil, nil,									ba.createVector(-0.8,  -0.5,  -0.25),	ba.createVector(0.35,  0.5,  0.25))
+P.add_single_joint(joints, bones,		"pelvis",	"torso 1",	ba.createVector(0.00, 1.34, -0.10),	nil, nil,									ba.createVector(-0.55, -0.5,  -0.45),	ba.createVector(0.5,   0.5,  0.45))
+P.add_single_joint(joints, bones,		"torso 1",	"torso 2",	ba.createVector(0.00, 1.57,  0.00),	nil, nil,									ba.createVector(-0.55, -0.5,  -0.45),	ba.createVector(0.5,   0.5,  0.45))
 P.add_single_joint(joints, bones,		"torso 2",	"head",		ba.createVector(0.00, 1.73,  0.00),	nil, nil,									ba.createVector(-0.4,  -1.2,  -0.26),	ba.createVector(0.3,   1.2,  0.26))
 P.add_symmetric_joints(joints, bones,	"torso 2",	"shoulder",	ba.createVector(0.22, 1.65, -0.16),	nil, nil,									ba.createVector(-0.25, -0.25, -0.25),	ba.createVector(0.25,  0.25, 0.25))
 P.add_symmetric_joints(joints, bones,	"shoulder",	"arm 1",	ba.createVector(0.30, 1.51, -0.04),	nil, nil,									ba.createVector(-1.8,  -1.8,  -1.0 ),	ba.createVector(1.8,   1.0,  0.8 ))

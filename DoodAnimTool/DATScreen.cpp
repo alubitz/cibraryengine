@@ -13,6 +13,7 @@
 #include "CSkeletalJoint.h"
 #include "CFixedJoint.h"
 #include "CFlatFoot.h"
+#include "CAlignedAxis.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
 
@@ -35,12 +36,7 @@ namespace DoodAnimTool
 		ProgramWindow* window;
 		InputState* input_state;
 
-		Skeleton* skeleton;
-		vector<Mat4> bone_matrices;
-		SkinnedCharacterRenderInfo sk_rinfo;
-
 		ModelPhysics* mphys;
-		UberModel *dood_uber;
 
 		vector<DATBone> bones;
 		vector<unsigned int> id_to_bones;		// given a bone's "name", returns index into the above +1
@@ -52,34 +48,39 @@ namespace DoodAnimTool
 
 		vector<CSkeletalJoint*> skeletal_joints;
 		vector<Constraint*> constraints;
+		JointOrientations reusable_jos;
+		bool jos_valid;
 
 		vector<Vec3> debug_dots;
-
-		unsigned int selection_count;
-
-		int mouseover_bone;
-		bool draw_model;
 
 		float yaw, pitch;
 		CameraView camera;
 		SceneRenderer renderer;
+		bool draw_model;
+
+		Skeleton* skeleton;
+		vector<Mat4> bone_matrices;
+		SkinnedCharacterRenderInfo sk_rinfo;
+		UberModel *dood_uber;
+
+		enum BoxSelectMode { None, Disable, Waiting, Box } box_selecting;
+		int box_x1, box_y1;
+		int mouseover_bone;
+		unsigned int selection_count;
+
+		float now, buffered_time;
 
 		Cursor* cursor;
 		BitmapFont* font;
-
-		enum BoxSelectMode { None, Disable, Waiting, Box } box_selecting;
-
-		int box_x1, box_y1;
-
-		float now, buffered_time;
 
 		class ConstraintCheckbox : public GCheckbox
 		{
 			public:
 				Imp* imp;
 				unsigned int index;
+				bool default_val;
 
-				ConstraintCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
+				ConstraintCheckbox(Imp* imp, unsigned int index, bool default_val) : GCheckbox(imp->font), imp(imp), index(index), default_val(default_val) { }
 				void LayoutChildren() { selected = imp->keyframes[imp->edit_keyframe].enabled_constraints[index]; }
 				bool OnClick(int x, int y)
 				{
@@ -141,43 +142,43 @@ namespace DoodAnimTool
 		{
 			public:
 				Imp* imp;
-				FileReset(BitmapFont* font) : GLabel(font, "Reset Pose", true) { }
+				FileReset() { }
+				FileReset(Imp* imp, BitmapFont* font) : GLabel(font, "Reset Pose", true), imp(imp) { }
 				bool OnClick(int x, int y) { imp->ResetPose(); return true; }
-		} *file_reset;
+		} file_reset;
 
 		class FileOpen : public GLabel
 		{
 			public:
 				Imp* imp;
-				FileOpen(BitmapFont* font) : GLabel(font, "Open Pose", true) { }
+				FileOpen() { }
+				FileOpen(Imp* imp, BitmapFont* font) : GLabel(font, "Open Pose", true), imp(imp) { }
 				bool OnClick(int x, int y) { imp->LoadPose(); return true; } 
-		} *file_open;
+		} file_open;
 
 		class FileSave : public GLabel
 		{
 			public:
 				Imp* imp;
-				FileSave(BitmapFont* font) : GLabel(font, "Save Pose", true) { }
+				FileSave() { }
+				FileSave(Imp* imp, BitmapFont* font) : GLabel(font, "Save Pose", true), imp(imp) { }
 				bool OnClick(int x, int y) { imp->SavePose(); return true; }
-		} *file_save;
+		} file_save;
 
 
 		Imp(ProgramWindow* window) :
 			next_screen(NULL),
 			window(window),
 			input_state(window->input_state),
-			skeleton(NULL),
 			mphys(NULL),
-			dood_uber(NULL),
-			draw_model(true),
 			camera(Mat4::Identity(), 1.0f, 1.0f),				// these values don't matter; they will be overwritten before use
 			renderer(&camera),
+			draw_model(true),
+			skeleton(NULL),
+			dood_uber(NULL),
+			box_selecting(None),
 			cursor(NULL),
 			font(NULL),
-			box_selecting(None),
-			file_reset(NULL),
-			file_open(NULL),
-			file_save(NULL),
 			key_listener(),
 			mouse_listener()
 		{
@@ -190,32 +191,25 @@ namespace DoodAnimTool
 			cursor = window->content->GetCache<Cursor>()->Load("Cursor");
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
-			constraints_listbox = GColumnList(5, GColumnList::Left);
-			constraints_listbox.AddColumn(  20, GColumnList::Left);
+			constraints_listbox = GColumnList(5,  GColumnList::Left);
+			constraints_listbox.AddColumn    (20, GColumnList::Left);
+			canvas.AddChild(&constraints_listbox, GCanvas::HAlign(20, NULL), GCanvas::VAlign(20, NULL));
 
-			bones_listbox = GColumnList(5,      GColumnList::Center);
-			bones_listbox.AddColumn(        5,  GColumnList::Center);
-			bones_listbox.AddColumn(        20, GColumnList::Left);
-
-			sel_label  = GLabel(font, "sel");
+			bones_listbox = GColumnList(5,  GColumnList::Center);
+			bones_listbox.AddColumn    (5,  GColumnList::Center);
+			bones_listbox.AddColumn    (20, GColumnList::Left  );
+			sel_label  = GLabel(font, "sel" );			// these get added in LoadDood
 			lock_label = GLabel(font, "lock");
-			debug_text = GLabel(font, string());
-
-			file_reset = new FileReset(font);
-			file_open  = new FileOpen(font);
-			file_save  = new FileSave(font);
-
-			file_reset->imp = file_open->imp = file_save->imp = this;
+			canvas.AddChild(&bones_listbox, GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
 
 			file_menu = GColumnList(5, GColumnList::Left);
-			file_menu.BeginRow();   file_menu.AddToLastRow(file_reset);
-			file_menu.BeginRow();   file_menu.AddToLastRow(file_open);
-			file_menu.BeginRow();   file_menu.AddToLastRow(file_save);
+			file_menu.BeginRow();   file_reset = FileReset(this, font);   file_menu.AddToLastRow(&file_reset);
+			file_menu.BeginRow();   file_open  = FileOpen (this, font);   file_menu.AddToLastRow(&file_open );
+			file_menu.BeginRow();   file_save  = FileSave (this, font);   file_menu.AddToLastRow(&file_save );
+			canvas.AddChild(&file_menu, GCanvas::HAlign(NULL, 20), GCanvas::VAlign(NULL, 20));
 
-			canvas.AddChild(&constraints_listbox, GCanvas::HAlign(20, NULL), GCanvas::VAlign(20, NULL));
-			canvas.AddChild(&bones_listbox,       GCanvas::HAlign(NULL, 20), GCanvas::VAlign(20, NULL));
-			canvas.AddChild(&file_menu,           GCanvas::HAlign(NULL, 20), GCanvas::VAlign(NULL, 20));
-			canvas.AddChild(&debug_text,          GCanvas::HAlign(20, NULL), GCanvas::VAlign(NULL, 20));
+			debug_text = GLabel(font, string());
+			canvas.AddChild(&debug_text, GCanvas::HAlign(20, NULL), GCanvas::VAlign(NULL, 20));
 
 			// make sure soldier physics file is up to date... these lines should probably be removed at some point
 			ScriptSystem::Init();
@@ -236,14 +230,20 @@ namespace DoodAnimTool
 			if(skeleton)				{ skeleton->Dispose();					delete skeleton;				skeleton = NULL; }
 			if(sk_rinfo.bone_matrices)	{ sk_rinfo.bone_matrices->Dispose();	delete sk_rinfo.bone_matrices;	sk_rinfo.bone_matrices = NULL; }
 
-			if(file_reset) { delete file_reset;  file_reset = NULL; }
-			if(file_open)  { delete file_open;   file_open  = NULL; }
-			if(file_save)  { delete file_save;   file_save  = NULL; }
-
 			DeleteConstraints();
 
 			DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 		}
+
+		void DeleteConstraints()
+		{
+			skeletal_joints.clear();
+			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
+				delete *iter;
+			constraints.clear();
+		}
+
+
 
 		void LoadDood(const string& dood_name)
 		{
@@ -288,10 +288,10 @@ namespace DoodAnimTool
 
 			anim_timer = 0.0f;
 			edit_keyframe = 0;
-
-			selection_count = 0;
+			jos_valid = false;
 
 			mouseover_bone = -1;
+			selection_count = 0;
 
 			// match up skeleton bones with ModelPhysics bones
 			unsigned int num_bones = skeleton->bones.size();
@@ -369,9 +369,9 @@ namespace DoodAnimTool
 			return id < id_to_bones.size() ? (signed)id_to_bones[id] - 1 : -1;
 		}
 
-		void AddSpecialConstraint(const string& name, Constraint* c)
+		void AddSpecialConstraint(const string& name, bool default_val, Constraint* c)
 		{
-			constraint_checkboxes.push_back(new ConstraintCheckbox(this, constraints.size()));
+			constraint_checkboxes.push_back(new ConstraintCheckbox(this, constraints.size(), default_val));
 			constraint_labels.push_back(new GLabel(font, name));
 
 			constraints_listbox.BeginRow();
@@ -411,15 +411,18 @@ namespace DoodAnimTool
 			int lfoot   = GetBoneIndex( "l foot"   ), rfoot   = GetBoneIndex( "r foot"   );
 			int lground = GetBoneIndex( "l ground" ), rground = GetBoneIndex( "r ground" );
 			int gun     = GetBoneIndex( "gun"      );
+			int head    = GetBoneIndex( "head"     );
 
 			if(lhand >= 0 && gun >= 0)
-				AddSpecialConstraint("l grip", new CFixedJoint((unsigned int)lhand, (unsigned int)gun,     Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromRVec(-0.0703434f, -0.0146932f,  2.50207f)));
+				AddSpecialConstraint("l grip",   false, new CFixedJoint( (unsigned int)lhand, (unsigned int)gun,     Vec3( 0.990f, 1.113f, 0.037f), Vec3(0.000f,  0.000f,  0.468f), Quaternion::FromRVec(-0.0703434f, -0.0146932f,  2.50207f)));
 			if(rhand >= 0 && gun >= 0)
-				AddSpecialConstraint("r grip", new CFixedJoint((unsigned int)rhand, (unsigned int)gun,     Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromRVec( 1.27667f,   -0.336123f,  -0.64284f)));
+				AddSpecialConstraint("r grip",   true,  new CFixedJoint( (unsigned int)rhand, (unsigned int)gun,     Vec3(-0.959f, 1.098f, 0.077f), Vec3(0.000f, -0.063f, -0.152f), Quaternion::FromRVec( 1.27667f,   -0.336123f,  -0.64284f)));
 			if(lfoot >= 0 && lground >= 0)
-				AddSpecialConstraint("l ground", new CFlatFoot((unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
-			 if(rfoot >= 0 && rground >= 0)
-				AddSpecialConstraint("r ground", new CFlatFoot((unsigned int)rfoot, (unsigned int)rground, Vec3(-0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
+				AddSpecialConstraint("l ground", true,  new CFlatFoot(   (unsigned int)lfoot, (unsigned int)lground, Vec3( 0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
+			if(rfoot >= 0 && rground >= 0)
+				AddSpecialConstraint("r ground", true,  new CFlatFoot(   (unsigned int)rfoot, (unsigned int)rground, Vec3(-0.238f, 0.000f, 0.065f), Vec3(), Quaternion::Identity()));
+			if(gun >= 0 && head >= 0)
+				AddSpecialConstraint("aim/look", false, new CAlignedAxis((unsigned int)gun,   (unsigned int)head,    Vec3(0, 0, 1), Vec3(0, 0, 1)));
 		}
 
 		void DoSoldierSpecificKeyframeStuff(DATKeyframe& initial_pose)
@@ -440,9 +443,6 @@ namespace DoodAnimTool
 			int rground = GetBoneIndex("r ground");
 			if(rground >= 0)
 				initial_pose.data[rground].pos = Vec3(-0.238f, 0.000f, 0.065f);
-
-			// we'll also want to disable one of the two grips; trying to enforce both immediately would result in some weird poses
-			initial_pose.enabled_constraints[constraint_checkboxes[0]->index] = false;
 		}
 
 		DATKeyframe GetDefaultPose()
@@ -450,7 +450,12 @@ namespace DoodAnimTool
 			DATKeyframe pose(bones.size(), constraints.size());
 
 			DoSoldierSpecificKeyframeStuff(pose);
-			ApplyConstraints(pose);
+
+			for(vector<ConstraintCheckbox*>::iterator iter = constraint_checkboxes.begin(); iter != constraint_checkboxes.end(); ++iter)
+			{
+				const ConstraintCheckbox& cc = **iter;
+				pose.enabled_constraints[cc.index] = cc.default_val;
+			}
 
 #if 0
 			int gun = GetBoneIndex("gun");
@@ -468,13 +473,7 @@ namespace DoodAnimTool
 			return pose;
 		}
 
-		void DeleteConstraints()
-		{
-			skeletal_joints.clear();
-			for(vector<Constraint*>::iterator iter = constraints.begin(); iter != constraints.end(); ++iter)
-				delete *iter;
-			constraints.clear();
-		}
+
 
 		void Update(TimingInfo& time)
 		{
@@ -587,8 +586,11 @@ namespace DoodAnimTool
 		{
 			// apply user edits
 			if(deltas != NULL)
+			{
 				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
 					pose.data[iter->bone] = iter->new_state;
+				jos_valid = false;
+			}
 
 			// get a condensed list of the active constraints
 			vector<Constraint*> active_constraints;
@@ -599,18 +601,22 @@ namespace DoodAnimTool
 			Constraint** constraints_begin = active_constraints.data();
 			Constraint** constraints_end   = constraints_begin + active_constraints.size();
 
-			// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
+			// figure out what bones to start from when going from JointOrientations to DATKeyframe
 			unsigned int num_bones = mphys->bones.size();
 			bool* locked_bones = new bool[num_bones];
 			memset(locked_bones, 0, num_bones * sizeof(bool));
-			bool locked_any = false;
-			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)
+			bool any = false;
+			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)		// locked bones' xforms are initially known
 				if(iter->locked && iter->bone_index < num_bones)
-					locked_any = locked_bones[iter->bone_index] = true;
-			if(!locked_any)
+					any = locked_bones[iter->bone_index] = true;
+			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)				// some constraints may set and lock a bones' initial xform as well
+				if((*iter)->SetLockedBones(pose, locked_bones))
+					any = true;
+			if(!any)																				// if all else fails, start from bone 0
 				locked_bones[0] = true;
 
-			JointOrientations target_jos = JointOrientationsFromPose(pose);
+			// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
+			JointOrientations target_jos = jos_valid ? reusable_jos : JointOrientationsFromPose(pose);
 			vector<PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys, locked_bones);
 			PoseChainNode* chain_begin = pose_chain.data();
 			PoseChainNode* chain_end   = chain_begin + pose_chain.size();
@@ -646,6 +652,7 @@ namespace DoodAnimTool
 					}
 				}
 
+				// see what these jos do, score the results, and keep track of which jos have done the best so far
 				test_pose = best_pose;
 				test_jos.UsePoseChain(chain_begin, chain_end, test_pose);
 
@@ -665,6 +672,9 @@ namespace DoodAnimTool
 			}
 
 			pose = best_pose;
+
+			reusable_jos = best_jos;
+			jos_valid = true;
 
 			debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
 			Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
@@ -686,6 +696,8 @@ namespace DoodAnimTool
 			return score * cost + score;
 #endif
 		}
+
+
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
 
@@ -720,6 +732,8 @@ namespace DoodAnimTool
 				bone->pos = adat.pos * a_frac + bdat.pos * b_frac;
 			}
 		}
+
+
 
 		void ClearSelection()
 		{
@@ -893,6 +907,56 @@ namespace DoodAnimTool
 			}
 		}
 
+		int FindBoneAtScreenPos(int x, int y)
+		{
+			int window_height = window->GetHeight();
+
+			Vec3 origin, direction;
+			camera.GetRayFromDimCoeffs((float)x / window->GetWidth(), (float)(window_height - y) / window_height, origin, direction);
+
+			float target_t = 0.0f;
+			int target = -1;
+
+			for(unsigned int i = 0; i < bones.size(); ++i)
+			{
+				DATBone& dat_bone = bones[i];
+				Bone* bone = skeleton->bones[dat_bone.bone_index];
+				CollisionShape* shape = dat_bone.shape;
+				Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
+
+				const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
+				Ray ray(inv_xform.TransformVec3_1(origin), inv_xform.TransformVec3_0(direction) * ray_length);
+				RayResult ray_result;
+
+				switch(shape->GetShapeType())
+				{
+					case ST_MultiSphere:
+					{
+						MultiSphereShape* mss = (MultiSphereShape*)shape;
+						if(mss->CollideRay(ray, ray_result))
+						{
+							if(ray_result.t < target_t || target == -1)
+							{
+								target = (signed)i;
+								target_t = ray_result.t;
+							}
+						}
+
+						break;
+					}
+
+					default:
+						break;
+				}
+			}
+
+			return target;
+		}
+
+		void FindMouseoverBone() { mouseover_bone = FindBoneAtScreenPos(input_state->mx, input_state->my); }
+
+
+
 		void LoadPose()
 		{
 			ifstream file("Files/pose.pose", ios::in | ios::binary);
@@ -905,6 +969,8 @@ namespace DoodAnimTool
 				else
 					Debug("Loaded pose successfully!\n");
 			}
+
+			jos_valid = false;
 		}
 
 		void SavePose()
@@ -922,7 +988,9 @@ namespace DoodAnimTool
 			}
 		}
 
-		void ResetPose() { keyframes[edit_keyframe] = GetDefaultPose(); }
+		void ResetPose() { jos_valid = false; keyframes[edit_keyframe] = GetDefaultPose(); }
+
+
 
 		void Draw(int width, int height)
 		{
@@ -1044,53 +1112,7 @@ namespace DoodAnimTool
 			cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
 
-		int FindBoneAtScreenPos(int x, int y)
-		{
-			int window_height = window->GetHeight();
 
-			Vec3 origin, direction;
-			camera.GetRayFromDimCoeffs((float)x / window->GetWidth(), (float)(window_height - y) / window_height, origin, direction);
-
-			float target_t = 0.0f;
-			int target = -1;
-
-			for(unsigned int i = 0; i < bones.size(); ++i)
-			{
-				DATBone& dat_bone = bones[i];
-				Bone* bone = skeleton->bones[dat_bone.bone_index];
-				CollisionShape* shape = dat_bone.shape;
-				Mat4 inv_xform = Mat4::Invert(bone->GetTransformationMatrix());
-
-				const float ray_length = 1000.0f;			// because CollideRay only returns a fraction of the ray length; values > 1 get discarded
-				Ray ray(inv_xform.TransformVec3_1(origin), inv_xform.TransformVec3_0(direction) * ray_length);
-				RayResult ray_result;
-
-				switch(shape->GetShapeType())
-				{
-					case ST_MultiSphere:
-					{
-						MultiSphereShape* mss = (MultiSphereShape*)shape;
-						if(mss->CollideRay(ray, ray_result))
-						{
-							if(ray_result.t < target_t || target == -1)
-							{
-								target = (signed)i;
-								target_t = ray_result.t;
-							}
-						}
-
-						break;
-					}
-
-					default:
-						break;
-				}
-			}
-
-			return target;
-		}
-
-		void FindMouseoverBone() { mouseover_bone = FindBoneAtScreenPos(input_state->mx, input_state->my); }
 
 		struct KeyListener : public EventHandler
 		{

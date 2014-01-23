@@ -20,6 +20,7 @@ namespace DoodAnimTool
 			unsigned int num_joints;
 			Vec3* data;
 
+			JointOrientations() : num_joints(0), data(NULL) { }
 			JointOrientations(unsigned int num_joints);
 			JointOrientations(const JointOrientations& other);
 

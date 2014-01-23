@@ -4,7 +4,6 @@
 
 namespace DoodAnimTool
 {
-	class PoseSolverState;
 	class DATKeyframe;
 
 	class Constraint
@@ -13,10 +12,7 @@ namespace DoodAnimTool
 
 			virtual ~Constraint() { }
 
-			virtual void InitCachedStuff(PoseSolverState& pose) = 0;
-			virtual bool ApplyConstraint(PoseSolverState& pose) = 0;
-			virtual void OnAnyChanges(PoseSolverState& pose) = 0;
-
 			virtual float GetErrorAmount(const DATKeyframe& pose) = 0;
+			virtual bool  SetLockedBones(DATKeyframe& pose, bool* locked_bones) { return false; }
 	};
 }

@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "CFlatFoot.h"
 
-#include "PoseSolverState.h"
+#include "DATKeyframe.h"
 
 namespace DoodAnimTool
 {
@@ -15,86 +15,6 @@ namespace DoodAnimTool
 		socket_b(socket_b),
 		relative_ori(relative_ori)
 	{
-	}
-
-	CFlatFoot::~CFlatFoot() { }
-
-	void CFlatFoot::InitCachedStuff(PoseSolverState& pose)
-	{
-		initial_a = &pose.initial.data[bone_a];
-		initial_b = &pose.initial.data[bone_b];
-
-		obja = &pose.current.data[bone_a];
-		objb = &pose.current.data[bone_b];
-
-		nexta = &pose.next.data[bone_a];
-		nextb = &pose.next.data[bone_b];
-	}
-
-	bool CFlatFoot::ApplyConstraint(PoseSolverState& pose)
-	{
-		static const float rotation_threshold            = 0.0f;
-		static const float translation_threshold         = 0.0f;
-
-		static const float linear_offset_linear_coeff    = 1.0f;
-
-		bool did_stuff = false;
-
-		Quaternion aori = obja->ori;
-		Quaternion bori = objb->ori;
-		Vec3       apos = obja->pos;
-		Vec3       bpos = objb->pos;
-
-		// keep the relative orientations of the two bones constant
-		Vec3 av = (Quaternion::Reverse(bori) * aori * relative_ori).ToRVec();
-		if(float err = av.ComputeMagnitudeSquared())
-		{
-			pose.errors[5] += err;
-
-			if(err > rotation_threshold)
-			{
-				aori = bori * relative_ori;
-
-				did_stuff = true;
-			}
-		}
-
-		// keep the corresponding points in each bone in the same position
-		Vec3 aend = aori * socket_a + apos;
-		Vec3 bend = bori * socket_b + bpos;
-
-		Vec3 dx = bend - aend;
-		if(float err = dx.ComputeMagnitudeSquared())
-		{
-			pose.errors[6] += err;
-
-			if(err > translation_threshold)
-			{
-				dx *= linear_offset_linear_coeff;
-				apos += dx;
-
-				did_stuff = true;
-			}
-		}
-
-		// if we made any changes, let the solver know about it
-		if(did_stuff)
-		{
-			nexta->pos += apos;
-			nexta->ori += aori;
-
-			++pose.contrib_count[bone_a];
-
-			return true;
-		}
-		else
-			return false;
-	}
-
-	void CFlatFoot::OnAnyChanges(PoseSolverState& pose)
-	{
-		obja = &pose.current.data[bone_a];
-		objb = &pose.current.data[bone_b];
 	}
 
 	float CFlatFoot::GetErrorAmount(const DATKeyframe& pose)
@@ -113,5 +33,31 @@ namespace DoodAnimTool
 		err += (bend - aend).ComputeMagnitudeSquared();
 
 		return err;
+	}
+
+	bool CFlatFoot::SetLockedBones(DATKeyframe& pose, bool* locked_bones)
+	{
+		if(!locked_bones[bone_a])
+		{
+			DATKeyframe::KBone&       a = pose.data[bone_a];
+			const DATKeyframe::KBone& b = pose.data[bone_b];
+
+			Vec3&             apos = a.pos;
+			Quaternion&       aori = a.ori;
+
+			const Vec3&       bpos = b.pos;
+			const Quaternion& bori = b.ori;
+
+			aori = bori * relative_ori;
+
+			Vec3 aend = aori * socket_a + apos;
+			Vec3 bend = bori * socket_b + bpos;
+
+			apos += bend - aend;
+
+			locked_bones[bone_a] = true;
+		}
+
+		return true;
 	}
 }
