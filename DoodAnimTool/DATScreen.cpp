@@ -23,6 +23,11 @@
 
 #define ENABLE_IMMEDIATE_EDIT_FEEDBACK 1
 
+#define CONSTRAINT_SOLVER_ITERATIONS 1000
+#define MUTATIONS_PER_ITERATION 3
+#define MUTATION_RATE_PER_ERROR 0.05f
+#define NO_PROGRESS_STOP_THRESHOLD 60
+
 namespace DoodAnimTool
 {
 	using namespace CibraryEngine;
@@ -48,8 +53,11 @@ namespace DoodAnimTool
 
 		vector<CSkeletalJoint*> skeletal_joints;
 		vector<Constraint*> constraints;
-		JointOrientations reusable_jos;
-		bool jos_valid;
+
+		JointOrientations cached_jos;
+		float cached_score;
+		bool stopped;
+		unsigned int noprogress_count;
 
 		vector<Vec3> debug_dots;
 
@@ -88,7 +96,10 @@ namespace DoodAnimTool
 					bool& val = keyframe.enabled_constraints[index];
 					val = !val;
 					if(val)
+					{
+						imp->ClearSolverStop();
 						imp->ApplyConstraints(keyframe);
+					}
 
 					return true;
 				}
@@ -104,7 +115,7 @@ namespace DoodAnimTool
 
 				BoneLockCheckbox(Imp* imp, unsigned int index) : GCheckbox(imp->font), imp(imp), index(index) { }
 				void LayoutChildren() { selected = imp->bones[index].locked; }
-				bool OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; return true; }
+				bool OnClick(int x, int y) { bool& val = imp->bones[index].locked; val = !val; if(!val) { imp->ClearSolverStop(); } return true; }
 		};
 		vector<BoneLockCheckbox*> lock_checkboxes;
 
@@ -164,6 +175,7 @@ namespace DoodAnimTool
 				FileSave(Imp* imp, BitmapFont* font) : GLabel(font, "Save Pose", true), imp(imp) { }
 				bool OnClick(int x, int y) { imp->SavePose(); return true; }
 		} file_save;
+
 
 
 		Imp(ProgramWindow* window) :
@@ -288,7 +300,8 @@ namespace DoodAnimTool
 
 			anim_timer = 0.0f;
 			edit_keyframe = 0;
-			jos_valid = false;
+
+			ClearSolverStop();
 
 			mouseover_bone = -1;
 			selection_count = 0;
@@ -481,10 +494,11 @@ namespace DoodAnimTool
 			{
 				buffered_time += time.elapsed;
 				float timestep = 1.0f / 60.0f;
-				while(buffered_time >= timestep)
+				if(buffered_time >= timestep)
 				{
 					now += timestep;
-					buffered_time -= timestep;
+					while(buffered_time >= timestep)
+						buffered_time -= timestep;
 
 					TimingInfo use_time = TimingInfo(timestep, now);
 
@@ -558,10 +572,21 @@ namespace DoodAnimTool
 					}
 
 					// control to force additional iterations of the constraint solver
-					if(!applied_constraints && input_state->keys[VK_RETURN])
+					if(!applied_constraints && (input_state->keys[VK_RETURN] || ENABLE_IMMEDIATE_EDIT_FEEDBACK && !stopped))
 						ApplyConstraints(keyframes[edit_keyframe]);
 				}
 			}
+		}
+
+		void ClearSolverStop() { cached_score = -1; stopped = false; noprogress_count = 0; debug_text.SetText(string()); }
+
+		void OnSolverStop(float value)
+		{
+			cached_score = value;
+			stopped = true;
+
+			debug_text.SetText(((stringstream&)(stringstream() << "(STOPPED) " << cached_score)).str());
+			Debug(((stringstream&)(stringstream() << "STOPPED: " << cached_score << endl)).str());
 		}
 
 		JointOrientations JointOrientationsFromPose(const DATKeyframe& pose)
@@ -589,8 +614,11 @@ namespace DoodAnimTool
 			{
 				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
 					pose.data[iter->bone] = iter->new_state;
-				jos_valid = false;
+				
+				ClearSolverStop();
 			}
+			else if(stopped)
+				return;
 
 			// get a condensed list of the active constraints
 			vector<Constraint*> active_constraints;
@@ -616,7 +644,7 @@ namespace DoodAnimTool
 				locked_bones[0] = true;
 
 			// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
-			JointOrientations target_jos = jos_valid ? reusable_jos : JointOrientationsFromPose(pose);
+			JointOrientations target_jos = cached_score >= 0 ? cached_jos : JointOrientationsFromPose(pose);
 			vector<PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys, locked_bones);
 			PoseChainNode* chain_begin = pose_chain.data();
 			PoseChainNode* chain_end   = chain_begin + pose_chain.size();
@@ -631,15 +659,15 @@ namespace DoodAnimTool
 			unsigned int found_count = 0;
 			float first_score;
 
-			for(unsigned int i = 0; i < 1000; ++i)
+			for(unsigned int i = 0; i < CONSTRAINT_SOLVER_ITERATIONS; ++i)
 			{
 				test_jos = best_jos;
 				if(i != 0)
 				{
 					// mutate jos
-					float mutation_rate = 0.05f * sqrtf(best_score);
+					float mutation_rate = MUTATION_RATE_PER_ERROR * sqrtf(best_score);
 					float coeff = mutation_rate * 2.0f, sub = mutation_rate;
-					for(unsigned int j = 0; j < 3; ++j)
+					for(unsigned int j = 0; j < MUTATIONS_PER_ITERATION; ++j)
 					{
 						unsigned int index = Random3D::RandInt(test_jos.num_joints);
 
@@ -672,12 +700,31 @@ namespace DoodAnimTool
 			}
 
 			pose = best_pose;
+			cached_score = best_score;
+			stopped = false;
 
-			reusable_jos = best_jos;
-			jos_valid = true;
+			if(found_count == 1)
+			{
+				++noprogress_count;
+				if(noprogress_count >= NO_PROGRESS_STOP_THRESHOLD)
+				{
+					OnSolverStop(best_score);
+					return;
+				}
+				else
+				{
+					debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
+					Debug("no progress\n");
+				}
+			}
+			else
+			{
+				noprogress_count = 0;
+				cached_jos = best_jos;
 
-			debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
-			Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
+				debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
+				Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
+			}			
 		}
 
 		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, const JointOrientations& target, Constraint** constraints_begin, Constraint** constraints_end)
@@ -970,7 +1017,7 @@ namespace DoodAnimTool
 					Debug("Loaded pose successfully!\n");
 			}
 
-			jos_valid = false;
+			ClearSolverStop();
 		}
 
 		void SavePose()
@@ -988,7 +1035,7 @@ namespace DoodAnimTool
 			}
 		}
 
-		void ResetPose() { jos_valid = false; keyframes[edit_keyframe] = GetDefaultPose(); }
+		void ResetPose() { ClearSolverStop(); keyframes[edit_keyframe] = GetDefaultPose(); }
 
 
 
