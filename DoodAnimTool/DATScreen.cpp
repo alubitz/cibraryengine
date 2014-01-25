@@ -490,17 +490,18 @@ namespace DoodAnimTool
 
 		void Update(TimingInfo& time)
 		{
+			static const float translate_speed = 0.5f;
+			static const float rotate_speed    = 1.0f;
+			static const float timestep        = 1.0f / 60.0f;
+
 			if(time.elapsed > 0)
 			{
 				buffered_time += time.elapsed;
-				float timestep = 1.0f / 60.0f;
 				if(buffered_time >= timestep)
 				{
 					now += timestep;
 					while(buffered_time >= timestep)
 						buffered_time -= timestep;
-
-					TimingInfo use_time = TimingInfo(timestep, now);
 
 					bool applied_constraints = false;
 
@@ -524,21 +525,19 @@ namespace DoodAnimTool
 							if(input_state->keys[VK_SHIFT])
 							{
 								// translate the selected bones
-								Vec3 delta = bone_controls * (0.5f * timestep);
+								Vec3 delta = bone_controls * (translate_speed * timestep);
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
 									{
 										const DATKeyframe::KBone& oldstate = keyframe.data[i];
-										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(oldstate.pos + delta, oldstate.ori)));
+										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(oldstate.pos + delta, oldstate.ori), true, true));
 									}
 								}
 							}
 							else
 							{
 								// find the center of the selected bones
-								Quaternion delta_quat = Quaternion::FromRVec(bone_controls * timestep);
-
 								Vec3 center;
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 									if(bones[i].selected)
@@ -546,6 +545,7 @@ namespace DoodAnimTool
 								center /= float(selection_count);
 
 								// rotate the selected bones around their center
+								Quaternion delta_quat = Quaternion::FromRVec(bone_controls * (rotate_speed * timestep));
 								for(unsigned int i = 0; i < keyframe.num_bones; ++i)
 								{
 									if(bones[i].selected)
@@ -556,7 +556,7 @@ namespace DoodAnimTool
 										Vec3 oldcenter = Mat4::Invert(oldmat).TransformVec3_1(center);
 
 										Quaternion ori = delta_quat * oldstate.ori;
-										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(center - ori * oldcenter, ori)));
+										deltas.push_back(PoseDelta(i, oldstate, DATKeyframe::KBone(center - ori * oldcenter, ori), false, true));
 									}
 								}
 							}
@@ -571,9 +571,16 @@ namespace DoodAnimTool
 						}
 					}
 
-					// control to force additional iterations of the constraint solver
-					if(!applied_constraints && (input_state->keys[VK_RETURN] || ENABLE_IMMEDIATE_EDIT_FEEDBACK && !stopped))
+					bool control = input_state->keys[VK_RETURN];							// hold enter to force additional iterations of the constraint solver
+					if(!applied_constraints && (control || ENABLE_IMMEDIATE_EDIT_FEEDBACK && !stopped))
+					{
+						if(control)
+						{
+							stopped = false;
+							noprogress_count = 0;
+						}
 						ApplyConstraints(keyframes[edit_keyframe]);
+					}
 				}
 			}
 		}
@@ -643,6 +650,20 @@ namespace DoodAnimTool
 			if(!any)																				// if all else fails, start from bone 0
 				locked_bones[0] = true;
 
+			// get a list of deltas relevant to bones that aren't locked (implicitly or explicitly)
+			PoseDelta *deltas_begin, *deltas_end;
+			if(deltas != NULL)
+			{
+				deltas_begin = new PoseDelta[deltas->size()];
+				deltas_end = deltas_begin;
+
+				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
+					if(iter->bone < num_bones && !locked_bones[iter->bone])
+						*(deltas_end++) = *iter;
+			}
+			else
+				deltas_begin = deltas_end = NULL;
+
 			// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
 			JointOrientations target_jos = cached_score >= 0 ? cached_jos : JointOrientationsFromPose(pose);
 			vector<PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys, locked_bones);
@@ -684,7 +705,7 @@ namespace DoodAnimTool
 				test_pose = best_pose;
 				test_jos.UsePoseChain(chain_begin, chain_end, test_pose);
 
-				test_score = ScoreJOs(test_pose, test_jos, target_jos, constraints_begin, constraints_end);
+				test_score = ScoreJOs(test_pose, test_jos, constraints_begin, constraints_end, deltas_begin, deltas_end);
 
 				if(i == 0 || test_score < best_score)
 				{
@@ -701,47 +722,62 @@ namespace DoodAnimTool
 
 			pose = best_pose;
 			cached_score = best_score;
+			cached_jos   = best_jos;
 			stopped = false;
+
+			if(deltas_begin != NULL) { delete[] deltas_begin; }
 
 			if(found_count == 1)
 			{
 				++noprogress_count;
 				if(noprogress_count >= NO_PROGRESS_STOP_THRESHOLD)
 				{
+					Debug(((stringstream&)(stringstream() << "...a total of " << noprogress_count << " calls resulting in no progress" << endl)).str());
 					OnSolverStop(best_score);
+
 					return;
 				}
 				else
 				{
-					debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
-					Debug("no progress\n");
+					if(noprogress_count == 1)
+					{
+						debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
+						Debug("no progress...\n");
+					}
 				}
 			}
 			else
 			{
-				noprogress_count = 0;
-				cached_jos = best_jos;
+				if(noprogress_count > 1)
+				{
+					Debug(((stringstream&)(stringstream() << "...progress! after a total of " << noprogress_count << " calls resulting in no progress" << endl)).str());
+					noprogress_count = 0;
+				}
 
 				debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
 				Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
-			}			
+			}
 		}
 
-		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, const JointOrientations& target, Constraint** constraints_begin, Constraint** constraints_end)
+		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, Constraint** constraints_begin, Constraint** constraints_end, const PoseDelta* deltas_begin, const PoseDelta* deltas_end)
 		{
 			float score = 0.0f;
 			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)
 				score += (*iter)->GetErrorAmount(test_pose);
 
-#if 1
-			return score;
-#else
-			float cost = 0.0f;
-			for(const Vec3 *jos_begin = jos.data, *jos_end = jos_begin + jos.num_joints, *jos_iter = jos_begin, *target_iter = target.data; jos_iter != jos_end; ++jos_iter, ++target_iter)
-				cost += (*jos_iter - *target_iter).ComputeMagnitudeSquared();
+			for(const PoseDelta* iter = deltas_begin; iter != deltas_end; ++iter)
+			{
+				const DATKeyframe::KBone& bone = test_pose.data[iter->bone];
+				if(iter->score_pos)
+					score += (iter->new_state.pos - bone.pos).ComputeMagnitudeSquared();
+				if(iter->score_ori)
+				{
+					float angle = (Quaternion::Reverse(iter->new_state.ori) * bone.ori).GetRotationAngle();
+					score += angle * angle;
+				}
+			}
 
-			return score * cost + score;
-#endif
+			return score;
 		}
 
 
