@@ -21,6 +21,6 @@ namespace DoodAnimTool
 			CFlatFoot(unsigned int bone_a, unsigned int bone_b, const Vec3& socket_a, const Vec3& socket_b, const Quaternion& relative_ori);
 
 			float GetErrorAmount(const DATKeyframe& pose);
-			bool  SetLockedBones(DATKeyframe& pose, bool* locked_bones);
+			void  SetLockedBones(DATKeyframe& pose, bool* locked_bones);
 	};
 }

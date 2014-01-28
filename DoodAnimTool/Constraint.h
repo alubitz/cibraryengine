@@ -13,6 +13,6 @@ namespace DoodAnimTool
 			virtual ~Constraint() { }
 
 			virtual float GetErrorAmount(const DATKeyframe& pose) = 0;
-			virtual bool  SetLockedBones(DATKeyframe& pose, bool* locked_bones) { return false; }
+			virtual void  SetLockedBones(DATKeyframe& pose, bool* locked_bones) { }
 	};
 }

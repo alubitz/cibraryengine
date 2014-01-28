@@ -35,7 +35,7 @@ namespace DoodAnimTool
 		return err;
 	}
 
-	bool CFlatFoot::SetLockedBones(DATKeyframe& pose, bool* locked_bones)
+	void CFlatFoot::SetLockedBones(DATKeyframe& pose, bool* locked_bones)
 	{
 		if(!locked_bones[bone_a])
 		{
@@ -57,7 +57,5 @@ namespace DoodAnimTool
 
 			locked_bones[bone_a] = true;
 		}
-
-		return true;
 	}
 }

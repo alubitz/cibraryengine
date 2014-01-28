@@ -8,6 +8,7 @@
 
 #include "JointOrientations.h"
 #include "PoseChainNode.h"
+#include "FixedJointPoseOp.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -23,10 +24,12 @@
 
 #define ENABLE_IMMEDIATE_EDIT_FEEDBACK 1
 
-#define CONSTRAINT_SOLVER_ITERATIONS 1000
-#define MUTATIONS_PER_ITERATION 3
-#define MUTATION_RATE_PER_ERROR 0.05f
-#define NO_PROGRESS_STOP_THRESHOLD 60
+#define DEBUG_OUTPUT_SOLVER_PROGRESS   0
+
+#define CONSTRAINT_SOLVER_ITERATIONS   1000
+#define MUTATIONS_PER_ITERATION        3
+#define MUTATION_RATE_PER_ERROR        0.05f
+#define NO_PROGRESS_STOP_THRESHOLD     60
 
 namespace DoodAnimTool
 {
@@ -585,7 +588,20 @@ namespace DoodAnimTool
 			}
 		}
 
-		void ClearSolverStop() { cached_score = -1; stopped = false; noprogress_count = 0; debug_text.SetText(string()); }
+		void ClearSolverStop()
+		{
+			cached_score = -1;
+
+#if DEBUG_OUTPUT_SOLVER_PROGRESS
+			if(!stopped && noprogress_count != 0)
+				Debug(((stringstream&)(stringstream() << "aborted after " << noprogress_count << " calls resulting in no progress" << endl)).str());
+#endif
+
+			stopped = false;
+
+			noprogress_count = 0;
+			debug_text.SetText(string());
+		}
 
 		void OnSolverStop(float value)
 		{
@@ -593,7 +609,9 @@ namespace DoodAnimTool
 			stopped = true;
 
 			debug_text.SetText(((stringstream&)(stringstream() << "(STOPPED) " << cached_score)).str());
+#if DEBUG_OUTPUT_SOLVER_PROGRESS
 			Debug(((stringstream&)(stringstream() << "STOPPED: " << cached_score << endl)).str());
+#endif
 		}
 
 		JointOrientations JointOrientationsFromPose(const DATKeyframe& pose)
@@ -637,16 +655,25 @@ namespace DoodAnimTool
 			Constraint** constraints_end   = constraints_begin + active_constraints.size();
 
 			// figure out what bones to start from when going from JointOrientations to DATKeyframe
-			unsigned int num_bones = mphys->bones.size();
+			unsigned int num_bones = bones.size();
 			bool* locked_bones = new bool[num_bones];
 			memset(locked_bones, 0, num_bones * sizeof(bool));
-			bool any = false;
-			for(vector<DATBone>::iterator iter = bones.begin(); iter != bones.end(); ++iter)		// locked bones' xforms are initially known
-				if(iter->locked && iter->bone_index < num_bones)
-					any = locked_bones[iter->bone_index] = true;
+			for(unsigned int i = 0; i < num_bones; ++i)												// locked bones' xforms are initially known
+				if(bones[i].locked)
+					locked_bones[i] = true;
 			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)				// some constraints may set and lock a bones' initial xform as well
-				if((*iter)->SetLockedBones(pose, locked_bones))
+				(*iter)->SetLockedBones(pose, locked_bones);
+
+			vector<FixedJointPoseOp> fjpops;														// CFixedJoint constraints may necessitate a special action later
+			GetFixedJointPoseOps(pose, locked_bones, fjpops);
+
+			bool any = false;																		// we need at least one bone to start from... see if we have one
+			for(unsigned int i = 0; i < num_bones; ++i)
+				if(locked_bones[i])
+				{
 					any = true;
+					break;
+				}
 			if(!any)																				// if all else fails, start from bone 0
 				locked_bones[0] = true;
 
@@ -658,7 +685,7 @@ namespace DoodAnimTool
 				deltas_end = deltas_begin;
 
 				for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
-					if(iter->bone < num_bones && !locked_bones[iter->bone])
+					if(!locked_bones[iter->bone])
 						*(deltas_end++) = *iter;
 			}
 			else
@@ -705,7 +732,18 @@ namespace DoodAnimTool
 				test_pose = best_pose;
 				test_jos.UsePoseChain(chain_begin, chain_end, test_pose);
 
-				test_score = ScoreJOs(test_pose, test_jos, constraints_begin, constraints_end, deltas_begin, deltas_end);
+				for(vector<FixedJointPoseOp>::iterator iter = fjpops.begin(); iter != fjpops.end(); ++iter)
+				{
+					const DATKeyframe::KBone& from = test_pose.data[iter->from];
+					DATKeyframe::KBone& to         = test_pose.data[iter->to];
+
+					Mat4 newxform = Mat4::FromPositionAndOrientation(from.pos, from.ori) * iter->xform;
+					newxform.Decompose(to.pos, to.ori);
+					to.ori = Quaternion::Reverse(to.ori);			// something fishy going on here...
+				}
+
+
+				test_score = ScoreJOs(test_pose, constraints_begin, constraints_end, deltas_begin, deltas_end);
 
 				if(i == 0 || test_score < best_score)
 				{
@@ -732,7 +770,9 @@ namespace DoodAnimTool
 				++noprogress_count;
 				if(noprogress_count >= NO_PROGRESS_STOP_THRESHOLD)
 				{
-					Debug(((stringstream&)(stringstream() << "...a total of " << noprogress_count << " calls resulting in no progress" << endl)).str());
+#if DEBUG_OUTPUT_SOLVER_PROGRESS
+					Debug(((stringstream&)(stringstream() << noprogress_count << " calls resulting in no progress" << endl)).str());
+#endif
 					OnSolverStop(best_score);
 
 					return;
@@ -740,26 +780,27 @@ namespace DoodAnimTool
 				else
 				{
 					if(noprogress_count == 1)
-					{
 						debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
-						Debug("no progress...\n");
-					}
 				}
 			}
 			else
 			{
-				if(noprogress_count > 1)
+				if(noprogress_count > 0)
 				{
-					Debug(((stringstream&)(stringstream() << "...progress! after a total of " << noprogress_count << " calls resulting in no progress" << endl)).str());
+#if DEBUG_OUTPUT_SOLVER_PROGRESS
+					Debug(((stringstream&)(stringstream() << noprogress_count << " " << (noprogress_count == 1 ? "call" : "calls") << " resulting in no progress" << endl)).str());
+#endif
 					noprogress_count = 0;
 				}
 
 				debug_text.SetText(((stringstream&)(stringstream() << best_score)).str());
+#if DEBUG_OUTPUT_SOLVER_PROGRESS
 				Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
+#endif
 			}
 		}
 
-		float ScoreJOs(const DATKeyframe& test_pose, const JointOrientations& jos, Constraint** constraints_begin, Constraint** constraints_end, const PoseDelta* deltas_begin, const PoseDelta* deltas_end)
+		float ScoreJOs(const DATKeyframe& test_pose, Constraint** constraints_begin, Constraint** constraints_end, const PoseDelta* deltas_begin, const PoseDelta* deltas_end)
 		{
 			float score = 0.0f;
 			for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)
@@ -780,6 +821,91 @@ namespace DoodAnimTool
 			return score;
 		}
 
+		void GetFixedJointPoseOps(DATKeyframe& pose, bool* locked_bones, vector<FixedJointPoseOp>& results)
+		{
+			unsigned int num_bones = bones.size();
+			unsigned int num_checkboxes = constraint_checkboxes.size();
+			unsigned int arraysize = num_bones + num_checkboxes;
+
+			bool* boolarray = new bool[arraysize];
+			bool* known_bones = boolarray;
+			memcpy(known_bones, locked_bones, num_bones * sizeof(bool));
+			for(unsigned int i = 0; i < mphys->bones.size(); ++i)				// skeletal bones can be used as a starting point for fixed joint op chains
+				known_bones[i] = true;
+
+			bool* constraints_left = boolarray + num_bones;
+			memset(constraints_left, 0, num_checkboxes * sizeof(bool));
+			unsigned int remaining = 0;
+
+			for(unsigned int i = 0; i < num_checkboxes; ++i)
+			{
+				ConstraintCheckbox* cc = constraint_checkboxes[i];
+				if(pose.enabled_constraints[cc->index])
+					if(CFixedJoint* fj = dynamic_cast<CFixedJoint*>(constraints[cc->index]))
+					{
+						constraints_left[i] = true;
+						++remaining;
+					}
+			}
+
+			while(remaining != 0)
+			{
+				bool progress = false;
+
+				for(vector<ConstraintCheckbox*>::iterator iter = constraint_checkboxes.begin(); iter != constraint_checkboxes.end(); ++iter)
+				{
+					ConstraintCheckbox* cc = *iter;
+					if(pose.enabled_constraints[cc->index])
+						if(CFixedJoint* fj = dynamic_cast<CFixedJoint*>(constraints[cc->index]))
+						{
+							bool &aknow = known_bones[fj->bone_a],  &bknow = known_bones[fj->bone_b];
+							if(aknow || bknow)
+							{
+								bool &alock = locked_bones[fj->bone_a], &block = locked_bones[fj->bone_b];
+								DATKeyframe::KBone& adata = pose.data[fj->bone_a];
+								DATKeyframe::KBone& bdata = pose.data[fj->bone_b];
+								Mat4 xform = Mat4::FromPositionAndOrientation(fj->socket_a - fj->relative_ori * fj->socket_b, fj->relative_ori);
+
+								if(aknow && !bknow)
+								{
+									if(alock)
+									{
+										Mat4 bxform = Mat4::FromPositionAndOrientation(adata.pos, adata.ori) * xform;
+										bxform.Decompose(bdata.pos, bdata.ori);
+										bdata.ori = Quaternion::Reverse(bdata.ori);			// something fishy going on here...
+
+										block = true;
+									}
+									else
+										results.push_back(FixedJointPoseOp(fj->bone_a, fj->bone_b, xform));
+									progress = bknow = true;
+								}
+								else if(bknow && !aknow)
+								{
+									Mat4 invxform = Mat4::Invert(xform);
+									if(block)
+									{
+										Mat4 axform = Mat4::FromPositionAndOrientation(bdata.pos, bdata.ori) * invxform;
+										axform.Decompose(adata.pos, adata.ori);
+										alock = true;
+
+										adata.ori = Quaternion::Reverse(adata.ori);			// something fishy going on here...
+									}
+									else
+										results.push_back(FixedJointPoseOp(fj->bone_b, fj->bone_a, invxform));
+									progress = aknow = true;
+								}
+							}
+						}
+				}
+
+				if(!progress)
+					break;
+			}
+
+			delete[] boolarray;
+		}
+		
 
 
 		void PoseBones(Skeleton* skeleton) { PoseBones(skeleton, keyframes[edit_keyframe]); }
