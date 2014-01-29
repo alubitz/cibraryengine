@@ -12,7 +12,6 @@ namespace DoodAnimTool
 		shape(shape),
 		center(shape->ComputeMassInfo().com),
 		selected(false),
-		locked(false),
 		helper(NULL)
 	{
 	}
@@ -23,7 +22,6 @@ namespace DoodAnimTool
 		shape(shape),
 		center(shape->ComputeMassInfo().com),
 		selected(false),
-		locked(false),
 		helper(helper)
 	{
 	}

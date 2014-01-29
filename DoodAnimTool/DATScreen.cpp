@@ -5,12 +5,9 @@
 #include "DATKeyframe.h"
 
 #include "PoseyDood.h"
+#include "SolverInstance.h"
 
 #include "PoseDelta.h"
-
-#include "JointOrientations.h"
-#include "PoseChainNode.h"
-#include "FixedJointPoseOp.h"
 
 #include "Constraint.h"
 #include "CSkeletalJoint.h"
@@ -112,6 +109,7 @@ namespace DoodAnimTool
 				}
 		};
 		PoseyDood* dood;
+		SolverInstance* solver;
 
 		vector<DATKeyframe> keyframes;
 
@@ -152,8 +150,8 @@ namespace DoodAnimTool
 					val = !val;
 					if(val)
 					{
-						imp->dood->ClearSolverStop();
-						imp->dood->ApplyConstraints(keyframe);
+						imp->solver->InvalidateCache();
+						imp->dood->ApplyConstraints(*imp->solver);
 					}
 
 					return true;
@@ -165,12 +163,12 @@ namespace DoodAnimTool
 		class BoneLockCheckbox : public GCheckbox
 		{
 			public:
-				PoseyDood* dood;
+				SolverInstance* solver;
 				unsigned int index;
 
-				BoneLockCheckbox(PoseyDood* dood, BitmapFont* font, unsigned int index) : GCheckbox(font), dood(dood), index(index) { }
-				void LayoutChildren() { selected = dood->bones[index].locked; }
-				bool OnClick(int x, int y) { bool& val = dood->bones[index].locked; val = !val; if(!val) { dood->ClearSolverStop(); } return true; }
+				BoneLockCheckbox(SolverInstance* solver, BitmapFont* font, unsigned int index) : GCheckbox(font), solver(solver), index(index) { }
+				void LayoutChildren() { selected = solver->locked_bones[index]; }
+				bool OnClick(int x, int y) { bool& val = solver->locked_bones[index]; val = !val; if(!val) { solver->InvalidateCache(); } return true; }
 		};
 		vector<BoneLockCheckbox*> lock_checkboxes;
 
@@ -292,7 +290,8 @@ namespace DoodAnimTool
 			input_state->MouseButtonStateChanged -= &mouse_listener;
 			input_state->MouseMoved -= &mouse_motion_listener;
 
-			if(dood) { delete dood; dood = NULL; }
+			if(dood)   { delete dood;   dood   = NULL; }
+			if(solver) { delete solver; solver = NULL; }
 
 			DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 		}
@@ -300,11 +299,6 @@ namespace DoodAnimTool
 
 		void LoadDood(const string& dood_name)
 		{
-			dood = new SoldierDood(this);
-			dood->LoadDood(dood_name, window->content);
-
-			keyframes.clear();
-
 			// cleanup gui items created by a previous call to LoadDood (if that were possible)
 			for(vector<BoneLockCheckbox*>::iterator iter = lock_checkboxes.begin(); iter != lock_checkboxes.end(); ++iter)
 				delete *iter;
@@ -329,11 +323,22 @@ namespace DoodAnimTool
 			bones_listbox.rows.clear();
 			constraints_listbox.rows.clear();
 
+			// actual dood loading
+			dood = new SoldierDood(this);
+			dood->LoadDood(dood_name, window->content);
+
+			// prepare first keyframe
+			keyframes.clear();
 			anim_timer = 0.0f;
 			edit_keyframe = 0;
 
 			mouseover_bone = -1;
 			selection_count = 0;
+
+			DATKeyframe initial_pose = dood->GetDefaultPose();
+			keyframes.push_back(initial_pose);
+
+			solver = new SolverInstance(dood, &keyframes[0]);
 
 			// create bone select and lock checkbox lists
 			bones_listbox.BeginRow();
@@ -343,7 +348,7 @@ namespace DoodAnimTool
 			for(unsigned int i = 0; i < dood->bones.size(); ++i)
 			{
 				select_checkboxes.push_back(new BoneSelectCheckbox(this, i));
-				lock_checkboxes.push_back(new BoneLockCheckbox(dood, font, i));
+				lock_checkboxes.push_back(new BoneLockCheckbox(solver, font, i));
 				bone_labels.push_back(new GLabel(font, Bone::string_table[dood->bones[i].name]));
 
 				bones_listbox.BeginRow();
@@ -352,12 +357,8 @@ namespace DoodAnimTool
 				bones_listbox.AddToLastRow(*lock_checkboxes.rbegin());
 				bones_listbox.AddToLastRow(*bone_labels.rbegin());
 			}
-
-			DATKeyframe initial_pose = dood->GetDefaultPose();
-			keyframes.push_back(initial_pose);
 		}
 		
-
 		void AddSpecialConstraint(const string& name, bool default_val, Constraint* c)
 		{
 			unsigned int pos = dood->AddSpecialConstraint(name, default_val, c);
@@ -446,7 +447,8 @@ namespace DoodAnimTool
 							}
 
 #if ENABLE_IMMEDIATE_EDIT_FEEDBACK
-							dood->ApplyConstraints(keyframe, &deltas);
+							solver->pose = &keyframes[edit_keyframe];
+							dood->ApplyConstraints(*solver, &deltas);
 							applied_constraints = true;
 #else
 							for(vector<PoseDelta>::iterator iter = deltas.begin(); iter != deltas.end(); ++iter)
@@ -456,22 +458,114 @@ namespace DoodAnimTool
 					}
 
 					bool control = input_state->keys[VK_RETURN];							// hold enter to force additional iterations of the constraint solver
-					if(!applied_constraints && (control || ENABLE_IMMEDIATE_EDIT_FEEDBACK && !dood->stopped))
+					if(!applied_constraints && (control || ENABLE_IMMEDIATE_EDIT_FEEDBACK && !solver->stopped))
 					{
 						if(control)
 						{
-							dood->stopped = false;
-							dood->noprogress_count = 0;
+							solver->stopped = false;
+							solver->noprogress_count = 0;
 						}
-						dood->ApplyConstraints(keyframes[edit_keyframe]);
+
+						solver->pose = &keyframes[edit_keyframe];
+						dood->ApplyConstraints(*solver);
 					}
 				}
 			}
 		}
 
+		void Draw(int width, int height)
+		{
+			glViewport(0, 0, width, height);
 
+			glDepthMask(true);
+			glColorMask(true, true, true, false);
 
-		void PoseBones(Skeleton* skeleton) { dood->PoseBones(skeleton, keyframes[edit_keyframe]); }
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			// set up camera
+			float zoom = 2.0f;
+			float aspect_ratio = (float)width / height;
+			float view_distance = 3.5f;
+			Vec3 view_center = Vec3(0, 1.0f, 0);
+			Mat4 view_matrix = Mat4::Translation(0, 0, -view_distance) * Mat4::FromQuaternion(Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, yaw, 0)) * Mat4::Translation(-view_center);
+			camera = CameraView(view_matrix, zoom, aspect_ratio);
+
+			glMatrixMode(GL_PROJECTION);
+			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
+
+			DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+			// draw grid (ground plane)
+			for(short i = -2; i <= 2; ++i)
+			{
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3(-2, 0,  i ), Vec3( 2, 0, i )), 0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3( i, 0, -2 ), Vec3( i, 0, 2 )), 0));
+			}
+
+			// draw debug dots
+			for(vector<Vec3>::iterator iter = debug_dots.begin(); iter != debug_dots.end(); ++iter)
+			{
+				static const float R = 0.01f;
+				static const Vec3 xvec(R, 0, 0);
+				static const Vec3 yvec(0, R, 0);
+				static const Vec3 zvec(0, 0, R);
+
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - xvec, *iter + xvec), 0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - yvec, *iter + yvec), 0));
+				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - zvec, *iter + zvec), 0));
+			}
+
+			// draw the dood
+			dood->Vis(&renderer, keyframes[edit_keyframe], now, draw_model);
+
+			renderer.Render();
+			renderer.Cleanup();
+
+			// 2d overlay
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, width, height, 0, -1, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			// draw GUI
+			debug_text.SetText(solver->debug_text);
+
+			canvas.Layout(width, height);
+			canvas.OnMouseMoved(input_state->mx, input_state->my);
+			canvas.Draw(width, height);
+
+			mouseover_bone = -1;
+
+			if(box_selecting == Box)
+			{
+				glDisable(GL_TEXTURE_2D);
+				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+				glBegin(GL_LINE_LOOP);
+				glVertex2i(box_x1, box_y1);
+				glVertex2i(input_state->mx, box_y1);
+				glVertex2i(input_state->mx, input_state->my);
+				glVertex2i(box_x1, input_state->my);
+				glEnd();
+			}
+			else
+			{
+				GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
+				if(comp == NULL || comp == &canvas)
+				{
+					FindMouseoverBone();
+					if(mouseover_bone >= 0)
+						font->Print(Bone::string_table[dood->bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
+				}
+			}
+
+			cursor->Draw(float(input_state->mx), float(input_state->my));
+		}
+
 
 		void ClearSelection()
 		{
@@ -708,7 +802,7 @@ namespace DoodAnimTool
 					Debug("Loaded pose successfully!\n");
 			}
 
-			dood->ClearSolverStop();
+			solver->InvalidateCache();
 		}
 
 		void SavePose()
@@ -726,102 +820,7 @@ namespace DoodAnimTool
 			}
 		}
 
-		void ResetPose() { dood->ClearSolverStop(); keyframes[edit_keyframe] = dood->GetDefaultPose(); }
-
-
-
-		void Draw(int width, int height)
-		{
-			glViewport(0, 0, width, height);
-
-			glDepthMask(true);
-			glColorMask(true, true, true, false);
-
-			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			// set up camera
-			float zoom = 2.0f;
-			float aspect_ratio = (float)width / height;
-			float view_distance = 3.5f;
-			Vec3 view_center = Vec3(0, 1.0f, 0);
-			Mat4 view_matrix = Mat4::Translation(0, 0, -view_distance) * Mat4::FromQuaternion(Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, yaw, 0)) * Mat4::Translation(-view_center);
-			camera = CameraView(view_matrix, zoom, aspect_ratio);
-
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(camera.GetProjectionMatrix().Transpose().values);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadMatrixf(camera.GetViewMatrix().Transpose().values);
-
-			DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
-
-			// draw grid (ground plane)
-			for(short i = -2; i <= 2; ++i)
-			{
-				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3(-2, 0,  i ), Vec3( 2, 0, i )), 0));
-				renderer.objects.push_back(RenderNode(ddm, ddm->New(Vec3( i, 0, -2 ), Vec3( i, 0, 2 )), 0));
-			}
-
-			// draw debug dots
-			for(vector<Vec3>::iterator iter = debug_dots.begin(); iter != debug_dots.end(); ++iter)
-			{
-				static const float R = 0.01f;
-				static const Vec3 xvec(R, 0, 0);
-				static const Vec3 yvec(0, R, 0);
-				static const Vec3 zvec(0, 0, R);
-
-				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - xvec, *iter + xvec), 0));
-				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - yvec, *iter + yvec), 0));
-				renderer.objects.push_back(RenderNode(ddm, ddm->New(*iter - zvec, *iter + zvec), 0));
-			}
-
-			// draw the dood
-			dood->Vis(&renderer, keyframes[edit_keyframe], now, draw_model);
-
-			renderer.Render();
-			renderer.Cleanup();
-
-			// 2d overlay
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrtho(0, width, height, 0, -1, 1);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
-
-			// draw GUI
-			debug_text.SetText(dood->debug_text);
-
-			canvas.Layout(width, height);
-			canvas.OnMouseMoved(input_state->mx, input_state->my);
-			canvas.Draw(width, height);
-
-			mouseover_bone = -1;
-
-			if(box_selecting == Box)
-			{
-				glDisable(GL_TEXTURE_2D);
-				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-				glBegin(GL_LINE_LOOP);
-				glVertex2i(box_x1, box_y1);
-				glVertex2i(input_state->mx, box_y1);
-				glVertex2i(input_state->mx, input_state->my);
-				glVertex2i(box_x1, input_state->my);
-				glEnd();
-			}
-			else
-			{
-				GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
-				if(comp == NULL || comp == &canvas)
-				{
-					FindMouseoverBone();
-					if(mouseover_bone >= 0)
-						font->Print(Bone::string_table[dood->bones[mouseover_bone].name], float(input_state->mx), input_state->my - font->font_height);
-				}
-			}
-
-			cursor->Draw(float(input_state->mx), float(input_state->my));
-		}
+		void ResetPose() { solver->InvalidateCache(); keyframes[edit_keyframe] = dood->GetDefaultPose(); }
 
 
 

@@ -15,7 +15,6 @@ namespace DoodAnimTool
 		Vec3 center;
 
 		bool selected;
-		bool locked;
 
 		UberModel* helper;
 

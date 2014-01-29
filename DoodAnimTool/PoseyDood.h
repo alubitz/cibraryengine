@@ -2,8 +2,6 @@
 
 #include "StdAfx.h"
 
-#include "JointOrientations.h"
-
 namespace DoodAnimTool
 {
 	using namespace CibraryEngine;
@@ -12,8 +10,10 @@ namespace DoodAnimTool
 	class DATKeyframe;
 	class Constraint;
 	class CSkeletalJoint;
+	class JointOrientations;
 	struct PoseDelta;
 	struct FixedJointPoseOp;
+	class SolverInstance;
 
 	class PoseyDood
 	{
@@ -26,9 +26,6 @@ namespace DoodAnimTool
 			vector<DATBone> bones;
 			vector<unsigned int> id_to_bones;		// given a bone's "name", returns index into the above +1
 
-			vector<CSkeletalJoint*> skeletal_joints;
-			vector<Constraint*> constraints;
-
 			struct SpecialConstraint
 			{
 				string name;
@@ -39,13 +36,8 @@ namespace DoodAnimTool
 				SpecialConstraint(const string& name, unsigned int index, bool default_value) : name(name), index(index), default_value(default_value) { }
 			};
 			vector<SpecialConstraint> special_constraints;
-
-			string debug_text;
-
-			JointOrientations cached_jos;
-			float cached_score;
-			bool stopped;
-			unsigned int noprogress_count;
+			vector<CSkeletalJoint*>   skeletal_joints;
+			vector<Constraint*>       constraints;
 
 			Skeleton* skeleton;
 			vector<Mat4> bone_matrices;
@@ -66,13 +58,10 @@ namespace DoodAnimTool
 			DATKeyframe GetDefaultPose();
 
 			unsigned int AddSpecialConstraint(const string& name, bool default_val, Constraint* c);			// returns index of created SpecialConstraint
-			void AddHelperBone(const string& bone_name, CollisionShape* shape, UberModel* uber);
-
-			void ClearSolverStop();
-			void OnSolverStop(float value);
+			void AddHelperBone(const string& bone_name, CollisionShape* shape, UberModel* uber);		
 
 			JointOrientations JointOrientationsFromPose(const DATKeyframe& pose);
-			void ApplyConstraints(DATKeyframe& pose, const vector<PoseDelta>* deltas = NULL);
+			void ApplyConstraints(SolverInstance& solver, const vector<PoseDelta>* deltas = NULL);
 			float ScoreJOs(const DATKeyframe& test_pose, Constraint** constraints_begin, Constraint** constraints_end, const PoseDelta* deltas_begin, const PoseDelta* deltas_end);
 			void GetFixedJointPoseOps(DATKeyframe& pose, bool* locked_bones, vector<FixedJointPoseOp>& results);
 

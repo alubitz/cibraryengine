@@ -11,8 +11,8 @@
 #include "PoseDelta.h"
 #include "FixedJointPoseOp.h"
 #include "PoseChainNode.h"
-
-#define DEBUG_OUTPUT_SOLVER_PROGRESS   0
+#include "JointOrientations.h"
+#include "SolverInstance.h"
 
 #define CONSTRAINT_SOLVER_ITERATIONS   1000
 #define MUTATIONS_PER_ITERATION        3
@@ -39,8 +39,6 @@ namespace DoodAnimTool
 		skeleton = dood_uber->CreateSkeleton();
 
 		bones.clear();
-		
-		ClearSolverStop();
 
 		// match up skeleton bones with ModelPhysics bones
 		unsigned int num_bones = skeleton->bones.size();
@@ -146,32 +144,6 @@ namespace DoodAnimTool
 		bones.push_back(DATBone(skeleton->bones.size() - 1, id, shape, uber));
 	}
 
-	void PoseyDood::ClearSolverStop()
-	{
-		cached_score = -1;
-
-#if DEBUG_OUTPUT_SOLVER_PROGRESS
-		if(!stopped && noprogress_count != 0)
-			Debug(((stringstream&)(stringstream() << "aborted after " << noprogress_count << " calls resulting in no progress" << endl)).str());
-#endif
-
-		stopped = false;
-
-		noprogress_count = 0;
-		debug_text = string();
-	}
-
-	void PoseyDood::OnSolverStop(float value)
-	{
-		cached_score = value;
-		stopped = true;
-
-		debug_text = ((stringstream&)(stringstream() << "(STOPPED) " << cached_score)).str();
-#if DEBUG_OUTPUT_SOLVER_PROGRESS
-		Debug(((stringstream&)(stringstream() << "STOPPED: " << cached_score << endl)).str());
-#endif
-	}
-
 	JointOrientations PoseyDood::JointOrientationsFromPose(const DATKeyframe& pose)
 	{
 		unsigned int num_joints = skeletal_joints.size();
@@ -190,17 +162,19 @@ namespace DoodAnimTool
 		return result;
 	}
 
-	void PoseyDood::ApplyConstraints(DATKeyframe& pose, const vector<PoseDelta>* deltas)
+	void PoseyDood::ApplyConstraints(SolverInstance& solver, const vector<PoseDelta>* deltas)
 	{
+		DATKeyframe& pose = *solver.pose;
+
 		// apply user edits
 		if(deltas != NULL)
 		{
 			for(vector<PoseDelta>::const_iterator iter = deltas->begin(); iter != deltas->end(); ++iter)
 				pose.data[iter->bone] = iter->new_state;
 
-			ClearSolverStop();
+			solver.InvalidateCache();
 		}
-		else if(stopped)
+		else if(solver.stopped)
 			return;
 
 		// get a condensed list of the active constraints
@@ -215,9 +189,9 @@ namespace DoodAnimTool
 		// figure out what bones to start from when going from JointOrientations to DATKeyframe
 		unsigned int num_bones = bones.size();
 		bool* locked_bones = new bool[num_bones];
-		memset(locked_bones, 0, num_bones * sizeof(bool));
+		memcpy(locked_bones, solver.locked_bones, num_bones * sizeof(bool));
 		for(unsigned int i = 0; i < num_bones; ++i)												// locked bones' xforms are initially known
-			if(bones[i].locked)
+			if(solver.locked_bones[i])
 				locked_bones[i] = true;
 		for(Constraint** iter = constraints_begin; iter != constraints_end; ++iter)				// some constraints may set and lock a bones' initial xform as well
 			(*iter)->SetLockedBones(pose, locked_bones);
@@ -250,8 +224,8 @@ namespace DoodAnimTool
 			deltas_begin = deltas_end = NULL;
 
 		// figure out in what order the bone posing operations should be done (when going from JointOrientations to DATKeyframe)
-		JointOrientations target_jos = cached_score >= 0 ? cached_jos : JointOrientationsFromPose(pose);
-		vector<PoseChainNode> pose_chain = target_jos.GetPoseChain(mphys, locked_bones);
+		JointOrientations target_jos     = solver.cache_valid ? *solver.cached_jos  : JointOrientationsFromPose(pose);
+		vector<PoseChainNode> pose_chain = solver.cache_valid ? solver.cached_chain : target_jos.GetPoseChain(mphys, locked_bones);
 		PoseChainNode* chain_begin = pose_chain.data();
 		PoseChainNode* chain_end   = chain_begin + pose_chain.size();
 
@@ -316,45 +290,30 @@ namespace DoodAnimTool
 			}
 		}
 
-		pose = best_pose;
-		cached_score = best_score;
-		cached_jos   = best_jos;
-		stopped = false;
+		*solver.pose        = best_pose;
+		solver.cached_score = best_score;
+		*solver.cached_jos  = best_jos;
+		solver.cached_chain = pose_chain;
+		solver.stopped      = false;
+		solver.cache_valid  = true;
 
 		if(deltas_begin != NULL) { delete[] deltas_begin; }
 
 		if(found_count == 1)
 		{
-			++noprogress_count;
-			if(noprogress_count >= NO_PROGRESS_STOP_THRESHOLD)
+			++solver.noprogress_count;
+			if(solver.noprogress_count >= NO_PROGRESS_STOP_THRESHOLD)
 			{
-#if DEBUG_OUTPUT_SOLVER_PROGRESS
-				Debug(((stringstream&)(stringstream() << noprogress_count << " calls resulting in no progress" << endl)).str());
-#endif
-				OnSolverStop(best_score);
-
+				solver.OnStop(best_score);
 				return;
 			}
-			else
-			{
-				if(noprogress_count == 1)
-					debug_text = ((stringstream&)(stringstream() << best_score)).str();
-			}
+			else if(solver.noprogress_count == 1)
+				solver.debug_text = ((stringstream&)(stringstream() << best_score)).str();
 		}
 		else
 		{
-			if(noprogress_count > 0)
-			{
-#if DEBUG_OUTPUT_SOLVER_PROGRESS
-				Debug(((stringstream&)(stringstream() << noprogress_count << " " << (noprogress_count == 1 ? "call" : "calls") << " resulting in no progress" << endl)).str());
-#endif
-				noprogress_count = 0;
-			}
-
-			debug_text = ((stringstream&)(stringstream() << best_score)).str();
-#if DEBUG_OUTPUT_SOLVER_PROGRESS
-			Debug(((stringstream&)(stringstream() << "found = " << found_count << "; ratio = " << (first_score / best_score) << "; score = " << best_score << endl)).str());
-#endif
+			solver.noprogress_count = 0;
+			solver.debug_text = ((stringstream&)(stringstream() << best_score)).str();
 		}
 	}
 
