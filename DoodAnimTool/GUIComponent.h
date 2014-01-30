@@ -15,6 +15,7 @@ namespace DoodAnimTool
 			bool has_mouse;
 
 			GUIComponent() : w(-1), h(-1), x1(-1), y1(-1), x2(-2), y2(-2), has_mouse(false) { }
+			virtual ~GUIComponent() { }
 
 			virtual void LayoutChildren() { }			// recursively calls this on its children to determine their x1,y1,x2,y2, to determine our w,h
 			virtual void Draw(int cx1, int cy1, int cx2, int cy2) { }

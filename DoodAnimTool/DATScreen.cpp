@@ -21,6 +21,8 @@
 #include "GColumnList.h"
 #include "GCheckbox.h"
 
+#include "FileSelection.h"
+
 #define ENABLE_IMMEDIATE_EDIT_FEEDBACK 1
 
 
@@ -47,8 +49,6 @@ namespace DoodAnimTool
 
 				void CreateCustomHelperBones(Cache<ModelPhysics>* mphys_cache, Cache<UberModel>* uber_cache, Cache<Material>* mat_cache)
 				{
-					DEBUG();
-
 					CollisionShape* gun_shape        = mphys_cache->Load( "gun"         )->bones[0].collision_shape;
 					CollisionShape* foothelper_shape = mphys_cache->Load( "foot_helper" )->bones[0].collision_shape;
 
@@ -65,8 +65,6 @@ namespace DoodAnimTool
 
 				void CreateCustomConstraints()
 				{
-					DEBUG();
-
 					// create constraints for the soldier holding the gun, and constraints between the soldier's feet and the ground under them
 					int lhand   = GetBoneIndex( "l hand"   ), rhand   = GetBoneIndex( "r hand"   );
 					int lfoot   = GetBoneIndex( "l foot"   ), rfoot   = GetBoneIndex( "r foot"   );
@@ -88,8 +86,6 @@ namespace DoodAnimTool
 
 				void DoCustomKeyframeStuff(DATKeyframe& initial_pose)
 				{
-					DEBUG();
-
 					// we need to position the gun in a way that won't give the soldier too violent of an initial jerk
 					int gun = GetBoneIndex("gun");
 					if(gun >= 0)
@@ -148,11 +144,9 @@ namespace DoodAnimTool
 					DATKeyframe& keyframe = imp->keyframes[imp->edit_keyframe];
 					bool& val = keyframe.enabled_constraints[index];
 					val = !val;
-					if(val)
-					{
-						imp->solver->InvalidateCache();
-						imp->dood->ApplyConstraints(*imp->solver);
-					}
+
+					imp->solver->InvalidateCache();
+					imp->dood->ApplyConstraints(*imp->solver);
 
 					return true;
 				}
@@ -552,7 +546,7 @@ namespace DoodAnimTool
 				glVertex2i(box_x1, input_state->my);
 				glEnd();
 			}
-			else
+			else if(window->IsActive())
 			{
 				GUIComponent* comp = canvas.GetComponentAtPos(input_state->mx, input_state->my);
 				if(comp == NULL || comp == &canvas)
@@ -563,7 +557,8 @@ namespace DoodAnimTool
 				}
 			}
 
-			cursor->Draw(float(input_state->mx), float(input_state->my));
+			if(window->IsActive())
+				cursor->Draw(float(input_state->mx), float(input_state->my));
 		}
 
 
@@ -791,32 +786,41 @@ namespace DoodAnimTool
 
 		void LoadPose()
 		{
-			ifstream file("Files/pose.pose", ios::in | ios::binary);
-			if(!file)
-				Debug("Unable to load pose!\n");
-			else
+			string file_path_name;
+			if(FileSelection::ShowLoadPoseDialog(window, file_path_name))
 			{
-				if(unsigned int error = keyframes[0].Read(file))
-					Debug(((stringstream&)(stringstream() << "Error loading pose! DATKeyframe::Read returned error " << error << "!" << endl)).str());
+				ifstream file(file_path_name, ios::in | ios::binary);
+				if(!file)
+					Debug("Unable to load pose!\n");
 				else
-					Debug("Loaded pose successfully!\n");
-			}
+				{
+					if(unsigned int error = keyframes[0].Read(file))
+						Debug(((stringstream&)(stringstream() << "Error loading pose! DATKeyframe::Read returned error " << error << "!" << endl)).str());
+					else
+						Debug("Loaded pose successfully!\n");
+				}
 
-			solver->InvalidateCache();
+				solver->InvalidateCache();
+			}
 		}
 
 		void SavePose()
 		{
-			ofstream file("Files/pose.pose", ios::out | ios::binary);
-			if(!file)
-				Debug("Failed to save pose!\n");
-			else
+			string file_path_name;
+			if(FileSelection::ShowSavePoseDialog(window, file_path_name))
 			{
-				keyframes[0].Write(file);
+				// the rest of the code is mine...
+				ofstream file(file_path_name, ios::out | ios::binary);
 				if(!file)
-					Debug("Something may have gone wrong saving pose!\n");
+					Debug("Failed to save pose!\n");
 				else
-					Debug("Saved pose successfully!\n");
+				{
+					keyframes[0].Write(file);
+					if(!file)
+						Debug("Something may have gone wrong saving pose!\n");
+					else
+						Debug("Saved pose successfully!\n");
+				}
 			}
 		}
 
