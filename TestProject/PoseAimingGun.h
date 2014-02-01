@@ -8,28 +8,19 @@ namespace Test
 
 	class PoseAimingGun : public Pose
 	{
-
 	public:
 
-		float yaw, pitch;
+		Quaternion pelvis_ori;
+		Vec3 aim_dir;
 
-		unsigned int torso1, torso2, head;
-		unsigned int larm1, larm2, lhand;
-		unsigned int rarm1, rarm2, rhand;
+		unsigned int torso1, torso2;
 
 		PoseAimingGun() :
 			Pose(),
-			yaw(),
-			pitch(),
-			torso1(	Bone::string_table["torso 1"]	),
-			torso2(	Bone::string_table["torso 2"]	),
-			head(	Bone::string_table["head"]		),
-			larm1(	Bone::string_table["l arm 1"]	),
-			larm2(	Bone::string_table["l arm 2"]	),
-			lhand(	Bone::string_table["l hand"]	),
-			rarm1(	Bone::string_table["r arm 1"]	),
-			rarm2(	Bone::string_table["r arm 2"]	),
-			rhand(	Bone::string_table["r hand"]	)			
+			pelvis_ori(Quaternion::Identity()),
+			aim_dir(0, 0, 1),
+			torso1( Bone::string_table[ "torso 1"] ),
+			torso2( Bone::string_table[ "torso 2"] )
 		{
 		}
 
@@ -37,6 +28,20 @@ namespace Test
 		{
 			if(time.total < 0.1f)
 				return;
+
+			Vec3 relative_aim = Vec3::Normalize(Quaternion::Reverse(pelvis_ori) * aim_dir);
+
+			// TODO: do the rest of this better (e.g. implement that 3x3 grid of poses idea)
+			float yaw   = -atan2f(relative_aim.x, relative_aim.z);
+			float pitch =  asinf(relative_aim.y);
+
+			float x =  0.1f * pitch;
+			float y = -0.5f * yaw;
+			float z = -0.4f * pitch;
+			Vec3 xyz(x, y, z);
+
+			SetBonePose(torso1, xyz, Vec3());
+			SetBonePose(torso2, xyz, Vec3());
 
 			ScriptingState s = ScriptSystem::GetGlobalState();
 			if(!s.DoFile("Files/Scripts/pose_aiming_gun.lua"))
@@ -86,20 +91,6 @@ namespace Test
 					}
 				}
 			}
-
-			/*
-			SetBonePose(torso1,	Vec3(	 0.0f,		 0.0f,		 0.0f	), Vec3());
-			SetBonePose(torso2,	Vec3(	 0.0f,		 0.0f,		 0.0f	), Vec3());
-			SetBonePose(head,	Vec3(	 0.0f,		 0.0f,		 0.0f	), Vec3());
-
-			SetBonePose(larm1,	Vec3(	 0.6f,		-1.0f,		 0.4f	), Vec3());
-			SetBonePose(larm2,	Vec3(	-0.3f,		-0.6f,		 0.0f	), Vec3());
-			SetBonePose(lhand,	Vec3(	 0.0f,		 0.0f,		 1.0f	), Vec3());
-
-			SetBonePose(rarm1,	Vec3(	 0.4f,		 1.0f,		 0.6f	), Vec3());
-			SetBonePose(rarm2,	Vec3(	-0.5f,		 1.0f,		 0.0f	), Vec3());
-			SetBonePose(rhand,	Vec3(	 0.0f,		 0.0f,		-0.5f	), Vec3());
-			*/
 		}
 	};
 }

@@ -2,6 +2,8 @@
 
 #include "PlacedFootConstraint.h"
 
+#define ENABLE_PHYSICS_BASED_BREAKAGE 0
+
 namespace Test
 {
 	using namespace CibraryEngine;
@@ -34,10 +36,12 @@ namespace Test
 
 	bool PlacedFootConstraint::DoConstraintAction()
 	{
+#if ENABLE_PHYSICS_BASED_BREAKAGE
 		// TODO: improve how tangential and angular breakage work so that they can be re-enabled
 		static const float outward_dv_breakage_threshold		= 4.0f;
 		static const float friction_bonus_threshold				= 0.1f;
 		static const float av_breakage_threshold				= 50.0f;
+#endif
 
 		assert(is_in_world);
 
@@ -49,10 +53,10 @@ namespace Test
 		Vec3 brot = obj_b->GetAngularVelocity();
 
 		Vec3 current_dv = bvel - avel + Vec3::Cross(r2, brot) - Vec3::Cross(r1, arot);
+
+#if ENABLE_PHYSICS_BASED_BREAKAGE
 		float dot = Vec3::Dot(current_dv, cur_normal);
-
 		float restitution_impulse_sq = (rlv_to_impulse * cur_normal).ComputeMagnitudeSquared() * dot * dot;
-
 		if(dot < -outward_dv_breakage_threshold)
 			broken = true;
 		else
@@ -62,6 +66,7 @@ namespace Test
 			if(restitution_impulse_sq > full_friction_impulse.ComputeMagnitudeSquared() + friction_bonus_threshold)
 				broken = true;
 		}
+#endif
 
 		Vec3 dv = desired_dv - current_dv;
 		if(float magsq = dv.ComputeMagnitudeSquared())
@@ -86,8 +91,10 @@ namespace Test
 				arot += alpha_to_arot * alpha;
 				brot -= alpha_to_brot * alpha;
 
-				//if(magsq > av_breakage_threshold)
-				//	broken = true;
+#if ENABLE_PHYSICS_BASED_BREAKAGE
+				if(magsq > av_breakage_threshold)
+					broken = true;
+#endif
 
 				wakeup = true;
 			}

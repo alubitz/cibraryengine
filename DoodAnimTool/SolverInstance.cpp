@@ -3,6 +3,7 @@
 
 #include "DATKeyframe.h"
 #include "PoseChainNode.h"
+#include "PoseyDood.h"
 #include "JointOrientations.h"
 
 namespace DoodAnimTool
@@ -45,5 +46,16 @@ namespace DoodAnimTool
 		stopped = true;
 
 		debug_text = ((stringstream&)(stringstream() << "(STOPPED) " << cached_score)).str();
+	}
+
+
+
+	void SolverInstance::DebugJos()
+	{
+		for(unsigned int i = 0; i < cached_jos->num_joints; ++i)
+		{
+			Vec3 vec = dood->mphys->joints[i].axes.Transpose() * cached_jos->data[i];
+			Debug(((stringstream&)(stringstream() << "joints[" << i << "] ori = (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << endl)).str());
+		}
 	}
 }

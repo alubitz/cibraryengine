@@ -5,7 +5,7 @@
 #include "Shot.h"
 #include "TestGame.h"
 
-#define USE_GUN_XFORM_AS_SHOT_XFORM 0
+#define USE_GUN_XFORM_AS_SHOT_XFORM 1
 
 namespace Test
 {

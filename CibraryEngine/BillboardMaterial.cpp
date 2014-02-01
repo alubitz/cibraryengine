@@ -12,7 +12,7 @@ namespace CibraryEngine
 	/*
 	 * BillboardMaterial methods
 	 */
-	BillboardMaterial::BillboardMaterial(Texture2D* texture, BlendStyle mode) : Material(5, mode, false), texture(texture), recycle_bin() { texture->clamp = true; }
+	BillboardMaterial::BillboardMaterial(Texture2D* texture, BlendStyle mode) : Material(5, mode, false), texture(texture), nodes_vbo(NULL), recycle_bin() { texture->clamp = true; }
 
 	void BillboardMaterial::InnerDispose()
 	{
@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 	void BillboardMaterial::EndDraw()
 	{
-		if(nodes_vbo != NULL)
+		if(nodes_vbo == NULL)
 		{
 			nodes_vbo = new VertexBuffer(Quads);
 			nodes_vbo->AddAttribute("gl_Vertex", Float, 3);
@@ -43,8 +43,8 @@ namespace CibraryEngine
 		nodes_vbo->SetNumVerts(0);							// so we don't bother copying old verts that'll just end up getting overwritten later
 		nodes_vbo->SetNumVerts(8 * node_data.size());
 
-		float* vert_ptr = nodes_vbo->GetFloatPointer("gl_Vertex");
-		float* uv_ptr = nodes_vbo->GetFloatPointer("gl_MultiTexCoord0");
+		float* vert_ptr  = nodes_vbo->GetFloatPointer("gl_Vertex");
+		float* uv_ptr    = nodes_vbo->GetFloatPointer("gl_MultiTexCoord0");
 		float* color_ptr = nodes_vbo->GetFloatPointer("gl_Color");
 
 		for(NodeData **iter = node_data.data(), **nodes_end = iter + node_data.size(); iter != nodes_end; ++iter)
@@ -75,6 +75,7 @@ namespace CibraryEngine
 
 		nodes_vbo->Dispose();
 		delete nodes_vbo;
+		nodes_vbo = NULL;
 
 		node_data.clear();
 	}

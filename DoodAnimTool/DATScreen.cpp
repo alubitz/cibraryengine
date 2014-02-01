@@ -794,7 +794,7 @@ namespace DoodAnimTool
 					Debug("Unable to load pose!\n");
 				else
 				{
-					if(unsigned int error = keyframes[0].Read(file))
+					if(unsigned int error = keyframes[edit_keyframe].Read(file))
 						Debug(((stringstream&)(stringstream() << "Error loading pose! DATKeyframe::Read returned error " << error << "!" << endl)).str());
 					else
 						Debug("Loaded pose successfully!\n");
@@ -809,18 +809,20 @@ namespace DoodAnimTool
 			string file_path_name;
 			if(FileSelection::ShowSavePoseDialog(window, file_path_name))
 			{
-				// the rest of the code is mine...
 				ofstream file(file_path_name, ios::out | ios::binary);
 				if(!file)
 					Debug("Failed to save pose!\n");
 				else
 				{
-					keyframes[0].Write(file);
+					keyframes[edit_keyframe].Write(file);
 					if(!file)
 						Debug("Something may have gone wrong saving pose!\n");
 					else
 						Debug("Saved pose successfully!\n");
 				}
+
+				if(solver->cache_valid)
+					solver->DebugJos();
 			}
 		}
 

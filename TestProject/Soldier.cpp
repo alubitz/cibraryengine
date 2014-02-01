@@ -466,12 +466,15 @@ namespace Test
 	{
 		if(p_ag != NULL)
 		{
+			// TODO: do correction for left-aiming gun in a less hackish manner
+			static const float yaw_offset = -0.5f;
+			p_ag->aim_dir = (Quaternion::FromRVec(0, -yaw + yaw_offset, 0) * Quaternion::FromRVec(-pitch, 0, 0)) * Vec3(0, 0, 1);
+
 #if ENABLE_WALK_ANIMATIONS
-			p_ag->yaw = yaw - walk_pose->yaw;
+			p_ag->pelvis_ori = Quaternion::FromRVec(0, -walk_pose->yaw, 0);
 #else
-			p_ag->yaw = yaw;
-#endif
-			p_ag->pitch = pitch;
+			p_ag->pelvis_ori = Quaternion::Identity();
+#endif			
 		}
 	}
 

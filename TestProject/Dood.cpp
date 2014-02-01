@@ -13,6 +13,8 @@
 
 #define DROP_EQUIPPED_WEAPON_ON_DEATH 1
 
+#define USE_EYE_BONE_XFORM_DIRECTLY   1
+
 namespace Test
 {
 	/*
@@ -307,21 +309,21 @@ namespace Test
 
 		if(eye_bone == NULL)
 		{
-			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromRVec(	-pitch,	0,		0 ));
-			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromRVec(	0,		yaw,	0 ));
+			Mat4 pitch_mat	= Mat4::FromQuaternion(Quaternion::FromRVec( -pitch, 0,   0 ));
+			Mat4 yaw_mat	= Mat4::FromQuaternion(Quaternion::FromRVec(  0,     yaw, 0 ));
 			Mat4 loc		= Mat4::Translation(-pos);
 
 			return flip * pitch_mat * yaw_mat * loc;
 		}
 		else
 		{
-			float third_person_distance = 3.0f;
+			float third_person_distance = 0.0f;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
-#if 1
-			Mat4 use_ori = Mat4::FromQuaternion(Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0));
-#else
+#if USE_EYE_BONE_XFORM_DIRECTLY
 			Mat4& use_ori = eye_xform;
+#else
+			Mat4 use_ori = Mat4::FromQuaternion(Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0));
 #endif
 
 			Vec3 pos_vec	= eye_xform.TransformVec3_1(eye_bone->rest_pos);
