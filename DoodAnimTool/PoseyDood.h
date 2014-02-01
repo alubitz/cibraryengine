@@ -53,7 +53,7 @@ namespace DoodAnimTool
 			virtual void CreateCustomConstraints() { }
 			virtual void DoCustomKeyframeStuff(DATKeyframe& initial_pose) { }
 
-			int GetBoneIndex(const string& bone_name);
+			int GetBoneIndex(const string& bone_name) const;
 
 			DATKeyframe GetDefaultPose();
 

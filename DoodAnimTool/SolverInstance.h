@@ -36,6 +36,6 @@ namespace DoodAnimTool
 			void InvalidateCache();
 			void OnStop(float value);
 
-			void DebugJos();
+			void DebugJos() const;
 	};
 }

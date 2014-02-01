@@ -104,7 +104,7 @@ namespace DoodAnimTool
 
 
 
-	int PoseyDood::GetBoneIndex(const string& bone_name)
+	int PoseyDood::GetBoneIndex(const string& bone_name) const
 	{
 		unsigned int id = Bone::string_table[bone_name];
 		return id < id_to_bones.size() ? (signed)id_to_bones[id] - 1 : -1;

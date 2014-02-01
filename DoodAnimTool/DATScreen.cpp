@@ -819,14 +819,35 @@ namespace DoodAnimTool
 						Debug("Something may have gone wrong saving pose!\n");
 					else
 						Debug("Saved pose successfully!\n");
-				}
-
-				if(solver->cache_valid)
-					solver->DebugJos();
+				}				
 			}
 		}
 
 		void ResetPose() { solver->InvalidateCache(); keyframes[edit_keyframe] = dood->GetDefaultPose(); }
+
+
+
+		void DebugPose() const
+		{
+			if(solver->cache_valid)
+			{
+				solver->DebugJos();
+
+				int gun = dood->GetBoneIndex("gun");
+				if(gun >= 0)
+				{
+					Vec3 fwd = keyframes[edit_keyframe].data[gun].ori * Vec3(0, 0, 1);
+					Debug(((stringstream&)(stringstream() << "gun fwd vec  = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+				}
+
+				int head = dood->GetBoneIndex("head");
+				if(head >= 0)
+				{
+					Vec3 fwd = keyframes[edit_keyframe].data[head].ori * Vec3(0, 0, 1);
+					Debug(((stringstream&)(stringstream() << "head fwd vec = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+				}
+			}
+		}
 
 
 
@@ -843,6 +864,7 @@ namespace DoodAnimTool
 					{
 						case VK_SPACE:	{ imp->ClearSelection();				break; }
 						case VK_F3:		{ imp->draw_model = !imp->draw_model;	break; }
+						case VK_END:    { imp->DebugPose();						break; }
 
 						case VK_ESCAPE:	{ imp->next_screen = NULL;				break; }
 

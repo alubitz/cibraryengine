@@ -19,8 +19,8 @@ namespace Test
 			Pose(),
 			pelvis_ori(Quaternion::Identity()),
 			aim_dir(0, 0, 1),
-			torso1( Bone::string_table[ "torso 1"] ),
-			torso2( Bone::string_table[ "torso 2"] )
+			torso1( Bone::string_table["torso 1"] ),
+			torso2( Bone::string_table["torso 2"] )
 		{
 		}
 
@@ -30,19 +30,10 @@ namespace Test
 				return;
 
 			Vec3 relative_aim = Vec3::Normalize(Quaternion::Reverse(pelvis_ori) * aim_dir);
-
-			// TODO: do the rest of this better (e.g. implement that 3x3 grid of poses idea)
 			float yaw   = -atan2f(relative_aim.x, relative_aim.z);
 			float pitch =  asinf(relative_aim.y);
 
-			float x =  0.1f * pitch;
-			float y = -0.5f * yaw;
-			float z = -0.4f * pitch;
-			Vec3 xyz(x, y, z);
-
-			SetBonePose(torso1, xyz, Vec3());
-			SetBonePose(torso2, xyz, Vec3());
-
+			// TODO: implement that idea with the 3x3 grid of poses
 			ScriptingState s = ScriptSystem::GetGlobalState();
 			if(!s.DoFile("Files/Scripts/pose_aiming_gun.lua"))
 			{
@@ -91,6 +82,15 @@ namespace Test
 					}
 				}
 			}
+
+			// hackish stuff in lieu of something like that 3x3 grid of poses idea
+			float x =  0.1f * pitch;
+			float y = -0.5f * yaw;
+			float z = -0.4f * pitch;
+			Vec3 xyz(x, y, z);
+
+			SetBonePose(torso1, xyz, Vec3());
+			SetBonePose(torso2, xyz, Vec3());
 		}
 	};
 }

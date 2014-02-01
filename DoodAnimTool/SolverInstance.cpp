@@ -50,12 +50,18 @@ namespace DoodAnimTool
 
 
 
-	void SolverInstance::DebugJos()
+	void SolverInstance::DebugJos() const
 	{
-		for(unsigned int i = 0; i < cached_jos->num_joints; ++i)
+		for(unsigned int i = 0; i < cached_chain.size(); ++i)
 		{
-			Vec3 vec = dood->mphys->joints[i].axes.Transpose() * cached_jos->data[i];
-			Debug(((stringstream&)(stringstream() << "joints[" << i << "] ori = (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << endl)).str());
+			const PoseChainNode& node = cached_chain[i];
+			unsigned int node_index = node.index;
+			const ModelPhysics::JointPhysics& joint = dood->mphys->joints[node_index];
+			unsigned int bone = joint.bone_a;
+			const string& name = bone > 0 ? dood->mphys->bones[bone - 1].bone_name : string();
+
+			Vec3 vec = joint.axes.Transpose() * cached_jos->data[node_index];
+			Debug(((stringstream&)(stringstream() << "{ \"" << name << "\",  " << vec.x << ", " << vec.y << ", " << vec.z << " }" << endl)).str());
 		}
 	}
 }
