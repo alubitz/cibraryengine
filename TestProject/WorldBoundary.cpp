@@ -58,7 +58,7 @@ namespace Test
 			field_setters["normal"] = &norm_setter;
 		}
 
-		void End() 
+		void End()
 		{
 			if(norm.ComputeMagnitude() == 0)
 				Debug("Failed to create world boundary; normal vector was unspecified or degenerate\n");

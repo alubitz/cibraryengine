@@ -39,8 +39,10 @@ disable_ai = true
 god_toggle = false
 nav_edit_toggle = false
 debug_draw_toggle = false
+third_person_toggle = false
 
 game_over = false
+player_got_game_start = false
 
 gs.setGodMode(god_mode)
 gs.setNavEditMode(nav_edit_mode)

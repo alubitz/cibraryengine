@@ -99,7 +99,7 @@ namespace Test
 			glLoadIdentity();
 		}
 
-		ProgramScreen* Update(const TimingInfo& time) 
+		ProgramScreen* Update(const TimingInfo& time)
 		{
 			if(test_game->load_status.HasStopped())
 			{

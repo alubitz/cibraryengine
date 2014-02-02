@@ -28,9 +28,6 @@ namespace Test
 	static const float fuel_refill_rate   = 0.4f;
 	static const float flying_accel       = 8.0f;
 
-	static const float top_speed_forward  = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	static const float top_speed_sideways = 5.0f;
-
 
 
 
@@ -129,7 +126,7 @@ namespace Test
 	{
 		KeyframeAnimation kb;
 		GenerateHardCodedWalkAnimation(&kb);
-		
+
 		ka->frames.clear();
 		ka->name = "soldier walk backward";
 
@@ -433,7 +430,7 @@ namespace Test
 							total_mass += (*iter)->GetMassInfo().mass;
 
 						Vec3 apply_force = fly_accel_vec * total_mass;
-						
+
 						vector<RigidBody*> jet_bones;
 						for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
 							if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
@@ -451,7 +448,7 @@ namespace Test
 				}
 			}
 		}
-		
+
 		if(!jetted && jet_loop != NULL)
 		{
 			jet_loop->StopLooping();
@@ -467,15 +464,13 @@ namespace Test
 	{
 		if(p_ag != NULL)
 		{
-			// TODO: do correction for left-aiming gun in a less hackish manner
-			static const float yaw_offset = 0.0f;//-0.5f;
-			p_ag->aim_dir = (Quaternion::FromRVec(0, -yaw + yaw_offset, 0) * Quaternion::FromRVec(-pitch, 0, 0)) * Vec3(0, 0, 1);
+			p_ag->aim_dir = (Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0)) * Vec3(0, 0, 1);
 
 #if ENABLE_WALK_ANIMATIONS
 			p_ag->pelvis_ori = Quaternion::FromRVec(0, -walk_pose->yaw, 0);
 #else
 			p_ag->pelvis_ori = Quaternion::Identity();
-#endif			
+#endif
 		}
 	}
 

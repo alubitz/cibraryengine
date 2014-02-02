@@ -106,7 +106,7 @@ namespace Test
 			obj_b->SetLinearVelocity(bvel);
 			obj_a->SetAngularVelocity(arot);
 			obj_b->SetAngularVelocity(brot);
-			
+
 			return true;
 		}
 		else

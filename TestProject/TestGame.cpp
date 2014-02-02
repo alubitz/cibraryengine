@@ -48,7 +48,7 @@ namespace Test
 	struct TestGame::Loader::Imp
 	{
 		boost::mutex mutex;
-		
+
 		bool stopped;
 		bool abort;
 
@@ -197,7 +197,7 @@ namespace Test
 		VertexBuffer* shot_model;
 		GlowyModelMaterial* mflash_material;
 		BillboardMaterial* shot_material;
-		
+
 		BillboardMaterial* blood_red;
 		BillboardMaterial* blood_blue;
 
@@ -468,7 +468,7 @@ namespace Test
 		deferred_lighting->AddUniform<Mat4>        ( new UniformMatrix4     ( "inv_view_matrix",     false ));
 		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "aspect_ratio"               ));
 		deferred_lighting->AddUniform<float>       ( new UniformFloat       ( "zoom"                       ));
-		
+
 
 		ShaderProgram* deferred_ambient = imp->deferred_ambient = new ShaderProgram(ds_vertex, ds_ambient);
 		deferred_ambient->AddUniform<Texture2D>    ( new UniformTexture2D   ( "diffuse",             0     ));
@@ -489,7 +489,7 @@ namespace Test
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
 
 		imp->soldier_model   = ubermodel_cache->Load("soldier");
-		imp->soldier_physics = mphys_cache->Load("soldier");		
+		imp->soldier_physics = mphys_cache->Load("soldier");
 
 		imp->mflash_material = (GlowyModelMaterial*)mat_cache->Load("mflash");
 		imp->shot_material   = (BillboardMaterial*)mat_cache->Load("shot");
@@ -925,7 +925,7 @@ namespace Test
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
 			imp->sun->UnsetLight(0);
-			
+
 			// draw translucent stuff on top of our opaque stuff
 			// we need to re-draw the depth buffer because the previous draw was on a different RenderTarget
 			glDepthMask(true);
@@ -1488,7 +1488,7 @@ namespace Test
 
 		float top = 1000;
 		game->physics_world->RayTest(Vec3(x, 0, z), Vec3(x, top, z), ray_callback);
-		
+
 		results.sort();
 		results.reverse();
 
@@ -1498,7 +1498,7 @@ namespace Test
 		for(list<float>::iterator iter = results.begin(); iter != results.end(); ++iter)
 		{
 			float new_y = *iter;
-			
+
 			if(floor && new_y + min_ceiling_height <= y)
 				valid_floors.push_back(new_y);
 
@@ -1551,7 +1551,7 @@ namespace Test
 				{
 					unsigned int my_node = *iter;
 					Vec3 my_pos = NavGraph::GetNodePosition(graph, my_node);
-					
+
 					if(i > 0)
 						MaybeCreateEdge(test_game, my_pos, graph, my_node, nodes[(i - 1) * grid_res + j]);
 					if(i < grm1)
@@ -1596,7 +1596,7 @@ namespace Test
 				return 1;
 			}
 		}
-		
+
 		Debug("gs.newPathSearch takes exactly 2 arguments, nav points on the same graph; returning nil\n");
 		return 0;
 	}

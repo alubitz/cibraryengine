@@ -214,7 +214,7 @@ namespace Test
 		WeaponEquip::Spawned();
 
 		physics = game_state->physics_world;
-		
+
 		if(model_phys != NULL && model_phys->bones.size() > 0)
 		{
 			Mat4 xform = GetInitialXform();
@@ -251,7 +251,7 @@ namespace Test
 			if(l_grip == NULL)
 			{
 				RigidBody* gripper_rb = NULL;
-			
+
 				unsigned int id = Bone::string_table["l hand"];
 				for(unsigned int i = 0; i < new_owner->character->skeleton->bones.size(); ++i)
 					if(new_owner->character->skeleton->bones[i]->name == id)
@@ -264,7 +264,7 @@ namespace Test
 			}
 			else
 				l_grip->obj_a = rigid_body;
-		
+
 			if(r_grip == NULL)
 			{
 				RigidBody* gripper_rb = NULL;

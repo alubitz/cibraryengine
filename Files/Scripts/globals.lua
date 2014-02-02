@@ -58,12 +58,13 @@ function poll_mouse_motion()
 end
 
 
-god_toggle = false
-nav_edit_toggle = false
-debug_draw_toggle = false
-god_mode = false
-nav_edit_mode = false
-debug_draw_mode = false
+god_toggle          = false
+nav_edit_toggle     = false
+debug_draw_toggle   = falsethird_person_toggle = false
+god_mode          = false
+nav_edit_mode     = false
+debug_draw_mode   = false
+third_person_mode = false
 
 function dot(a, b)
 	return a.x * b.x + a.y * b.y + a.z * b.z

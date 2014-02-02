@@ -208,7 +208,7 @@ namespace Test
 			string ammo_string = ss.str();
 			while(ammo_string.length() < 3)
 				ammo_string = "0" + ammo_string;
-			Print(50 + 4, 82 + 4, ammo_string, no_ammo_dim ? Vec4(1, 0, 0, 1) : Vec4(1, 1, 1, 1)); 
+			Print(50 + 4, 82 + 4, ammo_string, no_ammo_dim ? Vec4(1, 0, 0, 1) : Vec4(1, 1, 1, 1));
 		}
 
 		glPopMatrix();

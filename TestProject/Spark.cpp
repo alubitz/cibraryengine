@@ -68,7 +68,7 @@ namespace Test
 
 
 
-	/* 
+	/*
 	 * Spark::TrailHead methods
 	 */
 	Spark::TrailHead::TrailHead(Spark* spark) : spark(spark) { }

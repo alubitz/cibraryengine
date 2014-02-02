@@ -14,11 +14,14 @@ namespace Test
 	/*
 	 * CrabBug constants
 	 */
-	float bug_leap_duration = 0.5f;
-	float bug_leap_speed = 8.0f;
+	static const float bug_leap_duration  = 0.5f;
+	static const float bug_leap_speed     = 8.0f;
 
 
 
+	/*
+	 * CrabBug animations and related functions
+	 */
 #if ENABLE_WALK_ANIMATIONS
 	static void GenerateHardCodedWalkAnimation(KeyframeAnimation* ka)
 	{
@@ -39,7 +42,7 @@ namespace Test
 		{
 			Keyframe kf(0.5f);
 			kf.next = 2;
-			
+
 			kf.values[Bone::string_table["l leg a 1"]] = BoneInfluence(Vec3(	0,	0.3f,	0	), Vec3());
 			kf.values[Bone::string_table["l leg b 1"]] = BoneInfluence(Vec3(	1,	-1,		0	), Vec3());
 			kf.values[Bone::string_table["l leg c 1"]] = BoneInfluence(Vec3(	0,	0.5f,	0	), Vec3());
@@ -61,7 +64,7 @@ namespace Test
 			kf.values[Bone::string_table["r leg a 1"]] = BoneInfluence(Vec3(	1,	-0.3f,	0	), Vec3());
 			kf.values[Bone::string_table["r leg b 1"]] = BoneInfluence(Vec3(	0,	1,		0	), Vec3());
 			kf.values[Bone::string_table["r leg c 1"]] = BoneInfluence(Vec3(	1,	-0.5f,	0	), Vec3());
-			
+
 			ka->frames.push_back(kf);
 		}
 		{
@@ -75,7 +78,7 @@ namespace Test
 			kf.values[Bone::string_table["r leg a 1"]] = BoneInfluence(Vec3(	0,	-0.3f,	0	), Vec3());
 			kf.values[Bone::string_table["r leg b 1"]] = BoneInfluence(Vec3(	1,	1,		0	), Vec3());
 			kf.values[Bone::string_table["r leg c 1"]] = BoneInfluence(Vec3(	0,	-0.5f,	0	), Vec3());
-			
+
 			ka->frames.push_back(kf);
 		}
 	}

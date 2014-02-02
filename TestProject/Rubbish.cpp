@@ -39,7 +39,7 @@ namespace Test
 	void Rubbish::Spawned()
 	{
 		physics = game_state->physics_world;
-		
+
 		if(model_phys->bones.size() > 0)
 		{
 			Vec3 pos = xform.TransformVec3_1(0, 0, 0);

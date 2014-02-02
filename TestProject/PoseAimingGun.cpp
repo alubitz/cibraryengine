@@ -15,12 +15,17 @@ namespace Test
 		};
 		vector<AimPose> poses;
 
+		struct PoseTri
+		{
+			unsigned int indices[3];		// indices into poses
+			Vec3 bounds[3];					// like bounding planes, but the offset from the origin is 0
+			float opposites[3];				// distance from bounding plane to opposite vert
+		};
+		vector<PoseTri> tris;
+
 		bool loaded_poses;
 
-		unsigned int current, next;
-		float timer;
-
-		Imp() : poses(), loaded_poses(false), current(0), next(0), timer(0.0f) { }
+		Imp() : poses(), tris(), loaded_poses(false) { }
 		~Imp() { }
 
 		void LoadPoses()
@@ -108,6 +113,39 @@ namespace Test
 				}
 			}
 		}
+
+		void ExtractTri(unsigned int a, unsigned int b, unsigned int c)
+		{
+			tris.push_back(PoseTri());
+			PoseTri& tri = *tris.rbegin();
+
+			tri.indices[0] = a;
+			tri.indices[1] = b;
+			tri.indices[2] = c;
+
+			tri.bounds[0] = Vec3::Normalize(Vec3::Cross(poses[tri.indices[0]].dir, poses[tri.indices[1]].dir));
+			tri.bounds[1] = Vec3::Normalize(Vec3::Cross(poses[tri.indices[1]].dir, poses[tri.indices[2]].dir));
+			tri.bounds[2] = Vec3::Normalize(Vec3::Cross(poses[tri.indices[2]].dir, poses[tri.indices[0]].dir));
+
+			tri.opposites[0] = Vec3::Dot(tri.bounds[0], poses[tri.indices[2]].dir);
+			tri.opposites[1] = Vec3::Dot(tri.bounds[1], poses[tri.indices[0]].dir);
+			tri.opposites[2] = Vec3::Dot(tri.bounds[2], poses[tri.indices[1]].dir);
+		}
+
+		void ExtracteGrid()
+		{
+			if(poses.size() >= 9)				// not sure why there would be more than 9, but whatever
+			{
+				ExtractTri(0, 1, 3);
+				ExtractTri(1, 4, 3);
+				ExtractTri(1, 2, 4);
+				ExtractTri(2, 5, 4);
+				ExtractTri(3, 4, 6);
+				ExtractTri(4, 7, 6);
+				ExtractTri(4, 5, 7);
+				ExtractTri(5, 7, 8);
+			}
+		}
 	};
 
 
@@ -126,51 +164,68 @@ namespace Test
 
 	PoseAimingGun::~PoseAimingGun() { if(imp) { delete imp; imp = NULL; } }
 
+
+
 	void PoseAimingGun::UpdatePose(const TimingInfo& time)
 	{
 		if(!imp->loaded_poses)
 		{
 			imp->LoadPoses();
+			imp->ExtracteGrid();
+
 			imp->loaded_poses = true;
 		}
 
 		if(time.total < 0.1f)
 			return;
 
+		// TODO: reasonable way of picking weights goes here
 		Vec3 relative_aim = Vec3::Normalize(Quaternion::Reverse(pelvis_ori) * aim_dir);
 
-		unordered_map<unsigned int, Vec3> bone_values;
-		float total_weight = 0.0f;
-		
-		// TODO: actually pick weights in some reasonable way
-		imp->timer += time.elapsed;
-		if(imp->timer > 1.0f)
+		bool any = false;
+		float scores[3];
+		for(unsigned int i = 0; i < imp->tris.size(); ++i)
 		{
-			imp->timer = imp->timer - (int)imp->timer;
-			imp->current = imp->next;
-			imp->next = Random3D::RandInt(imp->poses.size());
-		}
-		float bfrac = imp->timer;
-		float afrac = 1.0f - bfrac;
+			const Imp::PoseTri& tri = imp->tris[i];
 
-		for(unsigned int i = 0; i < imp->poses.size(); ++i)
-		{
-			const Imp::AimPose& aimp = imp->poses[i];
-
-			float weight = i == imp->current ? afrac : i == imp->next ? bfrac : 0.0f;
-			if(weight > 0.0f)
+			unsigned int j;
+			for(j = 0; j < 3; ++j)
 			{
-				total_weight += weight;
-				for(unordered_map<unsigned int, BoneInfluence>::const_iterator iter = aimp.pose.values.begin(); iter != aimp.pose.values.end(); ++iter)
-					if(bone_values.find(iter->first) == bone_values.end())
-						bone_values[iter->first]  = weight * iter->second.ori;
-					else
-						bone_values[iter->first] += weight * iter->second.ori;
+				scores[j] = Vec3::Dot(tri.bounds[j], relative_aim);
+				if(scores[j] < 0.0f)
+					break;
+			}
+			if(j == 3)
+			{
+				if(any)
+					Debug("multiple solutions zomgwtfbbq!\n");
+
+				unordered_map<unsigned int, Vec3> bone_values;
+				float total_weight = 0.0f;
+
+				for(unsigned int k = 0; k < 3; ++k)
+				{
+					const Imp::AimPose& aimp = imp->poses[tri.indices[k]];
+
+					unsigned int edge = (k + 1) % 3;
+					float weight = scores[edge] / tri.opposites[edge];
+					if(weight > 0.0f)
+					{
+						total_weight += weight;
+						for(unordered_map<unsigned int, BoneInfluence>::const_iterator iter = aimp.pose.values.begin(); iter != aimp.pose.values.end(); ++iter)
+							if(bone_values.find(iter->first) == bone_values.end())
+								bone_values[iter->first]  = weight * iter->second.ori;
+							else
+								bone_values[iter->first] += weight * iter->second.ori;
+					}
+				}
+				float inv_weight = 1.0f / total_weight;
+
+				for(unordered_map<unsigned int, Vec3>::const_iterator iter = bone_values.begin(); iter != bone_values.end(); ++iter)
+					SetBonePose(iter->first, iter->second * inv_weight, Vec3());
+
+				any = true;
 			}
 		}
-		float inv_weight = 1.0f / total_weight;
-
-		for(unordered_map<unsigned int, Vec3>::const_iterator iter = bone_values.begin(); iter != bone_values.end(); ++iter)
-			SetBonePose(iter->first, iter->second * inv_weight, Vec3());
 	}
 }

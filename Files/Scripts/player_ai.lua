@@ -1,18 +1,17 @@
-local function force_bool(v) if v then return v else return false end end
-local function force_float(v) if v then return v else return 0 end end
-local function bool_to_float(b) b = force_bool(b) if b then return 1 else return 0 end end
+local function force_bool(v)                      if v then return v else return false end end
+local function force_float(v)                     if v then return v else return 0     end end
+local function bool_to_float(b) b = force_bool(b) if b then return 1 else return 0     end end
 
-local function get_key_float(i) local k = key_states[string.byte(i, 1)] if k then return 1 else return 0 end end
-local function get_key_bool(i) local k = key_states[string.byte(i)] if k then return true else return false end end
+local function get_key_float(i) local k = key_states[string.byte(i, 1)] if k then return 1    else return 0     end end
+local function get_key_bool(i)  local k = key_states[string.byte(i)]    if k then return true else return false end end
 
 local control_state = hv.control_state
 
-control_state.forward = get_key_float("W") - get_key_float("S")
-control_state.sidestep = get_key_float("D") - get_key_float("A")
+control_state.forward      = get_key_float("W") - get_key_float("S")
+control_state.sidestep     = get_key_float("D") - get_key_float("A")
 
-control_state.jump = get_key_bool(" ")
-control_state.primary_fire = force_bool(mb_states[0])
-control_state.reload = get_key_bool("R")
+control_state.jump         = get_key_bool(" ")
+control_state.reload       = get_key_bool("R")control_state.primary_fire = force_bool(mb_states[0])
 local x, y = poll_mouse_motion()
 
 if force_bool(key_states[112]) then
@@ -41,5 +40,19 @@ if force_bool(key_states[114]) then
 	end
 else debug_draw_toggle = false end
 
-control_state.yaw = force_float(control_state.yaw) + x * 0.005
+if force_bool(key_states[13]) then
+	if not third_person_toggle then
+		third_person_toggle = true
+		third_person_mode = not third_person_mode
+		control_state.third_person = third_person_mode
+	end
+else third_person_toggle = false end
+
+if not player_got_game_start then
+	control_state.third_person = third_person_mode
+	player_got_game_start = true
+end
+
+
+control_state.yaw   = force_float(control_state.yaw)   + x * 0.005
 control_state.pitch = force_float(control_state.pitch) + y * 0.005

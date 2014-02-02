@@ -45,7 +45,7 @@ namespace Test
 		pos = rigid_body->GetPosition();
 		vel = rigid_body->GetLinearVelocity();
 		ori = rigid_body->GetOrientation();
-		
+
 		if(time.total > detonation_time)
 			Explode();
 		else

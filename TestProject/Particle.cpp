@@ -75,7 +75,7 @@ namespace Test
 
 
 
-	/* 
+	/*
 	 * Particle::TrailHead methods
 	 */
 	Particle::TrailHead::TrailHead(Particle* particle) : particle(particle) { }

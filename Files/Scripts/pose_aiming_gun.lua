@@ -156,4 +156,4 @@ local aimur =
 	}, fwd = ba.createVector( -0.0881081,   0.718745,    0.689668    )
 }
 
-return { aimcc, aimcl, aimcr, aimdc, aimdl, aimdr, aimuc, aimul, aimur }
+return { aimdr, aimdc, aimdl, aimcr, aimcc, aimcl, aimur, aimuc, aimul }

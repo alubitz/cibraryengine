@@ -75,7 +75,7 @@ namespace Test
 	void InstructionsScreen::Deactivate()
 	{
 		MenuScreen::Deactivate();
-		
+
 		if(imp) { imp->Destroy(); delete imp; imp = NULL; }
 	}
 }

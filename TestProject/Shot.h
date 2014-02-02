@@ -44,7 +44,7 @@ namespace Test
 			virtual void GetMomentumInfo(Vec3& vel_out, float& mass_out);
 
 			struct TrailHead : public BillboardTrail::TrailHead
-			{ 
+			{
 				Shot* shot;
 
 				Vec3 end_pos;

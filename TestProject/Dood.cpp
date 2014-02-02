@@ -20,9 +20,13 @@ namespace Test
 	/*
 	 * Dood constants
 	 */
-	static const float ground_traction = 20.0f, air_traction = 0.1f;
-	static const float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
-	static const float top_speed_sideways = 5.0f;
+	static const float ground_traction                = 20.0f;
+	static const float air_traction                   = 0.1f;
+	static const float top_speed_forward              = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static const float top_speed_sideways             = 5.0f;
+
+	static const float third_person_transition_time   = 0.2f;
+	static const float third_person_transition_speed  = 1.0f / third_person_transition_time;
 
 
 
@@ -64,6 +68,8 @@ namespace Test
 		yaw(0),
 		pitch(0),
 		jump_start_timer(0),
+		third_person_frac(0),
+		third_person_view_dist(5.0f),
 		hp(1.0f),
 		alive(true),
 		ragdoll_timer(10.0f),
@@ -233,6 +239,11 @@ namespace Test
 			DoPitchAndYawControls(time);
 		}
 
+		if(control_state->GetBoolControl("third_person"))
+			third_person_frac = min(1.0f, third_person_frac + timestep * third_person_transition_speed);
+		else
+			third_person_frac = max(0.0f, third_person_frac - timestep * third_person_transition_speed);
+
 		MaybeDoScriptedUpdate(this);
 
 		if(alive)
@@ -317,7 +328,7 @@ namespace Test
 		}
 		else
 		{
-			float third_person_distance = 0.0f;
+			float third_person_distance = third_person_frac * third_person_view_dist;
 
 			Mat4 eye_xform = eye_bone->GetTransformationMatrix();
 #if USE_EYE_BONE_XFORM_DIRECTLY
@@ -387,7 +398,7 @@ namespace Test
 		{
 			RigidBody* body = *iter;
 			mass_info = body->GetTransformedMassInfo();
-			
+
 			// linear component
 			float mass = mass_info.mass;
 			Vec3 vel = body->GetLinearVelocity() - com_vel;
@@ -484,7 +495,7 @@ namespace Test
 
 			Mat4 bone_xform = bone->GetTransformationMatrix();
 			Quaternion bone_ori = bone_xform.ExtractOrientation();
-				
+
 			rb->SetLinearVelocity((bone_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_rate_coeff);
 			rb->SetAngularVelocity((rb->GetOrientation() * bone_ori).ToRVec() * move_rate_coeff);
 		}
@@ -929,7 +940,7 @@ namespace Test
 
 	int dood_newindex(lua_State* L)
 	{
-		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);		
+		Dood** dood_ptr = (Dood**)lua_touserdata(L, 1);
 		if(Dood* dood = *dood_ptr)
 		{
 			if(lua_isstring(L, 2))

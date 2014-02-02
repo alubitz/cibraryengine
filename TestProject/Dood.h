@@ -41,7 +41,7 @@ namespace Test
 			};
 
 			bool use_cheaty_ori;
-			
+
 			float yaw_rate, pitch_rate;
 
 			virtual void InnerDispose();
@@ -72,6 +72,9 @@ namespace Test
 			float yaw, pitch;
 
 			float jump_start_timer;
+
+			float third_person_frac;
+			float third_person_view_dist;
 
 			float hp;
 			bool alive;

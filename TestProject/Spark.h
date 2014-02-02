@@ -34,7 +34,7 @@ namespace Test
 			Collider* callback;
 
 		public:
-			
+
 			Vec3 pos, vel;
 			float age, max_age;
 

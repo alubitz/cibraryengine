@@ -12,7 +12,7 @@ namespace Test
 		Dood(game_state, model, mphys, pos, team),
 		walk_pose(new WalkPose())
 	{
-		yaw_rate *= 0.1f;
+		yaw_rate   *= 0.1f;
 		pitch_rate *= 0.1f;
 
 		hp *= 3.0f;
