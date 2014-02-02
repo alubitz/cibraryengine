@@ -40,7 +40,7 @@ namespace Test
 		Entity::InnerDispose();
 	}
 
-	void RocketBug::Update(TimingInfo time)
+	void RocketBug::Update(const TimingInfo& time)
 	{
 		pos = rigid_body->GetPosition();
 		vel = rigid_body->GetLinearVelocity();

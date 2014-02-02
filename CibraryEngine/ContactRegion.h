@@ -17,8 +17,8 @@ namespace CibraryEngine
 
 			vector<ContactPoint*> points;
 
-			ContactRegion() :							obj_a(NULL), obj_b(NULL), points()	{ }
-			ContactRegion(RigidBody* a, RigidBody* b) :	obj_a(a), obj_b(b), points()		{ }
+			ContactRegion() :                           obj_a(NULL), obj_b(NULL), points()   { }
+			ContactRegion(RigidBody* a, RigidBody* b) : obj_a(a), obj_b(b), points()         { }
 
 			~ContactRegion() { }
 	};

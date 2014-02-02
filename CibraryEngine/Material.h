@@ -48,12 +48,12 @@ namespace CibraryEngine
 			/** Abstract function called when the last of a sequence of RenderNodes using this material is drawn */
 			virtual void EndDraw() = 0;
 			/** Abstract function called when a RenderNode using this material is drawn */
-			virtual void Draw(RenderNode node) = 0;
+			virtual void Draw(const RenderNode& node) = 0;
 
 			/** Abstract function to clean up any resources created while drawing stuff */
-			virtual void Cleanup(RenderNode node) = 0;
+			virtual void Cleanup(const RenderNode& node) = 0;
 
 			/** Abstract function to determine whether on material equals another; implementations should check mclass_id! */
-			virtual bool Equals(Material* other) = 0;
+			virtual bool Equals(const Material* other) const = 0;
 	};
 }

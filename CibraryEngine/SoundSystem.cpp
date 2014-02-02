@@ -103,7 +103,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void SoundSystem::Update(TimingInfo time)
+	void SoundSystem::Update(const TimingInfo& time)
 	{
 		if(!master_enable)
 			return;
@@ -143,7 +143,7 @@ namespace CibraryEngine
 		return PlayEffect(buffer, listener_pos, listener_vel, loudness, looping);
 	}
 
-	SoundSource* SoundSystem::PlayEffect(SoundBuffer* buffer, Vec3 pos, Vec3 vel, float loudness, bool looping)
+	SoundSource* SoundSystem::PlayEffect(SoundBuffer* buffer, const Vec3& pos, const Vec3& vel, float loudness, bool looping)
 	{
 		if(!master_enable)
 			return NULL;
@@ -175,10 +175,10 @@ namespace CibraryEngine
 		if(master_enable)
 			alDopplerFactor(f);
 	}
-	void SoundSystem::SetListenerPos(Vec3 vec) { listener_pos = vec; }
-	void SoundSystem::SetListenerVel(Vec3 vec) { listener_vel = vec; }
-	void SoundSystem::SetListenerForward(Vec3 vec) { listener_forward = vec; }
-	void SoundSystem::SetListenerUp(Vec3 vec) { listener_up = vec; }
+	void SoundSystem::SetListenerPos    (const Vec3& vec) { listener_pos     = vec; }
+	void SoundSystem::SetListenerVel    (const Vec3& vec) { listener_vel     = vec; }
+	void SoundSystem::SetListenerForward(const Vec3& vec) { listener_forward = vec; }
+	void SoundSystem::SetListenerUp     (const Vec3& vec) { listener_up      = vec; }
 
 	bool SoundSystem::CheckForALErrors()
 	{
@@ -191,7 +191,7 @@ namespace CibraryEngine
 		return false;
 	}
 
-	bool SoundSystem::CheckForALErrors(int line, string file)
+	bool SoundSystem::CheckForALErrors(int line, const string& file)
 	{
 		ALenum err = alGetError();
 		if(err != AL_NO_ERROR)

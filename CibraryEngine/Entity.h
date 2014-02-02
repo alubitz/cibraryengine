@@ -46,7 +46,7 @@ namespace CibraryEngine
 			virtual ~Entity();
 
 			/** Updates the entity given how much time has elapsed */
-			virtual void Update(TimingInfo time);
+			virtual void Update(const TimingInfo& time);
 
 			/** Lets this entity tell the renderer how to draw it */
 			virtual void Vis(SceneRenderer* renderer);

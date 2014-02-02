@@ -74,9 +74,9 @@ namespace CibraryEngine
 			virtual ControlState* GetControlState();
 
 			/** Causes UpdateController to be caused when sufficient time has elapsed */
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 			/** Abstract function to let a controller update the control state */
-			virtual void UpdateController(TimingInfo time) = 0;
+			virtual void UpdateController(const TimingInfo& time) = 0;
 	};
 
 	/** Class which executes a lua script to determine the ControlState for a Pawn */
@@ -90,6 +90,6 @@ namespace CibraryEngine
 			/** Creates a Controller which will execute the script with the given filename */
 			ScriptedController(GameState* gs, const string& script);
 
-			void UpdateController(TimingInfo time);
+			void UpdateController(const TimingInfo& time);
 	};
 }

@@ -17,7 +17,7 @@ namespace CibraryEngine
 			Component(Entity* entity) : entity(entity) { }
 			virtual ~Component() { }
 
-			virtual void Update(TimingInfo time) { }
+			virtual void Update(const TimingInfo& time) { }
 			virtual void Vis(SceneRenderer* renderer) { }
 	};
 }

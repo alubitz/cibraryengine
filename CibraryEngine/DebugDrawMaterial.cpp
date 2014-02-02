@@ -61,7 +61,7 @@ namespace CibraryEngine
 			renderer = NULL;
 		}
 
-		void Draw(RenderNode node)
+		void Draw(const RenderNode& node)
 		{
 			vbo->SetNumVerts(num_verts + 2);
 
@@ -104,9 +104,9 @@ namespace CibraryEngine
 
 	void DebugDrawMaterial::BeginDraw(SceneRenderer* renderer)	{ imp->BeginDraw(renderer); }
 	void DebugDrawMaterial::EndDraw()							{ imp->EndDraw(); }
-	void DebugDrawMaterial::Draw(RenderNode node)				{ imp->Draw(node); }
+	void DebugDrawMaterial::Draw(const RenderNode& node)		{ imp->Draw(node); }
 
-	bool DebugDrawMaterial::Equals(Material* other)				{ return other->mclass_id == mclass_id; }
+	bool DebugDrawMaterial::Equals(const Material* other) const	{ return other->mclass_id == mclass_id; }
 
 	DebugDrawMaterial* DebugDrawMaterial::GetDebugDrawMaterial()
 	{
@@ -152,5 +152,5 @@ namespace CibraryEngine
 	}
 
 
-	void DebugDrawMaterial::Cleanup(RenderNode node)			{ ddmnd_recycle_bin.push_back((DebugDrawMaterialNodeData*)node.data); }
+	void DebugDrawMaterial::Cleanup(const RenderNode& node)		{ ddmnd_recycle_bin.push_back((DebugDrawMaterialNodeData*)node.data); }
 }

@@ -110,7 +110,7 @@ namespace CibraryEngine
 	/*
 	 * VoxelMaterialNodeData methods
 	 */
-	VoxelMaterialNodeData::VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, Vec3 chunk_pos, Mat4 xform) : vbos(vbos), depth_vbo(depth_vbo), chunk_pos(chunk_pos), xform(xform) { }
+	VoxelMaterialNodeData::VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform) : vbos(vbos), depth_vbo(depth_vbo), chunk_pos(chunk_pos), xform(xform) { }
 
 
 
@@ -124,15 +124,15 @@ namespace CibraryEngine
 
 		unsigned char next_mat = 1;
 
-		LoadTexture(tex_cache, next_mat++, "rock1",			"Rock 1");
-		LoadTexture(tex_cache, next_mat++, "rock2",			"Rock 2");
-		LoadTexture(tex_cache, next_mat++, "rock3",			"Rock 3");
-		LoadTexture(tex_cache, next_mat++, "sand1",			"Sand");
-		LoadTexture(tex_cache, next_mat++, "grass1",		"Grass 1");
-		LoadTexture(tex_cache, next_mat++, "grass2",		"Grass 2");
-		LoadTexture(tex_cache, next_mat++, "dirt1",			"Dirt");
-		LoadTexture(tex_cache, next_mat++, "gravel1",		"Gravel 1");
-		LoadTexture(tex_cache, next_mat++, "gravel2",		"Gravel 2");
+		LoadTexture(tex_cache, next_mat++, "rock1",    "Rock 1"   );
+		LoadTexture(tex_cache, next_mat++, "rock2",    "Rock 2"   );
+		LoadTexture(tex_cache, next_mat++, "rock3",    "Rock 3"   );
+		LoadTexture(tex_cache, next_mat++, "sand1",    "Sand"     );
+		LoadTexture(tex_cache, next_mat++, "grass1",   "Grass 1"  );
+		LoadTexture(tex_cache, next_mat++, "grass2",   "Grass 2"  );
+		LoadTexture(tex_cache, next_mat++, "dirt1",    "Dirt"     );
+		LoadTexture(tex_cache, next_mat++, "gravel1",  "Gravel 1" );
+		LoadTexture(tex_cache, next_mat++, "gravel2",  "Gravel 2" );
 
 		// single-material shader
 		Shader* vs = content->GetCache<Shader>()->Load("terrain-v");
@@ -150,7 +150,7 @@ namespace CibraryEngine
 		depth_shader = new ShaderProgram(depth_vs, depth_fs);
 	}
 
-	void VoxelMaterial::LoadTexture(Cache<Texture2D>* tex_cache, unsigned char material_index, string filename, string display_name) { textures[material_index] = TerrainTexture(tex_cache->Load(filename), display_name, material_index); }
+	void VoxelMaterial::LoadTexture(Cache<Texture2D>* tex_cache, unsigned char material_index, const string& filename, const string& display_name) { textures[material_index] = TerrainTexture(tex_cache->Load(filename), display_name, material_index); }
 
 	void VoxelMaterial::BeginDraw(SceneRenderer* renderer)
 	{
@@ -169,7 +169,7 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void VoxelMaterial::Draw(RenderNode node)
+	void VoxelMaterial::Draw(const RenderNode& node)
 	{
 		assert(draw_cache != NULL);
 
@@ -213,8 +213,8 @@ namespace CibraryEngine
 		draw_cache = NULL;
 	}
 
-	void VoxelMaterial::Cleanup(RenderNode node) { delete (VoxelMaterialNodeData*)node.data; }
+	void VoxelMaterial::Cleanup(const RenderNode& node) { delete (VoxelMaterialNodeData*)node.data; }
 
-	bool VoxelMaterial::Equals(Material* material) { return mclass_id == material->mclass_id; }
+	bool VoxelMaterial::Equals(const Material* material) const { return mclass_id == material->mclass_id; }
 }
 

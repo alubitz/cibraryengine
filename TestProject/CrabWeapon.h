@@ -13,7 +13,7 @@ namespace Test
 
 			CrabWeapon(TestGame* game_state, Dood* owner);
 
-			void OwnerUpdate(TimingInfo time);
+			void OwnerUpdate(const TimingInfo& time);
 
 			void ClawAttackNormal(float now);
 	};

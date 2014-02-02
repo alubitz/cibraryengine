@@ -45,12 +45,12 @@ namespace Test
 		Keyframe kf;
 		kf.duration = 2.0f;
 		kf.next = 0;
-		kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence();
-		kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence();
-		kf.values[Bone::string_table["l foot"]] =	BoneInfluence();
-		kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence();
-		kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence();
-		kf.values[Bone::string_table["r foot"]] =	BoneInfluence();
+		kf.values[Bone::string_table["l leg 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["l leg 2"]] = BoneInfluence();
+		kf.values[Bone::string_table["l foot"]]  = BoneInfluence();
+		kf.values[Bone::string_table["r leg 1"]] = BoneInfluence();
+		kf.values[Bone::string_table["r leg 2"]] = BoneInfluence();
+		kf.values[Bone::string_table["r foot"]]  = BoneInfluence();
 
 		ka->frames.push_back(kf);
 	}
@@ -67,13 +67,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 1;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3( -A,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  A,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -82,13 +82,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 2;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3( -B,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -97,13 +97,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 3;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  A,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	A,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-A,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3( -A,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -112,13 +112,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 0;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-B,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3( -B,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -158,13 +158,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 1;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0, -A), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-A), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	A), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0, -A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  A), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -173,13 +173,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 2;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	C,	0,	A), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-D,	0,	-A), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  C,  0,  A), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3( -D,  0, -A), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -188,13 +188,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 3;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  E), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0, -E), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	-E), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	E), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0, -E), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  E), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -203,13 +203,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 0;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	C,	0,	-A), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	B,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-D,	0,	A), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  C,  0, -A), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3( -D,  0,  A), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -276,13 +276,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 1;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	A,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  A,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	-D,	-A,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3( -D, -A,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  D,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -291,13 +291,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 2;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  B,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  C,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3( -C,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0, -B,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -306,13 +306,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 3;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	-D,	0,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	D,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3( -D,  0,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  D,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -321,13 +321,13 @@ namespace Test
 			Keyframe kf(0.5f);
 			kf.next = 0;
 
-			kf.values[Bone::string_table["l leg 1"]] =	BoneInfluence(Vec3(	0,	B,	0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
-			kf.values[Bone::string_table["l foot"]] =	BoneInfluence(Vec3(	0,	0,	0), Vec3());
+			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  B,  0), Vec3());
+			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
+			kf.values[Bone::string_table["l foot"]]  = BoneInfluence(Vec3(  0,  0,  0), Vec3());
 
-			kf.values[Bone::string_table["r leg 1"]] =	BoneInfluence(Vec3(	0,	-B,	0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] =	BoneInfluence(Vec3(	C,	0,	0), Vec3());
-			kf.values[Bone::string_table["r foot"]] =	BoneInfluence(Vec3(	-C,	0,	0), Vec3());
+			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0, -B,  0), Vec3());
+			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  C,  0,  0), Vec3());
+			kf.values[Bone::string_table["r foot"]]  = BoneInfluence(Vec3( -C,  0,  0), Vec3());
 
 			ka->frames.push_back(kf);
 		}
@@ -358,7 +358,7 @@ namespace Test
 	/*
 	 * Soldier methods
 	 */
-	Soldier::Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+	Soldier::Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
@@ -383,7 +383,7 @@ namespace Test
 		ragdoll_timer = 3600.0f;
 	}
 
-	void Soldier::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
+	void Soldier::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
 	{
 		float timestep = time.elapsed;
 
@@ -462,7 +462,7 @@ namespace Test
 			jet_fuel = min(jet_fuel + fuel_refill_rate * timestep, 1.0f);
 	}
 
-	void Soldier::PreUpdatePoses(TimingInfo time)
+	void Soldier::PreUpdatePoses(const TimingInfo& time)
 	{
 		if(p_ag != NULL)
 		{
@@ -478,7 +478,7 @@ namespace Test
 		}
 	}
 
-	void Soldier::PostUpdatePoses(TimingInfo time)
+	void Soldier::PostUpdatePoses(const TimingInfo& time)
 	{
 		// position and orient the gun
 		if(equipped_weapon != NULL)
@@ -509,7 +509,7 @@ namespace Test
 		feet.push_back(new FootState(Bone::string_table["r foot"]));
 	}
 
-	void Soldier::Update(TimingInfo time)
+	void Soldier::Update(const TimingInfo& time)
 	{
 #if DIE_AFTER_ONE_SECOND
 		if(time.total > 1.0f)
@@ -519,7 +519,7 @@ namespace Test
 		Dood::Update(time);
 	}
 
-	void Soldier::Die(Damage cause)
+	void Soldier::Die(const Damage& cause)
 	{
 		if(jet_loop != NULL)
 		{

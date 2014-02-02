@@ -51,9 +51,9 @@ namespace CibraryEngine
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
-			void Cleanup(RenderNode node);
-			bool Equals(Material* other);
+			void Draw(const RenderNode& node);
+			void Cleanup(const RenderNode& node);
+			bool Equals(const Material* other) const;
 
 			NodeData* NewNodeData(const Vec3& front, const Vec3& rear, float width);
 	};

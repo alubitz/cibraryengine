@@ -36,7 +36,7 @@ namespace Test
 
 			Weapon(GameState* game_state);
 
-			virtual void OwnerUpdate(TimingInfo time);
+			virtual void OwnerUpdate(const TimingInfo& time);
 
 			bool IsFiring(int mode);
 			bool IsFiring(int mode, bool sustained);

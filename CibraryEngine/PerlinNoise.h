@@ -19,7 +19,7 @@ namespace CibraryEngine
 			PerlinNoise(int res, bool tileable = false);
 			~PerlinNoise();
 
-			float Sample(Vec3 uvw);
+			float Sample(const Vec3& uvw);
 
 			int GetResolution() { return res; }
 	};

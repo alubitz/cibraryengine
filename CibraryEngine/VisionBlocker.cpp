@@ -11,7 +11,7 @@
 
 namespace CibraryEngine
 {
-	bool VisionBlocker::CheckLineOfSight(PhysicsWorld* physics, Vec3 from, Vec3 to)
+	bool VisionBlocker::CheckLineOfSight(PhysicsWorld* physics, const Vec3& from, const Vec3& to)
 	{
 		struct MyRayCallback : public RayCallback
 		{

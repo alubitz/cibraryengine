@@ -13,7 +13,7 @@ namespace ConverterUtil
 	/*
 	 * Importer for unreal's PSK skinned mesh and skeleton format
 	 */
-	int LoadPSK(string filename, SkinnedModel* model, float scale)
+	int LoadPSK(const string& filename, SkinnedModel* model, float scale)
 	{
 		// open the file
 		ifstream file(filename.c_str(), ios::in | ios::binary);
@@ -232,7 +232,7 @@ namespace ConverterUtil
 	/*
 	 * Importer for unreal's PSA animation format
 	 */
-	int LoadPSA(string filename, vector<KeyframeAnimation>& animations, float scale)
+	int LoadPSA(const string& filename, vector<KeyframeAnimation>& animations, float scale)
 	{
 		// open the file
 		ifstream file(filename.c_str(), ios::in | ios::binary);

@@ -30,7 +30,7 @@ namespace CibraryEngine
 			/** Draws this screen, given the dimensions of the client area of the window */
 			virtual void Draw(int width, int height);
 			/** Allows the screen to update, and returns the next screen to be displayed. A screen should return itself to remain displayed, or NULL to cause the program to exit */
-			virtual ProgramScreen* Update(TimingInfo time);
+			virtual ProgramScreen* Update(const TimingInfo& time);
 
 			/** Called when a screen becomes the active screen (i.e. some other screen returns it in ProgramScreen::Update) */
 			virtual void Activate();								// do loading here, rather than in the constructor?

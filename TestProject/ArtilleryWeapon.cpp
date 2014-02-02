@@ -24,7 +24,7 @@ namespace Test
 		proj_mphys = game_state->mphys_cache->Load("dummycube");
 	}
 
-	void ArtilleryWeapon::OwnerUpdate(TimingInfo time)
+	void ArtilleryWeapon::OwnerUpdate(const TimingInfo& time)
 	{
 		if(IsFiring(1) && time.total >= attack_ready_time)
 			LaunchRocketBug(time.total);

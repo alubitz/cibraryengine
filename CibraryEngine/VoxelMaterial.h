@@ -16,7 +16,7 @@ namespace CibraryEngine
 		string name;
 
 		TerrainTexture() : texture(NULL), name(), material_index(0) { }
-		TerrainTexture(Texture2D* texture, string name, int material_index) : texture(texture), name(name), material_index(material_index) { }
+		TerrainTexture(Texture2D* texture, const string& name, int material_index) : texture(texture), name(name), material_index(material_index) { }
 	};
 
 	struct VoxelMaterialVBO
@@ -41,24 +41,24 @@ namespace CibraryEngine
 		VoxelMaterialVBOBuilder() : vbo(NULL), normal_ptr(NULL), mat_ptr(NULL), num_verts(0) { }
 		VoxelMaterialVBOBuilder(VoxelMaterialVBO* vbo) :
 			vbo(vbo),
-			vert_ptr(vbo->vbo->GetFloatPointer("gl_Vertex")),
-			normal_ptr(vbo->vbo->GetFloatPointer("gl_Normal")),
-			mat_ptr(vbo->vbo->GetFloatPointer("material_weight")),
+			vert_ptr  (vbo->vbo->GetFloatPointer( "gl_Vertex"       )),
+			normal_ptr(vbo->vbo->GetFloatPointer( "gl_Normal"       )),
+			mat_ptr   (vbo->vbo->GetFloatPointer( "material_weight" )),
 			num_verts(0)
 		{
 		}
 
 		void AddVert(const Vec3& pos, const Vec3& normal, float mat_weight)
 		{
-			*(vert_ptr++) =		pos.x;
-			*(vert_ptr++) =		pos.y;
-			*(vert_ptr++) =		pos.z;
+			*(vert_ptr++)   = pos.x;
+			*(vert_ptr++)   = pos.y;
+			*(vert_ptr++)   = pos.z;
 
-			*(normal_ptr++) =	normal.x;
-			*(normal_ptr++) =	normal.y;
-			*(normal_ptr++) =	normal.z;
+			*(normal_ptr++) = normal.x;
+			*(normal_ptr++) = normal.y;
+			*(normal_ptr++) = normal.z;
 
-			*(mat_ptr++) =		mat_weight;
+			*(mat_ptr++)    = mat_weight;
 
 			++num_verts;
 		}
@@ -72,7 +72,7 @@ namespace CibraryEngine
 		Vec3 chunk_pos;
 		Mat4 xform;
 
-		VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, Vec3 chunk_pos, Mat4 xform);
+		VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform);
 	};
 
 	class VoxelMaterial : public Material
@@ -90,14 +90,14 @@ namespace CibraryEngine
 
 			VoxelMaterial(ContentMan* content);
 
-			void LoadTexture(Cache<Texture2D>* tex_cache, unsigned char material_index, string filename, string display_name);
+			void LoadTexture(Cache<Texture2D>* tex_cache, unsigned char material_index, const string& filename, const string& display_name);
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
+			void Draw(const RenderNode& node);
 
-			void Cleanup(RenderNode node);
+			void Cleanup(const RenderNode& node);
 
-			bool Equals(Material* material);
+			bool Equals(const Material* material) const;
 	};
 }

@@ -16,7 +16,7 @@ namespace Test
 
 			RigidBody* rigid_body;
 
-			WorldBoundary(GameState* gs, Plane plane);
+			WorldBoundary(GameState* gs, const Plane& plane);
 
 			bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 
@@ -30,6 +30,6 @@ namespace Test
 		GameState* game;
 
 		WorldBoundarySetter(istream* stream, GameState* game);
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 }

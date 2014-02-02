@@ -17,12 +17,12 @@ namespace CibraryEngine
 		private:
 
 			VertexBuffer* output_proto;
-			vector<string>				varying_names;		// needed to keep the vector<const GLchar*> from getting corrupted
-			vector<const GLchar*>		var_name;
-			vector<unsigned int>		var_n_per_vert;
-			vector<VertexAttributeType>	var_type;
+			vector<string>              varying_names;		// needed to keep the vector<const GLchar*> from getting corrupted
+			vector<const GLchar*>       var_name;
+			vector<unsigned int>        var_n_per_vert;
+			vector<VertexAttributeType> var_type;
 
-			map<string, string>			output_mapping;
+			map<string, string>         output_mapping;
 
 			bool init_ok;
 

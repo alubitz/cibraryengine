@@ -33,11 +33,11 @@ namespace CibraryEngine
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
+			void Draw(const RenderNode& node);
 
-			void Cleanup(RenderNode node);
+			void Cleanup(const RenderNode& node);
 
-			bool Equals(Material* other);
+			bool Equals(const Material* other) const;
 
 			static DebugDrawMaterial* GetDebugDrawMaterial();
 

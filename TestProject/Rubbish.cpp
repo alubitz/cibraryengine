@@ -7,7 +7,7 @@
 
 namespace Test
 {
-	Rubbish::Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle) :
+	Rubbish::Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, const Vec3& pos, const Quaternion& ori, ParticleMaterial* dirt_particle) :
 		Entity(gs),
 		model(model),
 		materials(),
@@ -74,5 +74,5 @@ namespace Test
 
 	}
 
-	void Rubbish::Update(TimingInfo time) { xform = rigid_body->GetTransformationMatrix(); }
+	void Rubbish::Update(const TimingInfo& time) { xform = rigid_body->GetTransformationMatrix(); }
 }

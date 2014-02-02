@@ -322,17 +322,17 @@ namespace CibraryEngine
 		solidified = true;
 	}
 
-	void TerrainChunk::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)
+	void TerrainChunk::ModifySphere(const Vec3& center, float inner_radius, float outer_radius, TerrainAction& action)
 	{
 		const float inv_range = 1.0f / (outer_radius - inner_radius);
 		const float outer_radius_sq = outer_radius * outer_radius;
 
 		int max_radius = (int)ceil(outer_radius);
-		center -= Vec3(float(chunk_x * ChunkSize), float(chunk_y * ChunkSize), float(chunk_z * ChunkSize));
+		Vec3 use_center(center.x - float(chunk_x * ChunkSize), center.y - float(chunk_y * ChunkSize), center.z - float(chunk_z * ChunkSize));
 
-		int min_x = max(0, (int)floor(center.x - max_radius)), max_x = min(ChunkSize - 1, (int)ceil(center.x + max_radius));
-		int min_y = max(0, (int)floor(center.y - max_radius)), max_y = min(ChunkSize - 1, (int)ceil(center.y + max_radius));
-		int min_z = max(0, (int)floor(center.z - max_radius)), max_z = min(ChunkSize - 1, (int)ceil(center.z + max_radius));
+		int min_x = max(0, (int)floor(use_center.x - max_radius)), max_x = min(ChunkSize - 1, (int)ceil(use_center.x + max_radius));
+		int min_y = max(0, (int)floor(use_center.y - max_radius)), max_y = min(ChunkSize - 1, (int)ceil(use_center.y + max_radius));
+		int min_z = max(0, (int)floor(use_center.z - max_radius)), max_z = min(ChunkSize - 1, (int)ceil(use_center.z + max_radius));
 
 		for(int xx = min_x; xx <= max_x; ++xx)
 		{
@@ -341,7 +341,7 @@ namespace CibraryEngine
 				for(int zz = min_z; zz <= max_z; ++zz)
 				{
 					Vec3 point = Vec3(float(xx), float(yy), float(zz));
-					Vec3 radius_vec = point - center;
+					Vec3 radius_vec = point - use_center;
 
 					float dist_sq = radius_vec.ComputeMagnitudeSquared();
 					if(dist_sq < outer_radius_sq)
@@ -474,18 +474,18 @@ namespace CibraryEngine
 							unsigned int start = (x + 1) * a_x_span + (y + 1) * max_z + (z + 1);
 							switch(index)
 							{
-								case 0: global_index =	(start								) * 3;		break;
-								case 1: global_index =	(start							+ 1	) * 3 + 1;	break;
-								case 2: global_index =	(start				+ max_z			) * 3;		break;
-								case 3: global_index =	(start								) * 3 + 1;	break;
-								case 4: global_index =	(start + a_x_span					) * 3;		break;
-								case 5: global_index =	(start + a_x_span				+ 1	) * 3 + 1;	break;
-								case 6: global_index =	(start + a_x_span	+ max_z			) * 3;		break;
-								case 7: global_index =	(start + a_x_span					) * 3 + 1;	break;
-								case 8: global_index =	(start								) * 3 + 2;	break;
-								case 9: global_index =	(start							+ 1	) * 3 + 2;	break;
-								case 10: global_index = (start				+ max_z		+ 1	) * 3 + 2;	break;
-								case 11: global_index = (start				+ max_z			) * 3 + 2;	break;
+								case 0:  global_index = (start                        ) * 3;     break;
+								case 1:  global_index = (start                    + 1 ) * 3 + 1; break;
+								case 2:  global_index = (start            + max_z     ) * 3;     break;
+								case 3:  global_index = (start                        ) * 3 + 1; break;
+								case 4:  global_index = (start + a_x_span             ) * 3;     break;
+								case 5:  global_index = (start + a_x_span         + 1 ) * 3 + 1; break;
+								case 6:  global_index = (start + a_x_span + max_z     ) * 3;     break;
+								case 7:  global_index = (start + a_x_span             ) * 3 + 1; break;
+								case 8:  global_index = (start                        ) * 3 + 2; break;
+								case 9:  global_index = (start                    + 1 ) * 3 + 2; break;
+								case 10: global_index = (start+ max_z             + 1 ) * 3 + 2; break;
+								case 11: global_index = (start+ max_z                 ) * 3 + 2; break;
 							}
 
 							assert(unique_vertices[global_index] != NULL);

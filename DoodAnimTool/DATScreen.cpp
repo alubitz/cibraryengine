@@ -367,7 +367,7 @@ namespace DoodAnimTool
 
 		
 
-		void Update(TimingInfo& time)
+		void Update(const TimingInfo& time)
 		{
 			static const float translate_speed = 0.5f;
 			static const float rotate_speed    = 1.0f;
@@ -833,18 +833,12 @@ namespace DoodAnimTool
 			{
 				solver->DebugJos();
 
-				int gun = dood->GetBoneIndex("gun");
-				if(gun >= 0)
+				int gun = dood->GetBoneIndex("gun"), pelvis = dood->GetBoneIndex("pelvis");
+				if(gun >= 0 && pelvis >= 0)
 				{
-					Vec3 fwd = keyframes[edit_keyframe].data[gun].ori * Vec3(0, 0, 1);
-					Debug(((stringstream&)(stringstream() << "gun fwd vec  = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
-				}
-
-				int head = dood->GetBoneIndex("head");
-				if(head >= 0)
-				{
-					Vec3 fwd = keyframes[edit_keyframe].data[head].ori * Vec3(0, 0, 1);
-					Debug(((stringstream&)(stringstream() << "head fwd vec = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+					const DATKeyframe& pose = *solver->pose;
+					Vec3 fwd = (Quaternion::Reverse(pose.data[pelvis].ori) * pose.data[gun].ori) * Vec3(0, 0, 1);
+					Debug(((stringstream&)(stringstream() << "gun fwd vec relative to pelvis = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
 				}
 			}
 		}
@@ -862,13 +856,13 @@ namespace DoodAnimTool
 				{
 					switch(kse->key)
 					{
-						case VK_SPACE:	{ imp->ClearSelection();				break; }
-						case VK_F3:		{ imp->draw_model = !imp->draw_model;	break; }
-						case VK_END:    { imp->DebugPose();						break; }
+						case VK_SPACE:  { imp->ClearSelection();                break; }
+						case VK_F3:     { imp->draw_model = !imp->draw_model;   break; }
+						case VK_END:    { imp->DebugPose();                     break; }
 
-						case VK_ESCAPE:	{ imp->next_screen = NULL;				break; }
+						case VK_ESCAPE: { imp->next_screen = NULL;              break; }
 
-						default:		{ break; }
+						default:        { break; }
 					}
 				}
 			}
@@ -969,7 +963,7 @@ namespace DoodAnimTool
 	DATScreen::DATScreen(ProgramWindow* win) : ProgramScreen(win), imp(new Imp(win)) { imp->next_screen = this; }
 	DATScreen::~DATScreen() { if(imp) { delete imp; imp = NULL; } }
 
-	ProgramScreen* DATScreen::Update(TimingInfo time)
+	ProgramScreen* DATScreen::Update(const TimingInfo& time)
 	{
 		if(imp->next_screen == this)
 			imp->Update(time);

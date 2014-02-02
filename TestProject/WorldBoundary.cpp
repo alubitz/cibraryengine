@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * WorldBoundary methods
 	 */
-	WorldBoundary::WorldBoundary(GameState* gs, Plane plane) : Entity(gs), plane(plane), rigid_body(NULL) { }
+	WorldBoundary::WorldBoundary(GameState* gs, const Plane& plane) : Entity(gs), plane(plane), rigid_body(NULL) { }
 
 	bool WorldBoundary::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass) { return true; }
 
@@ -68,5 +68,5 @@ namespace Test
 	};
 
 	WorldBoundarySetter::WorldBoundarySetter(istream* stream, GameState* game) : stream(stream), game(game) { }
-	TableParseable* WorldBoundarySetter::Set(string val) { return new WorldBoundaryParams(stream, game); }
+	TableParseable* WorldBoundarySetter::Set(const string& val) { return new WorldBoundaryParams(stream, game); }
 }

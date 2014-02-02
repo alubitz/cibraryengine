@@ -34,7 +34,7 @@ namespace CibraryEngine
 		int Run(ProgramScreen* initial_screen);
 
 		/** Sets the caption of the window */
-		void SetTitle(string text);
+		void SetTitle(const string& text);
 
 		int GetWidth();
 		int GetHeight();
@@ -49,7 +49,7 @@ namespace CibraryEngine
 
 		EventDispatcher OnWindowClosing;
 
-		static ProgramWindow* CreateProgramWindow(string title, int w, int h, int bpp, bool fullscreen);
+		static ProgramWindow* CreateProgramWindow(const string& title, int w, int h, int bpp, bool fullscreen);
 	};
 
 	struct WindowClosingEvent : public Event

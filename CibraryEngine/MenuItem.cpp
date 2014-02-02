@@ -57,7 +57,7 @@ namespace CibraryEngine
 		imp->font->Print(imp->text, (float)imp->x1, (float)imp->y1);
 	}
 
-	void MenuItem::Update(TimingInfo time)
+	void MenuItem::Update(const TimingInfo& time)
 	{
 		float change_rate = time.elapsed * 3.0f;
 		if(imp->selectable && imp->hover)
@@ -90,7 +90,7 @@ namespace CibraryEngine
 
 	void* MenuItem::GetUserPointer()			{ return imp->user_pointer; }
 
-	void MenuItem::SetText(string text)			{ imp->text = text; }
+	void MenuItem::SetText(const string& text)			{ imp->text = text; }
 
 	void MenuItem::SetRect(int* x1, int* y1, int* x2, int* y2)
 	{

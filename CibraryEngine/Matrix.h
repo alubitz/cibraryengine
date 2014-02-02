@@ -33,7 +33,9 @@ namespace CibraryEngine
 		}
 
 		/** Returns a reference to the specified element of the matrix */
-		float& operator[](int index)	{ return values[index]; }
+		float& operator[](int index)	         { return values[index]; }
+		/** Returns a const reference to the specified element of the matrix */
+		const float& operator[](int index) const { return values[index]; }
 
 		/** Returns the transpose of this matrix */
 		Mat3 Transpose() const			{ return Mat3(values[0], values[3], values[6], values[1], values[4], values[7], values[2], values[5], values[8]); }
@@ -188,6 +190,8 @@ namespace CibraryEngine
 
 		/** Returns a reference to the specified element of the matrix */
 		float& operator[](int index) { return values[index]; }
+		/** Returns a const reference to the specified element of the matrix */
+		const float& operator[](int index) const { return values[index]; }
 
 		
 

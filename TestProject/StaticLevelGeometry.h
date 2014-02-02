@@ -28,7 +28,7 @@ namespace Test
 			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
-			StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, Vec3 pos, Quaternion ori);
+			StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, const Vec3& pos, const Quaternion& ori);
 
 			void Vis(SceneRenderer* renderer);
 
@@ -44,6 +44,6 @@ namespace Test
 		GameState* game;
 
 		StaticGeometrySetter(istream* stream, GameState* game);
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 }

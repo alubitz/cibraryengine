@@ -27,7 +27,7 @@ namespace CibraryEngine
 
 			void Send(Packet p);
 
-			void Connect(string server_ip_string, unsigned short port_num);
+			void Connect(const string& server_ip_string, unsigned short port_num);
 			void Disconnect();
 			bool IsConnected();
 

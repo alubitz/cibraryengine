@@ -18,7 +18,7 @@ namespace CibraryEngine
 		VertexBuffer* model;
 		Mat4 xform;
 
-		GlowyModelMaterialNodeData(VertexBuffer* model, Mat4 xform);
+		GlowyModelMaterialNodeData(VertexBuffer* model, const Mat4& xform);
 
 		void Draw();
 	};
@@ -41,10 +41,10 @@ namespace CibraryEngine
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
+			void Draw(const RenderNode& node);
 
-			void Cleanup(RenderNode node);
+			void Cleanup(const RenderNode& node);
 
-			bool Equals(Material* material);
+			bool Equals(const Material* material) const;
 	};
 }

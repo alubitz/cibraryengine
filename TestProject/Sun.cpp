@@ -3,7 +3,7 @@
 
 namespace Test
 {
-	Sun::Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture) : position(position), color(color), view_matrix(Mat4::Identity()), model(model), texture(texture)
+	Sun::Sun(const Vec3& position, const Vec3& color, VertexBuffer* model, Texture2D* texture) : position(position), color(color), view_matrix(Mat4::Identity()), model(model), texture(texture)
 	{
 		distance = position.ComputeMagnitude();
 		rm = Util::FindOrientationZEdge(position);

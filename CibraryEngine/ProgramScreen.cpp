@@ -13,7 +13,7 @@ namespace CibraryEngine
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
-	ProgramScreen* ProgramScreen::Update(TimingInfo time) { return this; }
+	ProgramScreen* ProgramScreen::Update(const TimingInfo& time) { return this; }
 
 	void ProgramScreen::Activate() { }
 	void ProgramScreen::Deactivate() { }

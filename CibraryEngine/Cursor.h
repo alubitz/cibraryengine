@@ -28,7 +28,7 @@ namespace CibraryEngine
 
 			string cursor_name;
 
-			Cursor(Texture2D* texture, Vec2 offset);
+			Cursor(Texture2D* texture, const Vec2& offset);
 
 			Texture2D* GetImage();
 			Vec2 GetOffset();

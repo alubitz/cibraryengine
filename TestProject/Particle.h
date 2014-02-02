@@ -24,9 +24,9 @@ namespace Test
 
 			float gravity, damp;
 
-			Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime);
+			Particle(GameState* gs, const Vec3& pos, const Vec3& vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
 			virtual void Spawned();
 			void DeSpawned();

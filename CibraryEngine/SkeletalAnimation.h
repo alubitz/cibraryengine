@@ -43,7 +43,7 @@ namespace CibraryEngine
 			Mat4 cached_xform;
 			bool cache_valid;
 
-			Bone(unsigned int, Bone* parent, Quaternion ori, Vec3 pos);
+			Bone(unsigned int, Bone* parent, const Quaternion& ori, const Vec3& pos);
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this bone, computing the transformation matrices of its ancestors in the parent hierarchy as necessary */
 			Mat4 GetTransformationMatrix();
@@ -70,11 +70,11 @@ namespace CibraryEngine
 			Skeleton(Skeleton* prototype);
 
 			/** Adds a bone with the specified name, default orientation, and default point of attachment */
-			Bone* AddBone(unsigned int bone_name, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int bone_name, const Quaternion& ori, const Vec3& attach);
 			/** Adds a bone with the specified name, parent bone, default orientation, and default point of attachment */
-			Bone* AddBone(unsigned int bone_name, Bone* parent, Quaternion ori, Vec3 attach);
+			Bone* AddBone(unsigned int bone_name, Bone* parent, const Quaternion& ori, const Vec3& attach);
 
-			Bone* GetNamedBone(string bone_name);
+			Bone* GetNamedBone(const string& bone_name);
 			Bone* GetNamedBone(unsigned int bone_name);
 
 			/** Reads a skeleton from a stream, and returns 0 if ok or an int error code */
@@ -110,7 +110,7 @@ namespace CibraryEngine
 			PosedCharacter(Skeleton* skeleton);
 
 			/** Updates the poses of this character */
-			void UpdatePoses(TimingInfo time);
+			void UpdatePoses(const TimingInfo& time);
 	};
 
 	struct SkinnedCharacterRenderInfo
@@ -148,7 +148,7 @@ namespace CibraryEngine
 			SkinnedCharacterRenderInfo GetRenderInfo();
 
 			/** Static utility function to generate a 1-dimensional texture which encodes several transformation matrices, for use by my awesome vertex shader; remember to dispose of and delete the result! */
-			static Texture1D* MatricesToTexture1D(vector<Mat4>& matrices, Texture1D* existing_texture = NULL, float precision = 4096.0f);
+			static Texture1D* MatricesToTexture1D(const vector<Mat4>& matrices, Texture1D* existing_texture = NULL, float precision = 4096.0f);
 	};
 
 	/** Class representing how a Pose affects a certain Bone */
@@ -162,7 +162,7 @@ namespace CibraryEngine
 		/** Initializes a default BoneInfluence which does nothing */
 		BoneInfluence() : ori(), pos() { }
 		/** Initializes a BoneInfluence, specifying the rotation, translation, and idr */
-		BoneInfluence(Vec3 ori, Vec3 pos) : ori(ori), pos(pos) { }
+		BoneInfluence(const Vec3& ori, const Vec3& pos) : ori(ori), pos(pos) { }
 
 		/** Adds two bone influences */
 		void operator +=(BoneInfluence& other) { ori += other.ori; pos += other.pos; }
@@ -189,7 +189,7 @@ namespace CibraryEngine
 			void SetBonePose(unsigned int which, const Vec3& ori, const Vec3& pos) { bones[which] = BoneInfluence(ori, pos); }
 
 			/** Abstract function where you can call SetBonePose */
-			virtual void UpdatePose(TimingInfo time) = 0;
+			virtual void UpdatePose(const TimingInfo& time) = 0;
 
 			/** Query whether this Pose is active or not; if not, it will be removed from the active poses of the SkinnedCharacter */
 			bool IsActive() { return active; }

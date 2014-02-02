@@ -9,5 +9,5 @@ namespace Test
 
 	class TestGame;
 
-	unsigned int LoadLevel(TestGame* game, string level_name);
+	unsigned int LoadLevel(TestGame* game, const string& level_name);
 }

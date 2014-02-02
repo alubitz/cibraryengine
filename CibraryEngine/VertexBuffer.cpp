@@ -83,8 +83,8 @@ namespace CibraryEngine
 			{
 				switch(GetAttribType(iter->first))
 				{
-					case Float:	{ float* floats = iter->second.floats;	delete[] floats;	break; }
-					case Int:	{ int* ints = iter->second.ints;		delete[] ints;		break; }
+					case Float: { float* floats = iter->second.floats; delete[] floats; break; }
+					case Int:   { int* ints = iter->second.ints;       delete[] ints;   break; }
 				}
 			}
 			attribute_data.clear();
@@ -100,8 +100,8 @@ namespace CibraryEngine
 			{
 				switch(GetAttribType(iter->first))
 				{
-					case Float:	{ float* old_data = iter->second.floats;	if(old_data) { delete[] old_data; } break; }
-					case Int:	{ int* old_data = iter->second.ints;		if(old_data) { delete[] old_data; } break; }
+					case Float: { float* old_data = iter->second.floats; if(old_data) { delete[] old_data; } break; }
+					case Int:   { int* old_data = iter->second.ints;     if(old_data) { delete[] old_data; } break; }
 				}
 
 				nu_attribute_data[iter->first] = VertexData();
@@ -127,8 +127,8 @@ namespace CibraryEngine
 
 		switch(type)
 		{
-			case Float:	{ attribute_data[name].floats =	num_elements > 0 ? new float[num_elements] : NULL;	break; }
-			case Int:	{ attribute_data[name].ints =	num_elements > 0 ? new int[num_elements] : NULL;	break; }
+			case Float: { attribute_data[name].floats = num_elements > 0 ? new float[num_elements] : NULL; break; }
+			case Int:   { attribute_data[name].ints   = num_elements > 0 ? new int[num_elements]   : NULL; break; }
 		}
 	}
 
@@ -147,8 +147,8 @@ namespace CibraryEngine
 
 				switch(attribute.type)
 				{
-					case Float:	{ delete[] data.floats;	break; }
-					case Int:	{ delete[] data.ints;	break; }
+					case Float: { delete[] data.floats; break; }
+					case Int:   { delete[] data.ints;   break; }
 				}
 
 				attribute_data.erase(found_attrib);
@@ -189,8 +189,8 @@ namespace CibraryEngine
 			VertexAttribute& attrib = iter->second;
 			switch(attrib.type)
 			{
-				case Float:	{ total_size += attrib.n_per_vertex * sizeof(float);	break; }
-				case Int:	{ total_size += attrib.n_per_vertex * sizeof(int);		break; }
+				case Float: { total_size += attrib.n_per_vertex * sizeof(float);   break; }
+				case Int:   { total_size += attrib.n_per_vertex * sizeof(int);     break; }
 			}
 		}
 		return total_size;
@@ -244,16 +244,16 @@ namespace CibraryEngine
 			int attrib_size = 0;
 			switch(attrib.type)
 			{
-				case Float:	{ attrib_size = attrib.n_per_vertex * sizeof(float);	break; }
-				case Int:	{ attrib_size = attrib.n_per_vertex * sizeof(int);		break; }
+				case Float: { attrib_size = attrib.n_per_vertex * sizeof(float);   break; }
+				case Int:   { attrib_size = attrib.n_per_vertex * sizeof(int);     break; }
 			}
 
 			if(attrib_size > 0)
 			{
 				switch(attrib.type)
 				{
-					case Float:	{ glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);	break; }
-					case Int:	{ glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);		break; }
+					case Float: { glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);   break; }
+					case Int:   { glBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);     break; }
 				}
 
 				offset += attrib_size;
@@ -288,16 +288,16 @@ namespace CibraryEngine
 			int attrib_size = 0;
 			switch(attrib.type)
 			{
-				case Float:	{ attrib_size = attrib.n_per_vertex * sizeof(float);	break; }
-				case Int:	{ attrib_size = attrib.n_per_vertex * sizeof(int);		break; }
+				case Float: { attrib_size = attrib.n_per_vertex * sizeof(float);   break; }
+				case Int:   { attrib_size = attrib.n_per_vertex * sizeof(int);     break; }
 			}
 
 			if(attrib_size > 0)
 			{
 				switch(attrib.type)
 				{
-					case Float:	{ glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats);	break; }
-					case Int:	{ glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);	break; }
+					case Float: { glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].floats); break; }
+					case Int:   { glGetBufferSubData(GL_ARRAY_BUFFER, offset * num_verts, attrib_size * num_verts, attribute_data[attrib.name].ints);   break; }
 				}
 
 				offset += attrib_size;
@@ -385,8 +385,8 @@ namespace CibraryEngine
 
 			switch(attrib.type)
 			{
-				case Float:	{ offset += attrib.n_per_vertex * sizeof(float);	break; }
-				case Int:	{ offset += attrib.n_per_vertex * sizeof(int);		break; }
+				case Float: { offset += attrib.n_per_vertex * sizeof(float);   break; }
+				case Int:   { offset += attrib.n_per_vertex * sizeof(int);     break; }
 			}
 		}
 

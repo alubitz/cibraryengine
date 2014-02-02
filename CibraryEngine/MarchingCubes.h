@@ -12,7 +12,7 @@ namespace CibraryEngine
 		static const unsigned short int edge_table[256];
 		static const char tri_table[256][16];
 
-		template <class I, class O> static void Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, char* indices);
+		template <class I, class O> static void Polygonize(const Vec3& base_xyz, I grid[8], float isolevel, O* target, char* indices);
 		template <class O, class I> static O InterpolateVertex(float isolevel, I p1, I p2);
 	};
 
@@ -23,7 +23,7 @@ namespace CibraryEngine
 	 * At least I didn't have to put the tables in the same file...
 	 *
 	 */
-	template <class I, class O> static void MarchingCubes::Polygonize(Vec3 base_xyz, I grid[8], float isolevel, O* target, char* indices)
+	template <class I, class O> static void MarchingCubes::Polygonize(const Vec3& base_xyz, I grid[8], float isolevel, O* target, char* indices)
 	{
 		// tables and much of the algorithm is from http://paulbourke.net/geometry/polygonise
 		int classification = 0;

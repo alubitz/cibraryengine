@@ -20,7 +20,7 @@ namespace Test
 			VertexBuffer* model;
 			Texture2D* texture;
 
-			Sun(Vec3 position, Vec3 color, VertexBuffer* model, Texture2D* texture);
+			Sun(const Vec3& position, const Vec3& color, VertexBuffer* model, Texture2D* texture);
 
 			void SetLight(int index);
 			void UnsetLight(int index);

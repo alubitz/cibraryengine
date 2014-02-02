@@ -11,7 +11,7 @@ namespace CibraryEngine
 	 * Packet methods
 	 */
 	Packet::Packet() : data() { }
-	Packet::Packet(string data) : data(data) { }
+	Packet::Packet(const string& data) : data(data) { }
 
 	string Packet::GetBytes() { return data; }
 
@@ -50,7 +50,7 @@ namespace CibraryEngine
             return false;
 	}
 
-	Packet Packet::CreateAutoLength(string data)
+	Packet Packet::CreateAutoLength(const string& data)
 	{
 		stringstream ss;
 
@@ -61,14 +61,15 @@ namespace CibraryEngine
         return Packet(ss.str());
 	}
 
-	Packet Packet::CreateNamedAutoLength(string type, string data)
+	Packet Packet::CreateNamedAutoLength(const string& type, const string& data)
 	{
-		if(type.length() > 8)
-			type = type.substr(0, 8);
+		string use_type = type;
+		if(use_type.length() > 8)
+			use_type = type.substr(0, 8);
 		else
 		{
-			while(type.length() < 8)
-				type += '_';
+			while(use_type.length() < 8)
+				use_type += '_';
 		}
 
 		unsigned int len = data.length();
@@ -77,14 +78,14 @@ namespace CibraryEngine
 		
 		WriteUInt32(len + 8, ss);
 		for(unsigned int i = 0; i < 8; ++i)
-			WriteByte(type[i], ss);
+			WriteByte(use_type[i], ss);
 		for(unsigned int i = 0; i < len; ++i)
 			WriteByte(data[i], ss);
 
         return Packet(ss.str());
 	}
 
-	bool Packet::MaybeExtractPacket(string& byte_stream, string& unused_bytes, Packet& packet_out)
+	bool Packet::MaybeExtractPacket(const string& byte_stream, string& unused_bytes, Packet& packet_out)
 	{
 		if(byte_stream.length() < 4)
         {

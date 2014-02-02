@@ -739,9 +739,9 @@ namespace CibraryEngine
 						Vec3 u_ab = ab / sqrtf(magsq);
 						Vec3 cross_ab = Vec3::Cross(direction, u_ab);
 
-						float ay =	Vec3::Dot(a, cross_ab);
-						float ax1 =	Vec3::Dot(a, u_ab);
-						float ax2 =	Vec3::Dot(b, u_ab);
+						float ay  = Vec3::Dot(a, cross_ab);
+						float ax1 = Vec3::Dot(a, u_ab);
+						float ax2 = Vec3::Dot(b, u_ab);
 
 						Vec2 tube_p1(ax1, ay), tube_p2(ax2, ay);
 

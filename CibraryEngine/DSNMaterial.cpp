@@ -57,7 +57,7 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void DSNMaterial::Draw(RenderNode node) { node_data.push_back((DSNMaterialNodeData*)node.data); }
+	void DSNMaterial::Draw(const RenderNode& node) { node_data.push_back((DSNMaterialNodeData*)node.data); }
 
 	void DrawNodeData(DSNMaterialNodeData* data, ShaderProgram* use_shader);
 
@@ -142,9 +142,9 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void DSNMaterial::Cleanup(RenderNode node) { delete (DSNMaterialNodeData*)node.data; }
+	void DSNMaterial::Cleanup(const RenderNode& node) { delete (DSNMaterialNodeData*)node.data; }
 
-	bool DSNMaterial::Equals(Material* material)
+	bool DSNMaterial::Equals(const Material* material) const
 	{
 		return mclass_id == material->mclass_id && diffuse->GetGLName() == ((DSNMaterial*)material)->diffuse->GetGLName()  && specular->GetGLName() == ((DSNMaterial*)material)->specular->GetGLName() && normal->GetGLName() == ((DSNMaterial*)material)->normal->GetGLName();
 	}
@@ -155,7 +155,7 @@ namespace CibraryEngine
 	/*
 	 * DSNMaterialNodeData methods
 	 */
-	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs) :
+	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, const Mat4& xform, const Sphere& bs) :
 		model(model),
 		xform(xform),
 		bs(bs),
@@ -165,7 +165,7 @@ namespace CibraryEngine
 	{
 	}
 
-	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count, float precision) :
+	DSNMaterialNodeData::DSNMaterialNodeData(VertexBuffer* model, const Mat4& xform, const Sphere& bs, Texture1D* bone_matrices, int bone_count, float precision) :
 		model(model),
 		xform(xform),
 		bs(bs),

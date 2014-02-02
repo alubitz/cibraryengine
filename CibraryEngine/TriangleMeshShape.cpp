@@ -133,7 +133,7 @@ namespace CibraryEngine
 						Vec3 pos;
 						unsigned int index;
 
-						VertStruct(Vec3 pos, unsigned int index) : pos(pos), index(index)  { }
+						VertStruct(const Vec3& pos, unsigned int index) : pos(pos), index(index)  { }
 					};
 
 					Octree<vector<VertStruct> > tree(aabb.min, aabb.max);
@@ -152,7 +152,7 @@ namespace CibraryEngine
 								unsigned int index;
 								bool done;
 
-								Action(Vec3 vert, vector<Vec3>& vertices) : vert(vert), vertices(vertices), done(false) { }
+								Action(const Vec3& vert, vector<Vec3>& vertices) : vert(vert), vertices(vertices), done(false) { }
 
 								void operator()(Octree<vector<VertStruct> >* node)
 								{

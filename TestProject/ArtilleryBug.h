@@ -20,17 +20,17 @@ namespace Test
 
 					WalkPose() : Pose(), yaw(), pos() { }
 
-					void UpdatePose(TimingInfo time) { /*SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3());*/ }
+					void UpdatePose(const TimingInfo& time) { /*SetBonePose(Bone::string_table["carapace"], Vec3(0, -yaw, 0), Vec3());*/ }
 			};
 			WalkPose* walk_pose;
 
 		protected:
 
-			void PreUpdatePoses(TimingInfo time);
+			void PreUpdatePoses(const TimingInfo& time);
 
 		public:
 
-			ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
+			ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
 			static void GetBoneEntries(vector<BoneEntry>& bone_entries);			// just for convenience in the conversion process
 

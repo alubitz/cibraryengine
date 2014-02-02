@@ -34,7 +34,7 @@ namespace Test
 
 			RocketBug(GameState* game_state, Dood* firer, UberModel* model, ModelPhysics* mphys, const Vec3& pos, const Vec3& vel, const Quaternion& ori);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
 			void Spawned();
 			void DeSpawned();

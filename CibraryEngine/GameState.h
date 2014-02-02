@@ -65,7 +65,7 @@ namespace CibraryEngine
 			virtual ~GameState();
 
 			/** Steps the simulation */
-			virtual void Update(TimingInfo time);
+			virtual void Update(const TimingInfo& time);
 			/** Draws the GameState, given the dimensions of the viewing area */
 			virtual void Draw(int width, int height);
 

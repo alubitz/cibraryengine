@@ -105,7 +105,7 @@ namespace Test
 	/*
 	 * CrabBug methods
 	 */
-	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
 		crab_heading(new CrabHeading())
 	{
@@ -129,7 +129,7 @@ namespace Test
 		standing_callback.angular_coeff = 0.0f;
 	}
 
-	void CrabBug::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward)
+	void CrabBug::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
 	{
 		if(standing_callback.IsStanding() && control_state->GetBoolControl("leap") && time.total > jump_start_timer)
 		{
@@ -143,9 +143,9 @@ namespace Test
 		}
 	}
 
-	void CrabBug::PreUpdatePoses(TimingInfo time) { crab_heading->yaw = yaw; }
+	void CrabBug::PreUpdatePoses(const TimingInfo& time) { crab_heading->yaw = yaw; }
 
-	void CrabBug::Update(TimingInfo time)
+	void CrabBug::Update(const TimingInfo& time)
 	{
 #if DIE_AFTER_ONE_SECOND
 		if(time.total > 1.0f)

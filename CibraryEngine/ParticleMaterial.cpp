@@ -14,7 +14,7 @@
 namespace CibraryEngine
 {
 	/*
-	 * ParticleMaterial implementation
+	 * ParticleMaterial private implementation struct
 	 */
 	struct ParticleMaterial::Imp
 	{
@@ -22,7 +22,7 @@ namespace CibraryEngine
 		bool is_3d;
 
 		Imp(Texture2D* tex) : tex(tex), is_3d(false) { }
-		Imp(Texture3D* tex) : tex(tex), is_3d(true) { }
+		Imp(Texture3D* tex) : tex(tex), is_3d(true)  { }
 	};
 
 
@@ -40,8 +40,8 @@ namespace CibraryEngine
 		imp = NULL;
 	}
 
-	Texture* ParticleMaterial::GetTexture() { return imp->tex; }
-	bool ParticleMaterial::IsTexture3D() { return imp->is_3d; }
+	Texture* ParticleMaterial::GetTexture() const { return imp->tex;   }
+	bool ParticleMaterial::IsTexture3D() const    { return imp->is_3d; }
 
 	void ParticleMaterial::SetTexture(Texture2D* tex)
 	{
@@ -55,7 +55,16 @@ namespace CibraryEngine
 		imp->is_3d = true;
 	}
 
-	bool ParticleMaterial::Equals(Material* other) { return other != NULL && other->mclass_id == mclass_id && GetTexture() == ((ParticleMaterial*)other)->GetTexture(); }
+	bool ParticleMaterial::Equals(const Material* other) const
+	{
+		if(other != NULL && other->mclass_id == mclass_id)
+		{
+			Imp* other_imp = ((ParticleMaterial*)other)->imp;
+			return imp->is_3d == other_imp->is_3d && imp->tex == other_imp->tex;
+		}
+		else
+			return false;
+	}
 
 	void ParticleMaterial::BeginDraw(SceneRenderer* renderer)
 	{
@@ -125,9 +134,9 @@ namespace CibraryEngine
 
 		GLDEBUG();
 	}
-	void ParticleMaterial::Draw(RenderNode node) { ((ParticleMaterialNodeData*)node.data)->Execute(); }
+	void ParticleMaterial::Draw(const RenderNode& node)    { ((ParticleMaterialNodeData*)node.data)->Execute(); }
 
-	void ParticleMaterial::Cleanup(RenderNode node) { delete (ParticleMaterialNodeData*)node.data; }
+	void ParticleMaterial::Cleanup(const RenderNode& node) { delete (ParticleMaterialNodeData*)node.data; }
 
 
 
@@ -135,19 +144,20 @@ namespace CibraryEngine
 	/*
 	 * ParticleMaterialNodeData methods
 	 */
-	ParticleMaterialNodeData::ParticleMaterialNodeData(Vec3 pos, float radius, float angle, CameraView* camera) : radius(radius), pos(pos), angle(angle), red(1), green(1), blue(1), alpha(1), third_coord(0), camera_view(camera) { }
+	ParticleMaterialNodeData::ParticleMaterialNodeData(const Vec3& pos, float radius, float angle, CameraView* camera) : radius(radius), pos(pos), angle(angle), red(1), green(1), blue(1), alpha(1), third_coord(0), camera_view(camera) { }
 
-	void PMNDVert(Vec3 vert) { glVertex3f(vert.x, vert.y, vert.z); }
+	void PMNDVert(const Vec3& vert) { glVertex3f(vert.x, vert.y, vert.z); }
 
 	void ParticleMaterialNodeData::Execute()
 	{
 		glColor4f(red, green, blue, alpha);
 
 		Vec3 cam_right = camera_view->GetRight() * radius;
-		Vec3 cam_up = camera_view->GetUp() * radius;
-		float cos_val = cosf(angle), sin_val = sinf(angle);
-		Vec3 use_right = cam_right * cos_val + cam_up * sin_val;
-		Vec3 use_up = cam_right * -sin_val + cam_up * cos_val;
+		Vec3 cam_up    = camera_view->GetUp()    * radius;
+		float cos_val  = cosf(angle);
+		float sin_val  = sinf(angle);
+		Vec3 use_right = cam_right *  cos_val + cam_up * sin_val;
+		Vec3 use_up    = cam_right * -sin_val + cam_up * cos_val;
 
 		glTexCoord3f(0, 0, third_coord);
 		PMNDVert(pos - use_right - use_up);

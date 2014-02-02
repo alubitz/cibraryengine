@@ -21,7 +21,7 @@ namespace Test
 			test_game = new TestGame(this, window->sound_system);
 	}
 
-	ProgramScreen* TestScreen::Update(TimingInfo time)
+	ProgramScreen* TestScreen::Update(const TimingInfo& time)
 	{
 		if(input_state->keys[VK_ESCAPE])
 			finished = true;

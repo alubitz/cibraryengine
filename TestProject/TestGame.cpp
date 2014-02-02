@@ -266,7 +266,7 @@ namespace Test
 			}
 		}
 
-		void DrawBackground(Mat4 view_matrix)
+		void DrawBackground(Mat4& view_matrix)
 		{
 			glDisable(GL_BLEND);
 			glDisable(GL_DEPTH_TEST);
@@ -275,8 +275,8 @@ namespace Test
 
 			GLDEBUG();
 
-			sky_shader->SetUniform<TextureCube>	( "sky_texture",	sky_texture  );
-			sky_shader->SetUniform<Mat4>		( "view_matrix",	&view_matrix );
+			sky_shader->SetUniform<TextureCube> ( "sky_texture", sky_texture  );
+			sky_shader->SetUniform<Mat4>        ( "view_matrix", &view_matrix );
 			ShaderProgram::SetActiveProgram(sky_shader);
 
 			GLDEBUG();
@@ -559,7 +559,7 @@ namespace Test
 		load_status.Stop();
 	}
 
-	Dood* TestGame::SpawnPlayer(Vec3 pos)
+	Dood* TestGame::SpawnPlayer(const Vec3& pos)
 	{
 		if(player_pawn != NULL)
 			player_pawn->is_valid = false;
@@ -586,7 +586,7 @@ namespace Test
 		return player_pawn;
 	}
 
-	Dood* TestGame::SpawnBot(Vec3 pos)
+	Dood* TestGame::SpawnBot(const Vec3& pos)
 	{
 		Dood* dood = new CrabBug(this, imp->crab_bug_model, imp->crab_bug_physics, pos, bug_team);
 		Spawn(dood);
@@ -605,7 +605,7 @@ namespace Test
 		return dood;
 	}
 
-	Dood* TestGame::SpawnArtilleryBug(Vec3 pos)
+	Dood* TestGame::SpawnArtilleryBug(const Vec3& pos)
 	{
 		Dood* dood = new ArtilleryBug(this, imp->artillery_bug_model, imp->artillery_bug_physics, pos, bug_team);
 		Spawn(dood);
@@ -632,7 +632,7 @@ namespace Test
 		return bugs.Count();
 	}
 
-	Rubbish* TestGame::SpawnRubbish(Vec3 pos)
+	Rubbish* TestGame::SpawnRubbish(const Vec3& pos)
 	{
 		UberModel* rubbish_model = imp->rubbish_model;
 		ModelPhysics* rubbish_phys = imp->rubbish_physics;
@@ -652,7 +652,7 @@ namespace Test
 
 	TestGame::~TestGame() { Dispose(); ScriptSystem::SetGS(NULL); }
 
-	void DebugNavGraphError(unsigned int line, string file)
+	void DebugNavGraphError(unsigned int line, const string& file)
 	{
 		if(NavGraph::ErrorCode error = NavGraph::GetError())
 		{
@@ -665,7 +665,7 @@ namespace Test
 #define NGDEBUG() DebugNavGraphError(__LINE__, __FILE__)
 
 	static string script_string;
-	void TestGame::Update(TimingInfo time)
+	void TestGame::Update(const TimingInfo& time)
 	{
 		NGDEBUG();
 
@@ -681,7 +681,7 @@ namespace Test
 		total_game_time += elapsed;
 		elapsed_game_time = elapsed;
 
-		TimingInfo clamped_time = TimingInfo(elapsed, total_game_time);
+		TimingInfo clamped_time(elapsed, total_game_time);
 
 		hud->UpdateHUDGauges(clamped_time);
 
@@ -903,24 +903,24 @@ namespace Test
 			imp->sun->SetLight(0);
 
 			ShaderProgram* deferred_lighting = imp->deferred_lighting;
-			deferred_lighting->SetUniform<Texture2D>	( "diffuse",             render_target->GetColorBufferTex(0));
-			deferred_lighting->SetUniform<Texture2D>	( "normal",              render_target->GetColorBufferTex(1));
-			deferred_lighting->SetUniform<Texture2D>	( "specular",            render_target->GetColorBufferTex(2));
-			deferred_lighting->SetUniform<Texture2D>	( "depth",               render_target->GetDepthBufferTex());
-			deferred_lighting->SetUniform<float>		( "camera_near",         &camera_near         );
-			deferred_lighting->SetUniform<float>		( "camera_far",          &camera_far          );
+			deferred_lighting->SetUniform<Texture2D>    ( "diffuse",             render_target->GetColorBufferTex(0));
+			deferred_lighting->SetUniform<Texture2D>    ( "normal",              render_target->GetColorBufferTex(1));
+			deferred_lighting->SetUniform<Texture2D>    ( "specular",            render_target->GetColorBufferTex(2));
+			deferred_lighting->SetUniform<Texture2D>    ( "depth",               render_target->GetDepthBufferTex() );
+			deferred_lighting->SetUniform<float>        ( "camera_near",         &camera_near         );
+			deferred_lighting->SetUniform<float>        ( "camera_far",          &camera_far          );
 #if ENABLE_SHADOWS
-			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[0]",    shadow_textures[0]   );
-			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[1]",    shadow_textures[1]   );
-			deferred_lighting->SetUniform<Texture2D>	( "shadow_depths[2]",    shadow_textures[2]   );
-			deferred_lighting->SetUniform<vector<Mat4>>	( "shadow_matrices",     &shadow_matrices     );
-			deferred_lighting->SetUniform<vector<Mat4>>	( "inv_shadow_matrices", &inv_shadow_matrices );
-			deferred_lighting->SetUniform<float>		( "shadow_near",         &shadow_near         );
-			deferred_lighting->SetUniform<float>		( "shadow_far",          &shadow_far          );
+			deferred_lighting->SetUniform<Texture2D>    ( "shadow_depths[0]",    shadow_textures[0]   );
+			deferred_lighting->SetUniform<Texture2D>    ( "shadow_depths[1]",    shadow_textures[1]   );
+			deferred_lighting->SetUniform<Texture2D>    ( "shadow_depths[2]",    shadow_textures[2]   );
+			deferred_lighting->SetUniform<vector<Mat4>> ( "shadow_matrices",     &shadow_matrices     );
+			deferred_lighting->SetUniform<vector<Mat4>> ( "inv_shadow_matrices", &inv_shadow_matrices );
+			deferred_lighting->SetUniform<float>        ( "shadow_near",         &shadow_near         );
+			deferred_lighting->SetUniform<float>        ( "shadow_far",          &shadow_far          );
 #endif
-			deferred_lighting->SetUniform<Mat4>			( "inv_view_matrix",     &inv_view_matrix     );
-			deferred_lighting->SetUniform<float>		( "aspect_ratio",        &aspect_ratio        );
-			deferred_lighting->SetUniform<float>		( "zoom",                &zoom                );
+			deferred_lighting->SetUniform<Mat4>         ( "inv_view_matrix",     &inv_view_matrix     );
+			deferred_lighting->SetUniform<float>        ( "aspect_ratio",        &aspect_ratio        );
+			deferred_lighting->SetUniform<float>        ( "zoom",                &zoom                );
 
 			DrawScreenQuad(deferred_lighting, (float)width, (float)height, (float)render_target->GetWidth(), (float)render_target->GetHeight());
 
@@ -993,7 +993,7 @@ namespace Test
 		glPopMatrix();
 	}
 
-	void TestGame::ShowChapterText(string text, string subtitle, float fade_time)
+	void TestGame::ShowChapterText(const string& text, const string& subtitle, float fade_time)
 	{
 		chapter_text = text;
 		chapter_sub_text = subtitle;
@@ -1440,7 +1440,7 @@ namespace Test
 		return 0;
 	}
 
-	bool MaybeCreateEdge(Vec3 delta, unsigned int graph, unsigned int my_node, unsigned int other_node)
+	bool MaybeCreateEdge(const Vec3& delta, unsigned int graph, unsigned int my_node, unsigned int other_node)
 	{
 		float dy = delta.y;
 		float dxz = sqrtf(delta.x * delta.x + delta.z * delta.z);
@@ -1455,9 +1455,9 @@ namespace Test
 			return false;
 	}
 
-	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, vector<unsigned int> other_column)
+	void MaybeCreateEdge(TestGame* game, Vec3& my_pos, unsigned int graph, unsigned int my_node, const vector<unsigned int>& other_column)
 	{
-		for(vector<unsigned int>::iterator iter = other_column.begin(); iter != other_column.end(); ++iter)
+		for(vector<unsigned int>::const_iterator iter = other_column.begin(); iter != other_column.end(); ++iter)
 		{
 			unsigned int other_node = *iter;
 

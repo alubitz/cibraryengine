@@ -99,7 +99,7 @@ namespace Test
 			glLoadIdentity();
 		}
 
-		ProgramScreen* Update(TimingInfo time) 
+		ProgramScreen* Update(const TimingInfo& time) 
 		{
 			if(test_game->load_status.HasStopped())
 			{
@@ -159,7 +159,7 @@ namespace Test
 
 	void LoadingScreen::Draw(int width, int height) { imp->Draw(width, height); }
 
-	ProgramScreen* LoadingScreen::Update(TimingInfo time) { return imp->Update(time); }
+	ProgramScreen* LoadingScreen::Update(const TimingInfo& time) { return imp->Update(time); }
 
 	void LoadingScreen::Activate()
 	{

@@ -18,7 +18,7 @@ namespace CibraryEngine
 	{
 	}
 
-	void BitmapFont::Print(string text, float x, float y)
+	void BitmapFont::Print(const string& text, float x, float y)
 	{
 		const int set = 0;			// if this were 1, it would use the bottom of the font texture
 

@@ -41,8 +41,8 @@ namespace Test
 
 			void SetOrtho(float w, float h);
 
-			void Print(float x, float y, string str);
-			void Print(float x, float y, string str, Vec4 color);
+			void Print(float x, float y, const string& str);
+			void Print(float x, float y, const string& str, const Vec4& color);
 
 			void DrawHealthGauge(float w, float h);
 			void DrawAmmoGauge(float w, float h);
@@ -89,7 +89,7 @@ namespace Test
 			HUD(TestGame* game, ContentMan* content);
 			~HUD();
 
-			void UpdateHUDGauges(TimingInfo time);
+			void UpdateHUDGauges(const TimingInfo& time);
 			void Draw(float w, float h);
 
 			void SetPlayer(Dood* dood);

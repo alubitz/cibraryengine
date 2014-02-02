@@ -16,7 +16,7 @@ namespace CibraryEngine
 			virtual void InnerDispose();
 		public:
 			TableParseable();
-			virtual TableParseable* DoOperation(string a, string b = "") = 0;
+			virtual TableParseable* DoOperation(const string& a, const string& b = "") = 0;
 			virtual void End() = 0;
 	};
 
@@ -48,7 +48,7 @@ namespace CibraryEngine
 			string argument_value;
 			bool in_string_literal;
 
-			void DoOperationUsingOperands(string a, string b);
+			void DoOperationUsingOperands(const string& a, const string& b);
 
 		public:
 
@@ -63,10 +63,10 @@ namespace CibraryEngine
 
 			virtual bool CanContinue();
 
-			virtual TableParseable* DoOperation(string a, string b);
+			virtual TableParseable* DoOperation(const string& a, const string& b);
 			virtual void End();
 
-			void ParserException(string message);
+			void ParserException(const string& message);
 	};
 
 	class NamedItemDictionaryTableParser : public TableParserInstance
@@ -77,14 +77,14 @@ namespace CibraryEngine
 
 		public:
 
-			class FieldSetter { public: virtual TableParseable* Set(string val) = 0; };
+			class FieldSetter { public: virtual TableParseable* Set(const string& val) = 0; };
 
 			map<string, FieldSetter*> field_setters;
 
 			NamedItemDictionaryTableParser(istream* stream);
 
-			virtual TableParseable* DoOperation(string a, string b);
-			virtual TableParseable* OnFieldNotFound(string a, string b);
+			virtual TableParseable* DoOperation(const string& a, const string& b);
+			virtual TableParseable* OnFieldNotFound(const string& a, const string& b);
 	};
 
 
@@ -96,7 +96,7 @@ namespace CibraryEngine
 		int* i;
 		IntSetter(int* i);
 
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 
 	struct FloatSetter : public NamedItemDictionaryTableParser::FieldSetter
@@ -104,7 +104,7 @@ namespace CibraryEngine
 		float* f;
 		FloatSetter(float* f);
 
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 
 	struct QuaternionSetter : public NamedItemDictionaryTableParser::FieldSetter
@@ -113,7 +113,7 @@ namespace CibraryEngine
 		istream* stream;
 
 		QuaternionSetter(Quaternion* quat, istream* stream);
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 
 	struct Vec3Setter : public NamedItemDictionaryTableParser::FieldSetter
@@ -123,6 +123,6 @@ namespace CibraryEngine
 
 		Vec3Setter(Vec3* vec, istream* stream);
 
-		TableParseable* Set(string val);
+		TableParseable* Set(const string& val);
 	};
 }

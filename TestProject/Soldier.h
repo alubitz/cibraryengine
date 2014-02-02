@@ -13,10 +13,10 @@ namespace Test
 	{
 		protected:
 
-			void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
+			void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
 
-			void PreUpdatePoses(TimingInfo time);
-			void PostUpdatePoses(TimingInfo time);
+			void PreUpdatePoses(const TimingInfo& time);
+			void PostUpdatePoses(const TimingInfo& time);
 
 			void DoCheatyPose(float timestep, const Vec3& net_vel);
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
@@ -34,13 +34,13 @@ namespace Test
 			SoundBuffer* jet_loop_sound;
 			SoundSource* jet_loop;
 
-			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
+			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
 			void RegisterFeet();
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
-			void Die(Damage cause);
+			void Die(const Damage& cause);
 
 			void Spawned();
 			void DeSpawned();

@@ -57,7 +57,7 @@ namespace Test
 		WeaponEquip::InnerDispose();
 	}
 
-	void Gun::Update(TimingInfo time)
+	void Gun::Update(const TimingInfo& time)
 	{
 		if(owner == NULL)
 			UnownedUpdate(time);
@@ -65,7 +65,7 @@ namespace Test
 		WeaponEquip::Update(time);
 	}
 
-	void Gun::OwnerUpdate(TimingInfo time)
+	void Gun::OwnerUpdate(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 
@@ -108,7 +108,7 @@ namespace Test
 			}
 	}
 
-	void Gun::UnownedUpdate(TimingInfo time)
+	void Gun::UnownedUpdate(const TimingInfo& time)
 	{
 		SharedUpdate(time);
 
@@ -128,7 +128,7 @@ namespace Test
 		}
 	}
 
-	void Gun::SharedUpdate(TimingInfo time)
+	void Gun::SharedUpdate(const TimingInfo& time)
 	{
 		mflash_size *= expf(-16.0f * time.elapsed);
 		mflash_size -= 0.05f * time.elapsed;

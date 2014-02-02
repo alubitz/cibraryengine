@@ -6,7 +6,7 @@ using namespace std;
 using namespace CibraryEngine;
 using namespace ConverterUtil;
 
-string GetFileExtension(string filename)
+string GetFileExtension(const string& filename)
 {
 	size_t last_dot = filename.find_last_of(".");
 	
@@ -14,14 +14,14 @@ string GetFileExtension(string filename)
 		return string();
 	else
 	{
-		filename = filename.substr(last_dot + 1);
+		string use_filename = filename.substr(last_dot + 1);
 
 		string result;
-		for(unsigned int i = 0; i < filename.length(); ++i)
-			if(filename[i] >= 'a' && filename[i] <= 'z')
-				result += (filename[i] + 'A' - 'a');
+		for(unsigned int i = 0; i < use_filename.length(); ++i)
+			if(use_filename[i] >= 'a' && use_filename[i] <= 'z')
+				result += (use_filename[i] + 'A' - 'a');
 			else
-				result += filename[i];
+				result += use_filename[i];
 
 		return result;
 	}

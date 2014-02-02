@@ -24,7 +24,7 @@ namespace CibraryEngine
 		{
 		}
 
-		Octree(Vec3 min, Vec3 max) : 
+		Octree(const Vec3& min, const Vec3& max) : 
 			parent(NULL), 
 			contents(), 
 			bounds(min, max) 
@@ -33,7 +33,7 @@ namespace CibraryEngine
 				children[i] = NULL;
 		}
 		
-		Octree(Octree& parent, Vec3 min, Vec3 max) : 
+		Octree(Octree& parent, const Vec3& min, const Vec3& max) : 
 			parent(&parent), 
 			contents(parent.contents), 
 			bounds(min, max) 
@@ -42,7 +42,7 @@ namespace CibraryEngine
 				children[i] = NULL;
 		}
 		
-		Octree(Octree& parent, T contents, Vec3 min, Vec3 max) : 
+		Octree(Octree& parent, T contents, const Vec3& min, const Vec3& max) : 
 			parent(&parent), 
 			contents(contents), 
 			bounds(min, max) 

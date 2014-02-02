@@ -18,7 +18,7 @@ namespace DoodAnimTool
 			DATScreen(ProgramWindow* win);
 			~DATScreen();
 
-			ProgramScreen* Update(TimingInfo time);
+			ProgramScreen* Update(const TimingInfo& time);
 
 			void Draw(int width, int height);
 	};

@@ -16,7 +16,7 @@ namespace CibraryEngine
 
 		// member methods
 		Packet();
-		Packet(string data);
+		Packet(const string& data);
 
 		string GetBytes();
 
@@ -26,9 +26,9 @@ namespace CibraryEngine
 		bool DecodePacket(string& type, string& data);
 
 		// static methods
-		static Packet CreateAutoLength(string data);
-		static Packet CreateNamedAutoLength(string type, string data);
+		static Packet CreateAutoLength(const string& data);
+		static Packet CreateNamedAutoLength(const string& type, const string& data);
 
-		static bool MaybeExtractPacket(string& byte_stream, string& unused_bytes, Packet& packet_out);
+		static bool MaybeExtractPacket(const string& byte_stream, string& unused_bytes, Packet& packet_out);
 	};
 }

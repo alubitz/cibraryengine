@@ -10,7 +10,7 @@ namespace Test
 	{
 		float damage;
 
-		CrabShot(GameState* gs, Dood* firer, Vec3 pos, Vec3 forward, float damage) : Shot(gs, NULL, NULL, pos, forward, firer), damage(damage) { }
+		CrabShot(GameState* gs, Dood* firer, const Vec3& pos, const Vec3& forward, float damage) : Shot(gs, NULL, NULL, pos, forward, firer), damage(damage) { }
 
 		Damage GetDamage() { return Damage(firer, damage); }
 	};
@@ -28,7 +28,7 @@ namespace Test
 	{
 	}
 
-	void CrabWeapon::OwnerUpdate(TimingInfo time)
+	void CrabWeapon::OwnerUpdate(const TimingInfo& time)
 	{
 		if(IsFiring(1) && time.total >= attack_ready_time)
 			ClawAttackNormal(time.total);

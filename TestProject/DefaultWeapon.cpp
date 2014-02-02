@@ -18,7 +18,7 @@ namespace Test
 		clip = clip_size = 150;
 	}
 
-	Shot* DefaultWeapon::CreateShot(Vec3 origin, Vec3 weapon_vel, Vec3 direction)
+	Shot* DefaultWeapon::CreateShot(const Vec3& origin, const Vec3& weapon_vel, const Vec3& direction)
 	{
 		Vec3 vel = Vec3::Normalize(direction, 300) + weapon_vel;
 		return new Shot(game_state, shot_model, shot_material, origin, vel, owner);

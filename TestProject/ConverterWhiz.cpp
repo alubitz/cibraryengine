@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * Functions for creating UberModels
 	 */
-	UberModel* AutoSkinUberModel(ContentMan* content, string vtn_name, string material, vector<BoneEntry>& bone_entries)
+	UberModel* AutoSkinUberModel(ContentMan* content, const string& vtn_name, const string& material, const vector<BoneEntry>& bone_entries)
 	{
 		Cache<VertexBuffer>* vtn_cache = content->GetCache<VertexBuffer>();
 
@@ -15,7 +15,7 @@ namespace Test
 		SkinnedModel* skinny = SkinnedModel::WrapVertexBuffer(vtn, material);
 
 		vector<VertexBuffer*> submodel_vbos;
-		for(vector<BoneEntry>::iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
+		for(vector<BoneEntry>::const_iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
 			submodel_vbos.push_back(vtn_cache->Load(iter->name));
 
 		SkinnedModel::AutoSkinModel(skinny, submodel_vbos);
@@ -52,7 +52,7 @@ namespace Test
 		}
 	}
 
-	ModelPhysics* ModelPhysicsFromBoneEntries(vector<BoneEntry>& bone_entries)
+	ModelPhysics* ModelPhysicsFromBoneEntries(const vector<BoneEntry>& bone_entries)
 	{
 		unsigned int num_bones = bone_entries.size();
 
@@ -63,7 +63,7 @@ namespace Test
 
 		ModelPhysics result;
 
-		for(vector<BoneEntry>::iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
+		for(vector<BoneEntry>::const_iterator iter = bone_entries.begin(); iter != bone_entries.end(); ++iter)
 		{
 			// create the bone
 			ModelPhysics::BonePhysics bone;

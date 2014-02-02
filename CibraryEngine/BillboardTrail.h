@@ -25,7 +25,7 @@ namespace CibraryEngine
 				float age, max_age;
 
 				TrailNode() { }
-				TrailNode(Vec3 pos, float age, float max_age) : pos(pos), age(age), max_age(max_age) { }
+				TrailNode(const Vec3& pos, float age, float max_age) : pos(pos), age(age), max_age(max_age) { }
 			};
 
 			struct TrailHead
@@ -66,7 +66,7 @@ namespace CibraryEngine
 
 			BillboardTrail(GameState* gs, TrailHead* trailhead, BillboardMaterial* material, float width);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 			Sphere GetBoundingSphere();	
 			
 			void Vis(SceneRenderer* renderer);	

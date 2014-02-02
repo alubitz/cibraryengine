@@ -11,7 +11,7 @@ namespace Test
 	/*
 	 * StaticLevelGeometry methods
 	 */
-	StaticLevelGeometry::StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, Vec3 pos, Quaternion ori) :
+	StaticLevelGeometry::StaticLevelGeometry(GameState* gs, UberModel* model, CollisionShape* collision_shape, const Vec3& pos, const Quaternion& ori) :
 		Entity(gs),
 		model(model),
 		materials(),
@@ -103,7 +103,7 @@ namespace Test
 
 		GameState* game;
 
-		StaticGeometryParams(string model_name, istream* stream, GameState* game) :
+		StaticGeometryParams(const string& model_name, istream* stream, GameState* game) :
 			NamedItemDictionaryTableParser(stream),
 			model_name(model_name),
 			pos(),
@@ -135,5 +135,5 @@ namespace Test
 	};
 
 	StaticGeometrySetter::StaticGeometrySetter(istream* stream, GameState* game) : stream(stream), game(game) { }
-	TableParseable* StaticGeometrySetter::Set(string val) { return new StaticGeometryParams(val.substr(1, val.length() - 2), stream, game); }
+	TableParseable* StaticGeometrySetter::Set(const string& val) { return new StaticGeometryParams(val.substr(1, val.length() - 2), stream, game); }
 }

@@ -178,7 +178,7 @@ namespace CibraryEngine
 			selected_item = selection;
 		}
 
-		ProgramScreen* Update(TimingInfo time)
+		ProgramScreen* Update(const TimingInfo& time)
 		{
 			UpdateSelection();
 
@@ -204,7 +204,7 @@ namespace CibraryEngine
 
 	void MenuScreen::Draw(int width, int height)				{ imp->Draw(width, height); }
 
-	ProgramScreen* MenuScreen::Update(TimingInfo time)			{ return imp->Update(time); }
+	ProgramScreen* MenuScreen::Update(const TimingInfo& time)			{ return imp->Update(time); }
 
 	ProgramScreen* MenuScreen::GetNextScreen()					{ return imp->next; }
 	void MenuScreen::SetNextScreen(ProgramScreen* screen)		{ imp->next = screen; }

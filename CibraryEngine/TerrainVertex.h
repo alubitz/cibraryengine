@@ -17,6 +17,6 @@ namespace CibraryEngine
 		MultiMaterial material;
 
 		TerrainVertex();
-		TerrainVertex(Vec3 pos, MultiMaterial material);
+		TerrainVertex(const Vec3& pos, const MultiMaterial& material);
 	};
 }

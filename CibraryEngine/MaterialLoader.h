@@ -35,7 +35,7 @@ namespace CibraryEngine
 			Material* Load(ContentMetadata& what);
 			void Unload(Material* content, ContentMetadata& meta);
 
-			unsigned int LoadMaterial(string filename, Material** result_out);
+			unsigned int LoadMaterial(const string& filename, Material** result_out);
 
 	};
 }

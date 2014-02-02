@@ -15,6 +15,6 @@ namespace CibraryEngine
 			 * Checks if there is line-of-sight between two points (based on VisionBlocker objects only);
 			 * Returns true if LoS is unobstructed, false otherwise
 			 */
-			static bool CheckLineOfSight(PhysicsWorld* physics, Vec3 from, Vec3 to);
+			static bool CheckLineOfSight(PhysicsWorld* physics, const Vec3& from, const Vec3& to);
 	};
 }

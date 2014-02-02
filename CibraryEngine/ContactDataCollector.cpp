@@ -11,8 +11,8 @@ namespace CibraryEngine
 	 */
 	struct ContactDataCollector::Imp
 	{
-		vector<ContactPoint*>	cp_bin;
-		vector<ContactRegion*>	cr_bin;
+		vector<ContactPoint*>  cp_bin;
+		vector<ContactRegion*> cr_bin;
 
 		Imp() : cp_bin(), cr_bin() { }
 

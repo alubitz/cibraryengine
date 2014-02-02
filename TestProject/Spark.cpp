@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * Spark methods
 	 */
-	Spark::Spark(GameState* gs, Vec3 pos, BillboardMaterial* billboard_mat) :
+	Spark::Spark(GameState* gs, const Vec3& pos, BillboardMaterial* billboard_mat) :
 		Entity(gs),
 		collider(NULL),
 		mass(Random3D::Rand(0.001f, 0.01f)),
@@ -47,7 +47,7 @@ namespace Test
 
 	void Spark::DeSpawned() { if(collider != NULL) { game_state->physics_world->RemoveCollisionObject(collider); } }
 
-	void Spark::Update(TimingInfo time)
+	void Spark::Update(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 

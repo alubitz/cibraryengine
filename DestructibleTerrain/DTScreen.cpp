@@ -149,7 +149,7 @@ namespace DestructibleTerrain
 
 			string name;
 
-			EditorBrush(string name) : name(name) { }			
+			EditorBrush(const string& name) : name(name) { }			
 			virtual void DoAction(Imp* imp) = 0;
 		};
 
@@ -194,7 +194,7 @@ namespace DestructibleTerrain
 			brush_distance(60.0f),
 			brush_radius(7.5f),
 			enable_editing(true),
-			mouse_button_handler(this),
+			mouse_button_handler(),
 			mouse_motion_handler(&yaw, &pitch),
 			key_press_handler(&add_tex, &add_brush, &enable_editing),
 			subtract_brush(),
@@ -204,6 +204,8 @@ namespace DestructibleTerrain
 			fps(0),
 			smooth_brush()
 		{
+			mouse_button_handler.imp = this;
+
 			current_brush = &subtract_brush;
 			font = window->content->GetCache<BitmapFont>()->Load("../Font");
 
@@ -345,7 +347,7 @@ namespace DestructibleTerrain
 			++frames_since_fps;
 		}
 
-		void Update(TimingInfo time)
+		void Update(const TimingInfo& time)
 		{
 			time_since_fps += time.elapsed;
 
@@ -400,10 +402,10 @@ namespace DestructibleTerrain
 			direction = camera_ori.ToMat3() * Vec3(0, 0, -1); 
 		}
 
-		bool RayTrace(Vec3 origin, Vec3 direction, Vec3& result)
+		bool RayTrace(const Vec3& origin, const Vec3& direction, Vec3& result)
 		{
 			Vec3 pos = origin;
-			direction = Vec3::Normalize(direction, 0.5f);
+			Vec3 use_direction = Vec3::Normalize(direction, 0.5f);
 
 			float center_xz = TERRAIN_DIM_HORIZONTAL * TerrainChunk::ChunkSize * 0.5f;
 			Vec3 center = Vec3(center_xz, TERRAIN_DIM_VERTICAL * TerrainChunk::ChunkSize * 0.5f, center_xz);
@@ -426,11 +428,11 @@ namespace DestructibleTerrain
 				else
 				{
 					Vec3 offset = pos - center;
-					if(Vec3::Dot(offset, direction) > 0 && offset.ComputeMagnitudeSquared() > radius_squared)
+					if(Vec3::Dot(offset, use_direction) > 0 && offset.ComputeMagnitudeSquared() > radius_squared)
 						break;
 				}
 
-				pos += direction;
+				pos += use_direction;
 				steps++;				
 			}
 
@@ -443,7 +445,7 @@ namespace DestructibleTerrain
 		struct MouseButtonHandler : public EventHandler
 		{
 			Imp* imp;
-			MouseButtonHandler(Imp* imp) : imp(imp) { }
+			MouseButtonHandler() : imp(NULL) { }
 
 			void HandleEvent(Event* evt)
 			{
@@ -573,7 +575,7 @@ namespace DestructibleTerrain
 		window->input_state->KeyStateChanged -= &imp->key_press_handler;
 	}
 
-	ProgramScreen* DTScreen::Update(TimingInfo time)
+	ProgramScreen* DTScreen::Update(const TimingInfo& time)
 	{
 		if(input_state->keys[VK_ESCAPE])
 			return NULL;

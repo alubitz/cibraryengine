@@ -21,7 +21,7 @@ namespace CibraryEngine
 		{
 		}
 
-		ContentMetadata(string name) :
+		ContentMetadata(const string& name) :
 			name(name),
 			fail(false),
 			needed_recent(false),

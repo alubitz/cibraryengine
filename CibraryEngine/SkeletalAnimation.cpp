@@ -16,7 +16,7 @@ namespace CibraryEngine
 	/*
 	 * Bone methods
 	 */
-	Bone::Bone(unsigned int name, Bone* parent, Quaternion ori_, Vec3 pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori_), rest_pos(pos), cache_valid(false) { }
+	Bone::Bone(unsigned int name, Bone* parent, const Quaternion& ori_, const Vec3& pos) : name(name), parent(parent), ori(Quaternion::Identity()), pos(), rest_ori(ori_), rest_pos(pos), cache_valid(false) { }
 
 	Mat4 Bone::GetTransformationMatrix()
 	{
@@ -88,9 +88,9 @@ namespace CibraryEngine
 		bones.clear();
 	}
 
-	Bone* Skeleton::AddBone(unsigned int bone_name, Quaternion ori, Vec3 attach) { return AddBone(bone_name, NULL, ori, attach); }
+	Bone* Skeleton::AddBone(unsigned int bone_name, const Quaternion& ori, const Vec3& attach) { return AddBone(bone_name, NULL, ori, attach); }
 
-	Bone* Skeleton::AddBone(unsigned int bone_name, Bone* parent, Quaternion ori, Vec3 attach)
+	Bone* Skeleton::AddBone(unsigned int bone_name, Bone* parent, const Quaternion& ori, const Vec3& attach)
 	{
 		Bone* bone;
 		if(bone_recycle_bin.empty())
@@ -107,7 +107,7 @@ namespace CibraryEngine
 		return bone;
 	}
 
-	Bone* Skeleton::GetNamedBone(string bone_name) { return GetNamedBone(Bone::string_table[bone_name]); }
+	Bone* Skeleton::GetNamedBone(const string& bone_name) { return GetNamedBone(Bone::string_table[bone_name]); }
 	Bone* Skeleton::GetNamedBone(unsigned int bone_name)
 	{
 		for(vector<Bone*>::iterator iter = bones.begin(); iter != bones.end(); iter++)
@@ -210,7 +210,7 @@ namespace CibraryEngine
 	PosedCharacter::PosedCharacter(Skeleton* skeleton) : skeleton(skeleton), active_poses() { }
 	void PosedCharacter::InnerDispose() { if(skeleton) { skeleton->Dispose(); delete skeleton; skeleton = NULL; } }
 
-	void PosedCharacter::UpdatePoses(TimingInfo time)
+	void PosedCharacter::UpdatePoses(const TimingInfo& time)
 	{
 		skeleton->InvalidateCachedBoneXforms();
 
@@ -295,7 +295,7 @@ namespace CibraryEngine
 		return render_info;
 	}
 
-	Texture1D* SkinnedCharacter::MatricesToTexture1D(vector<Mat4>& matrices, Texture1D* existing_texture, float precision)
+	Texture1D* SkinnedCharacter::MatricesToTexture1D(const vector<Mat4>& matrices, Texture1D* existing_texture, float precision)
 	{
 		unsigned int matrix_count = matrices.size();
 		const unsigned int max_bones = 128;
@@ -315,7 +315,7 @@ namespace CibraryEngine
 
 		for(unsigned int i = 0; i < matrix_count; ++i)
 		{
-			Mat4& mat = matrices[i];
+			const Mat4& mat = matrices[i];
 			for(unsigned int j = 0; j < 12; ++j)
 			{
 				float val = mat[j];								// get value from the matrix

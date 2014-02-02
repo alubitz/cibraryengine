@@ -36,10 +36,10 @@ namespace CibraryEngine
 
 	bool SkeletalJointConstraint::DoConstraintAction()
 	{
-		static const float dv_coeff =			1.0f;
+		static const float dv_coeff           = 1.0f;
 
-		static const float dv_sq_threshold	=	0.0f;
-		static const float alpha_sq_threshold =	0.0f;
+		static const float dv_sq_threshold    = 0.0f;
+		static const float alpha_sq_threshold = 0.0f;
 
 
 		bool wakeup = false;
@@ -114,8 +114,8 @@ namespace CibraryEngine
 		half_timestep = timestep * 0.5f;
 		inv_timestep = 1.0f / timestep;
 
-		const float spring_coeff =				1.0f;
-		const float motor_coeff =				1.0f;
+		const float spring_coeff = 1.0f;
+		const float motor_coeff  = 1.0f;
 
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();

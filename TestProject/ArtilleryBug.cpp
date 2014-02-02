@@ -8,7 +8,7 @@ namespace Test
 	/*
 	 * ArtilleryBug methods
 	 */
-	ArtilleryBug::ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+	ArtilleryBug::ArtilleryBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
 		walk_pose(new WalkPose())
 	{
@@ -53,7 +53,7 @@ namespace Test
 		bone_entries.push_back(BoneEntry(	"rlegc3",		"rlegc2",		Vec3(	-5.88f,		10.23f,	-7.98f	),	0.5f,	Vec3(	-7.05f,		0.2f,	-15.31f	),	0.2f,						100.0f	));
 	}
 
-	void ArtilleryBug::PreUpdatePoses(TimingInfo time)
+	void ArtilleryBug::PreUpdatePoses(const TimingInfo& time)
 	{
 		walk_pose->pos = pos;
 		walk_pose->yaw = yaw;

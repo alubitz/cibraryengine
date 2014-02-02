@@ -19,7 +19,7 @@ namespace Test
 			~LoadingScreen();
 
 			void Draw(int width, int height);
-			ProgramScreen* Update(TimingInfo time);
+			ProgramScreen* Update(const TimingInfo& time);
 
 			void Activate();
 			void Deactivate();

@@ -363,7 +363,7 @@ namespace CibraryEngine
 
 		void Draw() { if(current_screen != NULL) { current_screen->Draw(width, height); } }
 
-		void SetTitle(string text) { SetWindowText(window_handle, text.c_str()); }
+		void SetTitle(const string& text) { SetWindowText(window_handle, text.c_str()); }
 	};
 
 
@@ -408,7 +408,7 @@ namespace CibraryEngine
 
 	int ProgramWindow::Run(ProgramScreen* initial_screen) { return imp->Run(initial_screen); }
 
-	void ProgramWindow::SetTitle(string text) { imp->SetTitle(text); }
+	void ProgramWindow::SetTitle(const string& text) { imp->SetTitle(text); }
 
 	int ProgramWindow::GetWidth() { return imp->width; }
 	int ProgramWindow::GetHeight() { return imp->height; }
@@ -428,7 +428,7 @@ namespace CibraryEngine
 	/*
 	 * The big "CreateProgramWindow" function
 	 */
-	ProgramWindow* ProgramWindow::CreateProgramWindow(string title, int w, int h, int bpp, bool fullscreen)
+	ProgramWindow* ProgramWindow::CreateProgramWindow(const string& title, int w, int h, int bpp, bool fullscreen)
 	{
 		GLuint		pixel_format;
 		WNDCLASS	window_class;
@@ -518,7 +518,7 @@ namespace CibraryEngine
 			return NULL;
 		}
 
-		static PIXELFORMATDESCRIPTOR pfd=					// pfd Tells Windows How We Want Things To Be
+		static PIXELFORMATDESCRIPTOR pfd =					// pfd Tells Windows How We Want Things To Be
 		{
 			sizeof(PIXELFORMATDESCRIPTOR),
 			1,										// version number ???

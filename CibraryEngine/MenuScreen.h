@@ -30,7 +30,7 @@ namespace CibraryEngine
 			/** Draws the menu */
 			virtual void Draw(int width, int height);
 
-			virtual ProgramScreen* Update(TimingInfo time);				// returns the next screen to be displayed
+			virtual ProgramScreen* Update(const TimingInfo& time);				// returns the next screen to be displayed
 
 			/** Gets the next screen to be displayed (i.e. the screen to be returned by MenuScreen::Update) */
 			virtual ProgramScreen* GetNextScreen();						// the screen to be on when the next frame comes along (return "this" to not change)

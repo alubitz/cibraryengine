@@ -230,13 +230,13 @@ namespace CibraryEngine
 		}
 	}
 
-	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info)
+	void UberModel::Vis(SceneRenderer* renderer, int lod, const Mat4& xform, SkinnedCharacterRenderInfo* char_render_info)
 	{
 		assert(cached_materials.size() == materials.size());
 		Vis(renderer, lod, xform, char_render_info, &cached_materials);
 	}
 
-	void UberModel::Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials)
+	void UberModel::Vis(SceneRenderer* renderer, int lod, const Mat4& xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials)
 	{
 		int num_lods = lods.size();
 		if(lod >= num_lods)

@@ -82,7 +82,7 @@ namespace CibraryEngine
 			{
 				ServerConnection* connection;
 				vector<unsigned char> bytes;
-				BytesReceivedEvent(ServerConnection* connection, vector<unsigned char> bytes) : connection(connection), bytes(bytes) { }
+				BytesReceivedEvent(ServerConnection* connection, const vector<unsigned char>& bytes) : connection(connection), bytes(bytes) { }
 			};
 
 			struct PacketReceivedEvent : public Event
@@ -96,7 +96,7 @@ namespace CibraryEngine
 			{
 				ServerConnection* connection;
 				vector<unsigned char> bytes;
-				BytesSentEvent(ServerConnection* connection, vector<unsigned char> bytes) : connection(connection), bytes(bytes) { }
+				BytesSentEvent(ServerConnection* connection, const vector<unsigned char>& bytes) : connection(connection), bytes(bytes) { }
 			};
 
 			struct ServerErrorEvent : public Event

@@ -68,7 +68,7 @@ namespace CibraryEngine
 				Vec3 offset;
 
 				RelativeTerrainVertex(TerrainVertex* vertex) : vertex(vertex), offset() { }
-				RelativeTerrainVertex(TerrainVertex* vertex, Vec3 offset) : vertex(vertex), offset(offset) { }
+				RelativeTerrainVertex(TerrainVertex* vertex, const Vec3& offset) : vertex(vertex), offset(offset) { }
 
 				Vec3 GetPosition();
 
@@ -86,7 +86,7 @@ namespace CibraryEngine
 						return new(result) RelativeTerrainVertex(vertex);
 					}
 				}
-				static RelativeTerrainVertex* New(TerrainVertex* vertex, Vec3 offset)
+				static RelativeTerrainVertex* New(TerrainVertex* vertex, const Vec3& offset)
 				{
 					if(rel_vert_recycle_bin.empty())
 						return new RelativeTerrainVertex(vertex, offset);
@@ -157,7 +157,7 @@ namespace CibraryEngine
 			void SolidifyAsNeeded();
 			void Solidify();
 
-			void ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action);
+			void ModifySphere(const Vec3& center, float inner_radius, float outer_radius, TerrainAction& action);
 
 			void Vis(SceneRenderer* renderer, const Mat4& main_xform);
 

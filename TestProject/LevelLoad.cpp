@@ -10,7 +10,7 @@ namespace Test
 	/*
 	 * Main level loader function
 	 */
-	unsigned int LoadLevel(TestGame* game, string level_name)
+	unsigned int LoadLevel(TestGame* game, const string& level_name)
 	{
 		string filename = "Files/Levels/" + level_name + ".txt";
 

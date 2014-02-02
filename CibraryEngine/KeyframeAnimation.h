@@ -44,12 +44,12 @@ namespace CibraryEngine
 
 			KeyframeAnimation();
 			/** Initializes a keyframe animation with the specified name */
-			KeyframeAnimation(string name);
+			KeyframeAnimation(const string& name);
 
 			/** Moves through the animation over time */
-			bool Advance(TimingInfo time);
+			bool Advance(const TimingInfo& time);
 			/** Advances the animation and poses bones */
-			virtual void UpdatePose(TimingInfo time);
+			virtual void UpdatePose(const TimingInfo& time);
 
 			void JumpToTime(float time);
 	};

@@ -60,7 +60,7 @@ namespace CibraryEngine
 
 	void BillboardTrail::InvalidateBoundingSphere() { bs = Sphere(Vec3(), -1); }
 
-	void BillboardTrail::Update(TimingInfo time)
+	void BillboardTrail::Update(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 

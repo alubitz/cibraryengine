@@ -10,7 +10,7 @@ namespace CibraryEngine
 	/*
 	 * UniformInt methods
 	 */
-	UniformInt::UniformInt(string name) : TypedUniformVariable<int>(name), value(0) { }
+	UniformInt::UniformInt(const string& name) : TypedUniformVariable<int>(name), value(0) { }
 
 	void UniformInt::ApplyValue(int location)				{ glUniform1i(location, value); }
 
@@ -23,7 +23,7 @@ namespace CibraryEngine
 	/*
 	 * UniformFloat methods
 	 */
-	UniformFloat::UniformFloat(string name) : TypedUniformVariable<float>(name), value(0.0f) { }
+	UniformFloat::UniformFloat(const string& name) : TypedUniformVariable<float>(name), value(0.0f) { }
 
 	void UniformFloat::ApplyValue(int location)				{ glUniform1f(location, value); }
 
@@ -36,7 +36,7 @@ namespace CibraryEngine
 	/*
 	 * UniformVector3 methods
 	 */
-	UniformVector3::UniformVector3(string name) : TypedUniformVariable<Vec3>(name), value() { }
+	UniformVector3::UniformVector3(const string& name) : TypedUniformVariable<Vec3>(name), value() { }
 
 	void UniformVector3::ApplyValue(int location)			{ glUniform3f(location, value.x, value.y, value.z); }
 
@@ -49,7 +49,7 @@ namespace CibraryEngine
 	/*
 	 * UniformTexture1D methods
 	 */
-	UniformTexture1D::UniformTexture1D(string name, int which) : TypedUniformVariable<Texture1D>(name), which(which), texture(NULL) { }
+	UniformTexture1D::UniformTexture1D(const string& name, int which) : TypedUniformVariable<Texture1D>(name), which(which), texture(NULL) { }
 
 	void UniformTexture1D::ApplyValue(int location)
 	{
@@ -80,7 +80,7 @@ namespace CibraryEngine
 	/*
 	 * UniformTexture2D methods
 	 */
-	UniformTexture2D::UniformTexture2D(string name, int which) : TypedUniformVariable<Texture2D>(name), which(which), texture(NULL) { }
+	UniformTexture2D::UniformTexture2D(const string& name, int which) : TypedUniformVariable<Texture2D>(name), which(which), texture(NULL) { }
 
 	void UniformTexture2D::ApplyValue(int location)
 	{
@@ -109,7 +109,7 @@ namespace CibraryEngine
 	/*
 	 * UniformTexture3D methods
 	 */
-	UniformTexture3D::UniformTexture3D(string name, int which) : TypedUniformVariable<Texture3D>(name), which(which), texture(NULL) { }
+	UniformTexture3D::UniformTexture3D(const string& name, int which) : TypedUniformVariable<Texture3D>(name), which(which), texture(NULL) { }
 
 	void UniformTexture3D::ApplyValue(int location)
 	{
@@ -138,7 +138,7 @@ namespace CibraryEngine
 	/*
 	 * UniformTextureBuffer methods
 	 */
-	UniformTextureBuffer::UniformTextureBuffer(string name, int which) : TypedUniformVariable<TextureBuffer>(name), which(which), buffer(NULL) { }
+	UniformTextureBuffer::UniformTextureBuffer(const string& name, int which) : TypedUniformVariable<TextureBuffer>(name), which(which), buffer(NULL) { }
 
 	void UniformTextureBuffer::ApplyValue(int location)
 	{
@@ -177,7 +177,7 @@ namespace CibraryEngine
 	/*
 	 * UniformTextureCube methods
 	 */
-	UniformTextureCube::UniformTextureCube(string name, int which) : TypedUniformVariable<TextureCube>(name), which(which), cubemap(NULL) { }
+	UniformTextureCube::UniformTextureCube(const string& name, int which) : TypedUniformVariable<TextureCube>(name), which(which), cubemap(NULL) { }
 
 	void UniformTextureCube::ApplyValue(int location)
 	{
@@ -207,7 +207,7 @@ namespace CibraryEngine
 	/*
 	 * UniformMatrix4 methods
 	 */
-	UniformMatrix4::UniformMatrix4(string name, bool transpose) : TypedUniformVariable<Mat4>(name), transpose(transpose), matrix() { }
+	UniformMatrix4::UniformMatrix4(const string& name, bool transpose) : TypedUniformVariable<Mat4>(name), transpose(transpose), matrix() { }
 
 	void UniformMatrix4::ApplyValue(int location)			{ glUniformMatrix4fv(location, 1, transpose, matrix.values); }
 
@@ -220,7 +220,7 @@ namespace CibraryEngine
 	/*
 	 * UniformMatrix4Array methods
 	 */
-	UniformMatrix4Array::UniformMatrix4Array(string name, bool transpose) : UniformArray<Mat4>(name), transpose(transpose) { }
+	UniformMatrix4Array::UniformMatrix4Array(const string& name, bool transpose) : UniformArray<Mat4>(name), transpose(transpose) { }
 
 	void UniformMatrix4Array::ApplyValue(int location)
 	{

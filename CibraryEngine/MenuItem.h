@@ -54,7 +54,7 @@ namespace CibraryEngine
 			/** Draws this MenuItem, given the dimensions of the menu */
 			virtual void Draw(int screen_w, int screen_h);
 			/** Updates the MenuItem */
-			virtual void Update(TimingInfo time);
+			virtual void Update(const TimingInfo& time);
 
 			/** Queries whether the specified point is within the clickable rectangular region for this MenuItem */
 			bool RectContains(int x, int y);
@@ -73,7 +73,7 @@ namespace CibraryEngine
 			void* GetUserPointer();
 
 			/** Sets the caption for this MenuItem */
-			void SetText(string text);
+			void SetText(const string& text);
 			/** Sets the coordinates of the top-left and bottom-right corners of the MenuItem; pass NULL to not change one or more of the values */
 			void SetRect(int* x1, int* y1, int* x2, int* y2);
 			/** Sets the dimensions of the MenuItem; pass NULL to not change one or more of the values */

@@ -17,7 +17,7 @@ namespace Test
 	{
 	}
 
-	void Weapon::OwnerUpdate(TimingInfo time) { }
+	void Weapon::OwnerUpdate(const TimingInfo& time) { }
 
 	bool Weapon::IsFiring(int mode)									{ return fire_once[mode] || fire_sustained[mode]; }
 	bool Weapon::IsFiring(int mode, bool sustained)					{ return sustained ? fire_sustained[mode] : fire_once[mode]; }

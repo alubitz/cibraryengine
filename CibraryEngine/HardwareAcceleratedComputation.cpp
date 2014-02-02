@@ -119,10 +119,10 @@ namespace CibraryEngine
 						{
 							switch(type)
 							{
-								case GL_FLOAT:		{ n_per_vert = size;		break; }
-								case GL_FLOAT_VEC2:	{ n_per_vert = size * 2;	break; }
-								case GL_FLOAT_VEC3:	{ n_per_vert = size * 3;	break; }
-								case GL_FLOAT_VEC4:	{ n_per_vert = size * 4;	break; }
+								case GL_FLOAT:      { n_per_vert = size;       break; }
+								case GL_FLOAT_VEC2: { n_per_vert = size * 2;   break; }
+								case GL_FLOAT_VEC3: { n_per_vert = size * 3;   break; }
+								case GL_FLOAT_VEC4: { n_per_vert = size * 4;   break; }
 
 								default: { DEBUG(); return false; }
 							}
@@ -134,10 +134,10 @@ namespace CibraryEngine
 						{
 							switch(type)
 							{
-								case GL_INT:		{ n_per_vert = size;		break; }
-								case GL_INT_VEC2:	{ n_per_vert = size * 2;	break; }
-								case GL_INT_VEC3:	{ n_per_vert = size * 3;	break; }
-								case GL_INT_VEC4:	{ n_per_vert = size * 4;	break; }
+								case GL_INT:        { n_per_vert = size;       break; }
+								case GL_INT_VEC2:   { n_per_vert = size * 2;   break; }
+								case GL_INT_VEC3:   { n_per_vert = size * 3;   break; }
+								case GL_INT_VEC4:   { n_per_vert = size * 4;   break; }
 
 								default: { DEBUG(); return false; }
 							}
@@ -194,8 +194,8 @@ namespace CibraryEngine
 			int attrib_size = 0;
 			switch(attrib_type)
 			{
-				case Float:	{ attrib_size = output_data->GetAttribNPerVertex(attrib_name) * num_input_verts * sizeof(float);	break; }
-				case Int:	{ attrib_size = output_data->GetAttribNPerVertex(attrib_name) * num_input_verts * sizeof(int);		break; }
+				case Float: { attrib_size = output_data->GetAttribNPerVertex(attrib_name) * num_input_verts * sizeof(float);   break; }
+				case Int:   { attrib_size = output_data->GetAttribNPerVertex(attrib_name) * num_input_verts * sizeof(int);     break; }
 			}
 
 			if(attrib_size > 0)

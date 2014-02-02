@@ -14,7 +14,7 @@ namespace CibraryEngine
 	/*
 	 * GlowyModelMaterialNodeData methods
 	 */
-	GlowyModelMaterialNodeData::GlowyModelMaterialNodeData(VertexBuffer* model, Mat4 xform) : model(model), xform(xform) { }
+	GlowyModelMaterialNodeData::GlowyModelMaterialNodeData(VertexBuffer* model, const Mat4& xform) : model(model), xform(xform) { }
 
 	void GlowyModelMaterialNodeData::Draw()
 	{
@@ -82,11 +82,11 @@ namespace CibraryEngine
 		GLDEBUG();
 	}
 
-	void GlowyModelMaterial::Draw(RenderNode node) { ((GlowyModelMaterialNodeData*)node.data)->Draw(); }
+	void GlowyModelMaterial::Draw(const RenderNode& node) { ((GlowyModelMaterialNodeData*)node.data)->Draw(); }
 
-	void GlowyModelMaterial::Cleanup(RenderNode node) { delete (GlowyModelMaterialNodeData*)node.data; }
+	void GlowyModelMaterial::Cleanup(const RenderNode& node) { delete (GlowyModelMaterialNodeData*)node.data; }
 
-	bool GlowyModelMaterial::Equals(Material* material)
+	bool GlowyModelMaterial::Equals(const Material* material) const
 	{
 		return mclass_id == material->mclass_id && imp->is_3d == ((GlowyModelMaterial*)material)->imp->is_3d && imp->tex->GetGLName() == ((GlowyModelMaterial*)material)->imp->tex->GetGLName();
 	}

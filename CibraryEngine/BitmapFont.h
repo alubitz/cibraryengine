@@ -36,7 +36,7 @@ namespace CibraryEngine
 			BitmapFont(unsigned int first_display_list, float height, float spacing, Texture2D* texture);
 
 			/** Displays text at the specified location */
-			void Print(string text, float x, float y);
+			void Print(const string& text, float x, float y);
 	};
 
 	struct BitmapFontLoader : public ContentTypeHandler<BitmapFont>

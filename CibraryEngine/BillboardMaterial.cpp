@@ -54,9 +54,9 @@ namespace CibraryEngine
 
 		switch(blend_style)
 		{
-			case Additive:	{ glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);                 break; }
-			case Alpha:		{ glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break; }
-			default:		{ glDisable(GL_BLEND); break; }
+			case Additive: { glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);                 break; }
+			case Alpha:    { glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break; }
+			default:       { glDisable(GL_BLEND); break; }
 		}
 
 		glDisable(GL_CULL_FACE);
@@ -80,9 +80,9 @@ namespace CibraryEngine
 		node_data.clear();
 	}
 
-	void BillboardMaterial::Draw(RenderNode node) { node_data.push_back((NodeData*)node.data); }
+	void BillboardMaterial::Draw(const RenderNode& node) { node_data.push_back((NodeData*)node.data); }
 
-	void BillboardMaterial::Cleanup(RenderNode node)
+	void BillboardMaterial::Cleanup(const RenderNode& node)
 	{
 		NodeData* nd = (NodeData*)node.data;
 
@@ -103,7 +103,7 @@ namespace CibraryEngine
 			return new NodeData(front, back, width);
 	}
 
-	bool BillboardMaterial::Equals(Material* other)
+	bool BillboardMaterial::Equals(const Material* other) const
 	{ 
 		if(other->mclass_id != mclass_id)
 			return false;

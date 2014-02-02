@@ -19,7 +19,7 @@ namespace CibraryEngine
 
 			int value;
 
-			UniformInt(string name);
+			UniformInt(const string& name);
 
 			int* GetValue();
 			void SetValue(int* v);
@@ -32,7 +32,7 @@ namespace CibraryEngine
 
 			float value;
 
-			UniformFloat(string name);
+			UniformFloat(const string& name);
 
 			float* GetValue();
 			void SetValue(float* v);
@@ -45,7 +45,7 @@ namespace CibraryEngine
 
 			Vec3 value;
 
-			UniformVector3(string name);
+			UniformVector3(const string& name);
 
 			Vec3* GetValue();
 			void SetValue(Vec3* v);
@@ -59,7 +59,7 @@ namespace CibraryEngine
 			int which;
 			Texture1D* texture;
 
-			UniformTexture1D(string name, int which);
+			UniformTexture1D(const string& name, int which);
 
 			Texture1D* GetValue();
 			void SetValue(Texture1D* t);
@@ -75,7 +75,7 @@ namespace CibraryEngine
 			int which;
 			Texture2D* texture;
 
-			UniformTexture2D(string name, int which);
+			UniformTexture2D(const string& name, int which);
 
 			Texture2D* GetValue();
 			void SetValue(Texture2D* t);
@@ -91,7 +91,7 @@ namespace CibraryEngine
 			int which;
 			Texture3D* texture;
 
-			UniformTexture3D(string name, int which);
+			UniformTexture3D(const string& name, int which);
 
 			Texture3D* GetValue();
 			void SetValue(Texture3D* t);
@@ -106,7 +106,7 @@ namespace CibraryEngine
 			int which;
 			TextureBuffer* buffer;
 
-			UniformTextureBuffer(string name, int which);
+			UniformTextureBuffer(const string& name, int which);
 
 			TextureBuffer* GetValue();
 			void SetValue(TextureBuffer* b);
@@ -123,7 +123,7 @@ namespace CibraryEngine
 			int which;
 			TextureCube* cubemap;
 
-			UniformTextureCube(string name, int which);
+			UniformTextureCube(const string& name, int which);
 
 			TextureCube* GetValue();
 			void SetValue(TextureCube* c);
@@ -140,7 +140,7 @@ namespace CibraryEngine
 			bool transpose;
 			Mat4 matrix;
 
-			UniformMatrix4(string name, bool transpose);
+			UniformMatrix4(const string& name, bool transpose);
 
 			Mat4* GetValue();
 			void SetValue(Mat4* m);
@@ -154,7 +154,7 @@ namespace CibraryEngine
 
 			vector<T>* array;
 
-			UniformArray(string name) : TypedUniformVariable<vector<T> >(name), array(new vector<T>()) { }
+			UniformArray(const string& name) : TypedUniformVariable<vector<T> >(name), array(new vector<T>()) { }
 
 			vector<T>* GetValue() { return array; }
 			void SetValue(vector<T>* array_values) { array = array_values; }
@@ -168,7 +168,7 @@ namespace CibraryEngine
 
 			bool transpose;
 
-			UniformMatrix4Array(string name, bool transpose);
+			UniformMatrix4Array(const string& name, bool transpose);
 
 			void ApplyValue(int location);
 	};

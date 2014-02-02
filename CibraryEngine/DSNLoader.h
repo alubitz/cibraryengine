@@ -39,6 +39,6 @@ namespace CibraryEngine
 				default_blend_style(default_blend_style)
 			{ }
 
-			DSNMaterial* Load(string asset_name);
+			DSNMaterial* Load(const string& asset_name);
 	};
 }

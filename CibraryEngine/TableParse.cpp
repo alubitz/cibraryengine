@@ -70,9 +70,9 @@ namespace CibraryEngine
 
 	bool TableParserInstance::CanContinue() { return false; }				// ported this from the C# version... no idea what it's for
 
-	TableParseable* TableParserInstance::DoOperation(string a, string b) { return NULL; }				// default operation does nothing and does not push the stack
+	TableParseable* TableParserInstance::DoOperation(const string& a, const string& b) { return NULL; }				// default operation does nothing and does not push the stack
 
-	void TableParserInstance::DoOperationUsingOperands(string a, string b = "")
+	void TableParserInstance::DoOperationUsingOperands(const string& a, const string& b = "")
 	{
 		while(stack_depth <= stack.size())
 		{
@@ -274,7 +274,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void TableParserInstance::ParserException(string message)
+	void TableParserInstance::ParserException(const string& message)
 	{
 		// could throw an exception, but i don't feel like it...
 		Debug(message + "\n");
@@ -294,7 +294,7 @@ namespace CibraryEngine
 
 	void NamedItemDictionaryTableParser::InnerDispose() { TableParserInstance::InnerDispose(); }
 
-	TableParseable* NamedItemDictionaryTableParser::DoOperation(string a, string b)
+	TableParseable* NamedItemDictionaryTableParser::DoOperation(const string& a, const string& b)
 	{
 		string lowercase_a = "";
 		for(unsigned int i = 0; i < a.length(); ++i)
@@ -309,7 +309,7 @@ namespace CibraryEngine
 			return OnFieldNotFound(a, b);
 	}
 
-	TableParseable* NamedItemDictionaryTableParser::OnFieldNotFound(string a, string b)
+	TableParseable* NamedItemDictionaryTableParser::OnFieldNotFound(const string& a, const string& b)
 	{
 		ParserException("field name not recognized");
 
@@ -323,7 +323,7 @@ namespace CibraryEngine
 	 * IntSetter methods
 	 */
 	IntSetter::IntSetter(int* i) : i(i) { }
-	TableParseable* IntSetter::Set(string val) { *i = atoi(val.c_str()); return NULL; }
+	TableParseable* IntSetter::Set(const string& val) { *i = atoi(val.c_str()); return NULL; }
 
 
 
@@ -332,7 +332,7 @@ namespace CibraryEngine
 	 * FloatSetter methods
 	 */
 	FloatSetter::FloatSetter(float* f) : f(f) { }
-	TableParseable* FloatSetter::Set(string val) { *f = (float)atof(val.c_str()); return NULL; }
+	TableParseable* FloatSetter::Set(const string& val) { *f = (float)atof(val.c_str()); return NULL; }
 
 
 
@@ -364,7 +364,7 @@ namespace CibraryEngine
 	};
 
 	QuaternionSetter::QuaternionSetter(Quaternion* quat, istream* stream) : quat(quat), stream(stream) { }
-	TableParseable* QuaternionSetter::Set(string val) { return new QuaternionField(quat, stream); }
+	TableParseable* QuaternionSetter::Set(const string& val) { return new QuaternionField(quat, stream); }
 
 
 
@@ -393,5 +393,5 @@ namespace CibraryEngine
 	};
 
 	Vec3Setter::Vec3Setter(Vec3* vec, istream* stream) : vec(vec), stream(stream) { }
-	TableParseable* Vec3Setter::Set(string val) { return new Vec3Field(vec, stream); }
+	TableParseable* Vec3Setter::Set(const string& val) { return new Vec3Field(vec, stream); }
 }

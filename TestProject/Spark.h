@@ -38,9 +38,9 @@ namespace Test
 			Vec3 pos, vel;
 			float age, max_age;
 
-			Spark(GameState* gs, Vec3 pos, BillboardMaterial* billboard_mat);
+			Spark(GameState* gs, const Vec3& pos, BillboardMaterial* billboard_mat);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
 			virtual void Spawned();
 			void DeSpawned();

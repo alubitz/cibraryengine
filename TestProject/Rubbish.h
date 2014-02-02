@@ -27,7 +27,7 @@ namespace Test
 			RigidBody* rigid_body;
 			PhysicsWorld* physics;
 
-			Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, Vec3 pos, Quaternion ori, ParticleMaterial* dirt_particle);
+			Rubbish(GameState* gs, UberModel* model, ModelPhysics* model_phys, const Vec3& pos, const Quaternion& ori, ParticleMaterial* dirt_particle);
 
 			void Vis(SceneRenderer* renderer);
 
@@ -36,6 +36,6 @@ namespace Test
 
 			bool GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 	};
 }

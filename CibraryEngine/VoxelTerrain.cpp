@@ -55,7 +55,7 @@ namespace CibraryEngine
 			return chunks[x * x_span + y * dim[2] + z]; 
 	}
 
-	bool VoxelTerrain::PosToNode(Vec3 pos, TerrainChunk*& chunk, int& x, int& y, int& z)
+	bool VoxelTerrain::PosToNode(const Vec3& pos, TerrainChunk*& chunk, int& x, int& y, int& z)
 	{
 		int gx = (int)floor(pos.x), gy = (int)floor(pos.y), gz = (int)floor(pos.z);
 
@@ -95,7 +95,7 @@ namespace CibraryEngine
 				chunk->SolidifyAsNeeded();
 	}
 
-	void VoxelTerrain::ModifySphere(Vec3 center, float inner_radius, float outer_radius, TerrainAction& action)
+	void VoxelTerrain::ModifySphere(const Vec3& center, float inner_radius, float outer_radius, TerrainAction& action)
 	{
 		for(vector<TerrainChunk*>::iterator iter = chunks.begin(); iter != chunks.end(); ++iter)
 			(*iter)->ModifySphere(center, inner_radius, outer_radius, action);
@@ -204,7 +204,7 @@ namespace CibraryEngine
 			PerlinNoise n1;
 
 			PNFunc() : n1(256) { }
-			float operator() (Vec3 vec) { return n1.Sample(vec) * 2 + n1.Sample(vec * 2) / 2 + n1.Sample(vec * 4) / 4 + n1.Sample(vec * 8) / 8; }
+			float operator() (const Vec3& vec) { return n1.Sample(vec) * 2 + n1.Sample(vec * 2) / 2 + n1.Sample(vec * 4) / 4 + n1.Sample(vec * 8) / 8; }
 		} n;
 
 		VoxelTerrain* result = new VoxelTerrain(material, dim_x, dim_y, dim_z);

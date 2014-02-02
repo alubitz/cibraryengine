@@ -67,8 +67,8 @@ namespace Test
 		glLoadIdentity();
 	}
 
-	void HUD::Print(float x, float y, string str) { Print(x, y, str, Vec4(1.0, 1.0, 1.0, 1.0)); }
-	void HUD::Print(float x, float y, string str, Vec4 color)
+	void HUD::Print(float x, float y, const string& str) { Print(x, y, str, Vec4(1.0, 1.0, 1.0, 1.0)); }
+	void HUD::Print(float x, float y, const string& str, const Vec4& color)
 	{
 		glColor4f(color.x, color.y, color.z, color.w);
 		game->font->Print(str, x, y);
@@ -285,14 +285,12 @@ namespace Test
 	void HUD::DrawRadar(float w, float h)
 	{
 		// Transform to radar coords
-
 		glTranslatef(w - 200, 200, 0);
 		glScalef(195, 195, 1);
 
 		glDisable(GL_TEXTURE_2D);
 
 		// Draw radar backdrop
-
 		glColor4f(0.0f, 0.0f, 0.0f, 0.35f);
 
 		glBegin(GL_TRIANGLE_FAN);
@@ -309,7 +307,6 @@ namespace Test
 		glEnd();
 
 		// Shade the view cone
-
 		glColor4f(1.0f, 1.0f, 1.0f, 0.1f);
 		glBegin(GL_TRIANGLE_FAN);
 
@@ -326,7 +323,6 @@ namespace Test
 		glEnd();
 
 		// Draw target blips
-
 		float radar_size = 50, inv_radar_scale = 1.0f / radar_size;
 
 		glEnable(GL_POINT_SMOOTH);
@@ -369,7 +365,6 @@ namespace Test
 		glEnd();
 
 		// Draw radar hoop
-
 		glLineWidth(2);
 
 		glColor4f(0.5, 0.5, 1.0, 0.5);
@@ -463,7 +458,6 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 
 		// Drawing the reticle
-
 		if(player->alive)
 		{
 			glBindTexture(GL_TEXTURE_2D, reticle_tex->GetGLName());
@@ -545,7 +539,7 @@ namespace Test
 		}
 	}
 
-	void HUD::UpdateHUDGauges(TimingInfo time)
+	void HUD::UpdateHUDGauges(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 		hud_flash_timer -= timestep;

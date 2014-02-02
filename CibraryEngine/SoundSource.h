@@ -44,9 +44,9 @@ namespace CibraryEngine
 
 			unsigned int id;
 
-			SoundSource(SoundType sound_type, Vec3 pos, Vec3 vel, SoundBuffer* sound, float vol, bool looping, SoundSystem* sys);
+			SoundSource(SoundType sound_type, const Vec3& pos, const Vec3& vel, SoundBuffer* sound, float vol, bool looping, SoundSystem* sys);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 			void StopLooping();
 
 			float GetLoudness();

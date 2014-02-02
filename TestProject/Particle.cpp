@@ -6,7 +6,7 @@ namespace Test
 	/*
 	 * Particle methods
 	 */
-	Particle::Particle(GameState* gs, Vec3 pos, Vec3 vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), collider(NULL), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
+	Particle::Particle(GameState* gs, const Vec3& pos, const Vec3& vel, ParticleMaterial* mat, BillboardMaterial* billboard_mat, float radius, float lifetime) : Entity(gs), collider(NULL), material(mat), pos(pos), vel(vel), radius(radius), angle(Random3D::Rand(float(2 * M_PI))), age(0), max_age(lifetime), trailhead(NULL), billboard_mat(billboard_mat) { }
 
 	void Particle::InnerDispose()
 	{
@@ -42,7 +42,7 @@ namespace Test
 			game_state->physics_world->RemoveCollisionObject(collider);
 	}
 
-	void Particle::Update(TimingInfo time)
+	void Particle::Update(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 

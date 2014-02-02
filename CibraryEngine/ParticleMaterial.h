@@ -28,19 +28,19 @@ namespace CibraryEngine
 			ParticleMaterial(Texture2D* tex, BlendStyle bs);
 			ParticleMaterial(Texture3D* tex, BlendStyle bs);
 
-			Texture* GetTexture();
-			bool IsTexture3D();
+			Texture* GetTexture() const;
+			bool IsTexture3D()    const;
 
 			void SetTexture(Texture2D* tex);
 			void SetTexture(Texture3D* tex);
 
-			bool Equals(Material* other);
+			bool Equals(const Material* other) const;
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
+			void Draw(const RenderNode& node);
 
-			void Cleanup(RenderNode node);
+			void Cleanup(const RenderNode& node);
 	};
 
 	struct ParticleMaterialNodeData
@@ -53,7 +53,7 @@ namespace CibraryEngine
 		float third_coord;
 		CameraView* camera_view;
 
-		ParticleMaterialNodeData(Vec3 pos, float radius, float angle, CameraView* camera);
+		ParticleMaterialNodeData(const Vec3& pos, float radius, float angle, CameraView* camera);
 
 		void Execute();
 	};

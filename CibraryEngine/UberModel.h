@@ -147,8 +147,8 @@ namespace CibraryEngine
 
 			void LoadCachedMaterials(Cache<Material>* mat_cache, bool force = false);
 
-			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info);
-			void Vis(SceneRenderer* renderer, int lod, Mat4 xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials);
+			void Vis(SceneRenderer* renderer, int lod, const Mat4& xform, SkinnedCharacterRenderInfo* char_render_info);
+			void Vis(SceneRenderer* renderer, int lod, const Mat4& xform, SkinnedCharacterRenderInfo* char_render_info, vector<Material*>* use_materials);
 	};
 
 	struct UberModelLoader : public ContentTypeHandler<UberModel>

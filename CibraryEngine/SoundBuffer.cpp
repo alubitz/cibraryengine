@@ -25,7 +25,7 @@ namespace CibraryEngine
 	bool SoundBuffer::IsLoaded() { return al_name != 0; }
 	unsigned int SoundBuffer::GetALName() { return al_name; }
 
-	SoundBuffer* SoundBuffer::FromFile(string filename)
+	SoundBuffer* SoundBuffer::FromFile(const string& filename)
 	{
 		unsigned int al_name = 0;
 

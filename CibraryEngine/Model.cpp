@@ -14,11 +14,11 @@ namespace CibraryEngine
 {
 	/*
 	 * SkinVInfo methods
-	 */	
+	 */
 	SkinVInfo::SkinVInfo() : VTNTT(), indices(), weights() { weights[0] = 255; }
-	SkinVInfo::SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n) : VTNTT(x, uvw, n), indices(), weights() { weights[0] = 255; }
-	SkinVInfo::SkinVInfo(VTNTT original) : VTNTT(original), indices(), weights() { weights[0] = 255; }
-	SkinVInfo::SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices_, unsigned char* weights_) : 
+	SkinVInfo::SkinVInfo(const Vec3& x, const Vec3& uvw, const Vec3& n) : VTNTT(x, uvw, n), indices(), weights() { weights[0] = 255; }
+	SkinVInfo::SkinVInfo(const VTNTT& original) : VTNTT(original), indices(), weights() { weights[0] = 255; }
+	SkinVInfo::SkinVInfo(const Vec3& x, const Vec3& uvw, const Vec3& n, unsigned char* indices_, unsigned char* weights_) : 
 		VTNTT(x, uvw, n), 
 		indices(),
 		weights()
@@ -36,14 +36,14 @@ namespace CibraryEngine
 	/*
 	 * SkinnedModel methods
 	 */
-	SkinnedModel::SkinnedModel(vector<MaterialModelPair> material_model_pairs, vector<string> material_names, Skeleton* skeleton) :
+	SkinnedModel::SkinnedModel(const vector<MaterialModelPair>& material_model_pairs, const vector<string>& material_names, Skeleton* skeleton) :
 		material_model_pairs(material_model_pairs),
 		material_names(material_names),
 		skeleton(skeleton)
 	{
 	}
 
-	SkinnedModel* SkinnedModel::WrapVertexBuffer(VertexBuffer* model, string material_name)
+	SkinnedModel* SkinnedModel::WrapVertexBuffer(VertexBuffer* model, const string& material_name)
 	{
 		vector<string> material_names;
 		material_names.push_back(material_name);
@@ -70,7 +70,7 @@ namespace CibraryEngine
 		return new SkinnedModel(material_model_pairs, material_names, skeleton);
 	}
 
-	void SkinnedModel::AutoSkinModel(SkinnedModel* model, vector<VertexBuffer*>& submodels)
+	void SkinnedModel::AutoSkinModel(SkinnedModel* model, const vector<VertexBuffer*>& submodels)
 	{
 		if(model->material_model_pairs.empty() || submodels.empty())
 			return;
@@ -123,7 +123,7 @@ namespace CibraryEngine
 			Vec3 vert;
 			unsigned int owner_id;
 
-			SubmodelVert(Vec3 vert, unsigned int owner_id) : vert(vert), owner_id(owner_id) { }
+			SubmodelVert(const Vec3& vert, unsigned int owner_id) : vert(vert), owner_id(owner_id) { }
 		};
 
 		struct MyOctreeNode { vector<SubmodelVert> verts; };
@@ -136,7 +136,7 @@ namespace CibraryEngine
 
 		// add the submodels' data to the octree
 		unsigned int submodel_num = 0;
-		for(vector<VertexBuffer*>::iterator iter = submodels.begin(); iter != submodels.end(); ++iter, ++submodel_num)
+		for(vector<VertexBuffer*>::const_iterator iter = submodels.begin(); iter != submodels.end(); ++iter, ++submodel_num)
 		{
 			if(VertexBuffer* vbo = *iter)
 			{
@@ -259,7 +259,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void SetVertexInfo(VertexBuffer* vbo, int index, VTNTT info)
+	void SetVertexInfo(VertexBuffer* vbo, int index, const VTNTT& info)
 	{
 		float* xyz = vbo->GetFloatPointer("gl_Vertex");
 		xyz[index * 3 + 0] = info.x.x;
@@ -287,14 +287,14 @@ namespace CibraryEngine
 		t2[index * 3 + 2] = info.tan_2.z;
 	}
 
-	void AddVertexInfo(VertexBuffer* vbo, VTNTT info)
+	void AddVertexInfo(VertexBuffer* vbo, const VTNTT& info)
 	{
 		int index = vbo->GetNumVerts();
 		vbo->SetNumVerts(index + 1);
 		SetVertexInfo(vbo, index, info);
 	}
 
-	void AddVertexInfo(VertexBuffer* vbo, SkinVInfo info)
+	void AddVertexInfo(VertexBuffer* vbo, const SkinVInfo& info)
 	{
 		int index = vbo->GetNumVerts();
 

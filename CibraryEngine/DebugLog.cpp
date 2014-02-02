@@ -6,7 +6,7 @@ namespace CibraryEngine
 {
 	ofstream* debug_logfile = NULL;
 
-	void Debug(string s)
+	void Debug(const string& s)
 	{
 		if(debug_logfile == NULL)
 			debug_logfile = new ofstream("debug.txt");

@@ -46,14 +46,14 @@ namespace Test
 
 			virtual void InnerDispose();
 
-			void DoPitchAndYawControls(TimingInfo time);
-			virtual void DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward);
-			virtual void DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward);
-			virtual void DoWeaponControls(TimingInfo time);
+			void DoPitchAndYawControls(const TimingInfo& time);
+			virtual void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
+			virtual void DoMovementControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
+			virtual void DoWeaponControls(const TimingInfo& time);
 
 			// for PhysicsToCharacter
-			virtual void PreUpdatePoses(TimingInfo time);
-			virtual void PostUpdatePoses(TimingInfo time);
+			virtual void PreUpdatePoses(const TimingInfo& time);
+			virtual void PostUpdatePoses(const TimingInfo& time);
 
 			// for PoseToPhysics
 			virtual void DoCheatyPose(float timestep, const Vec3& net_vel);
@@ -103,10 +103,10 @@ namespace Test
 			WeaponEquip* equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
-			Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team);
+			Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
 			Vec3 GetPosition();
-			void SetPosition(Vec3 pos);
+			void SetPosition(const Vec3& pos);
 
 			void Vis(SceneRenderer* renderer);
 			Mat4 GetViewMatrix();
@@ -114,20 +114,20 @@ namespace Test
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 
-			void PoseCharacter(TimingInfo time);
+			void PoseCharacter(const TimingInfo& time);
 
 			void PhysicsToCharacter();
 			virtual void PoseToPhysics(float timestep);
 
-			virtual void Update(TimingInfo time);
+			virtual void Update(const TimingInfo& time);
 
 			virtual void Spawned();
 			virtual void DeSpawned();
 
-			void TakeDamage(Damage damage, const Vec3& from_dir);
+			void TakeDamage(const Damage& damage, const Vec3& from_dir);
 			void Splatter(Shot* shot, const Vec3& poi, const Vec3& vel);
 
-			virtual void Die(Damage cause);
+			virtual void Die(const Damage& cause);
 
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
@@ -183,7 +183,7 @@ namespace Test
 				Damage damage;
 				bool cancel;
 
-				DamageTakenEvent(Dood* dood, const Vec3& from_dir, Damage damage) : dood(dood), from_dir(from_dir), damage(damage), cancel(false) { }
+				DamageTakenEvent(Dood* dood, const Vec3& from_dir, const Damage& damage) : dood(dood), from_dir(from_dir), damage(damage), cancel(false) { }
 			};
 			EventDispatcher OnDamageTaken;
 
@@ -198,7 +198,7 @@ namespace Test
 			{
 				Dood* dood;
 				Damage cause;
-				DeathEvent(Dood* dood, Damage cause) : dood(dood), cause(cause) { }
+				DeathEvent(Dood* dood, const Damage& cause) : dood(dood), cause(cause) { }
 			};
 			EventDispatcher OnDeath;
 	};

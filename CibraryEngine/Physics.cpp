@@ -499,7 +499,7 @@ namespace CibraryEngine
 			all_constraints.erase(c);
 	}
 
-	void PhysicsWorld::Update(TimingInfo time)
+	void PhysicsWorld::Update(const TimingInfo& time)
 	{
 		internal_timer += time.elapsed;
 		for(int i = 0; internal_timer >= timer_interval && i < MAX_FIXED_STEPS_PER_UPDATE; ++i)
@@ -565,8 +565,8 @@ namespace CibraryEngine
 					CollisionObject* cobj = *iter;
 					switch(cobj->GetType())
 					{
-						case COT_RigidBody:			RayCollider::CollideRigidBody(		(RigidBody*)*iter,		ray, max_time, hits, collider); break;
-						case COT_CollisionGroup:	RayCollider::CollideCollisionGroup(	(CollisionGroup*)*iter,	ray, max_time, hits, collider); break;
+						case COT_RigidBody:       RayCollider::CollideRigidBody(      (RigidBody*)*iter,      ray, max_time, hits, collider); break;
+						case COT_CollisionGroup:  RayCollider::CollideCollisionGroup( (CollisionGroup*)*iter, ray, max_time, hits, collider); break;
 					}
 				}
 			}

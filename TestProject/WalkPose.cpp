@@ -43,7 +43,7 @@ namespace Test
 	}
 
 	// TODO: prevent accidentally stepping when moving to rest animation
-	void WalkPose::UpdatePose(TimingInfo time)
+	void WalkPose::UpdatePose(const TimingInfo& time)
 	{
 		if(time.total < 0.1f)
 			return;
@@ -94,15 +94,15 @@ namespace Test
 
 		// rather than use instantaneous velocity values, approach the velocities gradually over time
 		float old_coeff = expf(-vsmooth_exp_coeff * time.elapsed), nu_coeff = 1.0f - old_coeff;
-		forward_v =		old_coeff * forward_v	+ nu_coeff * m_forward_v;
-		leftward_v =	old_coeff * leftward_v	+ nu_coeff * m_leftward_v;
-		yaw_v =			old_coeff * yaw_v		+ nu_coeff * m_yaw_v;
+		forward_v  = old_coeff * forward_v  + nu_coeff * m_forward_v;
+		leftward_v = old_coeff * leftward_v + nu_coeff * m_leftward_v;
+		yaw_v      = old_coeff * yaw_v      + nu_coeff * m_yaw_v;
 
 		// figure out the fastest playback speed we have an animation for (used as master playback speed)
 		float use_speed = 0.0f;
-		if(forward_v > 0		&& forward_anim)	{ use_speed = forward_v * fwd_anim_rate; }						else if(forward_v < 0	&& backward_anim)	{ use_speed = -forward_v * fwd_anim_rate; }
-		if(leftward_v > 0		&& left_anim)		{ use_speed = max(use_speed, leftward_v * side_anim_rate); }	else if(leftward_v < 0	&& right_anim)		{ use_speed = max(use_speed, -leftward_v * side_anim_rate); }
-		if(yaw_v > 0			&& l_turn_anim)		{ use_speed = max(use_speed, yaw_v * turn_anim_rate); }			else if(yaw_v < 0		&& r_turn_anim)		{ use_speed = max(use_speed, -yaw_v * turn_anim_rate); }
+		if(forward_v  > 0 && forward_anim) { use_speed = forward_v * fwd_anim_rate; }                   else if(forward_v  < 0 && backward_anim) { use_speed = -forward_v * fwd_anim_rate; }
+		if(leftward_v > 0 && left_anim   ) { use_speed = max(use_speed, leftward_v * side_anim_rate); } else if(leftward_v < 0 && right_anim   ) { use_speed = max(use_speed, -leftward_v * side_anim_rate); }
+		if(yaw_v      > 0 && l_turn_anim ) { use_speed = max(use_speed, yaw_v * turn_anim_rate); }      else if(yaw_v      < 0 && r_turn_anim  ) { use_speed = max(use_speed, -yaw_v * turn_anim_rate); }
 
 		float forward_speed, leftward_speed, yaw_speed;
 		if(use_speed < min_speed)			// if none of the animations are moving fast enough to warrant stepping, set all speeds to zero and reset the timer
@@ -112,9 +112,9 @@ namespace Test
 		}
 		else
 		{
-			forward_speed =		forward_v	* fwd_anim_rate;
-			leftward_speed =	leftward_v	* side_anim_rate;
-			yaw_speed =			yaw_v		* turn_anim_rate;
+			forward_speed  = forward_v	* fwd_anim_rate;
+			leftward_speed = leftward_v	* side_anim_rate;
+			yaw_speed      = yaw_v		* turn_anim_rate;
 
 			float dt = 1.0f - expf(-use_speed * playback_exp_coeff * time.elapsed);
 			anim_timer += dt;

@@ -52,7 +52,7 @@ namespace CibraryEngine
 
 	PerlinNoise::~PerlinNoise() { if(gradients) { delete[] gradients; gradients = NULL; } }
 
-	float PerlinNoise::Sample(Vec3 uvw)
+	float PerlinNoise::Sample(const Vec3& uvw)
 	{
 		float noise_x = uvw.x - res * floor(uvw.x / res), noise_y = uvw.y - res * floor(uvw.y / res), noise_z = uvw.z - res * floor(uvw.z / res);
 

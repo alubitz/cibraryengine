@@ -10,7 +10,7 @@ namespace Test
 	/*
 	 * Shot methods
 	 */
-	Shot::Shot(GameState* gs, VertexBuffer* model, BillboardMaterial* material, Vec3 origin, Vec3 initial_vel, Dood* firer) :
+	Shot::Shot(GameState* gs, VertexBuffer* model, BillboardMaterial* material, const Vec3& origin, const Vec3& initial_vel, Dood* firer) :
 		Entity(gs),
 		model(model),
 		material(material),
@@ -57,7 +57,7 @@ namespace Test
 			physics->RemoveCollisionObject(collider);
 	}
 
-	void Shot::Update(TimingInfo time)							{ Entity::Update(time); }
+	void Shot::Update(const TimingInfo& time)							{ Entity::Update(time); }
 
 	Damage Shot::GetDamage()									{ return Damage(firer, 0.09f); }
 	void Shot::GetMomentumInfo(Vec3& vel_out, float& mass_out)	{ vel_out = collider->GetLinearVelocity(); mass_out = mass; }

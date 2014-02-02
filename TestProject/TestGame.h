@@ -94,19 +94,19 @@ namespace Test
 
 			void Load();
 
-			Dood* SpawnPlayer(Vec3 pos);
-			Dood* SpawnBot(Vec3 pos);
-			Dood* SpawnArtilleryBug(Vec3 pos);
+			Dood* SpawnPlayer(const Vec3& pos);
+			Dood* SpawnBot(const Vec3& pos);
+			Dood* SpawnArtilleryBug(const Vec3& pos);
 			unsigned int GetNumberOfBugs();
 
-			Rubbish* SpawnRubbish(Vec3 pos);
+			Rubbish* SpawnRubbish(const Vec3& pos);
 
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
 			// Drawing-related functions...
 			void Draw(int width, int height);
 
-			void ShowChapterText(string title, string subtitle, float duration);
+			void ShowChapterText(const string& title, const string& subtitle, float duration);
 
 			float GetTerrainHeight(float x, float z);
 

@@ -8,7 +8,7 @@ namespace CibraryEngine
 	/*
 	 * DSNLoader methods
 	 */
-	DSNMaterial* DSNLoader::Load(string asset_name)
+	DSNMaterial* DSNLoader::Load(const string& asset_name)
 	{
 		Texture2D* diffuse = tex_cache->Load(asset_name + "-d");
 		Texture2D* specular = tex_cache->Load(asset_name + "-s");

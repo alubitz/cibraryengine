@@ -51,7 +51,7 @@ namespace Test
 	bool MaybeDoScriptedUpdate(Dood* dood);
 	bool MaybeDoScriptedDeath(Dood* dood);
 
-	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, Vec3 pos, Team& team) :
+	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Pawn(gs),
 		pose_timer(0.0f),
 		yaw_rate(10.0f),
@@ -124,9 +124,9 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	void Dood::DoJumpControls(TimingInfo time, Vec3 forward, Vec3 rightward) { }
+	void Dood::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward) { }
 
-	void Dood::DoMovementControls(TimingInfo time, Vec3 forward, Vec3 rightward)
+	void Dood::DoMovementControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
 	{
 		bool standing = standing_callback.IsStanding();
 
@@ -155,7 +155,7 @@ namespace Test
 		}
 	}
 
-	void Dood::DoWeaponControls(TimingInfo time)
+	void Dood::DoWeaponControls(const TimingInfo& time)
 	{
 		if(control_state->GetBoolControl("reload"))
 		{
@@ -187,7 +187,7 @@ namespace Test
 		return NULL;
 	}
 
-	void Dood::Update(TimingInfo time)
+	void Dood::Update(const TimingInfo& time)
 	{
 		Pawn::Update(time);
 
@@ -246,7 +246,7 @@ namespace Test
 		}
 	}
 
-	void Dood::DoPitchAndYawControls(TimingInfo time)
+	void Dood::DoPitchAndYawControls(const TimingInfo& time)
 	{
 		float timestep = time.elapsed;
 
@@ -289,7 +289,7 @@ namespace Test
 	}
 
 	Vec3 Dood::GetPosition()					{ return root_rigid_body->GetPosition(); }
-	void Dood::SetPosition(Vec3 pos)			{ root_rigid_body->SetPosition(pos); }
+	void Dood::SetPosition(const Vec3& pos)		{ root_rigid_body->SetPosition(pos); }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
@@ -353,9 +353,9 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	void Dood::PreUpdatePoses(TimingInfo time)	{ }
-	void Dood::PostUpdatePoses(TimingInfo time)	{ }
-	void Dood::RegisterFeet()					{ }
+	void Dood::PreUpdatePoses(const TimingInfo& time)	{ }
+	void Dood::PostUpdatePoses(const TimingInfo& time)	{ }
+	void Dood::RegisterFeet()					        { }
 
 	void Dood::PhysicsToCharacter()
 	{
@@ -492,7 +492,7 @@ namespace Test
 
 	void Dood::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
 
-	void Dood::PoseCharacter(TimingInfo time)
+	void Dood::PoseCharacter(const TimingInfo& time)
 	{
 		if(!is_valid)
 			return;
@@ -675,7 +675,7 @@ namespace Test
 		feet.clear();
 	}
 
-	void Dood::TakeDamage(Damage damage, const Vec3& from_dir)
+	void Dood::TakeDamage(const Damage& damage, const Vec3& from_dir)
 	{
 		DamageTakenEvent evt(this, from_dir, damage);
 		OnDamageTaken(&evt);
@@ -703,7 +703,7 @@ namespace Test
 			}
 	}
 
-	void Dood::Die(Damage cause)
+	void Dood::Die(const Damage& cause)
 	{
 		if(!alive)
 			return;

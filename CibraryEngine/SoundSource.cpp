@@ -9,7 +9,7 @@ namespace CibraryEngine
 	/*
 	 * SoundSource methods
 	 */
-	SoundSource::SoundSource(SoundType sound_type, Vec3 pos, Vec3 vel, SoundBuffer* sound, float vol, bool looping, SoundSystem* sys) :
+	SoundSource::SoundSource(SoundType sound_type, const Vec3& pos, const Vec3& vel, SoundBuffer* sound, float vol, bool looping, SoundSystem* sys) :
 		sound_type(sound_type),
 		loudness(0),
 		valid(true),
@@ -58,7 +58,7 @@ namespace CibraryEngine
 
 	void SoundSource::InvalidateSound() { valid = false; }
 
-	void SoundSource::Update(TimingInfo time)
+	void SoundSource::Update(const TimingInfo& time)
 	{
 		if(!sys->master_enable)
 			return;

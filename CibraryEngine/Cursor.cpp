@@ -16,7 +16,7 @@ namespace CibraryEngine
 		Texture2D* texture;
 		Vec2 offset;
 
-		Imp(Texture2D* texture, Vec2 offset) :
+		Imp(Texture2D* texture, const Vec2& offset) :
 			texture(texture),
 			offset(offset)
 		{
@@ -31,7 +31,7 @@ namespace CibraryEngine
 	/*
 	 * Cursor methods
 	 */
-	Cursor::Cursor(Texture2D* texture, Vec2 offset) :
+	Cursor::Cursor(Texture2D* texture, const Vec2& offset) :
 		imp(new Imp(texture, offset))
 	{
 	}

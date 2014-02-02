@@ -21,6 +21,6 @@ namespace DestructibleTerrain
 			void Deactivate();
 
 			void Draw(int width, int height);
-			ProgramScreen* Update(TimingInfo time);	
+			ProgramScreen* Update(const TimingInfo& time);	
 	};
 }

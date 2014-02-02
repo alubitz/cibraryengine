@@ -24,7 +24,7 @@ namespace CibraryEngine
 	/*
 	 * AutoMenuItem methods
 	 */
-	AutoMenuItem::AutoMenuItem(ContentMan* content, string text, int row, bool selectable) : MenuItem(content)
+	AutoMenuItem::AutoMenuItem(ContentMan* content, const string& text, int row, bool selectable) : MenuItem(content)
 	{
 		int x1 = 100;
 		int y1 = 100 + row * 30;

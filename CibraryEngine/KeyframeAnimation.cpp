@@ -21,9 +21,9 @@ namespace CibraryEngine
 	 * KeyframeAnimation methods
 	 */
 	KeyframeAnimation::KeyframeAnimation() : name(""), frames(), current_index(0), current_time(0.0f) { }
-	KeyframeAnimation::KeyframeAnimation(string name) : name(name), frames(), current_index(0), current_time(0.0f) { }
+	KeyframeAnimation::KeyframeAnimation(const string& name) : name(name), frames(), current_index(0), current_time(0.0f) { }
 
-	bool KeyframeAnimation::Advance(TimingInfo time)
+	bool KeyframeAnimation::Advance(const TimingInfo& time)
 	{
 		if(current_index == -1)
 			return false;
@@ -60,7 +60,7 @@ namespace CibraryEngine
 		}
 	}
 
-	void KeyframeAnimation::UpdatePose(TimingInfo time)
+	void KeyframeAnimation::UpdatePose(const TimingInfo& time)
 	{
 		if(Advance(time))
 		{

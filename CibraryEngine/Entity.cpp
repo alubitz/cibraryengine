@@ -18,7 +18,7 @@ namespace CibraryEngine
 	Entity::Entity(GameState* gs) : id(next_id++), scripting_handle(NULL), game_state(gs), is_valid(true) { all_entities[id] = this; }
 	Entity::~Entity() { Dispose(); }
 
-	void Entity::Update(TimingInfo time)
+	void Entity::Update(const TimingInfo& time)
 	{
 		for(vector<Component*>::iterator iter = components.begin(); iter != components.end(); ++iter)
 			(*iter)->Update(time);

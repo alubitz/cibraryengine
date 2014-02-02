@@ -39,11 +39,11 @@ namespace CibraryEngine
 			/** Skeleton prototype for this model */
 			Skeleton* skeleton;
 
-			SkinnedModel(vector<MaterialModelPair> material_model_pairs, vector<string> material_names, Skeleton* skeleton);
+			SkinnedModel(const vector<MaterialModelPair>& material_model_pairs, const vector<string>& material_names, Skeleton* skeleton);
 
-			static SkinnedModel* WrapVertexBuffer(VertexBuffer* model, string material_name);
+			static SkinnedModel* WrapVertexBuffer(VertexBuffer* model, const string& material_name);
 
-			static void AutoSkinModel(SkinnedModel* model, vector<VertexBuffer*>& submodels);
+			static void AutoSkinModel(SkinnedModel* model, const vector<VertexBuffer*>& submodels);
 	};
 
 	struct VTNTT
@@ -55,7 +55,7 @@ namespace CibraryEngine
 		Vec3 tan_2;
 
 		VTNTT() { }
-		VTNTT(Vec3 x, Vec3 uvw, Vec3 n) : x(x), uvw(uvw), n(n) { }
+		VTNTT(const Vec3& x, const Vec3& uvw, const Vec3& n) : x(x), uvw(uvw), n(n) { }
 
 	};
 
@@ -65,9 +65,9 @@ namespace CibraryEngine
 		unsigned char weights[4];
 
 		SkinVInfo();
-		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n);
-		SkinVInfo(VTNTT original);
-		SkinVInfo(Vec3 x, Vec3 uvw, Vec3 n, unsigned char* indices, unsigned char* weights);
+		SkinVInfo(const Vec3& x, const Vec3& uvw, const Vec3& n);
+		SkinVInfo(const VTNTT& original);
+		SkinVInfo(const Vec3& x, const Vec3& uvw, const Vec3& n, unsigned char* indices, unsigned char* weights);
 	};
 
 	void AddTangentSpaceInfo(VTNTT& a, VTNTT& b, VTNTT& c);

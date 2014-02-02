@@ -35,6 +35,6 @@ namespace Test
 			WalkPose(Dood* dood, const KeyframeAnimation* rest_anim, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* l_turn_anim, const KeyframeAnimation* r_turn_anim);
 			~WalkPose();
 
-			void UpdatePose(TimingInfo time);
+			void UpdatePose(const TimingInfo& time);
 	};
 }

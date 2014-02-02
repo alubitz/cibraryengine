@@ -28,7 +28,7 @@ namespace CibraryEngine
 		Vec3 pos;
 		map<unsigned int, NavEdge*> edges;
 
-		NavNode(Vec3 pos);
+		NavNode(const Vec3& pos);
 		~NavNode();
 
 		NavEdge* GetEdgeByID(unsigned int id);
@@ -42,7 +42,7 @@ namespace CibraryEngine
 	/*
 	 * NavNode methods
 	 */
-	NavNode::NavNode(Vec3 pos) :
+	NavNode::NavNode(const Vec3& pos) :
 			pos(pos),
 			edges()
 		{
@@ -166,7 +166,7 @@ namespace CibraryEngine
 			{
 			}
 
-			unsigned int NewNode(Vec3 pos)
+			unsigned int NewNode(const Vec3& pos)
 			{
 				nodes[next_node_id] = new NavNode(pos);
 				return next_node_id++;
@@ -195,7 +195,7 @@ namespace CibraryEngine
 				return results;
 			}
 
-			vector<unsigned int> GetVisibleNodes(Vec3 pos)
+			vector<unsigned int> GetVisibleNodes(const Vec3& pos)
 			{
 				vector<unsigned int> results;
 				for(unordered_map<unsigned int, NavNode*>::iterator iter = nodes.begin(); iter != nodes.end(); ++iter)
@@ -207,7 +207,7 @@ namespace CibraryEngine
 				return results;
 			}
 
-			unsigned int GetNearestNode(Vec3 pos)
+			unsigned int GetNearestNode(const Vec3& pos)
 			{
 				unsigned int result = 0;
 				float closest = 0;
@@ -293,7 +293,7 @@ namespace CibraryEngine
 				}
 			}
 
-			void SetPosition(unsigned int node, Vec3 pos)
+			void SetPosition(unsigned int node, const Vec3& pos)
 			{
 				if(NavNode* n = GetNodeByID(node))
 					n->pos = pos;
@@ -366,7 +366,7 @@ namespace CibraryEngine
 		}
 	}
 
-	unsigned int NavGraph::NewNode(unsigned int graph, Vec3 pos)
+	unsigned int NavGraph::NewNode(unsigned int graph, const Vec3& pos)
 	{
 		NavGraphObject* obj = GetGraphByID(graph);
 		if(obj)
@@ -399,7 +399,7 @@ namespace CibraryEngine
 		}
 	}
 
-	vector<unsigned int> NavGraph::GetVisibleNodes(unsigned int graph, Vec3 pos)
+	vector<unsigned int> NavGraph::GetVisibleNodes(unsigned int graph, const Vec3& pos)
 	{
 		NavGraphObject* obj = GetGraphByID(graph);
 		if(obj)
@@ -411,7 +411,7 @@ namespace CibraryEngine
 		}
 	}
 
-	unsigned int NavGraph::GetNearestNode(unsigned int graph, Vec3 pos)
+	unsigned int NavGraph::GetNearestNode(unsigned int graph, const Vec3& pos)
 	{
 		NavGraphObject* obj = GetGraphByID(graph);
 		if(obj)
@@ -471,7 +471,7 @@ namespace CibraryEngine
 		}
 	}
 	
-	void NavGraph::NodeSetPosition(unsigned int graph, unsigned int node, Vec3 pos)
+	void NavGraph::NodeSetPosition(unsigned int graph, unsigned int node, const Vec3& pos)
 	{
 		NavGraphObject* obj = GetGraphByID(graph);
 		if(obj)
@@ -591,7 +591,7 @@ namespace CibraryEngine
 	/*
 	 * NavGraph I/O functions
 	 */
-	void SaveNavGraph(unsigned int graph, string filename)
+	void SaveNavGraph(unsigned int graph, const string& filename)
 	{
 		ofstream file(filename.c_str(), ios::out | ios::binary);
 		if(!file)
@@ -628,7 +628,7 @@ namespace CibraryEngine
 		}
 	}
 
-	unsigned int LoadNavGraph(GameState* game_state, string filename)
+	unsigned int LoadNavGraph(GameState* game_state, const string& filename)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)

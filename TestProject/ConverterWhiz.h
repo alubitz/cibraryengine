@@ -19,7 +19,7 @@ namespace Test
 
 		float mass;
 
-		BoneEntry(string name, string parent, Vec3 pos) :
+		BoneEntry(const string& name, const string& parent, const Vec3& pos) :
 			name(name),
 			parent(parent),
 			pos(pos),
@@ -30,7 +30,7 @@ namespace Test
 			spheres.push_back(Sphere(Vec3(pos), 0.15f));
 		}
 
-		BoneEntry(string name, string parent, Vec3 top, float top_radius, Vec3 bottom, float bottom_radius, float mass) :
+		BoneEntry(const string& name, const string& parent, const Vec3& top, float top_radius, const Vec3& bottom, float bottom_radius, float mass) :
 			name(name),
 			parent(parent),
 			pos(top),
@@ -42,7 +42,7 @@ namespace Test
 			spheres.push_back(Sphere(bottom, bottom_radius));
 		}
 
-		BoneEntry(string name, string parent, Vec3 pos, vector<Sphere> spheres, float mass) :
+		BoneEntry(const string& name, const string& parent, const Vec3& pos, const vector<Sphere>& spheres, float mass) :
 			name(name),
 			parent(parent),
 			pos(pos),
@@ -54,7 +54,7 @@ namespace Test
 	};
 
 	// For creating UberModels
-	UberModel* AutoSkinUberModel(ContentMan* content, string vtn_name, string material, vector<BoneEntry>& bone_entries);
-	void SetUberModelSkeleton(UberModel* uber, vector<BoneEntry>& bone_entries);
-	ModelPhysics* ModelPhysicsFromBoneEntries(vector<BoneEntry>& bone_entries);
+	UberModel* AutoSkinUberModel(ContentMan* content, const string& vtn_name, const string& material, const vector<BoneEntry>& bone_entries);
+	void SetUberModelSkeleton(UberModel* uber, const vector<BoneEntry>& bone_entries);
+	ModelPhysics* ModelPhysicsFromBoneEntries(const vector<BoneEntry>& bone_entries);
 }

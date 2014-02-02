@@ -56,7 +56,7 @@ namespace CibraryEngine
 			/** The name of the uniform variable */
 			string name;
 
-			UniformVariable(string name) : name(name) { }
+			UniformVariable(const string& name) : name(name) { }
 			~UniformVariable() { }
 
 			/** Figures out the location in the ShaderProgram to apply the value, and calls ApplyValue with that */
@@ -73,7 +73,7 @@ namespace CibraryEngine
 	{
 		public:
 
-			TypedUniformVariable(string name) : UniformVariable(name) { }
+			TypedUniformVariable(const string& name) : UniformVariable(name) { }
 			virtual ~TypedUniformVariable() { }
 
 			/** Abstract function to get the value of the uniform variable */

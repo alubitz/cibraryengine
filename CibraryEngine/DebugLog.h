@@ -7,7 +7,7 @@ namespace CibraryEngine
 	using namespace std;
 
 	/** Writes a string to the debug log */
-	void Debug(string s);
+	void Debug(const string& s);
 
 	void Debug(int line, const char* file);
 

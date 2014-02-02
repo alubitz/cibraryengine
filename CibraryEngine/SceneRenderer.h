@@ -23,7 +23,7 @@ namespace CibraryEngine
 			virtual ~LightSource() { }
 
 			/** Determines whether a LightSource is close enough to an object that its light should affect that object; default implementation returns true */
-			virtual bool IsWithinLightingRange(Sphere bs) { return true; }
+			virtual bool IsWithinLightingRange(const Sphere& bs) { return true; }
 			/** Set this LightSource as the specified OpenGL LIGHT */
 			virtual void SetLight(int which) { }
 			/** Unset this LightSource as the specified OpenGL LIGHT */

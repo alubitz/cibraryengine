@@ -27,8 +27,8 @@ namespace CibraryEngine
 		int bone_count;
 		float precision;
 
-		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs);
-		DSNMaterialNodeData(VertexBuffer* model, Mat4 xform, Sphere bs, Texture1D* bone_matrices, int bone_count, float precision = 4096.0f);
+		DSNMaterialNodeData(VertexBuffer* model, const Mat4& xform, const Sphere& bs);
+		DSNMaterialNodeData(VertexBuffer* model, const Mat4& xform, const Sphere& bs, Texture1D* bone_matrices, int bone_count, float precision = 4096.0f);
 
 		void Draw();
 	};
@@ -59,11 +59,11 @@ namespace CibraryEngine
 
 			void BeginDraw(SceneRenderer* renderer);
 			void EndDraw();
-			void Draw(RenderNode node);
+			void Draw(const RenderNode& node);
 
-			void Cleanup(RenderNode node);
+			void Cleanup(const RenderNode& node);
 
-			bool Equals(Material* material);
+			bool Equals(const Material* material) const;
 
 			static Texture1D* default_bone_matrices;
 	};

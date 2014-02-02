@@ -76,7 +76,7 @@ namespace CibraryEngine
 			Disconnect();
 		}
 
-		void Connect(string server_ip_string, unsigned short port_num)
+		void Connect(const string& server_ip_string, unsigned short port_num)
 		{
 			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
 
@@ -281,7 +281,7 @@ namespace CibraryEngine
 
 	void Client::InnerDispose() { if(imp) { delete imp; imp = NULL; } }
 
-	void Client::Connect(string server_ip_string, unsigned short port_num) { imp->Connect(server_ip_string, port_num); }
+	void Client::Connect(const string& server_ip_string, unsigned short port_num) { imp->Connect(server_ip_string, port_num); }
 	void Client::Disconnect() { imp->Disconnect(); }
 	bool Client::IsConnected() { return imp->IsConnected(); }
 

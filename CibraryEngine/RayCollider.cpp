@@ -59,11 +59,11 @@ namespace CibraryEngine
 	{
 		switch(body->GetShapeType())
 		{
-			case ST_Sphere:			RayCollider::CollideSphere(		body, ray, max_time, hits, collider); return;
-			case ST_TriangleMesh:	RayCollider::CollideMesh(		body, ray, max_time, hits, collider); return;
-			case ST_InfinitePlane:	RayCollider::CollidePlane(		body, ray, max_time, hits, collider); return; 
-			case ST_MultiSphere:	RayCollider::CollideMultisphere(body, ray, max_time, hits, collider); return;
-			case ST_ConvexMesh:		RayCollider::CollideConvexMesh(	body, ray, max_time, hits, collider); return;
+			case ST_Sphere:        RayCollider::CollideSphere(      body, ray, max_time, hits, collider); return;
+			case ST_TriangleMesh:  RayCollider::CollideMesh(        body, ray, max_time, hits, collider); return;
+			case ST_InfinitePlane: RayCollider::CollidePlane(       body, ray, max_time, hits, collider); return; 
+			case ST_MultiSphere:   RayCollider::CollideMultisphere( body, ray, max_time, hits, collider); return;
+			case ST_ConvexMesh:    RayCollider::CollideConvexMesh(  body, ray, max_time, hits, collider); return;
 		}
 	}
 

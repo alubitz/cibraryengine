@@ -27,7 +27,7 @@ namespace CibraryEngine
 			// not overriding Load or RecommendUnload; all of our loading is done via SoundBuffer::FromFile
 			bool IsLoaded();
 
-			static SoundBuffer* FromFile(string filename);
+			static SoundBuffer* FromFile(const string& filename);
 			static unsigned int LoadWave(istream& stream, int& channels, int& bits, int& rate, vector<char>* buffer);
 			static ALenum GetSoundFormat(int channels, int bits);
 	};

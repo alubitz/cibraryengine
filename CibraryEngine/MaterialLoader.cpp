@@ -99,7 +99,7 @@ namespace CibraryEngine
 		{
 		}
 
-		TableParseable* Set(string val) { *result_out = dsn_loader->Load(val.substr(1, val.length() - 2)); return NULL; }
+		TableParseable* Set(const string& val) { *result_out = dsn_loader->Load(val.substr(1, val.length() - 2)); return NULL; }
 	};
 
 	struct GlowyMaterialField : public NamedItemDictionaryTableParser
@@ -119,7 +119,7 @@ namespace CibraryEngine
 		IntSetter rows;
 		IntSetter frames;
 
-		GlowyMaterialField(istream* stream, string name, ContentMan* content, ShaderProgram* shader_2d, ShaderProgram* shader_3d, Material** result_out) :
+		GlowyMaterialField(istream* stream, const string& name, ContentMan* content, ShaderProgram* shader_2d, ShaderProgram* shader_3d, Material** result_out) :
 			NamedItemDictionaryTableParser(stream),
 			content(content),
 			result_out(result_out),
@@ -161,7 +161,7 @@ namespace CibraryEngine
 
 		GlowyMaterialSetter(istream* stream, ContentMan* content, ShaderProgram* shader_2d, ShaderProgram* shader_3d, Material** result_out) : stream(stream), content(content), shader_2d(shader_2d), shader_3d(shader_3d), result_out(result_out) { }
 
-		TableParseable* Set(string val) { return new GlowyMaterialField(stream, val.substr(1, val.length() - 2), content, shader_2d, shader_3d, result_out); }
+		TableParseable* Set(const string& val) { return new GlowyMaterialField(stream, val.substr(1, val.length() - 2), content, shader_2d, shader_3d, result_out); }
 	};
 
 
@@ -183,7 +183,7 @@ namespace CibraryEngine
 		IntSetter rows;
 		IntSetter frames;
 
-		ParticleMaterialField(istream* stream, string name, ContentMan* content, BlendStyle blend, Material** result_out) :
+		ParticleMaterialField(istream* stream, const string& name, ContentMan* content, BlendStyle blend, Material** result_out) :
 			NamedItemDictionaryTableParser(stream),
 			content(content),
 			result_out(result_out),
@@ -223,7 +223,7 @@ namespace CibraryEngine
 
 		ParticleMaterialSetter(istream* stream, ContentMan* content, BlendStyle blend, Material** result_out) : stream(stream), content(content), result_out(result_out), blend(blend) { }
 
-		TableParseable* Set(string val) { return new ParticleMaterialField(stream, val.substr(1, val.length() - 2), content, blend, result_out); }
+		TableParseable* Set(const string& val) { return new ParticleMaterialField(stream, val.substr(1, val.length() - 2), content, blend, result_out); }
 	};
 
 
@@ -240,13 +240,13 @@ namespace CibraryEngine
 
 		BillboardMaterialSetter(istream* stream, ContentMan* content, BlendStyle blend, ShaderProgram* shader, Material** result_out) : stream(stream), content(content), blend(blend), shader(shader), result_out(result_out) { }
 
-		TableParseable* Set(string val) { *result_out = new BillboardMaterial(content->GetCache<Texture2D>()->Load(val.substr(1, val.length() - 2)), blend); return NULL; }
+		TableParseable* Set(const string& val) { *result_out = new BillboardMaterial(content->GetCache<Texture2D>()->Load(val.substr(1, val.length() - 2)), blend); return NULL; }
 	};
 
 
 
 
-	unsigned int MaterialLoader::LoadMaterial(string filename, Material** result_out)
+	unsigned int MaterialLoader::LoadMaterial(const string& filename, Material** result_out)
 	{
 		ifstream file(filename.c_str(), ios::in | ios::binary);
 		if(!file)

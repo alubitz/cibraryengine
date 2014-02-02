@@ -71,7 +71,7 @@ namespace CibraryEngine
 
 	ControlState* Controller::GetControlState() { return pawn != NULL ? pawn->control_state : NULL; }
 
-	void Controller::Update(TimingInfo time)
+	void Controller::Update(const TimingInfo& time)
 	{
 		float now = time.total;
 
@@ -95,7 +95,7 @@ namespace CibraryEngine
 	int cs_newindex(lua_State* L);
 	int cs_index(lua_State* L);
 
-	void ScriptedController::UpdateController(TimingInfo time)
+	void ScriptedController::UpdateController(const TimingInfo& time)
 	{
 		string filename = ((stringstream&)(stringstream() << "Files/Scripts/" << script << ".lua")).str();
 

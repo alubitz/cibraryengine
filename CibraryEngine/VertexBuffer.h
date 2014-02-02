@@ -25,7 +25,7 @@ namespace CibraryEngine
 		int n_per_vertex;
 
 		VertexAttribute() : name(), type(BadVertexAttribute), n_per_vertex(0) { }
-		VertexAttribute(string name, VertexAttributeType type, int n_per_vertex) : name(name), type(type), n_per_vertex(n_per_vertex) { }
+		VertexAttribute(const string& name, VertexAttributeType type, int n_per_vertex) : name(name), type(type), n_per_vertex(n_per_vertex) { }
 	};
 
 	/** Modes for drawing primitives */

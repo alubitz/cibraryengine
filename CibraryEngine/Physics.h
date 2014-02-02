@@ -107,7 +107,7 @@ namespace CibraryEngine
 			void RemoveConstraint(PhysicsConstraint* c);
 
 			/** Steps the simulation */
-			void Update(TimingInfo time);
+			void Update(const TimingInfo& time);
 
 			void DebugDrawWorld(SceneRenderer* renderer);
 

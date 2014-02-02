@@ -24,7 +24,7 @@ namespace Test
 			TestScreen(ProgramWindow* window, TestGame* test_game);
 
 			void Draw(int width_, int height_);
-			ProgramScreen* Update(TimingInfo time);
+			ProgramScreen* Update(const TimingInfo& time);
 
 			void Activate();
 			void Deactivate();

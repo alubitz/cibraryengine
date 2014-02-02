@@ -21,7 +21,7 @@ namespace Test
 
 			ArtilleryWeapon(TestGame* game_state, Dood* owner, Bone* mount_bone, const Vec3& mount_pos);
 
-			void OwnerUpdate(TimingInfo time);
+			void OwnerUpdate(const TimingInfo& time);
 
 			void LaunchRocketBug(float now);
 	};
