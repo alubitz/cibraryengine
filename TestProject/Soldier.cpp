@@ -10,7 +10,7 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
-#define DIE_AFTER_ONE_SECOND 0
+#define DIE_AFTER_ONE_SECOND   0
 
 #define ENABLE_WALK_ANIMATIONS 1
 
@@ -19,15 +19,16 @@ namespace Test
 	/*
 	 * Soldier constants
 	 */
-	static const float fly_accel_up = 15.0f;
+	static const float fly_accel_up       = 15.0f;
 
-	static const float jump_to_fly_delay = 0.3f;
-	static const float jump_speed = 4.0f;
+	static const float jump_to_fly_delay  = 0.3f;
+	static const float jump_speed         = 4.0f;
 
-	static const float fuel_spend_rate = 0.5f, fuel_refill_rate = 0.4f;
-	static const float flying_accel = 8.0f;
+	static const float fuel_spend_rate    = 0.5f;
+	static const float fuel_refill_rate   = 0.4f;
+	static const float flying_accel       = 8.0f;
 
-	static const float top_speed_forward = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
+	static const float top_speed_forward  = 7.0f;							// running speed of a person can be around 5.8333[...] m/s
 	static const float top_speed_sideways = 5.0f;
 
 
@@ -376,7 +377,7 @@ namespace Test
 
 		Cache<SoundBuffer>* sound_cache = game_state->content->GetCache<SoundBuffer>();
 		jet_start_sound = sound_cache->Load("jet_start");
-		jet_loop_sound = sound_cache->Load("jet_loop");
+		jet_loop_sound  = sound_cache->Load("jet_loop" );
 
 		standing_callback.angular_coeff = 1.0f;
 
@@ -467,7 +468,7 @@ namespace Test
 		if(p_ag != NULL)
 		{
 			// TODO: do correction for left-aiming gun in a less hackish manner
-			static const float yaw_offset = -0.5f;
+			static const float yaw_offset = 0.0f;//-0.5f;
 			p_ag->aim_dir = (Quaternion::FromRVec(0, -yaw + yaw_offset, 0) * Quaternion::FromRVec(-pitch, 0, 0)) * Vec3(0, 0, 1);
 
 #if ENABLE_WALK_ANIMATIONS
