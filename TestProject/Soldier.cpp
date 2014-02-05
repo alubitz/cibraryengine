@@ -550,7 +550,8 @@ namespace Test
 
 			walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
 			walk_pose->yaw_bone = Bone::string_table["pelvis"];
-			walk_pose->side_anim_rate = 2.5f;
+			walk_pose->side_anim_rate     = 2.5f;
+			walk_pose->InitialSetYawOffset(0.322f);
 
 			posey->active_poses.push_back(walk_pose);
 #endif

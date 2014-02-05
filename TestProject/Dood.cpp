@@ -53,7 +53,7 @@ namespace Test
 	 * Dood methods
 	 */
 	bool MaybeDoScriptedUpdate(Dood* dood);
-	bool MaybeDoScriptedDeath(Dood* dood);
+	bool MaybeDoScriptedDeath (Dood* dood);
 
 	Dood::Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Pawn(gs),
@@ -299,8 +299,8 @@ namespace Test
 		pitch = min((float)M_PI * 0.5f, max(-(float)M_PI * 0.5f, pitch));
 	}
 
-	Vec3 Dood::GetPosition()					{ return root_rigid_body->GetPosition(); }
-	void Dood::SetPosition(const Vec3& pos)		{ root_rigid_body->SetPosition(pos); }
+	Vec3 Dood::GetPosition()                  { return root_rigid_body->GetPosition(); }
+	void Dood::SetPosition(const Vec3& pos)   { root_rigid_body->SetPosition(pos);     }
 
 	void Dood::Vis(SceneRenderer* renderer)
 	{
@@ -364,9 +364,9 @@ namespace Test
 	}
 
 	// overridden by subclasses
-	void Dood::PreUpdatePoses(const TimingInfo& time)	{ }
-	void Dood::PostUpdatePoses(const TimingInfo& time)	{ }
-	void Dood::RegisterFeet()					        { }
+	void Dood::PreUpdatePoses(const TimingInfo& time)    { }
+	void Dood::PostUpdatePoses(const TimingInfo& time)   { }
+	void Dood::RegisterFeet()                            { }
 
 	void Dood::PhysicsToCharacter()
 	{

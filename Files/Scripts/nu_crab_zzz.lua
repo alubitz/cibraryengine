@@ -22,4 +22,4 @@ U.add_symmetric_bones(bones,	"leg c 2",		"leg c 1",		ba.createVector(	0.544,	0.6
 U.add_symmetric_bones(bones,	"leg c 3",		"leg c 2",		ba.createVector(	0.707,	0.786,	-1.076	) )
 U.add_symmetric_bones(bones,	"leg c point",	"leg c 3",		ba.createVector(	0.798,	0.0,	-1.366	) )
 
-ba.saveUberModel(models, bones, "nu_crab")
+ba.saveUberModel(models, bones, "crab_bug")

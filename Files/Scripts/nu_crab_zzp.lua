@@ -53,5 +53,4 @@ P.add_symmetric_joints(joints, bones,	"leg c 1",	"carapace",	ba.createVector(0.4
 P.add_symmetric_joints(joints, bones,	"leg c 2",	"leg c 1",	ba.createVector(0.544,	0.676,	-0.693), nil, c_hinge_axes,	ba.createVector(-1.4, -T, -T),		ba.createVector(1.0, T, T))
 P.add_symmetric_joints(joints, bones,	"leg c 3",	"leg c 2",	ba.createVector(0.707,	0.786,	-1.076), nil, c_hinge_axes,	ba.createVector(-1.0, -T, -T),		ba.createVector(1.3, T, T))
 
-ba.saveModelPhysics(bones, joints, "nu_crab")
 ba.saveModelPhysics(bones, joints, "crab_bug")

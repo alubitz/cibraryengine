@@ -6,8 +6,6 @@
 
 namespace Test
 {
-	struct BoneEntry;
-
 	class CrabBug : public Dood
 	{
 		private:
