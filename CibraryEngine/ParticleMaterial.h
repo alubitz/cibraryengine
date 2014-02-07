@@ -51,10 +51,12 @@ namespace CibraryEngine
 		float red, green, blue, alpha;
 
 		float third_coord;
-		CameraView* camera_view;
 
-		ParticleMaterialNodeData(const Vec3& pos, float radius, float angle, CameraView* camera);
+		ParticleMaterialNodeData(const Vec3& pos, float radius, float angle);
 
-		void Execute();
+		void PutUVW(float*& uvw_ptr, float u, float v, float w);
+		void PutColor(float*& color_ptr);
+		void PutVertex(float*& vert_ptr, const Vec3& vert);
+		void PutQuad(float*& vert_ptr, float*& uvw_ptr, float*& color_ptr, const Vec3& camera_up, const Vec3& camera_right);
 	};
 }

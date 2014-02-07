@@ -66,7 +66,7 @@ namespace Test
 			if(age < max_age && age >= 0)
 				if(scene->camera->CheckSphereVisibility(Sphere(pos, radius)))
 				{
-					ParticleMaterialNodeData* node_data = new ParticleMaterialNodeData(pos, radius, angle, scene->camera);		// deleted by ParticleMaterial::Cleanup
+					ParticleMaterialNodeData* node_data = new ParticleMaterialNodeData(pos, radius, angle);						// deleted by ParticleMaterial::Cleanup
 					node_data->third_coord = age / max_age;
 					scene->objects.push_back(RenderNode(material, node_data, Vec3::Dot(scene->camera->GetForward(), pos)));
 				}

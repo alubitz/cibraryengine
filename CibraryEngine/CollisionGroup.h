@@ -28,7 +28,7 @@ namespace CibraryEngine
 					void OnObjectUpdate(	CollisionObject* object, RegionSet& object_regions, float timestep) { }
 					void OnObjectRemoved(	CollisionObject* object, RegionSet& object_regions) { }
 					PhysicsRegion* GetRegion(const Vec3& point) { return NULL; }
-					void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results) { }
+					void GetRegionsOnRay(const Vec3& from, const Vec3& to, RegionSet& results) { }
 			};
 			DummyRegionManager* dummy_region_man;
 

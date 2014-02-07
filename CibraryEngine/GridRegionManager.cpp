@@ -147,7 +147,7 @@ namespace CibraryEngine
 		return region_array[x1 - x0][y1 - y0][z1 - z0];
 	}
 
-	void GridRegionManager::GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results)
+	void GridRegionManager::GetRegionsOnRay(const Vec3& from, const Vec3& to, RegionSet& results)
 	{
 		AABB aabb(from);
 		aabb.Expand(to);
@@ -171,7 +171,7 @@ namespace CibraryEngine
 					Vec3 xyz(x * cell_dim, y * cell_dim, z * cell_dim);
 
 					if(AABB(xyz, xyz + cell_diagonal).IntersectLineSegment(from, to))
-						results.insert(region_array[x - x0][y - y0][z - z0]);
+						results.Insert(region_array[x - x0][y - y0][z - z0]);
 				}
 	}
 

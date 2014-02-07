@@ -167,7 +167,7 @@ namespace CibraryEngine
 		/** Get the PhysicsRegion containing the specified point, if one exists */
 		virtual PhysicsRegion* GetRegion(const Vec3& point) = 0;
 
-		virtual void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results) = 0;
+		virtual void GetRegionsOnRay(const Vec3& from, const Vec3& to, RegionSet& results) = 0;
 	};
 
 	class CollisionCallback

@@ -340,6 +340,7 @@ namespace CibraryEngine
 	void TriangleMeshShape::GetRelevantTriangles(const AABB& aabb, vector<unsigned int>& results)
 	{
 		results.clear();
+		results.reserve(triangles.size());
 
 		if(triangles.empty())
 			return;												// lolwut?
@@ -347,8 +348,10 @@ namespace CibraryEngine
 		if(octree == NULL)
 			BuildOctree();										// this will in turn call BuildCache if necessary
 
-		vector<unsigned char> included(triangles.size());		// TODO: recycle this to save allocations/deallocations
-		results.reserve(triangles.size());
+		static vector<unsigned char> included;					// TODO: is this threadsafe?
+		included.clear();
+		included.resize(triangles.size());
+
 		RelevantTriangleGetter action(results, included, aabb);
 		action(octree);
 	}

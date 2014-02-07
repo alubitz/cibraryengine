@@ -534,8 +534,10 @@ namespace CibraryEngine
 	void PhysicsWorld::RayTestPrivate(const Vec3& from, const Vec3& to, RayCallback& callback, float max_time, RayCollider* collider)
 	{
 		// find out what objects are relevant
-		set<PhysicsRegion*> regions;
 		Vec3 endpoint = from + (to - from) * max_time;
+
+		static RegionSet regions;
+		assert(regions.count == 0);
 
 		region_man->GetRegionsOnRay(from, endpoint, regions);
 
@@ -544,9 +546,13 @@ namespace CibraryEngine
 
 		static RelevantObjectsQuery relevant_objects;
 		assert(relevant_objects.count == 0);
-
-		for(set<PhysicsRegion*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
-			(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
+		
+		for(unsigned int i = 0; i < RegionSet::hash_size; ++i)
+		{
+			vector<PhysicsRegion*>& bucket = regions.buckets[i];
+			for(vector<PhysicsRegion*>::iterator iter = bucket.begin(); iter != bucket.end(); ++iter)
+				(*iter)->GetRelevantObjects(ray_aabb, relevant_objects);
+		}
 
 		if(relevant_objects.count != 0)
 		{
@@ -562,8 +568,8 @@ namespace CibraryEngine
 					CollisionObject* cobj = *iter;
 					switch(cobj->GetType())
 					{
-						case COT_RigidBody:       RayCollider::CollideRigidBody(      (RigidBody*)*iter,      ray, max_time, hits, collider); break;
-						case COT_CollisionGroup:  RayCollider::CollideCollisionGroup( (CollisionGroup*)*iter, ray, max_time, hits, collider); break;
+						case COT_RigidBody:      { RayCollider::CollideRigidBody     ((RigidBody*)*iter,      ray, max_time, hits, collider); break; }
+						case COT_CollisionGroup: { RayCollider::CollideCollisionGroup((CollisionGroup*)*iter, ray, max_time, hits, collider); break; }
 					}
 				}
 			}
@@ -580,6 +586,8 @@ namespace CibraryEngine
 
 			relevant_objects.Clear();
 		}
+
+		regions.Clear();
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, RayCallback& callback) { RayTestPrivate(from, to, callback); }
 }

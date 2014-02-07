@@ -43,6 +43,6 @@ namespace CibraryEngine
 			void OnObjectRemoved(CollisionObject* object, RegionSet& object_regions);
 
 			PhysicsRegion* GetRegion(const Vec3& point);
-			void GetRegionsOnRay(const Vec3& from, const Vec3& to, set<PhysicsRegion*>& results);
+			void GetRegionsOnRay(const Vec3& from, const Vec3& to, RegionSet& results);
 	};
 }

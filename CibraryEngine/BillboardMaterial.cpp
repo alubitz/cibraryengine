@@ -21,6 +21,8 @@ namespace CibraryEngine
 		for(vector<NodeData*>::iterator iter = recycle_bin.begin(); iter != recycle_bin.end(); ++iter)
 			delete *iter;
 		recycle_bin.clear();
+
+		if(nodes_vbo) { nodes_vbo->Dispose(); delete nodes_vbo; nodes_vbo = NULL; }
 	}
 
 	void BillboardMaterial::BeginDraw(SceneRenderer* renderer)
@@ -49,6 +51,7 @@ namespace CibraryEngine
 
 		for(NodeData **iter = node_data.data(), **nodes_end = iter + node_data.size(); iter != nodes_end; ++iter)
 			(**iter).PutQuad(vert_ptr, uv_ptr, color_ptr, camera_position);
+		nodes_vbo->InvalidateVBO();
 
 		GLDEBUG();
 
@@ -72,10 +75,6 @@ namespace CibraryEngine
 		GLDEBUG();
 
 		nodes_vbo->Draw();
-
-		nodes_vbo->Dispose();
-		delete nodes_vbo;
-		nodes_vbo = NULL;
 
 		node_data.clear();
 	}
