@@ -32,12 +32,12 @@ namespace CibraryEngine
 
 	enum ShapeType
 	{
-		ST_Ray = 1,							// no longer supported
-		ST_Sphere = 2,
-		ST_TriangleMesh = 3,
+		ST_Ray           = 1,				// no longer supported
+		ST_Sphere        = 2,
+		ST_TriangleMesh  = 3,
 		ST_InfinitePlane = 4,
-		ST_MultiSphere = 5,
-		ST_ConvexMesh = 6,
+		ST_MultiSphere   = 5,
+		ST_ConvexMesh    = 6,
 
 		ST_ShapeTypeMax
 	};
@@ -51,7 +51,7 @@ namespace CibraryEngine
 
 		protected:
 
-			CollisionShape(ShapeType type);
+			CollisionShape(ShapeType type) : type(type) { }
 
 		public:
 
@@ -64,17 +64,18 @@ namespace CibraryEngine
 			/** Like GetTransformedAABB, except the xform is a RigidBody's world xform, and it can be used to cache other data with the RigidBody; default implementation returns GetTransformedAABB */
 			virtual AABB ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache);
 
-			ShapeType GetShapeType() const;
+			ShapeType GetShapeType() const                     { return type; }
 
-			bool CanMove() const;
+			bool CanMove() const                               { return CanShapeTypeMove(type); }
 			static bool CanShapeTypeMove(ShapeType type);
+			static string GetShapeTypeName(ShapeType type);
 
-			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color = Vec3(1, 1, 1));
+			virtual void DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color = Vec3(1, 1, 1)) { }
 
 			/** Reads a collision shape of the appropriate type from an input stream */
-			virtual unsigned int Read(istream& stream);
+			virtual unsigned int Read(istream& stream)         { return 1; }
 			/** Write a collision shape to an output stream */
-			virtual void Write(ostream& stream);
+			virtual void Write(ostream& stream)                { }
 
 			static unsigned int ReadCollisionShape(CollisionShape*& shape, istream& stream);
 			static unsigned int WriteCollisionShape(CollisionShape* shape, ostream& stream);

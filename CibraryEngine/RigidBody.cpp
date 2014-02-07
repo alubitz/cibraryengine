@@ -1,12 +1,6 @@
 #include "StdAfx.h"
 #include "RigidBody.h"
 
-#include "AABB.h"
-
-#include "Vector.h"
-#include "Quaternion.h"
-#include "Matrix.h"
-
 #include "Line.h"
 #include "Sphere.h"
 
@@ -71,9 +65,6 @@ namespace CibraryEngine
 	}
 
 	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
-
-
-	Mat3 RigidBody::ComputeInvMoi()										{ return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
 
 	void RigidBody::UpdateVel(float timestep)
 	{
@@ -146,12 +137,6 @@ namespace CibraryEngine
 		xform_valid = true;
 	}
 
-	void RigidBody::ComputeXformAsNeeded()								{ if(!xform_valid) { ComputeXform(); } }
-
-	void RigidBody::ResetForces()										{ DynamicsObject::ResetForces(); applied_torque = Vec3(); }
-
-	void RigidBody::ResetToApplied()									{ DynamicsObject::ResetToApplied(); torque = applied_torque; }
-
 	Vec3 RigidBody::LocalForceToTorque(const Vec3& force, const Vec3& local_poi)
 	{
 		ComputeXformAsNeeded();
@@ -163,8 +148,6 @@ namespace CibraryEngine
 		);
 		return Vec3::Cross(force, radius_vector);
 	}
-
-	Vec3 RigidBody::GetLocalVelocity(const Vec3& point)					{ ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
 
 	void RigidBody::ApplyLocalImpulse(const Vec3& impulse, const Vec3& local_poi)
 	{
@@ -186,8 +169,6 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::ApplyAngularImpulse(const Vec3& angular_impulse)	{ rot += inv_moi * angular_impulse; }
-
 	void RigidBody::RemoveDisabledCollisions(RelevantObjectsQuery& eligible_bodies)
 	{
 		CollisionObject::RemoveDisabledCollisions(eligible_bodies);
@@ -200,17 +181,6 @@ namespace CibraryEngine
 		}
 	}
 
-
-
-
-	Quaternion RigidBody::GetOrientation()								{ return ori; }
-	void RigidBody::SetOrientation(const Quaternion& ori_)				{ ori = ori_; xform_valid = false; }
-
-	Mat4 RigidBody::GetTransformationMatrix()							{ ComputeXformAsNeeded(); return xform; }
-	Mat4 RigidBody::GetInvTransform()									{ ComputeXformAsNeeded(); return inv_xform; }
-
-	bool RigidBody::MergesSubgraphs()									{ return shape->CanMove(); }
-
 	void RigidBody::ApplyWorldForce(const Vec3& force, const Vec3& poi)
 	{
 		ComputeXformAsNeeded();
@@ -218,9 +188,6 @@ namespace CibraryEngine
 		applied_torque += Vec3::Cross(force, poi - cached_com);
 		applied_force += force;
 	}
-
-	Vec3 RigidBody::GetAngularVelocity() const							{ return rot; }
-	void RigidBody::SetAngularVelocity(const Vec3& vel)					{ rot = vel; }
 
 	MassInfo RigidBody::GetTransformedMassInfo() const
 	{
@@ -233,19 +200,6 @@ namespace CibraryEngine
 
 		return result;
 	}
-
-
-	Vec3 RigidBody::GetCenterOfMass()									{ ComputeXformAsNeeded(); return cached_com; }
-
-	Mat3 RigidBody::GetInvMoI()											{ return inv_moi; }
-
-	void RigidBody::DebugDraw(SceneRenderer* renderer)					{ shape->DebugDraw(renderer, pos, ori); }
-
-	CollisionShape* RigidBody::GetCollisionShape()						{ return shape; }
-	ShapeType RigidBody::GetShapeType()									{ return shape->GetShapeType(); }
-
-	void RigidBody::SetCollisionCallback(CollisionCallback* callback)	{ collision_callback = callback; }
-	CollisionCallback* RigidBody::GetCollisionCallback() const			{ return collision_callback; }
 
 	AABB RigidBody::GetAABB(float timestep)
 	{
@@ -277,11 +231,6 @@ namespace CibraryEngine
 				return AABB();
 		}
 	}
-
-	AABB RigidBody::GetCachedAABB()										{ ComputeXformAsNeeded(); return cached_aabb; }
-
-
-
 
 	void RigidBody::InitiateCollisions(float timestep, ContactDataCollector* collect)
 	{

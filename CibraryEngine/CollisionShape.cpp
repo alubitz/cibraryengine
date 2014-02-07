@@ -24,19 +24,12 @@ namespace CibraryEngine
 	/*
 	 * CollisionShape methods
 	 */
-	CollisionShape::CollisionShape(ShapeType type) : type(type) { }
-
 	MassInfo CollisionShape::ComputeMassInfo()													{ return MassInfo(); }
 
 	// default orientation returns a degenerate AABB
 	AABB CollisionShape::GetTransformedAABB(const Mat4& xform)									{ return AABB(); }
 
 	AABB CollisionShape::ComputeCachedWorldAABB(const Mat4& xform, ShapeInstanceCache*& cache)	{ return GetTransformedAABB(xform); }
-
-	ShapeType CollisionShape::GetShapeType() const												{ return type; }
-
-	bool CollisionShape::CanMove() const														{ return CanShapeTypeMove(type); }
-
 	bool CollisionShape::CanShapeTypeMove(ShapeType type)
 	{
 		switch(type)
@@ -54,10 +47,33 @@ namespace CibraryEngine
 		}
 	}
 
-	void CollisionShape::DebugDraw(SceneRenderer* renderer, const Vec3& pos, const Quaternion& ori, const Vec3& color) { }
+	string CollisionShape::GetShapeTypeName(ShapeType type)
+	{
+		switch(type)
+		{
+			case 0:
+				return "<zero>";
 
-	unsigned int CollisionShape::Read(istream& stream)	{ return 1; }
-	void CollisionShape::Write(ostream& stream)			{ }
+			case ST_Ray:
+				return "ST_Ray";
+			case ST_Sphere:
+				return "ST_Sphere";
+			case ST_TriangleMesh:
+				return "ST_TriangleMesh";
+			case ST_InfinitePlane:
+				return "ST_InfinitePlane";
+			case ST_MultiSphere:
+				return "ST_MultiSphere";
+			case ST_ConvexMesh:
+				return "ST_ConvexMesh";
+
+			case ST_ShapeTypeMax:
+				return "<shape type max>";
+
+			default:
+				return "<unknown>";
+		}
+	}
 
 	unsigned int CollisionShape::ReadCollisionShape(CollisionShape*& shape, istream& stream)
 	{

@@ -23,25 +23,6 @@
 namespace CibraryEngine
 {
 	/*
-	 * RayResult methods
-	 */
-	RayResult::RayResult() : collider(NULL), body(NULL) { }
-
-	RayResult::RayResult(RayCollider* collider, RigidBody* body, const Vec3& pos, const Vec3& norm, float t) :
-		collider(collider),
-		body(body),
-		pos(pos),
-		norm(norm),
-		t(t)
-	{
-	}
-
-	bool RayResult::operator <(const RayResult& h) { return t < h.t; }
-
-
-
-
-	/*
 	 * RayCollider methods
 	 */
 	RayCollider::RayCollider(Entity* user_entity, const Vec3& pos, const Vec3& vel_, float mass) :
@@ -210,11 +191,7 @@ namespace CibraryEngine
 
 
 
-	RayCallback* RayCollider::GetRayCallback() const		{ return ray_callback; }
-	void RayCollider::SetRayCallback(RayCallback* callback)	{ ray_callback = callback; }
-
-
-	void RayCollider::DebugDraw(SceneRenderer* renderer)
+	void RayCollider::DebugDraw(SceneRenderer* renderer) const
 	{
 		static const float r         = 0.1f;			// tickmark draw radius
 		static const float vel_coeff = 0.1f;			// scaling factor with which to draw the velocity vector

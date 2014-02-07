@@ -64,16 +64,16 @@ namespace CibraryEngine
 			virtual void UpdatePos(float timestep, PhysicsRegionManager* region_man) { }
 			virtual void InitiateCollisions(float timestep, ContactDataCollector* collect) { };
 
-			virtual void DebugDraw(SceneRenderer* renderer) { }
+			virtual void DebugDraw(SceneRenderer* renderer) const { }
 
 			void SetCollisionEnabled(CollisionObject* other, bool enabled);
 
 			virtual AABB GetAABB(float timestep) = 0;
 
-			CollisionObjectType GetType() { return type; }
+			CollisionObjectType GetType() const { return type; }
 
-			Entity* GetUserEntity();
-			void SetUserEntity(Entity* entity);
+			Entity* GetUserEntity() const       { return user_entity; };
+			void SetUserEntity(Entity* entity)  { user_entity = entity; }
 
 			virtual void SetGravity(const Vec3& gravity) { }
 

@@ -52,7 +52,7 @@ namespace CibraryEngine
 
 			void InitiateCollisions(float timestep, ContactDataCollector* collect);
 
-			void DebugDraw(SceneRenderer* renderer);
+			void DebugDraw(SceneRenderer* renderer) const;
 
 			AABB GetAABB(float timestep);
 

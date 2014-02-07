@@ -82,7 +82,7 @@ namespace CibraryEngine
 
 			// no copying!
 			void operator=(PhysicsWorld& other) { }
-			PhysicsWorld(PhysicsWorld& other) { }
+			PhysicsWorld(PhysicsWorld& other)   { }
 
 		protected:
 
@@ -111,13 +111,13 @@ namespace CibraryEngine
 
 			void DebugDrawWorld(SceneRenderer* renderer);
 
-			Vec3 GetGravity();
+			Vec3 GetGravity() const                             { return gravity; }
 			void SetGravity(const Vec3& gravity);
 
 			void RayTest(const Vec3& from, const Vec3& to, RayCallback& callback);
 
-			PhysicsStepCallback* GetStepCallback();
-			void SetStepCallback(PhysicsStepCallback* callback);
+			PhysicsStepCallback* GetStepCallback() const        { return step_callback; }
+			void SetStepCallback(PhysicsStepCallback* callback) { step_callback = callback; }
 
 			/** Hard to explain... return value is like mass, and B is like inward velocity */
 			static float GetUseMass(RayCollider* collider, RigidBody* body, const Vec3& position, const Vec3& direction, float& B);

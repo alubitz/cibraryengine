@@ -251,10 +251,8 @@ namespace CibraryEngine
 
 			bool OnCollision(RayResult& rr)			// return value controls whether to continue iterating through ray collisions
 			{
-				RayCallback* callback = rr.collider->GetRayCallback();
-
-				if(callback && !callback->OnCollision(rr))
-					return true;
+				if(RayCallback* callback = rr.collider->GetRayCallback())
+					return callback->OnCollision(rr);
 				else
 				{
 					rr.collider->DoCollisionResponse(rr);
@@ -523,7 +521,6 @@ namespace CibraryEngine
 		renderer->Cleanup();
 	}
 
-	Vec3 PhysicsWorld::GetGravity() { return gravity; }
 	void PhysicsWorld::SetGravity(const Vec3& gravity_)
 	{
 		gravity = gravity_;
@@ -585,7 +582,4 @@ namespace CibraryEngine
 		}
 	}
 	void PhysicsWorld::RayTest(const Vec3& from, const Vec3& to, RayCallback& callback) { RayTestPrivate(from, to, callback); }
-
-	PhysicsStepCallback* PhysicsWorld::GetStepCallback()				{ return step_callback; }
-	void PhysicsWorld::SetStepCallback(PhysicsStepCallback* callback)	{ step_callback = callback; }
 }

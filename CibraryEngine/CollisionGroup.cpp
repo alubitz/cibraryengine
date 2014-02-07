@@ -47,7 +47,7 @@ namespace CibraryEngine
 		if(dummy_region_man)	{ delete dummy_region_man; dummy_region_man = NULL; }
 	}
 
-	void CollisionGroup::DebugDraw(SceneRenderer* renderer)
+	void CollisionGroup::DebugDraw(SceneRenderer* renderer) const
 	{
 		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->DebugDraw(renderer);

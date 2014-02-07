@@ -26,9 +26,9 @@ namespace CibraryEngine
 
 		float t;
 
-		RayResult();
-		RayResult(RayCollider* collider, RigidBody* body, const Vec3& pos, const Vec3& norm, float t);
-		bool operator <(const RayResult& h);
+		RayResult() : collider(NULL), body(NULL) { }
+		RayResult(RayCollider* collider, RigidBody* body, const Vec3& pos, const Vec3& norm, float t) : collider(collider), body(body), pos(pos), norm(norm), t(t) { }
+		bool operator <(const RayResult& other) { return t < other.t; }
 	};
 
 	class RayCollider : public DynamicsObject
@@ -52,14 +52,14 @@ namespace CibraryEngine
 
 			RayCollider(Entity* user_entity, const Vec3& pos, const Vec3& vel, float mass);
 
-			AABB GetAABB(float timestep) { AABB result(pos); result.Expand(pos + vel * timestep); return result; }
+			AABB GetAABB(float timestep)               { AABB result(pos); result.Expand(pos + vel * timestep); return result; }
 
 			void DoCollisionResponse(RayResult& collision);
 
-			RayCallback* GetRayCallback() const;
-			void SetRayCallback(RayCallback* callback);
+			RayCallback* GetRayCallback() const        { return ray_callback; }
+			void SetRayCallback(RayCallback* callback) { ray_callback = callback; }
 
-			void DebugDraw(SceneRenderer* renderer);
+			void DebugDraw(SceneRenderer* renderer) const;
 	};
 
 	class RayCallback

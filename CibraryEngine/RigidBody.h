@@ -4,17 +4,21 @@
 
 #include "DynamicsObject.h"
 
-#include "Physics.h"
 #include "Vector.h"
 #include "Quaternion.h"
 #include "Matrix.h"
 
 #include "AABB.h"
 
+#include "CollisionShape.h"
+
+#include "DebugLog.h"
+
 namespace CibraryEngine
 {
 	class Entity;
 
+	class PhysicsConstraint;
 	class PhysicsRegionManager;
 
 
@@ -55,13 +59,13 @@ namespace CibraryEngine
 
 			CollisionCallback* collision_callback;
 
-			Mat3 ComputeInvMoi();
+			Mat3 ComputeInvMoi()  { return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
 
 			void ComputeXform();
 
-			void ComputeXformAsNeeded();
+			void ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
 
-			void ResetToApplied();
+			void ResetToApplied() { DynamicsObject::ResetToApplied(); torque = applied_torque; }
 
 			// force is a world-space direction
 			// local_poi is in the coordinate system of the object
@@ -95,34 +99,34 @@ namespace CibraryEngine
 			
 
 			/** Gets the orientation of this rigid body */
-			Quaternion GetOrientation();
+			Quaternion GetOrientation() const           { return ori; }
 			/** Sets the orientation of this rigid body */
-			void SetOrientation(const Quaternion& ori);
+			void SetOrientation(const Quaternion& ori_) { ori = ori_; xform_valid = false; }
 
 			
 
-			Vec3 GetAngularVelocity() const;
-			void SetAngularVelocity(const Vec3& vel);
+			Vec3 GetAngularVelocity() const             { return rot; }
+			void SetAngularVelocity(const Vec3& vel)    { rot = vel; }
 
 			
 			// point is in world-space
 			// returns a world-space velocity
-			Vec3 GetLocalVelocity(const Vec3& point);
+			Vec3 GetLocalVelocity(const Vec3& point)    { ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
-			Mat4 GetTransformationMatrix();			
-			Mat4 GetInvTransform();
+			Mat4 GetTransformationMatrix() { ComputeXformAsNeeded(); return xform; }
+			Mat4 GetInvTransform()         { ComputeXformAsNeeded(); return inv_xform; }
 
 			MassInfo GetTransformedMassInfo() const;
 
-			Vec3 GetCenterOfMass();
+			Vec3 GetCenterOfMass()         { ComputeXformAsNeeded(); return cached_com; }
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
-			Mat3 GetInvMoI();
+			Mat3 GetInvMoI() const         { return inv_moi; }
 
 			
 
-			bool MergesSubgraphs();
+			bool MergesSubgraphs() const   { return shape->CanMove(); }
 
 
 
@@ -136,29 +140,27 @@ namespace CibraryEngine
 			void ApplyWorldImpulse(const Vec3& impulse, const Vec3& poi);
 
 			
-			void ApplyAngularImpulse(const Vec3& angular_impulse);
+			void ApplyAngularImpulse(const Vec3& angular_impulse)  { rot += inv_moi * angular_impulse; }
 
-			void DebugDraw(SceneRenderer* renderer);
+			void DebugDraw(SceneRenderer* renderer) const          { shape->DebugDraw(renderer, pos, ori); }
 
-			
+			CollisionShape* GetCollisionShape() const              { return shape; };
+			ShapeType GetShapeType() const                         { return shape->GetShapeType(); };
 
-			CollisionShape* GetCollisionShape();
-			ShapeType GetShapeType();
-
-			void SetCollisionCallback(CollisionCallback* callback);
-			CollisionCallback* GetCollisionCallback() const;
+			void SetCollisionCallback(CollisionCallback* callback) { collision_callback = callback; }
+			CollisionCallback* GetCollisionCallback() const        { return collision_callback; }
 
 
 			/** Gets AABB to be used for collision detection for this object. Timestep is only really relevant for rays and spheres */
 			AABB GetAABB(float timestep);
 
 			/** Get AABB for this object, recomputing if necessary; not for rays; may be iffy for spheres */
-			AABB GetCachedAABB();
+			AABB GetCachedAABB()                                   { ComputeXformAsNeeded(); return cached_aabb; }
 
 
 
 			void CollideRigidBody(RigidBody* other, ContactDataCollector* collect);
 
-			void ResetForces();
+			void ResetForces()                                     { DynamicsObject::ResetForces(); applied_torque = Vec3(); }
 	};
 }
