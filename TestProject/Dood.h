@@ -119,7 +119,7 @@ namespace Test
 
 			void PoseCharacter(const TimingInfo& time);
 
-			void PhysicsToCharacter();
+			virtual void PhysicsToCharacter();
 			virtual void PoseToPhysics(float timestep);
 
 			virtual void Update(const TimingInfo& time);

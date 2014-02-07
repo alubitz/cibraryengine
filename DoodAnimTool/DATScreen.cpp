@@ -833,12 +833,24 @@ namespace DoodAnimTool
 			{
 				solver->DebugJos();
 
-				int gun = dood->GetBoneIndex("gun"), pelvis = dood->GetBoneIndex("pelvis");
-				if(gun >= 0 && pelvis >= 0)
+				int gun = dood->GetBoneIndex("gun");
+				if(gun >= 0)
 				{
-					const DATKeyframe& pose = *solver->pose;
-					Vec3 fwd = (Quaternion::Reverse(pose.data[pelvis].ori) * pose.data[gun].ori) * Vec3(0, 0, 1);
-					Debug(((stringstream&)(stringstream() << "gun fwd vec relative to pelvis = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+					int pelvis = dood->GetBoneIndex("pelvis"), torso2 = dood->GetBoneIndex("torso 2");
+					/*
+					if(pelvis >= 0)
+					{
+						const DATKeyframe& pose = *solver->pose;
+						Vec3 fwd = (Quaternion::Reverse(pose.data[pelvis].ori) * pose.data[gun].ori) * Vec3(0, 0, 1);
+						Debug(((stringstream&)(stringstream() << "gun fwd vec relative to pelvis  = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+					}
+					*/
+					if(torso2 >= 0)
+					{
+						const DATKeyframe& pose = *solver->pose;
+						Vec3 fwd = (Quaternion::Reverse(pose.data[pelvis].ori) * pose.data[gun].ori) * Vec3(0, 0, 1);
+						Debug(((stringstream&)(stringstream() << "gun fwd vec relative to torso 2 = (" << fwd.x << ", " << fwd.y << ", " << fwd.z << ")" << endl)).str());
+					}
 				}
 			}
 		}

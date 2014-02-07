@@ -16,9 +16,7 @@ namespace Test
 			void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
 
 			void PreUpdatePoses(const TimingInfo& time);
-			void PostUpdatePoses(const TimingInfo& time);
 
-			void DoCheatyPose(float timestep, const Vec3& net_vel);
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
 
 		public:
@@ -36,8 +34,8 @@ namespace Test
 
 			Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
+			void PhysicsToCharacter();
 			void RegisterFeet();
-
 			void Update(const TimingInfo& time);
 
 			void Die(const Damage& cause);

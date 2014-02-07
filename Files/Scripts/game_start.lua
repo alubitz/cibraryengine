@@ -30,15 +30,15 @@ bot_spawn_timer = 0
 
 bots_spawned = 0
 
-disable_enemies = false
-disable_waves = false
-disable_ai = true
+disable_enemies = true
+disable_waves   = false
+disable_ai      = true
 
 
 -- whether the KEY is pressed! the actual enabled/disabled state is *_mode
-god_toggle = false
-nav_edit_toggle = false
-debug_draw_toggle = false
+god_toggle          = false
+nav_edit_toggle     = false
+debug_draw_toggle   = false
 third_person_toggle = false
 
 game_over = false
@@ -120,7 +120,7 @@ end
 function begin_level(gs, player_pos, level)
 	if not disable_enemies then
 		local bugs_this_level = 30 --1 + 2 * level + math.floor(math.random() * 3.0)
-		local num_artillery = 6
+		local num_artillery   = 6
 		for i = 1, bugs_this_level do
 			spawn_one(gs, player_pos, i <= num_artillery)
 		end

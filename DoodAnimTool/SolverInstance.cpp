@@ -52,7 +52,7 @@ namespace DoodAnimTool
 
 	void SolverInstance::DebugJos() const
 	{
-		for(unsigned int i = 0; i < cached_chain.size(); ++i)
+		for(unsigned int i = 0, chain_end = cached_chain.size() - 1; i <= chain_end; ++i)
 		{
 			const PoseChainNode& node = cached_chain[i];
 			unsigned int node_index = node.index;
@@ -61,7 +61,7 @@ namespace DoodAnimTool
 			const string& name = bone > 0 ? dood->mphys->bones[bone - 1].bone_name : string();
 
 			Vec3 vec = joint.axes.Transpose() * cached_jos->data[node_index];
-			Debug(((stringstream&)(stringstream() << "{ \"" << name << "\",  " << vec.x << ", " << vec.y << ", " << vec.z << " }" << endl)).str());
+			Debug(((stringstream&)(stringstream() << (i == 0 ? "{ { \"" : "{ \"" )<< name << "\",  " << vec.x << ", " << vec.y << ", " << vec.z << (i == chain_end ? " } }" : " },") << endl)).str());
 		}
 	}
 }

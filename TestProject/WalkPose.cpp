@@ -58,7 +58,6 @@ namespace Test
 
 		bones.clear();															// make sure we reset to the rest pose if we aren't doing anything
 
-
 		Vec3 forward  = Vec3(-sinf(yaw),  0,  cosf(yaw));
 		Vec3 leftward = Vec3( forward.z,  0, -forward.x);
 

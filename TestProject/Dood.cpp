@@ -13,7 +13,7 @@
 
 #define DROP_EQUIPPED_WEAPON_ON_DEATH 1
 
-#define USE_EYE_BONE_XFORM_DIRECTLY   1
+#define USE_EYE_BONE_XFORM_DIRECTLY   0
 
 namespace Test
 {

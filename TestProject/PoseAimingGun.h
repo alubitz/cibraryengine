@@ -16,7 +16,7 @@ namespace Test
 		public:
 
 			Quaternion pelvis_ori;
-			Vec3 aim_dir;
+			float yaw, pitch;
 
 			PoseAimingGun();
 			~PoseAimingGun();
