@@ -231,6 +231,12 @@ namespace DoodAnimTool
 
 		delete[] locked_bones;
 
+		// only mutate joints which are actually used in the pose chain
+		vector<unsigned char> valid_mutations;
+		for(PoseChainNode* iter = chain_begin; iter != chain_end; ++iter)
+			valid_mutations.push_back((unsigned char)iter->index);
+		unsigned int valid_mutation_count = valid_mutations.size();
+
 		// search for optimal solution
 		DATKeyframe       best_pose(pose),      test_pose(pose);
 		JointOrientations best_jos(target_jos), test_jos(target_jos);
@@ -249,7 +255,7 @@ namespace DoodAnimTool
 				float coeff = mutation_rate * 2.0f, sub = mutation_rate;
 				for(unsigned int j = 0; j < MUTATIONS_PER_ITERATION; ++j)
 				{
-					unsigned int index = Random3D::RandInt(test_jos.num_joints);
+					unsigned int index = valid_mutations[Random3D::RandInt(valid_mutation_count)];
 
 					Vec3& mutant = test_jos.data[index];
 					mutant.x += Random3D::Rand() * coeff - sub;

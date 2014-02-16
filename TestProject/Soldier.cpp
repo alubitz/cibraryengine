@@ -12,21 +12,21 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_WALK_ANIMATIONS 1
+#define ENABLE_WALK_ANIMATIONS 0
 
 namespace Test
 {
 	/*
 	 * Soldier constants
 	 */
-	static const float fly_accel_up       = 15.0f;
-
-	static const float jump_to_fly_delay  = 0.3f;
 	static const float jump_speed         = 4.0f;
+
+	static const float fly_accel_up       = 15.0f;
+	static const float fly_accel_lateral  = 8.0f;
 
 	static const float fuel_spend_rate    = 0.5f;
 	static const float fuel_refill_rate   = 0.4f;
-	static const float flying_accel       = 8.0f;
+	static const float jump_to_fly_delay  = 0.3f;
 
 
 
@@ -361,6 +361,7 @@ namespace Test
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		walk_pose(NULL),
+		jet_bones(),
 		jet_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -422,7 +423,7 @@ namespace Test
 
 						Vec3 fly_accel_vec = Vec3(0, fly_accel_up, 0);
 						Vec3 horizontal_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
-						fly_accel_vec += horizontal_accel * (flying_accel);
+						fly_accel_vec += horizontal_accel * fly_accel_lateral;
 
 						float total_mass = 0.0f;
 
@@ -430,12 +431,6 @@ namespace Test
 							total_mass += (*iter)->GetMassInfo().mass;
 
 						Vec3 apply_force = fly_accel_vec * total_mass;
-
-						vector<RigidBody*> jet_bones;
-						for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
-							if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
-								jet_bones.push_back(bone_to_rbody[i]);
-
 						for(vector<RigidBody*>::iterator iter = jet_bones.begin(); iter != jet_bones.end(); ++iter)
 							(*iter)->ApplyCentralForce(apply_force / float(jet_bones.size()));
 					}
@@ -553,16 +548,18 @@ namespace Test
 			walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
 			walk_pose->yaw_bone = Bone::string_table["pelvis"];
 			walk_pose->side_anim_rate = 2.5f;
-			walk_pose->InitialSetYawOffset(0.322f);
+			walk_pose->InitialSetYawOffset(0.6f);			// was previously 0.322f, based on some old measurement
 
 			posey->active_poses.push_back(walk_pose);
 #else
 			p_ag->pelvis_ori = Quaternion::FromRVec(0, -yaw, 0);
 #endif
+
+			for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
+				if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
+					jet_bones.push_back(bone_to_rbody[i]);
 		}
 	}
-
-	void Soldier::DeSpawned() { Dood::DeSpawned(); }
 
 	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
 	{
