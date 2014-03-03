@@ -58,13 +58,19 @@ namespace Test
 		float dot = Vec3::Dot(current_dv, cur_normal);
 		float restitution_impulse_sq = (rlv_to_impulse * cur_normal).ComputeMagnitudeSquared() * dot * dot;
 		if(dot < -outward_dv_breakage_threshold)
+		{
 			broken = true;
+			Debug("break: outward\n");
+		}
 		else
 		{
 			Vec3 full_friction_impulse = rlv_to_impulse * (current_dv - cur_normal * dot);
 
 			if(restitution_impulse_sq > full_friction_impulse.ComputeMagnitudeSquared() + friction_bonus_threshold)
+			{
 				broken = true;
+				Debug("break: tangential\n");
+			}
 		}
 #endif
 
@@ -93,7 +99,10 @@ namespace Test
 
 #if ENABLE_PHYSICS_BASED_BREAKAGE
 				if(magsq > av_breakage_threshold)
+				{
 					broken = true;
+					Debug("break: angular\n");
+				}
 #endif
 
 				wakeup = true;

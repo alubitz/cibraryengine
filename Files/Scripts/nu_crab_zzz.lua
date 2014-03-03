@@ -7,7 +7,6 @@ local bones = { }
 
 U.add_single_bone(bones,		"carapace",		nil,			ba.createVector(	0.0,	1.05,	-0.026	) )
 U.add_single_bone(bones,		"head",			"carapace",		ba.createVector(	0.0,	1.11,	0.38	) )U.add_single_bone(bones,		"tail",			"carapace",		ba.createVector(	0.0,	1.04,	-0.83	) )
-U.add_single_bone(bones,		"eye",			"head",			ba.createVector(	0.0,	1.04,	0.66	) )
 
 U.add_symmetric_bones(bones,	"leg a 1",		"carapace",		ba.createVector(	0.365,	1.015,	0.328	) )
 U.add_symmetric_bones(bones,	"leg a 2",		"leg a 1",		ba.createVector(	0.437,	0.574,	0.539	) )
@@ -20,6 +19,6 @@ U.add_symmetric_bones(bones,	"leg b point",	"leg b 3",		ba.createVector(	2.068,	
 U.add_symmetric_bones(bones,	"leg c 1",		"carapace",		ba.createVector(	0.452,	0.891,	-0.421	) )
 U.add_symmetric_bones(bones,	"leg c 2",		"leg c 1",		ba.createVector(	0.544,	0.676,	-0.693	) )
 U.add_symmetric_bones(bones,	"leg c 3",		"leg c 2",		ba.createVector(	0.707,	0.786,	-1.076	) )
-U.add_symmetric_bones(bones,	"leg c point",	"leg c 3",		ba.createVector(	0.798,	0.0,	-1.366	) )
+U.add_symmetric_bones(bones,	"leg c point",	"leg c 3",		ba.createVector(	0.798,	0.0,	-1.366	) )U.add_single_bone(bones,		"eye",			"head",			ba.createVector(	0.0,	1.04,	0.66	) )
 
 ba.saveUberModel(models, bones, "crab_bug")

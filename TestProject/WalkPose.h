@@ -34,6 +34,8 @@ namespace Test
 			float yaw;									// yaw the bone has currently
 			float target_yaw;							// goal state for "yaw" (above)
 
+			Vec3 terrain_normal;						// approximation of the terrain's normal vector
+
 			WalkPose(Dood* dood, const KeyframeAnimation* rest_anim, const KeyframeAnimation* forward_anim, const KeyframeAnimation* backward_anim, const KeyframeAnimation* left_anim, const KeyframeAnimation* right_anim, const KeyframeAnimation* l_turn_anim, const KeyframeAnimation* r_turn_anim);
 			~WalkPose();
 

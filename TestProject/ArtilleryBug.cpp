@@ -37,4 +37,10 @@ namespace Test
 		feet.push_back(new FootState(Bone::string_table["l leg c 3"]));
 		feet.push_back(new FootState(Bone::string_table["r leg c 3"]));
 	}
+
+	void ArtilleryBug::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
+	{
+		cheaty_rot = Vec3();
+		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);
+	}
 }

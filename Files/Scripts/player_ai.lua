@@ -40,7 +40,7 @@ if force_bool(key_states[114]) then
 	end
 else debug_draw_toggle = false end
 
-if force_bool(key_states[13]) then
+if force_bool(key_states[116]) then		-- 13 for enter, 116 for f5
 	if not third_person_toggle then
 		third_person_toggle = true
 		third_person_mode = not third_person_mode

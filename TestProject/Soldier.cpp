@@ -12,7 +12,7 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_WALK_ANIMATIONS 0
+#define ENABLE_WALK_ANIMATIONS 1
 
 namespace Test
 {
@@ -393,7 +393,6 @@ namespace Test
 			if(standing_callback.IsStanding() && time.total > jump_start_timer)							// jump off the ground
 			{
 				standing_callback.ApplyVelocityChange(Vec3(0, jump_speed, 0));
-				standing_callback.BreakAllConstraints();
 
 				jump_start_timer = time.total + jump_to_fly_delay;
 			}
@@ -548,7 +547,7 @@ namespace Test
 			walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
 			walk_pose->yaw_bone = Bone::string_table["pelvis"];
 			walk_pose->side_anim_rate = 2.5f;
-			walk_pose->InitialSetYawOffset(0.6f);			// was previously 0.322f, based on some old measurement
+			//walk_pose->InitialSetYawOffset(0.6f);			// was previously 0.322f, based on some old measurement
 
 			posey->active_poses.push_back(walk_pose);
 #else

@@ -15,8 +15,6 @@ namespace Test
 	class WeaponEquip;
 	class WeaponIntrinsic;
 
-	class PlacedFootConstraint;
-
 	struct Damage;
 
 	class Dood : public Pawn
@@ -144,11 +142,11 @@ namespace Test
 					unsigned int posey_id;
 
 					RigidBody* body;
-					PlacedFootConstraint* pfc;
+					vector<ContactPoint> contact_points;
 
-					FootState(unsigned int posey_id) : posey_id(posey_id), body(NULL), pfc(NULL) { }
+					FootState(unsigned int posey_id) : posey_id(posey_id), body(NULL), contact_points() { }
 
-					bool IsStanding() { return pfc != NULL; }
+					bool IsStanding() { return !contact_points.empty(); }
 			};
 			vector<FootState*> feet;
 
@@ -161,11 +159,9 @@ namespace Test
 				StandingCallback();
 
 				void OnCollision(const ContactPoint& collision);			// from CibraryEngine::CollisionCallback
-				void MaybeCreateConstraint(FootState* foot, RigidBody* surface, const Vec3& use_pos, const Vec3& use_normal);
+				void OnPhysicsTick(float timestep);							// reset contact points each tick
 
 				void ApplyVelocityChange(const Vec3& dv);
-				void OnPhysicsTick(float timestep);
-				void BreakAllConstraints();
 
 				bool IsStanding();
 

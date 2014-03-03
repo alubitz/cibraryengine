@@ -240,7 +240,7 @@ function goal_move_attack(owner, target)
 			return false
 		else
 			local dx = result.target.position - result.owner.position
-			return dx.length < 50
+			return dx.length < 10 --50
 		end
 	end
 

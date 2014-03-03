@@ -28,7 +28,8 @@ namespace Test
 		desired_yaw_offset(0.0f),
 		yaw_bone(0),
 		yaw       (dood->yaw),
-		target_yaw(dood->yaw)
+		target_yaw(dood->yaw),
+		terrain_normal(0, 1, 0)
 	{
 	}
 
@@ -163,22 +164,39 @@ namespace Test
 
 					for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = anim->bones.begin(); iter != anim->bones.end(); ++iter)
 					{
-						if(all_bones.find(iter->first) == all_bones.end())
-							all_bones[iter->first]  = BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
+						boost::unordered_map<unsigned int, BoneInfluence>::iterator found = all_bones.find(iter->first);
+						if(found != all_bones.end())
+							found->second         += BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
 						else
-							all_bones[iter->first] += BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
+							all_bones[iter->first] = BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
 					}
 				}
+
+		// TODO: apply adjustments for approximated value terrain_normal
+		// TODO: adjust foot positions to match actual terrain(?)
+		// TODO: soldier-specific pelvis adjustments: assist with aim yaw; move to balance aim pitch
+		// TODO: do the actual IK and generate the new pose bone influences
 
 		// apply the pose we computed
 		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 			SetBonePose(iter->first, iter->second.ori, iter->second.pos);
 
 		// apply yaw changes
-		yaw -= yaw_speed * time.elapsed;
+		float delta_yaw = yaw_speed * time.elapsed;
+		yaw -= delta_yaw;
 
 		if(yaw_bone != 0)
 			SetBonePose(yaw_bone, Vec3(0, -yaw, 0), Vec3());
+
+		// update terrain normal (rotate according to yaw change and move approximation closer to recent values)
+		Vec3 current_normal(0, 1, 0);																									// TODO: compute this for real
+
+		float lerp_a = expf(-10.0f * time.elapsed);
+		float lerp_b = 1.0f - lerp_a;
+
+		terrain_normal = Vec3::Normalize(lerp_a * (Quaternion::FromRVec(0, delta_yaw, 0) * terrain_normal) + lerp_b * current_normal);	// TODO: check quat direction
+
+		// TODO: animation-driven PFC breakage (if we're still using PFCs)
 	}
 
 	void WalkPose::InitialSetYawOffset(float value) { desired_yaw_offset = value; yaw = target_yaw = dood->yaw + value; }
