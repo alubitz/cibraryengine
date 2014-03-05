@@ -12,7 +12,7 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_WALK_ANIMATIONS 1
+#define ENABLE_WALK_ANIMATIONS 0
 
 namespace Test
 {
@@ -352,6 +352,26 @@ namespace Test
 
 
 
+	/*
+	 * Soldier's custom FootState class
+	 */
+	class SoldierFoot : public Dood::FootState
+	{
+		public:
+
+			Mat4* pelvis_xform_ptr;
+
+			// TODO: add members here as needed
+
+			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos, Mat4* pelvis_xform_ptr) : FootState(posey_id, ee_pos), pelvis_xform_ptr(pelvis_xform_ptr) { }
+
+			bool SolveLegIK();
+			bool FindSuitableFootfall();
+			void PoseUngroundedLeg();
+	};
+
+
+
 
 	/*
 	 * Soldier methods
@@ -456,6 +476,8 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(const TimingInfo& time)
 	{
+		DoIKStuff();
+
 		if(p_ag != NULL)
 		{
 			p_ag->yaw   = yaw;
@@ -496,8 +518,8 @@ namespace Test
 
 	void Soldier::RegisterFeet()
 	{
-		feet.push_back(new FootState(Bone::string_table["l foot"]));
-		feet.push_back(new FootState(Bone::string_table["r foot"]));
+		feet.push_back(new SoldierFoot(Bone::string_table["l foot"], Vec3( 0.238f, 0.000f, 0.065f), &proposed_pelvis_xform));
+		feet.push_back(new SoldierFoot(Bone::string_table["r foot"], Vec3(-0.238f, 0.000f, 0.065f), &proposed_pelvis_xform));
 	}
 
 	void Soldier::Update(const TimingInfo& time)
@@ -566,5 +588,62 @@ namespace Test
 		cheaty_rot = Vec3();
 
 		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);
+	}
+
+
+
+	Vec3 Soldier::ComputeDesiredVelocity()
+	{
+		Vec3 desired_vel = desired_vel_2d;					// computed by DoMovementControls
+		// TODO: compute y component based on terrain slope? and jump control
+
+		return desired_vel;
+	}
+
+	void Soldier::SetRootBoneXform(const Vec3& desired_vel)
+	{
+		Vec3 pos = root_rigid_body->GetPosition();
+		Quaternion ori = root_rigid_body->GetOrientation();
+
+		// TODO:
+		// pelvis moves by a velocity somewhere between the desired velocity and the current average velocity of the dood
+		// pelvis yaws a little to help the aim yaw
+		// pelvis moves forward/backward to balance the aim pitch (and maybe pitch the pelvis up/down a little as well?)
+
+		proposed_pelvis_xform = Mat4::FromPositionAndOrientation(pos, ori);
+	}
+
+	bool Soldier::OverrideFootfallSafety() { return control_state->GetBoolControl("jump"); }
+
+
+
+
+	/*
+	 * SoldierFoot methods
+	 */
+	bool SoldierFoot::SolveLegIK()
+	{
+		const Mat4& pelvis_xform = *pelvis_xform_ptr;
+
+		// TODO:
+		// get constrained (or current?) foot xform
+		// get hip and ankle joint positions
+		// try to solve IK; if we find a solution return true, else return false
+
+		return false;
+	}
+
+	bool SoldierFoot::FindSuitableFootfall()
+	{
+		// TODO:
+		// query PhysicsWorld for potentially relevant terrain geometry nearby
+		// search for reasonable places to put the foot
+
+		return false;
+	}
+
+	void SoldierFoot::PoseUngroundedLeg()
+	{
+		// TODO: implement this
 	}
 }

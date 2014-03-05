@@ -41,21 +41,28 @@ namespace Test
 			bool use_cheaty_ori;
 
 			float yaw_rate, pitch_rate;
+			Vec3 desired_vel_2d;				// for convenience, this is computed in DoMovementControls and made available for use in ComputeDesiredVelocity
 
 			virtual void InnerDispose();
 
 			void DoPitchAndYawControls(const TimingInfo& time);
-			virtual void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
+			virtual void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward) { }
 			virtual void DoMovementControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
 			virtual void DoWeaponControls(const TimingInfo& time);
 
 			// for PhysicsToCharacter
-			virtual void PreUpdatePoses(const TimingInfo& time);
-			virtual void PostUpdatePoses(const TimingInfo& time);
+			virtual void PreUpdatePoses(const TimingInfo& time)  { }
+			virtual void PostUpdatePoses(const TimingInfo& time) { }
 
 			// for PoseToPhysics
 			virtual void DoCheatyPose(float timestep, const Vec3& net_vel);
-			virtual void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
+			virtual void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
+
+			// for IK stuff
+			void DoIKStuff();
+			virtual Vec3 ComputeDesiredVelocity() { return Vec3(); }
+			virtual void SetRootBoneXform(const Vec3& desired_vel) { }
+			virtual bool OverrideFootfallSafety() { return false; }
 
 			RigidBody* RigidBodyForNamedBone(const string& name);
 
@@ -69,7 +76,7 @@ namespace Test
 			Vec3 vel;
 			float yaw, pitch;
 
-			float jump_start_timer;
+			float jump_start_timer;						// TODO: implement improved "jump timer" behavior
 
 			float third_person_frac;
 			float third_person_view_dist;
@@ -85,7 +92,7 @@ namespace Test
 			SkinnedCharacter* character;
 			PosedCharacter* posey;
 
-			float vis_bs_radius;		// radius of bounding sphere used for frustum culling
+			float vis_bs_radius;						// radius of bounding sphere used for frustum culling
 
 			RigidBody* root_rigid_body;
 			vector<RigidBody*> rigid_bodies;
@@ -101,7 +108,7 @@ namespace Test
 			PhysicsWorld* physics;
 			ModelPhysics* mphys;
 
-			WeaponEquip* equipped_weapon;
+			WeaponEquip*     equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
 			Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
@@ -133,20 +140,28 @@ namespace Test
 			bool GetAmmoFraction(float& result);
 			bool GetAmmoCount(int& result);
 
-			virtual void RegisterFeet();					// use this to create (custom?) FootState instances and add them to feet
+			virtual void RegisterFeet() { }					// use this to create (custom?) FootState instances and add them to feet
 
 			class FootState : public Disposable
 			{
 				public:
 
 					unsigned int posey_id;
+					Vec3 ee_pos;							// local-coords position of end effector
 
 					RigidBody* body;
-					vector<ContactPoint> contact_points;
 
-					FootState(unsigned int posey_id) : posey_id(posey_id), body(NULL), contact_points() { }
+					vector<ContactPoint> contact_points;
+					float no_contact_timer;
+
+					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(NULL), contact_points(), no_contact_timer(0.0f) { }
 
 					bool IsStanding() { return !contact_points.empty(); }
+
+					// TODO: add params to these methods?
+					virtual bool SolveLegIK()           { return false; }
+					virtual bool FindSuitableFootfall() { return false; }
+					virtual void PoseUngroundedLeg()    { }
 			};
 			vector<FootState*> feet;
 
@@ -159,7 +174,7 @@ namespace Test
 				StandingCallback();
 
 				void OnCollision(const ContactPoint& collision);			// from CibraryEngine::CollisionCallback
-				void OnPhysicsTick(float timestep);							// reset contact points each tick
+				void OnPhysicsTick(float timestep);							// resets foot contact points and no_contact_timer each tick
 
 				void ApplyVelocityChange(const Vec3& dv);
 

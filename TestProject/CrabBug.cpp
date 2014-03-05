@@ -5,7 +5,7 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_WALK_ANIMATIONS 1
+#define ENABLE_WALK_ANIMATIONS 0
 
 namespace Test
 {
@@ -160,12 +160,12 @@ namespace Test
 
 	void CrabBug::RegisterFeet()
 	{
-		feet.push_back(new FootState(Bone::string_table["l leg a 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg a 3"]));
-		feet.push_back(new FootState(Bone::string_table["l leg b 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg b 3"]));
-		feet.push_back(new FootState(Bone::string_table["l leg c 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg c 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg a 3"], Vec3( 0.288f,  0.0f,  1.293f)));
+		feet.push_back(new FootState(Bone::string_table["r leg a 3"], Vec3(-0.288f,  0.0f,  1.293f)));
+		feet.push_back(new FootState(Bone::string_table["l leg b 3"], Vec3( 2.068f,  0.0f,  0.470f)));
+		feet.push_back(new FootState(Bone::string_table["r leg b 3"], Vec3(-2.068f,  0.0f,  0.470f)));
+		feet.push_back(new FootState(Bone::string_table["l leg c 3"], Vec3( 0.798f,  0.0f, -1.366f)));
+		feet.push_back(new FootState(Bone::string_table["r leg c 3"], Vec3(-0.798f,  0.0f, -1.366f)));
 	}
 
 	void CrabBug::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)

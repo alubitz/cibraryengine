@@ -19,6 +19,12 @@ namespace Test
 
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
 
+			Vec3 ComputeDesiredVelocity();
+			void SetRootBoneXform(const Vec3& desired_vel);
+			bool OverrideFootfallSafety();
+
+			Mat4 proposed_pelvis_xform;
+
 		public:
 
 			Bone* gun_hand_bone;

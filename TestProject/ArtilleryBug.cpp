@@ -30,12 +30,12 @@ namespace Test
 
 	void ArtilleryBug::RegisterFeet()
 	{
-		feet.push_back(new FootState(Bone::string_table["l leg a 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg a 3"]));
-		feet.push_back(new FootState(Bone::string_table["l leg b 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg b 3"]));
-		feet.push_back(new FootState(Bone::string_table["l leg c 3"]));
-		feet.push_back(new FootState(Bone::string_table["r leg c 3"]));
+		feet.push_back(new FootState(Bone::string_table["l leg a 3"], Vec3(  6.68f,  0.0f,  12.27f)));
+		feet.push_back(new FootState(Bone::string_table["r leg a 3"], Vec3( -6.68f,  0.0f,  12.27f)));
+		feet.push_back(new FootState(Bone::string_table["l leg b 3"], Vec3( 16.38f,  0.0f,   8.56f)));
+		feet.push_back(new FootState(Bone::string_table["r leg b 3"], Vec3(-16.38f,  0.0f,   8.56f)));
+		feet.push_back(new FootState(Bone::string_table["l leg c 3"], Vec3(  7.05f,  0.0f, -15.31f)));
+		feet.push_back(new FootState(Bone::string_table["r leg c 3"], Vec3( -7.05f,  0.0f, -15.31f)));
 	}
 
 	void ArtilleryBug::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)

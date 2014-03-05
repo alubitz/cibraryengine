@@ -58,6 +58,7 @@ namespace Test
 		pose_timer(0.0f),
 		yaw_rate(10.0f),
 		pitch_rate(10.0f),
+		desired_vel_2d(),
 		use_cheaty_ori(true),
 		team(team),
 		blood_material(NULL),
@@ -127,9 +128,6 @@ namespace Test
 		Pawn::InnerDispose();
 	}
 
-	// overridden by subclasses
-	void Dood::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward) { }
-
 	void Dood::DoMovementControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
 	{
 		bool standing = standing_callback.IsStanding();
@@ -145,7 +143,7 @@ namespace Test
 			control_vec.y *= inv * top_speed_forward;
 		}
 
-		Vec3 desired_vel = forward * control_vec.y + rightward * control_vec.x;
+		Vec3 desired_vel = desired_vel_2d = forward * control_vec.y + rightward * control_vec.x;
 
 		if(timestep > 0 && desired_vel.ComputeMagnitudeSquared() > 0)
 		{
@@ -361,11 +359,6 @@ namespace Test
 			return game_state->sound_system->PlayEffect(buffer, pos, vel, vol, looping);
 	}
 
-	// overridden by subclasses
-	void Dood::PreUpdatePoses(const TimingInfo& time)    { }
-	void Dood::PostUpdatePoses(const TimingInfo& time)   { }
-	void Dood::RegisterFeet()                            { }
-
 	void Dood::PhysicsToCharacter()
 	{
 		Vec3 origin = root_rigid_body->GetPosition();				// why not just use Dood::pos? idk
@@ -499,7 +492,25 @@ namespace Test
 		}
 	}
 
-	void Dood::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
+	void Dood::DoIKStuff()
+	{
+		// TODO: implement all of this for real
+
+		Vec3 desired_vel = ComputeDesiredVelocity();
+		SetRootBoneXform(desired_vel);
+
+		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
+		{
+			FootState* foot = *iter;
+
+			// TODO: lerp between grounded and ungrounded poses using a float based on no_contact_timer? or otherwise smooth over jittery contact
+			if(!foot->IsStanding() || !foot->SolveLegIK())
+			{
+				if(foot->FindSuitableFootfall() || OverrideFootfallSafety())
+					foot->PoseUngroundedLeg();
+			}
+		}
+	}
 
 	void Dood::PoseCharacter(const TimingInfo& time)
 	{
@@ -785,7 +796,15 @@ namespace Test
 	void Dood::StandingCallback::OnPhysicsTick(float timestep)
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
-			(*iter)->contact_points.clear();
+		{
+			FootState* foot = *iter;
+			if(foot->contact_points.empty())
+				foot->no_contact_timer += timestep;
+			else
+				foot->no_contact_timer = 0.0f;
+
+			foot->contact_points.clear();
+		}
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)
