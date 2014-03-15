@@ -108,9 +108,8 @@ namespace CibraryEngine
 		return wakeup;
 	}
 
-	void SkeletalJointConstraint::DoUpdateAction(float timestep_)
+	void SkeletalJointConstraint::DoUpdateAction(float timestep)
 	{
-		timestep = timestep_;
 		half_timestep = timestep * 0.5f;
 		inv_timestep = 1.0f / timestep;
 
@@ -135,7 +134,7 @@ namespace CibraryEngine
 		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
 		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
 
-		apply_pos = (a_pos + b_pos) * 0.5f;
+		Vec3 apply_pos = (a_pos + b_pos) * 0.5f;
 		desired_dv = (b_pos - a_pos) * -(spring_coeff * inv_timestep);
 
 		r1 = apply_pos - obj_a->cached_com;

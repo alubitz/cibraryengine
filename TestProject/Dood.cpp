@@ -153,7 +153,7 @@ namespace Test
 			desired_vel = (vel - desired_vel) * (standing ? expf(-traction * timestep) : 1.0f) + desired_vel;
 			Vec3 dv = desired_vel - vel;
 
-			standing_callback.ApplyVelocityChange(dv);
+		//	standing_callback.ApplyVelocityChange(dv);
 		}
 	}
 
@@ -503,11 +503,13 @@ namespace Test
 		{
 			FootState* foot = *iter;
 
-			// TODO: lerp between grounded and ungrounded poses using a float based on no_contact_timer? or otherwise smooth over jittery contact
-			if(!foot->IsStanding() || !foot->SolveLegIK())
+			// TODO: smooth over jittery contact?
+//			if(foot->standing ? !foot->SolveLegIK() : true)
+			foot->SolveLegIK();
+			if(true)
 			{
-				if(foot->FindSuitableFootfall() || OverrideFootfallSafety())
-					foot->PoseUngroundedLeg();
+				bool found_suitable = foot->FindSuitableFootfall();		// return value not actually used?
+				foot->PoseUngroundedLeg();
 			}
 		}
 	}
@@ -802,7 +804,8 @@ namespace Test
 				foot->no_contact_timer += timestep;
 			else
 				foot->no_contact_timer = 0.0f;
-
+			
+			foot->standing = !foot->contact_points.empty();
 			foot->contact_points.clear();
 		}
 	}
@@ -832,7 +835,7 @@ namespace Test
 	bool Dood::StandingCallback::IsStanding()
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
-			if((*iter)->IsStanding())
+			if((*iter)->standing)
 				return true;
 
 		return false;

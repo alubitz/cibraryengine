@@ -21,7 +21,6 @@ namespace Test
 
 			Vec3 ComputeDesiredVelocity();
 			void SetRootBoneXform(const Vec3& desired_vel);
-			bool OverrideFootfallSafety();
 
 			Mat4 proposed_pelvis_xform;
 

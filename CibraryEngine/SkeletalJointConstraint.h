@@ -17,9 +17,7 @@ namespace CibraryEngine
 		protected:
 
 			// some values that are set by DoUpdateAction and which should only be used for the duration of a single physics tick
-			Vec3 apply_pos;
 			Vec3 desired_dv;
-
 			Vec3 desired_av;
 
 			Mat3 oriented_axes, reverse_oriented_axes;
@@ -29,7 +27,7 @@ namespace CibraryEngine
 			Mat3 rlv_to_impulse;
 			Mat3 alpha_to_obja, alpha_to_objb;
 
-			float timestep, half_timestep, inv_timestep;
+			float half_timestep, inv_timestep;
 
 		public:
 

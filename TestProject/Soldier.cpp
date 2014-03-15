@@ -361,9 +361,17 @@ namespace Test
 
 			Mat4* pelvis_xform_ptr;
 
+			Vec3 hip, knee, ankle;
+			float hk_dist, ka_dist, hksq, kasq;
+
+			float min_hasq, max_hasq;
+			float hksq_m_kasq;
 			// TODO: add members here as needed
 
-			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos, Mat4* pelvis_xform_ptr) : FootState(posey_id, ee_pos), pelvis_xform_ptr(pelvis_xform_ptr) { }
+			Quaternion hip_out, knee_out, ankle_out;
+			bool outputs_valid;
+
+			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos, Mat4* pelvis_xform_ptr);
 
 			bool SolveLegIK();
 			bool FindSuitableFootfall();
@@ -477,6 +485,26 @@ namespace Test
 	void Soldier::PreUpdatePoses(const TimingInfo& time)
 	{
 		DoIKStuff();
+
+		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
+		{
+			SoldierFoot* foot = (SoldierFoot*)*iter;
+			if(foot->outputs_valid)
+			{
+				if(iter == feet.begin())
+				{
+					posey->skeleton->GetNamedBone( "l foot"  )->ori = foot->ankle_out;
+					posey->skeleton->GetNamedBone( "l leg 2" )->ori = foot->knee_out;
+					posey->skeleton->GetNamedBone( "l leg 1" )->ori = foot->hip_out;
+				}
+				else
+				{
+					posey->skeleton->GetNamedBone( "r foot"  )->ori = foot->ankle_out;
+					posey->skeleton->GetNamedBone( "r leg 2" )->ori = foot->knee_out;
+					posey->skeleton->GetNamedBone( "r leg 1" )->ori = foot->hip_out;
+				}
+			}
+		}
 
 		if(p_ag != NULL)
 		{
@@ -605,15 +633,26 @@ namespace Test
 		Vec3 pos = root_rigid_body->GetPosition();
 		Quaternion ori = root_rigid_body->GetOrientation();
 
+		Vec3 com_vel;
+		float total_mass = 0.0f;
+		for(set<RigidBody*>::iterator iter = velocity_change_bodies.begin(); iter != velocity_change_bodies.end(); ++iter)
+		{
+			RigidBody* rb = *iter;
+			float mass = rb->GetMass();
+			total_mass += mass;
+			com_vel += rb->GetLinearVelocity() * mass;
+		}
+		com_vel /= total_mass;
+
+		Vec3 pelvis_vel = desired_vel * 0.4f + root_rigid_body->GetLinearVelocity() * 0.5f + com_vel * 0.1f;
+
 		// TODO:
 		// pelvis moves by a velocity somewhere between the desired velocity and the current average velocity of the dood
 		// pelvis yaws a little to help the aim yaw
 		// pelvis moves forward/backward to balance the aim pitch (and maybe pitch the pelvis up/down a little as well?)
 
-		proposed_pelvis_xform = Mat4::FromPositionAndOrientation(pos, ori);
+		proposed_pelvis_xform = Mat4::FromPositionAndOrientation(pos + pelvis_vel / 60.0f, ori);
 	}
-
-	bool Soldier::OverrideFootfallSafety() { return control_state->GetBoolControl("jump"); }
 
 
 
@@ -621,16 +660,111 @@ namespace Test
 	/*
 	 * SoldierFoot methods
 	 */
+	SoldierFoot::SoldierFoot(unsigned int posey_id, const Vec3& ee_pos, Mat4* pelvis_xform_ptr) : FootState(posey_id, ee_pos), pelvis_xform_ptr(pelvis_xform_ptr)
+	{
+		// TODO: get these joints' positions from the actual joints instead of using hard-coded values
+		float x = posey_id == Bone::string_table["l foot"] ? 1.0f : -1.0f;
+		hip   = Vec3(x * 0.15f, 1.04f, -0.02f);
+		knee  = Vec3(x * 0.19f, 0.63f,  0.05f);
+		ankle = Vec3(x * 0.23f, 0.16f, -0.06f);
+
+		hksq = (hip  - knee ).ComputeMagnitudeSquared();
+		kasq = (knee - ankle).ComputeMagnitudeSquared();
+
+		hk_dist = sqrtf(hksq);
+		ka_dist = sqrtf(kasq);
+
+		hksq_m_kasq = hksq - kasq;
+
+		// TODO: do a more thorough computation here (or maybe load the values from somewhere?)
+		float max_ha = hk_dist + ka_dist;
+		float min_ha = fabs(hk_dist - ka_dist);
+		max_hasq = max_ha * max_ha;
+		min_hasq = min_ha * min_ha;
+	}
+
 	bool SoldierFoot::SolveLegIK()
 	{
+		outputs_valid = false;
+
+		// figure out where the constrained bone xforms put the hip and ankle joints
 		const Mat4& pelvis_xform = *pelvis_xform_ptr;
 
-		// TODO:
-		// get constrained (or current?) foot xform
-		// get hip and ankle joint positions
-		// try to solve IK; if we find a solution return true, else return false
+		Mat4 foot_xform = body->GetTransformationMatrix();
 
-		return false;
+		Vec3 goal_hip   = pelvis_xform.TransformVec3_1(hip);
+		Vec3 goal_ankle = foot_xform.TransformVec3_1(ankle);
+
+		Vec3 D = goal_ankle - goal_hip;
+
+		// quit early if the joints are too close together or too far apart
+		float dsq = D.ComputeMagnitudeSquared();
+		if(dsq > max_hasq || dsq < min_hasq)
+			return false;
+
+		// figure out the circle where the knee can go
+		float dist = D.ComputeMagnitude();
+		float invd = 1.0f / dist;
+
+		float hk_u = (hksq_m_kasq + dsq) * 0.5f * invd;
+
+		assert(hk_u <= hk_dist);
+
+		float circ_rsq = hksq - hk_u * hk_u;
+		Vec3 circ_normal = D * invd;
+		Vec3 circ_center = goal_hip + hk_u * circ_normal;
+
+		assert(circ_rsq >= 0.0f);
+
+		// get two orthogonal axes in the plane of the circle... try to get one to be approximately 'forward'
+		Vec3 knee_fwd = pelvis_xform.TransformVec3_0(0, 0, 1) + foot_xform.TransformVec3_0(0, 0, 1);
+		Vec3 knee_left = Vec3::Normalize(Vec3::Cross(circ_normal, knee_fwd));
+		knee_fwd = Vec3::Cross(knee_left, circ_normal);
+
+		// use the forward vector to place the knee
+		Vec3 knee_pos = circ_center + Vec3::Normalize(Vec3::Cross(circ_normal, Vec3::Cross(circ_normal, knee_fwd)), circ_rsq);
+
+		// pick orientations for the leg bones
+		Vec3 result_uhk = Vec3::Normalize(knee_pos   - goal_hip);
+		Vec3 result_uka = Vec3::Normalize(goal_ankle - knee_pos);
+
+		Vec3 rest_uhk = Vec3::Normalize(pelvis_xform.TransformVec3_0(knee  - hip ));
+		Vec3 rest_uka = Vec3::Normalize(pelvis_xform.TransformVec3_0(ankle - knee));
+
+		Vec3 uhk_cross = Vec3::Cross(rest_uhk, result_uhk);
+		float uhkx_mag = uhk_cross.ComputeMagnitude(), inv_uhkx = 1.0f / uhkx_mag;
+		float hkdot = Vec3::Dot(result_uhk, rest_uhk);
+
+		float hk_rtr_angle = atan2f(uhkx_mag, hkdot);
+		Quaternion hk_rtr = Quaternion::FromAxisAngle(uhk_cross.x * inv_uhkx, uhk_cross.y * inv_uhkx, uhk_cross.z * inv_uhkx, hk_rtr_angle);
+		//Vec3 hktest = Vec3::Normalize((hk_rtr * Quaternion::Reverse(pelvis_ori)) * (knee - hip));
+		//float error = acosf(Vec3::Dot(hktest, result_uhk));
+		//Debug(((stringstream&)(stringstream() << "error = " << error << "; angle = " << hk_rtr.GetRotationAngle() << "; expected angle = " << hk_rtr_angle << endl)).str());
+
+		Vec3 uka_cross = Vec3::Cross(rest_uka, result_uka);
+		float ukax_mag = uka_cross.ComputeMagnitude(), inv_ukax = 1.0f / ukax_mag;
+		float kadot = Vec3::Dot(result_uka, rest_uka);
+
+		float ka_rtr_angle = atan2f(ukax_mag, kadot);
+		Quaternion ka_rtr = Quaternion::FromAxisAngle(uka_cross.x * inv_ukax, uka_cross.y * inv_ukax, uka_cross.z * inv_ukax, ka_rtr_angle);
+
+		Quaternion pelvis_ori = pelvis_xform.ExtractOrientation();
+		Quaternion uleg_ori = hk_rtr * Quaternion::Reverse(pelvis_ori);		// huh? not sure why this works this way
+		Quaternion lleg_ori = ka_rtr * Quaternion::Reverse(pelvis_ori);
+		Quaternion foot_ori = foot_xform.ExtractOrientation();
+
+		Quaternion hip_ori   = Quaternion::Reverse(pelvis_ori) * uleg_ori;
+		Quaternion knee_ori  = Quaternion::Reverse(uleg_ori)   * lleg_ori;
+		Quaternion ankle_ori = Quaternion::Reverse(lleg_ori)   * foot_ori;
+
+		// TODO: check joint rotation limits
+
+		hip_out   = hip_ori;
+		knee_out  = knee_ori;
+		ankle_out = ankle_ori;
+
+		outputs_valid = true;
+		return true;
 	}
 
 	bool SoldierFoot::FindSuitableFootfall()

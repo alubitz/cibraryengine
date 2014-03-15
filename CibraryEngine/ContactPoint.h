@@ -21,7 +21,6 @@ namespace CibraryEngine
 		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
 
-		float timestep;
 		float bounce_threshold;
 
 		ContactPoint() { }

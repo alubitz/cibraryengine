@@ -62,7 +62,6 @@ namespace Test
 			void DoIKStuff();
 			virtual Vec3 ComputeDesiredVelocity() { return Vec3(); }
 			virtual void SetRootBoneXform(const Vec3& desired_vel) { }
-			virtual bool OverrideFootfallSafety() { return false; }
 
 			RigidBody* RigidBodyForNamedBone(const string& name);
 
@@ -154,9 +153,9 @@ namespace Test
 					vector<ContactPoint> contact_points;
 					float no_contact_timer;
 
-					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(NULL), contact_points(), no_contact_timer(0.0f) { }
+					bool standing;
 
-					bool IsStanding() { return !contact_points.empty(); }
+					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(NULL), contact_points(), no_contact_timer(0.0f), standing(false) { }
 
 					// TODO: add params to these methods?
 					virtual bool SolveLegIK()           { return false; }

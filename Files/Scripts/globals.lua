@@ -64,7 +64,7 @@ debug_draw_toggle   = falsethird_person_toggle = false
 god_mode          = false
 nav_edit_mode     = false
 debug_draw_mode   = false
-third_person_mode = false
+third_person_mode = true
 
 function dot(a, b)
 	return a.x * b.x + a.y * b.y + a.z * b.z

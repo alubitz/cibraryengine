@@ -44,4 +44,3 @@ int WINAPI WinMain(	HINSTANCE	hInstance,		// Instance
 	return main(nCmdShow, &lpCmdLine);
 }
 #endif
-
