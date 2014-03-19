@@ -235,10 +235,15 @@ namespace Test
 			DoPitchAndYawControls(time);
 		}
 
-		if(control_state->GetBoolControl("third_person"))
-			third_person_frac = min(1.0f, third_person_frac + timestep * third_person_transition_speed);
+		if(time.total < 0.1f)
+			third_person_frac = control_state->GetBoolControl("third_person") ? 1.0f : 0.0f;
 		else
-			third_person_frac = max(0.0f, third_person_frac - timestep * third_person_transition_speed);
+		{
+			if(control_state->GetBoolControl("third_person"))
+				third_person_frac = min(1.0f, third_person_frac + timestep * third_person_transition_speed);
+			else
+				third_person_frac = max(0.0f, third_person_frac - timestep * third_person_transition_speed);
+		}
 
 		MaybeDoScriptedUpdate(this);
 
@@ -488,29 +493,7 @@ namespace Test
 			Quaternion bone_ori = bone_xform.ExtractOrientation();
 
 			rb->SetLinearVelocity((bone_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_rate_coeff);
-			rb->SetAngularVelocity((rb->GetOrientation() * bone_ori).ToRVec() * move_rate_coeff);
-		}
-	}
-
-	void Dood::DoIKStuff()
-	{
-		// TODO: implement all of this for real
-
-		Vec3 desired_vel = ComputeDesiredVelocity();
-		SetRootBoneXform(desired_vel);
-
-		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
-		{
-			FootState* foot = *iter;
-
-			// TODO: smooth over jittery contact?
-//			if(foot->standing ? !foot->SolveLegIK() : true)
-			foot->SolveLegIK();
-			if(true)
-			{
-				bool found_suitable = foot->FindSuitableFootfall();		// return value not actually used?
-				foot->PoseUngroundedLeg();
-			}
+			rb->SetAngularVelocity((rb->GetOrientation() * Quaternion::Reverse(bone_ori)).ToRVec() * move_rate_coeff);
 		}
 	}
 
@@ -532,6 +515,18 @@ namespace Test
 		}
 	}
 
+	void Dood::DoInitialPose()
+	{
+		Quaternion ori = Quaternion::FromRVec(0, -yaw, 0);
+
+		for(vector<Bone*>::iterator iter = posey->skeleton->bones.begin(); iter != posey->skeleton->bones.end(); ++iter)
+			if((*iter)->parent == NULL)
+			{
+				(*iter)->ori = ori;
+				(*iter)->pos = pos;
+			}
+	}
+
 	void Dood::Spawned()
 	{
 		if(mphys == NULL)
@@ -542,8 +537,6 @@ namespace Test
 			return;
 		}
 
-		Quaternion ori = Quaternion::FromRVec(0, -yaw, 0);
-
 		physics = game_state->physics_world;
 
 		collision_group = new CollisionGroup(this);
@@ -553,6 +546,9 @@ namespace Test
 
 		RegisterFeet();
 
+		DoInitialPose();
+		posey->skeleton->InvalidateCachedBoneXforms();
+
 		// given string id, get index of rigid body
 		map<unsigned int, unsigned int> name_indices;
 
@@ -561,14 +557,19 @@ namespace Test
 		{
 			ModelPhysics::BonePhysics& phys = mphys->bones[i];
 
+			Vec3 bone_pos;
+			Quaternion bone_ori;
 			if(CollisionShape* shape = phys.collision_shape)
 			{
-				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, pos, ori);
-
-				rigid_body->SetDamp(0.05f);
-
 				unsigned int bone_name = Bone::string_table[phys.bone_name];
 				name_indices[bone_name] = rigid_bodies.size();
+
+				Bone* posey_bone = posey->skeleton->GetNamedBone(bone_name);
+				rbody_to_posey.push_back(posey_bone);
+
+				posey_bone->GetTransformationMatrix().Decompose(bone_pos, bone_ori);
+				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, bone_pos, bone_ori);
+				rigid_body->SetDamp(0.05f);
 
 				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
@@ -576,10 +577,7 @@ namespace Test
 
 				BoneShootable* shootable = new BoneShootable(game_state, this, rigid_body, blood_material);
 				rigid_body->SetUserEntity(shootable);
-
 				shootables.push_back(shootable);
-
-				rbody_to_posey.push_back(posey->skeleton->GetNamedBone(bone_name));
 
 				// give feet a collision callback
 				for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
@@ -801,12 +799,17 @@ namespace Test
 		{
 			FootState* foot = *iter;
 			if(foot->contact_points.empty())
+			{
 				foot->no_contact_timer += timestep;
+				foot->standing = false;
+			}
 			else
+			{
 				foot->no_contact_timer = 0.0f;
-			
-			foot->standing = !foot->contact_points.empty();
-			foot->contact_points.clear();
+				foot->standing = true;
+
+				foot->contact_points.clear();
+			}
 		}
 	}
 

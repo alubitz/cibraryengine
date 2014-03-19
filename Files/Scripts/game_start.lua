@@ -9,7 +9,7 @@ end
 -- figure out which dood is the player, and remember that
 
 local player_pos
-if false then					-- true for spawning on flat grid world; false for terrain world
+if true then					-- true for spawning on flat grid world; false for terrain world
 	player_pos = ba.createVector(0, 0, 0)
 else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)

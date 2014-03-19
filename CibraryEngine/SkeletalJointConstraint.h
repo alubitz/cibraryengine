@@ -20,7 +20,7 @@ namespace CibraryEngine
 			Vec3 desired_dv;
 			Vec3 desired_av;
 
-			Mat3 oriented_axes, reverse_oriented_axes;
+			Mat3 oriented_axes;
 			Quaternion a_to_b, b_to_a;
 
 			Vec3 r1, r2;

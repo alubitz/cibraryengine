@@ -29,6 +29,8 @@ namespace CibraryEngine
 
 			ContentHandle<UberModel> LoadModel(const string& model_name);
 
-			void LoadContent(string* status, bool materials = true);
+			class StatusUpdater { public: virtual void SetString(const string& str) = 0; };
+
+			void LoadContent(StatusUpdater* status, bool materials = true);
 	};
 }

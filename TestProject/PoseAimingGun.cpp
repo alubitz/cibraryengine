@@ -33,11 +33,12 @@ namespace Test
 
 		void LoadPoses(const string& filename)
 		{
-			ScriptingState s = ScriptSystem::GetGlobalState();
+			ScriptingState s = ScriptSystem::GetGlobalState().NewThread();		// in case this is called by something multi-threaded
+			lua_State* L = s.GetLuaState();
+
+			lua_settop(L, 0);
 			if(!s.DoFile(filename))
 			{
-				lua_State* L = s.GetLuaState();
-
 				// the script should have returned an array containing some pose entries
 				if(lua_gettop(L) == 1 && lua_istable(L, -1))
 				{
@@ -191,21 +192,30 @@ namespace Test
 		if(!imp->loaded_poses)
 		{
 			imp->LoadPoses("Files/Scripts/pose_aiming_gun.lua");
-			imp->ExtractGrid();
 
-			assert(imp->tris.size() <= 255);
+			if(imp->poses.empty())
+				Debug("PoseAimingGun: failed to load any poses!\n");
+			else
+			{
+				imp->ExtractGrid();
+
+				if(imp->tris.empty())
+					Debug("PoseAimingGun: unable to extract any triangles\n");
+
+				assert(imp->tris.size() <= 255);
+			}
 
 			imp->loaded_poses = true;
 		}
 
-		if(time.total < 0.1f)
-			return;
+		//if(time.total < 0.1f)
+		//	return;
 
 		Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
 		Quaternion ori_off     = Quaternion::Reverse(pelvis_ori) * desired_ori;
 		Vec3 ori_off_rvec      = ori_off.ToRVec();
 
-		Vec3 spine_twist_rvec  = Vec3(max(-0.55f, min(0.5f, ori_off.x * 1.0f)), max(-0.5f, min(0.5f, (ori_off.y - 0.6f) * 0.5f)), 0);
+		Vec3 spine_twist_rvec  = Vec3(max(-0.55f, min(0.5f, ori_off_rvec.x * 1.0f)), max(-0.5f, min(0.5f, (ori_off_rvec.y - 0.6f) * 0.5f)), 0);
 		Quaternion spine_twist = Quaternion::FromRVec(spine_twist_rvec);
 		Quaternion torso2_ori  = pelvis_ori * spine_twist * spine_twist;
 

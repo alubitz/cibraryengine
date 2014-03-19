@@ -52,12 +52,16 @@ namespace Test
 		bool stopped;
 		bool abort;
 
-		Imp() : mutex(), stopped(false), abort(false) { }
+		string task;
 
-		bool HasStopped()	{ boost::mutex::scoped_lock lock(mutex); return stopped; }
-		bool HasAborted()	{ boost::mutex::scoped_lock lock(mutex); return abort; }
-		void Stop()			{ boost::mutex::scoped_lock lock(mutex); stopped = true; }
-		void Abort()		{ boost::mutex::scoped_lock lock(mutex); abort = true; }
+		Imp() : mutex(), stopped(false), abort(false), task("") { }
+
+		bool HasStopped()				{ boost::mutex::scoped_lock lock(mutex); return stopped; }
+		bool HasAborted()				{ boost::mutex::scoped_lock lock(mutex); return abort; }
+		void Stop()						{ boost::mutex::scoped_lock lock(mutex); stopped = true; }
+		void Abort()					{ boost::mutex::scoped_lock lock(mutex); abort = true; }
+		void SetTask(const string& str)	{ boost::mutex::scoped_lock lock(mutex); task = str; }
+		void GetTask(string& str)		{ boost::mutex::scoped_lock lock(mutex); str = task; }
 	};
 
 
@@ -66,7 +70,7 @@ namespace Test
 	/*
 	 * TestGame::Loader methods
 	 */
-	TestGame::Loader::Loader() : imp(new Imp()), game(NULL), task("")	{ }
+	TestGame::Loader::Loader() : imp(new Imp()), game(NULL)	{ }
 	void TestGame::Loader::InnerDispose()								{ delete imp; imp = NULL; }
 
 	void TestGame::Loader::operator ()()								{ game->Load(); }
@@ -75,6 +79,8 @@ namespace Test
 	bool TestGame::Loader::HasAborted()									{ return imp->HasAborted(); }
 	void TestGame::Loader::Stop()										{ imp->Stop(); }
 	void TestGame::Loader::Abort()										{ imp->Abort(); }
+	void TestGame::Loader::SetTask(const string& str)					{ imp->SetTask(str); }
+	void TestGame::Loader::GetTask(string& str)							{ imp->GetTask(str); }
 
 
 
@@ -407,7 +413,7 @@ namespace Test
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "dsn shader"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("dsn shader"); }
 
 		// setting the content loader for materials if it hasn't been set already
 		mat_cache = content->GetCache<Material>();
@@ -416,16 +422,25 @@ namespace Test
 
 		ScriptingState thread_script = ScriptSystem::GetGlobalState().NewThread();
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "Models..."; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("Models..."); }
 		ContentReqList content_req_list(content);
 
 		ScriptSystem::SetContentReqList(&content_req_list);
 		thread_script.DoFile("Files/Scripts/load.lua");
 		ScriptSystem::SetContentReqList(NULL);
-		content_req_list.LoadContent(&load_status.task);
+
+		class StatusUpdater : public ContentReqList::StatusUpdater
+		{
+			public:
+				Loader& loader;
+				StatusUpdater(Loader& loader) : loader(loader) { }
+				void SetString(const string& str) { loader.SetTask(str); }
+		} crl_status_updater(load_status);
+
+		content_req_list.LoadContent(&crl_status_updater);
 
 		// creating sky
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "sky"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("sky"); }
 
 		Cache<TextureCube>* cubemap_cache = content->GetCache<TextureCube>();
 		Cache<Shader     >* shader_cache  = content->GetCache<Shader>();
@@ -441,7 +456,7 @@ namespace Test
 		imp->sky_texture = cubemap_cache->Load("sky_cubemap");
 		imp->sky_sphere  = vtn_cache->Load("sky_sphere");
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "deferred lighting shader"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("deferred lighting shader"); }
 
 		imp->ambient_cubemap = cubemap_cache->Load("ambient_cubemap");
 
@@ -486,7 +501,7 @@ namespace Test
 		deferred_ambient->AddUniform<float>        ( new UniformFloat       ( "zoom"                       ));
 
 		// Dood's model
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "soldier"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("soldier"); }
 
 		imp->soldier_model   = ubermodel_cache->Load("soldier");
 		imp->soldier_physics = mphys_cache->Load("soldier");
@@ -505,7 +520,7 @@ namespace Test
 		imp->rubbish_model         = imp->gun_model;
 		imp->rubbish_physics       = imp->gun_physics;
 #else
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "rubbish"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("rubbish"); }
 
 		imp->rubbish_model         = ubermodel_cache->Load("dummycube");
 		imp->rubbish_physics       = mphys_cache->Load("dummycube");
@@ -513,24 +528,24 @@ namespace Test
 		imp->rubbish_model->LoadCachedMaterials(mat_cache);
 #endif
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "crab bug"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("crab bug"); }
 
 		imp->crab_bug_model        = ubermodel_cache->Load("crab_bug");
 		imp->crab_bug_physics      = mphys_cache->Load("crab_bug");
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "artillery bug"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("artillery bug"); }
 
 		imp->artillery_bug_model   = ubermodel_cache->Load("flea");
 		imp->artillery_bug_physics = mphys_cache->Load("flea");
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "misc"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("misc"); }
 
 		// loading weapon sounds
 		imp->fire_sound          = sound_cache->Load("shot");
 		imp->chamber_click_sound = NULL;
 		imp->reload_sound        = NULL;
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "level"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("level"); }
 
 		LoadLevel(this, "TestLevel");
 
@@ -541,7 +556,7 @@ namespace Test
 			SaveNavGraph(nav_graph, "Files/Levels/TestNav.nav");
 		}
 
-		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.task = "starting game"; }
+		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("starting game"); }
 
 		imp->sun = new Sun(Vec3(2.4f, 4, 0), Vec3(1, 0.95f, 0.8f), NULL, NULL);
 

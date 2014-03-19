@@ -26,5 +26,5 @@ namespace Test
 
 	bool DefaultWeapon::GetAmmoCount(int& result)	{ result = clip; return true; }
 
-	Mat4 DefaultWeapon::GetInitialXform()			{ return owner->root_rigid_body->GetTransformationMatrix() * Mat4::Translation(0, 1, 0) * Mat4::FromMat3(Mat3::FromRVec(0, 1.5f, 0)); }
+	Mat4 DefaultWeapon::GetInitialXform()			{ return owner->RigidBodyForNamedBone("r hand")->GetTransformationMatrix() * Mat4::FromPositionAndOrientation(Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromRVec(-Vec3(-1.27667f, 0.336123f, 0.64284f))) * Mat4::Translation(-Vec3(0.000f, -0.063f, -0.152f)); }
 };

@@ -77,8 +77,6 @@ namespace Test
 
 					TestGame* game;
 
-					string task;
-
 					Loader();
 
 					void operator ()();
@@ -87,6 +85,9 @@ namespace Test
 					bool HasAborted();
 					void Stop();
 					void Abort();
+
+					void SetTask(const string& str);
+					void GetTask(string& str);
 			} load_status;
 
 			TestGame(TestScreen* screen, SoundSystem* sound_system);

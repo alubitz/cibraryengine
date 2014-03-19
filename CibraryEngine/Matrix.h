@@ -92,6 +92,14 @@ namespace CibraryEngine
 		/** Returns the matrix inverse of the given matrix */
 		static Mat3 Invert(const Mat3& a);
 
+		Vec3 TransposedMultiply(const Vec3& b) const
+		{
+			return Vec3(
+				b.x * values[0] + b.y * values[3] + b.z * values[6],
+				b.x * values[1] + b.y * values[4] + b.z * values[7],
+				b.x * values[2] + b.y * values[5] + b.z * values[8]);
+		}
+
 		/** Transforms a 3-component vector by this matrix (i.e. matrix multiplication) */
 		Vec3 operator *(const Vec3& b) const
 		{

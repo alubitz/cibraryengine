@@ -5,6 +5,8 @@
 #include "InstructionsScreen.h"
 #include "Credits.h"
 
+#include "ExperimentalScreen.h"
+
 namespace Test
 {
 	/*
@@ -23,6 +25,12 @@ namespace Test
 		{
 			JoinGameButton(ContentMan* content, int row) : AutoMenuItem(content, "Join Game...", row, true) { }
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new LoadingScreen(mse->menu->window, mse->menu, NR_Client)); }
+		};
+
+		struct ExperimentalButton : public AutoMenuItem
+		{
+			ExperimentalButton(ContentMan* content, int row) : AutoMenuItem(content, "Experimental Screen", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(new ExperimentalScreen(mse->menu->window, mse->menu)); }
 		};
 
 		struct InstructionsButton : public AutoMenuItem
@@ -49,12 +57,13 @@ namespace Test
 		{
 			ContentMan* content = win->content;
 
-			int row = 0;
+			unsigned int row = 0;
 			auto_menu_items.push_back(new AutoMenuItem(content, "FPS", row++, false));
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 			auto_menu_items.push_back(new CreateGameButton(content, row++));
 			//auto_menu_items.push_back(new JoinGameButton(content, row++));
 			//auto_menu_items.push_back(new AutoMenuItem(content, "Options...", row++, true));		// default implementation does nothing when selected
+			auto_menu_items.push_back(new ExperimentalButton(content, row++));
 			auto_menu_items.push_back(new InstructionsButton(content, row++));
 			auto_menu_items.push_back(new CreditsButton(content, row++));
 			auto_menu_items.push_back(new ExitButton(content, row++));

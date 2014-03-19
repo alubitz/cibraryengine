@@ -114,6 +114,8 @@ namespace CibraryEngine
 			float half = angle * 0.5f, sine = sinf(half);
 			return Quaternion(cosf(half), x * sine, y * sine, z * sine);
 		}
+		/** Returns a quaternion representing a rotation about the specified axis (should be a unit vector) with the specified magnitude */
+		static Quaternion FromAxisAngle(const Vec3& axis, float angle)			{ return Quaternion::FromAxisAngle(axis.x, axis.y, axis.z, angle); }
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */
 		static Quaternion FromRVec(const Vec3& rVector)							{ return Quaternion::FromRVec(rVector.x, rVector.y, rVector.z); }
 		/** Returns a quaternion representing a rotation about the specified axis vector, whose magnitude is the angle of the rotation */

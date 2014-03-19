@@ -1,7 +1,8 @@
 #pragma once
 
 #include "StdAfx.h"
-#include "Content.h"
+
+#include "Disposable.h"
 
 namespace CibraryEngine
 {

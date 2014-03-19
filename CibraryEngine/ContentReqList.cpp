@@ -41,23 +41,23 @@ namespace CibraryEngine
 		return handle;
 	}
 
-	void ContentReqList::LoadContent(string* status, bool materials)
+	void ContentReqList::LoadContent(StatusUpdater* status, bool materials)
 	{
 		for(list<ContentHandle<UberModel> >::iterator iter = imp->models.begin(); iter != imp->models.end(); ++iter)
 		{
 			ContentHandle<UberModel> handle = *iter;
 			const string& asset_name = handle.GetMetadata().name;
 
-			*status = "Models... " + asset_name + ".zzz";
+			if(status) { status->SetString("Models... " + asset_name + ".zzz"); }
 			imp->ubermodel_cache->ForceLoad(handle);
 
-			*status = "Models... " + asset_name + ".zzp";
+			if(status) { status->SetString("Models... " + asset_name + ".zzp"); }
 			imp->mphys_cache->Load(asset_name);
 		}
 
 		if(materials)
 		{
-			*status = "Materials...";
+			if(status) { status->SetString("Materials..."); }
 
 			for(list<ContentHandle<UberModel> >::iterator iter = imp->models.begin(); iter != imp->models.end(); ++iter)
 				if(UberModel* model = iter->GetObject())
@@ -66,7 +66,7 @@ namespace CibraryEngine
 					{
 						const string& mat_name = *jter;
 						
-						*status = "Materials... " + mat_name;
+						if(status) { status->SetString("Materials... " + mat_name); }
 						imp->mat_cache->Load(mat_name);
 					}
 				}

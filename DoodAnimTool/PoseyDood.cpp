@@ -277,7 +277,6 @@ namespace DoodAnimTool
 
 				Mat4 newxform = Mat4::FromPositionAndOrientation(from.pos, from.ori) * iter->xform;
 				newxform.Decompose(to.pos, to.ori);
-				to.ori = Quaternion::Reverse(to.ori);			// something fishy going on here...
 			}
 
 
@@ -395,8 +394,6 @@ namespace DoodAnimTool
 								{
 									Mat4 bxform = Mat4::FromPositionAndOrientation(adata.pos, adata.ori) * xform;
 									bxform.Decompose(bdata.pos, bdata.ori);
-									bdata.ori = Quaternion::Reverse(bdata.ori);			// something fishy going on here...
-
 									block = true;
 								}
 								else
@@ -411,8 +408,6 @@ namespace DoodAnimTool
 									Mat4 axform = Mat4::FromPositionAndOrientation(bdata.pos, bdata.ori) * invxform;
 									axform.Decompose(adata.pos, adata.ori);
 									alock = true;
-
-									adata.ori = Quaternion::Reverse(adata.ori);			// something fishy going on here...
 								}
 								else
 									results.push_back(FixedJointPoseOp(fj->bone_b, fj->bone_a, invxform));

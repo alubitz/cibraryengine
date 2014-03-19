@@ -59,6 +59,9 @@ namespace Test
 			if(cursor == NULL)
 				cursor = window->content->GetCache<Cursor>()->Load("Cursor");
 
+			string task;
+			test_game->load_status.GetTask(task);
+
 			glViewport(0, 0, w, h);
 
 			glDepthMask(true);
@@ -76,7 +79,7 @@ namespace Test
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			font->Print("Loading...", 100, 100);
-			font->Print(test_game->load_status.task, 100, 100 + font->font_height * 2);
+			font->Print(task, 100, 100 + font->font_height * 2);
 
 			// draw cursor
 			if(window->IsActive())

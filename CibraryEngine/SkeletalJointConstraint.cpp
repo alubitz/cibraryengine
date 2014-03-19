@@ -88,7 +88,7 @@ namespace CibraryEngine
 		if(any_changes)
 		{
 			// at least one rotation limit was violated, so we must recompute alpha
-			Quaternion actual_ori = Quaternion::FromRVec(reverse_oriented_axes * -proposed_rvec);
+			Quaternion actual_ori = Quaternion::FromRVec(oriented_axes.TransposedMultiply(-proposed_rvec));
 			Vec3 actual_av = (b_to_a * actual_ori).ToRVec() * inv_timestep;
 
 			alpha = current_av - actual_av;
@@ -127,7 +127,6 @@ namespace CibraryEngine
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
 		oriented_axes = axes * Quaternion::Reverse(a_ori).ToMat3();
-		reverse_oriented_axes = oriented_axes.Transpose();
 
 
 		// force to keep the two halves of the joint together

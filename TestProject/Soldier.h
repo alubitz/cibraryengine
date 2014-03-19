@@ -17,12 +17,11 @@ namespace Test
 
 			void PreUpdatePoses(const TimingInfo& time);
 
+			void DoInitialPose();
+
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
 
-			Vec3 ComputeDesiredVelocity();
-			void SetRootBoneXform(const Vec3& desired_vel);
-
-			Mat4 proposed_pelvis_xform;
+			void DoIKStuff(const TimingInfo& time);
 
 		public:
 

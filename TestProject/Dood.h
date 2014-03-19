@@ -58,12 +58,7 @@ namespace Test
 			virtual void DoCheatyPose(float timestep, const Vec3& net_vel);
 			virtual void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
 
-			// for IK stuff
-			void DoIKStuff();
-			virtual Vec3 ComputeDesiredVelocity() { return Vec3(); }
-			virtual void SetRootBoneXform(const Vec3& desired_vel) { }
-
-			RigidBody* RigidBodyForNamedBone(const string& name);
+			virtual void DoInitialPose();			// called by ::Spawned; use this to set orientations of the posey bones
 
 		public:
 
@@ -121,6 +116,8 @@ namespace Test
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 
+			RigidBody* RigidBodyForNamedBone(const string& name);
+			
 			void PoseCharacter(const TimingInfo& time);
 
 			virtual void PhysicsToCharacter();
@@ -156,11 +153,6 @@ namespace Test
 					bool standing;
 
 					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(NULL), contact_points(), no_contact_timer(0.0f), standing(false) { }
-
-					// TODO: add params to these methods?
-					virtual bool SolveLegIK()           { return false; }
-					virtual bool FindSuitableFootfall() { return false; }
-					virtual void PoseUngroundedLeg()    { }
 			};
 			vector<FootState*> feet;
 
