@@ -624,8 +624,6 @@ namespace Test
 			cheaty_rot = Vec3();
 		}
 #endif
-
-		Dood::MaybeSinkCheatyVelocity(timestep, cheaty_vel, cheaty_rot, net_mass, net_moi);
 	}
 
 
@@ -633,10 +631,19 @@ namespace Test
 	{
 		Dood::DoInitialPose();
 
+		TimingInfo use_time = TimingInfo(0, 0);
+
+		// make the feet start out flat with ground...ish
+		Bone* pelvis = posey->skeleton->GetNamedBone("pelvis");
+		pelvis->pos.y += 0.01f;
+		pelvis->ori *= Quaternion::FromRVec(-0.096f, 0, 0);
+
+		DoIKStuff(use_time);
+
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
-		p_ag->pelvis_ori = posey->skeleton->GetNamedBone("pelvis")->ori;
-		p_ag->UpdatePose(TimingInfo(0, 0));
+		p_ag->pelvis_ori = pelvis->ori;
+		p_ag->UpdatePose(use_time);
 
 		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
 			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
@@ -645,86 +652,12 @@ namespace Test
 
 	void Soldier::DoIKStuff(const TimingInfo& time)
 	{
-		Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(0.1f, 0, 0);
-
-		Vec3 initial_pos = root_rigid_body->GetPosition();
-		Quaternion initial_ori = root_rigid_body->GetOrientation();
-
-
-		// decide what velocity we want our CoM to have
-		Vec3 desired_vel = desired_vel_2d;							// computed in DoMovementControls
-
-		// measure the CoM and average velocity of the Dood
-		Vec3 com;
-		Vec3 com_vel;
-		float total_mass = 0.0f;
-		for(set<RigidBody*>::iterator iter = velocity_change_bodies.begin(); iter != velocity_change_bodies.end(); ++iter)
-		{
-			RigidBody* rb = *iter;
-
-			float mass = rb->GetMass();
-			total_mass += mass;
-
-			com_vel    += rb->GetLinearVelocity() * mass;
-			com        += rb->GetCenterOfMass()   * mass;
-		}
-		com     /= total_mass;
-		com_vel /= total_mass;
-
-		RigidBody* lfoot = RigidBodyForNamedBone("l foot");
-		RigidBody* rfoot = RigidBodyForNamedBone("r foot");
-		RigidBody* torso = RigidBodyForNamedBone("torso 2");
-
-		//Vec3 tipping = ((lfoot->GetLinearVelocity() + rfoot->GetLinearVelocity()) * 0.5f - com_vel) - (torso->GetLinearVelocity() - com_vel);
-
-		//Vec3 pelvis_com = root_rigid_body->GetCenterOfMass();
-		//Vec3 lfoot_com = lfoot->GetCenterOfMass();
-		//Vec3 rfoot_com = rfoot->GetCenterOfMass();
-		//Vec3 pelvis_offcenter = (pelvis_com * 0.25f + com * 0.75f) - (lfoot_com * 0.5f + rfoot_com * 0.5f + desired_ori * Vec3(0, 0, -0.05f));
-		//pelvis_offcenter.y += 0.7f;
-		//desired_vel -= pelvis_offcenter;
-
-		Vec3 pelvis_vel = Vec3();//root_rigid_body->GetLinearVelocity() + (desired_vel - com_vel) * 0.5f;
-
-		Vec3 local_com = root_rigid_body->GetMassInfo().com;
-		Quaternion pelvis_ori = initial_ori * 0.2f + desired_ori * 0.8f;
-		Vec3 pelvis_pos = initial_pos + pelvis_vel * time.elapsed - initial_ori * local_com + pelvis_ori * local_com;		
-		Mat4 pelvis_xform = Mat4::FromPositionAndOrientation(pelvis_pos, pelvis_ori);
-
-		SoldierFoot* left_foot  = (SoldierFoot*)feet[0];
-		SoldierFoot* right_foot = (SoldierFoot*)feet[1];
-
-		float T = min(1.0f, time.total * 2.0f);
-		float U = T * 2.0f;
-		float V = T * 0.1f;
-		float W = T * 0.3f;
-
-		/*
-		left_foot->bones[0]->ori  = Quaternion::FromRVec( -T,  0,  0 );
-		left_foot->bones[1]->ori  = Quaternion::FromRVec(  U,  0,  0 );
-		left_foot->bones[2]->ori  = Quaternion::FromRVec( -T,  0,  0 );
-
-		right_foot->bones[0]->ori = Quaternion::FromRVec(  0,  0, -V );
-		right_foot->bones[1]->ori = Quaternion::FromRVec( -V,  0,  0 );
-		right_foot->bones[2]->ori = Quaternion::FromRVec(  V,  0, -W );
-		*/
-
-		/*
-		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
-		{
-			SoldierFoot* foot = (SoldierFoot*)*iter;
-
-			Vec3       foot_pos = foot->body->GetPosition();
-			Quaternion foot_ori = foot->body->GetOrientation();
-
-			foot_ori = foot_ori * 0.2f + desired_ori * 0.8f;
-
-			Mat4 foot_xform = Mat4::FromPositionAndOrientation(foot_pos, foot_ori);
-
-			bool ik_result = foot->SolveLegIK(pelvis_pos, pelvis_ori, pelvis_xform, foot_pos, foot_ori, foot_xform);
-			//foot->PoseUngroundedLeg();
-		}
-		*/
+		posey->skeleton->GetNamedBone("l leg 1")->ori = Quaternion::FromRVec( 0,     0.125f,  0.1f );
+		posey->skeleton->GetNamedBone("r leg 1")->ori = Quaternion::FromRVec( 0,    -0.125f, -0.1f );
+		posey->skeleton->GetNamedBone("l leg 2")->ori = Quaternion::FromRVec( 0.1f,  0,       0    );
+		posey->skeleton->GetNamedBone("r leg 2")->ori = Quaternion::FromRVec( 0.1f,  0,       0    );
+		posey->skeleton->GetNamedBone("l foot" )->ori = Quaternion::FromRVec( 0,     0.125f, -0.1f );
+		posey->skeleton->GetNamedBone("r foot" )->ori = Quaternion::FromRVec( 0,    -0.125f,  0.1f );
 	}
 
 

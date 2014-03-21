@@ -166,7 +166,7 @@ namespace Test
 				ExtractTri(5, 7, 8);
 			}
 		}
-	};
+	} pag_imp;
 
 
 
@@ -176,14 +176,14 @@ namespace Test
 	 */
 	PoseAimingGun::PoseAimingGun() :
 		Pose(),
-		imp(new Imp()),
+		imp(&pag_imp),
 		pelvis_ori(Quaternion::Identity()),
 		yaw(0),
 		pitch(0)
 	{
 	}
 
-	PoseAimingGun::~PoseAimingGun() { if(imp) { delete imp; imp = NULL; } }
+	PoseAimingGun::~PoseAimingGun() { imp = NULL; }
 
 
 
@@ -207,9 +207,6 @@ namespace Test
 
 			imp->loaded_poses = true;
 		}
-
-		//if(time.total < 0.1f)
-		//	return;
 
 		Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
 		Quaternion ori_off     = Quaternion::Reverse(pelvis_ori) * desired_ori;
