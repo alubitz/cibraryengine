@@ -83,6 +83,7 @@ namespace Test
 		rbody_to_posey(),
 		bone_to_rbody(),
 		constraints(),
+		velocity_change_bodies(),
 		collision_group(NULL),
 		physics(NULL),
 		mphys(mphys),
@@ -412,7 +413,20 @@ namespace Test
 	{
 		if(alive)
 		{
-			unsigned int num_bodies = rigid_bodies.size();
+			// make posey root bones' orientations match those of the corresponding rigid bodies
+			if(!use_cheaty_ori)
+			{
+				for(unsigned int i = 0; i < rigid_bodies.size(); ++i)
+					if(rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
+						rbody_to_posey[i]->ori = rigid_bodies[i]->GetOrientation();
+			}
+
+			// TODO: do this more efficiently
+			vector<RigidBody*> use_rbs;
+			for(set<RigidBody*>::iterator iter = velocity_change_bodies.begin(); iter != velocity_change_bodies.end(); ++iter)
+				use_rbs.push_back(*iter);
+
+			unsigned int num_bodies = use_rbs.size();
 
 			// compute center of mass, and the velocity thereof
 			Vec3 net_vel;
@@ -421,27 +435,23 @@ namespace Test
 
 			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
-				RigidBody* body = rigid_bodies[i];
+				RigidBody* body = use_rbs[i];
 
 				float mass = body->GetMass();
-				net_vel += body->GetLinearVelocity() * mass;
-				com += body->GetCenterOfMass() * mass;
+				net_vel  += body->GetLinearVelocity() * mass;
+				com      += body->GetCenterOfMass()   * mass;
 
 				net_mass += mass;
-
-				// make posey root bones' orientations match those of the corresponding rigid bodies
-				if(!use_cheaty_ori && rbody_to_posey[i] != NULL && rbody_to_posey[i]->parent == NULL)
-					rbody_to_posey[i]->ori = rigid_bodies[i]->GetOrientation();
 			}
 
 			net_vel /= net_mass;
-			com /= net_mass;
+			com     /= net_mass;
 
 			// compute moment of inertia
 			Mat3 moi, body_moi;
 			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
-				RigidBody* body = rigid_bodies[i];
+				RigidBody* body = use_rbs[i];
 
 				MassInfo xformed_mass_info = body->GetTransformedMassInfo();
 				MassInfo::GetAlternatePivotMoI(com - body->GetCenterOfMass(), xformed_mass_info.moi, xformed_mass_info.mass, body_moi.values);
@@ -450,7 +460,7 @@ namespace Test
 			}
 
 			// record initial angular momentum
-			Vec3 net_amom = ComputeAngularMomentum(com, net_vel, rigid_bodies);
+			Vec3 net_amom = ComputeAngularMomentum(com, net_vel, use_rbs);
 
 			// cheaty stuff happens here
 			DoCheatyPose(timestep, net_vel);
@@ -458,20 +468,20 @@ namespace Test
 			// compute any changes the cheaty physics made to the net linear velocity or angular momentum
 			Vec3 nu_vel;
 			for(unsigned int i = 0; i < num_bodies; ++i)
-				nu_vel += rigid_bodies[i]->GetLinearVelocity() * rigid_bodies[i]->GetMass();
+				nu_vel += use_rbs[i]->GetLinearVelocity() * use_rbs[i]->GetMass();
 			nu_vel /= net_mass;
 			Vec3 delta_vel = net_vel - nu_vel;
 
-			Vec3 delta_amom = ComputeAngularMomentum(com, nu_vel, rigid_bodies) - net_amom;
+			Vec3 delta_amom = ComputeAngularMomentum(com, nu_vel, use_rbs) - net_amom;
 			Vec3 rot = Mat3::Invert(moi) * delta_amom;
 
-			// allow derived classes to sink some of the "cheaty" linear and angular momentum into the ground
+			// allow derived classes to sink some of the "cheaty" linear and angular momentum (magic gyros or something?)
 			MaybeSinkCheatyVelocity(timestep, delta_vel, rot, net_mass, moi);
 
 			// undo remaining cheaty stuff
 			for(unsigned int i = 0; i < num_bodies; ++i)
 			{
-				RigidBody* body = rigid_bodies[i];
+				RigidBody* body = use_rbs[i];
 				body->SetAngularVelocity(body->GetAngularVelocity() - rot);
 				body->SetLinearVelocity(delta_vel + body->GetLinearVelocity() - Vec3::Cross(body->GetCenterOfMass() - com, rot));
 			}

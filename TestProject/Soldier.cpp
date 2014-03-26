@@ -12,8 +12,6 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_WALK_ANIMATIONS 0
-
 namespace Test
 {
 	/*
@@ -27,328 +25,6 @@ namespace Test
 	static const float fuel_spend_rate    = 0.5f;
 	static const float fuel_refill_rate   = 0.4f;
 	static const float jump_to_fly_delay  = 0.3f;
-
-
-
-
-	/*
-	 * Soldier animations and related functions
-	 */
-#if ENABLE_WALK_ANIMATIONS
-	static void GenerateRestPose(KeyframeAnimation* ka)
-	{
-		ka->frames.clear();
-		ka->name = "soldier rest pose";
-
-		Keyframe kf;
-		kf.duration = 2.0f;
-		kf.next = 0;
-		kf.values[Bone::string_table["l leg 1"]] = BoneInfluence();
-		kf.values[Bone::string_table["l leg 2"]] = BoneInfluence();
-		kf.values[Bone::string_table["l foot" ]] = BoneInfluence();
-		kf.values[Bone::string_table["r leg 1"]] = BoneInfluence();
-		kf.values[Bone::string_table["r leg 2"]] = BoneInfluence();
-		kf.values[Bone::string_table["r foot" ]] = BoneInfluence();
-
-		ka->frames.push_back(kf);
-	}
-
-	static void GenerateForwardWalkAnimation(KeyframeAnimation* ka)
-	{
-		const float A = 0.65f;
-		const float B = 1.5f;
-
-		ka->frames.clear();
-		ka->name = "soldier walk forward";
-
-		{	// right foot forward
-			Keyframe kf(0.5f);
-			kf.next = 1;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 2;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3( -B,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{	// left foot forward
-			Keyframe kf(0.5f);
-			kf.next = 3;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  A,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3( -A,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 0;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3( -B,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-	}
-
-	static void GenerateReverseWalkAnimation(KeyframeAnimation* ka)
-	{
-		KeyframeAnimation kb;
-		GenerateForwardWalkAnimation(&kb);
-
-		ka->frames.clear();
-		ka->name = "soldier walk backward";
-
-		int frame_order[] = { 3, 2, 1, 0 };
-
-		for(int i = 0; i < 4; ++i)
-		{
-			Keyframe kf = kb.frames[frame_order[i]];
-			kf.next = (i + 1) % 4;
-
-			ka->frames.push_back(kf);
-		}
-	}
-
-	static void GenerateRightWalkAnimation(KeyframeAnimation* ka)
-	{
-		const float A = 0.5f;			// sidestep
-		const float B = 1.5f;			// knee bend
-		const float C = -0.65f;			// leg bend to match knees
-		const float D = B + C;
-		const float E = -0.2f;			// left foot past center
-
-		ka->frames.clear();
-		ka->name = "soldier walk right";
-
-		{	// right foot forward
-			Keyframe kf(0.5f);
-			kf.next = 1;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  A), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0, -A), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0, -A), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  A), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 2;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  C,  0,  A), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3( -D,  0, -A), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{	// left foot forward
-			Keyframe kf(0.5f);
-			kf.next = 3;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  E), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0, -E), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0, -E), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  E), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 0;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  C,  0, -A), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  B,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3( -D,  0,  A), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-	}
-
-	static void MakeMirrorAnimation(KeyframeAnimation* original, KeyframeAnimation* copy)
-	{
-		copy->frames.clear();
-
-		for(int i = 0; i < 4; ++i)
-		{
-			const Keyframe& frame = original->frames[(i + 2) % 4];
-			Keyframe nu_frame;
-			nu_frame.duration = frame.duration;
-			nu_frame.next = (i + 1) % 4;
-
-			for(boost::unordered_map<unsigned int, BoneInfluence>::const_iterator jter = frame.values.begin(); jter != frame.values.end(); ++jter)
-			{
-				string original_name = Bone::string_table[jter->first];
-				string changed_name = original_name;
-
-				if(original_name.size() > 2 && original_name[1] == ' ')
-					switch(original_name[0])
-					{
-						case 'l':
-							changed_name[0] = 'r';
-							break;
-
-						case 'L':
-							changed_name[0] = 'R';
-							break;
-
-						case 'r':
-							changed_name[0] = 'l';
-							break;
-
-						case 'R':
-							changed_name[0] = 'L';
-							break;
-					}
-
-				BoneInfluence inf = jter->second;
-				const Vec3& pos = inf.pos;
-				const Vec3& ori = inf.ori;
-
-				nu_frame.values[Bone::string_table[changed_name]] = BoneInfluence(Vec3(ori.x, -ori.y, -ori.z), Vec3(-pos.x, pos.y, pos.z));
-			}
-
-			copy->frames.push_back(nu_frame);
-		}
-	}
-
-	static void GenerateTurnRightAnimation(KeyframeAnimation* ka)
-	{
-		const float A = 1.0f;				// foot rotation from center
-		const float B = A / 2;
-		const float C = 1.5f;				// knee bend
-		const float D = 0.65f;				// leg forward/backward
-
-		ka->frames.clear();
-		ka->name = "soldier turn right";
-
-		{	// right foot leading
-			Keyframe kf(0.5f);
-			kf.next = 1;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  A,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3( -D, -A,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  D,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 2;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  B,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  C,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3( -C,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0, -B,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{	// left foot leading
-			Keyframe kf(0.5f);
-			kf.next = 3;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3( -D,  0,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  D,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-
-		{
-			Keyframe kf(0.5f);
-			kf.next = 0;
-
-			kf.values[Bone::string_table["l leg 1"]] = BoneInfluence(Vec3(  0,  B,  0), Vec3());
-			kf.values[Bone::string_table["l leg 2"]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-			kf.values[Bone::string_table["l foot" ]] = BoneInfluence(Vec3(  0,  0,  0), Vec3());
-
-			kf.values[Bone::string_table["r leg 1"]] = BoneInfluence(Vec3(  0, -B,  0), Vec3());
-			kf.values[Bone::string_table["r leg 2"]] = BoneInfluence(Vec3(  C,  0,  0), Vec3());
-			kf.values[Bone::string_table["r foot" ]] = BoneInfluence(Vec3( -C,  0,  0), Vec3());
-
-			ka->frames.push_back(kf);
-		}
-	}
-
-	static void GenerateLeftWalkAnimation(KeyframeAnimation* ka)
-	{
-		KeyframeAnimation kb;
-		GenerateRightWalkAnimation(&kb);
-
-		MakeMirrorAnimation(&kb, ka);
-		ka->name = "soldier walk left";
-	}
-
-	static void GenerateTurnLeftAnimation(KeyframeAnimation* ka)
-	{
-		KeyframeAnimation kb;
-		GenerateTurnRightAnimation(&kb);
-
-		MakeMirrorAnimation(&kb, ka);
-		ka->name = "soldier turn left";
-	}
-#endif
 
 
 
@@ -370,11 +46,9 @@ namespace Test
 			ModelPhysics::JointPhysics* joint_protos[3];
 			Bone* bones[3];
 
-			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos);
+			Vec3 joint_rots[3];
 
-			bool SolveLegIK(const Vec3& pelvis_pos, const Quaternion& pelvis_ori, const Mat4& pelvis_xform, const Vec3& foot_pos, const Quaternion& foot_ori, const Mat4& foot_xform);
-			bool FindSuitableFootfall();
-			void PoseUngroundedLeg();
+			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos);
 	};
 
 
@@ -409,7 +83,12 @@ namespace Test
 		ragdoll_timer = 3600.0f;
 
 		p_ag = new PoseAimingGun();
-		posey->active_poses.push_back(p_ag);
+		//posey->active_poses.push_back(p_ag);
+
+		magic_box_coeffs.clear();
+		test_done = false;
+		magic_box_score = 0.0f;
+		lifetime = 0.0f;
 	}
 
 	void Soldier::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
@@ -487,16 +166,6 @@ namespace Test
 	void Soldier::PreUpdatePoses(const TimingInfo& time)
 	{
 		DoIKStuff(time);
-
-		if(p_ag != NULL)
-		{
-			p_ag->yaw   = yaw;
-			p_ag->pitch = pitch;
-
-#if ENABLE_WALK_ANIMATIONS
-			p_ag->pelvis_ori = Quaternion::FromRVec(0, -walk_pose->yaw, 0);
-#endif
-		}
 	}
 
 	void Soldier::PhysicsToCharacter()
@@ -561,26 +230,7 @@ namespace Test
 		if(!is_valid)
 			return;		
 
-#if ENABLE_WALK_ANIMATIONS
-		KeyframeAnimation rest, kf, kb, kr, kl, turnl, turnr;
-
-		GenerateRestPose            (&rest );
-		GenerateForwardWalkAnimation(&kf   );
-		GenerateReverseWalkAnimation(&kb   );
-		GenerateRightWalkAnimation  (&kr   );
-		GenerateLeftWalkAnimation   (&kl   );
-		GenerateTurnLeftAnimation   (&turnl);
-		GenerateTurnRightAnimation  (&turnr);
-
-		walk_pose = new WalkPose(this, &rest, &kf, &kb, &kl, &kr, &turnl, &turnr);
-		walk_pose->yaw_bone = Bone::string_table["pelvis"];
-		walk_pose->side_anim_rate = 2.5f;
-		//walk_pose->InitialSetYawOffset(0.6f);			// was previously 0.322f, based on some old measurement
-
-		posey->active_poses.push_back(walk_pose);
-#else
 		p_ag->pelvis_ori = Quaternion::FromRVec(0, -yaw, 0);
-#endif
 
 		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
 			if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
@@ -615,6 +265,28 @@ namespace Test
 		}
 	}
 
+	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
+	{
+		Dood::DoCheatyPose(timestep, net_vel);
+
+		if(Gun* gun = dynamic_cast<Gun*>(equipped_weapon))
+		{
+			Mat4 gun_hand_xform = posey->skeleton->GetNamedBone("r hand")->GetTransformationMatrix();
+			Mat4 gun_xform = gun_hand_xform * Mat4::FromPositionAndOrientation(Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromRVec(-Vec3(-1.27667f, 0.336123f, 0.64284f))) * Mat4::Translation(-Vec3(0.000f, -0.063f, -0.152f));
+		
+			Vec3 pos;
+			Quaternion ori;
+			gun_xform.Decompose(pos, ori);
+
+			float move_coeff = 1.0f / timestep;
+
+			RigidBody* rb = gun->rigid_body;
+
+			rb->SetLinearVelocity((gun_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_coeff);
+			rb->SetAngularVelocity((rb->GetOrientation() * Quaternion::Reverse(ori)).ToRVec() * move_coeff);
+		}
+	}
+
 	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
 	{
 #if 0
@@ -631,33 +303,221 @@ namespace Test
 	{
 		Dood::DoInitialPose();
 
-		TimingInfo use_time = TimingInfo(0, 0);
-
-		// make the feet start out flat with ground...ish
-		Bone* pelvis = posey->skeleton->GetNamedBone("pelvis");
-		pelvis->pos.y += 0.01f;
-		pelvis->ori *= Quaternion::FromRVec(-0.096f, 0, 0);
-
-		DoIKStuff(use_time);
-
-		p_ag->yaw = yaw;
-		p_ag->pitch = pitch;
-		p_ag->pelvis_ori = pelvis->ori;
-		p_ag->UpdatePose(use_time);
-
-		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
-			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
+		DoIKStuff(TimingInfo(0, 0));
 	}
 
+	// helper methods used in DoIKStuff
+	static void ClampJoint(Dood::FootState* foot, unsigned char joint_index, Quaternion& ori)
+	{
+		const ModelPhysics::JointPhysics* jp = ((SoldierFoot*)foot)->joint_protos[joint_index];
+		ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(jp->GetClampedAngles(jp->axes * ori.ToRVec())));
+	}
+
+	static void DebugVec3(const string& tag, const Vec3& v)
+	{
+		Debug(((stringstream&)(stringstream() << tag << " = (" << v.x << ", " << v.y << ", " << v.z << ")" << endl)).str());
+	}
 
 	void Soldier::DoIKStuff(const TimingInfo& time)
 	{
-		posey->skeleton->GetNamedBone("l leg 1")->ori = Quaternion::FromRVec( 0,     0.125f,  0.1f );
-		posey->skeleton->GetNamedBone("r leg 1")->ori = Quaternion::FromRVec( 0,    -0.125f, -0.1f );
-		posey->skeleton->GetNamedBone("l leg 2")->ori = Quaternion::FromRVec( 0.1f,  0,       0    );
-		posey->skeleton->GetNamedBone("r leg 2")->ori = Quaternion::FromRVec( 0.1f,  0,       0    );
-		posey->skeleton->GetNamedBone("l foot" )->ori = Quaternion::FromRVec( 0,     0.125f, -0.1f );
-		posey->skeleton->GetNamedBone("r foot" )->ori = Quaternion::FromRVec( 0,    -0.125f,  0.1f );
+		lifetime += time.elapsed;
+
+		static const string bone_names[7] = { "pelvis", "l leg 1", "l leg 2", "l foot", "r leg 1", "r leg 2", "r foot" };
+		
+		Bone* bones[7];
+		for(unsigned int i = 0; i < 7; ++i)
+			bones[i] = posey->skeleton->GetNamedBone(bone_names[i]);
+
+		// special stuff to only do when called by DoInitialPose
+		if(lifetime == 0)
+		{
+			bones[0]->pos.y += 0.04f;
+			bones[0]->ori *= Quaternion::FromRVec(-0.34f, 0, 0);
+		}
+
+		// left leg up and off the ground
+		bones[1]->ori = Quaternion::FromRVec( -1,      0,     0.5f  );
+		bones[2]->ori = Quaternion::FromRVec(  2,      0,     0     );
+		bones[3]->ori = Quaternion::FromRVec( -0.3f,  -0.3f,  0     );
+		
+		// right leg being balanced on
+		bones[4]->ori = Quaternion::FromRVec(  0.2f,   0,     0.2f  );
+		bones[5]->ori = Quaternion::FromRVec(  0.14f,  0,     0     );
+		bones[6]->ori = Quaternion::FromRVec(  0,      0,    -0.2f  );
+
+		// stuff that depends on the rigid bodies having been initialized, and thus can't be done for DoInitialPose
+		if(lifetime > 0)
+		{
+			SoldierFoot* foot = ((SoldierFoot*)feet[1]);
+
+			RigidBody* rbs[4] = {
+				RigidBodyForNamedBone(bone_names[0]),
+				RigidBodyForNamedBone(bone_names[4]),		// working with the right leg, not left
+				RigidBodyForNamedBone(bone_names[5]),
+				RigidBodyForNamedBone(bone_names[6])
+			};
+
+			Quaternion rb_oris[4];
+			Vec3 rb_rots[4];
+			for(unsigned int i = 0; i < 4; ++i)
+			{
+				rb_oris[i] = rbs[i]->GetOrientation();
+				rb_rots[i] = rbs[i]->GetAngularVelocity();
+			}
+
+			Quaternion joint_oris[3];
+			Vec3 joint_rots[3];
+			Vec3 joint_vals[3];
+			Vec3 joint_disps[3];
+			for(unsigned int i = 0; i < 3; ++i)
+			{
+				Quaternion inv_parent = Quaternion::Reverse(rb_oris[i]);
+				joint_oris[i] = inv_parent * rb_oris[i + 1];
+				joint_rots[i] = inv_parent * (rb_rots[i + 1] - rb_rots[i]);
+				
+				joint_vals[i] = foot->joint_protos[i]->axes * joint_oris[i].ToRVec();
+
+				joint_disps[i] = inv_parent * (rbs[i + 1]->GetTransformationMatrix() - rbs[i]->GetTransformationMatrix()).TransformVec3_1(foot->joint_protos[i]->pos);
+			}
+
+			// orient right foot to make its down vector match the surface's normal vector
+			Quaternion foot_ori = rb_oris[3];
+			static const Vec3 surface_normal = Vec3(0, 1, 0);
+			static const Vec3 dirs[2] = { Vec3(0, 0, 1), Vec3(1, 0, 0) };
+			for(unsigned int i = 0; i < 2; ++i)
+			{
+				Vec3 dir   = foot_ori * dirs[i];
+				Vec3 level = dir - surface_normal * Vec3::Dot(dir, surface_normal);
+				Vec3 cross = Vec3::Cross(dir, level);
+
+				float level_mag = level.ComputeMagnitude();
+				float cross_mag = cross.ComputeMagnitude();
+
+				foot_ori = Quaternion::FromRVec(cross * (asinf(cross_mag / level_mag) / cross_mag)) * foot_ori;
+			}
+
+			static const unsigned int num_inputs = 39, num_outputs = 9, num_coeffs = (num_inputs + 1) * num_outputs;
+			float outputs[num_outputs];
+			// magic black box; curly braces for scope
+			{
+				Vec3 foot_lcom = rbs[3]->GetMassInfo().com;
+				Mat4 foot_xform = rbs[3]->GetTransformationMatrix();
+
+				Mat4 aligned_foot_xform = Mat4::FromPositionAndOrientation(rbs[3]->GetPosition() - rbs[3]->GetOrientation() * foot_lcom + foot_ori * foot_lcom, foot_ori);
+				Mat4 inv_foot_xform = Mat4::Invert(aligned_foot_xform);
+
+				Vec3 pelvis_pos = inv_foot_xform.TransformVec3_1(rbs[0]->GetCenterOfMass()) - foot_lcom;
+				Vec3 pelvis_vel = inv_foot_xform.TransformVec3_0(rbs[0]->GetLinearVelocity());
+				Vec3 pelvis_ori = (inv_foot_xform * rbs[0]->GetTransformationMatrix()).ExtractOrientation().ToRVec();
+				Vec3 pelvis_rot = inv_foot_xform.TransformVec3_0(rbs[0]->GetAngularVelocity());
+
+				Vec3 rbf_vels[3];
+				for(unsigned int i = 0; i < 3; ++i)
+					rbf_vels[i] = inv_foot_xform.TransformVec3_0(rbs[i + 1]->GetLinearVelocity());
+
+				float ya = foot_xform.TransformVec3_1(-0.23f, 0, -0.10f).y;
+				float yb = foot_xform.TransformVec3_1(-0.27f, 0,  0.26f).y;
+				float yc = foot_xform.TransformVec3_1(-0.21f, 0,  0.26f).y;
+
+				if(lifetime > 0.5f)
+					test_done = true;
+				else
+				{
+					float time_scoring_coeff = lifetime > 0.1 ? 1.0f : 0.0f;
+					if(time_scoring_coeff > 0)
+					{
+						float instant_score = 
+							2.5f * pelvis_vel.ComputeMagnitudeSquared() +
+							5.5f * pelvis_ori.ComputeMagnitudeSquared() +
+							2.5f * pelvis_rot.ComputeMagnitudeSquared() +
+							5.5f * (pelvis_pos - Vec3(0, 0.95f, 0)).ComputeMagnitudeSquared() +
+							2.5f * rbs[3]->GetLinearVelocity().ComputeMagnitudeSquared() +
+							2.5f * rbs[3]->GetAngularVelocity().ComputeMagnitudeSquared() +
+							5.5f * Vec3::MagnitudeSquared(ya, yb, yc);
+
+						magic_box_score += time_scoring_coeff * instant_score;
+					}
+				}
+
+				float inputs[num_inputs] =
+				{
+					pelvis_pos.x,     pelvis_pos.y,     pelvis_pos.z,
+					pelvis_vel.x,     pelvis_vel.y,     pelvis_vel.z,
+					pelvis_ori.x,     pelvis_ori.y,     pelvis_ori.z,
+					pelvis_rot.x,     pelvis_rot.y,     pelvis_rot.z,
+					joint_vals[0].x,  joint_vals[0].y,  joint_vals[0].z,
+					joint_vals[1].x,  joint_vals[1].y,  joint_vals[1].z,
+					joint_vals[2].x,  joint_vals[2].y,  joint_vals[2].z,
+					rbf_vels[0].x,    rbf_vels[0].y,    rbf_vels[0].z,
+					rbf_vels[1].x,    rbf_vels[1].y,    rbf_vels[1].z,
+					rbf_vels[2].x,    rbf_vels[2].y,    rbf_vels[2].z,
+					joint_disps[0].x, joint_disps[0].y, joint_disps[0].z,
+					joint_disps[1].x, joint_disps[1].y, joint_disps[1].z,
+					joint_disps[2].x, joint_disps[2].y, joint_disps[2].z
+				};
+
+				for(unsigned int i = 0; i < num_outputs; ++i)
+				{
+					outputs[i] = magic_box_coeffs[i * (num_inputs + 1)];
+					for(unsigned int j = 0; j < num_inputs; ++j)
+						outputs[i] += inputs[j] * magic_box_coeffs[i * (num_inputs + 1) + j];
+				}
+			}
+
+
+			// apply values output by magic black box
+			float inv_timestep = 1.0f / time.elapsed;
+			for(unsigned int i = 0; i < 3; ++i)
+			{
+				const ModelPhysics::JointPhysics* jp = foot->joint_protos[i];
+				Vec3 outputs_vec = Vec3(outputs[i * 3], outputs[i * 3 + 1], outputs[i * 3 + 2]);
+				//Vec3 rot = outputs_vec;//foot->joint_rots[i] + outputs_vec;
+				
+				//Vec3 lcoords     = jp->axes * bones[i + 4]->ori.ToRVec();
+				//Vec3 new_lcoords = jp->GetClampedAngles(lcoords + rot * time.elapsed);
+
+				Vec3 new_lcoords = jp->GetClampedAngles(outputs_vec);
+
+				bones[i + 4]->ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(new_lcoords));
+				//foot->joint_rots[i] = (new_lcoords - lcoords) * inv_timestep;
+			}
+
+#if 0
+			
+
+			// more stuff for balancing (depends on the aligned foot orientation computed above)
+			
+
+			Quaternion change = Quaternion::FromRVec(
+				time.elapsed * -(0.5f * pelvis_pos.z + pelvis_vel.z + 0.5f * pelvis_ori.x + pelvis_rot.x),
+				time.elapsed * -(                                     0.5f * pelvis_ori.y + pelvis_rot.y),
+				time.elapsed * -(0.5f * pelvis_pos.x + pelvis_vel.x + 0.5f * pelvis_ori.z + pelvis_rot.z)
+			);
+			float h_frac = 0.05f, a_frac = 1.0f - h_frac;
+			
+			// actually set hip and ankle joints' orientations, making sure to stay within joint rotation limits
+			Quaternion& hj_ori = bones[4]->ori;															// upper leg bone's orientation relative to its parent
+			hj_ori *= Quaternion::Identity() * a_frac + change * h_frac;
+			ClampJoint(feet[1], 0, hj_ori);
+
+			Quaternion& fj_ori = bones[6]->ori;
+			fj_ori = Quaternion::Reverse(rb_oris[2]) * foot_ori;										// similar to joint_oris[2]
+			fj_ori *= Quaternion::Identity() * h_frac + change * a_frac;
+			ClampJoint(feet[1], 2, fj_ori);
+#endif
+		}
+
+		// only update the gun pose for DoInitialPose		
+		if(lifetime == 0)					// TODO: get rid of the conditional once the balancing ability is fairly robust
+		{
+			p_ag->yaw = yaw;
+			p_ag->pitch = pitch;
+			p_ag->pelvis_ori = bones[0]->ori;
+			p_ag->UpdatePose(time);
+
+			for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
+				posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
+		}
 	}
 
 
@@ -694,152 +554,5 @@ namespace Test
 		float min_ha = fabs(hk_dist - ka_dist);
 		max_hasq = max_ha * max_ha;
 		min_hasq = min_ha * min_ha;
-	}
-
-	bool SoldierFoot::SolveLegIK(const Vec3& pelvis_pos, const Quaternion& pelvis_ori, const Mat4& pelvis_xform, const Vec3& foot_pos, const Quaternion& foot_ori, const Mat4& foot_xform)
-	{
-		Debug(((stringstream&)(stringstream() << Bone::string_table[posey_id] << ":" << endl)).str());
-
-		// figure out where the constrained bone xforms put the hip and ankle joints
-		Vec3 goal_hip   = pelvis_xform.TransformVec3_1(hip);
-		Vec3 goal_ankle = foot_xform.TransformVec3_1(ankle);
-
-		Vec3 D = goal_ankle - goal_hip;
-
-		// quit early if the joints are too close together or too far apart
-		float dsq = D.ComputeMagnitudeSquared();
-		if(dsq > max_hasq || dsq < min_hasq)
-		{
-			if(dsq > max_hasq)
-				Debug("\tDistance too big\n");
-			else
-				Debug("\tDistance too small\n");
-
-			return false;
-		}
-
-		// figure out the circle where the knee can go
-		float dist = D.ComputeMagnitude();
-		float invd = 1.0f / dist;
-
-		float hk_u = (hksq_m_kasq + dsq) * 0.5f * invd;
-
-		assert(hk_u <= hk_dist);
-
-		float circ_rsq = hksq - hk_u * hk_u;
-		Vec3 circ_normal = D * invd;
-		Vec3 circ_center = goal_hip + hk_u * circ_normal;
-
-		assert(circ_rsq >= 0.0f);
-
-		// get two orthogonal axes in the plane of the circle... try to get one to be approximately 'forward'
-		Vec3 knee_fwd = pelvis_xform.TransformVec3_0(0, 0, 1) + foot_xform.TransformVec3_0(0, 0, 1);
-		Vec3 knee_left = Vec3::Normalize(Vec3::Cross(circ_normal, knee_fwd));
-		knee_fwd = Vec3::Cross(knee_left, circ_normal);
-
-		// use the forward vector to place the knee
-		Vec3 knee_pos = circ_center + Vec3::Normalize(Vec3::Cross(circ_normal, Vec3::Cross(circ_normal, knee_fwd)), circ_rsq);
-
-		// rotate the leg bones so their "shaft" (direction between joint positions) matches what we've selected
-		Vec3 result_shaft_dirs[2] = {
-			Vec3::Normalize(knee_pos   - goal_hip),
-			Vec3::Normalize(goal_ankle - knee_pos)
-		};
-
-		Vec3 true_rest_dirs[2] = {
-			Vec3::Normalize(knee  - hip ),
-			Vec3::Normalize(ankle - knee)
-		};
-
-		Vec3 rest_shaft_dirs[2] = {
-			pelvis_xform.TransformVec3_0(true_rest_dirs[0]),
-			pelvis_xform.TransformVec3_0(true_rest_dirs[1])
-		};
-
-		Quaternion rtrs[2];				// orientations to rotate rest shaft onto result shafts
-
-		for(unsigned int i = 0; i < 2; ++i)
-		{
-			Vec3 cross = Vec3::Cross(rest_shaft_dirs[i], result_shaft_dirs[i]);
-			float cross_mag = cross.ComputeMagnitude(), inv_cross = 1.0f / cross_mag;
-			float dot = Vec3::Dot(result_shaft_dirs[i], rest_shaft_dirs[i]);
-
-			float angle = atan2f(cross_mag, dot);
-			rtrs[i] = Quaternion::FromAxisAngle(cross.x * inv_cross, cross.y * inv_cross, cross.z * inv_cross, angle);
-		}
-
-		Quaternion joris[3], best_joris[3];
-		float best_score = 0.0f;
-		float best_a = 0.0f, best_b = 0.0f;
-
-		Quaternion uleg_base = pelvis_ori * rtrs[0];
-		Quaternion lleg_base = pelvis_ori * rtrs[1];
-
-		for(unsigned int j = 0; j < 10000; ++j)
-		{
-			float mut = j < 100 ? 3.2f : best_score * 0.5f + 0.001f;
-			float a = best_a + Random3D::Rand(-mut, mut);
-			float b = best_b + Random3D::Rand(-mut, mut);
-
-			// get orientations of the bones, and relative orientations across joints
-			Quaternion boris[4] = {
-				pelvis_ori,
-				uleg_base * Quaternion::FromAxisAngle(true_rest_dirs[0], a),
-				lleg_base * Quaternion::FromAxisAngle(true_rest_dirs[1], b),
-				foot_ori
-			};
-
-			// see how well this configuration sticks to the joints' rotation limits
-			float score = 0.0f;
-			for(unsigned int i = 0; i < 3; ++i)
-			{
-				joris[i] = Quaternion::Reverse(boris[i]) * boris[i + 1];
-
-				Vec3 rvec       = joris[i].ToRVec();
-				Vec3 into_axes  = joint_protos[i]->axes * rvec;
-				Vec3 clamped    = joint_protos[i]->GetClampedAngles(into_axes);
-				//Vec3 into_world = joint_protos[i]->axes.TransposedMultiply(clamped);
-				//bones[i]->ori = Quaternion::FromRVec(into_world);
-
-				float error = (into_axes - clamped).ComputeMagnitude();
-				float work = fabs((Quaternion::Reverse(bones[i]->ori) * joris[i]).GetRotationAngle());
-				score += error * error + error * work + work * work;
-			}
-
-			// finally, set joint orientations
-			if(j == 0 || score < best_score)
-			{
-				best_score = score;
-				for(unsigned int i = 0; i < 3; ++i)
-					best_joris[i] = joris[i];
-
-				if(score == 0.0f)
-					break;
-
-				best_a = a;
-				best_b = b;
-			}
-		}
-
-		Debug(((stringstream&)(stringstream() << '\t' << "best score = " << best_score << endl)).str());
-
-		for(unsigned int i = 0; i < 3; ++i)
-			bones[i]->ori = best_joris[i];
-
-		return true;
-	}
-
-	bool SoldierFoot::FindSuitableFootfall()
-	{
-		// TODO:
-		// query PhysicsWorld for potentially relevant terrain geometry nearby
-		// search for reasonable places to put the foot
-
-		return false;
-	}
-
-	void SoldierFoot::PoseUngroundedLeg()
-	{
-		// TODO: implement this
 	}
 }

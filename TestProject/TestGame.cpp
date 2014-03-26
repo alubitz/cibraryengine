@@ -10,6 +10,8 @@
 #include "Sun.h"
 #include "Weapon.h"
 
+#include "SoldierPoseTest.h"
+
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
 #include "ArtilleryWeapon.h"
@@ -228,6 +230,8 @@ namespace Test
 		SoundBuffer* chamber_click_sound;
 		SoundBuffer* reload_sound;
 
+		SoldierPoseTest* soldier_pose_test;
+
 		bool physics_content_init;
 
 		Imp() :
@@ -243,6 +247,7 @@ namespace Test
 			shadow_render_targets(),
 			deferred_ambient(NULL),
 			deferred_lighting(NULL),
+			soldier_pose_test(NULL),
 			physics_content_init(false)
 		{
 			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
@@ -270,6 +275,8 @@ namespace Test
 				delete threads[i];
 				threads[i] = NULL;
 			}
+
+			if(soldier_pose_test) { delete soldier_pose_test; soldier_pose_test = NULL; }
 		}
 
 		void DrawBackground(Mat4& view_matrix)
@@ -545,6 +552,8 @@ namespace Test
 		imp->chamber_click_sound = NULL;
 		imp->reload_sound        = NULL;
 
+		imp->soldier_pose_test = new SoldierPoseTest();
+
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("level"); }
 
 		LoadLevel(this, "TestLevel");
@@ -597,6 +606,8 @@ namespace Test
 		player_controller->Possess(player_pawn);
 		player_controller->ctrl_update_interval = 0;
 		Spawn(player_controller);
+
+		imp->soldier_pose_test->Begin((Soldier*)player_pawn);
 
 		return player_pawn;
 	}
@@ -692,24 +703,37 @@ namespace Test
 			imp->physics_content_init = true;
 		}
 
-		float elapsed = min((float)time.elapsed, 1.0f / 60.0f);
-		total_game_time += elapsed;
+		float elapsed = 1.0f / 60.0f;//min((float)time.elapsed, 1.0f / 60.0f);
 		elapsed_game_time = elapsed;
+		for(unsigned int i = 0; i < 40; ++i)
+		{
+			if(((Soldier*)player_pawn)->test_done)
+			{
+				imp->soldier_pose_test->End((Soldier*)player_pawn);
 
-		TimingInfo clamped_time(elapsed, total_game_time);
+				(((Soldier*)player_pawn)->equipped_weapon)->is_valid = false;
+				SpawnPlayer(Vec3());
 
-		hud->UpdateHUDGauges(clamped_time);
+				hud->SetPlayer(player_pawn);
+			}
 
-#if ENABLE_FPS_COUNTER
-		if(elapsed > 0)
-			debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
-#endif
+			total_game_time += elapsed;
 
-		if(script_string.empty())
-			GetFileString("Files/Scripts/update.lua", &script_string);
-		ScriptSystem::GetGlobalState().DoString(script_string);
+			TimingInfo clamped_time(elapsed, total_game_time);
 
-		GameState::Update(clamped_time);
+			hud->UpdateHUDGauges(clamped_time);
+
+	#if ENABLE_FPS_COUNTER
+			if(elapsed > 0)
+				debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
+	#endif
+
+			if(script_string.empty())
+				GetFileString("Files/Scripts/update.lua", &script_string);
+			ScriptSystem::GetGlobalState().DoString(script_string);
+
+			GameState::Update(clamped_time);
+		}
 
 		NGDEBUG();
 	}

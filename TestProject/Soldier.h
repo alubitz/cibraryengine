@@ -19,6 +19,7 @@ namespace Test
 
 			void DoInitialPose();
 
+			void DoCheatyPose(float timestep, const Vec3& net_vel);
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
 
 			void DoIKStuff(const TimingInfo& time);
@@ -29,6 +30,11 @@ namespace Test
 
 			PoseAimingGun* p_ag;
 			WalkPose* walk_pose;
+
+			vector<float> magic_box_coeffs;
+			float lifetime;
+			float magic_box_score;
+			bool test_done;
 
 			float jet_fuel;
 

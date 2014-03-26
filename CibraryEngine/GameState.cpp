@@ -11,7 +11,7 @@
 #include "DebugLog.h"
 #include "ProfilingTimer.h"
 
-#define PROFILE_GAMESTATE_UPDATE 1
+#define PROFILE_GAMESTATE_UPDATE 0
 
 namespace CibraryEngine
 {
