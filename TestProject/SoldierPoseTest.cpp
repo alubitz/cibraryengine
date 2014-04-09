@@ -18,24 +18,53 @@ namespace Test
 			float         score;
 			float         min, max;
 			unsigned int  trials;
-		} best, test;
+
+			unsigned int id;
+
+			float repro_share;
+		} test;
+
+		list<Genome> genomes;
+		unsigned int next_genome;
+
+		void ComputeGenomeWeight(Genome& g, float min, float max)
+		{
+			if(g.trials < 20)
+				g.repro_share = 0.0f;
+			else
+			{
+				if(min == max)
+					g.repro_share = 1.0f;
+				else
+				{
+					float s = (g.score - min) / (max - min);
+					g.repro_share = 1.0f / (s * s + 0.04f);
+				}
+			}
+		}
 
 		unsigned int iteration_counter;
-		unsigned int no_improvements_counter;
 
-		enum TestType { Mutant, RedoBest, RedoTest } test_type;
-
-		Imp(unsigned int num_coeffs) : num_coeffs(num_coeffs), iteration_counter(0), no_improvements_counter(0)
+		Imp(unsigned int num_coeffs) : num_coeffs(num_coeffs), iteration_counter(0)
 		{
 			if(unsigned int error = Load())
 			{
-				best.coeffs.clear();
-				best.trials = 0;
-				best.score = best.min = best.max = 9001;
-			}
-			best.coeffs.resize(num_coeffs);
+				Genome g;
+				g.coeffs.clear();
+				g.coeffs.resize(num_coeffs);
 
-			test_type = RedoBest;
+				g.trials = 0;
+				g.score = g.min = g.max = 0.0f;
+				g.repro_share = 1.0f;
+
+				g.id = 0;
+				genomes.push_back(g);
+
+				g.id = 1;
+				genomes.push_back(g);
+			}
+
+			next_genome = genomes.size();
 		}
 
 		~Imp() { Save(); }
@@ -58,17 +87,28 @@ namespace Test
 			{
 				istringstream ss(whole.data);
 
-				best.score = ReadSingle(ss);
-				best.min = ReadSingle(ss);
-				best.max = ReadSingle(ss);
-				best.trials = ReadUInt32(ss);
-				unsigned int num_floats = ReadUInt32(ss);
-				best.coeffs.clear();
-				for(unsigned int i = 0; i < num_floats; ++i)
-					best.coeffs.push_back(ReadSingle(ss));
+				unsigned int count = ReadUInt32(ss);
+				if(count < 2)
+					return 4;
+				for(unsigned int i = 0; i < count; ++i)
+				{
+					Genome g;
+					g.score  = ReadSingle(ss);
+					g.min    = ReadSingle(ss);
+					g.max    = ReadSingle(ss);
+					g.trials = ReadUInt32(ss);
+					g.id     = i;
+
+					g.coeffs.clear();
+					unsigned int num_floats = ReadUInt32(ss);
+					for(unsigned int j = 0; j < num_floats; ++j)
+						g.coeffs.push_back(ReadSingle(ss));
+
+					genomes.push_back(g);
+				}
 
 				if(!ss)
-					return 4;
+					return 5;
 				else
 					return 0;
 			}
@@ -81,125 +121,181 @@ namespace Test
 				return;
 
 			stringstream ss;
-			WriteSingle(best.score, ss);
-			WriteSingle(best.min, ss);
-			WriteSingle(best.max, ss);
-			WriteUInt32(best.trials, ss);
-			WriteUInt32(best.coeffs.size(), ss);
-			for(vector<float>::const_iterator iter = best.coeffs.begin(); iter != best.coeffs.end(); ++iter)
-				WriteSingle(*iter, ss);
+
+			WriteUInt32(genomes.size(), ss);
+			for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+			{
+				const Genome& g = *iter;
+
+				WriteSingle(g.score,  ss);
+				WriteSingle(g.min,    ss);
+				WriteSingle(g.max,    ss);
+				WriteUInt32(g.trials, ss);
+
+				WriteUInt32(g.coeffs.size(), ss);
+				for(vector<float>::const_iterator iter = g.coeffs.begin(); iter != g.coeffs.end(); ++iter)
+					WriteSingle(*iter, ss);
+			}
 
 			BinaryChunk bc("MAGICBOX");
 			bc.data = ss.str();
 			bc.Write(stream);
-
-			for(unsigned int i = 0; i < num_coeffs; ++i)
-				Debug(((stringstream&)(stringstream() << "coeffs[" << i << "] = " << best.coeffs[i] << endl)).str());
 		}
 
 		void Begin(Soldier* soldier)
 		{
-			switch(test_type)
+			++iteration_counter;
+
+			float gmin, gmax;
+			for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
 			{
-				case RedoTest:
-					break;
-				case RedoBest:
+				if(iter == genomes.begin())
+					gmin = gmax = iter->score;
+				else
 				{
-					test = best;
-					break;
+					gmin = min(gmin, iter->score);
+					gmax = max(gmax, iter->score);
 				}
-				case Mutant:
+			}
+			float grange = gmax - gmin;
+
+			for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+				ComputeGenomeWeight(*iter, gmin, gmax);
+
+			if(genomes.size() > 20)
+			{
+				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end();)
 				{
-					if(Random3D::RandInt() % 8 == 0)
-						test.coeffs[Random3D::RandInt(num_coeffs)] = 0.0f;
-					else
+					if(Random3D::RandInt() % 85 == 0 && (Random3D::Rand(grange) + gmin < iter->score || iter->trials > 30))
 					{
-						static const unsigned int num_mutations = 3;
-						static const float mutation_rate        = 0.004f;
-
-						test = best;
-						for(unsigned int i = 0; i < num_mutations; ++i)
-							test.coeffs[Random3D::RandInt(num_coeffs)] += Random3D::Rand(-mutation_rate, mutation_rate);
+						Debug(((stringstream&)(stringstream() << "deceased = " << iter->id << "; score = " << iter->score << "; n = " << iter->trials << endl)).str());
+						iter = genomes.erase(iter);
 					}
-
-					break;
+					else
+						++iter;
 				}
 			}
 
+			if(Random3D::RandInt() % (genomes.size() < 75 ? 2 : 20) == 0)
+			{
+				float total_repro = 0.0f;
+				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+					total_repro += iter->repro_share;
+
+				float r1 = Random3D::Rand(total_repro);
+				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+				{
+					r1 -= iter->repro_share;
+					if(r1 <= 0.0f)
+					{
+						float r2 = Random3D::Rand(total_repro - iter->repro_share);
+						for(list<Genome>::iterator jter = genomes.begin(); jter != genomes.end(); ++jter)
+						{
+							if(iter != jter)
+							{
+								r2 -= jter->repro_share;
+								if(r2 <= 0.0f)
+								{
+									if(iter->id == jter->id)
+										break;
+
+									test = *iter;
+									for(unsigned int i = 0; i < num_coeffs; ++i)
+										if(Random3D::RandInt() % 2 == 0)
+											test.coeffs[i] = jter->coeffs[i];
+
+									Debug(((stringstream&)(stringstream() << "parent a = " << test.id << "; parent b = " << jter->id << "; child = " << next_genome << endl)).str());
+					
+									test.id = next_genome++;
+									if(Random3D::RandInt() % 2 != 1000)		// a mutation is not always necessary if the parents are sufficiently different
+									{
+										if(Random3D::RandInt() % 8 == 0)
+											test.coeffs[Random3D::RandInt(num_coeffs)] = 0.0f;
+										else
+										{
+											static const unsigned int num_mutations = 7;
+											static const float        mutation_rate = 0.01f;
+
+											for(unsigned int i = 0; i < num_mutations; ++i)
+											{
+												unsigned int index = Random3D::RandInt(num_coeffs);
+	#if 0
+												unsigned int j;
+												for(j = 0; j < 200; ++j)
+												{
+													unsigned int maybe_index = Random3D::RandInt(num_coeffs);
+													if(test.coeffs[maybe_index] != 0.0f)
+													{
+														index = maybe_index;
+														break;
+													}
+												}
+	#endif										// enable to make mutations prefer to alter already-nonzero coefficients
+												test.coeffs[index] += Random3D::Rand(-mutation_rate, mutation_rate);
+											}
+										}
+									}
+
+									test.trials = 0;
+									genomes.push_back(test);
+
+									break;
+								}
+							}
+						}
+
+						break;
+					}
+				}
+			}
+			else
+			{
+				unsigned int r = Random3D::RandInt(genomes.size());
+				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter, --r)
+					if(r == 0)
+					{
+						test = *iter;
+						break;
+					}
+			}
+			
 			soldier->magic_box_coeffs = test.coeffs;
+			soldier->magic_box_coeffs.resize(num_coeffs);
 		}
 
 		void End(Soldier* soldier)
 		{
 			float score = soldier->magic_box_score;
 
-			bool wrote = false;
-			switch(test_type)
+			for(list<Genome>::reverse_iterator iter = genomes.rbegin(); iter != genomes.rend(); ++iter)
+				if(iter->id == test.id)
+				{
+					Genome& g = *iter;
+					if(g.trials > 0)
+					{
+						g.min = min(g.min, score);
+						g.max = max(g.max, score);
+						g.score = (score + g.score * g.trials) / (g.trials + 1);
+					}
+					else
+						g.min = g.max = g.score = score;
+					++g.trials;
+
+					Debug(((stringstream&)(stringstream() << "id = " << g.id << "; avg = " << g.score << "; min = " << g.min << "; max = " << g.max << "; n = " << g.trials << endl)).str());
+
+					break;
+				}
+		}
+
+
+		void PrintClosingDebugInfo()
+		{
+			Debug(((stringstream&)(stringstream() << genomes.size() << " final genomes:" << endl)).str());
+			for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
 			{
-				case Mutant:
-				{
-					++no_improvements_counter;
-
-					if(no_improvements_counter >= min(50u, 20 + best.trials / 2) && Random3D::RandInt() % 2 == 0)
-						test_type = RedoBest;
-					else
-					{
-						test_type = RedoTest;
-						test.score = test.min = test.max = score;
-						test.trials = 1;
-					}
-					break;
-				}
-				case RedoBest:
-				{
-					best.min = min(best.min, score);
-					best.max = max(best.max, score);
-					best.score = (score + best.score * best.trials) / (best.trials + 1);
-					++best.trials;
-
-					if(best.trials < 10 + no_improvements_counter / 2)
-						test_type = RedoBest;
-					else
-						test_type = Mutant;
-
-					break;
-				}
-				case RedoTest:
-				{
-					test.min = min(test.min, score);
-					test.max = max(test.max, score);
-					test.score = (score + test.score * test.trials) / (test.trials + 1);
-					++test.trials;
-
-					if(test.trials < 10 || test.score < best.max)
-					{
-						if(test.trials >= 20)
-						{
-							if(test.score < best.score)
-							{
-								no_improvements_counter = 0;
-
-								best = test;
-								test_type = Mutant;
-
-								Debug(((stringstream&)(stringstream() << "i = " << iteration_counter << "; avg = " << test.score << "; min = " << test.min << "; max = " << test.max << endl)).str());
-								wrote = true;
-							}
-							else
-								test_type = Mutant;
-						}
-						else
-							test_type = RedoTest;
-					}
-					else
-						test_type = Mutant;
-				}
+				const Genome& g = *iter;
+				Debug(((stringstream&)(stringstream() << "\tid = " << g.id << "; avg = " << g.score << "; min = " << g.min << "; max = " << g.max << "; n = " << g.trials << endl)).str());
 			}
-
-			if(iteration_counter % 100 == 0 && !wrote)
-				Debug(((stringstream&)(stringstream() << "i = " << iteration_counter << "; best = " << best.score << endl)).str());
-
-			++iteration_counter;
 		}
 	};
 
@@ -209,9 +305,11 @@ namespace Test
 	/*
 	 * SoldierPoseTest methods
 	 */
-	SoldierPoseTest::SoldierPoseTest() : imp(NULL), num_inputs(39), num_outputs(9), num_coeffs((num_inputs + 1) * num_outputs) { imp = new Imp(num_coeffs); }
-	SoldierPoseTest::~SoldierPoseTest()           { if(imp) { delete imp; imp = NULL; } }
+	SoldierPoseTest::SoldierPoseTest() : imp(NULL), num_inputs(72), num_outputs(18), num_coeffs((num_inputs + 1) * num_outputs) { imp = new Imp(num_coeffs); }
+	SoldierPoseTest::~SoldierPoseTest()                 { if(imp) { delete imp; imp = NULL; } }
 
-	void SoldierPoseTest::Begin(Soldier* soldier) { imp->Begin(soldier); }
-	void SoldierPoseTest::End(Soldier* soldier)   { imp->End(soldier); }
+	void SoldierPoseTest::Begin(Soldier* soldier)       { imp->Begin(soldier); }
+	void SoldierPoseTest::End(Soldier* soldier)         { imp->End(soldier); }
+
+	void SoldierPoseTest::PrintClosingDebugInfo() const { imp->PrintClosingDebugInfo(); }
 }

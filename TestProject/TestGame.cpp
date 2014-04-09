@@ -32,6 +32,8 @@
 
 #define ENABLE_ENVIRONMENT_MAPPING 0
 
+#define RUN_SOLDIER_POSE_AUTOMATED_TESTING 1
+
 
 #define ENABLE_FPS_COUNTER 1
 
@@ -276,7 +278,14 @@ namespace Test
 				threads[i] = NULL;
 			}
 
-			if(soldier_pose_test) { delete soldier_pose_test; soldier_pose_test = NULL; }
+			if(soldier_pose_test)
+			{
+#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
+				soldier_pose_test->PrintClosingDebugInfo();
+#endif
+				delete soldier_pose_test;
+				soldier_pose_test = NULL;
+			}
 		}
 
 		void DrawBackground(Mat4& view_matrix)
@@ -592,6 +601,7 @@ namespace Test
 
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		player_pawn->blood_material = imp->blood_red;
+		imp->soldier_pose_test->Begin((Soldier*)player_pawn);
 		Spawn(player_pawn);
 
 		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
@@ -606,8 +616,6 @@ namespace Test
 		player_controller->Possess(player_pawn);
 		player_controller->ctrl_update_interval = 0;
 		Spawn(player_controller);
-
-		imp->soldier_pose_test->Begin((Soldier*)player_pawn);
 
 		return player_pawn;
 	}
@@ -703,9 +711,9 @@ namespace Test
 			imp->physics_content_init = true;
 		}
 
-		float elapsed = 1.0f / 60.0f;//min((float)time.elapsed, 1.0f / 60.0f);
-		elapsed_game_time = elapsed;
-		for(unsigned int i = 0; i < 40; ++i)
+#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
+		float elapsed = elapsed_game_time = 1.0f / 60.0f;
+		for(unsigned int i = 0; i < 240; ++i)
 		{
 			if(((Soldier*)player_pawn)->test_done)
 			{
@@ -716,24 +724,28 @@ namespace Test
 
 				hud->SetPlayer(player_pawn);
 			}
-
+#else
+			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
+#endif
 			total_game_time += elapsed;
 
 			TimingInfo clamped_time(elapsed, total_game_time);
 
 			hud->UpdateHUDGauges(clamped_time);
 
-	#if ENABLE_FPS_COUNTER
+#if ENABLE_FPS_COUNTER
 			if(elapsed > 0)
 				debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
-	#endif
+#endif
 
 			if(script_string.empty())
 				GetFileString("Files/Scripts/update.lua", &script_string);
 			ScriptSystem::GetGlobalState().DoString(script_string);
 
 			GameState::Update(clamped_time);
+#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
 		}
+#endif
 
 		NGDEBUG();
 	}

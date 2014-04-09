@@ -22,5 +22,7 @@ namespace Test
 
 			void Begin(Soldier* soldier);
 			void End(Soldier* soldier);
+
+			void PrintClosingDebugInfo() const;
 	};
 }

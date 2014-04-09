@@ -33,7 +33,7 @@ namespace Test
 
 			vector<float> magic_box_coeffs;
 			float lifetime;
-			float magic_box_score;
+			float magic_box_score, total_score_weight;
 			bool test_done;
 
 			float jet_fuel;

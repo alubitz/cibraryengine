@@ -87,7 +87,7 @@ namespace Test
 
 		magic_box_coeffs.clear();
 		test_done = false;
-		magic_box_score = 0.0f;
+		magic_box_score = total_score_weight = 0.0f;
 		lifetime = 0.0f;
 	}
 
@@ -306,18 +306,6 @@ namespace Test
 		DoIKStuff(TimingInfo(0, 0));
 	}
 
-	// helper methods used in DoIKStuff
-	static void ClampJoint(Dood::FootState* foot, unsigned char joint_index, Quaternion& ori)
-	{
-		const ModelPhysics::JointPhysics* jp = ((SoldierFoot*)foot)->joint_protos[joint_index];
-		ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(jp->GetClampedAngles(jp->axes * ori.ToRVec())));
-	}
-
-	static void DebugVec3(const string& tag, const Vec3& v)
-	{
-		Debug(((stringstream&)(stringstream() << tag << " = (" << v.x << ", " << v.y << ", " << v.z << ")" << endl)).str());
-	}
-
 	void Soldier::DoIKStuff(const TimingInfo& time)
 	{
 		lifetime += time.elapsed;
@@ -331,10 +319,11 @@ namespace Test
 		// special stuff to only do when called by DoInitialPose
 		if(lifetime == 0)
 		{
-			bones[0]->pos.y += 0.04f;
-			bones[0]->ori *= Quaternion::FromRVec(-0.34f, 0, 0);
+			//bones[0]->pos.y += 0.04f;
+			//bones[0]->ori *= Quaternion::FromRVec(-0.29f, 0, 0);
 		}
 
+		/*
 		// left leg up and off the ground
 		bones[1]->ori = Quaternion::FromRVec( -1,      0,     0.5f  );
 		bones[2]->ori = Quaternion::FromRVec(  2,      0,     0     );
@@ -344,44 +333,54 @@ namespace Test
 		bones[4]->ori = Quaternion::FromRVec(  0.2f,   0,     0.2f  );
 		bones[5]->ori = Quaternion::FromRVec(  0.14f,  0,     0     );
 		bones[6]->ori = Quaternion::FromRVec(  0,      0,    -0.2f  );
+		*/
 
 		// stuff that depends on the rigid bodies having been initialized, and thus can't be done for DoInitialPose
 		if(lifetime > 0)
 		{
-			SoldierFoot* foot = ((SoldierFoot*)feet[1]);
+			SoldierFoot* lfoot = ((SoldierFoot*)feet[0]);
+			SoldierFoot* rfoot = ((SoldierFoot*)feet[1]);
 
-			RigidBody* rbs[4] = {
-				RigidBodyForNamedBone(bone_names[0]),
-				RigidBodyForNamedBone(bone_names[4]),		// working with the right leg, not left
+			RigidBody* rbs[7] = {
+				RigidBodyForNamedBone(bone_names[0]),		// pelvis
+				RigidBodyForNamedBone(bone_names[1]),		// right leg
+				RigidBodyForNamedBone(bone_names[2]),
+				RigidBodyForNamedBone(bone_names[3]),
+				RigidBodyForNamedBone(bone_names[4]),		// right leg
 				RigidBodyForNamedBone(bone_names[5]),
 				RigidBodyForNamedBone(bone_names[6])
 			};
 
-			Quaternion rb_oris[4];
-			Vec3 rb_rots[4];
-			for(unsigned int i = 0; i < 4; ++i)
+			Quaternion rb_oris[7];
+			Vec3 rb_rots[7];
+			for(unsigned int i = 0; i < 7; ++i)
 			{
 				rb_oris[i] = rbs[i]->GetOrientation();
 				rb_rots[i] = rbs[i]->GetAngularVelocity();
 			}
 
-			Quaternion joint_oris[3];
-			Vec3 joint_rots[3];
-			Vec3 joint_vals[3];
-			Vec3 joint_disps[3];
-			for(unsigned int i = 0; i < 3; ++i)
+			Quaternion joint_oris[6];
+			Vec3 joint_rots[6];
+			Vec3 joint_vals[6];
+			Vec3 joint_disps[6];
+			for(unsigned int i = 0; i < 6; ++i)
 			{
-				Quaternion inv_parent = Quaternion::Reverse(rb_oris[i]);
-				joint_oris[i] = inv_parent * rb_oris[i + 1];
-				joint_rots[i] = inv_parent * (rb_rots[i + 1] - rb_rots[i]);
-				
-				joint_vals[i] = foot->joint_protos[i]->axes * joint_oris[i].ToRVec();
+				unsigned int a = i == 3 ? 0 : i;
+				unsigned int b = i + 1;
 
-				joint_disps[i] = inv_parent * (rbs[i + 1]->GetTransformationMatrix() - rbs[i]->GetTransformationMatrix()).TransformVec3_1(foot->joint_protos[i]->pos);
+				SoldierFoot* foot = i > 3 ? rfoot : lfoot;
+
+				Quaternion inv_parent = Quaternion::Reverse(rb_oris[a]);
+				joint_oris[i] = inv_parent * rb_oris[b];
+				joint_rots[i] = inv_parent * (rb_rots[b] - rb_rots[a]);
+				
+				joint_vals[i] = foot->joint_protos[i % 3]->axes * joint_oris[i].ToRVec();
+
+				joint_disps[i] = inv_parent * (rbs[b]->GetTransformationMatrix() - rbs[a]->GetTransformationMatrix()).TransformVec3_1(foot->joint_protos[i % 3]->pos);
 			}
 
 			// orient right foot to make its down vector match the surface's normal vector
-			Quaternion foot_ori = rb_oris[3];
+			Quaternion foot_ori = rb_oris[6];
 			static const Vec3 surface_normal = Vec3(0, 1, 0);
 			static const Vec3 dirs[2] = { Vec3(0, 0, 1), Vec3(1, 0, 0) };
 			for(unsigned int i = 0; i < 2; ++i)
@@ -393,17 +392,31 @@ namespace Test
 				float level_mag = level.ComputeMagnitude();
 				float cross_mag = cross.ComputeMagnitude();
 
-				foot_ori = Quaternion::FromRVec(cross * (asinf(cross_mag / level_mag) / cross_mag)) * foot_ori;
+				if(level_mag != 0 && cross_mag != 0 && fabs(cross_mag) <= fabs(level_mag))
+					foot_ori = Quaternion::FromRVec(cross * (asinf(cross_mag / level_mag) / cross_mag)) * foot_ori;
 			}
 
-			static const unsigned int num_inputs = 39, num_outputs = 9, num_coeffs = (num_inputs + 1) * num_outputs;
+			Vec3 com, avgvel;
+			float total_mass = 0.0f;
+			for(set<RigidBody*>::iterator iter = velocity_change_bodies.begin(); iter != velocity_change_bodies.end(); ++iter)
+			{
+				RigidBody* rb = *iter;
+				float mass = rb->GetMass();
+				com    += rb->GetCenterOfMass()   * mass;
+				avgvel += rb->GetLinearVelocity() * mass;
+				total_mass += mass;
+			}
+			com    /= total_mass;
+			avgvel /= total_mass;
+
+			static const unsigned int num_inputs = 72, num_outputs = 18, num_coeffs = (num_inputs + 1) * num_outputs;
 			float outputs[num_outputs];
 			// magic black box; curly braces for scope
 			{
-				Vec3 foot_lcom = rbs[3]->GetMassInfo().com;
-				Mat4 foot_xform = rbs[3]->GetTransformationMatrix();
+				Vec3 foot_lcom  = rbs[6]->GetMassInfo().com;
+				Mat4 foot_xform = rbs[6]->GetTransformationMatrix();
 
-				Mat4 aligned_foot_xform = Mat4::FromPositionAndOrientation(rbs[3]->GetPosition() - rbs[3]->GetOrientation() * foot_lcom + foot_ori * foot_lcom, foot_ori);
+				Mat4 aligned_foot_xform = Mat4::FromPositionAndOrientation(rbs[6]->GetPosition() - rbs[6]->GetOrientation() * foot_lcom + foot_ori * foot_lcom, foot_ori);
 				Mat4 inv_foot_xform = Mat4::Invert(aligned_foot_xform);
 
 				Vec3 pelvis_pos = inv_foot_xform.TransformVec3_1(rbs[0]->GetCenterOfMass()) - foot_lcom;
@@ -411,49 +424,57 @@ namespace Test
 				Vec3 pelvis_ori = (inv_foot_xform * rbs[0]->GetTransformationMatrix()).ExtractOrientation().ToRVec();
 				Vec3 pelvis_rot = inv_foot_xform.TransformVec3_0(rbs[0]->GetAngularVelocity());
 
-				Vec3 rbf_vels[3];
-				for(unsigned int i = 0; i < 3; ++i)
-					rbf_vels[i] = inv_foot_xform.TransformVec3_0(rbs[i + 1]->GetLinearVelocity());
+				Vec3 com_footy = inv_foot_xform.TransformVec3_1(com);
+				Vec3 vel_footy = inv_foot_xform.TransformVec3_0(avgvel);
+
+				Vec3 lfoot_pos = inv_foot_xform.TransformVec3_1(lfoot->body->GetCenterOfMass());
+
+				Vec3 rbf_vels[7], rbf_rots[7];
+				for(unsigned int i = 0; i < 7; ++i)
+				{
+					rbf_vels[i] = inv_foot_xform.TransformVec3_0(rbs[i]->GetLinearVelocity());
+					rbf_rots[i] = inv_foot_xform.TransformVec3_0(rbs[i]->GetAngularVelocity());
+				}
 
 				float ya = foot_xform.TransformVec3_1(-0.23f, 0, -0.10f).y;
 				float yb = foot_xform.TransformVec3_1(-0.27f, 0,  0.26f).y;
 				float yc = foot_xform.TransformVec3_1(-0.21f, 0,  0.26f).y;
-
-				if(lifetime > 0.5f)
-					test_done = true;
-				else
-				{
-					float time_scoring_coeff = lifetime > 0.1 ? 1.0f : 0.0f;
-					if(time_scoring_coeff > 0)
-					{
-						float instant_score = 
-							2.5f * pelvis_vel.ComputeMagnitudeSquared() +
-							5.5f * pelvis_ori.ComputeMagnitudeSquared() +
-							2.5f * pelvis_rot.ComputeMagnitudeSquared() +
-							5.5f * (pelvis_pos - Vec3(0, 0.95f, 0)).ComputeMagnitudeSquared() +
-							2.5f * rbs[3]->GetLinearVelocity().ComputeMagnitudeSquared() +
-							2.5f * rbs[3]->GetAngularVelocity().ComputeMagnitudeSquared() +
-							5.5f * Vec3::MagnitudeSquared(ya, yb, yc);
-
-						magic_box_score += time_scoring_coeff * instant_score;
-					}
-				}
+				float foot_badness = Vec3::MagnitudeSquared(ya, yb, yc);
 
 				float inputs[num_inputs] =
 				{
-					pelvis_pos.x,     pelvis_pos.y,     pelvis_pos.z,
-					pelvis_vel.x,     pelvis_vel.y,     pelvis_vel.z,
-					pelvis_ori.x,     pelvis_ori.y,     pelvis_ori.z,
-					pelvis_rot.x,     pelvis_rot.y,     pelvis_rot.z,
 					joint_vals[0].x,  joint_vals[0].y,  joint_vals[0].z,
 					joint_vals[1].x,  joint_vals[1].y,  joint_vals[1].z,
 					joint_vals[2].x,  joint_vals[2].y,  joint_vals[2].z,
+					joint_vals[3].x,  joint_vals[3].y,  joint_vals[3].z,
+					joint_vals[4].x,  joint_vals[4].y,  joint_vals[4].z,
+					joint_vals[5].x,  joint_vals[5].y,  joint_vals[5].z,
+
 					rbf_vels[0].x,    rbf_vels[0].y,    rbf_vels[0].z,
 					rbf_vels[1].x,    rbf_vels[1].y,    rbf_vels[1].z,
 					rbf_vels[2].x,    rbf_vels[2].y,    rbf_vels[2].z,
-					joint_disps[0].x, joint_disps[0].y, joint_disps[0].z,
-					joint_disps[1].x, joint_disps[1].y, joint_disps[1].z,
-					joint_disps[2].x, joint_disps[2].y, joint_disps[2].z
+					rbf_vels[3].x,    rbf_vels[3].y,    rbf_vels[3].z,
+					rbf_vels[4].x,    rbf_vels[4].y,    rbf_vels[4].z,
+					rbf_vels[5].x,    rbf_vels[5].y,    rbf_vels[5].z,
+					rbf_vels[6].x,    rbf_vels[6].y,    rbf_vels[6].z,
+
+					rbf_rots[0].x,    rbf_rots[0].y,    rbf_rots[0].z,
+					rbf_rots[1].x,    rbf_rots[1].y,    rbf_rots[1].z,
+					rbf_rots[2].x,    rbf_rots[2].y,    rbf_rots[2].z,
+					rbf_rots[3].x,    rbf_rots[3].y,    rbf_rots[3].z,
+					rbf_rots[4].x,    rbf_rots[4].y,    rbf_rots[4].z,
+					rbf_rots[5].x,    rbf_rots[5].y,    rbf_rots[5].z,
+					rbf_rots[6].x,    rbf_rots[6].y,    rbf_rots[6].z,
+
+					//joint_disps[0].x, joint_disps[0].y, joint_disps[0].z,
+					//joint_disps[1].x, joint_disps[1].y, joint_disps[1].z,
+					//joint_disps[2].x, joint_disps[2].y, joint_disps[2].z,
+					
+					com_footy.x,      com_footy.y,      com_footy.z,
+					vel_footy.x,      vel_footy.y,      vel_footy.z,
+					ya,               yb,               yc,
+
+					lfoot_pos.x,      lfoot_pos.y,      lfoot_pos.z
 				};
 
 				for(unsigned int i = 0; i < num_outputs; ++i)
@@ -462,49 +483,55 @@ namespace Test
 					for(unsigned int j = 0; j < num_inputs; ++j)
 						outputs[i] += inputs[j] * magic_box_coeffs[i * (num_inputs + 1) + j];
 				}
-			}
 
+				float speed_penalty_coeff = min(1.0f, lifetime * 4.0f);
+				float pelvis_speed  = speed_penalty_coeff * rbs[0]->GetLinearVelocity().ComputeMagnitudeSquared();
+				float pelvis_aspeed = speed_penalty_coeff * rbs[0]->GetAngularVelocity().ComputeMagnitudeSquared();
+				float avg_speed     = speed_penalty_coeff * avgvel.ComputeMagnitudeSquared();
+				float poffy         = pelvis_pos.y - 0.925f;
+				float poffysq       = poffy * poffy;
+
+				if(foot_badness > 0.03f || fabs(poffy) > 0.1f || avg_speed > 0.1f || (lifetime > 0.25f && (lfoot->standing || lfoot_pos.y < min(0.75f, (lifetime - 0.25f) * 2.0f))) || lifetime > 10.0f)
+				{
+					if(!test_done)
+					{
+						//Debug(((stringstream&)(stringstream() << "t = " << lifetime << "; foot badness = " << foot_badness << "; poffy = " << poffy << "; avg speed = " << avg_speed << "; lfoot standing = " << lfoot->standing << endl)).str());
+
+						test_done = true;
+						if(lifetime == 0 || total_score_weight == 0)
+							magic_box_score = 9001;
+						else
+							magic_box_score = sqrtf(magic_box_score / total_score_weight) / lifetime;
+					}
+				}
+				else
+				{
+					float weight = max(0.0f, min(1.0f, (lifetime - 0.1f) * 10.0f));
+
+					magic_box_score    += weight * (foot_badness * 1000000 + pelvis_speed * 100 + pelvis_aspeed * 100 + avg_speed * 100 + poffysq * 100) / (lfoot_pos.y + 1.0f);
+					total_score_weight += weight;
+				}
+			}
 
 			// apply values output by magic black box
 			float inv_timestep = 1.0f / time.elapsed;
-			for(unsigned int i = 0; i < 3; ++i)
+			for(unsigned int i = 0; i < 6; ++i)
 			{
-				const ModelPhysics::JointPhysics* jp = foot->joint_protos[i];
+				SoldierFoot* foot = i < 3 ? lfoot : rfoot;
+				const ModelPhysics::JointPhysics* jp = foot->joint_protos[i % 3];
+
 				Vec3 outputs_vec = Vec3(outputs[i * 3], outputs[i * 3 + 1], outputs[i * 3 + 2]);
-				//Vec3 rot = outputs_vec;//foot->joint_rots[i] + outputs_vec;
+				//Vec3 rot = joint_rots[i] + outputs_vec;
 				
+				Vec3 lcoords     = outputs_vec;
 				//Vec3 lcoords     = jp->axes * bones[i + 4]->ori.ToRVec();
-				//Vec3 new_lcoords = jp->GetClampedAngles(lcoords + rot * time.elapsed);
+				//Vec3 lcoords     = joint_vals[i] + rot * time.elapsed;
+				//Vec3 new_lcoords = jp->GetClampedAngles(outputs_vec);
+				Vec3 new_lcoords = jp->GetClampedAngles(lcoords);
 
-				Vec3 new_lcoords = jp->GetClampedAngles(outputs_vec);
-
-				bones[i + 4]->ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(new_lcoords));
+				bones[i + 1]->ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(new_lcoords));
 				//foot->joint_rots[i] = (new_lcoords - lcoords) * inv_timestep;
 			}
-
-#if 0
-			
-
-			// more stuff for balancing (depends on the aligned foot orientation computed above)
-			
-
-			Quaternion change = Quaternion::FromRVec(
-				time.elapsed * -(0.5f * pelvis_pos.z + pelvis_vel.z + 0.5f * pelvis_ori.x + pelvis_rot.x),
-				time.elapsed * -(                                     0.5f * pelvis_ori.y + pelvis_rot.y),
-				time.elapsed * -(0.5f * pelvis_pos.x + pelvis_vel.x + 0.5f * pelvis_ori.z + pelvis_rot.z)
-			);
-			float h_frac = 0.05f, a_frac = 1.0f - h_frac;
-			
-			// actually set hip and ankle joints' orientations, making sure to stay within joint rotation limits
-			Quaternion& hj_ori = bones[4]->ori;															// upper leg bone's orientation relative to its parent
-			hj_ori *= Quaternion::Identity() * a_frac + change * h_frac;
-			ClampJoint(feet[1], 0, hj_ori);
-
-			Quaternion& fj_ori = bones[6]->ori;
-			fj_ori = Quaternion::Reverse(rb_oris[2]) * foot_ori;										// similar to joint_oris[2]
-			fj_ori *= Quaternion::Identity() * h_frac + change * a_frac;
-			ClampJoint(feet[1], 2, fj_ori);
-#endif
 		}
 
 		// only update the gun pose for DoInitialPose		
