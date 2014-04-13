@@ -154,7 +154,8 @@ namespace Test
 				else
 				{
 					gmin = min(gmin, iter->score);
-					gmax = max(gmax, iter->score);
+					if(iter->score <= 9000)
+						gmax = max(gmax, iter->score);
 				}
 			}
 			float grange = gmax - gmin;
@@ -166,7 +167,7 @@ namespace Test
 			{
 				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end();)
 				{
-					if(Random3D::RandInt() % 85 == 0 && (Random3D::Rand(grange) + gmin < iter->score || iter->trials > 30))
+					if(iter->score > 9000 || Random3D::RandInt() % 60 == 0 && (Random3D::Rand(grange) + gmin < iter->score || iter->trials > 30))
 					{
 						Debug(((stringstream&)(stringstream() << "deceased = " << iter->id << "; score = " << iter->score << "; n = " << iter->trials << endl)).str());
 						iter = genomes.erase(iter);
@@ -176,75 +177,85 @@ namespace Test
 				}
 			}
 
-			if(Random3D::RandInt() % (genomes.size() < 75 ? 2 : 20) == 0)
+			if(Random3D::RandInt() % (genomes.size() < 40 ? 2 : 20) == 0)
 			{
+				unsigned int repro_count = 0;
 				float total_repro = 0.0f;
 				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
-					total_repro += iter->repro_share;
-
-				float r1 = Random3D::Rand(total_repro);
-				for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
 				{
-					r1 -= iter->repro_share;
-					if(r1 <= 0.0f)
+					if(iter->repro_share > 0)
 					{
-						float r2 = Random3D::Rand(total_repro - iter->repro_share);
-						for(list<Genome>::iterator jter = genomes.begin(); jter != genomes.end(); ++jter)
+						total_repro += iter->repro_share;
+						++repro_count;
+					}
+				}
+
+				if(repro_count >= 2)
+				{
+					float r1 = Random3D::Rand(total_repro);
+					for(list<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+					{
+						r1 -= iter->repro_share;
+						if(r1 <= 0.0f)
 						{
-							if(iter != jter)
+							float r2 = Random3D::Rand(total_repro - iter->repro_share);
+							for(list<Genome>::iterator jter = genomes.begin(); jter != genomes.end(); ++jter)
 							{
-								r2 -= jter->repro_share;
-								if(r2 <= 0.0f)
+								if(iter != jter)
 								{
-									if(iter->id == jter->id)
-										break;
-
-									test = *iter;
-									for(unsigned int i = 0; i < num_coeffs; ++i)
-										if(Random3D::RandInt() % 2 == 0)
-											test.coeffs[i] = jter->coeffs[i];
-
-									Debug(((stringstream&)(stringstream() << "parent a = " << test.id << "; parent b = " << jter->id << "; child = " << next_genome << endl)).str());
-					
-									test.id = next_genome++;
-									if(Random3D::RandInt() % 2 != 1000)		// a mutation is not always necessary if the parents are sufficiently different
+									r2 -= jter->repro_share;
+									if(r2 <= 0.0f)
 									{
-										if(Random3D::RandInt() % 8 == 0)
-											test.coeffs[Random3D::RandInt(num_coeffs)] = 0.0f;
-										else
-										{
-											static const unsigned int num_mutations = 7;
-											static const float        mutation_rate = 0.01f;
+										if(iter->id == jter->id)
+											break;
 
-											for(unsigned int i = 0; i < num_mutations; ++i)
+										test = *iter;
+										for(unsigned int i = 0; i < num_coeffs; ++i)
+											if(Random3D::RandInt() % 2 == 0)
+												test.coeffs[i] = jter->coeffs[i];
+
+										Debug(((stringstream&)(stringstream() << "parent a = " << test.id << "; parent b = " << jter->id << "; child = " << next_genome << endl)).str());
+					
+										test.id = next_genome++;
+										if(Random3D::RandInt() % 2 == 0)		// a mutation is not always necessary if the parents are sufficiently different
+										{
+											if(Random3D::RandInt() % 8 == 0)
+												test.coeffs[Random3D::RandInt(num_coeffs)] = 0.0f;
+											else
 											{
-												unsigned int index = Random3D::RandInt(num_coeffs);
-	#if 0
-												unsigned int j;
-												for(j = 0; j < 200; ++j)
+												static const unsigned int num_mutations = 3;
+												static const float        mutation_rate = 0.005f;
+
+												for(unsigned int i = 0; i < num_mutations; ++i)
 												{
-													unsigned int maybe_index = Random3D::RandInt(num_coeffs);
-													if(test.coeffs[maybe_index] != 0.0f)
+													unsigned int index = Random3D::RandInt(num_coeffs);
+#if 0
+													unsigned int j;
+													for(j = 0; j < 200; ++j)
 													{
-														index = maybe_index;
-														break;
+														unsigned int maybe_index = Random3D::RandInt(num_coeffs);
+														if(test.coeffs[maybe_index] != 0.0f)
+														{
+															index = maybe_index;
+															break;
+														}
 													}
+#endif												// enable to make mutations prefer to alter already-nonzero coefficients
+													test.coeffs[index] += Random3D::Rand(-mutation_rate, mutation_rate);
 												}
-	#endif										// enable to make mutations prefer to alter already-nonzero coefficients
-												test.coeffs[index] += Random3D::Rand(-mutation_rate, mutation_rate);
 											}
 										}
+
+										test.trials = 0;
+										genomes.push_back(test);
+
+										break;
 									}
-
-									test.trials = 0;
-									genomes.push_back(test);
-
-									break;
 								}
 							}
-						}
 
-						break;
+							break;
+						}
 					}
 				}
 			}
@@ -305,7 +316,7 @@ namespace Test
 	/*
 	 * SoldierPoseTest methods
 	 */
-	SoldierPoseTest::SoldierPoseTest() : imp(NULL), num_inputs(72), num_outputs(18), num_coeffs((num_inputs + 1) * num_outputs) { imp = new Imp(num_coeffs); }
+	SoldierPoseTest::SoldierPoseTest() : imp(NULL), num_inputs(0), num_outputs(20), num_coeffs((num_inputs + 1) * num_outputs) { imp = new Imp(num_coeffs); }
 	SoldierPoseTest::~SoldierPoseTest()                 { if(imp) { delete imp; imp = NULL; } }
 
 	void SoldierPoseTest::Begin(Soldier* soldier)       { imp->Begin(soldier); }
