@@ -7,6 +7,9 @@
 
 #define USE_GUN_XFORM_AS_SHOT_XFORM 1
 
+#define ENABLE_LEFT_GRIP            1
+#define ENABLE_RIGHT_GRIP           1
+
 namespace Test
 {
 	/*
@@ -259,8 +262,10 @@ namespace Test
 						gripper_rb = new_owner->bone_to_rbody[i];
 						break;
 					}
+#if ENABLE_LEFT_GRIP
 				if(gripper_rb != NULL)
 					l_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f,  0.000f,  0.468f), Vec3( 0.990f,  1.113f,  0.037f), Quaternion::FromRVec(-Vec3(0.0703434f, 0.0146932f, -2.50207f)));
+#endif
 			}
 			else
 				l_grip->obj_a = rigid_body;
@@ -276,8 +281,10 @@ namespace Test
 						gripper_rb = new_owner->bone_to_rbody[i];
 						break;
 					}
+#if ENABLE_RIGHT_GRIP
 				if(gripper_rb != NULL)
 					r_grip = new FixedJointConstraint(rigid_body, gripper_rb, Vec3( 0.000f, -0.063f, -0.152f), Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromRVec(-Vec3(-1.27667f, 0.336123f, 0.64284f)));
+#endif
 			}
 			else
 				r_grip->obj_a = rigid_body;

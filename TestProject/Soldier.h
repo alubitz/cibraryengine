@@ -11,7 +11,14 @@ namespace Test
 
 	class Soldier : public Dood
 	{
+		private:
+
+			struct Imp;
+			Imp* imp;
+
 		protected:
+
+			void InnerDispose();
 
 			void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
 
@@ -30,11 +37,6 @@ namespace Test
 
 			PoseAimingGun* p_ag;
 			WalkPose* walk_pose;
-
-			vector<float> magic_box_coeffs;
-			float lifetime;
-			float magic_box_score, total_score_weight;
-			bool test_done;
 
 			float jet_fuel;
 

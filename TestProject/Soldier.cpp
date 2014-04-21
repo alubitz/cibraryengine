@@ -36,19 +36,21 @@ namespace Test
 	{
 		public:
 
-			Vec3 hip, knee, ankle;
-			float hk_dist, ka_dist, hksq, kasq;
-
-			float min_hasq, max_hasq;
-			float hksq_m_kasq;
-			// TODO: add members here as needed
-
-			ModelPhysics::JointPhysics* joint_protos[3];
-			Bone* bones[3];
-
-			Vec3 joint_rots[3];
-
 			SoldierFoot(unsigned int posey_id, const Vec3& ee_pos);
+
+			Quaternion OrientBottomToSurface(const Vec3& normal) const;
+	};
+
+
+
+
+	/*
+	 * Soldier private implementation struct
+	 */
+	struct Soldier::Imp
+	{
+		Imp() { }
+		~Imp() { }
 	};
 
 
@@ -59,6 +61,7 @@ namespace Test
 	 */
 	Soldier::Soldier(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
+		imp(NULL),
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		walk_pose(NULL),
@@ -84,11 +87,13 @@ namespace Test
 
 		p_ag = new PoseAimingGun();
 		//posey->active_poses.push_back(p_ag);
+	}
 
-		magic_box_coeffs.clear();
-		test_done = false;
-		magic_box_score = total_score_weight = 0.0f;
-		lifetime = 0.0f;
+	void Soldier::InnerDispose()
+	{
+		Dood::InnerDispose();
+
+		if(imp) { delete imp; imp = NULL; }
 	}
 
 	void Soldier::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
@@ -235,34 +240,6 @@ namespace Test
 		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
 			if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
 				jet_bones.push_back(bone_to_rbody[i]);
-
-		for(vector<FootState*>::iterator iter = feet.begin(); iter != feet.end(); ++iter)
-		{
-			SoldierFoot* foot = (SoldierFoot*)*iter;
-
-			string prefix = iter == feet.begin() ? "l " : "r ";
-			string bnames[4] = { "pelvis", prefix + "leg 1", prefix + "leg 2", prefix + "foot" };
-			unsigned int bindices[4] = { 0, 0, 0, 0 };
-
-			for(unsigned int i = 0; i < mphys->bones.size(); ++i)
-				for(unsigned int j = 0; j < 4; ++j)
-					if(mphys->bones[i].bone_name == bnames[j])
-						bindices[j] = i + 1;
-
-			for(vector<ModelPhysics::JointPhysics>::iterator jter = mphys->joints.begin(); jter != mphys->joints.end(); ++jter)
-			{
-				ModelPhysics::JointPhysics& jp = *jter;
-				if(     jp.bone_a == bindices[0] && jp.bone_b == bindices[1] || jp.bone_a == bindices[1] && jp.bone_b == bindices[0])
-					foot->joint_protos[0] = &jp;
-				else if(jp.bone_a == bindices[1] && jp.bone_b == bindices[2] || jp.bone_a == bindices[2] && jp.bone_b == bindices[1])
-					foot->joint_protos[1] = &jp;
-				else if(jp.bone_a == bindices[2] && jp.bone_b == bindices[3] || jp.bone_a == bindices[3] && jp.bone_b == bindices[2])
-					foot->joint_protos[2] = &jp;
-			}
-
-			for(unsigned int i = 0; i < 3; ++i)
-				foot->bones[i] = posey->skeleton->GetNamedBone(bnames[i + 1]);
-		}
 	}
 
 	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
@@ -303,187 +280,19 @@ namespace Test
 	{
 		Dood::DoInitialPose();
 
-		DoIKStuff(TimingInfo(0, 0));
+		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 1, 0);
+
+		p_ag->yaw = yaw;
+		p_ag->pitch = pitch;
+		p_ag->pelvis_ori = posey->skeleton->bones[0]->ori;
+		p_ag->UpdatePose(TimingInfo(0, 0));
+
+		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
+			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
 	}
 
 	void Soldier::DoIKStuff(const TimingInfo& time)
 	{
-		lifetime += time.elapsed;
-
-		static const string bone_names[7] = { "pelvis", "l leg 1", "l leg 2", "l foot", "r leg 1", "r leg 2", "r foot" };
-		
-		Bone* bones[7];
-		for(unsigned int i = 0; i < 7; ++i)
-			bones[i] = posey->skeleton->GetNamedBone(bone_names[i]);
-
-		// special stuff to only do when called by DoInitialPose
-		if(lifetime == 0)
-		{
-			bones[0]->pos.y += magic_box_coeffs[0];
-			bones[0]->ori *= Quaternion::FromRVec(magic_box_coeffs[1], 0, 0);
-		}
-
-		// stuff that depends on the rigid bodies having been initialized, and thus can't be done for DoInitialPose
-		if(lifetime > 0)
-		{
-			SoldierFoot* lfoot = ((SoldierFoot*)feet[0]);
-			SoldierFoot* rfoot = ((SoldierFoot*)feet[1]);
-
-			RigidBody* rbs[7] = {
-				RigidBodyForNamedBone(bone_names[0]),		// pelvis
-				RigidBodyForNamedBone(bone_names[1]),		// right leg
-				RigidBodyForNamedBone(bone_names[2]),
-				RigidBodyForNamedBone(bone_names[3]),
-				RigidBodyForNamedBone(bone_names[4]),		// right leg
-				RigidBodyForNamedBone(bone_names[5]),
-				RigidBodyForNamedBone(bone_names[6])
-			};
-
-			Quaternion rb_oris[7];
-			Vec3 rb_rots[7];
-			for(unsigned int i = 0; i < 7; ++i)
-			{
-				rb_oris[i] = rbs[i]->GetOrientation();
-				rb_rots[i] = rbs[i]->GetAngularVelocity();
-			}
-
-			Quaternion joint_oris[6];
-			Vec3 joint_rots[6];
-			Vec3 joint_vals[6];
-			Vec3 joint_disps[6];
-			for(unsigned int i = 0; i < 6; ++i)
-			{
-				unsigned int a = i == 3 ? 0 : i;
-				unsigned int b = i + 1;
-
-				SoldierFoot* foot = i > 3 ? rfoot : lfoot;
-
-				Quaternion inv_parent = Quaternion::Reverse(rb_oris[a]);
-				joint_oris[i] = inv_parent * rb_oris[b];
-				joint_rots[i] = inv_parent * (rb_rots[b] - rb_rots[a]);
-				
-				joint_vals[i] = foot->joint_protos[i % 3]->axes * joint_oris[i].ToRVec();
-
-				joint_disps[i] = inv_parent * (rbs[b]->GetTransformationMatrix() - rbs[a]->GetTransformationMatrix()).TransformVec3_1(foot->joint_protos[i % 3]->pos);
-			}
-
-			// orient right foot to make its down vector match the surface's normal vector
-			Quaternion foot_ori = rb_oris[6];
-			static const Vec3 surface_normal = Vec3(0, 1, 0);
-			static const Vec3 dirs[2] = { Vec3(0, 0, 1), Vec3(1, 0, 0) };
-			for(unsigned int i = 0; i < 2; ++i)
-			{
-				Vec3 dir   = foot_ori * dirs[i];
-				Vec3 level = dir - surface_normal * Vec3::Dot(dir, surface_normal);
-				Vec3 cross = Vec3::Cross(dir, level);
-
-				float level_mag = level.ComputeMagnitude();
-				float cross_mag = cross.ComputeMagnitude();
-
-				if(level_mag != 0 && cross_mag != 0 && fabs(cross_mag) <= fabs(level_mag))
-					foot_ori = Quaternion::FromRVec(cross * (asinf(cross_mag / level_mag) / cross_mag)) * foot_ori;
-			}
-
-			Vec3 com, avgvel;
-			float total_mass = 0.0f;
-			for(set<RigidBody*>::iterator iter = velocity_change_bodies.begin(); iter != velocity_change_bodies.end(); ++iter)
-			{
-				RigidBody* rb = *iter;
-				float mass = rb->GetMass();
-				com    += rb->GetCenterOfMass()   * mass;
-				avgvel += rb->GetLinearVelocity() * mass;
-				total_mass += mass;
-			}
-			com    /= total_mass;
-			avgvel /= total_mass;
-
-			static const unsigned int num_inputs = 0, num_outputs = 20, num_coeffs = (num_inputs + 1) * num_outputs;
-//			float outputs[num_outputs];
-
-			// apply values output by magic black box
-			float illegal_ori_penalty = 0.0f;
-			float inv_timestep = 1.0f / time.elapsed;
-			for(unsigned int i = 0; i < 6; ++i)
-			{
-				SoldierFoot* foot = i < 3 ? lfoot : rfoot;
-				const ModelPhysics::JointPhysics* jp = foot->joint_protos[i % 3];
-
-				Vec3 outputs_vec = Vec3(magic_box_coeffs[i * 3 + 2], magic_box_coeffs[i * 3 + 3], magic_box_coeffs[i * 3 + 4]);
-				//Vec3 rot = joint_rots[i] + outputs_vec;
-				
-				Vec3 lcoords     = outputs_vec;
-				//Vec3 lcoords     = jp->axes * bones[i + 4]->ori.ToRVec();
-				//Vec3 lcoords     = joint_vals[i] + rot * time.elapsed;
-				//Vec3 new_lcoords = jp->GetClampedAngles(outputs_vec);
-				Vec3 new_lcoords = jp->GetClampedAngles(lcoords);
-
-				bones[i + 1]->ori = Quaternion::FromRVec(jp->axes.TransposedMultiply(new_lcoords));
-				//foot->joint_rots[i] = (new_lcoords - lcoords) * inv_timestep;
-
-				illegal_ori_penalty += (lcoords - new_lcoords).ComputeMagnitudeSquared();
-			}
-
-			// magic black box; curly braces for scope
-			{
-				Vec3 lfoot_lcom = rbs[3]->GetMassInfo().com;
-				Vec3 rfoot_lcom = rbs[6]->GetMassInfo().com;
-				Mat4 foot_xform = rbs[6]->GetTransformationMatrix();
-
-				Vec3 pelvis_pos = rbs[0]->GetCenterOfMass();
-
-				Mat4 lfoot_xform = rbs[3]->GetTransformationMatrix();
-				float lya = lfoot_xform.TransformVec3_1( 0.23f, 0, -0.10f).y;
-				float lyb = lfoot_xform.TransformVec3_1( 0.27f, 0,  0.26f).y;
-				float lyc = lfoot_xform.TransformVec3_1( 0.21f, 0,  0.26f).y;
-				float lfoot_badness = Vec3::MagnitudeSquared(lya, lyb, lyc);
-
-				Mat4 rfoot_xform = rbs[6]->GetTransformationMatrix();
-				float rya = rfoot_xform.TransformVec3_1(-0.23f, 0, -0.10f).y;
-				float ryb = rfoot_xform.TransformVec3_1(-0.27f, 0,  0.26f).y;
-				float ryc = rfoot_xform.TransformVec3_1(-0.21f, 0,  0.26f).y;
-				float rfoot_badness = Vec3::MagnitudeSquared(rya, ryb, ryc);
-
-				float speed_penalty_coeff = min(1.0f, lifetime * 8.0f);
-				float pelvis_speed  = rbs[0]->GetLinearVelocity().ComputeMagnitudeSquared();
-				float pelvis_aspeed = rbs[0]->GetLinearVelocity().ComputeMagnitudeSquared();
-				float avg_speed     = speed_penalty_coeff * avgvel.ComputeMagnitudeSquared();
-				float poffy         = pelvis_pos.y - 0.85f;
-				float poffysq       = poffy * poffy;
-
-				if(illegal_ori_penalty > 0 || lfoot_badness > 0.05f || rfoot_badness > 0.05f || poffysq > 0.05f || avg_speed > 0.1f || lifetime > 4.0f)
-				{
-					if(!test_done)
-					{
-						//Debug(((stringstream&)(stringstream() << "t = " << lifetime << "; foot badness = " << foot_badness << "; poffy = " << poffy << "; avg speed = " << avg_speed << "; lfoot standing = " << lfoot->standing << endl)).str());
-
-						test_done = true;
-						if(lifetime == 0 || total_score_weight == 0)
-							magic_box_score = 9001;
-						else
-							magic_box_score = sqrtf(magic_box_score / total_score_weight) / lifetime;
-					}
-				}
-				else
-				{
-					float weight = max(0.0f, min(1.0f, (lifetime - 0.1f) * 10.0f));
-
-					magic_box_score    += weight * ((lfoot_badness + rfoot_badness) * 1000000 + pelvis_speed + pelvis_aspeed + avg_speed * 400 + poffysq);
-					total_score_weight += weight;
-				}
-			}
-		}
-
-		// only update the gun pose for DoInitialPose		
-		if(lifetime == 0)					// TODO: get rid of the conditional once the balancing ability is fairly robust
-		{
-			p_ag->yaw = yaw;
-			p_ag->pitch = pitch;
-			p_ag->pelvis_ori = bones[0]->ori;
-			p_ag->UpdatePose(time);
-
-			for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
-				posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
-		}
 	}
 
 
@@ -492,33 +301,26 @@ namespace Test
 	/*
 	 * SoldierFoot methods
 	 */
-	SoldierFoot::SoldierFoot(unsigned int posey_id, const Vec3& ee_pos) :
-		FootState(posey_id, ee_pos)
+	SoldierFoot::SoldierFoot(unsigned int posey_id, const Vec3& ee_pos) : FootState(posey_id, ee_pos) { }
+
+	Quaternion SoldierFoot::OrientBottomToSurface(const Vec3& normal) const
 	{
-		for(unsigned int i = 0; i < 3; ++i)
+		static const Vec3 dirs[2] = { Vec3(0, 0, 1), Vec3(1, 0, 0) };
+
+		Quaternion foot_ori = body->GetOrientation();
+		for(unsigned int i = 0; i < 2; ++i)
 		{
-			joint_protos[i] = NULL;
-			bones[i] = NULL;
+			Vec3 dir   = foot_ori * dirs[i];
+			Vec3 level = dir - normal * Vec3::Dot(dir, normal);
+			Vec3 cross = Vec3::Cross(dir, level);
+
+			float level_mag = level.ComputeMagnitude();
+			float cross_mag = cross.ComputeMagnitude();
+
+			if(level_mag != 0 && cross_mag != 0 && fabs(cross_mag) <= fabs(level_mag))
+				foot_ori = Quaternion::FromRVec(cross * (asinf(cross_mag / level_mag) / cross_mag)) * foot_ori;
 		}
 
-		// TODO: get these joints' positions from the actual joints instead of using hard-coded values
-		float x = posey_id == Bone::string_table["l foot"] ? 1.0f : -1.0f;
-		hip   = Vec3(x * 0.15f, 1.04f, -0.02f);
-		knee  = Vec3(x * 0.19f, 0.63f,  0.05f);
-		ankle = Vec3(x * 0.23f, 0.16f, -0.06f);
-
-		hksq = (hip  - knee ).ComputeMagnitudeSquared();
-		kasq = (knee - ankle).ComputeMagnitudeSquared();
-
-		hk_dist = sqrtf(hksq);
-		ka_dist = sqrtf(kasq);
-
-		hksq_m_kasq = hksq - kasq;
-
-		// TODO: do a more thorough computation here (or maybe load the values from somewhere?)
-		float max_ha = hk_dist + ka_dist;
-		float min_ha = fabs(hk_dist - ka_dist);
-		max_hasq = max_ha * max_ha;
-		min_hasq = min_ha * min_ha;
+		return foot_ori;
 	}
 }

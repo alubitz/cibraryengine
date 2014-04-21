@@ -10,8 +10,6 @@
 #include "Sun.h"
 #include "Weapon.h"
 
-#include "SoldierPoseTest.h"
-
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
 #include "ArtilleryWeapon.h"
@@ -31,8 +29,6 @@
 #define N_SHADOW_MAPS 3
 
 #define ENABLE_ENVIRONMENT_MAPPING 0
-
-#define RUN_SOLDIER_POSE_AUTOMATED_TESTING 0
 
 
 #define ENABLE_FPS_COUNTER 1
@@ -232,8 +228,6 @@ namespace Test
 		SoundBuffer* chamber_click_sound;
 		SoundBuffer* reload_sound;
 
-		SoldierPoseTest* soldier_pose_test;
-
 		bool physics_content_init;
 
 		Imp() :
@@ -249,7 +243,6 @@ namespace Test
 			shadow_render_targets(),
 			deferred_ambient(NULL),
 			deferred_lighting(NULL),
-			soldier_pose_test(NULL),
 			physics_content_init(false)
 		{
 			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
@@ -276,15 +269,6 @@ namespace Test
 				threads[i]->Shutdown();
 				delete threads[i];
 				threads[i] = NULL;
-			}
-
-			if(soldier_pose_test)
-			{
-#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
-				soldier_pose_test->PrintClosingDebugInfo();
-#endif
-				delete soldier_pose_test;
-				soldier_pose_test = NULL;
 			}
 		}
 
@@ -410,6 +394,8 @@ namespace Test
 		mphys_cache(screen->window->content->GetCache<ModelPhysics>()),
 		load_status()
 	{
+		physics_world->SetGravity(Vec3());
+
 		imp->bot_death_handler.game					= this;
 		imp->player_death_handler.game				= this;
 		imp->player_damage_handler.game				= this;
@@ -561,8 +547,6 @@ namespace Test
 		imp->chamber_click_sound = NULL;
 		imp->reload_sound        = NULL;
 
-		imp->soldier_pose_test = new SoldierPoseTest();
-
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("level"); }
 
 		LoadLevel(this, "TestLevel");
@@ -601,7 +585,6 @@ namespace Test
 
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		player_pawn->blood_material = imp->blood_red;
-		imp->soldier_pose_test->Begin((Soldier*)player_pawn);
 		Spawn(player_pawn);
 
 		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
@@ -711,41 +694,23 @@ namespace Test
 			imp->physics_content_init = true;
 		}
 
-#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
-		float elapsed = elapsed_game_time = 1.0f / 60.0f;
-		for(unsigned int i = 0; i < 240; ++i)
-		{
-			if(((Soldier*)player_pawn)->test_done)
-			{
-				imp->soldier_pose_test->End((Soldier*)player_pawn);
+		float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
+		total_game_time += elapsed;
 
-				(((Soldier*)player_pawn)->equipped_weapon)->is_valid = false;
-				SpawnPlayer(Vec3());
+		TimingInfo clamped_time(elapsed, total_game_time);
 
-				hud->SetPlayer(player_pawn);
-			}
-#else
-			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
-#endif
-			total_game_time += elapsed;
-
-			TimingInfo clamped_time(elapsed, total_game_time);
-
-			hud->UpdateHUDGauges(clamped_time);
+		hud->UpdateHUDGauges(clamped_time);
 
 #if ENABLE_FPS_COUNTER
-			if(elapsed > 0)
-				debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
+		if(elapsed > 0)
+			debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
 #endif
 
-			if(script_string.empty())
-				GetFileString("Files/Scripts/update.lua", &script_string);
-			ScriptSystem::GetGlobalState().DoString(script_string);
+		if(script_string.empty())
+			GetFileString("Files/Scripts/update.lua", &script_string);
+		ScriptSystem::GetGlobalState().DoString(script_string);
 
-			GameState::Update(clamped_time);
-#if RUN_SOLDIER_POSE_AUTOMATED_TESTING
-		}
-#endif
+		GameState::Update(clamped_time);
 
 		NGDEBUG();
 	}

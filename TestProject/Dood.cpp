@@ -413,6 +413,7 @@ namespace Test
 	{
 		if(alive)
 		{
+#if 0
 			// make posey root bones' orientations match those of the corresponding rigid bodies
 			if(!use_cheaty_ori)
 			{
@@ -485,6 +486,10 @@ namespace Test
 				body->SetAngularVelocity(body->GetAngularVelocity() - rot);
 				body->SetLinearVelocity(delta_vel + body->GetLinearVelocity() - Vec3::Cross(body->GetCenterOfMass() - com, rot));
 			}
+#else
+			pose_timer += timestep;
+			PoseCharacter(TimingInfo(timestep, pose_timer));
+#endif
 		}
 	}
 
@@ -579,7 +584,7 @@ namespace Test
 
 				posey_bone->GetTransformationMatrix().Decompose(bone_pos, bone_ori);
 				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, bone_pos, bone_ori);
-				rigid_body->SetDamp(0.05f);
+				rigid_body->SetDamp(0.05f);					// default damp is 0.1f (as of whenever this comment was written)
 
 				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
@@ -754,7 +759,11 @@ namespace Test
 		collision_group->SetInternalCollisionsEnabled(true);
 
 		for(unsigned int i = 0; i < constraints.size(); ++i)
-			((SkeletalJointConstraint*)constraints[i])->enable_motor = false;
+		{
+			SkeletalJointConstraint* sjc = (SkeletalJointConstraint*)constraints[i];
+			sjc->enable_motor = false;
+			sjc->apply_torque = Vec3();
+		}
 
 		alive = false;
 	}

@@ -17,7 +17,8 @@ namespace CibraryEngine
 		min_extents(min_extents),
 		max_extents(max_extents),
 		desired_ori(Quaternion::Identity()),
-		enable_motor(false)
+		enable_motor(false),
+		apply_torque()
 	{
 	}
 
@@ -156,7 +157,13 @@ namespace CibraryEngine
 
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 
+		// constrained orientation stuff
 		if(enable_motor)
 			desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToRVec() * (motor_coeff * inv_timestep);
+
+		// joint torque stuff
+		Vec3 alpha = oriented_axes.TransposedMultiply(apply_torque) * timestep;
+		obj_a->rot += alpha_to_obja * alpha;
+		obj_b->rot -= alpha_to_objb * alpha;
 	}
 }
