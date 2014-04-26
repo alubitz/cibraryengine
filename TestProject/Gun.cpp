@@ -7,8 +7,8 @@
 
 #define USE_GUN_XFORM_AS_SHOT_XFORM 1
 
-#define ENABLE_LEFT_GRIP            1
-#define ENABLE_RIGHT_GRIP           1
+#define ENABLE_LEFT_GRIP            0
+#define ENABLE_RIGHT_GRIP           0
 
 namespace Test
 {
@@ -139,8 +139,6 @@ namespace Test
 
 	void Gun::Fire(float total_inaccuracy, float now)
 	{
-		//owner->PoseCharacter();						// to make sure we have a gun_xform... it will conveniently change our gun_xform for us
-
 		Mat4 shot_mat = gun_xform * Mat4::Translation(barrel_pos);
 		Vec3 origin = shot_mat.TransformVec3_1(0, 0, 0);
 

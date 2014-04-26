@@ -18,6 +18,8 @@ namespace CibraryEngine
 		max_extents(max_extents),
 		desired_ori(Quaternion::Identity()),
 		enable_motor(false),
+		min_torque(-10, -10, -10),
+		max_torque( 10,  10,  10),
 		apply_torque()
 	{
 	}
@@ -37,11 +39,8 @@ namespace CibraryEngine
 
 	bool SkeletalJointConstraint::DoConstraintAction()
 	{
-		static const float dv_coeff           = 1.0f;
-
 		static const float dv_sq_threshold    = 0.0f;
 		static const float alpha_sq_threshold = 0.0f;
-
 
 		bool wakeup = false;
 
@@ -114,9 +113,6 @@ namespace CibraryEngine
 		half_timestep = timestep * 0.5f;
 		inv_timestep = 1.0f / timestep;
 
-		const float spring_coeff = 1.0f;
-		const float motor_coeff  = 1.0f;
-
 		Quaternion a_ori = obj_a->GetOrientation();
 		Quaternion b_ori = obj_b->GetOrientation();
 
@@ -135,7 +131,7 @@ namespace CibraryEngine
 		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
 
 		Vec3 apply_pos = (a_pos + b_pos) * 0.5f;
-		desired_dv = (b_pos - a_pos) * -(spring_coeff * inv_timestep);
+		desired_dv = (b_pos - a_pos) * -inv_timestep;
 
 		r1 = apply_pos - obj_a->cached_com;
 		r2 = apply_pos - obj_b->cached_com;
@@ -159,11 +155,14 @@ namespace CibraryEngine
 
 		// constrained orientation stuff
 		if(enable_motor)
-			desired_av = -(Quaternion::Reverse(desired_ori) * a_to_b).ToRVec() * (motor_coeff * inv_timestep);
+			desired_av = (Quaternion::Reverse(desired_ori) * a_to_b).ToRVec() * -inv_timestep;
 
-		// joint torque stuff
-		Vec3 alpha = oriented_axes.TransposedMultiply(apply_torque) * timestep;
-		obj_a->rot += alpha_to_obja * alpha;
-		obj_b->rot -= alpha_to_objb * alpha;
+		// applied torque stuff
+		Vec3 use_torque(max(min_torque.x, min(max_torque.x, apply_torque.x)),
+						max(min_torque.y, min(max_torque.y, apply_torque.y)),
+						max(min_torque.z, min(max_torque.z, apply_torque.z)));
+		Vec3 world_torque = oriented_axes.TransposedMultiply(use_torque) * timestep;
+		obj_a->rot += obj_a->inv_moi * world_torque;
+		obj_b->rot -= obj_b->inv_moi * world_torque;
 	}
 }

@@ -394,7 +394,7 @@ namespace Test
 		mphys_cache(screen->window->content->GetCache<ModelPhysics>()),
 		load_status()
 	{
-		physics_world->SetGravity(Vec3());
+		//physics_world->SetGravity(Vec3());
 
 		imp->bot_death_handler.game					= this;
 		imp->player_death_handler.game				= this;

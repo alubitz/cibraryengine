@@ -26,9 +26,6 @@ namespace Test
 
 			void DoInitialPose();
 
-			void DoCheatyPose(float timestep, const Vec3& net_vel);
-			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
-
 			void DoIKStuff(const TimingInfo& time);
 
 		public:

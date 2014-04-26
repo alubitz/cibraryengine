@@ -49,8 +49,85 @@ namespace Test
 	 */
 	struct Soldier::Imp
 	{
-		Imp() { }
+		bool init;
+
+		RigidBody *head, *torso2, *anchored_body;
+		SkeletalJointConstraint* neck;
+
+		Imp() : init(false), head(NULL), torso2(NULL), anchored_body(NULL), neck(NULL) { }
 		~Imp() { }
+
+		void Init(Soldier* dood)
+		{
+			//dood->collision_group->SetInternalCollisionsEnabled(true);		// torso2-arm1 collisions are causing problems
+
+			head   = dood->RigidBodyForNamedBone( "head"    );
+			torso2 = dood->RigidBodyForNamedBone( "torso 2" );
+
+			anchored_body = torso2;
+
+			for(unsigned int i = 0; i < dood->constraints.size(); ++i)
+			{
+				SkeletalJointConstraint* sjc = (SkeletalJointConstraint*)dood->constraints[i];
+
+				if(sjc->obj_b == head && sjc->obj_a == torso2)
+				{
+					neck = sjc;
+					break;
+				}
+			}
+		}
+
+		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
+		{
+			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f, 0, 0);
+			Quaternion current_ori = anchored_body->GetOrientation();
+			Quaternion use_ori     = current_ori * 0.85f + desired_ori * 0.15f;
+
+			Vec3 local_com = anchored_body->GetMassInfo().com;
+
+			anchored_body->SetPosition(Vec3(0, 1, 0) + local_com - use_ori * local_com);
+			anchored_body->SetOrientation(use_ori);
+			anchored_body->SetLinearVelocity(Vec3());
+			anchored_body->SetAngularVelocity(Vec3());
+		}
+
+		void DoNeckStuff(Soldier* dood, const TimingInfo& time)
+		{
+			float inv_timestep = 1.0f / time.elapsed;
+
+			Quaternion desired_ori     = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+			Quaternion head_ori        = head->GetOrientation();
+			Quaternion head_to_desired = head_ori * Quaternion::Reverse(desired_ori);
+
+			Vec3 htd_rot  = head_to_desired.ToRVec() * inv_timestep;
+			Vec3 head_rot = head->GetAngularVelocity();
+			Vec3 aaccel   = (htd_rot - head_rot) * -inv_timestep;							// negative to make the positive torque to go the head, which is obj_b
+			Vec3 htorque  = Mat3(head->GetTransformedMassInfo().moi) * aaccel;
+
+			Mat3 oriented_axes = neck->axes * Quaternion::Reverse(head_ori).ToMat3();
+
+			neck->apply_torque = oriented_axes * htorque;
+		}
+
+		void Update(Soldier* dood, const TimingInfo& time)
+		{
+			if(!init)
+			{
+				Init(dood);
+				init = true;
+			}
+
+			DoAnchorStuff(dood, time);
+
+			DoNeckStuff(dood, time);
+
+			// torso yaw & verticality
+			// upper torso orientation?
+			// head orientation
+			// arms aiming gun (and other stuff the arms can do)
+			// left & right leg stuff
+		}
 	};
 
 
@@ -87,6 +164,8 @@ namespace Test
 
 		p_ag = new PoseAimingGun();
 		//posey->active_poses.push_back(p_ag);
+
+		imp = new Imp();
 	}
 
 	void Soldier::InnerDispose()
@@ -242,40 +321,6 @@ namespace Test
 				jet_bones.push_back(bone_to_rbody[i]);
 	}
 
-	void Soldier::DoCheatyPose(float timestep, const Vec3& net_vel)
-	{
-		Dood::DoCheatyPose(timestep, net_vel);
-
-		if(Gun* gun = dynamic_cast<Gun*>(equipped_weapon))
-		{
-			Mat4 gun_hand_xform = posey->skeleton->GetNamedBone("r hand")->GetTransformationMatrix();
-			Mat4 gun_xform = gun_hand_xform * Mat4::FromPositionAndOrientation(Vec3(-0.959f,  1.098f,  0.077f), Quaternion::FromRVec(-Vec3(-1.27667f, 0.336123f, 0.64284f))) * Mat4::Translation(-Vec3(0.000f, -0.063f, -0.152f));
-		
-			Vec3 pos;
-			Quaternion ori;
-			gun_xform.Decompose(pos, ori);
-
-			float move_coeff = 1.0f / timestep;
-
-			RigidBody* rb = gun->rigid_body;
-
-			rb->SetLinearVelocity((gun_xform.TransformVec3_1(rb->GetMassInfo().com) - rb->GetCenterOfMass()) * move_coeff);
-			rb->SetAngularVelocity((rb->GetOrientation() * Quaternion::Reverse(ori)).ToRVec() * move_coeff);
-		}
-	}
-
-	void Soldier::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
-	{
-#if 0
-		if(game_state->total_game_time < 0.5f)
-		{
-			cheaty_vel = Vec3();
-			cheaty_rot = Vec3();
-		}
-#endif
-	}
-
-
 	void Soldier::DoInitialPose()
 	{
 		Dood::DoInitialPose();
@@ -293,6 +338,7 @@ namespace Test
 
 	void Soldier::DoIKStuff(const TimingInfo& time)
 	{
+		imp->Update(this, time);	
 	}
 
 

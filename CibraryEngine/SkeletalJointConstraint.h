@@ -43,7 +43,9 @@ namespace CibraryEngine
 			Quaternion desired_ori;
 			bool enable_motor;
 
-			Vec3 apply_torque;			// specified relative to the joint axes
+			// applied torque stuff, specified relative to the joint axes
+			Vec3 min_torque, max_torque;
+			Vec3 apply_torque;	
 
 			SkeletalJointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3&, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents);
 
