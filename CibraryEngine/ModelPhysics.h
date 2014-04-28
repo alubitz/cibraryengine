@@ -5,6 +5,7 @@
 
 #include "ContentTypeHandler.h"
 #include "Physics.h"
+#include "MassInfo.h"
 
 #include "Matrix.h"
 

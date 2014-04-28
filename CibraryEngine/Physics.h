@@ -3,14 +3,10 @@
 #include "StdAfx.h"
 #include "Disposable.h"
 
-#include "CollisionShape.h"
-
 #include "Vector.h"
 #include "Quaternion.h"
 #include "TimingInfo.h"
 #include "Events.h"
-
-#include "MassInfo.h"
 
 #include "SmartHashSet.h"
 
@@ -25,6 +21,7 @@ namespace CibraryEngine
 
 	class CollisionObject;
 	class RayCollider;
+	class RigidBody;
 
 	class PhysicsConstraint;
 	struct ContactPoint;

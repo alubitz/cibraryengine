@@ -39,6 +39,12 @@ namespace CibraryEngine
 		/** Computes the moment of inertia about a parallel axis, with pivot point translated by the given vector (i.e. parallel axis theorem in 3 dimensions) */
 		static void GetAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result);
 
+		/** Like GetAlternatePivotMoI, but adds to result instead of setting it */
+		static void AddAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result);
+
+		/** Computes the sum of an array of MassInfo objects */
+		static MassInfo Sum(const MassInfo* arr, unsigned int count);
+
 		static MassInfo FromCollisionShape(CollisionShape* shape, float mass);
 
 		// serialization and deserialization functions

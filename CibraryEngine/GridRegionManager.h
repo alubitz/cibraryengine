@@ -5,7 +5,9 @@
 
 namespace CibraryEngine
 {
+	struct AABB;
 	struct Plane;
+
 	class ObjectOrphanedCallback;
 
 	class GridRegionManager : public PhysicsRegionManager

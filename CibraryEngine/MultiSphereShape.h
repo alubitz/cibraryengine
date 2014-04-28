@@ -64,6 +64,7 @@ namespace CibraryEngine
 			AABB aabb;
 
 			MultiSphereShapeInstanceCache();
+			~MultiSphereShapeInstanceCache();
 
 			void Update(const Mat4& xform, MultiSphereShape::Imp* shape);
 	};

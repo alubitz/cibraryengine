@@ -19,6 +19,8 @@
 #include "RenderNode.h"
 #include "DebugDrawMaterial.h"
 
+#include "MassInfo.h"
+
 namespace CibraryEngine
 {
 	/*

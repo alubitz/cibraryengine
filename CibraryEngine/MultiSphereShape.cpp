@@ -1081,6 +1081,7 @@ namespace CibraryEngine
 	 * MultiSphereShapeInstanceCache methods
 	 */
 	MultiSphereShapeInstanceCache::MultiSphereShapeInstanceCache() : spheres(), aabb() { }
+	MultiSphereShapeInstanceCache::~MultiSphereShapeInstanceCache() { }
 
 	void MultiSphereShapeInstanceCache::Update(const Mat4& xform, MultiSphereShape::Imp* imp)
 	{

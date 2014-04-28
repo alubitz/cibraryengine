@@ -51,38 +51,79 @@ namespace Test
 	{
 		bool init;
 
-		RigidBody *head, *torso2, *anchored_body;
-		SkeletalJointConstraint* neck;
+		RigidBody *pelvis,    *torso1, *torso2, *head;
+		RigidBody *lshoulder, *luarm,  *llarm,  *lhand;
+		RigidBody *rshoulder, *ruarm,  *rlarm,  *rhand;
 
-		Imp() : init(false), head(NULL), torso2(NULL), anchored_body(NULL), neck(NULL) { }
+		RigidBody* anchored_body;
+
+		SkeletalJointConstraint *neck;
+		SkeletalJointConstraint *lsja, *lsjb, *lelbow, *lwrist;
+		SkeletalJointConstraint *rsja, *rsjb, *relbow, *rwrist;
+
+		float inv_timestep;
+
+		Imp() : init(false),
+			pelvis(NULL), torso1(NULL), torso2(NULL), head(NULL),
+			lshoulder(NULL), luarm(NULL), llarm(NULL), lhand(NULL),
+			rshoulder(NULL), ruarm(NULL), rlarm(NULL), rhand(NULL),
+			anchored_body(NULL),
+			neck(NULL),
+			lsja(NULL), lsjb(NULL), lelbow(NULL), lwrist(NULL),
+			rsja(NULL), rsjb(NULL), relbow(NULL), rwrist(NULL),
+			inv_timestep(0)
+		{
+		}
+
 		~Imp() { }
 
 		void Init(Soldier* dood)
 		{
-			//dood->collision_group->SetInternalCollisionsEnabled(true);		// torso2-arm1 collisions are causing problems
+			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
-			head   = dood->RigidBodyForNamedBone( "head"    );
-			torso2 = dood->RigidBodyForNamedBone( "torso 2" );
+			pelvis    = dood->RigidBodyForNamedBone( "pelvis"     );
+			torso1    = dood->RigidBodyForNamedBone( "torso1"     );
+			torso2    = dood->RigidBodyForNamedBone( "torso 2"    );
+			head      = dood->RigidBodyForNamedBone( "head"       );
+
+			lshoulder = dood->RigidBodyForNamedBone( "l shoulder" );
+			luarm     = dood->RigidBodyForNamedBone( "l arm 1"    );
+			llarm     = dood->RigidBodyForNamedBone( "l arm 2"    );
+			lhand     = dood->RigidBodyForNamedBone( "l hand"     );
+
+			rshoulder = dood->RigidBodyForNamedBone( "r shoulder" );
+			ruarm     = dood->RigidBodyForNamedBone( "r arm 1"    );
+			rlarm     = dood->RigidBodyForNamedBone( "r arm 2"    );
+			rhand     = dood->RigidBodyForNamedBone( "r hand"     );
 
 			anchored_body = torso2;
 
 			for(unsigned int i = 0; i < dood->constraints.size(); ++i)
 			{
 				SkeletalJointConstraint* sjc = (SkeletalJointConstraint*)dood->constraints[i];
+				RigidBody *a = sjc->obj_a, *b = sjc->obj_b;
 
-				if(sjc->obj_b == head && sjc->obj_a == torso2)
-				{
-					neck = sjc;
-					break;
-				}
+				if     ( b == head      && a == torso2    ) { neck   = sjc; }
+				else if( b == lshoulder && a == torso2    ) { lsja   = sjc; }
+				else if( b == luarm     && a == lshoulder ) { lsjb   = sjc; }
+				else if( b == llarm     && a == luarm     ) { lelbow = sjc; }
+				else if( b == lhand     && a == llarm     ) { lwrist = sjc; }
+				else if( b == rshoulder && a == torso2    ) { rsja   = sjc; }
+				else if( b == ruarm     && a == rshoulder ) { rsjb   = sjc; }
+				else if( b == rlarm     && a == ruarm     ) { relbow = sjc; }
+				else if( b == rhand     && a == rlarm     ) { rwrist = sjc; }
 			}
 		}
 
 		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
 		{
-			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f, 0, 0);
+			float yaw   = dood->yaw + 0.4f;
+			float pitch = dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f;
+
+			Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
 			Quaternion current_ori = anchored_body->GetOrientation();
-			Quaternion use_ori     = current_ori * 0.85f + desired_ori * 0.15f;
+			Quaternion ctd         = current_ori * Quaternion::Reverse(desired_ori);
+			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * 0.15f) * desired_ori;
 
 			Vec3 local_com = anchored_body->GetMassInfo().com;
 
@@ -94,8 +135,6 @@ namespace Test
 
 		void DoNeckStuff(Soldier* dood, const TimingInfo& time)
 		{
-			float inv_timestep = 1.0f / time.elapsed;
-
 			Quaternion desired_ori     = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 			Quaternion head_ori        = head->GetOrientation();
 			Quaternion head_to_desired = head_ori * Quaternion::Reverse(desired_ori);
@@ -110,6 +149,59 @@ namespace Test
 			neck->apply_torque = oriented_axes * htorque;
 		}
 
+		void DoArmsAimingGun(Soldier* dood, const TimingInfo& time)
+		{
+			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
+			{
+				static const float helper_frac = 0.05f;
+				static const float rest_frac   = 1.0f - helper_frac;
+
+				RigidBody* gun_rb = gun->rigid_body;
+
+				// compute the combined mass info for the hands and gun (HNG)
+				RigidBody* hng_rbs  [3] = { lhand, rhand, gun_rb };
+				MassInfo   rb_minfos[3] =
+				{
+					hng_rbs[0]->GetTransformedMassInfo(),
+					hng_rbs[1]->GetTransformedMassInfo(),
+					hng_rbs[2]->GetTransformedMassInfo()
+				};
+				MassInfo hng_minfo = MassInfo::Sum(rb_minfos, 3);
+
+				// specify the desired state of the gun											// TODO: do this better
+				Quaternion desired_gun_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+				Vec3 desired_gun_pos = hng_minfo.com;											// desired position for the HNG's center of mass
+
+				// compute torque necessary to achieve the requested orientation
+				Quaternion gun_ori        = gun_rb->GetOrientation();							// TODO: maybe use combined HNG ori?
+				Quaternion gun_to_desired = gun_ori * Quaternion::Reverse(desired_gun_ori);
+
+				Vec3 gtd_rot = gun_to_desired.ToRVec() * inv_timestep;
+				Vec3 gun_rot = gun_rb->GetAngularVelocity();									// TODO: maybe use combined HNG rot?
+				Vec3 aaccel  = (gtd_rot - gun_rot) * inv_timestep;
+				Vec3 torque  = Mat3(hng_minfo.moi) * aaccel;
+
+				// compute force necessary to move the HNG's center of mass to the requested position
+				Vec3 gtd_vel = (desired_gun_pos - hng_minfo.com) * inv_timestep;
+				Vec3 gun_vel = gun_rb->GetLinearVelocity();
+				Vec3 accel   = (gtd_vel - gun_vel) * inv_timestep;
+				Vec3 force   = accel * hng_minfo.mass;
+
+
+				// TODO: implement this
+
+				// use _sja for ???
+				// use _sjb to control direction from _sjb to _wrist
+				// use _elbow to control distance from _sjb to _wrist
+				// use _wrist to control gun orientation
+
+
+				// cheaty helper force (for prototyping)
+				gun_rb->SetLinearVelocity (gtd_vel * helper_frac + gun_rb->GetLinearVelocity()  * rest_frac);
+				gun_rb->SetAngularVelocity(gtd_rot * helper_frac + gun_rb->GetAngularVelocity() * rest_frac);
+			}
+		}
+
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
 			if(!init)
@@ -118,9 +210,11 @@ namespace Test
 				init = true;
 			}
 
-			DoAnchorStuff(dood, time);
+			inv_timestep = 1.0f / time.elapsed;
 
-			DoNeckStuff(dood, time);
+			DoAnchorStuff  (dood, time);
+			DoNeckStuff    (dood, time);
+			DoArmsAimingGun(dood, time);
 
 			// torso yaw & verticality
 			// upper torso orientation?

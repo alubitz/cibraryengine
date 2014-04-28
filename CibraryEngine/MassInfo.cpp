@@ -45,17 +45,57 @@ namespace CibraryEngine
 		float yy = a.y * a.y;
 		float zz = a.z * a.z;
 
-		*(result++)	= *(I++)	+ m * (yy + zz);
-		*(result++)	= *(I++)	- m * a.x * a.y;
-		*(result++)	= *(I++)	- m * a.x * a.z;
+		*(result++) = *(I++) + m * (yy + zz);
+		*(result++) = *(I++) - m * a.x * a.y;
+		*(result++) = *(I++) - m * a.x * a.z;
 
-		*(result++)	= *(I++)	- m * a.y * a.x;
-		*(result++)	= *(I++)	+ m * (xx + zz);
-		*(result++)	= *(I++)	- m * a.y * a.z;
+		*(result++) = *(I++) - m * a.y * a.x;
+		*(result++) = *(I++) + m * (xx + zz);
+		*(result++) = *(I++) - m * a.y * a.z;
 
-		*(result++)	= *(I++)	- m * a.z * a.x;
-		*(result++)	= *(I++)	- m * a.z * a.y;
-		*result		= *I		+ m * (xx + yy);
+		*(result++) = *(I++) - m * a.z * a.x;
+		*(result++) = *(I++) - m * a.z * a.y;
+		*result     = *I     + m * (xx + yy);
+	}
+
+	void MassInfo::AddAlternatePivotMoI(const Vec3& a, const float* I, float m, float* result)
+	{
+		float xx = a.x * a.x;
+		float yy = a.y * a.y;
+		float zz = a.z * a.z;
+
+		*(result++) += *(I++) + m * (yy + zz);
+		*(result++) += *(I++) - m * a.x * a.y;
+		*(result++) += *(I++) - m * a.x * a.z;
+
+		*(result++) += *(I++) - m * a.y * a.x;
+		*(result++) += *(I++) + m * (xx + zz);
+		*(result++) += *(I++) - m * a.y * a.z;
+
+		*(result++) += *(I++) - m * a.z * a.x;
+		*(result++) += *(I++) - m * a.z * a.y;
+		*result     += *I     + m * (xx + yy);
+	}
+
+	MassInfo MassInfo::Sum(const MassInfo* arr, unsigned int count)
+	{
+		MassInfo sum;
+
+		const MassInfo* arr_end = arr + count;
+		const MassInfo* iter;
+
+		for(iter = arr; iter != arr_end; ++iter)
+		{
+			sum.mass += iter->mass;
+			sum.com  += iter->mass * iter->com;
+		}
+
+		sum.com /= sum.mass;
+
+		for(iter = arr; iter != arr_end; ++iter)
+			AddAlternatePivotMoI(sum.com - iter->com, iter->moi, iter->mass, sum.moi);
+
+		return sum;
 	}
 
 	MassInfo MassInfo::FromCollisionShape(CollisionShape* shape, float mass) { return shape->ComputeMassInfo() * mass; }

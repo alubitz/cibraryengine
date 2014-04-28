@@ -3,7 +3,7 @@
 
 #include "AABB.h"
 
-#include "Physics.h"
+#include "MassInfo.h"
 
 #include "Matrix.h"
 #include "Quaternion.h"
@@ -54,6 +54,6 @@ namespace CibraryEngine
 
 	AABB SphereShape::GetTransformedAABB(const Mat4& xform) { return AABB(xform.TransformVec3(0, 0, 0, 1), radius); }
 
-	void SphereShape::Write(ostream& stream) { WriteSingle(radius, stream); }
+	void SphereShape::Write(ostream& stream)        { WriteSingle(radius, stream); }
 	unsigned int SphereShape::Read(istream& stream) { radius = ReadSingle(stream); return 0; }
 }

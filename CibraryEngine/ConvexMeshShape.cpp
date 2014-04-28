@@ -1108,6 +1108,7 @@ namespace CibraryEngine
 	 * ConvexMeshShapeInstanceCache methods
 	 */
 	ConvexMeshShapeInstanceCache::ConvexMeshShapeInstanceCache() : verts(), aabb() { }
+	ConvexMeshShapeInstanceCache::~ConvexMeshShapeInstanceCache() { }
 
 	void ConvexMeshShapeInstanceCache::Update(const Mat4& xform, ConvexMeshShape::Imp* imp)
 	{
