@@ -18,8 +18,8 @@ namespace CibraryEngine
 		max_extents(max_extents),
 		desired_ori(Quaternion::Identity()),
 		enable_motor(false),
-		min_torque(-10, -10, -10),
-		max_torque( 10,  10,  10),
+		min_torque(-20, -20, -20),
+		max_torque( 20,  20,  20),
 		apply_torque()
 	{
 	}
@@ -54,10 +54,9 @@ namespace CibraryEngine
 			Vec3 impulse = rlv_to_impulse * dv;
 
 			obj_a->vel += impulse * obj_a->inv_mass;
-			obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
-
+			obj_a->rot += impulse_to_arot * impulse;
 			obj_b->vel -= impulse * obj_b->inv_mass;
-			obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
+			obj_b->rot -= impulse_to_brot * impulse;
 
 			wakeup = true;
 		}
@@ -137,14 +136,12 @@ namespace CibraryEngine
 		r2 = apply_pos - obj_b->cached_com;
 
 		// computing rlv-to-impulse matrix
-		Mat3 xr1(
-				0,	  r1.z,	  -r1.y,
-			-r1.z,	     0,	   r1.x,
-			 r1.y,	 -r1.x,	      0		);
-		Mat3 xr2(
-				0,	  r2.z,	  -r2.y,
-			-r2.z,	     0,	   r2.x,
-			 r2.y,	 -r2.x,	      0		);
+		Mat3 xr1(     0,   r1.z,  -r1.y,
+				  -r1.z,      0,   r1.x,
+				   r1.y,  -r1.x,      0     );
+		Mat3 xr2(     0,   r2.z,  -r2.y,
+				  -r2.z,      0,   r2.x,
+				   r2.y,  -r2.x,      0     );
 
 		float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
 		Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
@@ -152,6 +149,9 @@ namespace CibraryEngine
 			+ xr2 * obj_b->inv_moi * xr2;
 
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
+
+		impulse_to_arot = obj_a->inv_moi * xr1;
+		impulse_to_brot = obj_b->inv_moi * xr2;
 
 		// constrained orientation stuff
 		if(enable_motor)

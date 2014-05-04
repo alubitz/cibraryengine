@@ -20,6 +20,7 @@ namespace CibraryEngine
 
 		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
+		Mat3 impulse_to_arot, impulse_to_brot;
 
 		float bounce_threshold;
 

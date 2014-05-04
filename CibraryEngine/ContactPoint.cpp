@@ -14,19 +14,10 @@ namespace CibraryEngine
 
 	void ContactPoint::ApplyImpulse(const Vec3& impulse) const
 	{
-		if(obj_a->active)
-		{
-			obj_a->vel += impulse * obj_a->inv_mass;
-			if(obj_a->can_rotate)
-				obj_a->rot += obj_a->inv_moi * Vec3::Cross(impulse, r1);
-		}
-
-		if(obj_b->active && obj_b->can_move)
-		{
-			obj_b->vel -= impulse * obj_b->inv_mass;
-			if(obj_b->can_rotate)
-				obj_b->rot -= obj_b->inv_moi * Vec3::Cross(impulse, r2);
-		}
+		obj_a->vel += impulse * obj_a->inv_mass;
+		obj_a->rot += impulse_to_arot * impulse;
+		obj_b->vel -= impulse * obj_b->inv_mass;
+		obj_b->rot -= impulse_to_brot * impulse;
 	}
 
 	bool ContactPoint::DoCollisionResponse() const
@@ -82,12 +73,12 @@ namespace CibraryEngine
 		r2 = pos - obj_b->cached_com;
 
 		// computing rlv-to-impulse matrix
-		Mat3 xr1(       0,    r1.z,   -r1.y,
-					-r1.z,       0,    r1.x,
-					 r1.y,   -r1.x,       0     );
-		Mat3 xr2(       0,    r2.z,   -r2.y,
-					-r2.z,       0,    r2.x,
-					 r2.y,   -r2.x,       0     );
+		Mat3 xr1(     0,   r1.z,  -r1.y,
+				  -r1.z,      0,   r1.x,
+				   r1.y,  -r1.x,      0     );
+		Mat3 xr2(     0,   r2.z,  -r2.y,
+				  -r2.z,      0,   r2.x,
+				   r2.y,  -r2.x,      0     );
 
 		float invmasses = -(obj_a->inv_mass + obj_b->inv_mass);
 		Mat3 impulse_to_rlv = Mat3(invmasses, 0, 0, 0, invmasses, 0, 0, 0, invmasses)
@@ -95,6 +86,9 @@ namespace CibraryEngine
 			+ xr2 * obj_b->inv_moi * xr2;
 
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
+
+		impulse_to_arot = obj_a->inv_moi * xr1;
+		impulse_to_brot = obj_b->inv_moi * xr2;
 
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
 	}

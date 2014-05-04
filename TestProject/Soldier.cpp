@@ -115,15 +115,41 @@ namespace Test
 			}
 		}
 
+		bool SetWorldTorque(SkeletalJointConstraint* sjc, const Vec3& torque, Vec3& actual)
+		{
+			Mat3 oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
+			Vec3 local_torque = oriented_axes * torque;
+
+			const Vec3 &mint = sjc->min_torque, &maxt = sjc->max_torque;
+
+			sjc->apply_torque.x = max(mint.x, min(maxt.x, local_torque.x));
+			sjc->apply_torque.y = max(mint.y, min(maxt.y, local_torque.y));
+			sjc->apply_torque.z = max(mint.z, min(maxt.z, local_torque.z));
+
+			Vec3 dif = sjc->apply_torque - local_torque;
+			if(dif.x != 0 || dif.y != 0 || dif.z != 0)
+			{
+				actual = oriented_axes.TransposedMultiply(sjc->apply_torque);
+				return true;
+			}
+			else
+			{
+				actual = torque;			// discrepancy between this and the reconverted value should be minimal
+				return false;
+			}
+		}
+
 		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
 		{
-			float yaw   = dood->yaw + 0.4f;
+			static const float helper_frac = 0.15f;
+
+			float yaw   = dood->yaw + 0.5f;
 			float pitch = dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f;
 
 			Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
 			Quaternion current_ori = anchored_body->GetOrientation();
 			Quaternion ctd         = current_ori * Quaternion::Reverse(desired_ori);
-			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * 0.15f) * desired_ori;
+			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * helper_frac) * desired_ori;
 
 			Vec3 local_com = anchored_body->GetMassInfo().com;
 
@@ -144,9 +170,7 @@ namespace Test
 			Vec3 aaccel   = (htd_rot - head_rot) * -inv_timestep;							// negative to make the positive torque to go the head, which is obj_b
 			Vec3 htorque  = Mat3(head->GetTransformedMassInfo().moi) * aaccel;
 
-			Mat3 oriented_axes = neck->axes * Quaternion::Reverse(head_ori).ToMat3();
-
-			neck->apply_torque = oriented_axes * htorque;
+			SetWorldTorque(neck, htorque, htorque);
 		}
 
 		void DoArmsAimingGun(Soldier* dood, const TimingInfo& time)
@@ -168,16 +192,16 @@ namespace Test
 				};
 				MassInfo hng_minfo = MassInfo::Sum(rb_minfos, 3);
 
-				// specify the desired state of the gun											// TODO: do this better
+				// specify the desired state of the gun					// TODO: do this better
 				Quaternion desired_gun_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-				Vec3 desired_gun_pos = hng_minfo.com;											// desired position for the HNG's center of mass
+				Vec3 desired_gun_pos = torso2->GetCenterOfMass() + desired_gun_ori * Vec3(-0.275f, -0.325f, 0.35f);		// desired position for the HNG's center of mass
 
 				// compute torque necessary to achieve the requested orientation
-				Quaternion gun_ori        = gun_rb->GetOrientation();							// TODO: maybe use combined HNG ori?
+				Quaternion gun_ori        = gun_rb->GetOrientation();
 				Quaternion gun_to_desired = gun_ori * Quaternion::Reverse(desired_gun_ori);
 
 				Vec3 gtd_rot = gun_to_desired.ToRVec() * inv_timestep;
-				Vec3 gun_rot = gun_rb->GetAngularVelocity();									// TODO: maybe use combined HNG rot?
+				Vec3 gun_rot = gun_rb->GetAngularVelocity();			// TODO: maybe use combined HNG rot?
 				Vec3 aaccel  = (gtd_rot - gun_rot) * inv_timestep;
 				Vec3 torque  = Mat3(hng_minfo.moi) * aaccel;
 
@@ -188,12 +212,15 @@ namespace Test
 				Vec3 force   = accel * hng_minfo.mass;
 
 
-				// TODO: implement this
+				// TODO: implement this for real
 
 				// use _sja for ???
-				// use _sjb to control direction from _sjb to _wrist
+				// use _sjb   to control direction from _sjb to _wrist
 				// use _elbow to control distance from _sjb to _wrist
 				// use _wrist to control gun orientation
+
+
+				// what joint torques will produce a desired change in one component of the 6-component force/torque vector?
 
 
 				// cheaty helper force (for prototyping)
