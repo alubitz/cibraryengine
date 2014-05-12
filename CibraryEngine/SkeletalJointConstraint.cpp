@@ -3,7 +3,9 @@
 
 #include "RigidBody.h"
 
-#define ENFORCE_JOINT_ROTATION_LIMITS 1
+#define ENFORCE_JOINT_ROTATION_LIMITS   1
+
+#define DEFAULT_TORQUE_LIMIT            150
 
 namespace CibraryEngine
 {
@@ -18,8 +20,8 @@ namespace CibraryEngine
 		max_extents(max_extents),
 		desired_ori(Quaternion::Identity()),
 		enable_motor(false),
-		min_torque(-20, -20, -20),
-		max_torque( 20,  20,  20),
+		min_torque(-DEFAULT_TORQUE_LIMIT, -DEFAULT_TORQUE_LIMIT, -DEFAULT_TORQUE_LIMIT),
+		max_torque( DEFAULT_TORQUE_LIMIT,  DEFAULT_TORQUE_LIMIT,  DEFAULT_TORQUE_LIMIT),
 		apply_torque()
 	{
 	}

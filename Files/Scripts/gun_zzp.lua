@@ -25,6 +25,6 @@ local spheres =
 	P.sphere(0.00,  0.12,  0.18, 0.06)
 }
 
-P.add_single_bone(bones,	"main", 18.0, spheres)
+P.add_single_bone(bones,	"main", 10.0, spheres)
 
 ba.saveModelPhysics(bones, joints, "gun")

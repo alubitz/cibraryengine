@@ -24,18 +24,18 @@
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
 
-#define ENABLE_SHADOWS 1
-#define SHADOW_MAP_SIZE 1024
-#define N_SHADOW_MAPS 3
+#define ENABLE_SHADOWS                   1
+#define SHADOW_MAP_SIZE                  1024
+#define N_SHADOW_MAPS                    3
 
-#define ENABLE_ENVIRONMENT_MAPPING 0
+#define ENABLE_ENVIRONMENT_MAPPING       0
 
 
-#define ENABLE_FPS_COUNTER 1
+#define CPHFT_THREAD_COUNT               4
 
-#define USE_GUN_AS_RUBBISH 0
-
-#define CPHFT_THREAD_COUNT 4
+#define ENABLE_FPS_COUNTER               1
+#define USE_GUN_AS_RUBBISH               0
+#define DO_RAPID_UPDATE_TESTING          0
 
 
 namespace Test
@@ -694,25 +694,36 @@ namespace Test
 			imp->physics_content_init = true;
 		}
 
-		float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
-		total_game_time += elapsed;
-
-		TimingInfo clamped_time(elapsed, total_game_time);
-
-		hud->UpdateHUDGauges(clamped_time);
-
-#if ENABLE_FPS_COUNTER
-		if(elapsed > 0)
-			debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
+#if DO_RAPID_UPDATE_TESTING
+		for(unsigned int i = 0; i < 100; ++i)
+		{
+			float elapsed = 1.0f / 60.0f;
+#else
+			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
 #endif
 
-		if(script_string.empty())
-			GetFileString("Files/Scripts/update.lua", &script_string);
-		ScriptSystem::GetGlobalState().DoString(script_string);
+			total_game_time += elapsed;
 
-		GameState::Update(clamped_time);
+			TimingInfo clamped_time(elapsed, total_game_time);
 
-		NGDEBUG();
+			hud->UpdateHUDGauges(clamped_time);
+
+#if ENABLE_FPS_COUNTER
+			if(elapsed > 0)
+				debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
+#endif
+
+			if(script_string.empty())
+				GetFileString("Files/Scripts/update.lua", &script_string);
+			ScriptSystem::GetGlobalState().DoString(script_string);
+
+			GameState::Update(clamped_time);
+
+			NGDEBUG();
+
+#if DO_RAPID_UPDATE_TESTING
+		}
+#endif
 	}
 
 	// forward-declare a few functions which we'll be using in TestGame::Draw

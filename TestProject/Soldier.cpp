@@ -63,7 +63,8 @@ namespace Test
 
 		float inv_timestep;
 
-		Imp() : init(false),
+		Imp() :
+			init(false),
 			pelvis(NULL), torso1(NULL), torso2(NULL), head(NULL),
 			lshoulder(NULL), luarm(NULL), llarm(NULL), lhand(NULL),
 			rshoulder(NULL), ruarm(NULL), rlarm(NULL), rhand(NULL),
@@ -141,7 +142,7 @@ namespace Test
 
 		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
 		{
-			static const float helper_frac = 0.15f;
+			static const float helper_frac = 0.05f;
 
 			float yaw   = dood->yaw + 0.5f;
 			float pitch = dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f;
@@ -177,55 +178,81 @@ namespace Test
 		{
 			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 			{
-				static const float helper_frac = 0.05f;
-				static const float rest_frac   = 1.0f - helper_frac;
+				// get desired orientations of arm bones
+				dood->PreparePAG(time);
 
+				unsigned int bone_names[8] =
+				{
+					Bone::string_table["l shoulder"], Bone::string_table["l arm 1"], Bone::string_table["l arm 2"], Bone::string_table["l hand"],
+					Bone::string_table["r shoulder"], Bone::string_table["r arm 1"], Bone::string_table["r arm 2"], Bone::string_table["r hand"]
+				};
+
+				Quaternion desired_oris[8];
+				for(unsigned int i = 0; i < 8; ++i)
+					desired_oris[i] = dood->posey->skeleton->GetNamedBone(bone_names[i])->GetTransformationMatrix().ExtractOrientation();
+
+				// compute desired per-bone net torques
+				RigidBody* rbs[8] = { lshoulder, luarm, llarm, lhand, rshoulder, ruarm, rlarm, rhand };
 				RigidBody* gun_rb = gun->rigid_body;
 
-				// compute the combined mass info for the hands and gun (HNG)
-				RigidBody* hng_rbs  [3] = { lhand, rhand, gun_rb };
-				MassInfo   rb_minfos[3] =
+				MassInfo rb_mass_infos[] =
 				{
-					hng_rbs[0]->GetTransformedMassInfo(),
-					hng_rbs[1]->GetTransformedMassInfo(),
-					hng_rbs[2]->GetTransformedMassInfo()
+					lshoulder->GetTransformedMassInfo(),
+					luarm->GetTransformedMassInfo(),
+					llarm->GetTransformedMassInfo(),
+					lhand->GetTransformedMassInfo(),
+					rshoulder->GetTransformedMassInfo(),
+					ruarm->GetTransformedMassInfo(),
+					rlarm->GetTransformedMassInfo(),
+					rhand->GetTransformedMassInfo(),
+					gun_rb->GetTransformedMassInfo()
 				};
-				MassInfo hng_minfo = MassInfo::Sum(rb_minfos, 3);
 
-				// specify the desired state of the gun					// TODO: do this better
-				Quaternion desired_gun_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-				Vec3 desired_gun_pos = torso2->GetCenterOfMass() + desired_gun_ori * Vec3(-0.275f, -0.325f, 0.35f);		// desired position for the HNG's center of mass
+				// TODO: improve handling of "hands and gun" (HNG) pseudo-RigidBody
+				MassInfo hng_mass_infos[] = { rb_mass_infos[3], rb_mass_infos[7], rb_mass_infos[8] };
+				Mat3 hng_moi = Mat3(MassInfo::Sum(hng_mass_infos, 3).moi);
 
-				// compute torque necessary to achieve the requested orientation
-				Quaternion gun_ori        = gun_rb->GetOrientation();
-				Quaternion gun_to_desired = gun_ori * Quaternion::Reverse(desired_gun_ori);
+				Mat3 use_mois[8] =
+				{
+					Mat3(rb_mass_infos[0].moi),
+					Mat3(rb_mass_infos[1].moi),
+					Mat3(rb_mass_infos[2].moi),
+					hng_moi,
+					Mat3(rb_mass_infos[4].moi),
+					Mat3(rb_mass_infos[5].moi),
+					Mat3(rb_mass_infos[6].moi),
+					hng_moi
+				};
 
-				Vec3 gtd_rot = gun_to_desired.ToRVec() * inv_timestep;
-				Vec3 gun_rot = gun_rb->GetAngularVelocity();			// TODO: maybe use combined HNG rot?
-				Vec3 aaccel  = (gtd_rot - gun_rot) * inv_timestep;
-				Vec3 torque  = Mat3(hng_minfo.moi) * aaccel;
+				Vec3 bone_torques[8];
+				for(unsigned int i = 0; i < 8; ++i)
+				{
+					RigidBody* rb = rbs[i];
 
-				// compute force necessary to move the HNG's center of mass to the requested position
-				Vec3 gtd_vel = (desired_gun_pos - hng_minfo.com) * inv_timestep;
-				Vec3 gun_vel = gun_rb->GetLinearVelocity();
-				Vec3 accel   = (gtd_vel - gun_vel) * inv_timestep;
-				Vec3 force   = accel * hng_minfo.mass;
+					Quaternion& desired_ori = desired_oris[i];
+					Quaternion ori          = rb->GetOrientation();
 
+					Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;										
+					Vec3 desired_aaccel = (desired_rot - rb->GetAngularVelocity()) * inv_timestep;
 
-				// TODO: implement this for real
-
-				// use _sja for ???
-				// use _sjb   to control direction from _sjb to _wrist
-				// use _elbow to control distance from _sjb to _wrist
-				// use _wrist to control gun orientation
+					bone_torques[i] = use_mois[i] * desired_aaccel;
+				}
 
 
-				// what joint torques will produce a desired change in one component of the 6-component force/torque vector?
+				// TODO: fudge factor... estimate applied torques which will produce the desired net torques
 
 
-				// cheaty helper force (for prototyping)
-				gun_rb->SetLinearVelocity (gtd_vel * helper_frac + gun_rb->GetLinearVelocity()  * rest_frac);
-				gun_rb->SetAngularVelocity(gtd_rot * helper_frac + gun_rb->GetAngularVelocity() * rest_frac);
+				// compute applied joint torques to achieve the per-bone applied torques we just came up with				
+				Vec3 actual, lw_actual;
+				SetWorldTorque( lwrist, -bone_torques[3] * 0.75f,     lw_actual );
+				SetWorldTorque( lelbow,  actual - bone_torques[2],    actual    );
+				SetWorldTorque( lsjb,    actual - bone_torques[1],    actual    );
+				SetWorldTorque( lsja,    actual - bone_torques[0],    actual    );
+
+				SetWorldTorque( rwrist, -bone_torques[7] - lw_actual, actual    );
+				SetWorldTorque( relbow,  actual - bone_torques[6],    actual    );
+				SetWorldTorque( rsjb,    actual - bone_torques[5],    actual    );
+				SetWorldTorque( rsja,    actual - bone_torques[4],    actual    );
 			}
 		}
 
@@ -370,7 +397,7 @@ namespace Test
 
 	void Soldier::PreUpdatePoses(const TimingInfo& time)
 	{
-		DoIKStuff(time);
+		imp->Update(this, time);
 	}
 
 	void Soldier::PhysicsToCharacter()
@@ -448,18 +475,20 @@ namespace Test
 
 		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 1, 0);
 
+		PreparePAG(TimingInfo(0, 0));
+	}
+
+	void Soldier::PreparePAG(const TimingInfo& time)
+	{
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
-		p_ag->pelvis_ori = posey->skeleton->bones[0]->ori;
-		p_ag->UpdatePose(TimingInfo(0, 0));
+		p_ag->pelvis_ori = posey->skeleton->bones[0]->ori = Quaternion::FromRVec(0, -(yaw + 0.5f), 0);			// TODO: change this eventually	
+		p_ag->UpdatePose(time);
 
 		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
 			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
-	}
 
-	void Soldier::DoIKStuff(const TimingInfo& time)
-	{
-		imp->Update(this, time);	
+		posey->skeleton->InvalidateCachedBoneXforms();
 	}
 
 

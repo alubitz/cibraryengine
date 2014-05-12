@@ -292,7 +292,7 @@ namespace Test
 			if(r_grip != NULL)
 				physics->AddConstraint(r_grip);
 
-			rigid_body->SetCollisionEnabled(new_owner->collision_group, false);
+			rigid_body->SetCollisionEnabled(new_owner->collision_group, false);			// TODO: maybe disable this?
 
 			new_owner->velocity_change_bodies.insert(rigid_body);
 		}

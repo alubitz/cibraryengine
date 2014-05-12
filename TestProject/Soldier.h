@@ -26,8 +26,6 @@ namespace Test
 
 			void DoInitialPose();
 
-			void DoIKStuff(const TimingInfo& time);
-
 		public:
 
 			Bone* gun_hand_bone;
@@ -52,5 +50,7 @@ namespace Test
 			void Die(const Damage& cause);
 
 			void Spawned();
+
+			void PreparePAG(const TimingInfo& time);
 	};
 }
