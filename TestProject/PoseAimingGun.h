@@ -15,7 +15,7 @@ namespace Test
 
 		public:
 
-			Quaternion pelvis_ori;
+			Quaternion torso2_ori;
 			float yaw, pitch;
 
 			PoseAimingGun();

@@ -26,6 +26,8 @@ namespace Test
 	static const float fuel_refill_rate   = 0.4f;
 	static const float jump_to_fly_delay  = 0.3f;
 
+	static const float torso2_yaw_offset  = 0.5f;
+
 
 
 
@@ -114,6 +116,17 @@ namespace Test
 				else if( b == rlarm     && a == ruarm     ) { relbow = sjc; }
 				else if( b == rhand     && a == rlarm     ) { rwrist = sjc; }
 			}
+
+			// TODO: make this configurable somewhere
+			float W = 200, E = 350, B = 600, A = 700;
+			lwrist->min_torque = rwrist->min_torque = Vec3( -W, -W, -W );
+			lwrist->max_torque = rwrist->max_torque = Vec3(  W,  W,  W );
+			lelbow->min_torque = relbow->min_torque = Vec3( -E, -E, -E );
+			lelbow->max_torque = relbow->max_torque = Vec3(  E,  E,  E );
+			lsjb->min_torque   = rsjb->min_torque   = Vec3( -B, -B, -B );
+			lsjb->max_torque   = rsjb->max_torque   = Vec3(  B,  B,  B );
+			lsja->min_torque   = rsja->min_torque   = Vec3( -A, -A, -A );
+			lsja->max_torque   = rsja->max_torque   = Vec3(  A,  A,  A );
 		}
 
 		bool SetWorldTorque(SkeletalJointConstraint* sjc, const Vec3& torque, Vec3& actual)
@@ -142,15 +155,18 @@ namespace Test
 
 		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
 		{
-			static const float helper_frac = 0.05f;
+			static const float helper_frac = 0.95f, rest_frac = 1.0f - helper_frac;
 
-			float yaw   = dood->yaw + 0.5f;
-			float pitch = dood->pitch * 0.2f + powf(dood->pitch / float(M_PI / 2), 3.0f) * 1.15f;
+			float pfrac = dood->pitch * (2.0f / float(M_PI)), pfsq = pfrac * pfrac;
 
-			Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
+			float yaw   = dood->yaw + torso2_yaw_offset;
+			float pitch = dood->pitch * 0.4f + pfsq * pfrac * 0.95f;
+			float yaw2  = pfsq * 0.7f;
+
+			Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, -yaw2, 0);
 			Quaternion current_ori = anchored_body->GetOrientation();
 			Quaternion ctd         = current_ori * Quaternion::Reverse(desired_ori);
-			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * helper_frac) * desired_ori;
+			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * rest_frac) * desired_ori;
 
 			Vec3 local_com = anchored_body->GetMassInfo().com;
 
@@ -462,10 +478,11 @@ namespace Test
 		if(!is_valid)
 			return;		
 
-		p_ag->pelvis_ori = Quaternion::FromRVec(0, -yaw, 0);
+		p_ag->torso2_ori = Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0);
 
+		unsigned int lshoulder_name = Bone::string_table["l shoulder"], rshoulder_name = Bone::string_table["r shoulder"];
 		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
-			if(character->skeleton->bones[i]->name == Bone::string_table["l shoulder"] || character->skeleton->bones[i]->name == Bone::string_table["r shoulder"])
+			if(character->skeleton->bones[i]->name == lshoulder_name || character->skeleton->bones[i]->name == rshoulder_name)
 				jet_bones.push_back(bone_to_rbody[i]);
 	}
 
@@ -480,9 +497,12 @@ namespace Test
 
 	void Soldier::PreparePAG(const TimingInfo& time)
 	{
+		// TODO: do this better?
+		Quaternion t2ori = rigid_bodies.empty() ? Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0) : RigidBodyForNamedBone("torso 2")->GetOrientation();
+
 		p_ag->yaw = yaw;
 		p_ag->pitch = pitch;
-		p_ag->pelvis_ori = posey->skeleton->bones[0]->ori = Quaternion::FromRVec(0, -(yaw + 0.5f), 0);			// TODO: change this eventually	
+		p_ag->torso2_ori = posey->skeleton->bones[0]->ori = t2ori;
 		p_ag->UpdatePose(time);
 
 		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)

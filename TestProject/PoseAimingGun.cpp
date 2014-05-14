@@ -31,6 +31,28 @@ namespace Test
 		Imp() : poses(), tris(), loaded_poses(false) { }
 		~Imp() { }
 
+		void LoadPosesAsNeeded()
+		{
+			if(!loaded_poses)
+			{
+				LoadPoses("Files/Scripts/pose_aiming_gun.lua");
+
+				if(poses.empty())
+					Debug("PoseAimingGun: failed to load any poses!\n");
+				else
+				{
+					ExtractGrid();
+
+					if(tris.empty())
+						Debug("PoseAimingGun: unable to extract any triangles\n");
+
+					assert(tris.size() <= 255);
+				}
+
+				loaded_poses = true;
+			}
+		}
+
 		void LoadPoses(const string& filename)
 		{
 			ScriptingState s = ScriptSystem::GetGlobalState().NewThread();		// in case this is called by something multi-threaded
@@ -177,7 +199,7 @@ namespace Test
 	PoseAimingGun::PoseAimingGun() :
 		Pose(),
 		imp(&pag_imp),
-		pelvis_ori(Quaternion::Identity()),
+		torso2_ori(Quaternion::Identity()),
 		yaw(0),
 		pitch(0)
 	{
@@ -189,35 +211,20 @@ namespace Test
 
 	void PoseAimingGun::UpdatePose(const TimingInfo& time)
 	{
-		if(!imp->loaded_poses)
-		{
-			imp->LoadPoses("Files/Scripts/pose_aiming_gun.lua");
-
-			if(imp->poses.empty())
-				Debug("PoseAimingGun: failed to load any poses!\n");
-			else
-			{
-				imp->ExtractGrid();
-
-				if(imp->tris.empty())
-					Debug("PoseAimingGun: unable to extract any triangles\n");
-
-				assert(imp->tris.size() <= 255);
-			}
-
-			imp->loaded_poses = true;
-		}
+		imp->LoadPosesAsNeeded();
 
 		Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
-		Quaternion ori_off     = Quaternion::Reverse(pelvis_ori) * desired_ori;
+		Quaternion ori_off     = Quaternion::Reverse(torso2_ori) * desired_ori;
 		Vec3 ori_off_rvec      = ori_off.ToRVec();
 
+		/*
 		Vec3 spine_twist_rvec  = Vec3(max(-0.55f, min(0.5f, ori_off_rvec.x * 1.0f)), max(-0.5f, min(0.5f, (ori_off_rvec.y - 0.6f) * 0.5f)), 0);
 		Quaternion spine_twist = Quaternion::FromRVec(spine_twist_rvec);
-		Quaternion torso2_ori  = pelvis_ori * spine_twist * spine_twist;
+		Quaternion torso2_ori  = torso2_ori * spine_twist * spine_twist;
 
 		SetBonePose(Bone::string_table["torso 1"], spine_twist_rvec, Vec3());
 		SetBonePose(Bone::string_table["torso 2"], spine_twist_rvec, Vec3());
+		*/
 
 		Vec3 aim_dir = desired_ori * Vec3(0, 0, 1);
 		Vec3 relative_aim = Vec3::Normalize(Quaternion::Reverse(torso2_ori) * aim_dir);
