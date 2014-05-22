@@ -179,7 +179,7 @@ namespace Test
 		}
 	}
 
-	RigidBody* Dood::RigidBodyForNamedBone(const string& name)
+	RigidBody* Dood::RigidBodyForNamedBone(const string& name) const
 	{
 		unsigned int id = Bone::string_table[name];
 

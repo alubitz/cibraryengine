@@ -116,7 +116,7 @@ namespace Test
 
 			SoundSource* PlayDoodSound(SoundBuffer* buffer, float vol, bool looping);
 
-			RigidBody* RigidBodyForNamedBone(const string& name);
+			RigidBody* RigidBodyForNamedBone(const string& name) const;
 			
 			void PoseCharacter(const TimingInfo& time);
 
