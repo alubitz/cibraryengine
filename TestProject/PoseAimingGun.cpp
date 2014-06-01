@@ -217,16 +217,7 @@ namespace Test
 		Quaternion ori_off     = Quaternion::Reverse(torso2_ori) * desired_ori;
 		Vec3 ori_off_rvec      = ori_off.ToRVec();
 
-		/*
-		Vec3 spine_twist_rvec  = Vec3(max(-0.55f, min(0.5f, ori_off_rvec.x * 1.0f)), max(-0.5f, min(0.5f, (ori_off_rvec.y - 0.6f) * 0.5f)), 0);
-		Quaternion spine_twist = Quaternion::FromRVec(spine_twist_rvec);
-		Quaternion torso2_ori  = torso2_ori * spine_twist * spine_twist;
-
-		SetBonePose(Bone::string_table["torso 1"], spine_twist_rvec, Vec3());
-		SetBonePose(Bone::string_table["torso 2"], spine_twist_rvec, Vec3());
-		*/
-
-		Vec3 aim_dir = desired_ori * Vec3(0, 0, 1);
+		Vec3 aim_dir      = desired_ori * Vec3(0, 0, 1);
 		Vec3 relative_aim = Vec3::Normalize(Quaternion::Reverse(torso2_ori) * aim_dir);
 
 		Vec2 aim_xy(relative_aim.x, relative_aim.y);

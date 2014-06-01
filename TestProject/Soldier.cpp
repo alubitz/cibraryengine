@@ -12,7 +12,7 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_LEG_STUFF       1
+#define ENABLE_PELVIS_ANCHOR   0
 
 namespace Test
 {
@@ -64,7 +64,10 @@ namespace Test
 			Vec3 desired_torque;
 			Vec3 applied_torque;
 
-			void PreUpdate() { desired_torque = applied_torque = Vec3(); }
+			CBone() { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)) { }
+
+			void Reset() { desired_torque = applied_torque = Vec3(); }
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
 			{
@@ -82,20 +85,6 @@ namespace Test
 			void ComputeDesiredTorqueWithDefaultMoIAndPosey(float inv_timestep)                        { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
 		};
 
-		CBone MakeBone(const Soldier* dood, const string& name)
-		{
-			CBone result;
-
-			result.name  = name;
-			result.rb    = dood->RigidBodyForNamedBone(name);
-			result.posey = dood->posey->skeleton->GetNamedBone(name);
-
-			result.desired_torque = Vec3();
-			result.applied_torque = Vec3();
-
-			return result;
-		}
-
 		CBone pelvis,    torso1, torso2, head;
 		CBone lshoulder, luarm,  llarm,  lhand;
 		CBone rshoulder, ruarm,  rlarm,  rhand;
@@ -107,7 +96,36 @@ namespace Test
 			SkeletalJointConstraint* sjc;
 			CBone *a, *b;
 
-			bool SetWorldTorque(const Vec3& torque, Vec3& actual)
+			Vec3 actual;
+
+			CJoint() { }
+			CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque)
+			{
+				RigidBody *arb = bone_a.rb, *brb = bone_b.rb;
+				for(unsigned int i = 0; i < dood->constraints.size(); ++i)
+				{
+					SkeletalJointConstraint* j = (SkeletalJointConstraint*)dood->constraints[i];
+					if(j->obj_a == arb && j->obj_b == brb)
+					{
+						a   = &bone_a;
+						b   = &bone_b;
+						sjc = j;
+
+						sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
+						sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
+
+						return;
+					}
+				}
+
+				// joint not found?
+				a = b = NULL;
+				sjc = NULL;
+			}
+
+			void Reset() { sjc->apply_torque = actual = Vec3(); }
+
+			bool SetWorldTorque(const Vec3& torque)
 			{
 				Mat3 oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
 				Vec3 local_torque = oriented_axes * torque;
@@ -136,42 +154,15 @@ namespace Test
 				return result;
 			}
 
-			bool SetTorqueToSatisfyA() { Vec3 torque = a->desired_torque - a->applied_torque; return SetWorldTorque( torque, torque); }
-			bool SetTorqueToSatisfyB() { Vec3 torque = b->desired_torque - b->applied_torque; return SetWorldTorque(-torque, torque); }
+			bool SetTorqueToSatisfyA() { return SetWorldTorque(a->desired_torque - (a->applied_torque - actual)); }
+			bool SetTorqueToSatisfyB() { return SetWorldTorque((b->applied_torque + actual) - b->desired_torque); }
 		};
 
-		CJoint MakeJoint(const Dood* dood, CBone& a, CBone& b, float max_torque)
-		{
-			CJoint result;
-
-			for(unsigned int i = 0; i < dood->constraints.size(); ++i)
-			{
-				SkeletalJointConstraint* sjc = (SkeletalJointConstraint*)dood->constraints[i];
-				if(sjc->obj_a == a.rb && sjc->obj_b == b.rb)
-				{
-					result.a = &a;
-					result.b = &b;
-					result.sjc = sjc;
-
-					result.sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
-					result.sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
-
-					return result;
-				}
-			}
-
-			// joint not found?
-			result.a = result.b = NULL;
-			result.sjc = NULL;
-
-			return result;
-		}
-
 		CJoint spine1, spine2, neck;
-		CJoint lsja, lsjb, lelbow, lwrist;
-		CJoint rsja, rsjb, relbow, rwrist;
-		CJoint lhip, lknee, lankle;
-		CJoint rhip, rknee, rankle;
+		CJoint lsja,   lsjb,   lelbow, lwrist;
+		CJoint rsja,   rsjb,   relbow, rwrist;
+		CJoint lhip,   lknee,  lankle;
+		CJoint rhip,   rknee,  rankle;
 
 		float inv_timestep;
 
@@ -187,59 +178,72 @@ namespace Test
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
-			pelvis    = MakeBone( dood, "pelvis"     );
-			torso1    = MakeBone( dood, "torso 1"    );
-			torso2    = MakeBone( dood, "torso 2"    );
-			head      = MakeBone( dood, "head"       );
-			lshoulder = MakeBone( dood, "l shoulder" );
-			luarm     = MakeBone( dood, "l arm 1"    );
-			llarm     = MakeBone( dood, "l arm 2"    );
-			lhand     = MakeBone( dood, "l hand"     );
-			rshoulder = MakeBone( dood, "r shoulder" );
-			ruarm     = MakeBone( dood, "r arm 1"    );
-			rlarm     = MakeBone( dood, "r arm 2"    );
-			rhand     = MakeBone( dood, "r hand"     );
-			luleg     = MakeBone( dood, "l leg 1"    );
-			llleg     = MakeBone( dood, "l leg 2"    );
-			lfoot     = MakeBone( dood, "l foot"     );
-			ruleg     = MakeBone( dood, "r leg 1"    );
-			rlleg     = MakeBone( dood, "r leg 2"    );
-			rfoot     = MakeBone( dood, "r foot"     );
+			pelvis    = CBone( dood, "pelvis"     );
+			torso1    = CBone( dood, "torso 1"    );
+			torso2    = CBone( dood, "torso 2"    );
+			head      = CBone( dood, "head"       );
+			lshoulder = CBone( dood, "l shoulder" );
+			luarm     = CBone( dood, "l arm 1"    );
+			llarm     = CBone( dood, "l arm 2"    );
+			lhand     = CBone( dood, "l hand"     );
+			rshoulder = CBone( dood, "r shoulder" );
+			ruarm     = CBone( dood, "r arm 1"    );
+			rlarm     = CBone( dood, "r arm 2"    );
+			rhand     = CBone( dood, "r hand"     );
+			luleg     = CBone( dood, "l leg 1"    );
+			llleg     = CBone( dood, "l leg 2"    );
+			lfoot     = CBone( dood, "l foot"     );
+			ruleg     = CBone( dood, "r leg 1"    );
+			rlleg     = CBone( dood, "r leg 2"    );
+			rfoot     = CBone( dood, "r foot"     );
 
 			float SP = 1500, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 800, A = 500;
-			spine1 = MakeJoint( dood, pelvis,    torso1,    SP );
-			spine2 = MakeJoint( dood, torso1,    torso2,    SP );
-			neck   = MakeJoint( dood, torso2,    head,      N  );
-			lsja   = MakeJoint( dood, torso2,    lshoulder, SA );
-			lsjb   = MakeJoint( dood, lshoulder, luarm,     SB );
-			lelbow = MakeJoint( dood, luarm,     llarm,     E  );
-			lwrist = MakeJoint( dood, llarm,     lhand,     W  );
-			rsja   = MakeJoint( dood, torso2,    rshoulder, SA );
-			rsjb   = MakeJoint( dood, rshoulder, ruarm,     SB );
-			relbow = MakeJoint( dood, ruarm,     rlarm,     E  );
-			rwrist = MakeJoint( dood, rlarm,     rhand,     W  );
-			lhip   = MakeJoint( dood, pelvis,    luleg,     H  );
-			lknee  = MakeJoint( dood, luleg,     llleg,     K  );
-			lankle = MakeJoint( dood, llleg,     lfoot,     A  );
-			rhip   = MakeJoint( dood, pelvis,    ruleg,     H  );
-			rknee  = MakeJoint( dood, ruleg,     rlleg,     K  );
-			rankle = MakeJoint( dood, rlleg,     rfoot,     A  );
+			spine1 = CJoint( dood, pelvis,    torso1,    SP );
+			spine2 = CJoint( dood, torso1,    torso2,    SP );
+			neck   = CJoint( dood, torso2,    head,      N  );
+			lsja   = CJoint( dood, torso2,    lshoulder, SA );
+			lsjb   = CJoint( dood, lshoulder, luarm,     SB );
+			lelbow = CJoint( dood, luarm,     llarm,     E  );
+			lwrist = CJoint( dood, llarm,     lhand,     W  );
+			rsja   = CJoint( dood, torso2,    rshoulder, SA );
+			rsjb   = CJoint( dood, rshoulder, ruarm,     SB );
+			relbow = CJoint( dood, ruarm,     rlarm,     E  );
+			rwrist = CJoint( dood, rlarm,     rhand,     W  );
+			lhip   = CJoint( dood, pelvis,    luleg,     H  );
+			lknee  = CJoint( dood, luleg,     llleg,     K  );
+			lankle = CJoint( dood, llleg,     lfoot,     A  );
+			rhip   = CJoint( dood, pelvis,    ruleg,     H  );
+			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
+			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 		}
 
-		void DoAnchorStuff(Soldier* dood, const TimingInfo& time)
+		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
+		{
+			float pfrac = dood->pitch * (2.0f / float(M_PI)), pfsq = pfrac * pfrac;
+
+			float t1_yaw   = dood->yaw + torso2_yaw_offset;
+			float t1_pitch = dood->pitch * 0.4f + pfsq * pfrac * 0.95f;
+			float t1_yaw2  = pfsq * 0.7f;
+
+			t2 = Quaternion::FromRVec(0, -t1_yaw, 0) * Quaternion::FromRVec(t1_pitch, 0, 0) * Quaternion::FromRVec(0, -t1_yaw2, 0);
+
+			float t2_yaw   = dood->yaw + torso2_yaw_offset * 0.5f;
+			float t2_pitch = pfrac * 0.05f + pfrac * pfsq * 0.3f;
+			float t2_yaw2  = pfsq * 0.15f;
+
+			p = Quaternion::FromRVec(0, -t2_yaw, 0) * Quaternion::FromRVec(t2_pitch, 0, 0) * Quaternion::FromRVec(0, -t2_yaw2, 0);
+
+			Quaternion twist_ori = p * Quaternion::Reverse(t2);
+			t1 = Quaternion::FromRVec(twist_ori.ToRVec() * -0.5f) * t2;
+		}
+
+		void DoAnchorStuff(Soldier* dood, const TimingInfo& time, const Quaternion& t2)
 		{
 			static const float helper_frac = 1.0f, rest_frac = 1.0f - helper_frac;
 
-			float pfrac = dood->pitch * (2.0f / float(M_PI)), pfsq = pfrac * pfrac;
-
-			float yaw   = dood->yaw + torso2_yaw_offset * 0.5f;
-			float pitch = pfrac * 0.05f + pfrac * pfsq * 0.3f;
-			float yaw2  = pfsq * 0.15f;
-
-			Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, -yaw2, 0);
 			Quaternion current_ori = pelvis.rb->GetOrientation();
-			Quaternion ctd         = current_ori * Quaternion::Reverse(desired_ori);
-			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * rest_frac) * desired_ori;
+			Quaternion ctd         = current_ori * Quaternion::Reverse(t2);
+			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * rest_frac) * t2;
 
 			Vec3 local_com = pelvis.rb->GetMassInfo().com;
 
@@ -249,42 +253,7 @@ namespace Test
 			pelvis.rb->SetAngularVelocity(Vec3());
 		}
 
-		Quaternion GetDesiredTorso2Ori(Soldier* dood)
-		{
-			float pfrac = dood->pitch * (2.0f / float(M_PI)), pfsq = pfrac * pfrac;
-
-			float yaw   = dood->yaw + torso2_yaw_offset;
-			float pitch = dood->pitch * 0.4f + pfsq * pfrac * 0.95f;
-			float yaw2  = pfsq * 0.7f;
-
-			return Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, -yaw2, 0);
-		}
-
-		void DoTorsoOrientation(Soldier* dood, const TimingInfo& time, const Quaternion& torso2_dori)
-		{
-			// figure out what orientation we want the different bones in
-			float pfrac = dood->pitch * (2.0f / float(M_PI)), pfsq = pfrac * pfrac;
-
-			float yaw   = dood->yaw + torso2_yaw_offset * 0.5f;
-			float pitch = pfrac * 0.05f + pfrac * pfsq * 0.3f;
-			float yaw2  = pfsq * 0.15f;
-			
-			Quaternion pelvis_ori  = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0) * Quaternion::FromRVec(0, -yaw2, 0);
-			Quaternion twist_ori   = pelvis_ori * Quaternion::Reverse(torso2_dori);
-			Quaternion torso1_dori = Quaternion::FromRVec(twist_ori.ToRVec() * -0.5f) * torso2_dori;
-
-			// figure out what net torques we want to apply to each bone
-			torso2.ComputeDesiredTorqueWithDefaultMoI(torso2_dori, inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoI(torso1_dori, inv_timestep);
-			pelvis.ComputeDesiredTorqueWithDefaultMoI(pelvis_ori,  inv_timestep);
-
-			// come up with joint torques to accomplish those net torques
-			Vec3 actual;
-			spine2.SetTorqueToSatisfyB();
-			spine1.SetTorqueToSatisfyB();
-		}
-
-		void DoNeckStuff(Soldier* dood, const TimingInfo& time)
+		void DoHeadOri(Soldier* dood, const TimingInfo& time)
 		{
 			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 
@@ -313,9 +282,8 @@ namespace Test
 				rshoulder.ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
 
 				// compute applied joint torques to achieve the per-bone applied torques we just came up with
-				Vec3 actual;
-				lwrist.SetWorldTorque(-lhand.desired_torque * 0.75f,  actual);
-				rwrist.SetWorldTorque(-actual - rhand.desired_torque, actual);
+				lwrist.SetWorldTorque(-lhand.desired_torque * 0.75f);
+				rwrist.SetWorldTorque(-lwrist.actual - rhand.desired_torque);
 				
 				lelbow.SetTorqueToSatisfyB();
 				lsjb  .SetTorqueToSatisfyB();
@@ -327,26 +295,56 @@ namespace Test
 			}
 		}
 
-		void DoLegStuff(Soldier* dood, const TimingInfo& time)
+		void DoTorsoOris(Soldier* dood, const TimingInfo& time, const Quaternion& t1, const Quaternion& t2)
 		{
-			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);			// same desired ori for all leg bones
+			// figure out what net torques we want to apply to each bone
+			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
+			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
 
-			luleg.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
-			llleg.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
-			lfoot.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
-			ruleg.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
-			rlleg.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
-			rfoot.ComputeDesiredTorqueWithDefaultMoI(sdo, inv_timestep);
+			// come up with joint torques to accomplish those net torques
+			spine2.SetTorqueToSatisfyB();
+			spine1.SetTorqueToSatisfyB();
+		}
 
-			Vec3 actual;
-			lhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque) * 0.3f, actual);
-			rhip.SetTorqueToSatisfyA();
+		void DoKneeCompromise(CJoint& knee)
+		{
+			knee.SetTorqueToSatisfyB();
+			Vec3 temp = knee.actual;
+			knee.SetTorqueToSatisfyA();
+			knee.SetWorldTorque((temp + knee.actual) * 0.5f);
+		}
 
-			lknee. SetTorqueToSatisfyA();
-			lankle.SetTorqueToSatisfyA();
+		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
+		{
+			// TODO: select proper per-bone desired orientations; this will probably depend on a whole bunch of factors
+			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);
+			Quaternion desired_oris[6] = { sdo, sdo, sdo, sdo, sdo, sdo };
 
-			rknee .SetTorqueToSatisfyA();
-			rankle.SetTorqueToSatisfyA();
+
+			// determine desired bone torques to achieve those orientations
+			pelvis.ComputeDesiredTorqueWithDefaultMoI(p, inv_timestep);
+
+			luleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[0], inv_timestep);
+			ruleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[1], inv_timestep);
+
+			llleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[2], inv_timestep);			
+			rlleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[3], inv_timestep);
+			
+			lfoot.ComputeDesiredTorqueWithDefaultMoI(desired_oris[4], inv_timestep);
+			rfoot.ComputeDesiredTorqueWithDefaultMoI(desired_oris[5], inv_timestep);
+
+
+			// determine joint torques necessary to achieve (most of) those bone torques
+			lhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque) * 0.5f);			// do a fraction of the job
+			rhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque));					// do all of what's left
+
+			// TODO: is this actually any good?
+			DoKneeCompromise(lknee);
+			DoKneeCompromise(rknee);
+
+			// TODO: account for foot/ground interaction somehow?
+			lankle.SetTorqueToSatisfyB();
+			rankle.SetTorqueToSatisfyB();
 		}
 
 		void Update(Soldier* dood, const TimingInfo& time)
@@ -359,30 +357,32 @@ namespace Test
 
 			inv_timestep = 1.0f / time.elapsed;
 
-			// reset applied torques
-			for(unsigned int i = 0; i < dood->constraints.size(); ++i)
-				((SkeletalJointConstraint*)dood->constraints[i])->apply_torque = Vec3();
+			// reset joints
+			spine1.Reset();       spine2.Reset();    neck.Reset();
+			lsja.Reset();         lsjb.Reset();      lelbow.Reset();    lwrist.Reset();
+			rsja.Reset();         rsjb.Reset();      relbow.Reset();    rwrist.Reset();
+			lhip.Reset();         lknee.Reset();     lankle.Reset();
+			rhip.Reset();         rknee.Reset();     rankle.Reset();
 
-			pelvis.PreUpdate();       torso1.PreUpdate();    torso2.PreUpdate();    head.PreUpdate();
-			lshoulder.PreUpdate();    luarm.PreUpdate();     llarm.PreUpdate();     lhand.PreUpdate();
-			rshoulder.PreUpdate();    ruarm.PreUpdate();     rlarm.PreUpdate();     rhand.PreUpdate();
-			luleg.PreUpdate();        llleg.PreUpdate();     lfoot.PreUpdate();
-			ruleg.PreUpdate();        rlleg.PreUpdate();     rfoot.PreUpdate();
+			// reset bones
+			pelvis.Reset();       torso1.Reset();    torso2.Reset();    head.Reset();
+			lshoulder.Reset();    luarm.Reset();     llarm.Reset();     lhand.Reset();
+			rshoulder.Reset();    ruarm.Reset();     rlarm.Reset();     rhand.Reset();
+			luleg.Reset();        llleg.Reset();     lfoot.Reset();
+			ruleg.Reset();        rlleg.Reset();     rfoot.Reset();
 
 
 			// do actual C/PHFT stuff
-			Quaternion t2_dori = GetDesiredTorso2Ori(dood);
+			Quaternion p, t1, t2;
+			GetDesiredTorsoOris(dood, p, t1, t2);
 
-#if !ENABLE_LEG_STUFF
-			DoAnchorStuff     ( dood, time          );
+#if ENABLE_PELVIS_ANCHOR
+			DoAnchorStuff  ( dood, time,        t2 );
 #endif
-			DoNeckStuff       ( dood, time          );
-			DoArmsAimingGun   ( dood, time, t2_dori );
-			DoTorsoOrientation( dood, time, t2_dori );
-#if ENABLE_LEG_STUFF
-			DoLegStuff        ( dood, time          );
-#endif
-
+			DoHeadOri      ( dood, time            );
+			DoArmsAimingGun( dood, time,        t2 );
+			DoTorsoOris    ( dood, time,    t1, t2 );
+			DoLegStuff     ( dood, time, p         );
 		}
 	};
 
@@ -582,7 +582,7 @@ namespace Test
 	{
 		Dood::DoInitialPose();
 
-#if !ENABLE_LEG_STUFF
+#if ENABLE_PELVIS_ANCHOR
 		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 1, 0);
 #endif
 
