@@ -90,19 +90,16 @@ namespace CibraryEngine
 		if(active)
 		{
 #if ENABLE_OBJECT_DEACTIVATION
-			if(vel.ComputeMagnitudeSquared() > 0.01f || rot.ComputeMagnitudeSquared() > 0.1f)			// eventually these should be thresholds instead of straight 0s
+			if(vel.ComputeMagnitudeSquared() > 0.01f || rot.ComputeMagnitudeSquared() > 0.1f)
 			{
 #endif
 				pos += vel * timestep;
 
 				pos += ori * mass_info.com;
-				if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromRVec(rot * timestep)
+				if(float magsq = rot.ComputeMagnitudeSquared())						// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
 				{
-					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = sinf(half) / mag;
-
-					ori = Quaternion::Reverse(ori);				// TODO: figure out the correct way to remove the Quaternion::Reverse business
-					ori *= Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff);
-					ori = Quaternion::Reverse(ori);
+					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = -sinf(half) / mag;
+					ori = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * ori;
 				}
 				pos -= ori * mass_info.com;
 

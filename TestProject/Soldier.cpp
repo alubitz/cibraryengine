@@ -403,14 +403,10 @@ namespace Test
 					RigidBody* rb = bones[j]->rb;
 					Vec3 rot = rb->GetAngularVelocity() + rb->GetInvMoI() * test.btorques[j] * time.elapsed;
 
-					// this code was copied from RigidBody::UpdatePos... kinda messy, maybe something's wrong with angular velocity in my physics engine?
-					if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromRVec(rot * timestep)
+					if(float magsq = rot.ComputeMagnitudeSquared())					// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
 					{
-						float mag = sqrtf(magsq), half = mag * time.elapsed * 0.5f, coeff = sinf(half) / mag;
-
-						Quaternion ori = Quaternion::Reverse(rb->GetOrientation());				// TODO: figure out the correct way to remove the Quaternion::Reverse business
-						ori *= Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff);
-						test.nu_oris[j] = Quaternion::Reverse(ori);
+						float mag = sqrtf(magsq), half = mag * time.elapsed * 0.5f, coeff = -sinf(half) / mag;
+						test.nu_oris[j] = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * rb->GetOrientation();						
 					}
 				}
 
