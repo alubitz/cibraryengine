@@ -98,6 +98,8 @@ namespace Test
 
 			Vec3 actual;
 
+			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
+
 			CJoint() { }
 			CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque)
 			{
@@ -123,11 +125,14 @@ namespace Test
 				sjc = NULL;
 			}
 
-			void Reset() { sjc->apply_torque = actual = Vec3(); }
+			void Reset()
+			{
+				sjc->apply_torque = actual = Vec3();
+				oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
+			}
 
 			bool SetWorldTorque(const Vec3& torque)
 			{
-				Mat3 oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
 				Vec3 local_torque = oriented_axes * torque;
 
 				const Vec3 &mint = sjc->min_torque, &maxt = sjc->max_torque;
@@ -176,6 +181,8 @@ namespace Test
 
 		void Init(Soldier* dood)
 		{
+			Debug("Soldier::Imp::Init()\n");
+
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
 			pelvis    = CBone( dood, "pelvis"     );
@@ -314,37 +321,163 @@ namespace Test
 			knee.SetWorldTorque((temp + knee.actual) * 0.5f);
 		}
 
+		
+
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
-			// TODO: select proper per-bone desired orientations; this will probably depend on a whole bunch of factors
-			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);
-			Quaternion desired_oris[6] = { sdo, sdo, sdo, sdo, sdo, sdo };
+			Quaternion sdo  = Quaternion::FromRVec(0, -dood->yaw, 0);
+			Quaternion rsdo = Quaternion::Reverse(sdo);
+			Quaternion rp   = Quaternion::Reverse(p);
+
+			lhip  .SetWorldTorque(Vec3());
+			rhip  .SetWorldTorque(Vec3());
+			lknee .SetWorldTorque(Vec3());
+			rknee .SetWorldTorque(Vec3());
+			lankle.SetWorldTorque(Vec3());
+			rankle.SetWorldTorque(Vec3());
+
+			struct LegStuffProposal
+			{
+				Vec3 jtorques[6], btorques[7];
+				Quaternion nu_oris[7];
+				float score;
+			} best, test;
+
+			CBone*  bones [7] = { &pelvis, &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
+			CJoint* joints[6] = { &lhip, &rhip, &lknee, &rknee, &lankle, &rankle };
+
+			Vec3 actual_lankle = lfoot.rb->GetOrientation() * lankle.sjc->pos + lfoot.rb->GetPosition();
+			Vec3 actual_lhip   = pelvis.rb->GetOrientation() * lhip.sjc->pos + pelvis.rb->GetPosition();
+			Vec3 actual_rankle = rfoot.rb->GetOrientation() * rankle.sjc->pos + rfoot.rb->GetPosition();
+			Vec3 actual_rhip   = pelvis.rb->GetOrientation() * rhip.sjc->pos + pelvis.rb->GetPosition();
+
+			Vec3 actual_lth = actual_lhip - actual_lankle;
+			Vec3 actual_htr = actual_rankle - actual_rhip;
+			Vec3 actual_ltr = actual_rankle - actual_lankle;
+
+			// TODO: compute values for these which take into account desired avg velocity, etc.
+			Vec3 desired_lth = sdo * (lhip.sjc->pos - lankle.sjc->pos) * 1 + actual_lth * 0;
+			Vec3 desired_htr = sdo * (rankle.sjc->pos - rhip.sjc->pos) * 1 + actual_htr * 0;
+			Vec3 desired_ltr = actual_ltr;			//desired_lth + desired_htr + p * (rhip.sjc->pos - lhip.sjc->pos);
+
+			for(unsigned int i = 0; i < 5000; ++i)
+			{
+				test = best;
+				if(i > 0)
+				{
+					// apply random variations
+					float bfrac = 0.1f * min(1.0f, best.score), afrac = 1.0f - bfrac;
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						unsigned int joint = Random3D::RandInt(6);
+						const CJoint& cj = *joints[joint];
+						const SkeletalJointConstraint& sjc = *cj.sjc;
+						const Mat3& oaxes = cj.oriented_axes;
+
+						Vec3& torque = test.jtorques[joint];
+						
+						Vec3 local_torque = oaxes * torque;
+
+						unsigned int axis = Random3D::RandInt(3);
+						float& f   = ((float*)&local_torque  .x)[axis];
+						float& min = ((float*)&sjc.min_torque.x)[axis];
+						float& max = ((float*)&sjc.max_torque.x)[axis];
+						f = f * afrac + Random3D::Rand(min, max) * bfrac;
+
+						test.jtorques[joint] = oaxes.TransposedMultiply(local_torque);
+					}
+				}
 
 
-			// determine desired bone torques to achieve those orientations
-			pelvis.ComputeDesiredTorqueWithDefaultMoI(p, inv_timestep);
+				// see what effect that will have
+				test.btorques[0] = pelvis.applied_torque + test.jtorques[0] + test.jtorques[1];
+				test.btorques[1] = test.jtorques[2] - test.jtorques[0];
+				test.btorques[2] = test.jtorques[3] - test.jtorques[1];
+				test.btorques[3] = test.jtorques[4] - test.jtorques[2];
+				test.btorques[4] = test.jtorques[5] - test.jtorques[3];
+				test.btorques[5] = -test.jtorques[4];
+				test.btorques[6] = -test.jtorques[5];
 
-			luleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[0], inv_timestep);
-			ruleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[1], inv_timestep);
+				for(unsigned int j = 0; j < 7; ++j)
+				{
+					RigidBody* rb = bones[j]->rb;
+					Vec3 rot = rb->GetAngularVelocity() + rb->GetInvMoI() * test.btorques[j] * time.elapsed;
 
-			llleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[2], inv_timestep);			
-			rlleg.ComputeDesiredTorqueWithDefaultMoI(desired_oris[3], inv_timestep);
-			
-			lfoot.ComputeDesiredTorqueWithDefaultMoI(desired_oris[4], inv_timestep);
-			rfoot.ComputeDesiredTorqueWithDefaultMoI(desired_oris[5], inv_timestep);
+					// this code was copied from RigidBody::UpdatePos... kinda messy, maybe something's wrong with angular velocity in my physics engine?
+					if(float magsq = rot.ComputeMagnitudeSquared())								// this block equivalent to: ori *= Quaternion::FromRVec(rot * timestep)
+					{
+						float mag = sqrtf(magsq), half = mag * time.elapsed * 0.5f, coeff = sinf(half) / mag;
+
+						Quaternion ori = Quaternion::Reverse(rb->GetOrientation());				// TODO: figure out the correct way to remove the Quaternion::Reverse business
+						ori *= Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff);
+						test.nu_oris[j] = Quaternion::Reverse(ori);
+					}
+				}
 
 
-			// determine joint torques necessary to achieve (most of) those bone torques
-			lhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque) * 0.5f);			// do a fraction of the job
-			rhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque));					// do all of what's left
+				// find out positional relationship between lfoot, rfoot, and pelvis (for scoring purposes)
+				Vec3 llleg_len = test.nu_oris[3] * (lknee .sjc->pos - lankle.sjc->pos);
+				Vec3 luleg_len = test.nu_oris[1] * (lhip  .sjc->pos - lknee .sjc->pos);
+				Vec3 xhip_len  = test.nu_oris[0] * (rhip  .sjc->pos - lhip  .sjc->pos);
+				Vec3 ruleg_len = test.nu_oris[2] * (rknee .sjc->pos - rhip  .sjc->pos);
+				Vec3 rlleg_len = test.nu_oris[4] * (rankle.sjc->pos - rknee .sjc->pos);
 
-			// TODO: is this actually any good?
-			DoKneeCompromise(lknee);
-			DoKneeCompromise(rknee);
+				Vec3 proposed_lth = llleg_len + luleg_len;
+				Vec3 proposed_htr = ruleg_len + rlleg_len;
+				Vec3 proposed_ltr = proposed_lth + xhip_len + proposed_htr;
 
-			// TODO: account for foot/ground interaction somehow?
-			lankle.SetTorqueToSatisfyB();
-			rankle.SetTorqueToSatisfyB();
+
+				// scoring for how well the orientations of certain bones matches what has been requested
+				float pori = (p   * Quaternion::Reverse(test.nu_oris[0])).ToRVec().ComputeMagnitudeSquared();
+				float lori = (sdo * Quaternion::Reverse(test.nu_oris[5])).ToRVec().ComputeMagnitudeSquared();
+				float rori = (sdo * Quaternion::Reverse(test.nu_oris[6])).ToRVec().ComputeMagnitudeSquared();
+				float ori_score = pori + lori + rori;
+
+				// scoring for how big the applied torques are (minor)
+				float torque_score = 0.0f;
+				for(unsigned int j = 0; j < 6; ++j)
+					torque_score += test.jtorques[j].ComputeMagnitudeSquared() * 0.0f;//0.0000005f;
+
+				// scoring for how well the relative positions of certain joints match what has been requested
+				Vec3 ltr_error = (proposed_ltr - desired_ltr);
+				Vec3 lth_error = (proposed_lth - desired_lth);    lth_error.x *= 0.25f;    lth_error.z *= 0.25f;
+				Vec3 htr_error = (proposed_htr - desired_htr);    htr_error.x *= 0.25f;    htr_error.z *= 0.25f;
+				float ltr = ltr_error.ComputeMagnitudeSquared();
+				float lth = lth_error.ComputeMagnitudeSquared();
+				float htr = htr_error.ComputeMagnitudeSquared();
+				float pos_score = ltr + lth + htr;
+
+				test.score = ori_score + torque_score + pos_score;
+
+
+				// if it scores better, use it as the basis for subsequent variations
+#if 0
+				stringstream ss;
+				ss << "i = " << i << "; ori = " << oriscore << "; torque = " << tscore << "; pos = " << posscore << "; total = " << test.score;
+				if(i == 0 || test.score < best.score)
+				{
+					best = test;
+					ss << "; new best score!" << endl;
+				}
+				else
+					ss << endl;
+
+				Debug(ss.str());
+#else
+				if(i == 0 || test.score < best.score)
+					best = test;
+#endif
+			}
+
+			Debug(((stringstream&)(stringstream() << "best score = " << best.score << endl)).str());
+
+			// apply whichever proposal scored best
+			lhip  .SetWorldTorque(best.jtorques[0]);
+			rhip  .SetWorldTorque(best.jtorques[1]);
+			lknee .SetWorldTorque(best.jtorques[2]);
+			rknee .SetWorldTorque(best.jtorques[3]);
+			rankle.SetWorldTorque(best.jtorques[4]);
+			rankle.SetWorldTorque(best.jtorques[5]);
 		}
 
 		void Update(Soldier* dood, const TimingInfo& time)
