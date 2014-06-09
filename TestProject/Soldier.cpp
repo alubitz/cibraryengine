@@ -326,8 +326,6 @@ namespace Test
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
 			Quaternion sdo  = Quaternion::FromRVec(0, -dood->yaw, 0);
-			Quaternion rsdo = Quaternion::Reverse(sdo);
-			Quaternion rp   = Quaternion::Reverse(p);
 
 			lhip  .SetWorldTorque(Vec3());
 			rhip  .SetWorldTorque(Vec3());
@@ -338,7 +336,7 @@ namespace Test
 
 			struct LegStuffProposal
 			{
-				Vec3 jtorques[6], btorques[7];
+				Vec3 jtorques[6], btorques[7], nu_rots[7];
 				Quaternion nu_oris[7];
 				float score;
 			} best, test;
@@ -346,19 +344,37 @@ namespace Test
 			CBone*  bones [7] = { &pelvis, &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
 			CJoint* joints[6] = { &lhip, &rhip, &lknee, &rknee, &lankle, &rankle };
 
-			Vec3 actual_lankle = lfoot.rb->GetOrientation() * lankle.sjc->pos + lfoot.rb->GetPosition();
-			Vec3 actual_lhip   = pelvis.rb->GetOrientation() * lhip.sjc->pos + pelvis.rb->GetPosition();
-			Vec3 actual_rankle = rfoot.rb->GetOrientation() * rankle.sjc->pos + rfoot.rb->GetPosition();
-			Vec3 actual_rhip   = pelvis.rb->GetOrientation() * rhip.sjc->pos + pelvis.rb->GetPosition();
+			// find average velocity of the upper body
+			Vec3 ubody_vel;
+			float ubody_mass = 0.0f;
+			RigidBody* ubody_rbs[11] = { head.rb, torso2.rb, torso1.rb, pelvis.rb, luarm.rb, ruarm.rb, llarm.rb, rlarm.rb, lhand.rb, rhand.rb, ((Gun*)dood->equipped_weapon)->rigid_body };
+			for(unsigned int i = 0; i < 11; ++i)
+			{
+				float m = ubody_rbs[i]->GetMass();
+				ubody_vel  += ubody_rbs[i]->GetLinearVelocity() * m;
+				ubody_mass += m;
+			}
+			ubody_vel /= ubody_mass;
+
+			// compute current deltas for select joint pairs (ltr = left ankle to right ankle, lth = left ankle to left hip, htr = right hip to right ankle)
+			Vec3 actual_lankle = lfoot.rb->GetOrientation()  * lankle.sjc->pos + lfoot.rb->GetPosition();
+			Vec3 actual_lhip   = pelvis.rb->GetOrientation() * lhip.sjc->pos   + pelvis.rb->GetPosition();
+			Vec3 actual_rankle = rfoot.rb->GetOrientation()  * rankle.sjc->pos + rfoot.rb->GetPosition();
+			Vec3 actual_rhip   = pelvis.rb->GetOrientation() * rhip.sjc->pos   + pelvis.rb->GetPosition();
 
 			Vec3 actual_lth = actual_lhip - actual_lankle;
 			Vec3 actual_htr = actual_rankle - actual_rhip;
 			Vec3 actual_ltr = actual_rankle - actual_lankle;
 
-			// TODO: compute values for these which take into account desired avg velocity, etc.
-			Vec3 desired_lth = sdo * (lhip.sjc->pos - lankle.sjc->pos) * 1 + actual_lth * 0;
-			Vec3 desired_htr = sdo * (rankle.sjc->pos - rhip.sjc->pos) * 1 + actual_htr * 0;
-			Vec3 desired_ltr = actual_ltr;			//desired_lth + desired_htr + p * (rhip.sjc->pos - lhip.sjc->pos);
+			// compute desired values for those deltas // TODO: modify this to take into account desired average velocity, etc.?
+			Vec3 hip_offset = Vec3(-0.02f, -0.01f, 0);
+			Vec3 desired_hip_center = (actual_lankle + actual_rankle) * 0.5f + p * (lhip.sjc->pos + rhip.sjc->pos - (lankle.sjc->pos + rankle.sjc->pos)) * 0.5f + sdo * hip_offset;
+			Vec3 hip_cross = p * (rhip.sjc->pos - lhip.sjc->pos);
+			Vec3 half_hip_cross = hip_cross * 0.5f;
+
+			Vec3 desired_lth = ((desired_hip_center - half_hip_cross) - lankle.sjc->pos) * 1 + actual_lth * 0;
+			Vec3 desired_htr = sdo * (rankle.sjc->pos - (desired_hip_center + half_hip_cross)) * 1 + actual_htr * 0;
+			Vec3 desired_ltr = (desired_lth + desired_htr + hip_cross) * 0 + actual_ltr * 1;
 
 			for(unsigned int i = 0; i < 5000; ++i)
 			{
@@ -401,15 +417,18 @@ namespace Test
 				for(unsigned int j = 0; j < 7; ++j)
 				{
 					RigidBody* rb = bones[j]->rb;
-					Vec3 rot = rb->GetAngularVelocity() + rb->GetInvMoI() * test.btorques[j] * time.elapsed;
+					const Vec3& rot = test.nu_rots[j] = rb->GetAngularVelocity() + rb->GetInvMoI() * test.btorques[j] * time.elapsed;
 
 					if(float magsq = rot.ComputeMagnitudeSquared())					// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
 					{
 						float mag = sqrtf(magsq), half = mag * time.elapsed * 0.5f, coeff = -sinf(half) / mag;
 						test.nu_oris[j] = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * rb->GetOrientation();						
 					}
+					else
+						test.nu_oris[j] = rb->GetOrientation();
 				}
 
+				// TODO: determine resultant linear velocity of each bone, and use that to estimate the forces/torques of the foot/ground interactions
 
 				// find out positional relationship between lfoot, rfoot, and pelvis (for scoring purposes)
 				Vec3 llleg_len = test.nu_oris[3] * (lknee .sjc->pos - lankle.sjc->pos);
@@ -432,37 +451,32 @@ namespace Test
 				// scoring for how big the applied torques are (minor)
 				float torque_score = 0.0f;
 				for(unsigned int j = 0; j < 6; ++j)
-					torque_score += test.jtorques[j].ComputeMagnitudeSquared() * 0.0f;//0.0000005f;
+					torque_score += test.jtorques[j].ComputeMagnitudeSquared();
+
+				// scoring for how much angular velocity the bones have (minor)
+				float rot_score = 0.0f;
+				for(unsigned int j = 0; j < 7; ++j)
+					rot_score += test.nu_rots[j].ComputeMagnitudeSquared();
+
 
 				// scoring for how well the relative positions of certain joints match what has been requested
 				Vec3 ltr_error = (proposed_ltr - desired_ltr);
-				Vec3 lth_error = (proposed_lth - desired_lth);    lth_error.x *= 0.25f;    lth_error.z *= 0.25f;
-				Vec3 htr_error = (proposed_htr - desired_htr);    htr_error.x *= 0.25f;    htr_error.z *= 0.25f;
+				Vec3 lth_error = (proposed_lth - desired_lth);	//	lth_error.x *= 0.25f;	lth_error.z *= 0.25f;
+				Vec3 htr_error = (proposed_htr - desired_htr);	//	htr_error.x *= 0.25f;	htr_error.z *= 0.25f;
 				float ltr = ltr_error.ComputeMagnitudeSquared();
 				float lth = lth_error.ComputeMagnitudeSquared();
 				float htr = htr_error.ComputeMagnitudeSquared();
 				float pos_score = ltr + lth + htr;
 
-				test.score = ori_score + torque_score + pos_score;
-
+				test.score =
+						ori_score
+					+   torque_score * 0.0000001f
+					+   pos_score
+					+   rot_score * 0.000005f;
 
 				// if it scores better, use it as the basis for subsequent variations
-#if 0
-				stringstream ss;
-				ss << "i = " << i << "; ori = " << oriscore << "; torque = " << tscore << "; pos = " << posscore << "; total = " << test.score;
-				if(i == 0 || test.score < best.score)
-				{
-					best = test;
-					ss << "; new best score!" << endl;
-				}
-				else
-					ss << endl;
-
-				Debug(ss.str());
-#else
 				if(i == 0 || test.score < best.score)
 					best = test;
-#endif
 			}
 
 			Debug(((stringstream&)(stringstream() << "best score = " << best.score << endl)).str());
