@@ -244,13 +244,13 @@ namespace Test
 			t1 = Quaternion::FromRVec(twist_ori.ToRVec() * -0.5f) * t2;
 		}
 
-		void DoAnchorStuff(Soldier* dood, const TimingInfo& time, const Quaternion& t2)
+		void DoAnchorStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
 			static const float helper_frac = 1.0f, rest_frac = 1.0f - helper_frac;
 
 			Quaternion current_ori = pelvis.rb->GetOrientation();
-			Quaternion ctd         = current_ori * Quaternion::Reverse(t2);
-			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * rest_frac) * t2;
+			Quaternion ctd         = current_ori * Quaternion::Reverse(p);
+			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * rest_frac) * p;
 
 			Vec3 local_com = pelvis.rb->GetMassInfo().com;
 
@@ -321,11 +321,31 @@ namespace Test
 			knee.SetWorldTorque((temp + knee.actual) * 0.5f);
 		}
 
-		
-
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
-			Quaternion sdo  = Quaternion::FromRVec(0, -dood->yaw, 0);
+			// TODO: come up with a pose that satisfies IK constraints for placed feet, and the pelvis pos/ori, while somehow being achievable with joint torques
+			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);
+			Quaternion desired_oris[7] = { p, sdo, sdo, sdo, sdo, sdo, sdo };
+
+			pelvis.ComputeDesiredTorqueWithDefaultMoI(desired_oris[0], inv_timestep);
+			luleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[1], inv_timestep);
+			ruleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[2], inv_timestep);
+			llleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[3], inv_timestep);
+			rlleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[4], inv_timestep);
+			lfoot.ComputeDesiredTorqueWithDefaultMoI (desired_oris[5], inv_timestep);
+			rfoot.ComputeDesiredTorqueWithDefaultMoI (desired_oris[6], inv_timestep);
+
+			lhip  .SetTorqueToSatisfyB();
+			rhip  .SetTorqueToSatisfyB();
+			lknee .SetTorqueToSatisfyB();
+			rknee .SetTorqueToSatisfyB();
+			lankle.SetTorqueToSatisfyB();
+			rankle.SetTorqueToSatisfyB();
+
+			return;
+
+
+
 
 			lhip  .SetWorldTorque(Vec3());
 			rhip  .SetWorldTorque(Vec3());
@@ -344,17 +364,20 @@ namespace Test
 			CBone*  bones [7] = { &pelvis, &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
 			CJoint* joints[6] = { &lhip, &rhip, &lknee, &rknee, &lankle, &rankle };
 
-			// find average velocity of the upper body
-			Vec3 ubody_vel;
-			float ubody_mass = 0.0f;
-			RigidBody* ubody_rbs[11] = { head.rb, torso2.rb, torso1.rb, pelvis.rb, luarm.rb, ruarm.rb, llarm.rb, rlarm.rb, lhand.rb, rhand.rb, ((Gun*)dood->equipped_weapon)->rigid_body };
-			for(unsigned int i = 0; i < 11; ++i)
+			// find the lower body's center of mass and average velocity
+			float mass_tot = 0.0f;
+			Vec3 com, avg_vel;
+			for(unsigned int i = 0; i < 7; ++i)
 			{
-				float m = ubody_rbs[i]->GetMass();
-				ubody_vel  += ubody_rbs[i]->GetLinearVelocity() * m;
-				ubody_mass += m;
+				RigidBody* rb = bones[i]->rb;
+				float mass = rb->GetMass();
+
+				mass_tot += mass;
+				com      += rb->GetCenterOfMass()   * mass;
+				avg_vel  += rb->GetLinearVelocity() * mass;
 			}
-			ubody_vel /= ubody_mass;
+			com     /= mass_tot;
+			avg_vel /= mass_tot;
 
 			// compute current deltas for select joint pairs (ltr = left ankle to right ankle, lth = left ankle to left hip, htr = right hip to right ankle)
 			Vec3 actual_lankle = lfoot.rb->GetOrientation()  * lankle.sjc->pos + lfoot.rb->GetPosition();
@@ -428,7 +451,33 @@ namespace Test
 						test.nu_oris[j] = rb->GetOrientation();
 				}
 
-				// TODO: determine resultant linear velocity of each bone, and use that to estimate the forces/torques of the foot/ground interactions
+				// determine resultant position of each bone, and use that to estimate the forces/torques of the foot/ground interactions
+				Vec3 nu_coms[7];
+				nu_coms[0] = Vec3();
+				nu_coms[1] = nu_coms[0] + test.nu_oris[0] * (lhip.sjc->pos - pelvis.rb->GetMassInfo().com) + test.nu_oris[1] * (luleg.rb->GetMassInfo().com - lhip.sjc->pos);
+				nu_coms[2] = nu_coms[0] + test.nu_oris[0] * (rhip.sjc->pos - pelvis.rb->GetMassInfo().com) + test.nu_oris[2] * (ruleg.rb->GetMassInfo().com - rhip.sjc->pos);
+				nu_coms[3] = nu_coms[1] + test.nu_oris[1] * (lknee.sjc->pos - luleg.rb->GetMassInfo().com) + test.nu_oris[3] * (llleg.rb->GetMassInfo().com - lknee.sjc->pos);
+				nu_coms[4] = nu_coms[2] + test.nu_oris[2] * (rknee.sjc->pos - ruleg.rb->GetMassInfo().com) + test.nu_oris[4] * (rlleg.rb->GetMassInfo().com - rknee.sjc->pos);
+				nu_coms[5] = nu_coms[3] + test.nu_oris[3] * (lankle.sjc->pos - llleg.rb->GetMassInfo().com) + test.nu_oris[5] * (lfoot.rb->GetMassInfo().com - lankle.sjc->pos);
+				nu_coms[6] = nu_coms[4] + test.nu_oris[4] * (rankle.sjc->pos - rlleg.rb->GetMassInfo().com) + test.nu_oris[6] * (rfoot.rb->GetMassInfo().com - rankle.sjc->pos);
+
+				Vec3 nu_com;
+				for(unsigned int j = 0; j < 7; ++j)
+				{
+					float mass = bones[j]->rb->GetMass();
+					nu_com += nu_coms[j] * mass;
+				}
+				nu_com /= mass_tot;
+				nu_com = avg_vel * time.elapsed + com - nu_com;
+				for(unsigned int j = 0; j < 7; ++j)
+					nu_coms[j] += nu_com;
+
+				// now we know where the feet want to be, and we can use that information to approximate the foot/ground interaction
+				Vec3 lfoot_vel = (nu_coms[5] - lfoot.rb->GetCenterOfMass()) * inv_timestep;
+				Vec3 rfoot_vel = (nu_coms[6] - rfoot.rb->GetCenterOfMass()) * inv_timestep;
+
+				Vec3 fg_guess = (avg_vel + Vec3(0, -9.8f * time.elapsed, 0)) + 0.5f * (lfoot_vel + rfoot_vel);
+
 
 				// find out positional relationship between lfoot, rfoot, and pelvis (for scoring purposes)
 				Vec3 llleg_len = test.nu_oris[3] * (lknee .sjc->pos - lankle.sjc->pos);
@@ -458,6 +507,9 @@ namespace Test
 				for(unsigned int j = 0; j < 7; ++j)
 					rot_score += test.nu_rots[j].ComputeMagnitudeSquared();
 
+				// scoring for the foot-ground interaction?
+				float fg_score = (pelvis.rb->GetCenterOfMass() + fg_guess * time.elapsed - Vec3(0, 1.05f, 0)).ComputeMagnitudeSquared();
+
 
 				// scoring for how well the relative positions of certain joints match what has been requested
 				Vec3 ltr_error = (proposed_ltr - desired_ltr);
@@ -470,9 +522,10 @@ namespace Test
 
 				test.score =
 						ori_score
-					+   torque_score * 0.0000001f
-					+   pos_score
-					+   rot_score * 0.000005f;
+//					+   torque_score * 0.0000001f
+//					+   pos_score
+//					+   rot_score * 0.000005f
+					+   fg_score * 2;
 
 				// if it scores better, use it as the basis for subsequent variations
 				if(i == 0 || test.score < best.score)
@@ -520,8 +573,9 @@ namespace Test
 			GetDesiredTorsoOris(dood, p, t1, t2);
 
 #if ENABLE_PELVIS_ANCHOR
-			DoAnchorStuff  ( dood, time,        t2 );
+			DoAnchorStuff  ( dood, time, p         );
 #endif
+
 			DoHeadOri      ( dood, time            );
 			DoArmsAimingGun( dood, time,        t2 );
 			DoTorsoOris    ( dood, time,    t1, t2 );
