@@ -37,7 +37,7 @@
 #define PHYSICS_TICK_FREQUENCY 60
 #define MAX_FIXED_STEPS_PER_UPDATE 1
 
-#define PROFILE_DOFIXEDSTEP 0
+#define PROFILE_DOFIXEDSTEP 1
 
 #define NUM_COLLISION_THREADS 8
 
@@ -227,12 +227,6 @@ namespace CibraryEngine
 #endif
 		float timestep = timer_interval;
 
-		if(step_callback != NULL) { step_callback->OnPhysicsStep(this, timestep); }
-
-#if PROFILE_DOFIXEDSTEP
-		timer_step_callback += timer.GetAndRestart();
-#endif
-
 		// set forces to what was applied by gravity / user forces; also the objects may deactivate now
 		for(unordered_set<CollisionObject*>::iterator iter = dynamic_objects.begin(), objects_end = dynamic_objects.end(); iter != objects_end; ++iter)
 			(*iter)->UpdateVel(timestep);
@@ -311,6 +305,13 @@ namespace CibraryEngine
 #if PROFILE_DOFIXEDSTEP
 		timer_collide += timer.GetAndRestart();
 #endif
+
+		if(step_callback != NULL) { step_callback->OnPhysicsStep(this, timestep); }
+
+#if PROFILE_DOFIXEDSTEP
+		timer_step_callback += timer.GetAndRestart();
+#endif
+
 
 		// do once-per-tick update actions for all the constraints in the physics world
 		vector<PhysicsConstraint*> use_constraints;
