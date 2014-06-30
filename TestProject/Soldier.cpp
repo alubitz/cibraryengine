@@ -342,205 +342,48 @@ namespace Test
 			lankle.SetTorqueToSatisfyB();
 			rankle.SetTorqueToSatisfyB();
 
-			return;
+			
+			// magic brain nonsense
+			Vec3 translation = -pelvis.rb->GetCenterOfMass();
+			Mat3 rotation = Mat3::FromAxisAngle(0, 1, 0, dood->yaw);
 
-
-
-
-			lhip  .SetWorldTorque(Vec3());
-			rhip  .SetWorldTorque(Vec3());
-			lknee .SetWorldTorque(Vec3());
-			rknee .SetWorldTorque(Vec3());
-			lankle.SetWorldTorque(Vec3());
-			rankle.SetWorldTorque(Vec3());
-
-			struct LegStuffProposal
+			struct AddRBToVector
 			{
-				Vec3 jtorques[6], btorques[7], nu_rots[7];
-				Quaternion nu_oris[7];
-				float score;
-			} best, test;
-
-			CBone*  bones [7] = { &pelvis, &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
-			CJoint* joints[6] = { &lhip, &rhip, &lknee, &rknee, &lankle, &rankle };
-
-			// find the lower body's center of mass and average velocity
-			float mass_tot = 0.0f;
-			Vec3 com, avg_vel;
-			for(unsigned int i = 0; i < 7; ++i)
-			{
-				RigidBody* rb = bones[i]->rb;
-				float mass = rb->GetMass();
-
-				mass_tot += mass;
-				com      += rb->GetCenterOfMass()   * mass;
-				avg_vel  += rb->GetLinearVelocity() * mass;
-			}
-			com     /= mass_tot;
-			avg_vel /= mass_tot;
-
-			// compute current deltas for select joint pairs (ltr = left ankle to right ankle, lth = left ankle to left hip, htr = right hip to right ankle)
-			Vec3 actual_lankle = lfoot.rb->GetOrientation()  * lankle.sjc->pos + lfoot.rb->GetPosition();
-			Vec3 actual_lhip   = pelvis.rb->GetOrientation() * lhip.sjc->pos   + pelvis.rb->GetPosition();
-			Vec3 actual_rankle = rfoot.rb->GetOrientation()  * rankle.sjc->pos + rfoot.rb->GetPosition();
-			Vec3 actual_rhip   = pelvis.rb->GetOrientation() * rhip.sjc->pos   + pelvis.rb->GetPosition();
-
-			Vec3 actual_lth = actual_lhip - actual_lankle;
-			Vec3 actual_htr = actual_rankle - actual_rhip;
-			Vec3 actual_ltr = actual_rankle - actual_lankle;
-
-			// compute desired values for those deltas // TODO: modify this to take into account desired average velocity, etc.?
-			Vec3 hip_offset = Vec3(-0.02f, -0.01f, 0);
-			Vec3 desired_hip_center = (actual_lankle + actual_rankle) * 0.5f + p * (lhip.sjc->pos + rhip.sjc->pos - (lankle.sjc->pos + rankle.sjc->pos)) * 0.5f + sdo * hip_offset;
-			Vec3 hip_cross = p * (rhip.sjc->pos - lhip.sjc->pos);
-			Vec3 half_hip_cross = hip_cross * 0.5f;
-
-			Vec3 desired_lth = ((desired_hip_center - half_hip_cross) - lankle.sjc->pos) * 1 + actual_lth * 0;
-			Vec3 desired_htr = sdo * (rankle.sjc->pos - (desired_hip_center + half_hip_cross)) * 1 + actual_htr * 0;
-			Vec3 desired_ltr = (desired_lth + desired_htr + hip_cross) * 0 + actual_ltr * 1;
-
-			for(unsigned int i = 0; i < 5000; ++i)
-			{
-				test = best;
-				if(i > 0)
+				// one rb = 6 Vec3 values
+				AddRBToVector(RigidBody* rb, const Vec3& translation, const Mat3& rotation, vector<Vec3>& v)
 				{
-					// apply random variations
-					float bfrac = 0.1f * min(1.0f, best.score), afrac = 1.0f - bfrac;
-					for(unsigned int j = 0; j < 3; ++j)
-					{
-						unsigned int joint = Random3D::RandInt(6);
-						const CJoint& cj = *joints[joint];
-						const SkeletalJointConstraint& sjc = *cj.sjc;
-						const Mat3& oaxes = cj.oriented_axes;
+					Mat3 rb_rot = rotation * rb->GetOrientation().ToMat3();
 
-						Vec3& torque = test.jtorques[joint];
-						
-						Vec3 local_torque = oaxes * torque;
-
-						unsigned int axis = Random3D::RandInt(3);
-						float& f   = ((float*)&local_torque  .x)[axis];
-						float& min = ((float*)&sjc.min_torque.x)[axis];
-						float& max = ((float*)&sjc.max_torque.x)[axis];
-						f = f * afrac + Random3D::Rand(min, max) * bfrac;
-
-						test.jtorques[joint] = oaxes.TransposedMultiply(local_torque);
-					}
+					v.push_back(rotation * (rb->GetPosition() + translation));		// pos
+					v.push_back(Vec3(rb_rot[0], rb_rot[1], rb_rot[2]));				// ori (rm)
+					v.push_back(Vec3(rb_rot[3], rb_rot[4], rb_rot[6]));
+					v.push_back(Vec3(rb_rot[6], rb_rot[7], rb_rot[8]));
+					v.push_back(rotation * rb->GetLinearVelocity());				// vel
+					v.push_back(rotation * rb->GetAngularVelocity());				// rot
 				}
+			};
 
+			vector<Vec3> inputs;
 
-				// see what effect that will have
-				test.btorques[0] = pelvis.applied_torque + test.jtorques[0] + test.jtorques[1];
-				test.btorques[1] = test.jtorques[2] - test.jtorques[0];
-				test.btorques[2] = test.jtorques[3] - test.jtorques[1];
-				test.btorques[3] = test.jtorques[4] - test.jtorques[2];
-				test.btorques[4] = test.jtorques[5] - test.jtorques[3];
-				test.btorques[5] = -test.jtorques[4];
-				test.btorques[6] = -test.jtorques[5];
+			// 18 bones + gun = 19 rbs = 114 vec3s
+			for(unsigned int i = 0; i < dood->rigid_bodies.size(); ++i)
+				AddRBToVector(dood->rigid_bodies[i], translation, rotation, inputs);
+			AddRBToVector(((Gun*)dood->equipped_weapon)->rigid_body, translation, rotation, inputs);
 
-				for(unsigned int j = 0; j < 7; ++j)
-				{
-					RigidBody* rb = bones[j]->rb;
-					const Vec3& rot = test.nu_rots[j] = rb->GetAngularVelocity() + rb->GetInvMoI() * test.btorques[j] * time.elapsed;
+			// TODO: consult previous tick's desired values (if there was a previous tick) to score how well this brain achieved its objectives
 
-					if(float magsq = rot.ComputeMagnitudeSquared())					// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
-					{
-						float mag = sqrtf(magsq), half = mag * time.elapsed * 0.5f, coeff = -sinf(half) / mag;
-						test.nu_oris[j] = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * rb->GetOrientation();						
-					}
-					else
-						test.nu_oris[j] = rb->GetOrientation();
-				}
+			// TODO: compute actual desired values for these things
+			// left foot
+			inputs.push_back(Vec3());		// linear
+			inputs.push_back(Vec3());		// angular
+			// right foot
+			inputs.push_back(Vec3());		// linear
+			inputs.push_back(Vec3());		// angular
+			// pelvis
+			inputs.push_back(Vec3());		// linear
+			inputs.push_back(Vec3());		// angular
 
-				// determine resultant position of each bone, and use that to estimate the forces/torques of the foot/ground interactions
-				Vec3 nu_coms[7];
-				nu_coms[0] = Vec3();
-				nu_coms[1] = nu_coms[0] + test.nu_oris[0] * (lhip.sjc->pos - pelvis.rb->GetMassInfo().com) + test.nu_oris[1] * (luleg.rb->GetMassInfo().com - lhip.sjc->pos);
-				nu_coms[2] = nu_coms[0] + test.nu_oris[0] * (rhip.sjc->pos - pelvis.rb->GetMassInfo().com) + test.nu_oris[2] * (ruleg.rb->GetMassInfo().com - rhip.sjc->pos);
-				nu_coms[3] = nu_coms[1] + test.nu_oris[1] * (lknee.sjc->pos - luleg.rb->GetMassInfo().com) + test.nu_oris[3] * (llleg.rb->GetMassInfo().com - lknee.sjc->pos);
-				nu_coms[4] = nu_coms[2] + test.nu_oris[2] * (rknee.sjc->pos - ruleg.rb->GetMassInfo().com) + test.nu_oris[4] * (rlleg.rb->GetMassInfo().com - rknee.sjc->pos);
-				nu_coms[5] = nu_coms[3] + test.nu_oris[3] * (lankle.sjc->pos - llleg.rb->GetMassInfo().com) + test.nu_oris[5] * (lfoot.rb->GetMassInfo().com - lankle.sjc->pos);
-				nu_coms[6] = nu_coms[4] + test.nu_oris[4] * (rankle.sjc->pos - rlleg.rb->GetMassInfo().com) + test.nu_oris[6] * (rfoot.rb->GetMassInfo().com - rankle.sjc->pos);
-
-				Vec3 nu_com;
-				for(unsigned int j = 0; j < 7; ++j)
-				{
-					float mass = bones[j]->rb->GetMass();
-					nu_com += nu_coms[j] * mass;
-				}
-				nu_com /= mass_tot;
-				nu_com = avg_vel * time.elapsed + com - nu_com;
-				for(unsigned int j = 0; j < 7; ++j)
-					nu_coms[j] += nu_com;
-
-				// now we know where the feet want to be, and we can use that information to approximate the foot/ground interaction
-				Vec3 lfoot_vel = (nu_coms[5] - lfoot.rb->GetCenterOfMass()) * inv_timestep;
-				Vec3 rfoot_vel = (nu_coms[6] - rfoot.rb->GetCenterOfMass()) * inv_timestep;
-
-				Vec3 fg_guess = (avg_vel + Vec3(0, -9.8f * time.elapsed, 0)) + 0.5f * (lfoot_vel + rfoot_vel);
-
-
-				// find out positional relationship between lfoot, rfoot, and pelvis (for scoring purposes)
-				Vec3 llleg_len = test.nu_oris[3] * (lknee .sjc->pos - lankle.sjc->pos);
-				Vec3 luleg_len = test.nu_oris[1] * (lhip  .sjc->pos - lknee .sjc->pos);
-				Vec3 xhip_len  = test.nu_oris[0] * (rhip  .sjc->pos - lhip  .sjc->pos);
-				Vec3 ruleg_len = test.nu_oris[2] * (rknee .sjc->pos - rhip  .sjc->pos);
-				Vec3 rlleg_len = test.nu_oris[4] * (rankle.sjc->pos - rknee .sjc->pos);
-
-				Vec3 proposed_lth = llleg_len + luleg_len;
-				Vec3 proposed_htr = ruleg_len + rlleg_len;
-				Vec3 proposed_ltr = proposed_lth + xhip_len + proposed_htr;
-
-
-				// scoring for how well the orientations of certain bones matches what has been requested
-				float pori = (p   * Quaternion::Reverse(test.nu_oris[0])).ToRVec().ComputeMagnitudeSquared();
-				float lori = (sdo * Quaternion::Reverse(test.nu_oris[5])).ToRVec().ComputeMagnitudeSquared();
-				float rori = (sdo * Quaternion::Reverse(test.nu_oris[6])).ToRVec().ComputeMagnitudeSquared();
-				float ori_score = pori + lori + rori;
-
-				// scoring for how big the applied torques are (minor)
-				float torque_score = 0.0f;
-				for(unsigned int j = 0; j < 6; ++j)
-					torque_score += test.jtorques[j].ComputeMagnitudeSquared();
-
-				// scoring for how much angular velocity the bones have (minor)
-				float rot_score = 0.0f;
-				for(unsigned int j = 0; j < 7; ++j)
-					rot_score += test.nu_rots[j].ComputeMagnitudeSquared();
-
-				// scoring for the foot-ground interaction?
-				float fg_score = (pelvis.rb->GetCenterOfMass() + fg_guess * time.elapsed - Vec3(0, 1.05f, 0)).ComputeMagnitudeSquared();
-
-
-				// scoring for how well the relative positions of certain joints match what has been requested
-				Vec3 ltr_error = (proposed_ltr - desired_ltr);
-				Vec3 lth_error = (proposed_lth - desired_lth);	//	lth_error.x *= 0.25f;	lth_error.z *= 0.25f;
-				Vec3 htr_error = (proposed_htr - desired_htr);	//	htr_error.x *= 0.25f;	htr_error.z *= 0.25f;
-				float ltr = ltr_error.ComputeMagnitudeSquared();
-				float lth = lth_error.ComputeMagnitudeSquared();
-				float htr = htr_error.ComputeMagnitudeSquared();
-				float pos_score = ltr + lth + htr;
-
-				test.score =
-						ori_score
-//					+   torque_score * 0.0000001f
-//					+   pos_score
-//					+   rot_score * 0.000005f
-					+   fg_score * 2;
-
-				// if it scores better, use it as the basis for subsequent variations
-				if(i == 0 || test.score < best.score)
-					best = test;
-			}
-
-			Debug(((stringstream&)(stringstream() << "best score = " << best.score << endl)).str());
-
-			// apply whichever proposal scored best
-			lhip  .SetWorldTorque(best.jtorques[0]);
-			rhip  .SetWorldTorque(best.jtorques[1]);
-			lknee .SetWorldTorque(best.jtorques[2]);
-			rknee .SetWorldTorque(best.jtorques[3]);
-			rankle.SetWorldTorque(best.jtorques[4]);
-			rankle.SetWorldTorque(best.jtorques[5]);
+			// TODO: magic brain thing do stuff here now
 		}
 
 		void Update(Soldier* dood, const TimingInfo& time)

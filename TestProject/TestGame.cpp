@@ -14,6 +14,8 @@
 #include "DefaultWeapon.h"
 #include "ArtilleryWeapon.h"
 
+#include "Brambles.h"
+
 #include "WorldBoundary.h"
 
 #include "../CibraryEngine/DebugDrawMaterial.h"
@@ -550,6 +552,8 @@ namespace Test
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("level"); }
 
 		LoadLevel(this, "TestLevel");
+
+		Spawn(new Bramble(this, Vec3(0, 0, 20)));
 
 		nav_graph = LoadNavGraph(this, "Files/Levels/TestNav.nav");
 		if(nav_graph == 0)
