@@ -25,7 +25,9 @@ namespace Test
 			Sphere bs;
 
 			vector<UberModel*> uber_models;
-			vector<RigidBody*> rigid_bodies;
+
+			RigidBody* rigid_body;
+			TriangleMeshShape* collision_shape;
 
 			Bramble(GameState* gs, const Vec3& pos);
 
@@ -65,7 +67,7 @@ namespace Test
 			bool Grow();
 
 			void AppendVertexData(UberModel::LOD* lod, unsigned int n_verts, float* pos, float* uv, float* normal);
-			void GetRigidBodies(vector<RigidBody*>& rigid_bodies);
+			void AppendCollisionData(vector<float>& vec, unsigned int n_verts, float* pos);
 
 			void GetUberModels(vector<UberModel*>& uber_models, unsigned int n_verts, float* pos, float* uv, float* normal);
 	};

@@ -13,7 +13,8 @@ namespace Test
 		root(NULL),
 		bs(),
 		uber_models(),
-		rigid_bodies()
+		rigid_body(NULL),
+		collision_shape(NULL)
 	{
 		root = new BrambleNode(pos, Vec3(), Quaternion::FromRVec(0, Random3D::Rand() * float(M_PI) * 2.0f, 0), 1);
 
@@ -39,6 +40,44 @@ namespace Test
 			unsigned int n = uber_models[i]->lods[0]->vertices.size();
 			Debug(((stringstream&)(stringstream() << '\t' << "brambles contains " << n << " verts = " << (n / n_verts) << " nodes" << endl)).str());
 		}
+
+		static const float reference_radius = 0.4f;		// radius of collision cylinder when scale = 1
+
+		Vec3 cyl_verts[16];
+		for(unsigned int i = 0; i < 8; ++i)
+		{
+			float theta = 2 * i * float(M_PI) / 8;
+			float x = cosf(theta) * reference_radius, z = sinf(theta) * reference_radius;
+
+			cyl_verts[i * 2 + 0] = Vec3(x, 0, z);
+			cyl_verts[i * 2 + 1] = Vec3(x, 1, z);
+		}
+
+		Vec3 node_collision_shape[48];
+		for(unsigned int i = 0; i < 8; ++i)
+		{
+			node_collision_shape[i * 6 + 0] = cyl_verts[i * 2];
+			node_collision_shape[i * 6 + 1] = cyl_verts[i * 2 + 1];
+			node_collision_shape[i * 6 + 2] = cyl_verts[(i + 1) % 8 * 2];
+
+			node_collision_shape[i * 6 + 3] = cyl_verts[(i + 1) % 8 * 2];
+			node_collision_shape[i * 6 + 4] = cyl_verts[i * 2 + 1];
+			node_collision_shape[i * 6 + 5] = cyl_verts[(i + 1) % 8 * 2 + 1];
+		}
+
+		vector<float> collision_verts;
+		root->AppendCollisionData(collision_verts, 48, (float*)node_collision_shape);
+
+		VertexBuffer* shape_vbo = new VertexBuffer(Triangles);
+		shape_vbo->SetNumVerts(collision_verts.size() / 3);
+		shape_vbo->AddAttribute("gl_Vertex", Float, 3);
+
+		memcpy(shape_vbo->GetFloatPointer("gl_Vertex"), collision_verts.data(), collision_verts.size() * sizeof(float));
+
+		collision_shape = new TriangleMeshShape(shape_vbo);
+
+		shape_vbo->Dispose();
+		delete shape_vbo;
 	}
 
 	void Bramble::InnerDispose()
@@ -51,6 +90,8 @@ namespace Test
 			delete uber_models[i];
 		}
 		uber_models.clear();
+
+		if(collision_shape) { collision_shape->Dispose(); delete collision_shape; collision_shape = NULL; }
 	}
 
 	void Bramble::Vis(SceneRenderer* renderer)
@@ -62,28 +103,19 @@ namespace Test
 
 	void Bramble::Spawned()
 	{
-		rigid_bodies.clear();
-		root->GetRigidBodies(rigid_bodies);
-		
-		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-			game_state->physics_world->AddCollisionObject(*iter);
+		rigid_body = new RigidBody(this, collision_shape, MassInfo());
+		game_state->physics_world->AddCollisionObject(rigid_body);
 	}
 
 	void Bramble::DeSpawned()
 	{
-		for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
+		if(rigid_body)
 		{
-			game_state->physics_world->RemoveCollisionObject(*iter);
-
-			MultiSphereShape* mss = (MultiSphereShape*)(*iter)->GetCollisionShape();
-
-			(*iter)->Dispose();
-			delete *iter;
-
-			mss->Dispose();
-			delete mss;
+			game_state->physics_world->RemoveCollisionObject(rigid_body);
+			rigid_body->Dispose();
+			delete rigid_body;
+			rigid_body = NULL;
 		}
-		rigid_bodies.clear();
 	}
 
 	bool Bramble::GetShot(Shot* shot, const Vec3& poi, const Vec3& vel, float mass)
@@ -127,8 +159,7 @@ namespace Test
 			const float random_factor = 0.2f;
 			const float branch_angle = 0.5f;
 
-			//if(scale > 0.3f)
-			if(scale > 0.5f)
+			if(scale > 0.4f)
 			{
 				split_ready += Random3D::Rand();
 
@@ -232,20 +263,27 @@ namespace Test
 		return VTNTT(x, uvw, n);
 	}
 
-	void BrambleNode::GetRigidBodies(vector<RigidBody*>& rigid_bodies)
+	void BrambleNode::AppendCollisionData(vector<float>& vec, unsigned int n_verts, float* pos)
 	{
-		static const float reference_size = 0.55f;							// radius of a node with scale = 1
-
 		if(parent != NULL)
 		{
-			Sphere spheres[2] = { Sphere(pos, scale * reference_size), Sphere(parent->pos, parent->scale * reference_size) };
-			MultiSphereShape* mss = new MultiSphereShape(spheres, 2);
+			for(unsigned int i = 0; i < n_verts; ++i)
+			{
+				Vec3 x = (Vec3&)pos[i * 3];
+				float y = min(1.0f, max(0.0f, x.y));
+				float un_y = 1.0f - y;
 
-			rigid_bodies.push_back(new RigidBody(NULL, mss, MassInfo()));
+				Mat4 lerped = parent->draw_xform * un_y + draw_xform * y;
+
+				x = lerped.TransformVec3_1(x.x, 0, x.z);
+
+				vec.push_back(x.x);
+				vec.push_back(x.y);
+				vec.push_back(x.z);
+			}
 		}
-
 		for(vector<BrambleNode*>::iterator iter = children.begin(); iter != children.end(); ++iter)
-			(*iter)->GetRigidBodies(rigid_bodies);
+			(*iter)->AppendCollisionData(vec, n_verts, pos);
 	}
 
 	void BrambleNode::GetUberModels(vector<UberModel*>& uber_models, unsigned int n_verts, float* pos, float* uv, float* normal)
