@@ -2,11 +2,7 @@
 
 #include "StdAfx.h"
 
-#include "VoxelTerrain.h"
-
 #include "Matrix.h"
-#include "VertexBuffer.h"
-#include "SceneRenderer.h"
 
 namespace CibraryEngine
 {
@@ -14,11 +10,17 @@ namespace CibraryEngine
 
 	class VoxelTerrain;
 	struct CubeTriangles;
-
+	struct TerrainNode;
 	struct TerrainVertex;
 
+	class VoxelMaterial;
 	struct VoxelMaterialVBO;
 	struct VoxelMaterialVBOBuilder;
+
+	struct TerrainAction;
+
+	struct VertexBuffer;
+	class SceneRenderer;
 
 	class TerrainChunk
 	{

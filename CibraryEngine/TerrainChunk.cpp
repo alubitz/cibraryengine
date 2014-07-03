@@ -4,11 +4,15 @@
 #include "TerrainNode.h"
 #include "CubeTriangles.h"
 #include "TerrainVertex.h"
+#include "VoxelTerrain.h"
 
 #include "VoxelMaterial.h"
 
 #include "CameraView.h"
 #include "Serialize.h"
+
+#include "SceneRenderer.h"
+#include "RenderNode.h"
 
 namespace CibraryEngine
 {

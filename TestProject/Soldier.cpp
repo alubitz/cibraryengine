@@ -323,6 +323,8 @@ namespace Test
 
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
+			return;
+
 			// TODO: come up with a pose that satisfies IK constraints for placed feet, and the pelvis pos/ori, while somehow being achievable with joint torques
 			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);
 			Quaternion desired_oris[7] = { p, sdo, sdo, sdo, sdo, sdo, sdo };

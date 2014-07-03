@@ -3,8 +3,8 @@
 #include "DTScreen.h"
 #include "../CibraryEngine/DestructibleTerrain.h"
 
-#define TERRAIN_DIM_HORIZONTAL 16
-#define TERRAIN_DIM_VERTICAL 8
+#define TERRAIN_DIM_HORIZONTAL 20
+#define TERRAIN_DIM_VERTICAL 5
 
 namespace DestructibleTerrain
 {
@@ -172,6 +172,7 @@ namespace DestructibleTerrain
 		EditorBrush* current_brush;
 		float brush_distance;
 		float brush_radius;
+		bool use_fixed_distance;
 		bool enable_editing;
 
 		float time_since_fps;
@@ -193,10 +194,11 @@ namespace DestructibleTerrain
 			current_brush(NULL),
 			brush_distance(60.0f),
 			brush_radius(7.5f),
+			use_fixed_distance(true),
 			enable_editing(true),
 			mouse_button_handler(),
 			mouse_motion_handler(&yaw, &pitch),
-			key_press_handler(&add_tex, &add_brush, &enable_editing),
+			key_press_handler(&add_tex, &add_brush, &use_fixed_distance, &enable_editing),
 			subtract_brush(),
 			add_brush(&add_tex),
 			time_since_fps(0.0f),
@@ -301,30 +303,45 @@ namespace DestructibleTerrain
 				Vec3 ori, dir;
 				GetCameraRay(ori, dir);
 
-				Vec3 orb_pos = ori + dir * brush_distance;
+				Vec3 orb_pos;
+				bool orb_good = false;
 
-				glPushMatrix();
+				if(use_fixed_distance)
+				{
+					orb_pos = ori + dir * brush_distance;
+					orb_good = true;
+				}
+				else
+					orb_good = RayTrace(ori, dir, orb_pos);
 
-				glMultMatrixf(terrain->GetTransform().Transpose().values);
-				glTranslatef(orb_pos.x, orb_pos.y, orb_pos.z);
-				glScalef(brush_radius, brush_radius, brush_radius);
+				if(orb_good)
+				{
+					if(!use_fixed_distance)
+						brush_distance = (orb_pos - ori).ComputeMagnitude();
 
-				ShaderProgram::SetActiveProgram(NULL);
+					glPushMatrix();
+
+					glMultMatrixf(terrain->GetTransform().Transpose().values);
+					glTranslatef(orb_pos.x, orb_pos.y, orb_pos.z);
+					glScalef(brush_radius, brush_radius, brush_radius);
+
+					ShaderProgram::SetActiveProgram(NULL);
 				
-				glEnable(GL_LIGHTING);
-				glDisable(GL_TEXTURE_2D);
-				glDisable(GL_CULL_FACE);
+					glEnable(GL_LIGHTING);
+					glDisable(GL_TEXTURE_2D);
+					glDisable(GL_CULL_FACE);
 
-				glDepthMask(false);
+					glDepthMask(false);
 
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+					glEnable(GL_BLEND);
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 				
-				glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
+					glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
 
-				editor_orb->Draw();
+					editor_orb->Draw();
 
-				glPopMatrix();
+					glPopMatrix();
+				}
 			}
 
 			glMatrixMode(GL_PROJECTION);
@@ -359,29 +376,45 @@ namespace DestructibleTerrain
 				time_since_fps = 0.0f;
 			}
 
+			const bool* keys = window->input_state->keys;
+
 			if(window->input_state->mb[0] && current_brush != NULL && enable_editing)
 				current_brush->DoAction(this);
 
-			Mat3 camera_rm = camera_ori.ToMat3();
+			camera_vel *= expf(-10.0f * time.elapsed);
 
+			Mat3 camera_rm = camera_ori.ToMat3();
 			float dv = 50.0f * time.elapsed;
 
-			if(window->input_state->keys['W'])
-				camera_vel += camera_rm * Vec3(	0,		0,		-dv);
-			if(window->input_state->keys['S'])
-				camera_vel += camera_rm * Vec3(	0,		0,		dv);
-			if(window->input_state->keys['A'])
-				camera_vel += camera_rm * Vec3(	-dv,	0,		0);
-			if(window->input_state->keys['D'])
-				camera_vel += camera_rm * Vec3(	dv,		0,		0);
-			if(window->input_state->keys[VK_SPACE])
-				camera_vel += camera_rm * Vec3(	0,		dv,		0);
-			if(window->input_state->keys['C'])
-				camera_vel += camera_rm * Vec3(	0,		-dv,	0);
-
-
-			camera_vel *= expf(-10.0f * time.elapsed);
+			if(keys['W'])
+				camera_vel += camera_rm * Vec3(   0,   0, -dv );
+			if(keys['S'])
+				camera_vel += camera_rm * Vec3(   0,   0,  dv );
+			if(keys['A'])
+				camera_vel += camera_rm * Vec3( -dv,   0,   0 );
+			if(keys['D'])
+				camera_vel += camera_rm * Vec3(  dv,   0,   0 );
+			if(keys[VK_SPACE])
+				camera_vel += camera_rm * Vec3(   0,  dv,   0 );
+			if(keys['C'])
+				camera_vel += camera_rm * Vec3(   0, -dv,   0 );
 			camera_pos += camera_vel * time.elapsed;
+
+			if(use_fixed_distance)
+			{
+				bool in = keys[VK_OEM_4], out = keys[VK_OEM_6];		// left and right square brackets / curly braces
+				if(in && !out)
+					brush_distance = max(16.0f, brush_distance - 40.0f * time.elapsed);
+				else if(out && !in)
+					brush_distance = min(brush_distance + 40.0f * time.elapsed, 100.0f);
+			}
+
+			if(keys[VK_OEM_PLUS])	// plus and equals
+				brush_radius = min(15.0f, brush_radius + 15.0f * time.elapsed);
+
+			if(keys[VK_OEM_MINUS])	// minus and underscore
+				brush_radius = max(0.5f, brush_radius - 15.0f * time.elapsed);
+
 		}
 
 
@@ -392,8 +425,18 @@ namespace DestructibleTerrain
 			Vec3 origin, direction;
 			GetCameraRay(origin, direction);
 
-			Vec3 pos = origin + direction * brush_distance;
-			terrain->ModifySphere(pos, brush_radius - 1.0f, brush_radius + 1.0f, action);
+			Vec3 pos;
+			bool good = false;
+			if(use_fixed_distance)
+			{
+				pos = origin + direction * brush_distance;
+				good = true;
+			}
+			else
+				good = RayTrace(origin, direction, pos);
+
+			if(good)
+				terrain->ModifySphere(pos, brush_radius - 1.0f, brush_radius + 1.0f, action);
 		}
 
 		void GetCameraRay(Vec3& origin, Vec3& direction)
@@ -485,36 +528,40 @@ namespace DestructibleTerrain
 			VoxelMaterial* material;
 			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 			AddBrush* add_brush;
-			bool* enable_editing;
+			bool *use_fixed_distance, *enable_editing;
 
-			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush, bool* enable_editing) : material(NULL), which_ptr(which_ptr), add_brush(add_brush), enable_editing(enable_editing) { }
+			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush, bool* use_fixed_distance, bool* enable_editing) : material(NULL), which_ptr(which_ptr), add_brush(add_brush), use_fixed_distance(use_fixed_distance), enable_editing(enable_editing) { }
 
 			void HandleEvent(Event* evt)
 			{
 				KeyStateEvent* kse = (KeyStateEvent*)evt;
 
-				switch(kse->key)
-				{
-					case 'M':
+				if(kse->state)
+					switch(kse->key)
+					{
+						case 'M':
+							if(material != NULL)
+							{
+								++(*which_ptr);
+								if(*which_ptr == material->textures.end())
+									*which_ptr = material->textures.begin();
 
-						if(kse->state && material != NULL)
-						{
-							++(*which_ptr);
-							if(*which_ptr == material->textures.end())
-								*which_ptr = material->textures.begin();
+								add_brush->UpdateName();
+							}
+							break;
 
-							add_brush->UpdateName();
-						}
+						case VK_OEM_5:		// backslash
+							*use_fixed_distance = !*use_fixed_distance;
+							break;
 
-						break;
-
-					case VK_F1:
-
-						if(kse->state)
+						case VK_F1:
 							*enable_editing = !*enable_editing;
+							break;
 
-						break;
-				}
+						default:
+							Debug(((stringstream&)(stringstream() << "key = " << kse->key << endl)).str());
+							break;
+					}
 			}
 		} key_press_handler;
 

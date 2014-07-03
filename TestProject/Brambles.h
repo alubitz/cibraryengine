@@ -19,6 +19,8 @@ namespace Test
 
 			void InnerDispose();
 
+			void BuildCollisionShape();
+
 		public:
 
 			BrambleNode* root;

@@ -41,6 +41,11 @@ namespace Test
 			Debug(((stringstream&)(stringstream() << '\t' << "brambles contains " << n << " verts = " << (n / n_verts) << " nodes" << endl)).str());
 		}
 
+		BuildCollisionShape();
+	}
+
+	void Bramble::BuildCollisionShape()
+	{
 		static const float reference_radius = 0.4f;		// radius of collision cylinder when scale = 1
 
 		Vec3 cyl_verts[16];
@@ -103,8 +108,11 @@ namespace Test
 
 	void Bramble::Spawned()
 	{
-		rigid_body = new RigidBody(this, collision_shape, MassInfo());
-		game_state->physics_world->AddCollisionObject(rigid_body);
+		if(collision_shape != NULL)
+		{
+			rigid_body = new RigidBody(this, collision_shape, MassInfo());
+			game_state->physics_world->AddCollisionObject(rigid_body);
+		}
 	}
 
 	void Bramble::DeSpawned()
