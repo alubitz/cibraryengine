@@ -67,7 +67,7 @@ namespace Test
 		yaw(0),
 		pitch(0),
 		jump_start_timer(0),
-		third_person_frac(0),
+		third_person_frac(0),					// TODO: set this automatically to whatever value is appropriate
 		third_person_view_dist(5.0f),
 		hp(1.0f),
 		alive(true),

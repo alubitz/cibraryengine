@@ -590,15 +590,6 @@ namespace CibraryEngine
 				VoxelMaterialVBO& vbo = *builder.vbo;
 				vbo.vbo->SetNumVerts(builder.num_verts);
 				vbo.vbo->BuildVBO();
-
-				/*
-				float* ptr = vbo.vbo->GetFloatPointer("gl_Vertex");
-				float* expected = ptr + vbo.num_verts * 3;
-				if(expected != vbo.vert_ptr)
-					Debug(((stringstream&)(stringstream() << "gl_Vertex starts at " << ptr << " and num_verts = " << vbo.num_verts << ";\t" << (vbo.num_verts < 10 ? "\t" : "") << "vert_ptr should be " << expected << " but was instead " << vbo.vert_ptr << endl)).str());
-				else
-					Debug(((stringstream&)(stringstream() << "gl_Vertex starts at " << ptr << " and num_verts = " << vbo.num_verts << ";\t" << (vbo.num_verts < 10 ? "\t" : "") << "vert_ptr was where is ought to be at " << expected << endl)).str());
-				*/
 			}
 
 			for(vector<RelativeTerrainVertex*>::iterator iter = unique_vertices.begin(); iter != unique_vertices.end(); ++iter)

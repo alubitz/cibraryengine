@@ -557,10 +557,6 @@ namespace DestructibleTerrain
 						case VK_F1:
 							*enable_editing = !*enable_editing;
 							break;
-
-						default:
-							Debug(((stringstream&)(stringstream() << "key = " << kse->key << endl)).str());
-							break;
 					}
 			}
 		} key_press_handler;

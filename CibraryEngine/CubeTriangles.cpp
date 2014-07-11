@@ -27,7 +27,7 @@ namespace CibraryEngine
 				material = node.material;
 			}
 			else
-				value = 127.5;
+				value = 127.5f;
 		}
 
 		static TerrainVertex Convert(GridStruct& a) { return TerrainVertex(a.position, a.material); }
@@ -91,7 +91,7 @@ namespace CibraryEngine
 
 			CacheData temp_cache;
 
-			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, &temp_cache.verts[0], &temp_cache.indices[0]);
+			MarchingCubes::Polygonize(Vec3(float(x), float(y), float(z)), grid, 0.0f, temp_cache.verts, temp_cache.indices);
 
 			int i;
 			for(i = 0; i < 16; ++i)

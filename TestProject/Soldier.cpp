@@ -10,6 +10,8 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
+#include "SoldierBrain.h"
+
 #define DIE_AFTER_ONE_SECOND   0
 
 #define ENABLE_PELVIS_ANCHOR   0
@@ -170,10 +172,12 @@ namespace Test
 		CJoint rhip,   rknee,  rankle;
 
 		float inv_timestep;
+		float lifetime, max_lifetime;
 
 		Imp() :
 			init(false),
-			inv_timestep(0)
+			inv_timestep(0),
+			lifetime(0)
 		{
 		}
 
@@ -181,8 +185,6 @@ namespace Test
 
 		void Init(Soldier* dood)
 		{
-			Debug("Soldier::Imp::Init()\n");
-
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
 			pelvis    = CBone( dood, "pelvis"     );
@@ -222,6 +224,12 @@ namespace Test
 			rhip   = CJoint( dood, pelvis,    ruleg,     H  );
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
+
+			unsigned int num_memories = 25;
+			unsigned int num_inputs   = 162;		//342;		//360;
+			unsigned int num_outputs  = 18;
+
+			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_lifetime);
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -322,70 +330,103 @@ namespace Test
 		}
 
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
-		{
-			return;
-
-			// TODO: come up with a pose that satisfies IK constraints for placed feet, and the pelvis pos/ori, while somehow being achievable with joint torques
-			Quaternion sdo = Quaternion::FromRVec(0, -dood->yaw, 0);
-			Quaternion desired_oris[7] = { p, sdo, sdo, sdo, sdo, sdo, sdo };
-
-			pelvis.ComputeDesiredTorqueWithDefaultMoI(desired_oris[0], inv_timestep);
-			luleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[1], inv_timestep);
-			ruleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[2], inv_timestep);
-			llleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[3], inv_timestep);
-			rlleg.ComputeDesiredTorqueWithDefaultMoI (desired_oris[4], inv_timestep);
-			lfoot.ComputeDesiredTorqueWithDefaultMoI (desired_oris[5], inv_timestep);
-			rfoot.ComputeDesiredTorqueWithDefaultMoI (desired_oris[6], inv_timestep);
-
-			lhip  .SetTorqueToSatisfyB();
-			rhip  .SetTorqueToSatisfyB();
-			lknee .SetTorqueToSatisfyB();
-			rknee .SetTorqueToSatisfyB();
-			lankle.SetTorqueToSatisfyB();
-			rankle.SetTorqueToSatisfyB();
-
-			
+		{			
 			// magic brain nonsense
 			Vec3 translation = -pelvis.rb->GetCenterOfMass();
 			Mat3 rotation = Mat3::FromAxisAngle(0, 1, 0, dood->yaw);
 
-			struct AddRBToVector
+			struct PushVec3
 			{
-				// one rb = 6 Vec3 values
-				AddRBToVector(RigidBody* rb, const Vec3& translation, const Mat3& rotation, vector<Vec3>& v)
+				PushVec3(vector<float>& v, const Vec3& xyz)
 				{
-					Mat3 rb_rot = rotation * rb->GetOrientation().ToMat3();
-
-					v.push_back(rotation * (rb->GetPosition() + translation));		// pos
-					v.push_back(Vec3(rb_rot[0], rb_rot[1], rb_rot[2]));				// ori (rm)
-					v.push_back(Vec3(rb_rot[3], rb_rot[4], rb_rot[6]));
-					v.push_back(Vec3(rb_rot[6], rb_rot[7], rb_rot[8]));
-					v.push_back(rotation * rb->GetLinearVelocity());				// vel
-					v.push_back(rotation * rb->GetAngularVelocity());				// rot
+					v.push_back(xyz.x);
+					v.push_back(xyz.y);
+					v.push_back(xyz.z);
 				}
 			};
 
-			vector<Vec3> inputs;
+			struct AddRBToVector
+			{
+				// one rb = 6 Vec3 values
+				AddRBToVector(RigidBody* rb, const Vec3& translation, const Mat3& rotation, vector<float>& v)
+				{
+					Mat3 rb_rot = rotation * rb->GetOrientation().ToMat3();
+
+					PushVec3(v, rotation * (rb->GetPosition() + translation));		// pos
+					PushVec3(v, Vec3(rb_rot[0], rb_rot[1], rb_rot[2]));				// ori (rm)
+					PushVec3(v, Vec3(rb_rot[3], rb_rot[4], rb_rot[6]));
+					PushVec3(v, Vec3(rb_rot[6], rb_rot[7], rb_rot[8]));
+					PushVec3(v, rotation * rb->GetLinearVelocity());				// vel
+					PushVec3(v, rotation * rb->GetAngularVelocity());				// rot
+				}
+			};
+
+			vector<float> inputs;
 
 			// 18 bones + gun = 19 rbs = 114 vec3s
-			for(unsigned int i = 0; i < dood->rigid_bodies.size(); ++i)
-				AddRBToVector(dood->rigid_bodies[i], translation, rotation, inputs);
-			AddRBToVector(((Gun*)dood->equipped_weapon)->rigid_body, translation, rotation, inputs);
+			//for(unsigned int i = 0; i < dood->rigid_bodies.size(); ++i)
+			//	AddRBToVector(dood->rigid_bodies[i], translation, rotation, inputs);
+			//AddRBToVector(((Gun*)dood->equipped_weapon)->rigid_body, translation, rotation, inputs);
 
-			// TODO: consult previous tick's desired values (if there was a previous tick) to score how well this brain achieved its objectives
+			AddRBToVector(lfoot.rb, translation, rotation, inputs);
+			AddRBToVector(rfoot.rb, translation, rotation, inputs);
+			AddRBToVector(llleg.rb, translation, rotation, inputs);
+			AddRBToVector(rlleg.rb, translation, rotation, inputs);
+			AddRBToVector(luleg.rb, translation, rotation, inputs);
+			AddRBToVector(ruleg.rb, translation, rotation, inputs);
+			AddRBToVector(pelvis.rb, translation, rotation, inputs);
+			AddRBToVector(torso1.rb, translation, rotation, inputs);
+			AddRBToVector(torso2.rb, translation, rotation, inputs);
 
+#if 0
 			// TODO: compute actual desired values for these things
 			// left foot
-			inputs.push_back(Vec3());		// linear
-			inputs.push_back(Vec3());		// angular
+			PushVec3(inputs, Vec3());		// linear
+			PushVec3(inputs, Vec3());		// angular
 			// right foot
-			inputs.push_back(Vec3());		// linear
-			inputs.push_back(Vec3());		// angular
+			PushVec3(inputs, Vec3());		// linear
+			PushVec3(inputs, Vec3());		// angular
 			// pelvis
-			inputs.push_back(Vec3());		// linear
-			inputs.push_back(Vec3());		// angular
+			PushVec3(inputs, Vec3());		// linear
+			PushVec3(inputs, Vec3());		// angular
+#endif
 
-			// TODO: magic brain thing do stuff here now
+			vector<float> outputs(18);
+
+			// magic brain thing do stuff here now
+			SoldierBrain::Process(inputs, outputs);
+
+
+
+			// apply the values the brain came up with
+			struct SetJointTorque
+			{
+				SetJointTorque(CJoint& j, const Vec3& xyz)
+				{
+					float* min = (float*)&j.sjc->min_torque;
+					float* max = (float*)&j.sjc->min_torque;
+					float* vec = (float*)&xyz;
+					float* res = (float*)&j.sjc->apply_torque;
+
+					float* vec_end = vec + 3;
+
+					for(; vec != vec_end; ++vec, ++min, ++max, ++res)
+					{
+						if(*vec > 0)
+							*res = *vec * *max;
+						else
+							*res = *vec * *min;
+					}
+				}
+			};
+
+			Vec3* output_vec = (Vec3*)outputs.data();
+			SetJointTorque(lhip,   *(output_vec++));
+			SetJointTorque(rhip,   *(output_vec++));
+			SetJointTorque(lknee,  *(output_vec++));
+			SetJointTorque(rknee,  *(output_vec++));
+			SetJointTorque(lankle, *(output_vec++));
+			SetJointTorque(rankle, *(output_vec++));
 		}
 
 		void Update(Soldier* dood, const TimingInfo& time)
@@ -396,7 +437,14 @@ namespace Test
 				init = true;
 			}
 
+			if(pelvis.rb->GetCenterOfMass().y < 0.75f || pelvis.rb->GetLinearVelocity().ComputeMagnitudeSquared() > 1.0f || lfoot.rb->GetCenterOfMass().y > 0.15f || rfoot.rb->GetCenterOfMass().y > 0.15f)
+				SoldierBrain::Finish(lifetime);
+
 			inv_timestep = 1.0f / time.elapsed;
+			lifetime += time.elapsed;
+
+			if(max_lifetime >= 0 && lifetime >= max_lifetime)
+				SoldierBrain::Finish(lifetime);
 
 			// reset joints
 			spine1.Reset();       spine2.Reset();    neck.Reset();
