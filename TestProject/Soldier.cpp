@@ -171,13 +171,19 @@ namespace Test
 		CJoint lhip,   lknee,  lankle;
 		CJoint rhip,   rknee,  rankle;
 
-		float inv_timestep;
-		float lifetime, max_lifetime;
+		float timestep, inv_timestep;
+		float lifetime;
+
+		float score, max_score;
+
+		Vec3 goal_vels[3];
+		Vec3 goal_rots[3];
 
 		Imp() :
 			init(false),
 			inv_timestep(0),
-			lifetime(0)
+			lifetime(0),
+			score(0)
 		{
 		}
 
@@ -225,11 +231,11 @@ namespace Test
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
-			unsigned int num_memories = 25;
-			unsigned int num_inputs   = 162;		//342;		//360;
+			unsigned int num_memories = 50;
+			unsigned int num_inputs   = 180;		//162;		//342;		//360;
 			unsigned int num_outputs  = 18;
 
-			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_lifetime);
+			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_score);
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -345,19 +351,22 @@ namespace Test
 				}
 			};
 
-			struct AddRBToVector
+			struct PushRB
 			{
 				// one rb = 6 Vec3 values
-				AddRBToVector(RigidBody* rb, const Vec3& translation, const Mat3& rotation, vector<float>& v)
+				PushRB(CBone& bone, const Vec3& translation, const Mat3& rotation, vector<float>& v, float timestep)
 				{
+					RigidBody* rb = bone.rb;
+
 					Mat3 rb_rot = rotation * rb->GetOrientation().ToMat3();
+					Vec3 use_rot = rb->GetAngularVelocity() + rb->GetInvMoI() * bone.applied_torque * timestep;
 
 					PushVec3(v, rotation * (rb->GetPosition() + translation));		// pos
 					PushVec3(v, Vec3(rb_rot[0], rb_rot[1], rb_rot[2]));				// ori (rm)
 					PushVec3(v, Vec3(rb_rot[3], rb_rot[4], rb_rot[6]));
 					PushVec3(v, Vec3(rb_rot[6], rb_rot[7], rb_rot[8]));
 					PushVec3(v, rotation * rb->GetLinearVelocity());				// vel
-					PushVec3(v, rotation * rb->GetAngularVelocity());				// rot
+					PushVec3(v, rotation * use_rot);								// rot
 				}
 			};
 
@@ -368,32 +377,58 @@ namespace Test
 			//	AddRBToVector(dood->rigid_bodies[i], translation, rotation, inputs);
 			//AddRBToVector(((Gun*)dood->equipped_weapon)->rigid_body, translation, rotation, inputs);
 
-			AddRBToVector(lfoot.rb, translation, rotation, inputs);
-			AddRBToVector(rfoot.rb, translation, rotation, inputs);
-			AddRBToVector(llleg.rb, translation, rotation, inputs);
-			AddRBToVector(rlleg.rb, translation, rotation, inputs);
-			AddRBToVector(luleg.rb, translation, rotation, inputs);
-			AddRBToVector(ruleg.rb, translation, rotation, inputs);
-			AddRBToVector(pelvis.rb, translation, rotation, inputs);
-			AddRBToVector(torso1.rb, translation, rotation, inputs);
-			AddRBToVector(torso2.rb, translation, rotation, inputs);
+			PushRB(lfoot,  translation, rotation, inputs, timestep);
+			PushRB(rfoot,  translation, rotation, inputs, timestep);
+			PushRB(llleg,  translation, rotation, inputs, timestep);
+			PushRB(rlleg,  translation, rotation, inputs, timestep);
+			PushRB(luleg,  translation, rotation, inputs, timestep);
+			PushRB(ruleg,  translation, rotation, inputs, timestep);
+			PushRB(pelvis, translation, rotation, inputs, timestep);
+			PushRB(torso1, translation, rotation, inputs, timestep);
+			PushRB(torso2, translation, rotation, inputs, timestep);
 
-#if 0
-			// TODO: compute actual desired values for these things
-			// left foot
-			PushVec3(inputs, Vec3());		// linear
-			PushVec3(inputs, Vec3());		// angular
-			// right foot
-			PushVec3(inputs, Vec3());		// linear
-			PushVec3(inputs, Vec3());		// angular
-			// pelvis
-			PushVec3(inputs, Vec3());		// linear
-			PushVec3(inputs, Vec3());		// angular
-#endif
+			Vec3 desired_pos, current_pos;
+			Quaternion desired_ori, current_ori;
 
+			struct PushGoalState
+			{
+				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& vel, Vec3& rot)
+				{
+					Vec3 current_pos = rb->GetCenterOfMass();
+					Quaternion current_ori = rb->GetOrientation();
+					vel = (desired_pos - current_pos) * inv_timestep;
+					rot = (desired_ori * Quaternion::Reverse(current_ori)).ToRVec() * -inv_timestep;
+					PushVec3(inputs, rotation * vel);
+					PushVec3(inputs, rotation * rot);
+				}
+			};
+
+			PushGoalState			// lfoot
+			(
+				lfoot.rb, rotation, inv_timestep, inputs,
+				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * lfoot.rb->GetMassInfo().com,
+				((SoldierFoot*)dood->feet[0])->OrientBottomToSurface(Vec3(0, 1, 0)),
+				goal_vels[0], goal_rots[0]
+			);
+			PushGoalState			// rfoot
+			(
+				rfoot.rb, rotation, inv_timestep, inputs,
+				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * rfoot.rb->GetMassInfo().com,
+				((SoldierFoot*)dood->feet[1])->OrientBottomToSurface(Vec3(0, 1, 0)),
+				goal_vels[1], goal_rots[1]
+			);
+			PushGoalState			// pelvis
+			(
+				pelvis.rb, rotation, inv_timestep, inputs,
+				Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com,
+				p,
+				goal_vels[2], goal_rots[2]
+			);
+
+
+
+			// brain processes inputs and comes up with outputs (also it updates its memory)
 			vector<float> outputs(18);
-
-			// magic brain thing do stuff here now
 			SoldierBrain::Process(inputs, outputs);
 
 
@@ -431,20 +466,42 @@ namespace Test
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
+			static const float max_sim_time = 0.5f;
+
 			if(!init)
 			{
 				Init(dood);
 				init = true;
 			}
 
-			if(pelvis.rb->GetCenterOfMass().y < 0.75f || pelvis.rb->GetLinearVelocity().ComputeMagnitudeSquared() > 1.0f || lfoot.rb->GetCenterOfMass().y > 0.15f || rfoot.rb->GetCenterOfMass().y > 0.15f)
-				SoldierBrain::Finish(lifetime);
+			timestep = time.elapsed;
+			inv_timestep = 1.0f / timestep;
 
-			inv_timestep = 1.0f / time.elapsed;
-			lifetime += time.elapsed;
+			//if(pelvis.rb->GetCenterOfMass().y < 0.5f || lfoot.rb->GetCenterOfMass().y > 0.15f || rfoot.rb->GetCenterOfMass().y > 0.15f)
+			//	SoldierBrain::Finish(score);
 
-			if(max_lifetime >= 0 && lifetime >= max_lifetime)
-				SoldierBrain::Finish(lifetime);
+			if(lifetime > 0)
+			{
+				float velrot_error = 0.0f;
+				velrot_error += (lfoot .rb->GetLinearVelocity()  - goal_vels[0]).ComputeMagnitudeSquared();
+				velrot_error += (rfoot .rb->GetLinearVelocity()  - goal_vels[1]).ComputeMagnitudeSquared();
+				velrot_error += (pelvis.rb->GetLinearVelocity()  - goal_vels[2]).ComputeMagnitudeSquared();
+				velrot_error += (lfoot .rb->GetAngularVelocity() - goal_rots[0]).ComputeMagnitudeSquared();
+				velrot_error += (rfoot .rb->GetAngularVelocity() - goal_rots[1]).ComputeMagnitudeSquared();
+				velrot_error += (pelvis.rb->GetAngularVelocity() - goal_rots[2]).ComputeMagnitudeSquared();
+
+				//if(velrot_error > 1200)
+				//	SoldierBrain::Finish(score);
+
+				float score_rate = expf(-velrot_error * 0.01f);
+				score += score_rate * 100 * timestep / max_sim_time;
+			}
+
+			lifetime += timestep;
+
+			if(max_score >= 0 && score >= max_score || lifetime > max_sim_time)
+				SoldierBrain::Finish(score);
+
 
 			// reset joints
 			spine1.Reset();       spine2.Reset();    neck.Reset();

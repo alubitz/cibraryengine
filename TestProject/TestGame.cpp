@@ -587,7 +587,11 @@ namespace Test
 	Dood* TestGame::SpawnPlayer(const Vec3& pos)
 	{
 		if(player_pawn != NULL)
+		{
 			player_pawn->is_valid = false;
+			if(player_pawn->equipped_weapon != NULL)
+				player_pawn->equipped_weapon->is_valid = false;
+		}
 		if(player_controller != NULL)
 			player_controller->is_valid = false;
 
@@ -715,12 +719,7 @@ namespace Test
 			TimingInfo clamped_time(elapsed, total_game_time);
 
 			if(SoldierBrain::IsFinished())
-			{
-				player_pawn->is_valid = false;
-				player_pawn->equipped_weapon->is_valid = false;
-
 				hud->SetPlayer(SpawnPlayer(Vec3()));
-			}
 
 			hud->UpdateHUDGauges(clamped_time);
 

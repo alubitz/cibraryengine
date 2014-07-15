@@ -67,7 +67,7 @@ namespace Test
 		yaw(0),
 		pitch(0),
 		jump_start_timer(0),
-		third_person_frac(0),					// TODO: set this automatically to whatever value is appropriate
+		third_person_frac(1),					// TODO: set this automatically to whatever value is appropriate
 		third_person_view_dist(5.0f),
 		hp(1.0f),
 		alive(true),
@@ -236,6 +236,7 @@ namespace Test
 			DoPitchAndYawControls(time);
 		}
 
+#if 0
 		if(time.total < 0.1f)
 			third_person_frac = control_state->GetBoolControl("third_person") ? 1.0f : 0.0f;
 		else
@@ -245,6 +246,7 @@ namespace Test
 			else
 				third_person_frac = max(0.0f, third_person_frac - timestep * third_person_transition_speed);
 		}
+#endif
 
 		MaybeDoScriptedUpdate(this);
 

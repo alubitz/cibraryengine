@@ -92,7 +92,8 @@ namespace CibraryEngine
 		while(iter != entities.end())
 		{
 			Entity* e = *iter;
-			e->Update(time);
+			if(e->is_valid)
+				e->Update(time);
 			if(e->is_valid)
 				++iter;
 			else
@@ -100,6 +101,8 @@ namespace CibraryEngine
 				e->DeSpawned();
 				e->Dispose();
 				iter = entities.erase(iter);
+
+				delete e;
 			}
 		}
 
