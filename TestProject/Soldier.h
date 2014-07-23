@@ -51,6 +51,8 @@ namespace Test
 
 			void Spawned();
 
+			void DeSpawned();
+
 			void PreparePAG(const TimingInfo& time, const Quaternion& t2ori);
 	};
 }

@@ -18,8 +18,6 @@ end
 player = gs.spawnPlayer(player_pos)
 player.death_callback = player_death
 
-dood_properties = {}
-
 poll_mouse_motion()
 
 level = 0

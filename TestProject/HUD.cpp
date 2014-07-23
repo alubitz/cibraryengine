@@ -518,6 +518,8 @@ namespace Test
 				row++;
 			};
 		}
+
+		GLDEBUG();
 	}
 
 	void HUD::SetPlayer(Dood* dood)

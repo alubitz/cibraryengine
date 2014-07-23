@@ -256,7 +256,13 @@ end
 -------- Steering behaviors; handles low-level control in order to complete certain actions --------
 ----------------------------------------------------------------------------------------------------
 
-steering_behaviors = {}
+if steering_behaviors ~= nil then
+	for k in pairs(steering_behaviors) do
+		steering_behaviors[k] = nil
+	end
+else
+	steering_behaviors = {}
+end
 
 function do_steering_behavior(dood, control_state)
 	get_steering_behavior(dood).update(dood, control_state)

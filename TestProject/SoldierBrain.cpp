@@ -169,7 +169,7 @@ namespace Test
 		void Mutate(Genome& genome)
 		{
 			static const unsigned int num_mutations = 3;
-			static const float        mutation_rate = 0.01f;
+			static const float        mutation_rate = 0.05f;
 
 			for(unsigned int i = 0; i < num_mutations; ++i)
 			{	
@@ -180,7 +180,7 @@ namespace Test
 
 		void CreateNextGen()
 		{
-			static const unsigned int parents             = 20;
+			static const unsigned int parents             = 4;
 			static const unsigned int mutants_per_parent  = 4;
 			static const unsigned int crossovers_per_pair = 2;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;

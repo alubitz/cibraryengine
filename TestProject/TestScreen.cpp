@@ -42,10 +42,13 @@ namespace Test
 
 	void TestScreen::Draw(int width_, int height_)
 	{
-		width = width_;
-		height = height_;
+		if(width_ > 0 && height_ > 0)
+		{
+			width = width_;
+			height = height_;
 
-		test_game->Draw(width, height);
+			test_game->Draw(width, height);
+		}
 	}
 
 	void TestScreen::Deactivate() { if(test_game) { test_game->Dispose(); delete test_game; test_game = NULL; } }

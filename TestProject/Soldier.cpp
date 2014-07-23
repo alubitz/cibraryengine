@@ -174,6 +174,8 @@ namespace Test
 		float timestep, inv_timestep;
 		float lifetime;
 
+		float sine_offset;
+
 		float score, max_score;
 
 		Vec3 goal_vels[3];
@@ -236,6 +238,8 @@ namespace Test
 			unsigned int num_outputs  = 18;
 
 			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_score);
+
+			sine_offset = Random3D::Rand(float(M_PI) * 2.0f);
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -394,12 +398,15 @@ namespace Test
 			{
 				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& vel, Vec3& rot)
 				{
+					// because of the x 60hz, using a large mutation rate has a high chance of throwing things out of whack, unless we do something like this
+					static const float make_hertz_hurt_less = 0.02f;
+
 					Vec3 current_pos = rb->GetCenterOfMass();
 					Quaternion current_ori = rb->GetOrientation();
 					vel = (desired_pos - current_pos) * inv_timestep;
 					rot = (desired_ori * Quaternion::Reverse(current_ori)).ToRVec() * -inv_timestep;
-					PushVec3(inputs, rotation * vel);
-					PushVec3(inputs, rotation * rot);
+					PushVec3(inputs, rotation * vel * make_hertz_hurt_less);
+					PushVec3(inputs, rotation * rot * make_hertz_hurt_less);
 				}
 			};
 
@@ -466,7 +473,7 @@ namespace Test
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
-			static const float max_sim_time = 0.5f;
+			static const float max_sim_time = 2.0f;
 
 			if(!init)
 			{
@@ -482,18 +489,37 @@ namespace Test
 
 			if(lifetime > 0)
 			{
-				float velrot_error = 0.0f;
-				velrot_error += (lfoot .rb->GetLinearVelocity()  - goal_vels[0]).ComputeMagnitudeSquared();
-				velrot_error += (rfoot .rb->GetLinearVelocity()  - goal_vels[1]).ComputeMagnitudeSquared();
-				velrot_error += (pelvis.rb->GetLinearVelocity()  - goal_vels[2]).ComputeMagnitudeSquared();
-				velrot_error += (lfoot .rb->GetAngularVelocity() - goal_rots[0]).ComputeMagnitudeSquared();
-				velrot_error += (rfoot .rb->GetAngularVelocity() - goal_rots[1]).ComputeMagnitudeSquared();
-				velrot_error += (pelvis.rb->GetAngularVelocity() - goal_rots[2]).ComputeMagnitudeSquared();
+				float pelvis_pos_coeff = 0.0f;//max(0.0f, min(1.0f, lifetime * 3.0f));
 
-				//if(velrot_error > 1200)
+				Vec3 error_vecs[6] =
+				{
+					lfoot .rb->GetLinearVelocity()  - goal_vels[0],
+					rfoot .rb->GetLinearVelocity()  - goal_vels[1],
+					pelvis.rb->GetLinearVelocity()  - goal_vels[2],
+
+					lfoot .rb->GetAngularVelocity() - goal_rots[0],
+					rfoot .rb->GetAngularVelocity() - goal_rots[1],
+					pelvis.rb->GetAngularVelocity() - goal_rots[2]
+				};
+				
+				float error_floats[6] =
+				{
+					error_vecs[0].ComputeMagnitudeSquared(),
+					error_vecs[1].ComputeMagnitudeSquared(),
+					error_vecs[2].ComputeMagnitudeSquared() * pelvis_pos_coeff,
+					error_vecs[3].ComputeMagnitudeSquared(),
+					error_vecs[4].ComputeMagnitudeSquared(),
+					error_vecs[5].ComputeMagnitudeSquared()
+				};
+
+				float error_tot = 0.0f;
+				for(unsigned int i = 0; i < 6; ++i)
+					error_tot += error_floats[i];
+
+				//if(error_tot > 1200)
 				//	SoldierBrain::Finish(score);
 
-				float score_rate = expf(-velrot_error * 0.01f);
+				float score_rate = expf(-error_tot * 0.01f);
 				score += score_rate * 100 * timestep / max_sim_time;
 			}
 
@@ -723,6 +749,18 @@ namespace Test
 		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
 			if(character->skeleton->bones[i]->name == lshoulder_name || character->skeleton->bones[i]->name == rshoulder_name)
 				jet_bones.push_back(bone_to_rbody[i]);
+	}
+
+	void Soldier::DeSpawned()
+	{
+		Dood::DeSpawned();
+
+		if(jet_loop != NULL)
+		{
+			jet_loop->StopLooping();
+			jet_loop->SetLoudness(0.0f);
+			jet_loop = NULL;
+		}
 	}
 
 	void Soldier::DoInitialPose()
