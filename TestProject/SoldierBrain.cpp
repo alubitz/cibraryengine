@@ -14,9 +14,10 @@ namespace Test
 		{
 			vector<float> brain;
 			float score;
+			bool crossover;
 
-			Genome() : brain(), score(-1) { }
-			Genome(unsigned int size) : brain(size), score(-1) { }
+			Genome() : brain(), score(-1), crossover(false) { }
+			Genome(unsigned int size) : brain(size), score(-1), crossover(false) { }
 		};
 
 		vector<Genome> genomes;
@@ -164,13 +165,16 @@ namespace Test
 				else
 					*result_ptr = *b_ptr;
 			}
+
+			result.crossover = true;
 		}
 
 		void Mutate(Genome& genome)
 		{
 			static const unsigned int num_mutations = 3;
-			static const float        mutation_rate = 0.05f;
+			static const float        mutation_rate = 1.0f;
 
+			// randomly modify a few elements of the coefficient matrix
 			for(unsigned int i = 0; i < num_mutations; ++i)
 			{	
 				float& coeff = genome.brain[Random3D::RandInt(brain_size)];
@@ -178,13 +182,31 @@ namespace Test
 			}
 		}
 
+		void SwapMemoryIndices(Genome& genome)
+		{
+			float* brain = genome.brain.data();
+
+			unsigned int a = Random3D::RandInt(num_memories);
+			unsigned int b = (a + Random3D::RandInt(num_memories - 1)) % num_memories;
+
+			unsigned int row_size = num_inputs  + num_memories;
+			unsigned int col_size = num_outputs + num_memories;
+
+			unsigned int ar = (a + num_outputs) * row_size, br = (b + num_outputs) * row_size;
+			for(unsigned int i = 0 ; i < row_size; ++i)
+				swap(brain[ar + i], brain[br + i]);
+			for(unsigned int i = 0; i < col_size; ++i)
+				swap(brain[i * row_size + a + num_inputs], brain[i * row_size + b + num_inputs]);
+		}
+
 		void CreateNextGen()
 		{
-			static const unsigned int parents             = 4;
+			static const unsigned int parents             = 20;
 			static const unsigned int mutants_per_parent  = 4;
 			static const unsigned int crossovers_per_pair = 2;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
 			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
+			static const unsigned int index_swaps         = 4;
 
 			if(batch == 0)
 				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl << endl)).str());
@@ -198,6 +220,7 @@ namespace Test
 			tot /= genomes.size();
 
 			float ptot = 0.0f;
+			unsigned int crossover_count = 0;
 			for(unsigned int i = 0; i < parents && i < genomes.size(); ++i)
 			{
 				unsigned int best = i;
@@ -207,11 +230,13 @@ namespace Test
 				swap(genomes[best], genomes[i]);
 
 				ptot += genomes[i].score;
+				if(genomes[i].crossover)
+					++crossover_count;
 			}
 			unsigned int pcount = min(parents, genomes.size());
 			ptot /= pcount;
 
-			debug_text = ((stringstream&)(stringstream() << "batch[" << batch << "] top " << pcount << " avg = " << ptot << "; full avg = " << tot << "; best = " << genomes[0].score << endl)).str();
+			debug_text = ((stringstream&)(stringstream() << "batch[" << batch << "] top " << pcount << " avg = " << ptot << "; full avg = " << tot << "; best = " << genomes[0].score << "; crossovers = " << crossover_count << endl)).str();
 			Debug(debug_text);
 
 			genomes.resize(max(genomes.size(), generation_size));
@@ -224,15 +249,24 @@ namespace Test
 				for(unsigned int j = i + 1; j < parents; ++j)
 					for(unsigned int k = 0; k < crossovers_per_pair; ++k, ++index)
 					{
-						CreateCrossover(genomes[i], genomes[j], genomes[index]);
-						Mutate(genomes[index]);
+						Genome& new_genome = genomes[index];
+
+						CreateCrossover(genomes[i], genomes[j], new_genome);
+						Mutate(new_genome);
+						for(unsigned int s = 0; s < index_swaps; ++s)
+							SwapMemoryIndices(new_genome);
 					}
 
 			// do single-parent mutations
 			for(unsigned int i = 0; i < crossovers_begin; ++i)
 			{
-				genomes[i] = genomes[i % parents];
-				Mutate(genomes[i]);
+				Genome& new_genome = genomes[i] = genomes[i % parents];
+
+				Mutate(new_genome);
+				for(unsigned int s = 0; s < index_swaps; ++s)
+					SwapMemoryIndices(new_genome);
+
+				new_genome.crossover = false;
 			}
 
 			genomes.resize(generation_size);
@@ -319,7 +353,7 @@ namespace Test
 
 		void Finish(float score)
 		{
-			static const unsigned int num_trials = 3;
+			static const unsigned int num_trials = 1;
 
 			finished = true;
 

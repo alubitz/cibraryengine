@@ -178,8 +178,9 @@ namespace Test
 
 		float score, max_score;
 
-		Vec3 goal_vels[3];
-		Vec3 goal_rots[3];
+		Vec3  goal_vels[3];
+		Vec3  goal_rots[3];
+		float goal_scores[6];
 
 		Imp() :
 			init(false),
@@ -233,13 +234,16 @@ namespace Test
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
-			unsigned int num_memories = 50;
+			unsigned int num_memories = 25;
 			unsigned int num_inputs   = 180;		//162;		//342;		//360;
 			unsigned int num_outputs  = 18;
 
 			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_score);
 
 			sine_offset = Random3D::Rand(float(M_PI) * 2.0f);
+
+			for(unsigned int i = 0; i < 6; ++i)
+				goal_scores[i] = 0;
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -341,7 +345,7 @@ namespace Test
 
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{			
-			// magic brain nonsense
+			// preparation and utility stuff for putting all the inputs into a big array of floats
 			Vec3 translation = -pelvis.rb->GetCenterOfMass();
 			Mat3 rotation = Mat3::FromAxisAngle(0, 1, 0, dood->yaw);
 
@@ -376,11 +380,7 @@ namespace Test
 
 			vector<float> inputs;
 
-			// 18 bones + gun = 19 rbs = 114 vec3s
-			//for(unsigned int i = 0; i < dood->rigid_bodies.size(); ++i)
-			//	AddRBToVector(dood->rigid_bodies[i], translation, rotation, inputs);
-			//AddRBToVector(((Gun*)dood->equipped_weapon)->rigid_body, translation, rotation, inputs);
-
+			// now to actually put those inputs into the array
 			PushRB(lfoot,  translation, rotation, inputs, timestep);
 			PushRB(rfoot,  translation, rotation, inputs, timestep);
 			PushRB(llleg,  translation, rotation, inputs, timestep);
@@ -391,9 +391,7 @@ namespace Test
 			PushRB(torso1, translation, rotation, inputs, timestep);
 			PushRB(torso2, translation, rotation, inputs, timestep);
 
-			Vec3 desired_pos, current_pos;
-			Quaternion desired_ori, current_ori;
-
+			// some of the inputs describe the goal state, by specifying the desired linear & angular velocity of certain bones
 			struct PushGoalState
 			{
 				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& vel, Vec3& rot)
@@ -436,7 +434,13 @@ namespace Test
 
 			// brain processes inputs and comes up with outputs (also it updates its memory)
 			vector<float> outputs(18);
-			SoldierBrain::Process(inputs, outputs);
+
+			unsigned int num_inputs = inputs.size();
+			for(unsigned int i = 0; i < 2; ++i)
+			{
+				inputs.resize(num_inputs);
+				SoldierBrain::Process(inputs, outputs);
+			}
 
 
 
@@ -473,7 +477,7 @@ namespace Test
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
-			static const float max_sim_time = 2.0f;
+			static const float max_sim_time = 4.0f;
 
 			if(!init)
 			{
@@ -489,7 +493,7 @@ namespace Test
 
 			if(lifetime > 0)
 			{
-				float pelvis_pos_coeff = 0.0f;//max(0.0f, min(1.0f, lifetime * 3.0f));
+				float pelvis_pos_coeff = max(0.0f, min(1.0f, lifetime * 3.0f));
 
 				Vec3 error_vecs[6] =
 				{
@@ -512,21 +516,37 @@ namespace Test
 					error_vecs[5].ComputeMagnitudeSquared()
 				};
 
-				float error_tot = 0.0f;
+				float component_coeffs[6] = { 1, 1, pelvis_pos_coeff, 1, 1, 1 };
+
+				float score_rate = 0.0f;
 				for(unsigned int i = 0; i < 6; ++i)
-					error_tot += error_floats[i];
-
-				//if(error_tot > 1200)
-				//	SoldierBrain::Finish(score);
-
-				float score_rate = expf(-error_tot * 0.01f);
-				score += score_rate * 100 * timestep / max_sim_time;
+				{
+					score_rate     += component_coeffs[i] * expf(-error_floats[i] * 0.01f);
+					goal_scores[i] += component_coeffs[i] * error_floats[i] * timestep;
+				}
+				score += score_rate * 100 / 6 * timestep / max_sim_time;
 			}
 
 			lifetime += timestep;
 
 			if(max_score >= 0 && score >= max_score || lifetime > max_sim_time)
+			{
+#if 0
+				stringstream ss;
+				ss << "goal scores = { ";
+				for(unsigned int i = 0; i < 6; ++i)
+				{
+					if(i != 0)
+						ss << ",\t";
+					ss << (goal_scores[i] / lifetime);
+				}
+				ss << " }" << endl;
+
+				Debug(ss.str());
+#endif
+
 				SoldierBrain::Finish(score);
+			}
 
 
 			// reset joints
