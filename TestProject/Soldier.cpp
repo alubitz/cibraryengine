@@ -234,7 +234,7 @@ namespace Test
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
-			unsigned int num_memories = 25;
+			unsigned int num_memories = 12;
 			unsigned int num_inputs   = 180;		//162;		//342;		//360;
 			unsigned int num_outputs  = 18;
 
@@ -335,14 +335,6 @@ namespace Test
 			spine1.SetTorqueToSatisfyB();
 		}
 
-		void DoKneeCompromise(CJoint& knee)
-		{
-			knee.SetTorqueToSatisfyB();
-			Vec3 temp = knee.actual;
-			knee.SetTorqueToSatisfyA();
-			knee.SetWorldTorque((temp + knee.actual) * 0.5f);
-		}
-
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{			
 			// preparation and utility stuff for putting all the inputs into a big array of floats
@@ -380,7 +372,7 @@ namespace Test
 
 			vector<float> inputs;
 
-			// now to actually put those inputs into the array
+			// now to actually put those inputs into the array, starting with the state of some relevant bones
 			PushRB(lfoot,  translation, rotation, inputs, timestep);
 			PushRB(rfoot,  translation, rotation, inputs, timestep);
 			PushRB(llleg,  translation, rotation, inputs, timestep);
@@ -391,10 +383,10 @@ namespace Test
 			PushRB(torso1, translation, rotation, inputs, timestep);
 			PushRB(torso2, translation, rotation, inputs, timestep);
 
-			// some of the inputs describe the goal state, by specifying the desired linear & angular velocity of certain bones
+			// additional inputs describing the goal state, specifying the desired force & torque of certain bones
 			struct PushGoalState
 			{
-				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& vel, Vec3& rot)
+				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, float noise, Vec3& vel, Vec3& rot)
 				{
 					// because of the x 60hz, using a large mutation rate has a high chance of throwing things out of whack, unless we do something like this
 					static const float make_hertz_hurt_less = 0.02f;
@@ -403,8 +395,21 @@ namespace Test
 					Quaternion current_ori = rb->GetOrientation();
 					vel = (desired_pos - current_pos) * inv_timestep;
 					rot = (desired_ori * Quaternion::Reverse(current_ori)).ToRVec() * -inv_timestep;
-					PushVec3(inputs, rotation * vel * make_hertz_hurt_less);
-					PushVec3(inputs, rotation * rot * make_hertz_hurt_less);
+
+					if(noise)
+					{
+						vel += Random3D::RandomNormalizedVector(Random3D::Rand(noise));
+						rot += Random3D::RandomNormalizedVector(Random3D::Rand(noise));
+					}
+
+					Vec3 desired_force  = (vel - rb->GetLinearVelocity()) * (inv_timestep * rb->GetMass());
+					Vec3 desired_torque = Mat3(rb->GetTransformedMassInfo().moi) * (rot - rb->GetAngularVelocity()) * -inv_timestep;
+
+					desired_force  *= make_hertz_hurt_less;
+					desired_torque *= make_hertz_hurt_less;
+
+					PushVec3(inputs, rotation * desired_force);
+					PushVec3(inputs, rotation * desired_torque);
 				}
 			};
 
@@ -413,21 +418,21 @@ namespace Test
 				lfoot.rb, rotation, inv_timestep, inputs,
 				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * lfoot.rb->GetMassInfo().com,
 				((SoldierFoot*)dood->feet[0])->OrientBottomToSurface(Vec3(0, 1, 0)),
-				goal_vels[0], goal_rots[0]
+				0.0f, goal_vels[0], goal_rots[0]
 			);
 			PushGoalState			// rfoot
 			(
 				rfoot.rb, rotation, inv_timestep, inputs,
 				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * rfoot.rb->GetMassInfo().com,
 				((SoldierFoot*)dood->feet[1])->OrientBottomToSurface(Vec3(0, 1, 0)),
-				goal_vels[1], goal_rots[1]
+				0.0f, goal_vels[1], goal_rots[1]
 			);
 			PushGoalState			// pelvis
 			(
 				pelvis.rb, rotation, inv_timestep, inputs,
 				Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com,
 				p,
-				goal_vels[2], goal_rots[2]
+				0.5f, goal_vels[2], goal_rots[2]
 			);
 
 
@@ -436,7 +441,7 @@ namespace Test
 			vector<float> outputs(18);
 
 			unsigned int num_inputs = inputs.size();
-			for(unsigned int i = 0; i < 2; ++i)
+			for(unsigned int i = 0; i < 4; ++i)
 			{
 				inputs.resize(num_inputs);
 				SoldierBrain::Process(inputs, outputs);
@@ -477,7 +482,7 @@ namespace Test
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
-			static const float max_sim_time = 4.0f;
+			static const float max_sim_time = 2.0f;
 
 			if(!init)
 			{
@@ -488,13 +493,9 @@ namespace Test
 			timestep = time.elapsed;
 			inv_timestep = 1.0f / timestep;
 
-			//if(pelvis.rb->GetCenterOfMass().y < 0.5f || lfoot.rb->GetCenterOfMass().y > 0.15f || rfoot.rb->GetCenterOfMass().y > 0.15f)
-			//	SoldierBrain::Finish(score);
-
+			// brain scoring stuff
 			if(lifetime > 0)
 			{
-				float pelvis_pos_coeff = max(0.0f, min(1.0f, lifetime * 3.0f));
-
 				Vec3 error_vecs[6] =
 				{
 					lfoot .rb->GetLinearVelocity()  - goal_vels[0],
@@ -510,21 +511,32 @@ namespace Test
 				{
 					error_vecs[0].ComputeMagnitudeSquared(),
 					error_vecs[1].ComputeMagnitudeSquared(),
-					error_vecs[2].ComputeMagnitudeSquared() * pelvis_pos_coeff,
+					error_vecs[2].ComputeMagnitudeSquared(),
 					error_vecs[3].ComputeMagnitudeSquared(),
 					error_vecs[4].ComputeMagnitudeSquared(),
 					error_vecs[5].ComputeMagnitudeSquared()
 				};
 
-				float component_coeffs[6] = { 1, 1, pelvis_pos_coeff, 1, 1, 1 };
+				float component_coeffs[6] = { 1, 1, 1, 1, 1, 1 };				// could do custom weights here if desired
 
-				float score_rate = 0.0f;
+				float score_rate  = 0.0f;
+				float total_error = 0.0f;
 				for(unsigned int i = 0; i < 6; ++i)
 				{
-					score_rate     += component_coeffs[i] * expf(-error_floats[i] * 0.01f);
-					goal_scores[i] += component_coeffs[i] * error_floats[i] * timestep;
+					float c_err = component_coeffs[i] * error_floats[i];
+
+					score_rate     += component_coeffs[i] * expf(-error_floats[i] * 0.05f);
+					goal_scores[i] += c_err * timestep;
+					total_error    += c_err;
 				}
-				score += score_rate * 100 / 6 * timestep / max_sim_time;
+
+				if(total_error < 1000)
+					score += score_rate * 100 / 6 * timestep / max_sim_time;
+				else
+				{
+					SoldierBrain::Finish(score);
+				}
+				
 			}
 
 			lifetime += timestep;

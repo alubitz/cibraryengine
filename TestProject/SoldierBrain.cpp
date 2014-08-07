@@ -157,28 +157,31 @@ namespace Test
 
 			for(; result_ptr != results_end; ++result_ptr, ++a_ptr, ++b_ptr)
 			{
-				unsigned int r = Random3D::RandInt() % 3;
-				if(r == 0)
-					*result_ptr = (*a_ptr + *b_ptr) * 0.5f;
-				else if(r == 1)
-					*result_ptr = *a_ptr;
-				else
-					*result_ptr = *b_ptr;
+				unsigned int r = Random3D::RandInt() % 2;
+				*result_ptr = (r ? *a_ptr : *b_ptr);
+				//if(r == 0)
+				//	*result_ptr = (*a_ptr + *b_ptr) * 0.5f;
+				//else if(r == 1)
+				//	*result_ptr = *a_ptr;
+				//else
+				//	*result_ptr = *b_ptr;
 			}
-
-			result.crossover = true;
 		}
 
 		void Mutate(Genome& genome)
 		{
 			static const unsigned int num_mutations = 3;
-			static const float        mutation_rate = 1.0f;
+			static const float        mutation_rate = 0.02f;
 
 			// randomly modify a few elements of the coefficient matrix
 			for(unsigned int i = 0; i < num_mutations; ++i)
 			{	
 				float& coeff = genome.brain[Random3D::RandInt(brain_size)];
-				coeff += Random3D::Rand(-mutation_rate, mutation_rate);
+
+				if(coeff != 0 && fabs(coeff) < mutation_rate && Random3D::RandInt() % 10 == 0)
+					coeff = 0.0f;
+				else
+					coeff += Random3D::Rand(-mutation_rate, mutation_rate);
 			}
 		}
 
@@ -201,12 +204,13 @@ namespace Test
 
 		void CreateNextGen()
 		{
-			static const unsigned int parents             = 20;
+			static const unsigned int parents             = 10;
 			static const unsigned int mutants_per_parent  = 4;
 			static const unsigned int crossovers_per_pair = 2;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
 			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
-			static const unsigned int index_swaps         = 4;
+
+			static const unsigned int num_index_swaps     = 1;
 
 			if(batch == 0)
 				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl << endl)).str());
@@ -253,8 +257,11 @@ namespace Test
 
 						CreateCrossover(genomes[i], genomes[j], new_genome);
 						Mutate(new_genome);
-						for(unsigned int s = 0; s < index_swaps; ++s)
-							SwapMemoryIndices(new_genome);
+						if(num_memories > 2)
+							for(unsigned int s = 0; s < num_index_swaps; ++s)
+								SwapMemoryIndices(new_genome);
+
+						new_genome.crossover = pcount > 1;
 					}
 
 			// do single-parent mutations
@@ -263,8 +270,9 @@ namespace Test
 				Genome& new_genome = genomes[i] = genomes[i % parents];
 
 				Mutate(new_genome);
-				for(unsigned int s = 0; s < index_swaps; ++s)
-					SwapMemoryIndices(new_genome);
+				if(num_memories > 2)
+					for(unsigned int s = 0; s < num_index_swaps; ++s)
+						SwapMemoryIndices(new_genome);
 
 				new_genome.crossover = false;
 			}
@@ -279,13 +287,35 @@ namespace Test
 
 		void NextBrain(unsigned int num_inputs_, unsigned int num_outputs_, unsigned int num_memories_, float& max_score)
 		{
-			if(num_inputs != num_inputs_ || num_outputs != num_outputs_ || num_memories != num_memories_)
+			if(num_inputs != num_inputs_ || num_outputs != num_outputs_)		// input or output array size mismatch; whole brain must be discarded
 			{
 				num_inputs   = num_inputs_;
 				num_outputs  = num_outputs_;
 				num_memories = num_memories_;
 
 				genomes.clear();
+			}
+			else if(num_memories != num_memories_)								// memory array size mismatch; more memories can be added, or excess memories can be truncated
+			{
+				vector<float> new_brain;
+				for(vector<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
+				{
+					new_brain.clear();
+
+					const float* brain = iter->brain.data();
+					unsigned int stride = num_inputs + num_memories;
+
+					for(unsigned int y = 0; y < num_outputs + num_memories_; ++y)
+						for(unsigned int x = 0; x < num_inputs + num_memories_; ++x)
+							if(x >= num_inputs + num_memories || y >= num_outputs + num_memories)
+								new_brain.push_back(0);
+							else
+								new_brain.push_back(brain[y * stride + x]);
+
+					iter->brain.assign(new_brain.begin(), new_brain.end());
+				}
+
+				num_memories = num_memories_;
 			}
 
 			unsigned int brain_inputs  = num_inputs  + num_memories;
@@ -353,22 +383,25 @@ namespace Test
 
 		void Finish(float score)
 		{
-			static const unsigned int num_trials = 1;
-
-			finished = true;
-
-			// the system picks the worst score of however many trials
-			float& g = genomes[active_genome].score;
-			if(trial == 0)
-				g = score;
-			else
-				g = min(g, score);
-
-			++trial;
-			if(trial == num_trials)
+			if(!finished)
 			{
-				++active_genome;
-				trial = 0;
+				static const unsigned int num_trials = 5;
+
+				finished = true;
+
+				// the system picks the worst score of however many trials
+				float& g = genomes[active_genome].score;
+				if(trial == 0)
+					g = score;
+				else
+					g = min(g, score);
+
+				++trial;
+				if(trial == num_trials)
+				{
+					++active_genome;
+					trial = 0;
+				}
 			}
 		}
 	};
