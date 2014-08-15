@@ -29,6 +29,11 @@ namespace CibraryEngine
 			Texture2D(unsigned int gl_name);
 
 			unsigned int GetGLName();
+
+			/**
+			 * Function to call when the byte_data has been changed, but the other properties (including gl name) should be kept
+			 * This will in turn call glTexImage2D, so don't call it from a thread without a gl context */
+			void UpdateTextureData();
 	};
 
 

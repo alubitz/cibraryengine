@@ -7,6 +7,8 @@
 
 #include "TestGame.h"
 
+#include "SoldierBrain.h"
+
 namespace Test
 {
 	/*
@@ -517,6 +519,24 @@ namespace Test
 
 				row++;
 			};
+		}
+
+		if(Texture2D* data = SoldierBrain::GetDebugImage())
+		{
+			unsigned int name = data->GetGLName();
+			data->UpdateTextureData();
+
+			glBindTexture(GL_TEXTURE_2D, name);
+			glBegin(GL_QUADS);
+			glTexCoord2f(0, 1);
+			glVertex2f(100, 100);
+			glTexCoord2f(0, 0);
+			glVertex2f(100, 611);
+			glTexCoord2f(1, 0);
+			glVertex2f(1124, 611);
+			glTexCoord2f(1, 1);
+			glVertex2f(1124, 100);
+			glEnd();
 		}
 
 		GLDEBUG();

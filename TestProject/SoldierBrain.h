@@ -5,6 +5,7 @@
 namespace Test
 {
 	using namespace std;
+	using namespace CibraryEngine;
 
 	class SoldierBrain
 	{
@@ -24,5 +25,7 @@ namespace Test
 			static bool IsFinished();
 
 			static string GetDebugText();
+
+			static Texture2D* GetDebugImage();
 	};
 }

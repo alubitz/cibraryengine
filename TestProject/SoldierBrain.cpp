@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "SoldierBrain.h"
 
+#define ENABLE_DEBUG_DATA_TEXTURE 1
+
 namespace Test
 {
 	using namespace CibraryEngine;
@@ -29,6 +31,7 @@ namespace Test
 		bool finished;
 
 		string debug_text;
+		Texture2D* debug_image;
 
 		Imp() :
 			genomes(),
@@ -41,8 +44,22 @@ namespace Test
 			brain_size(0),
 			memory(),
 			finished(false),
-			debug_text("")
+			debug_text(""),
+			debug_image(NULL)
 		{
+#if ENABLE_DEBUG_DATA_TEXTURE
+			unsigned int w = 512;
+			unsigned int h = 256;
+			unsigned char* data = new unsigned char[w * h * 4];
+			memset(data, 0, w * h * 4 * sizeof(unsigned char));
+
+			unsigned char* alpha_ptr = data + 3;
+			unsigned char* alpha_end = alpha_ptr + w * h * 4;
+			for(; alpha_ptr != alpha_end; alpha_ptr += 4)
+				*alpha_ptr = 255;
+
+			debug_image = new Texture2D(w, h, data, false, true);
+#endif
 		}
 
 		void Load(const string& filename)
@@ -149,52 +166,47 @@ namespace Test
 
 		void CreateCrossover(const Genome& parent_a, const Genome& parent_b, Genome& result)
 		{
-			const float* a_ptr = parent_a.brain.data();
-			const float* b_ptr = parent_b.brain.data();
+			memcpy(result.brain.data(), parent_a.brain.data(), brain_size * sizeof(float));
+
+			ShuffleMemoryIndices(result);
 
 			float* result_ptr  = result.brain.data();
 			float* results_end = result_ptr + brain_size;
+			const float* b_ptr = parent_b.brain.data();
 
-			for(; result_ptr != results_end; ++result_ptr, ++a_ptr, ++b_ptr)
+			for(; result_ptr != results_end; ++result_ptr, ++b_ptr)
 			{
-				unsigned int r = Random3D::RandInt() % 2;
-				*result_ptr = (r ? *a_ptr : *b_ptr);
-				//if(r == 0)
-				//	*result_ptr = (*a_ptr + *b_ptr) * 0.5f;
-				//else if(r == 1)
-				//	*result_ptr = *a_ptr;
-				//else
-				//	*result_ptr = *b_ptr;
+#if 1
+				float lerp_b = Random3D::Rand(), lerp_a = 1.0f - lerp_b;
+				*result_ptr = (lerp_a * *result_ptr) + (lerp_b * *b_ptr);
+#else
+				unsigned char lerp_b = Random3D::RandInt() % 2, lerp_a = 1 - lerp_b;
+				*result_ptr = (lerp_a * *result_ptr) + (lerp_b * *b_ptr);
+#endif
 			}
+
+			ShuffleMemoryIndices(result);
 		}
 
 		void Mutate(Genome& genome)
 		{
 			static const unsigned int num_mutations = 3;
-			static const float        mutation_rate = 0.02f;
+			static const float        mutation_rate = 0.1f;
 
 			// randomly modify a few elements of the coefficient matrix
 			for(unsigned int i = 0; i < num_mutations; ++i)
 			{	
 				float& coeff = genome.brain[Random3D::RandInt(brain_size)];
 
-				if(coeff != 0 && fabs(coeff) < mutation_rate && Random3D::RandInt() % 10 == 0)
+				if(coeff != 0 && fabs(coeff) < mutation_rate && Random3D::RandInt() % 6 == 0)
 					coeff = 0.0f;
 				else
 					coeff += Random3D::Rand(-mutation_rate, mutation_rate);
 			}
 		}
 
-		void SwapMemoryIndices(Genome& genome)
+		void SwapMemoryIndices(float* brain, unsigned int a, unsigned int b, unsigned int row_size, unsigned int col_size)
 		{
-			float* brain = genome.brain.data();
-
-			unsigned int a = Random3D::RandInt(num_memories);
-			unsigned int b = (a + Random3D::RandInt(num_memories - 1)) % num_memories;
-
-			unsigned int row_size = num_inputs  + num_memories;
-			unsigned int col_size = num_outputs + num_memories;
-
 			unsigned int ar = (a + num_outputs) * row_size, br = (b + num_outputs) * row_size;
 			for(unsigned int i = 0 ; i < row_size; ++i)
 				swap(brain[ar + i], brain[br + i]);
@@ -202,15 +214,33 @@ namespace Test
 				swap(brain[i * row_size + a + num_inputs], brain[i * row_size + b + num_inputs]);
 		}
 
+		void ShuffleMemoryIndices(Genome& genome)
+		{
+			if(num_memories >= 2)
+			{
+				float* brain = genome.brain.data();
+
+				unsigned int row_size = num_inputs  + num_memories;
+				unsigned int col_size = num_outputs + num_memories;
+
+				unsigned int n_minus_one = num_memories - 1;
+
+				for(unsigned int a = n_minus_one; a > 0; --a)
+				{
+					unsigned int b = Random3D::RandInt(a + 1);
+					if(a != b)
+						SwapMemoryIndices(brain, a, b, row_size, col_size);
+				}
+			}
+		}
+
 		void CreateNextGen()
 		{
-			static const unsigned int parents             = 10;
-			static const unsigned int mutants_per_parent  = 4;
-			static const unsigned int crossovers_per_pair = 2;
+			static const unsigned int parents             = 30;
+			static const unsigned int mutants_per_parent  = 2;
+			static const unsigned int crossovers_per_pair = 1;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
 			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
-
-			static const unsigned int num_index_swaps     = 1;
 
 			if(batch == 0)
 				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl << endl)).str());
@@ -257,9 +287,6 @@ namespace Test
 
 						CreateCrossover(genomes[i], genomes[j], new_genome);
 						Mutate(new_genome);
-						if(num_memories > 2)
-							for(unsigned int s = 0; s < num_index_swaps; ++s)
-								SwapMemoryIndices(new_genome);
 
 						new_genome.crossover = pcount > 1;
 					}
@@ -268,11 +295,7 @@ namespace Test
 			for(unsigned int i = 0; i < crossovers_begin; ++i)
 			{
 				Genome& new_genome = genomes[i] = genomes[i % parents];
-
 				Mutate(new_genome);
-				if(num_memories > 2)
-					for(unsigned int s = 0; s < num_index_swaps; ++s)
-						SwapMemoryIndices(new_genome);
 
 				new_genome.crossover = false;
 			}
@@ -297,6 +320,8 @@ namespace Test
 			}
 			else if(num_memories != num_memories_)								// memory array size mismatch; more memories can be added, or excess memories can be truncated
 			{
+				Debug(((stringstream&)(stringstream() << "resizing brain matrix to change from " << num_memories << " memories (old) to " << num_memories_ << " memories (new)" << endl)).str());
+
 				vector<float> new_brain;
 				for(vector<Genome>::iterator iter = genomes.begin(); iter != genomes.end(); ++iter)
 				{
@@ -323,7 +348,10 @@ namespace Test
 			brain_size = brain_inputs * brain_outputs;
 
 			if(batch == 0 && active_genome == 0 && trial == 0)
+			{
+				Debug(((stringstream&)(stringstream() << "inputs = " << num_inputs << "; outputs = " << num_outputs << "; memories = " << num_memories << endl)).str());
 				Debug(((stringstream&)(stringstream() << "brain size = " << brain_inputs << " x " << brain_outputs << " = " << brain_size << endl)).str());
+			}
 
 			memory.resize(num_memories);
 			memset(memory.data(), 0, memory.size() * sizeof(float));
@@ -385,7 +413,7 @@ namespace Test
 		{
 			if(!finished)
 			{
-				static const unsigned int num_trials = 5;
+				static const unsigned int num_trials = 7;
 
 				finished = true;
 
@@ -401,8 +429,32 @@ namespace Test
 				{
 					++active_genome;
 					trial = 0;
+
+					UpdateScoreTextureData(g, genomes[active_genome].crossover);
 				}
 			}
+		}
+
+		void UpdateScoreTextureData(float score, bool crossover)
+		{
+#if ENABLE_DEBUG_DATA_TEXTURE
+			unsigned char* data = debug_image->byte_data;
+
+			unsigned int x = batch;
+			unsigned int y = (unsigned int)(max(0.0f, min(1.0f, score / 50.0f)) * (debug_image->height - 1));
+
+			if((signed)x < debug_image->width && (signed)y < debug_image->height)
+			{
+				unsigned int pixel_index = debug_image->width * y + x;
+				unsigned char* byte_ptr = data + pixel_index * 4;
+
+				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 32);
+				++byte_ptr;
+				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 8);
+				++byte_ptr;
+				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 1);
+			}
+#endif
 		}
 	};
 
@@ -423,4 +475,6 @@ namespace Test
 
 	bool SoldierBrain::IsFinished()     { return imp->finished; }
 	string SoldierBrain::GetDebugText() { return imp->debug_text; }
+
+	Texture2D* SoldierBrain::GetDebugImage() { return imp->debug_image; }
 }

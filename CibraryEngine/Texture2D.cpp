@@ -71,6 +71,19 @@ namespace CibraryEngine
 		return gl_name;
 	}
 
+	void Texture2D::UpdateTextureData()
+	{
+		bool were_textures_enabled = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, gl_name);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, byte_data);
+
+		if(!were_textures_enabled)
+			glDisable(GL_TEXTURE_2D);
+	}
+
 
 
 

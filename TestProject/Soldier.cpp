@@ -174,13 +174,13 @@ namespace Test
 		float timestep, inv_timestep;
 		float lifetime;
 
-		float sine_offset;
-
 		float score, max_score;
 
 		Vec3  goal_vels[3];
 		Vec3  goal_rots[3];
-		float goal_scores[6];
+
+		Vec3 pelvis_goal_pos, pelvis_goal_vel;
+		float accumulated_error;
 
 		Imp() :
 			init(false),
@@ -235,15 +235,15 @@ namespace Test
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
 			unsigned int num_memories = 12;
-			unsigned int num_inputs   = 180;		//162;		//342;		//360;
+			unsigned int num_inputs   = 180;
 			unsigned int num_outputs  = 18;
 
 			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_score);
 
-			sine_offset = Random3D::Rand(float(M_PI) * 2.0f);
-
-			for(unsigned int i = 0; i < 6; ++i)
-				goal_scores[i] = 0;
+			pelvis_goal_vel = Random3D::RandomNormalizedVector(Random3D::Rand(0.5f));
+			pelvis_goal_pos = Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com + Random3D::RandomNormalizedVector(Random3D::Rand(0.1f)) - pelvis_goal_vel * 0.25f;
+			
+			accumulated_error = 0.0f;
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -430,9 +430,9 @@ namespace Test
 			PushGoalState			// pelvis
 			(
 				pelvis.rb, rotation, inv_timestep, inputs,
-				Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com,
+				pelvis_goal_pos + pelvis_goal_vel * lifetime,
 				p,
-				0.5f, goal_vels[2], goal_rots[2]
+				0.25f, goal_vels[2], goal_rots[2]
 			);
 
 
@@ -441,7 +441,7 @@ namespace Test
 			vector<float> outputs(18);
 
 			unsigned int num_inputs = inputs.size();
-			for(unsigned int i = 0; i < 4; ++i)
+			for(unsigned int i = 0; i < 6; ++i)
 			{
 				inputs.resize(num_inputs);
 				SoldierBrain::Process(inputs, outputs);
@@ -482,7 +482,7 @@ namespace Test
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
-			static const float max_sim_time = 2.0f;
+			static const float max_sim_time = 0.5f;
 
 			if(!init)
 			{
@@ -493,71 +493,54 @@ namespace Test
 			timestep = time.elapsed;
 			inv_timestep = 1.0f / timestep;
 
-			// brain scoring stuff
-			if(lifetime > 0)
+			if(!SoldierBrain::IsFinished())
 			{
-				Vec3 error_vecs[6] =
+				// brain scoring stuff
+				if(lifetime > 0)
 				{
-					lfoot .rb->GetLinearVelocity()  - goal_vels[0],
-					rfoot .rb->GetLinearVelocity()  - goal_vels[1],
-					pelvis.rb->GetLinearVelocity()  - goal_vels[2],
+					Vec3 error_vecs[6] =
+					{
+						lfoot .rb->GetLinearVelocity()  - goal_vels[0],
+						rfoot .rb->GetLinearVelocity()  - goal_vels[1],
+						pelvis.rb->GetLinearVelocity()  - goal_vels[2],
 
-					lfoot .rb->GetAngularVelocity() - goal_rots[0],
-					rfoot .rb->GetAngularVelocity() - goal_rots[1],
-					pelvis.rb->GetAngularVelocity() - goal_rots[2]
-				};
+						lfoot .rb->GetAngularVelocity() - goal_rots[0],
+						rfoot .rb->GetAngularVelocity() - goal_rots[1],
+						pelvis.rb->GetAngularVelocity() - goal_rots[2]
+					};
 				
-				float error_floats[6] =
-				{
-					error_vecs[0].ComputeMagnitudeSquared(),
-					error_vecs[1].ComputeMagnitudeSquared(),
-					error_vecs[2].ComputeMagnitudeSquared(),
-					error_vecs[3].ComputeMagnitudeSquared(),
-					error_vecs[4].ComputeMagnitudeSquared(),
-					error_vecs[5].ComputeMagnitudeSquared()
-				};
+					float error_floats[6] =
+					{
+						error_vecs[0].ComputeMagnitudeSquared(),
+						error_vecs[1].ComputeMagnitudeSquared(),
+						error_vecs[2].ComputeMagnitudeSquared(),
+						error_vecs[3].ComputeMagnitudeSquared(),
+						error_vecs[4].ComputeMagnitudeSquared(),
+						error_vecs[5].ComputeMagnitudeSquared()
+					};
 
-				float component_coeffs[6] = { 1, 1, 1, 1, 1, 1 };				// could do custom weights here if desired
+					float component_coeffs[6] = { 1, 1, 1, 1, 1, 1 };				// could do custom weights here if desired
 
-				float score_rate  = 0.0f;
-				float total_error = 0.0f;
-				for(unsigned int i = 0; i < 6; ++i)
-				{
-					float c_err = component_coeffs[i] * error_floats[i];
+					float score_rate  = 0.0f;
+					float total_error = 0.0f;
+					for(unsigned int i = 0; i < 6; ++i)
+					{
+						score_rate  += component_coeffs[i] * expf(-error_floats[i] * 0.1f);
+						total_error += component_coeffs[i] * sqrtf(error_floats[i]);
+					}
 
-					score_rate     += component_coeffs[i] * expf(-error_floats[i] * 0.05f);
-					goal_scores[i] += c_err * timestep;
-					total_error    += c_err;
-				}
-
-				if(total_error < 1000)
 					score += score_rate * 100 / 6 * timestep / max_sim_time;
-				else
-				{
+
+					float max_allowable_error = 5;
+					accumulated_error += total_error * timestep;
+					if(accumulated_error > max_allowable_error)
+						SoldierBrain::Finish(score);
+				}
+
+				lifetime += timestep;
+
+				if(max_score >= 0 && score >= max_score || lifetime > max_sim_time)
 					SoldierBrain::Finish(score);
-				}
-				
-			}
-
-			lifetime += timestep;
-
-			if(max_score >= 0 && score >= max_score || lifetime > max_sim_time)
-			{
-#if 0
-				stringstream ss;
-				ss << "goal scores = { ";
-				for(unsigned int i = 0; i < 6; ++i)
-				{
-					if(i != 0)
-						ss << ",\t";
-					ss << (goal_scores[i] / lifetime);
-				}
-				ss << " }" << endl;
-
-				Debug(ss.str());
-#endif
-
-				SoldierBrain::Finish(score);
 			}
 
 
@@ -802,6 +785,23 @@ namespace Test
 #if ENABLE_PELVIS_ANCHOR
 		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 1, 0);
 #endif
+
+		float randomness = 0.05f;
+
+		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, Random3D::Rand(randomness), 0);
+
+		Quaternion& ori = posey->skeleton->GetNamedBone("pelvis")->ori;
+		ori = Quaternion::FromRVec(Random3D::RandomNormalizedVector(Random3D::Rand(randomness))) * ori;
+
+		float lyaw = Random3D::Rand(0.25f);
+		posey->skeleton->GetNamedBone( "l leg 1" )->ori = Quaternion::FromRVec(0, lyaw, 0);
+		posey->skeleton->GetNamedBone( "l leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
+		posey->skeleton->GetNamedBone( "l foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw, Random3D::Rand(-randomness, randomness));
+
+		float ryaw = Random3D::Rand(0.25f);
+		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec(0, ryaw, 0);
+		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
+		posey->skeleton->GetNamedBone( "r foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw, Random3D::Rand(-randomness, randomness));
 
 		PreparePAG(TimingInfo(0, 0), Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0));
 	}
