@@ -488,8 +488,59 @@ namespace Test
 
 		SetOrtho(w, h);
 
+		if(Texture2D* data = SoldierBrain::GetDebugImage())
+		{
+			unsigned int name = data->GetGLName();
+			data->UpdateTextureData();
+
+			glColor4f(1, 1, 1, 1);
+
+			glBindTexture(GL_TEXTURE_2D, name);
+			glBegin(GL_QUADS);
+			glTexCoord2f(0, 1);
+			glVertex2f(100, 100);
+			glTexCoord2f(0, 0);
+			glVertex2f(100, 612);
+			glTexCoord2f(1, 0);
+			glVertex2f(1124, 612);
+			glTexCoord2f(1, 1);
+			glVertex2f(1124, 100);
+			glEnd();
+		}
+
 		if(game->debug_text != "")
-			Print(0, 0, game->debug_text);
+		{
+			string lines = game->debug_text;
+			string line;
+			int row = 0;
+			while(lines.length() > 0)
+			{
+				int index = lines.find('\n');
+				if(index == -1)
+				{
+					line = lines;
+					lines = "";
+				}
+				else
+				{
+					line = lines.substr(0, index);
+					lines = lines.substr(index + 1);
+				}
+				if(line.length() > 0)
+				{
+					string str;
+					for(unsigned int i = 0; i < line.size(); ++i)
+						if(line[i] == '\t')
+							str.append("    ");
+						else
+							str.push_back(line[i]);
+
+					Print(0, row * game->font->font_height, str);
+				}
+
+				++row;
+			}
+		}
 
 		if(game->total_game_time < game->chapter_text_end || game->chapter_text_end < game->chapter_text_start)
 		{
@@ -517,26 +568,8 @@ namespace Test
 				if(line.length() > 0)
 					Print((w - line.length() * game->font->font_spacing) / 2, h / 2 + row * game->font->font_height, line);
 
-				row++;
-			};
-		}
-
-		if(Texture2D* data = SoldierBrain::GetDebugImage())
-		{
-			unsigned int name = data->GetGLName();
-			data->UpdateTextureData();
-
-			glBindTexture(GL_TEXTURE_2D, name);
-			glBegin(GL_QUADS);
-			glTexCoord2f(0, 1);
-			glVertex2f(100, 100);
-			glTexCoord2f(0, 0);
-			glVertex2f(100, 611);
-			glTexCoord2f(1, 0);
-			glVertex2f(1124, 611);
-			glTexCoord2f(1, 1);
-			glVertex2f(1124, 100);
-			glEnd();
+				++row;
+			}
 		}
 
 		GLDEBUG();

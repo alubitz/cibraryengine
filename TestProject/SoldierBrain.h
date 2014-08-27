@@ -16,12 +16,14 @@ namespace Test
 
 		public:
 
+			static const unsigned int NumScoringCategories = 6;
+
 			static void Load();
 			static void Save();
 
-			static void NextBrain(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_memories, float& max_score);	// max_score = -1 means no max
+			static void NextBrain(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_memories);
 			static void Process(vector<float>& inputs, vector<float>& outputs);											// note: all params may be modified
-			static void Finish(float score);
+			static void Finish(const float* scores);
 			static bool IsFinished();
 
 			static string GetDebugText();

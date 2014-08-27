@@ -174,19 +174,19 @@ namespace Test
 		float timestep, inv_timestep;
 		float lifetime;
 
-		float score, max_score;
+		float scores[SoldierBrain::NumScoringCategories];
 
 		Vec3  goal_vels[3];
 		Vec3  goal_rots[3];
 
 		Vec3 pelvis_goal_pos, pelvis_goal_vel;
+		float yaw_vel, pitch_vel;
 		float accumulated_error;
 
 		Imp() :
 			init(false),
 			inv_timestep(0),
-			lifetime(0),
-			score(0)
+			lifetime(0)
 		{
 		}
 
@@ -234,16 +234,21 @@ namespace Test
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
-			unsigned int num_memories = 12;
+			unsigned int num_memories = 50;
 			unsigned int num_inputs   = 180;
 			unsigned int num_outputs  = 18;
 
-			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories, max_score);
+			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories);
 
 			pelvis_goal_vel = Random3D::RandomNormalizedVector(Random3D::Rand(0.5f));
-			pelvis_goal_pos = Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com + Random3D::RandomNormalizedVector(Random3D::Rand(0.1f)) - pelvis_goal_vel * 0.25f;
+			pelvis_goal_pos = Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com + Random3D::RandomNormalizedVector(Random3D::Rand(0.1f)) - pelvis_goal_vel * 0.5f;
 			
+			yaw_vel   = Random3D::Rand(-0.3f, 0.3f);
+			pitch_vel = Random3D::Rand(-0.3f, 0.3f);
+
 			accumulated_error = 0.0f;
+			for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
+				scores[i] = 0.0f;			
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -432,7 +437,7 @@ namespace Test
 				pelvis.rb, rotation, inv_timestep, inputs,
 				pelvis_goal_pos + pelvis_goal_vel * lifetime,
 				p,
-				0.25f, goal_vels[2], goal_rots[2]
+				0.0f, goal_vels[2], goal_rots[2]
 			);
 
 
@@ -441,7 +446,7 @@ namespace Test
 			vector<float> outputs(18);
 
 			unsigned int num_inputs = inputs.size();
-			for(unsigned int i = 0; i < 6; ++i)
+			for(unsigned int i = 0; i < 8; ++i)
 			{
 				inputs.resize(num_inputs);
 				SoldierBrain::Process(inputs, outputs);
@@ -480,10 +485,56 @@ namespace Test
 			SetJointTorque(rankle, *(output_vec++));
 		}
 
+		void DoScoringStuff(Soldier* dood)
+		{
+			static const float max_sim_time = 1.0f;
+
+			if(lifetime > 0)
+			{
+				Vec3 error_vecs[SoldierBrain::NumScoringCategories] =
+				{
+					lfoot .rb->GetLinearVelocity()  - goal_vels[0],
+					rfoot .rb->GetLinearVelocity()  - goal_vels[1],
+					pelvis.rb->GetLinearVelocity()  - goal_vels[2],
+
+					lfoot .rb->GetAngularVelocity() - goal_rots[0],
+					rfoot .rb->GetAngularVelocity() - goal_rots[1],
+					pelvis.rb->GetAngularVelocity() - goal_rots[2]
+				};
+				
+				float error_floats[SoldierBrain::NumScoringCategories] =
+				{
+					error_vecs[0].ComputeMagnitudeSquared(),
+					error_vecs[1].ComputeMagnitudeSquared(),
+					error_vecs[2].ComputeMagnitudeSquared(),
+					error_vecs[3].ComputeMagnitudeSquared(),
+					error_vecs[4].ComputeMagnitudeSquared(),
+					error_vecs[5].ComputeMagnitudeSquared()
+				};
+
+				float component_coeffs[SoldierBrain::NumScoringCategories] =
+				{
+					0.01f,
+					0.01f,
+					0.001f,
+					0.003f,
+					0.003f,
+					0.001f
+				};
+
+				float dt_over_s = timestep / max_sim_time;
+				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
+					scores[i] += dt_over_s * expf(-component_coeffs[i] * error_floats[i]);
+			}
+
+			lifetime += timestep;
+
+			if(lifetime > max_sim_time)
+				SoldierBrain::Finish(scores);
+		}
+
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
-			static const float max_sim_time = 0.5f;
-
 			if(!init)
 			{
 				Init(dood);
@@ -495,52 +546,10 @@ namespace Test
 
 			if(!SoldierBrain::IsFinished())
 			{
-				// brain scoring stuff
-				if(lifetime > 0)
-				{
-					Vec3 error_vecs[6] =
-					{
-						lfoot .rb->GetLinearVelocity()  - goal_vels[0],
-						rfoot .rb->GetLinearVelocity()  - goal_vels[1],
-						pelvis.rb->GetLinearVelocity()  - goal_vels[2],
+				DoScoringStuff(dood);
 
-						lfoot .rb->GetAngularVelocity() - goal_rots[0],
-						rfoot .rb->GetAngularVelocity() - goal_rots[1],
-						pelvis.rb->GetAngularVelocity() - goal_rots[2]
-					};
-				
-					float error_floats[6] =
-					{
-						error_vecs[0].ComputeMagnitudeSquared(),
-						error_vecs[1].ComputeMagnitudeSquared(),
-						error_vecs[2].ComputeMagnitudeSquared(),
-						error_vecs[3].ComputeMagnitudeSquared(),
-						error_vecs[4].ComputeMagnitudeSquared(),
-						error_vecs[5].ComputeMagnitudeSquared()
-					};
-
-					float component_coeffs[6] = { 1, 1, 1, 1, 1, 1 };				// could do custom weights here if desired
-
-					float score_rate  = 0.0f;
-					float total_error = 0.0f;
-					for(unsigned int i = 0; i < 6; ++i)
-					{
-						score_rate  += component_coeffs[i] * expf(-error_floats[i] * 0.1f);
-						total_error += component_coeffs[i] * sqrtf(error_floats[i]);
-					}
-
-					score += score_rate * 100 / 6 * timestep / max_sim_time;
-
-					float max_allowable_error = 5;
-					accumulated_error += total_error * timestep;
-					if(accumulated_error > max_allowable_error)
-						SoldierBrain::Finish(score);
-				}
-
-				lifetime += timestep;
-
-				if(max_score >= 0 && score >= max_score || lifetime > max_sim_time)
-					SoldierBrain::Finish(score);
+				dood->control_state->SetFloatControl( "yaw",   timestep * yaw_vel   );
+				dood->control_state->SetFloatControl( "pitch", timestep * pitch_vel );
 			}
 
 

@@ -15,11 +15,11 @@ namespace Test
 		struct Genome
 		{
 			vector<float> brain;
-			float score;
+			float scores[NumScoringCategories];
 			bool crossover;
 
-			Genome() : brain(), score(-1), crossover(false) { }
-			Genome(unsigned int size) : brain(size), score(-1), crossover(false) { }
+			Genome() : brain(), crossover(false) { }
+			Genome(unsigned int size) : brain(size), crossover(false) { }
 		};
 
 		vector<Genome> genomes;
@@ -48,8 +48,8 @@ namespace Test
 			debug_image(NULL)
 		{
 #if ENABLE_DEBUG_DATA_TEXTURE
-			unsigned int w = 512;
-			unsigned int h = 256;
+			unsigned int w = 1024;
+			unsigned int h = 512;
 			unsigned char* data = new unsigned char[w * h * 4];
 			memset(data, 0, w * h * 4 * sizeof(unsigned char));
 
@@ -188,20 +188,26 @@ namespace Test
 			ShuffleMemoryIndices(result);
 		}
 
-		void Mutate(Genome& genome)
+		void Mutate(Genome& genome, unsigned int num_mutations)
 		{
-			static const unsigned int num_mutations = 3;
-			static const float        mutation_rate = 0.1f;
+			unsigned int w = num_inputs + num_memories;
 
 			// randomly modify a few elements of the coefficient matrix
 			for(unsigned int i = 0; i < num_mutations; ++i)
 			{	
-				float& coeff = genome.brain[Random3D::RandInt(brain_size)];
+				unsigned int index = Random3D::RandInt(brain_size);
+				unsigned int x = index % w;
+				unsigned int y = index / w;
 
-				if(coeff != 0 && fabs(coeff) < mutation_rate && Random3D::RandInt() % 6 == 0)
-					coeff = 0.0f;
-				else
-					coeff += Random3D::Rand(-mutation_rate, mutation_rate);
+				float& coeff = genome.brain[index];
+
+				if(x >= num_inputs || y >= num_outputs)
+				{
+					if(Random3D::Rand() * 0.2f > fabs(coeff))
+						coeff = 0.0f;
+					else
+						coeff = Random3D::Rand(-2.0f, 2.0f);
+				}
 			}
 		}
 
@@ -234,44 +240,90 @@ namespace Test
 			}
 		}
 
+		void DoScoreStatistics(unsigned int pcount)
+		{
+			unsigned int crossover_count = 0;
+
+			float tot[NumScoringCategories], ptot[NumScoringCategories];
+			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+				tot[i] = ptot[i] = 0.0f;
+
+			for(unsigned int i = 0; i < genomes.size(); ++i)
+			{
+				const float* item_scores = genomes[i].scores;
+				for(unsigned int j = 0; j < NumScoringCategories; ++j)
+					tot[j] += item_scores[j];
+			}
+
+			for(unsigned int i = 0; i < pcount; ++i)
+			{
+				for(unsigned int j = 0; j < NumScoringCategories; ++j)
+					ptot[j] += genomes[i].scores[j];
+				if(genomes[i].crossover)
+					++crossover_count;
+			}
+
+			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+			{
+				tot[i]  /= float(genomes.size());
+				ptot[i] /= float(pcount);
+			}
+
+			stringstream ss;
+			ss << "batch[" << batch << "]; crossovers = " << crossover_count << endl;
+			ss << '\t' << "top " << pcount << " avg = { ";
+			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+				if(i == 0)
+					ss << ptot[i];
+				else
+					ss << ", " << ptot[i];
+			ss << " }" << endl;
+			ss << '\t' << "full avg = { ";
+			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+				if(i == 0)
+					ss << tot[i];
+				else
+					ss << ", " << tot[i];
+			ss << " }" << endl;
+
+			Debug(ss.str());
+		}
+
 		void CreateNextGen()
 		{
-			static const unsigned int parents             = 30;
-			static const unsigned int mutants_per_parent  = 2;
-			static const unsigned int crossovers_per_pair = 1;
+			static const unsigned int crossover_mutations     = 2;
+			static const unsigned int single_parent_mutations = 10;
+
+			static const unsigned int parent_categories[] =
+			{
+				5, 5, 5, 5, 5,
+				0, 1, 2, 3, 4,
+				0, 1, 2, 3, 4,
+				0, 1, 2, 3, 4
+			};
+
+			static const unsigned int parents             = sizeof(parent_categories) / sizeof(unsigned int);
+			static const unsigned int mutants_per_parent  = 19;
+			static const unsigned int crossovers_per_pair = 2;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
 			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
 
 			if(batch == 0)
 				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl << endl)).str());
 
-			float tot = 0.0f;
-			for(unsigned int i = 0; i < genomes.size(); ++i)
+			unsigned int pcount = min(parents, genomes.size());
+			for(unsigned int i = 0; i < pcount; ++i)
 			{
-				float item_score = genomes[i].score;
-				tot += item_score;
-			}
-			tot /= genomes.size();
+				unsigned int category = parent_categories[i];
 
-			float ptot = 0.0f;
-			unsigned int crossover_count = 0;
-			for(unsigned int i = 0; i < parents && i < genomes.size(); ++i)
-			{
 				unsigned int best = i;
 				for(unsigned int j = i + 1; j < genomes.size(); ++j)
-					if(genomes[j].score > genomes[best].score)
+					if(genomes[j].scores[category] > genomes[best].scores[category])
 						best = j;
 				swap(genomes[best], genomes[i]);
-
-				ptot += genomes[i].score;
-				if(genomes[i].crossover)
-					++crossover_count;
 			}
-			unsigned int pcount = min(parents, genomes.size());
-			ptot /= pcount;
 
-			debug_text = ((stringstream&)(stringstream() << "batch[" << batch << "] top " << pcount << " avg = " << ptot << "; full avg = " << tot << "; best = " << genomes[0].score << "; crossovers = " << crossover_count << endl)).str();
-			Debug(debug_text);
+			DoScoreStatistics(pcount);
 
 			genomes.resize(max(genomes.size(), generation_size));
 			for(unsigned int i = 0; i < generation_size; ++i)
@@ -286,29 +338,28 @@ namespace Test
 						Genome& new_genome = genomes[index];
 
 						CreateCrossover(genomes[i], genomes[j], new_genome);
-						Mutate(new_genome);
+						Mutate(new_genome, crossover_mutations);
 
 						new_genome.crossover = pcount > 1;
 					}
 
-			// do single-parent mutations
+			// do single-parent offspring; each parent spawns one perfect clone; the rest of its offspring are mutants
 			for(unsigned int i = 0; i < crossovers_begin; ++i)
 			{
 				Genome& new_genome = genomes[i] = genomes[i % parents];
-				Mutate(new_genome);
+				if(i >= parents)
+					Mutate(new_genome, single_parent_mutations);
 
 				new_genome.crossover = false;
 			}
 
 			genomes.resize(generation_size);
-			for(unsigned int i = 0; i < generation_size; ++i)
-				genomes[i].score = -1;
 
 			active_genome = 0;
 			++batch;
 		}
 
-		void NextBrain(unsigned int num_inputs_, unsigned int num_outputs_, unsigned int num_memories_, float& max_score)
+		void NextBrain(unsigned int num_inputs_, unsigned int num_outputs_, unsigned int num_memories_)
 		{
 			if(num_inputs != num_inputs_ || num_outputs != num_outputs_)		// input or output array size mismatch; whole brain must be discarded
 			{
@@ -368,11 +419,6 @@ namespace Test
 				CreateNextGen();
 
 			finished = false;
-
-			if(trial == 0)
-				max_score = -1;
-			else
-				max_score = genomes[active_genome].score;
 		}
 
 		void Process(vector<float>& inputs, vector<float>& outputs)
@@ -409,20 +455,23 @@ namespace Test
 			}
 		}
 
-		void Finish(float score)
+		void Finish(const float* scores)
 		{
 			if(!finished)
 			{
-				static const unsigned int num_trials = 7;
+				static const unsigned int num_trials = 5;
+
+				debug_text = (((stringstream&)(stringstream() << "batch " << batch << "\ngenome " << active_genome << " / " << genomes.size() << "\ntrial " << trial << " / " << num_trials)).str());
 
 				finished = true;
 
-				// the system picks the worst score of however many trials
-				float& g = genomes[active_genome].score;
+				float* g = genomes[active_genome].scores;
 				if(trial == 0)
-					g = score;
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+						g[i]  = scores[i];
 				else
-					g = min(g, score);
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+						g[i] *= scores[i];
 
 				++trial;
 				if(trial == num_trials)
@@ -430,29 +479,43 @@ namespace Test
 					++active_genome;
 					trial = 0;
 
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+						g[i] = 100.0f * powf(g[i], 1.0f / num_trials);
+
 					UpdateScoreTextureData(g, genomes[active_genome].crossover);
 				}
 			}
 		}
 
-		void UpdateScoreTextureData(float score, bool crossover)
+		void UpdateScoreTextureData(const float* scores, bool crossover)
 		{
 #if ENABLE_DEBUG_DATA_TEXTURE
 			unsigned char* data = debug_image->byte_data;
 
 			unsigned int x = batch;
-			unsigned int y = (unsigned int)(max(0.0f, min(1.0f, score / 50.0f)) * (debug_image->height - 1));
-
-			if((signed)x < debug_image->width && (signed)y < debug_image->height)
+			if((signed)x < debug_image->width)
 			{
-				unsigned int pixel_index = debug_image->width * y + x;
-				unsigned char* byte_ptr = data + pixel_index * 4;
+				unsigned int h = debug_image->height / SoldierBrain::NumScoringCategories;
 
-				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 32);
-				++byte_ptr;
-				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 8);
-				++byte_ptr;
-				*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 1);
+				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
+				{
+					float score = max(0.0f, min(1.0f, scores[i] / 100.0f));
+
+					unsigned int y = (unsigned int)(score * h) + i * h;
+					if((signed)y < debug_image->height)
+					{
+						unsigned int pixel_index = debug_image->width * y + x;
+						unsigned char* byte_ptr = data + pixel_index * 4;
+
+						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 32);
+						++byte_ptr;
+						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 8);
+						++byte_ptr;
+						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 1);
+					}
+					else
+						DEBUG();
+				}
 			}
 #endif
 		}
@@ -469,12 +532,12 @@ namespace Test
 	void SoldierBrain::Load() { imp->Load("Files/brain.brain"); }
 	void SoldierBrain::Save() { imp->Save("Files/brain.brain", imp->genomes); }
 
-	void SoldierBrain::NextBrain(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_memories, float& max_score) { imp->NextBrain(num_inputs, num_outputs, num_memories, max_score); }
-	void SoldierBrain::Process(vector<float>& inputs, vector<float>& outputs) { imp->Process(inputs, outputs); }
-	void SoldierBrain::Finish(float score) { imp->Finish(score); }
+	void SoldierBrain::NextBrain(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_memories) { imp->NextBrain(num_inputs, num_outputs, num_memories); }
+	void SoldierBrain::Process(vector<float>& inputs, vector<float>& outputs)	{ imp->Process(inputs, outputs); }
+	void SoldierBrain::Finish(const float* scores)								{ imp->Finish(scores); }
 
-	bool SoldierBrain::IsFinished()     { return imp->finished; }
-	string SoldierBrain::GetDebugText() { return imp->debug_text; }
+	bool SoldierBrain::IsFinished()												{ return imp->finished; }
+	string SoldierBrain::GetDebugText()											{ return imp->debug_text; }
 
-	Texture2D* SoldierBrain::GetDebugImage() { return imp->debug_image; }
+	Texture2D* SoldierBrain::GetDebugImage()									{ return imp->debug_image; }
 }
