@@ -28,6 +28,8 @@ namespace Test
 
 		vector<float> memory;
 
+		vector<bool> allowed_coeffs;
+
 		bool finished;
 
 		string debug_text;
@@ -57,6 +59,15 @@ namespace Test
 			unsigned char* alpha_end = alpha_ptr + w * h * 4;
 			for(; alpha_ptr != alpha_end; alpha_ptr += 4)
 				*alpha_ptr = 255;
+
+			unsigned int section_h = h / NumScoringCategories;
+			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+			{
+				alpha_ptr = data + (((i + 1) * section_h - 1) * w * 4) + 2;
+				alpha_end = alpha_ptr + w * 4;
+				for(; alpha_ptr != alpha_end; alpha_ptr += 4)
+					*alpha_ptr = 128;
+			}
 
 			debug_image = new Texture2D(w, h, data, false, true);
 #endif
@@ -186,27 +197,36 @@ namespace Test
 			}
 
 			ShuffleMemoryIndices(result);
+
+			for(unsigned int i = 0; i < brain_size; ++i)
+				if(!allowed_coeffs[i])
+					result.brain[i] = 0.0f;
 		}
 
 		void Mutate(Genome& genome, unsigned int num_mutations)
 		{
-			unsigned int w = num_inputs + num_memories;
+			static const unsigned int max_tries = 20;
 
 			// randomly modify a few elements of the coefficient matrix
 			for(unsigned int i = 0; i < num_mutations; ++i)
-			{	
-				unsigned int index = Random3D::RandInt(brain_size);
-				unsigned int x = index % w;
-				unsigned int y = index / w;
-
-				float& coeff = genome.brain[index];
-
-				if(x >= num_inputs || y >= num_outputs)
+			{
+				// try up to some max number of tries, or until we get a coefficient that's allowed to be nonzero
+				for(unsigned int j = 0; j < max_tries; ++j)
 				{
-					if(Random3D::Rand() * 0.2f > fabs(coeff))
-						coeff = 0.0f;
+					unsigned int index = Random3D::RandInt(brain_size);
+
+					float& coeff = genome.brain[index];
+					if(allowed_coeffs[index])
+					{
+						if(coeff != 0.0f && Random3D::Rand() * 0.2f > fabs(coeff))
+							coeff = 0.0f;
+						else
+							coeff = Random3D::Rand(-2.0f, 2.0f);
+
+						break;
+					}
 					else
-						coeff = Random3D::Rand(-2.0f, 2.0f);
+						coeff = 0.0f;
 				}
 			}
 		}
@@ -292,18 +312,18 @@ namespace Test
 		void CreateNextGen()
 		{
 			static const unsigned int crossover_mutations     = 2;
-			static const unsigned int single_parent_mutations = 10;
+			static const unsigned int single_parent_mutations = 2;
 
 			static const unsigned int parent_categories[] =
 			{
-				5, 5, 5, 5, 5,
-				0, 1, 2, 3, 4,
-				0, 1, 2, 3, 4,
-				0, 1, 2, 3, 4
+				0, 1, 2, 3, 4, 5,
+				0, 1, 2, 3, 4, 5,
+				0, 1, 2, 3, 4, 5,
+				0, 1, 2, 3, 4, 5,
 			};
 
 			static const unsigned int parents             = sizeof(parent_categories) / sizeof(unsigned int);
-			static const unsigned int mutants_per_parent  = 19;
+			static const unsigned int mutants_per_parent  = 4;
 			static const unsigned int crossovers_per_pair = 2;
 			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
 			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
@@ -402,6 +422,8 @@ namespace Test
 			{
 				Debug(((stringstream&)(stringstream() << "inputs = " << num_inputs << "; outputs = " << num_outputs << "; memories = " << num_memories << endl)).str());
 				Debug(((stringstream&)(stringstream() << "brain size = " << brain_inputs << " x " << brain_outputs << " = " << brain_size << endl)).str());
+
+				SetAllowedCoeffs();
 			}
 
 			memory.resize(num_memories);
@@ -421,6 +443,27 @@ namespace Test
 			finished = false;
 		}
 
+		void SetAllowedCoeffs()
+		{
+			unsigned int w = num_inputs + num_memories;
+
+			for(unsigned int i = 0; i < brain_size; ++i)
+				allowed_coeffs.push_back(false);
+
+			for(unsigned int x = 0; x < num_inputs; ++x)
+				for(unsigned int y = num_outputs; y < num_outputs + num_memories; ++y)
+					allowed_coeffs[y * w + x] = true;
+			for(unsigned int x = num_inputs; x < num_inputs + num_memories; ++x)
+				for(unsigned int y = 0; y < num_outputs + num_memories; ++y)
+					allowed_coeffs[y * w + x] = true;
+
+			unsigned int allowed_count = 0;
+			for(unsigned int i = 0; i < brain_size; ++i)
+				if(allowed_coeffs[i])
+					++allowed_count;
+			Debug(((stringstream&)(stringstream() << "allowed count = " << allowed_count << " / " << brain_size << endl)).str());
+		}
+
 		void Process(vector<float>& inputs, vector<float>& outputs)
 		{
 			if(!finished)
@@ -430,22 +473,25 @@ namespace Test
 				if(outputs.size() != num_outputs)
 					Debug("Warning: output array size mismatch!\n");
 
+				unsigned int brain_inputs  = num_inputs  + num_memories;
+				unsigned int brain_outputs = num_outputs + num_memories;
+
 				inputs.resize(num_inputs);
 				inputs.insert(inputs.end(), memory.begin(), memory.end());
-
-				outputs.resize(outputs.size() + memory.size());
+				
+				outputs.resize(brain_outputs);
 
 				float* inputs_begin = inputs.data();
-				float* inputs_end   = inputs_begin + inputs.size();
+				float* inputs_end   = inputs_begin + brain_inputs;
 				float* output_ptr   = outputs.data();
-				float* outputs_end  = output_ptr + num_outputs;
+				float* outputs_end  = output_ptr + brain_outputs;
 				float* brain_ptr    = genomes[active_genome].brain.data();
 			
 				for(; output_ptr != outputs_end; ++output_ptr)
 				{
 					float& o = *output_ptr = 0.0f;
-					for(float* input_ptr = inputs_begin; input_ptr != inputs_end; ++input_ptr)
-						o += *input_ptr * *(brain_ptr++);
+					for(float* input_ptr = inputs_begin; input_ptr != inputs_end; ++input_ptr, ++brain_ptr)
+						o += *input_ptr * *brain_ptr;
 					o = tanhf(o);
 				}
 
@@ -459,7 +505,7 @@ namespace Test
 		{
 			if(!finished)
 			{
-				static const unsigned int num_trials = 5;
+				static const unsigned int num_trials = 10;
 
 				debug_text = (((stringstream&)(stringstream() << "batch " << batch << "\ngenome " << active_genome << " / " << genomes.size() << "\ntrial " << trial << " / " << num_trials)).str());
 
@@ -501,7 +547,7 @@ namespace Test
 				{
 					float score = max(0.0f, min(1.0f, scores[i] / 100.0f));
 
-					unsigned int y = (unsigned int)(score * h) + i * h;
+					unsigned int y = (unsigned int)(score * (h - 1)) + i * h;
 					if((signed)y < debug_image->height)
 					{
 						unsigned int pixel_index = debug_image->width * y + x;

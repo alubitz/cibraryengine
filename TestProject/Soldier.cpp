@@ -234,7 +234,10 @@ namespace Test
 			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
 			rankle = CJoint( dood, rlleg,     rfoot,     A  );
 
-			unsigned int num_memories = 50;
+			lknee.sjc->min_torque.y = lknee.sjc->min_torque.z = lknee.sjc->max_torque.y = lknee.sjc->max_torque.z = 0.0f;
+			rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
+
+			unsigned int num_memories = 20;
 			unsigned int num_inputs   = 180;
 			unsigned int num_outputs  = 18;
 
@@ -248,7 +251,7 @@ namespace Test
 
 			accumulated_error = 0.0f;
 			for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
-				scores[i] = 0.0f;			
+				scores[i] = 0.0f;
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -444,7 +447,6 @@ namespace Test
 
 			// brain processes inputs and comes up with outputs (also it updates its memory)
 			vector<float> outputs(18);
-
 			unsigned int num_inputs = inputs.size();
 			for(unsigned int i = 0; i < 8; ++i)
 			{
@@ -453,14 +455,13 @@ namespace Test
 			}
 
 
-
 			// apply the values the brain came up with
 			struct SetJointTorque
 			{
 				SetJointTorque(CJoint& j, const Vec3& xyz)
 				{
 					float* min = (float*)&j.sjc->min_torque;
-					float* max = (float*)&j.sjc->min_torque;
+					float* max = (float*)&j.sjc->max_torque;
 					float* vec = (float*)&xyz;
 					float* res = (float*)&j.sjc->apply_torque;
 
@@ -471,7 +472,7 @@ namespace Test
 						if(*vec > 0)
 							*res = *vec * *max;
 						else
-							*res = *vec * *min;
+							*res = *vec * -*min;
 					}
 				}
 			};
@@ -514,9 +515,10 @@ namespace Test
 
 				float component_coeffs[SoldierBrain::NumScoringCategories] =
 				{
-					0.01f,
-					0.01f,
+					0.02f,
+					0.02f,
 					0.001f,
+
 					0.003f,
 					0.003f,
 					0.001f
@@ -525,6 +527,7 @@ namespace Test
 				float dt_over_s = timestep / max_sim_time;
 				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
 					scores[i] += dt_over_s * expf(-component_coeffs[i] * error_floats[i]);
+
 			}
 
 			lifetime += timestep;
