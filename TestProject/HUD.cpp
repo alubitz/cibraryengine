@@ -21,22 +21,21 @@ namespace Test
 		hud_flash_timer(0),
 		no_jump_flash_timer(0),
 		no_ammo_flash_timer(0),
-		low_hp_dim(false),
-		no_ammo_dim(false),
+		low_hp_dim  (false),
+		no_ammo_dim (false),
 		low_ammo_dim(false),
-		no_jump_dim(false),
+		no_jump_dim (false),
 		low_jump_dim(false),
 		render_target(NULL),
-		directional_damage(),
-		OnAmmoFailure(this),
-		OnDamageTaken(this),
-		OnJumpFailure(this)
+		directional_damage()
 	{
-		reticle_tex = game->tex2d_cache->Load("reticle");
-		hud_splat_tex = game->tex2d_cache->Load("hud_splat");
-		healthbar_tex = game->tex2d_cache->Load("healthbar");
-		ammogauge_tex = game->tex2d_cache->Load("ammogauge");
-		jumpbar_tex = game->tex2d_cache->Load("jumpbar");
+		OnAmmoFailure.hud = OnDamageTaken.hud = OnJumpFailure.hud = this;
+
+		reticle_tex   = game->tex2d_cache->Load( "reticle"   );
+		hud_splat_tex = game->tex2d_cache->Load( "hud_splat" );
+		healthbar_tex = game->tex2d_cache->Load( "healthbar" );
+		ammogauge_tex = game->tex2d_cache->Load( "ammogauge" );
+		jumpbar_tex   = game->tex2d_cache->Load( "jumpbar"   );
 
 		for(int i = 0; i < 8; ++i)
 			directional_damage.push_back(0.0);

@@ -55,7 +55,7 @@ namespace Test
 				public:
 					HUD* hud;
 
-					AmmoFailureCallback(HUD* hud) : hud(hud) { }
+					AmmoFailureCallback() : hud(NULL) { }
 
 					void HandleEvent(Event* evt);
 			} OnAmmoFailure;
@@ -65,7 +65,7 @@ namespace Test
 				public:
 					HUD* hud;
 
-					DamageTakenCallback(HUD* hud) : hud(hud) { }
+					DamageTakenCallback() : hud(NULL) { }
 
 					void HandleEvent(Event* evt);
 			} OnDamageTaken;
@@ -75,7 +75,7 @@ namespace Test
 				public:
 					HUD* hud;
 
-					JumpFailureCallback(HUD* hud) : hud(hud) { }
+					JumpFailureCallback() : hud(NULL) { }
 
 					void HandleEvent(Event* evt);
 			} OnJumpFailure;
