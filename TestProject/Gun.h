@@ -11,7 +11,7 @@ namespace Test
 			virtual void InnerDispose();
 
 			virtual void OwnerUpdate(const TimingInfo& time);			// called by the owner's Update
-			virtual void UnownedUpdate(const TimingInfo& time);		// called by our Update if there is no owner
+			virtual void UnownedUpdate(const TimingInfo& time);			// called by our Update if there is no owner
 			virtual void SharedUpdate(const TimingInfo& time);			// called by the default implementations of OwnerUpdate and UnownedUpdate
 
 		public:

@@ -94,7 +94,7 @@ namespace CibraryEngine
 		all_regions(),
 		region_man(NULL),
 		all_constraints(),
-		gravity(0, -9.8f, 0),
+		//gravity(0, -9.8f, 0),
 		internal_timer(),
 		timer_interval(1.0f / PHYSICS_TICK_FREQUENCY),
 		task_threads(),

@@ -487,24 +487,27 @@ namespace Test
 
 		SetOrtho(w, h);
 
-		if(Texture2D* data = SoldierBrain::GetDebugImage())
+		if(!game->god_mode)
 		{
-			unsigned int name = data->GetGLName();
-			data->UpdateTextureData();
+			if(Texture2D* data = SoldierBrain::GetDebugImage())
+			{
+				unsigned int name = data->GetGLName();
+				data->UpdateTextureData();
 
-			glColor4f(1, 1, 1, 1);
+				glColor4f(1, 1, 1, 1);
 
-			glBindTexture(GL_TEXTURE_2D, name);
-			glBegin(GL_QUADS);
-			glTexCoord2f(0, 1);
-			glVertex2f(100, 100);
-			glTexCoord2f(0, 0);
-			glVertex2f(100, 612);
-			glTexCoord2f(1, 0);
-			glVertex2f(1124, 612);
-			glTexCoord2f(1, 1);
-			glVertex2f(1124, 100);
-			glEnd();
+				glBindTexture(GL_TEXTURE_2D, name);
+				glBegin(GL_QUADS);
+				glTexCoord2f(0, 1);
+				glVertex2f(100, 100);
+				glTexCoord2f(0, 0);
+				glVertex2f(100, 612);
+				glTexCoord2f(1, 0);
+				glVertex2f(1124, 612);
+				glTexCoord2f(1, 1);
+				glVertex2f(1124, 100);
+				glEnd();
+			}
 		}
 
 		if(game->debug_text != "")

@@ -226,9 +226,15 @@ namespace Test
 
 			ShuffleMemoryIndices(result);
 
+			EnforceAllowedCoeffs(result);
+		}
+
+		void EnforceAllowedCoeffs(Genome& genome)
+		{
+			float* brain = genome.brain.data();
 			for(unsigned int i = 0; i < brain_size; ++i)
 				if(!allowed_coeffs[i])
-					result.brain[i] = 0.0f;
+					brain[i] = 0.0f;
 		}
 
 		void Mutate(Genome& genome, unsigned int num_mutations)
@@ -257,6 +263,51 @@ namespace Test
 						coeff = 0.0f;
 				}
 			}
+		}
+
+		void DoPerNeuronMutations(Genome& genome)
+		{
+			unsigned int brain_w = num_inputs  + num_memories;
+			unsigned int brain_h = num_outputs + num_memories;
+
+			float* brain = genome.brain.data();
+
+			vector<unsigned int> input_indices;
+			for(unsigned int y = 0; y < brain_h; ++y)
+			{
+				float* row = brain + y * brain_w;
+				for(unsigned int x = 0; x < brain_w; ++x)
+					if(row[x] != 0.0f)
+					{
+						if(Random3D::RandInt() % 20 == 0)
+							row[x] = 0.95f * row[x] + 0.05f * Random3D::Rand(-2.0f, 2.0f);
+
+						input_indices.push_back(x);
+					}
+
+				unsigned int num_input_indices = input_indices.size();
+				if(num_input_indices > 8)
+				{
+					if(Random3D::RandInt() % 10  != 0)
+						row[input_indices[Random3D::RandInt() % num_input_indices]] = 0.0f;
+					if(num_input_indices > 12)
+					{
+						if(Random3D::RandInt() % 20 != 0)
+							row[input_indices[Random3D::RandInt() % num_input_indices]] = 0.0f;
+						if(num_input_indices > 20)
+							if(Random3D::RandInt() % 30 != 0)
+								row[input_indices[Random3D::RandInt() % num_input_indices]] = 0.0f;
+					}
+				}
+
+				if(num_input_indices < 5 && Random3D::RandInt() % 10 == 0)
+					row[Random3D::RandInt() % brain_w] = Random3D::Rand(-2.0f, 2.0f);
+
+				if(Random3D::RandInt() % 30 == 0)
+					row[Random3D::RandInt() % brain_w] = Random3D::Rand(-2.0f, 2.0f);
+			}
+
+			EnforceAllowedCoeffs(genome);
 		}
 
 		void SwapMemoryIndices(float* brain, unsigned int a, unsigned int b, unsigned int row_size, unsigned int col_size)
@@ -290,99 +341,189 @@ namespace Test
 
 		void DoScoreStatistics(unsigned int pcount)
 		{
-			float avg[NumScoringCategories], pavg[NumScoringCategories], best[NumScoringCategories];
-			unsigned int avg_n[NumScoringCategories], pavg_n[NumScoringCategories];
-			unsigned int sel_crossovers[NumScoringCategories], sel_mutants[NumScoringCategories], sel_clones[NumScoringCategories], sel_xcats[NumScoringCategories];
-
-			for(unsigned int i = 0; i < NumScoringCategories; ++i)
+			struct RecordTypeSelStuff
 			{
-				avg[i] = pavg[i] = best[i] = 0.0f;
-				avg_n[i] = pavg_n[i] = sel_xcats[i] = sel_crossovers[i] = sel_mutants[i] = sel_clones[i] = 0;
-			}
+				struct CategoryStats
+				{
+					list<float> scores;
+
+					float avg, sd;
+					float min, lq, median, uq, max;
+
+					void ComputeStats()
+					{
+						unsigned int count = scores.size();
+						unsigned int m1  = count / 2;
+						unsigned int m2  = count % 2 == 0 ? m1 + 1 : m1;
+						unsigned int lq1 = m1 / 2;
+						unsigned int lq2 = lq1 % 2 == 0 ? lq1 + 1 : lq1;
+						unsigned int uq1 = (m2 + count) / 2;
+						unsigned int uq2 = (count - m2) % 2 == 1 ? uq1 + 1: uq1;		// x % 2 == 1 instead of (x+1) % 2 == 0
+
+						min = max = avg = sd = median = lq = uq = 0.0f;
+
+						scores.sort();
+						unsigned int i = 0;
+						for(list<float>::iterator iter = scores.begin(); iter != scores.end(); ++iter, ++i)
+						{
+							float f = *iter;
+							
+							if(i == 0)
+								min = f;
+							if(i == count - 1)
+								max = f;
+
+							if(i == m1  || i == m2)
+								median += f;
+							if(i == lq1 || i == lq2)
+								lq += f;
+							if(i == uq1 || i == uq2)
+								uq += f;
+
+							avg += f;
+						}
+
+						if(m1 != m2)
+							median /= 2;
+						if(lq1 != lq2)
+							lq /= 2;
+						if(uq1 != uq2)
+							uq /= 2;
+
+						avg /= count;
+
+						for(list<float>::iterator iter = scores.begin(); iter != scores.end(); ++iter)
+							sd += fabs(*iter - avg);
+						sd /= count;
+					}
+
+					void Print(stringstream& ss, const string& label)
+					{
+						ss << "\t\t" << label << " n = " << scores.size();
+						switch(scores.size())
+						{
+							case 0:
+								ss << endl;
+								break;
+							case 1:
+								ss << "; score = " << avg << endl;
+								break;
+							default:
+								ss << "; avg = " << avg << "; sd = " << sd << "; min = " << min << "; lq = " << lq << "; median = " << median << "; uq = " << uq << "; max = " << max << endl;
+								break;
+						}						
+					}
+				};
 			
+				CategoryStats all_genomes[NumScoringCategories][5];
+				CategoryStats sel_genomes[NumScoringCategories][5];
+
+				RecordTypeSelStuff()
+				{
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+						for(unsigned int j = 0; j < 5; ++j)
+						{
+							all_genomes[i][j] = CategoryStats();
+							sel_genomes[i][j] = CategoryStats();
+						}
+				}
+
+				void RecordScore(unsigned int category, unsigned int sel_type, float score, bool is_selected)
+				{
+					if(is_selected)
+					{
+						sel_genomes[category][0].scores.push_back(score);
+						sel_genomes[category][sel_type].scores.push_back(score);
+					}
+					all_genomes[category][0].scores.push_back(score);
+					all_genomes[category][sel_type].scores.push_back(score);
+				}
+
+				void ComputeStats()
+				{
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+						for(unsigned int j = 0; j < 5; ++j)
+						{
+							all_genomes[i][j].ComputeStats();
+							sel_genomes[i][j].ComputeStats();
+						}
+				}
+
+				void Display(unsigned int batch)
+				{
+					static const string labels[5][2] =
+					{
+						{ "all genomes:   ", "sel genomes:   " },
+						{ "all xcats:     ", "sel xcats:     " },
+						{ "all crossovers:", "sel crossovers:" },
+						{ "all mutants:   ", "sel mutants:   " },
+						{ "all clones:    ", "sel clones:    " }
+					};
+
+					stringstream ss;
+					ss << "generation " << batch << ":" << endl;
+					for(unsigned int i = 0; i < NumScoringCategories; ++i)
+					{
+						ss << '\t' << "cat " << i << ":" << endl;
+						for(unsigned int j = 0; j < 5; ++j)
+							all_genomes[i][j].Print(ss, labels[j][0]);
+						for(unsigned int j = 0; j < 5; ++j)
+							sel_genomes[i][j].Print(ss, labels[j][1]);
+					}
+					Debug(ss.str());
+				}
+			} records;
+
 			for(unsigned int i = 0; i < genomes.size(); ++i)
 			{
 				const Genome& g = genomes[i];
+
+				unsigned int sel_type;
+				if(g.parent_a != g.parent_b)
+				{
+					if(g.parent_a % NumScoringCategories != g.parent_b % NumScoringCategories)
+						sel_type = 1;
+					else
+						sel_type = 2;
+				}
+				else if(g.clone)
+					sel_type = 4;
+				else
+					sel_type = 3;
+
 				if(g.converted)
 				{
 					for(unsigned int j = 0; j < NumScoringCategories; ++j)
-					{
-						avg[j] += g.scores[j];
-						++avg_n[j];
-					}
+						records.RecordScore(j,  3,        g.scores[j],  i < pcount);
 				}
 				else
 				{
 					unsigned int pa = g.parent_a, pb = g.parent_b;
 					unsigned int ca = pa % NumScoringCategories, cb = pb % NumScoringCategories;
 
-					if(ca == cb)
-					{
-						avg[ca] += g.scores[ca];
-						++avg_n[ca];
-					}
-					else
-					{
-						unsigned int categories[2] = { ca, cb };
-						for(unsigned int j = 0; j < 2; ++j)
-						{
-							unsigned int category = categories[j];
-							float score = g.scores[category];
-							avg[category] += score;
-							++avg_n[category];
-						}
-					}
-				}
-
-				if(i < pcount)
-				{
-					unsigned int sel_cat = i % NumScoringCategories;
-					pavg[sel_cat] += g.scores[sel_cat];
-					++pavg_n[sel_cat];
-
-					if(g.scores[sel_cat] > best[sel_cat])
-						best[sel_cat] = g.scores[sel_cat];
-
-					if(g.parent_a != g.parent_b)
-					{
-						if(g.parent_a % NumScoringCategories != g.parent_b % NumScoringCategories)
-							++sel_xcats[sel_cat];
-						else
-							++sel_crossovers[sel_cat];
-					}
-					else if(g.clone)
-						++sel_clones[sel_cat];
-					else
-						++sel_mutants[sel_cat];
+					records.RecordScore    (ca, sel_type, g.scores[ca], i < pcount && i % NumScoringCategories == ca);
+					if(ca != cb)
+						records.RecordScore(cb, sel_type, g.scores[cb], i < pcount && i % NumScoringCategories == cb);
 				}
 			}
-			
-			stringstream ss;
-			ss << "generation " << batch << ":" << endl;
-			for(unsigned int i = 0; i < NumScoringCategories; ++i)
-			{
-				avg [i] /= avg_n [i];
-				pavg[i] /= pavg_n[i];
 
-				ss << '\t' << "cat " << i << ": avg = " << avg[i] << " (of " << avg_n[i] << "); sel avg = " << pavg[i] << " (of " << pavg_n[i] << "); best = " << best[i] << "; sel: xcats = " << sel_xcats[i] << "; crossovers = " << sel_crossovers[i] << "; mutants = " << sel_mutants[i] << "; clones = " << sel_clones[i] << endl;
-			}
-			Debug(ss.str());
+			records.ComputeStats();
+
+			records.Display(batch);
 		}
 
-		static const unsigned int parents          = NumScoringCategories * 3;
+		static const unsigned int parents             = NumScoringCategories * 15;
+		static const unsigned int mutants_per_parent  = 4;
+		static const unsigned int crossovers_per_pair = 2;
+		static const unsigned int crossovers_begin    = parents * mutants_per_parent;
+		static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
+
+		static const unsigned int num_trials          = 5;
 
 		void CreateNextGen()
 		{
-			static const unsigned int crossover_mutations     = 2;
-			static const unsigned int single_parent_mutations = 2;
-	
-			static const unsigned int mutants_per_parent  = 8;
-			static const unsigned int crossovers_per_pair = 1;
-			static const unsigned int crossovers_begin    = parents * mutants_per_parent;
-			static const unsigned int generation_size     = crossovers_begin + parents * (parents - 1) * crossovers_per_pair / 2;
-
-			if(batch == 0)
-				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl << endl)).str());
+			static const unsigned int crossover_mutations     = 1;
+			static const unsigned int single_parent_mutations = 1;
 
 			unsigned int pcount = min(parents, genomes.size());
 			for(unsigned int i = 0; i < pcount; ++i)
@@ -411,6 +552,8 @@ namespace Test
 						Genome& new_genome = genomes[index];
 
 						CreateCrossover(genomes[i], genomes[j], new_genome);
+
+						DoPerNeuronMutations(new_genome);
 						Mutate(new_genome, crossover_mutations);
 
 						new_genome.parent_a = i;
@@ -425,7 +568,9 @@ namespace Test
 				Genome& new_genome = genomes[i] = genomes[parent];
 				if(i >= parents)
 				{
+					DoPerNeuronMutations(new_genome);
 					Mutate(new_genome, single_parent_mutations);
+
 					new_genome.clone = false;
 				}
 				else
@@ -487,6 +632,11 @@ namespace Test
 				Debug(((stringstream&)(stringstream() << "brain size = " << brain_inputs << " x " << brain_outputs << " = " << brain_size << endl)).str());
 
 				SetAllowedCoeffs();
+
+				Debug(((stringstream&)(stringstream() << "generation size = " << generation_size << endl)).str());
+				Debug(((stringstream&)(stringstream() << "num trials = " << num_trials << endl)).str());
+
+				Debug("\n");
 			}
 
 			memory.resize(num_memories);
@@ -518,12 +668,12 @@ namespace Test
 		{
 			unsigned int w = num_inputs + num_memories;
 
-			for(unsigned int i = 0; i < brain_size; ++i)
-				allowed_coeffs.push_back(false);
+			allowed_coeffs.clear();
+			allowed_coeffs.resize(brain_size, true);
 
-			for(unsigned int x = 0; x < num_inputs + num_memories; ++x)
-				for(unsigned int y = 0; y < num_outputs + num_memories; ++y)
-					allowed_coeffs[y * w + x] = true;
+			//for(unsigned int x = 0; x < num_inputs; ++x)
+			//	for(unsigned int y = 0; y < num_outputs; ++y)
+			//		allowed_coeffs[y * w + x] = false;
 
 			unsigned int allowed_count = 0;
 			for(unsigned int i = 0; i < brain_size; ++i)
@@ -537,9 +687,9 @@ namespace Test
 			if(!finished)
 			{
 				if(inputs.size() != num_inputs)
-					Debug("Warning: input array size mismatch!\n");
+					Debug(((stringstream&)(stringstream() << "Warning: input array size mismatch! Expected " << num_inputs << " but was given " << inputs.size() << endl)).str());
 				if(outputs.size() != num_outputs)
-					Debug("Warning: output array size mismatch!\n");
+					Debug(((stringstream&)(stringstream() << "Warning: output array size mismatch! Expected " << num_outputs << " but was given " << outputs.size() << endl)).str());
 
 				unsigned int brain_inputs  = num_inputs  + num_memories;
 				unsigned int brain_outputs = num_outputs + num_memories;
@@ -573,27 +723,27 @@ namespace Test
 		{
 			if(!finished)
 			{
-				static const unsigned int num_trials = 25;
-
 				debug_text = (((stringstream&)(stringstream() << "batch " << batch << "\ngenome " << active_genome << " / " << genomes.size() << "\ntrial " << trial << " / " << num_trials)).str());
 
 				finished = true;
 
-				float* g = genomes[active_genome].scores;
+				Genome& g = genomes[active_genome];
+
+				float* gscores = g.scores;
 				if(trial == 0)
 					for(unsigned int i = 0; i < NumScoringCategories; ++i)
-						g[i]  = scores[i];
+						gscores[i]  = scores[i];
 				else
 					for(unsigned int i = 0; i < NumScoringCategories; ++i)
-						g[i] += scores[i];
+						gscores[i] += scores[i];
 
 				++trial;
 				if(trial == num_trials)
 				{
 					for(unsigned int i = 0; i < NumScoringCategories; ++i)
-						g[i] = 100.0f * g[i] / num_trials;
+						gscores[i] = 100.0f * gscores[i] / num_trials;
 
-					UpdateScoreTextureData(g, genomes[active_genome].parent_a, genomes[active_genome].parent_b);
+					UpdateScoreTextureData(gscores, active_genome);
 
 					++active_genome;
 					trial = 0;
@@ -601,37 +751,40 @@ namespace Test
 			}
 		}
 
-		void UpdateScoreTextureData(const float* scores, unsigned int parent_a, unsigned int parent_b)
+		void UpdateScoreTextureData(const float* scores, unsigned int genome_index)
 		{
 #if ENABLE_DEBUG_DATA_TEXTURE
 			unsigned char* data = debug_image->byte_data;
 
-			unsigned int x = batch;
+			unsigned int batch_h = debug_image->height / NumScoringCategories - 1;
+			unsigned int batch_w = (unsigned int)ceil(float(generation_size) / batch_h) + 1;
+
+			unsigned int section_x = genome_index / batch_h;
+			unsigned int section_y = genome_index % batch_h;
+
+			unsigned int x = batch * batch_w + section_x;
 			if((signed)x < debug_image->width)
 			{
-				unsigned int h = debug_image->height / NumScoringCategories;
-
-				unsigned int genome_parents[2] = { parent_a, parent_b };
-				for(unsigned int i = 0; i < 2; ++i)
+				for(unsigned int i = 0; i < NumScoringCategories; ++i)
 				{
-					unsigned int parent   = genome_parents[i];
-					unsigned int category = parent % NumScoringCategories;
-					float score = max(0.0f, min(1.0f, scores[category] / 100.0f));
-
-					unsigned int y = (unsigned int)(score * (h - 1)) + category * h;
+					unsigned int y = section_y + (batch_h + 1) * i;
 					if((signed)y < debug_image->height)
 					{
 						unsigned int pixel_index = debug_image->width * y + x;
 						unsigned char* byte_ptr = data + pixel_index * 4;
 
-						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 32);
+						float score_frac = max(0.0f, min(1.0f, scores[i] / 100.0f));
+
+						float red   = score_frac * 0.75f + 0.25f;
+						float green = score_frac * score_frac * score_frac;
+						float blue  = green * green * green * green;
+
+						*byte_ptr = (unsigned char)(255.0f * red);
 						++byte_ptr;
-						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 8);
+						*byte_ptr = (unsigned char)(255.0f * green);
 						++byte_ptr;
-						*byte_ptr = (unsigned char)min(255, (int)*byte_ptr + 1);
+						*byte_ptr = (unsigned char)(255.0f * blue);
 					}
-					else
-						DEBUG();
 				}
 			}
 #endif

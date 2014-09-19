@@ -140,7 +140,7 @@ namespace Test
 	void Gun::Fire(float total_inaccuracy, float now)
 	{
 		Mat4 shot_mat = gun_xform * Mat4::Translation(barrel_pos);
-		Vec3 origin = shot_mat.TransformVec3_1(0, 0, 0);
+		Vec3 origin   = shot_mat.TransformVec3_1(0, 0, 0);
 
 #if USE_GUN_XFORM_AS_SHOT_XFORM
 		Vec3 direction = shot_mat.TransformVec3_0(0, 0, 1);
@@ -194,15 +194,18 @@ namespace Test
 
 	void Gun::Vis(SceneRenderer* renderer)
 	{
-		Sphere bs = Sphere(pos, 3);
+		Mat4 use_xform = rigid_body->GetTransformationMatrix();
+		Vec3 use_pos   = use_xform.TransformVec3_1(0, 0, 0);
+
+		Sphere bs = Sphere(use_pos, 3);
 		if(renderer->camera->CheckSphereVisibility(bs))
 		{
 			if(gun_model != NULL)
-				gun_model->Vis(renderer, 0, gun_xform, NULL, &gun_materials);
+				gun_model->Vis(renderer, 0, use_xform, NULL, &gun_materials);
 
 			if(mflash_model != NULL && mflash_size > 0)
 			{
-				Mat4 mflash_xform = gun_xform * Mat4::Translation(barrel_pos) * Mat4::FromQuaternion(Quaternion::FromRVec(0, 0, -float(M_PI) * 0.5f)) * Mat4::UniformScale(mflash_size);
+				Mat4 mflash_xform = use_xform * Mat4::Translation(barrel_pos) * Mat4::FromQuaternion(Quaternion::FromRVec(0, 0, -float(M_PI) * 0.5f)) * Mat4::UniformScale(mflash_size);
 				renderer->objects.push_back(RenderNode(mflash_material, new GlowyModelMaterialNodeData(mflash_model, mflash_xform), Vec3::Dot(renderer->camera->GetForward(), bs.center)));
 			}
 		}
@@ -216,14 +219,14 @@ namespace Test
 
 		physics = game_state->physics_world;
 
-		if(model_phys != NULL && model_phys->bones.size() > 0)
+		if(model_phys != NULL && !model_phys->bones.empty())
 		{
 			Mat4 xform = GetInitialXform();
 
 			Vec3 pos = xform.TransformVec3_1(0, 0, 0);
-			Vec3 a = xform.TransformVec3_0(1, 0, 0);
-			Vec3 b = xform.TransformVec3_0(0, 1, 0);
-			Vec3 c = xform.TransformVec3_0(0, 0, 1);
+			Vec3 a   = xform.TransformVec3_0(1, 0, 0);
+			Vec3 b   = xform.TransformVec3_0(0, 1, 0);
+			Vec3 c   = xform.TransformVec3_0(0, 0, 1);
 
 			ModelPhysics::BonePhysics& bone = model_phys->bones[0];
 

@@ -16,7 +16,7 @@ namespace Test
 
 		public:
 
-			static const unsigned int NumScoringCategories = 6;
+			static const unsigned int NumScoringCategories = 3;
 
 			static void Load();
 			static void Save();

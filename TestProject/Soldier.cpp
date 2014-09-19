@@ -16,7 +16,7 @@
 
 #define ENABLE_PELVIS_ANCHOR   0
 
-#define DO_COMPLICATED_STUFF   1
+#define NUM_BRAIN_ITERATIONS   2
 
 namespace Test
 {
@@ -119,12 +119,12 @@ namespace Test
 			SkeletalJointConstraint* sjc;
 			CBone *a, *b;
 
-			Vec3 actual;
+			Vec3 actual;				// world-coords torque to be applied by this joint
 
 			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
 
 			CJoint() { }
-			CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque)
+			CJoint(const Soldier* dood, CBone& bone_a, CBone& bone_b, float max_torque)
 			{
 				RigidBody *arb = bone_a.rb, *brb = bone_b.rb;
 				for(unsigned int i = 0; i < dood->constraints.size(); ++i)
@@ -192,20 +192,18 @@ namespace Test
 		CJoint lhip,   lknee,  lankle;
 		CJoint rhip,   rknee,  rankle;
 
+		vector<CBone*>  all_bones;
+		vector<CJoint*> all_joints;
+
 		float timestep, inv_timestep;
 		float lifetime;
 
 		float scores[SoldierBrain::NumScoringCategories];
 
-#if DO_COMPLICATED_STUFF
 		Vec3  goal_vels[3];
 		Vec3  goal_rots[3];
 
 		Vec3 pelvis_goal_pos, pelvis_goal_vel;
-#else
-		float lpiston_goal, rpiston_goal;
-		float lpiston_err,  rpiston_err;
-#endif
 
 		float yaw_vel, pitch_vel;
 
@@ -218,75 +216,123 @@ namespace Test
 
 		~Imp() { }
 
+		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
+		void RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
+
 		void Init(Soldier* dood)
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
-			pelvis    = CBone( dood, "pelvis"     );
-			torso1    = CBone( dood, "torso 1"    );
-			torso2    = CBone( dood, "torso 2"    );
-			head      = CBone( dood, "head"       );
-			lshoulder = CBone( dood, "l shoulder" );
-			luarm     = CBone( dood, "l arm 1"    );
-			llarm     = CBone( dood, "l arm 2"    );
-			lhand     = CBone( dood, "l hand"     );
-			rshoulder = CBone( dood, "r shoulder" );
-			ruarm     = CBone( dood, "r arm 1"    );
-			rlarm     = CBone( dood, "r arm 2"    );
-			rhand     = CBone( dood, "r hand"     );
-			luleg     = CBone( dood, "l leg 1"    );
-			llleg     = CBone( dood, "l leg 2"    );
-			lfoot     = CBone( dood, "l foot"     );
-			ruleg     = CBone( dood, "r leg 1"    );
-			rlleg     = CBone( dood, "r leg 2"    );
-			rfoot     = CBone( dood, "r foot"     );
+			all_bones.clear();
+			all_joints.clear();
+
+			RegisterBone( pelvis    = CBone( dood, "pelvis"     ));
+			RegisterBone( torso1    = CBone( dood, "torso 1"    ));
+			RegisterBone( torso2    = CBone( dood, "torso 2"    ));
+			RegisterBone( head      = CBone( dood, "head"       ));
+			RegisterBone( lshoulder = CBone( dood, "l shoulder" ));
+			RegisterBone( luarm     = CBone( dood, "l arm 1"    ));
+			RegisterBone( llarm     = CBone( dood, "l arm 2"    ));
+			RegisterBone( lhand     = CBone( dood, "l hand"     ));
+			RegisterBone( rshoulder = CBone( dood, "r shoulder" ));
+			RegisterBone( ruarm     = CBone( dood, "r arm 1"    ));
+			RegisterBone( rlarm     = CBone( dood, "r arm 2"    ));
+			RegisterBone( rhand     = CBone( dood, "r hand"     ));
+			RegisterBone( luleg     = CBone( dood, "l leg 1"    ));
+			RegisterBone( llleg     = CBone( dood, "l leg 2"    ));
+			RegisterBone( lfoot     = CBone( dood, "l foot"     ));
+			RegisterBone( ruleg     = CBone( dood, "r leg 1"    ));
+			RegisterBone( rlleg     = CBone( dood, "r leg 2"    ));
+			RegisterBone( rfoot     = CBone( dood, "r foot"     ));
+
 
 			float SP = 1500, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 800, A = 500;
-			spine1 = CJoint( dood, pelvis,    torso1,    SP );
-			spine2 = CJoint( dood, torso1,    torso2,    SP );
-			neck   = CJoint( dood, torso2,    head,      N  );
-			lsja   = CJoint( dood, torso2,    lshoulder, SA );
-			lsjb   = CJoint( dood, lshoulder, luarm,     SB );
-			lelbow = CJoint( dood, luarm,     llarm,     E  );
-			lwrist = CJoint( dood, llarm,     lhand,     W  );
-			rsja   = CJoint( dood, torso2,    rshoulder, SA );
-			rsjb   = CJoint( dood, rshoulder, ruarm,     SB );
-			relbow = CJoint( dood, ruarm,     rlarm,     E  );
-			rwrist = CJoint( dood, rlarm,     rhand,     W  );
-			lhip   = CJoint( dood, pelvis,    luleg,     H  );
-			lknee  = CJoint( dood, luleg,     llleg,     K  );
-			lankle = CJoint( dood, llleg,     lfoot,     A  );
-			rhip   = CJoint( dood, pelvis,    ruleg,     H  );
-			rknee  = CJoint( dood, ruleg,     rlleg,     K  );
-			rankle = CJoint( dood, rlleg,     rfoot,     A  );
+			RegisterJoint( spine1 = CJoint( dood, pelvis,    torso1,    SP ));
+			RegisterJoint( spine2 = CJoint( dood, torso1,    torso2,    SP ));
+			RegisterJoint( neck   = CJoint( dood, torso2,    head,      N  ));
+			RegisterJoint( lsja   = CJoint( dood, torso2,    lshoulder, SA ));
+			RegisterJoint( lsjb   = CJoint( dood, lshoulder, luarm,     SB ));
+			RegisterJoint( lelbow = CJoint( dood, luarm,     llarm,     E  ));
+			RegisterJoint( lwrist = CJoint( dood, llarm,     lhand,     W  ));
+			RegisterJoint( rsja   = CJoint( dood, torso2,    rshoulder, SA ));
+			RegisterJoint( rsjb   = CJoint( dood, rshoulder, ruarm,     SB ));
+			RegisterJoint( relbow = CJoint( dood, ruarm,     rlarm,     E  ));
+			RegisterJoint( rwrist = CJoint( dood, rlarm,     rhand,     W  ));
+			RegisterJoint( lhip   = CJoint( dood, pelvis,    luleg,     H  ));
+			RegisterJoint( lknee  = CJoint( dood, luleg,     llleg,     K  ));
+			RegisterJoint( lankle = CJoint( dood, llleg,     lfoot,     A  ));
+			RegisterJoint( rhip   = CJoint( dood, pelvis,    ruleg,     H  ));
+			RegisterJoint( rknee  = CJoint( dood, ruleg,     rlleg,     K  ));
+			RegisterJoint( rankle = CJoint( dood, rlleg,     rfoot,     A  ));
 
 			lknee.sjc->min_torque.y = lknee.sjc->min_torque.z = lknee.sjc->max_torque.y = lknee.sjc->max_torque.z = 0.0f;
 			rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
 
-			unsigned int num_memories = 65;
-#if DO_COMPLICATED_STUFF
-			unsigned int num_inputs   = 234;
+			unsigned int num_memories = 24;
+			unsigned int num_inputs   = 150;	//222;	//234;
 			unsigned int num_outputs  = 18;
-#else
-			unsigned int num_inputs   = 9;
-			unsigned int num_outputs  = 2;
-#endif
 
 			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories);
 
-#if DO_COMPLICATED_STUFF
 			pelvis_goal_vel = Random3D::RandomNormalizedVector(Random3D::Rand(0.5f));
 			pelvis_goal_pos = Quaternion::FromRVec(0, -dood->yaw, 0) * pelvis.rb->GetMassInfo().com + Random3D::RandomNormalizedVector(Random3D::Rand(0.1f)) - pelvis_goal_vel * 0.5f;
-#else
-			lpiston_goal = Random3D::Rand(0.75f, 0.9f);			// actual joints' dy = 0.88
-			rpiston_goal = Random3D::Rand(0.75f, 0.9f);
-#endif
 
-			yaw_vel   = Random3D::Rand(-0.3f, 0.3f);
-			pitch_vel = Random3D::Rand(-0.3f, 0.3f);
+			yaw_vel = pitch_vel = 0.0f;
+			SelectRandomAimVels(dood, 1.0f);
 
 			for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
 				scores[i] = 0.0f;
+
+			// randomize initial velocities of bones, just to further diversify the initial states
+			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+				ShakeRB((**iter).rb);
+			ShakeRB(((Gun*)dood->equipped_weapon)->rigid_body);
+		}
+
+		void ShakeRB(RigidBody* rb)
+		{
+			static const float shake_amount = 0.25f;
+
+			rb->SetLinearVelocity (rb->GetLinearVelocity()  + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
+			rb->SetAngularVelocity(rb->GetAngularVelocity() + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
+		}
+
+		void SelectRandomAimVels(Soldier* dood, float new_frac)
+		{
+			static const float half_pi         = float(M_PI) * 0.5f;
+
+			static const float yaw_rate        = 10.0f;		// hard-coded because Dood::yaw_rate and ::pitch_rate are inaccesible
+			static const float pitch_rate      = 10.0f;
+			static const float use_rate_frac   = 0.25f;		// nonetheless we probably don't want to actually rotate at such a high speed
+
+			static const unsigned int dest_eta = 30;
+
+			float pru = pitch_rate * use_rate_frac;
+			float yru = yaw_rate   * use_rate_frac;
+
+			float goto_vel   = min(pru, max(-pru, (Random3D::Rand(-half_pi, half_pi) - dood->pitch) / (dest_eta / 60.0f)));
+			float random_vel = Random3D::Rand(-pru, pru);
+			float lerp_a = Random3D::Rand() * Random3D::Rand();
+			float lerp_b = 1.0f - lerp_a;
+
+			float new_pvel = Random3D::Rand() * (goto_vel * lerp_a + random_vel * lerp_b);
+			float new_yvel = Random3D::Rand() * (Random3D::Rand(-yru, yru));
+
+			float old_frac = 1.0f - new_frac;
+			pitch_vel = old_frac * pitch_vel + new_frac * new_pvel;
+			yaw_vel   = old_frac * yaw_vel   + new_frac * new_yvel;
+
+			pitch_vel = yaw_vel = 0.0f;
+		}
+
+		void DoAimUpdate(Soldier* dood)
+		{
+			// make the aim vel/dir change randomly from time to time
+			if(Random3D::RandInt() % 15 == 0)
+				SelectRandomAimVels(dood, 0.5f);
+
+			dood->control_state->SetFloatControl( "yaw",   timestep * yaw_vel   );
+			dood->control_state->SetFloatControl( "pitch", timestep * pitch_vel );
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -383,8 +429,7 @@ namespace Test
 		}
 
 		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
-		{			
-#if DO_COMPLICATED_STUFF
+		{
 			// preparation and utility stuff for putting all the inputs into a big array of floats
 			Vec3 translation = -pelvis.rb->GetCenterOfMass();
 			Mat3 rotation = Mat3::FromAxisAngle(0, 1, 0, dood->yaw);
@@ -415,8 +460,8 @@ namespace Test
 					PushVec3(v, Vec3(rb_rot[6], rb_rot[7], rb_rot[8]));
 					PushVec3(v, rotation * rb->GetLinearVelocity());				// vel
 					PushVec3(v, rotation * use_rot);								// rot
-					PushVec3(v, rotation * bone.actual_force);
-					PushVec3(v, rotation * bone.actual_torque);
+					//PushVec3(v, rotation * bone.actual_force);
+					//PushVec3(v, rotation * bone.actual_torque);
 				}
 			};
 
@@ -431,12 +476,12 @@ namespace Test
 			PushRB(ruleg,  translation, rotation, inputs, timestep);
 			PushRB(pelvis, translation, rotation, inputs, timestep);
 			PushRB(torso1, translation, rotation, inputs, timestep);
-			PushRB(torso2, translation, rotation, inputs, timestep);
+			//PushRB(torso2, translation, rotation, inputs, timestep);
 
 			// additional inputs describing the goal state, specifying the desired force & torque of certain bones
 			struct PushGoalState
 			{
-				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, float noise, Vec3& vel, Vec3& rot)
+				PushGoalState(RigidBody* rb, const Mat3& rotation, float inv_timestep, vector<float>& inputs, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& vel, Vec3& rot)
 				{
 					// because of the x 60hz, using a large mutation rate has a high chance of throwing things out of whack, unless we do something like this
 					static const float make_hertz_hurt_less = 0.02f;
@@ -445,12 +490,6 @@ namespace Test
 					Quaternion current_ori = rb->GetOrientation();
 					vel = (desired_pos - current_pos) * inv_timestep;
 					rot = (desired_ori * Quaternion::Reverse(current_ori)).ToRVec() * -inv_timestep;
-
-					if(noise)
-					{
-						vel += Random3D::RandomNormalizedVector(Random3D::Rand(noise));
-						rot += Random3D::RandomNormalizedVector(Random3D::Rand(noise));
-					}
 
 					Vec3 desired_force  = (vel - rb->GetLinearVelocity()) * (inv_timestep * rb->GetMass());
 					Vec3 desired_torque = Mat3(rb->GetTransformedMassInfo().moi) * (rot - rb->GetAngularVelocity()) * -inv_timestep;
@@ -463,79 +502,42 @@ namespace Test
 				}
 			};
 
+#if 0
 			PushGoalState			// lfoot
 			(
 				lfoot.rb, rotation, inv_timestep, inputs,
-				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * lfoot.rb->GetMassInfo().com,
+				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * lfoot.rb->GetMassInfo().com + Vec3(0, 2, 0),
 				((SoldierFoot*)dood->feet[0])->OrientBottomToSurface(Vec3(0, 1, 0)),
-				0.0f, goal_vels[0], goal_rots[0]
+				goal_vels[0], goal_rots[0]
 			);
 			PushGoalState			// rfoot
 			(
 				rfoot.rb, rotation, inv_timestep, inputs,
-				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * rfoot.rb->GetMassInfo().com,
+				Quaternion::FromRVec(0, -(dood->yaw + torso2_yaw_offset), 0) * rfoot.rb->GetMassInfo().com + Vec3(0, 2, 0),
 				((SoldierFoot*)dood->feet[1])->OrientBottomToSurface(Vec3(0, 1, 0)),
-				0.0f, goal_vels[1], goal_rots[1]
+				goal_vels[1], goal_rots[1]
 			);
+#endif
 			PushGoalState			// pelvis
 			(
 				pelvis.rb, rotation, inv_timestep, inputs,
-				pelvis_goal_pos + pelvis_goal_vel * lifetime,
+				pelvis_goal_pos + pelvis_goal_vel * lifetime + Vec3(0, 2, 0),
 				p,
-				0.0f, goal_vels[2], goal_rots[2]
+				goal_vels[2], goal_rots[2]
 			);
-#else
-			vector<float> inputs;
-
-			Vec3 lhpos = (pelvis.rb->GetTransformationMatrix().TransformVec3_1(lhip  .sjc->pos) + luleg.rb->GetTransformationMatrix().TransformVec3_1(lhip  .sjc->pos)) * 0.5f;
-			Vec3 rhpos = (pelvis.rb->GetTransformationMatrix().TransformVec3_1(rhip  .sjc->pos) + ruleg.rb->GetTransformationMatrix().TransformVec3_1(rhip  .sjc->pos)) * 0.5f;
-			Vec3 lapos = (llleg.rb ->GetTransformationMatrix().TransformVec3_1(lankle.sjc->pos) + lfoot.rb->GetTransformationMatrix().TransformVec3_1(lankle.sjc->pos)) * 0.5f;
-			Vec3 rapos = (rlleg.rb ->GetTransformationMatrix().TransformVec3_1(rankle.sjc->pos) + rfoot.rb->GetTransformationMatrix().TransformVec3_1(rankle.sjc->pos)) * 0.5f;
-
-			Vec3 lha = lapos - lhpos;
-			Vec3 rha = rapos - rhpos;
-
-			float lhdist = lha.ComputeMagnitude(), rhdist = rha.ComputeMagnitude();
-			lpiston_err = lhdist - lpiston_goal;
-			rpiston_err = rhdist - rpiston_goal;
-
-			Vec3 lpiston_vel = llleg.rb->GetLocalVelocity(lankle.sjc->pos) - luleg.rb->GetLocalVelocity(lhip.sjc->pos);
-			Vec3 rpiston_vel = rlleg.rb->GetLocalVelocity(rankle.sjc->pos) - ruleg.rb->GetLocalVelocity(rhip.sjc->pos);
-
-			float lpiston_vdot = Vec3::Dot(lha, lpiston_vel) / lhdist;
-			float rpiston_vdot = Vec3::Dot(rha, rpiston_vel) / rhdist;
-
-			inputs.push_back(1.0f);							// clock-ish thing
-			inputs.push_back(lhdist);
-			inputs.push_back(rhdist);
-			inputs.push_back(lpiston_goal);
-			inputs.push_back(rpiston_goal);
-			inputs.push_back(lpiston_err);
-			inputs.push_back(rpiston_err);
-			inputs.push_back(lpiston_vdot);
-			inputs.push_back(rpiston_vdot);
-#endif
 
 
 			// brain processes inputs and comes up with outputs (also it updates its memory)
-#if DO_COMPLICATED_STUFF
 			vector<float> outputs(18);
-#else
-			vector<float> outputs(2);
-#endif
 			unsigned int num_inputs = inputs.size();
-			for(unsigned int i = 0; i < 2; ++i)
+			for(unsigned int i = 0; i < NUM_BRAIN_ITERATIONS; ++i)
 			{
 				inputs.resize(num_inputs);
 				SoldierBrain::Process(inputs, outputs);
-#if !DO_COMPLICATED_STUFF
-				inputs[0] = 0.0f;							// clock-ish thing
-#endif
 			}
 
 
 			// apply the values the brain came up with
-#if DO_COMPLICATED_STUFF
 			struct SetJointTorque
 			{
 				SetJointTorque(CJoint& j, const Vec3& xyz)
@@ -558,65 +560,79 @@ namespace Test
 			};
 
 			Vec3* output_vec = (Vec3*)outputs.data();
+
+#if 1
+			Quaternion p_ori = pelvis.rb->GetOrientation();
+			Vec3 hip_delta   = p_ori * *(output_vec++) * 1400;
+			Vec3 hip_nudge   = p_ori * *(output_vec++) * 1400;
+			Vec3 half_torque = (pelvis.applied_torque - pelvis.desired_torque) * 0.5f;
+			Vec3 ht_nudged   = half_torque + hip_nudge;
+
+			lhip.SetWorldTorque(ht_nudged + hip_delta);
+			rhip.SetWorldTorque(ht_nudged - hip_delta);
+#else
 			SetJointTorque(lhip,   *(output_vec++));
 			SetJointTorque(rhip,   *(output_vec++));
+#endif
+			
 			SetJointTorque(lknee,  *(output_vec++));
 			SetJointTorque(rknee,  *(output_vec++));
 			SetJointTorque(lankle, *(output_vec++));
 			SetJointTorque(rankle, *(output_vec++));
-#else
-			CJoint* knees[2] = { &lknee, &rknee };
-			for(unsigned int i = 0; i < 2; ++i)
-			{
-				float value = outputs[i];
-				SkeletalJointConstraint* sjc = knees[i]->sjc;
-				sjc->apply_torque.x = value >= 0 ? value * sjc->max_torque.x : -value * sjc->min_torque.x;
-			}
-#endif
 		}
 
 		void DoScoringStuff(Soldier* dood)
 		{
-			static const float max_sim_time = 60.0f / 60.0f;
+			static const unsigned int max_sim_ticks = 30;
+
+			static const float tick_length  = 1.0f / 60.0f;
+			static const float max_sim_time = max_sim_ticks * tick_length;
 
 			if(lifetime > 0)
 			{
-#if DO_COMPLICATED_STUFF
 				Vec3 error_vecs[SoldierBrain::NumScoringCategories] =
 				{
-					lfoot .rb->GetLinearVelocity()  - goal_vels[0],
-					rfoot .rb->GetLinearVelocity()  - goal_vels[1],
-					pelvis.rb->GetLinearVelocity()  - goal_vels[2],
+				//	lfoot .rb->GetLinearVelocity()  - goal_vels[0],
+				//	rfoot .rb->GetLinearVelocity()  - goal_vels[1],
+				//	pelvis.rb->GetLinearVelocity()  - goal_vels[2],
 
-					lfoot .rb->GetAngularVelocity() - goal_rots[0],
-					rfoot .rb->GetAngularVelocity() - goal_rots[1],
-					pelvis.rb->GetAngularVelocity() - goal_rots[2]
+				//	lfoot .rb->GetAngularVelocity() - goal_rots[0],
+				//	rfoot .rb->GetAngularVelocity() - goal_rots[1],
+				//	pelvis.rb->GetAngularVelocity() - goal_rots[2],
+
+					Mat3::FromAxisAngle(0, 1, 0, dood->yaw) * (pelvis.rb->GetAngularVelocity() - goal_rots[2]),
+					Vec3(),		// dummies since we are using the 3 components instead of 3 vectors
+					Vec3(),
 				};
 				
 				float error_floats[SoldierBrain::NumScoringCategories] =
 				{
-					error_vecs[0].ComputeMagnitudeSquared(),
-					error_vecs[1].ComputeMagnitudeSquared(),
-					error_vecs[2].ComputeMagnitudeSquared(),
-					error_vecs[3].ComputeMagnitudeSquared(),
-					error_vecs[4].ComputeMagnitudeSquared(),
-					error_vecs[5].ComputeMagnitudeSquared()
+					error_vecs[0].x * error_vecs[0].x,
+					error_vecs[0].y * error_vecs[0].y,
+					error_vecs[0].z * error_vecs[0].z,
+
+				//	error_vecs[0].ComputeMagnitudeSquared(),
+				//	error_vecs[1].ComputeMagnitudeSquared(),
+				//	error_vecs[2].ComputeMagnitudeSquared(),
+				//	error_vecs[3].ComputeMagnitudeSquared(),
+				//	error_vecs[4].ComputeMagnitudeSquared(),
+				//	error_vecs[5].ComputeMagnitudeSquared()
 				};
 
 				float component_coeffs[SoldierBrain::NumScoringCategories] =
 				{
-					0.05f,
-					0.05f,
-					0.01f,
+				//	0.05f,
+				//	0.05f,
+				//	0.01f,
 
-					0.05f,
-					0.05f,
-					0.01f
+				//	0.05f,
+				//	0.05f,
+				//	0.01f
+
+					0.03f,
+					0.03f,
+					0.03f
 				};
-#else
-				float error_floats    [SoldierBrain::NumScoringCategories] = { lpiston_err * lpiston_err, rpiston_err * rpiston_err };
-				float component_coeffs[SoldierBrain::NumScoringCategories] = { 50, 50 };
-#endif
 
 				float dt_over_s = timestep / max_sim_time;
 				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
@@ -644,25 +660,15 @@ namespace Test
 			if(!SoldierBrain::IsFinished())
 			{
 				DoScoringStuff(dood);
-
-				dood->control_state->SetFloatControl( "yaw",   timestep * yaw_vel   );
-				dood->control_state->SetFloatControl( "pitch", timestep * pitch_vel );
+				DoAimUpdate(dood);				
 			}
 
 
-			// reset joints
-			spine1.Reset();       spine2.Reset();    neck.Reset();
-			lsja.Reset();         lsjb.Reset();      lelbow.Reset();    lwrist.Reset();
-			rsja.Reset();         rsjb.Reset();      relbow.Reset();    rwrist.Reset();
-			lhip.Reset();         lknee.Reset();     lankle.Reset();
-			rhip.Reset();         rknee.Reset();     rankle.Reset();
-
-			// reset bones
-			pelvis.Reset();       torso1.Reset();    torso2.Reset();    head.Reset();
-			lshoulder.Reset();    luarm.Reset();     llarm.Reset();     lhand.Reset();
-			rshoulder.Reset();    ruarm.Reset();     rlarm.Reset();     rhand.Reset();
-			luleg.Reset();        llleg.Reset();     lfoot.Reset();
-			ruleg.Reset();        rlleg.Reset();     rfoot.Reset();
+			// reset all the joints and bones
+			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+				(*iter)->Reset();
+			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+				(*iter)->Reset();
 
 
 			// do actual C/PHFT stuff
@@ -886,35 +892,34 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
+		static const float half_pi = float(M_PI) * 0.5f;
+		pitch = Random3D::Rand() * Random3D::Rand(-half_pi, half_pi);
+
 		Dood::DoInitialPose();
 
-#if ENABLE_PELVIS_ANCHOR
-		//posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 1, 0);
-#endif
+		static const float randomness = 0.3f;
 
-		float randomness = 0.05f;
-
-		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, Random3D::Rand(randomness), 0);
+		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 2.0f + Random3D::Rand(randomness), 0);
 
 		Quaternion& ori = posey->skeleton->GetNamedBone("pelvis")->ori;
 		ori = Quaternion::FromRVec(Random3D::RandomNormalizedVector(Random3D::Rand(randomness))) * ori;
 
 		float lyaw = Random3D::Rand(0.25f);
-		posey->skeleton->GetNamedBone( "l leg 1" )->ori = Quaternion::FromRVec(0, lyaw, 0);
+		posey->skeleton->GetNamedBone( "l leg 1" )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw, Random3D::Rand(-randomness, randomness));
 		posey->skeleton->GetNamedBone( "l leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
-		posey->skeleton->GetNamedBone( "l foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw, Random3D::Rand(-randomness, randomness));
+		posey->skeleton->GetNamedBone( "l foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw + Random3D::Rand(-randomness, randomness), Random3D::Rand(-randomness, randomness));
 
 		float ryaw = Random3D::Rand(0.25f);
-		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec(0, ryaw, 0);
+		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw, Random3D::Rand(-randomness, randomness));
 		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
-		posey->skeleton->GetNamedBone( "r foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw, Random3D::Rand(-randomness, randomness));
+		posey->skeleton->GetNamedBone( "r foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw + Random3D::Rand(-randomness, randomness), Random3D::Rand(-randomness, randomness));
 
 		PreparePAG(TimingInfo(0, 0), Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0));
 	}
 
 	void Soldier::PreparePAG(const TimingInfo& time, const Quaternion& t2ori)
 	{
-		p_ag->yaw = yaw;
+		p_ag->yaw   = yaw;
 		p_ag->pitch = pitch;
 		p_ag->torso2_ori = posey->skeleton->bones[0]->ori = t2ori;
 		p_ag->UpdatePose(time);
