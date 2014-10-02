@@ -14,8 +14,6 @@
 #include "DefaultWeapon.h"
 #include "ArtilleryWeapon.h"
 
-#include "SoldierBrain.h"
-
 #include "Brambles.h"
 
 #include "WorldBoundary.h"
@@ -39,7 +37,7 @@
 
 #define ENABLE_FPS_COUNTER               1
 #define USE_GUN_AS_RUBBISH               0
-#define DO_RAPID_UPDATE_TESTING          1
+#define DO_RAPID_UPDATE_TESTING          0
 
 
 namespace Test
@@ -570,8 +568,6 @@ namespace Test
 
 		hud = new HUD(this, content);
 
-		SoldierBrain::Load();
-
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
 
@@ -718,16 +714,12 @@ namespace Test
 
 			TimingInfo clamped_time(elapsed, total_game_time);
 
-			if(SoldierBrain::IsFinished())
-				hud->SetPlayer(SpawnPlayer(Vec3()));
-
 			hud->UpdateHUDGauges(clamped_time);
 
 #if ENABLE_FPS_COUNTER
 			if(elapsed > 0)
 				debug_text = ((stringstream&)(stringstream() << "FPS = " << (int)(1.0 / time.elapsed))).str();
 #endif
-			debug_text = SoldierBrain::GetDebugText();
 
 			if(script_string.empty())
 				GetFileString("Files/Scripts/update.lua", &script_string);
@@ -1087,8 +1079,6 @@ namespace Test
 		DebugDrawMaterial::GetDebugDrawMaterial()->EmptyRecycleBin();
 
 		GameState::InnerDispose();
-
-		SoldierBrain::Save();
 	}
 
 	int gs_spawnBot(lua_State* L);

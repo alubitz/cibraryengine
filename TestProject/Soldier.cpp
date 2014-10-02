@@ -10,8 +10,6 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
-#include "SoldierBrain.h"
-
 #define DIE_AFTER_ONE_SECOND   0
 
 #define ENABLE_PELVIS_ANCHOR   0
@@ -199,15 +197,91 @@ namespace Test
 
 		unsigned int tick_age;
 
-		float scores    [SoldierBrain::NumScoringCategories];
-		float max_scores[SoldierBrain::NumScoringCategories];
+		struct JetpackNozzle
+		{
+			CBone* bone;
 
-		Vec3 head_goal_rot;
+			Vec3 pos;
+			Vec3 cone_center;
+			float cone_cossq;
+			float max_force, max_forcesq;
 
-		Quaternion head_goal_ori;
-		Vec3 head_error;
+			Vec3 world_force, world_torque;
+			Vec3 try_force, try_torque;
 
-		float yaw_vel, pitch_vel;
+			Vec3 world_center;
+			Vec3 apply_pos;
+			Mat3 force_to_torque;
+
+			JetpackNozzle(CBone& bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force) : bone(&bone), pos(pos), cone_center(cone_center), cone_cossq(cosf(cone_angle)), max_force(max_force), max_forcesq(max_force * max_force) { cone_cossq *= cone_cossq; }
+
+			void Reset() { world_force = Vec3(); }
+
+			void SolverInit(const Vec3& dood_com, float prop_frac)
+			{
+				const RigidBody& rb = *bone->rb;
+				Mat3 rm = rb.GetOrientation().ToMat3();
+				world_center = rm * cone_center;
+				apply_pos    = rm * pos + rb.GetPosition();
+
+				// compute force-to-torque Mat3
+				Vec3 bone_com = rb.GetPosition() + rb.GetOrientation() * rb.GetMassInfo().com;
+				Vec3 r1 = apply_pos - bone_com;
+				Mat3 xr1 = Mat3(        0,   r1.z,  -r1.y,
+									-r1.z,      0,   r1.x,
+									 r1.y,  -r1.x,      0	);
+				Vec3 r2 = bone_com - dood_com;
+				Mat3 xr2 = Mat3(        0,   r2.z,  -r2.y,
+									-r2.z,      0,   r2.x,
+									 r2.y,  -r2.x,      0	);
+				force_to_torque = xr1 + xr2;			// is this right?
+
+
+				world_force  = world_center * max_force * prop_frac;
+				world_torque = force_to_torque * world_force;
+
+				try_force  = world_force;
+				try_torque = world_torque;
+			}
+
+			void GetNudgeEffects(const Vec3& nudge, Vec3& nu_force, Vec3& nu_torque)
+			{
+				nu_force = world_force + nudge;
+
+				/*
+				float dot = Vec3::Dot(nu_force, world_center);
+				if(dot <= 0.0f)
+					nu_force = nu_torque = Vec3();
+				else
+				{
+					Vec3 axial = world_center * dot;
+					Vec3 ortho = nu_force - axial;
+					float axialsq = axial.ComputeMagnitudeSquared();
+					float orthosq = ortho.ComputeMagnitudeSquared();
+					if(orthosq > axialsq * cone_cossq)
+					{
+						ortho *= sqrtf(axialsq * cone_cossq / orthosq);
+						nu_force = axial + ortho;
+					}*/
+
+					float magsq = nu_force.ComputeMagnitudeSquared();
+					if(magsq > max_forcesq)
+						nu_force *= sqrtf(max_forcesq / magsq);
+
+					nu_torque = force_to_torque * nu_force;
+				//}
+			}
+
+			void ApplySelectedForce(float timestep)
+			{
+				//bone->rb->ApplyWorldForce(world_force, apply_pos);				// TODO: make this work?
+				bone->rb->ApplyWorldImpulse(world_force * timestep, apply_pos);
+			}
+		};
+
+		vector<JetpackNozzle> jetpack_nozzles;
+		bool jetpacking;
+		Vec3 desired_jp_accel;
 
 		Imp() :
 			init(false),
@@ -228,6 +302,7 @@ namespace Test
 
 			all_bones.clear();
 			all_joints.clear();
+			jetpack_nozzles.clear();
 
 			RegisterBone( pelvis    = CBone( dood, "pelvis"     ));
 			RegisterBone( torso1    = CBone( dood, "torso 1"    ));
@@ -247,7 +322,6 @@ namespace Test
 			RegisterBone( ruleg     = CBone( dood, "r leg 1"    ));
 			RegisterBone( rlleg     = CBone( dood, "r leg 2"    ));
 			RegisterBone( rfoot     = CBone( dood, "r foot"     ));
-
 
 			float SP = 1500, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 800, A = 500;
 			RegisterJoint( spine1 = CJoint( dood, pelvis,    torso1,    SP ));
@@ -271,24 +345,27 @@ namespace Test
 			lknee.sjc->min_torque.y = lknee.sjc->min_torque.z = lknee.sjc->max_torque.y = lknee.sjc->max_torque.z = 0.0f;
 			rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
 
-			unsigned int num_memories = 10;
-			unsigned int num_inputs   = 102;
-			unsigned int num_outputs  = 3;
+			Vec3 upward(0, 1, 0);
+			float jpn_angle = 1.0f;
+			float jpn_force = 150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
 
-			SoldierBrain::NextBrain(num_inputs, num_outputs, num_memories);
+			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.277547f, 1.480827f, -0.385142f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.359399f, 1.523561f, -0.366495f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.442619f, 1.576419f, -0.349652f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.277547f, 1.480827f, -0.385142f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
+			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
 
-			yaw_vel = pitch_vel = 0.0f;
-			SelectRandomAimVels(dood, 1.0f);
-
-			head_error = Vec3();
-
-			for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
-				scores[i] = max_scores[i] = 0.0f;
-
+#if 0
 			// randomize initial velocities of bones, just to further diversify the initial states
 			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 				ShakeRB((**iter).rb);
 			ShakeRB(((Gun*)dood->equipped_weapon)->rigid_body);
+#endif
 		}
 
 		void ShakeRB(RigidBody* rb)
@@ -297,44 +374,6 @@ namespace Test
 
 			rb->SetLinearVelocity (rb->GetLinearVelocity()  + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
 			rb->SetAngularVelocity(rb->GetAngularVelocity() + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
-		}
-
-		void SelectRandomAimVels(Soldier* dood, float new_frac)
-		{
-			static const float half_pi         = float(M_PI) * 0.5f;
-
-			static const float yaw_rate        = 10.0f;		// hard-coded because Dood::yaw_rate and ::pitch_rate are inaccesible
-			static const float pitch_rate      = 10.0f;
-			static const float use_rate_frac   = 0.15f;		// nonetheless we probably don't want to actually rotate at such a high speed
-
-			static const unsigned int dest_eta = 30;
-
-			float pru = pitch_rate * use_rate_frac;
-			float yru = yaw_rate   * use_rate_frac;
-
-			float goto_vel   = min(pru, max(-pru, (Random3D::Rand(-half_pi, half_pi) - dood->pitch) / (dest_eta / 60.0f)));
-			float random_vel = Random3D::Rand(-pru, pru);
-			float lerp_a = Random3D::Rand() * Random3D::Rand();
-			float lerp_b = 1.0f - lerp_a;
-
-			float new_pvel = Random3D::Rand() * (goto_vel * lerp_a + random_vel * lerp_b);
-			float new_yvel = Random3D::Rand() * (Random3D::Rand(-yru, yru));
-
-			float old_frac = 1.0f - new_frac;
-			pitch_vel = old_frac * pitch_vel + new_frac * new_pvel;
-			yaw_vel   = old_frac * yaw_vel   + new_frac * new_yvel;
-		}
-
-		void DoAimUpdate(Soldier* dood)
-		{
-			// make the aim vel/dir change randomly from time to time
-			if(Random3D::RandInt() % 15 == 0)
-				SelectRandomAimVels(dood, 0.5f);
-			else
-				SelectRandomAimVels(dood, 0.02f);
-
-			dood->control_state->SetFloatControl( "yaw",   timestep * yaw_vel   );
-			dood->control_state->SetFloatControl( "pitch", timestep * pitch_vel );
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -379,7 +418,7 @@ namespace Test
 
 		void DoHeadOri(Soldier* dood, const TimingInfo& time)
 		{
-			Quaternion desired_ori = head_goal_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 
 			head.ComputeDesiredTorqueWithDefaultMoI(desired_ori, inv_timestep);
 			neck.SetTorqueToSatisfyB();
@@ -430,203 +469,133 @@ namespace Test
 			spine1.SetTorqueToSatisfyB();
 		}
 
-		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& t1, const Quaternion& t2)
+		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
 		{
-			// preparation and utility stuff for putting all the inputs into a big array of floats
-			Vec3 translation = -torso2.rb->GetCenterOfMass();
-			Mat3 rotation = Mat3::FromAxisAngle(0, 1, 0, dood->yaw);
+			// TODO: implement this for real
 
-			struct PushVec3
-			{
-				PushVec3(vector<float>& v, const Vec3& xyz)
-				{
-					v.push_back(tanhf(xyz.x));
-					v.push_back(tanhf(xyz.y));
-					v.push_back(tanhf(xyz.z));
-				}
-			};
+			//pelvis.ComputeDesiredTorqueWithDefaultMoI(p, inv_timestep);
 
-			struct PushRB
-			{
-				// one rb = 8 Vec3 values (was 6 before adding actual_force and actual_torque)
-				PushRB(CBone& bone, const Vec3& translation, const Mat3& rotation, vector<float>& v, float timestep)
-				{
-					RigidBody* rb = bone.rb;
-
-					Mat3 rb_rm = rotation * rb->GetOrientation().ToMat3();
-					Vec3 use_rot = rb->GetAngularVelocity() + rb->GetInvMoI() * bone.applied_torque * timestep;
-
-					PushVec3(v, rotation * (rb->GetPosition() + translation));		// pos
-					PushVec3(v, Vec3(rb_rm[0], rb_rm[1], rb_rm[2]));				// ori (rm)
-					PushVec3(v, Vec3(rb_rm[3], rb_rm[4], rb_rm[6]));
-					PushVec3(v, Vec3(rb_rm[6], rb_rm[7], rb_rm[8]));
-					PushVec3(v, rotation * rb->GetLinearVelocity());				// vel
-					PushVec3(v, rotation * use_rot);								// rot
-					PushVec3(v, rotation * bone.actual_force);
-					PushVec3(v, rotation * bone.actual_torque);
-				}
-			};
-
-			vector<float> inputs;
-
-			// now to actually put those inputs into the array, starting with the state of some relevant bones
-			//PushRB(lfoot,     translation, rotation, inputs, timestep);
-			//PushRB(rfoot,     translation, rotation, inputs, timestep);
-			//PushRB(llleg,     translation, rotation, inputs, timestep);
-			//PushRB(rlleg,     translation, rotation, inputs, timestep);
-			//PushRB(luleg,     translation, rotation, inputs, timestep);
-			//PushRB(ruleg,     translation, rotation, inputs, timestep);
-			//PushRB(pelvis,    translation, rotation, inputs, timestep);
-			//PushRB(torso1,    translation, rotation, inputs, timestep);
-			PushRB(torso2,    translation, rotation, inputs, timestep);
-			PushRB(lshoulder, translation, rotation, inputs, timestep);
-			PushRB(rshoulder, translation, rotation, inputs, timestep);
-			PushRB(head,      translation, rotation, inputs, timestep);
-
-			// additional inputs describing the goal state, specifying the desired force & torque of certain bones
-			struct GetGoalWorldVels
-			{
-				GetGoalWorldVels(RigidBody* rb, float inv_timestep, const Vec3& desired_pos, const Quaternion& desired_ori, Vec3& desired_vel, Vec3& desired_rot, Vec3& desired_force, Vec3& desired_torque)
-				{
-					Vec3       current_pos = rb->GetCenterOfMass();
-					Quaternion current_ori = rb->GetOrientation();
-
-					desired_vel = (desired_pos - current_pos) * inv_timestep;
-					desired_rot = (desired_ori * Quaternion::Reverse(current_ori)).ToRVec() * -inv_timestep;
-
-					desired_force  = (desired_vel - rb->GetLinearVelocity()) * (inv_timestep * rb->GetMass());
-					desired_torque = Mat3(rb->GetTransformedMassInfo().moi) * (desired_rot - rb->GetAngularVelocity()) * -inv_timestep;
-				}
-			};
-
-			CBone& use_bone   = head;
-			CJoint& use_joint = neck;
-
-			if(tick_age != 0)
-				head_error = rotation * (use_bone.rb->GetAngularVelocity() - head_goal_rot);
-
-			Vec3 dummy_vel, dummy_force, head_goal_torque;
-			GetGoalWorldVels
-			(
-				use_bone.rb, inv_timestep,
-				Quaternion::FromRVec(0, -dood->yaw, 0) * use_bone.rb->GetMassInfo().com + Vec3(0, 2, 0),
-				head_goal_ori,
-				dummy_vel, head_goal_rot, dummy_force, head_goal_torque
-			);
-
-			//use_bone.desired_torque = head_goal_torque;
-			//use_joint.SetTorqueToSatisfyB();
-
-			SkeletalJointConstraint* s2sjc = use_joint.sjc;
-			const float* s2ats  = (float*)(&s2sjc->apply_torque);
-			const float* s2mins = (float*)(&s2sjc->min_torque);
-			const float* s2maxs = (float*)(&s2sjc->max_torque);
-			
-			// unrolled loop
-			float value;
-			{ value = *s2ats; inputs.push_back(value >= 0 ? value / *s2maxs : -value / *s2mins); ++s2ats; ++ s2mins; ++s2maxs; }
-			{ value = *s2ats; inputs.push_back(value >= 0 ? value / *s2maxs : -value / *s2mins); ++s2ats; ++ s2mins; ++s2maxs; }
-			{ value = *s2ats; inputs.push_back(value >= 0 ? value / *s2maxs : -value / *s2mins); }
-
-			//use_joint.SetWorldTorque(Vec3());
-
-			static const float make_hertz_hurt_less = 0.02f;
-			PushVec3(inputs, rotation * head_goal_rot * make_hertz_hurt_less);
-
-			
-
-
-			// brain processes inputs and comes up with outputs (also it updates its memory)
-			vector<float> outputs(3);
-			unsigned int num_inputs = inputs.size();
-			for(unsigned int i = 0; i < NUM_BRAIN_ITERATIONS; ++i)
-			{
-				inputs.resize(num_inputs);
-				SoldierBrain::Process(inputs, outputs);
-			}
-
-
-			// apply the values the brain came up with
-			struct SetJointTorque
-			{
-				SetJointTorque(CJoint& j, const Vec3& xyz)
-				{
-					float* min = (float*)&j.sjc->min_torque;
-					float* max = (float*)&j.sjc->max_torque;
-					float* vec = (float*)&xyz;
-					float* res = (float*)&j.sjc->apply_torque;
-
-					float* vec_end = vec + 3;
-
-					for(; vec != vec_end; ++vec, ++min, ++max, ++res)
-					{
-						if(*vec > 0)
-							*res = *vec * *max;
-						else
-							*res = *vec * -*min;
-					}
-
-					j.actual = j.oriented_axes.TransposedMultiply(j.sjc->apply_torque);
-				}
-			};
-
-			Vec3* output_vec = (Vec3*)(outputs.data());
-
-			//SetJointTorque(spine2, *(output_vec++));
-			//SetJointTorque(spine1, *(output_vec++));
-			//SetJointTorque(lhip,   *(output_vec++));
-			//SetJointTorque(rhip,   *(output_vec++));
-			//SetJointTorque(lknee,  *(output_vec++));
-			//SetJointTorque(rknee,  *(output_vec++));
-			//SetJointTorque(lankle, *(output_vec++));
-			//SetJointTorque(rankle, *(output_vec++));
-			//SetJointTorque(neck, *(output_vec++));
-
-			neck.SetTorqueToSatisfyB();
-
-			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
-			spine2.SetTorqueToSatisfyB();
-
-			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
-			spine1.SetTorqueToSatisfyB();
+			//lhip.SetWorldTorque(0.5f * (pelvis.desired_torque - pelvis.applied_torque));
+			//rhip.SetTorqueToSatisfyA();
+			//lhip.SetTorqueToSatisfyA();
 		}
 
-		void DoScoringStuff(Soldier* dood)
+		void DoAirborneUpdate(Soldier* dood, const TimingInfo& time, const Quaternion& p, const Quaternion &t1, const Quaternion &t2)
 		{
-			static const unsigned int max_sim_ticks = 45;
+			// TODO: implement this for real
+			DoTorsoOris( dood, time,    t1, t2 );
+			DoLegStuff ( dood, time, p         );
+		}
 
-			if(tick_age != 0)
-			{				
-				float error_floats[SoldierBrain::NumScoringCategories] =
-				{
-					head_error.ComputeMagnitudeSquared()
-				};
+		void DoGroundedUpdate(Soldier* dood, const TimingInfo& time, const Quaternion& p, const Quaternion &t1, const Quaternion &t2)
+		{
+			DoTorsoOris( dood, time,    t1, t2 );
+			DoLegStuff ( dood, time, p         );
+		}
 
-				float component_coeffs[SoldierBrain::NumScoringCategories] =
-				{
-					0.1f
-				};
-
-				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
-				{
-					float weight = timestep;
-					scores[i]     += weight * expf(-component_coeffs[i] * error_floats[i]);
-					max_scores[i] += weight;
-				}
-			}
-
-			if(tick_age >= max_sim_ticks)
+		void ComputeMomentumStuff(Soldier* dood, float& dood_mass, Vec3& dood_com, Vec3& angular_momentum)
+		{
+			Vec3 com_vel;
+			dood_mass = 0.0f;
+			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
 			{
-				for(unsigned int i = 0; i < SoldierBrain::NumScoringCategories; ++i)
-				{
-					float inv_weight = 1.0f / max_scores[i];
+				RigidBody* rb = *iter;
+				float mass = rb->GetMass();
+				dood_mass += mass;
+				dood_com  += rb->GetCenterOfMass() * mass;
+				com_vel   += rb->GetLinearVelocity() * mass;
+			}
+			dood_com /= dood_mass;
+			com_vel  /= dood_mass;
 
-					scores[i]     *= inv_weight;
-					max_scores[i] *= inv_weight;
+			MassInfo mass_info;
+			Mat3& moi = *((Mat3*)((void*)mass_info.moi));						// moi.values and mass_info.moi occupy the same space in memory
+
+			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
+			{
+				RigidBody* body = *iter;
+				mass_info = body->GetTransformedMassInfo();
+
+				// linear component
+				float mass = mass_info.mass;
+				Vec3 vel = body->GetLinearVelocity() - com_vel;
+				Vec3 radius = mass_info.com - dood_com;
+				angular_momentum += Vec3::Cross(vel, radius) * mass;
+
+				// angular component
+				angular_momentum += moi * body->GetAngularVelocity();
+			}
+		}
+
+		void ResolveJetpackOutput(Soldier* dood, const TimingInfo& time, float dood_mass, const Vec3& dood_com, const Vec3& desired_jp_accel, const Vec3& desired_jp_torque)
+		{
+			unsigned int num_nozzles = jetpack_nozzles.size();
+
+			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				iter->SolverInit(dood_com, 0.0f);
+
+#if 1
+			Vec3 desired_jp_force = desired_jp_accel * dood_mass;
+
+			float torque_coeff = 50.0f;
+
+			// search for nozzle forces to match the requested accel & torque
+			Vec3 force_error, torque_error;
+			float errsq, error;
+			for(unsigned int i = 0; i < 500; ++i)
+			{
+				if(i == 0)
+				{
+					force_error  = -desired_jp_force;
+					torque_error = -desired_jp_torque;
+					for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+					{
+						force_error  += iter->world_force;
+						torque_error += iter->world_torque;
+					}
+					
+					errsq = force_error.ComputeMagnitudeSquared() + torque_error.ComputeMagnitudeSquared() * torque_coeff;
+				}
+				else
+				{
+					float mutation_scale = error * 0.25f;
+					Vec3 mutant_force  = force_error;
+					Vec3 mutant_torque = torque_error;
+					for(unsigned char j = 0; j < 3; ++j)
+					{
+						JetpackNozzle& jpn = jetpack_nozzles[Random3D::RandInt() % num_nozzles];
+
+						jpn.GetNudgeEffects(Random3D::RandomNormalizedVector(Random3D::Rand(mutation_scale)), jpn.try_force, jpn.try_torque);
+
+						mutant_force  += jpn.try_force  - jpn.world_force;
+						mutant_torque += jpn.try_torque - jpn.world_torque;
+					}
+
+					float mutant_errsq = mutant_force.ComputeMagnitudeSquared() + mutant_torque.ComputeMagnitudeSquared() * torque_coeff;
+					if(mutant_errsq < errsq)
+					{
+						for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+						{
+							iter->world_force  = iter->try_force;
+							iter->world_torque = iter->try_torque;
+						}
+						force_error  = mutant_force;
+						torque_error = mutant_torque;
+
+						errsq = mutant_errsq;
+					}
 				}
 
-				SoldierBrain::Finish(scores);
+				error = sqrtf(errsq);
+				Debug(((stringstream&)(stringstream() << "i = " << i << "; error squared = " << errsq << "; error = " << error << endl)).str());
+				if(error < 1.0f)
+					break;
 			}
+#endif
+			
+			// apply the nozzle forces we computed
+			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				iter->ApplySelectedForce(timestep);
 		}
 
 		void Update(Soldier* dood, const TimingInfo& time)
@@ -637,14 +606,8 @@ namespace Test
 				init = true;
 			}
 
-			timestep = time.elapsed;
+			timestep     = time.elapsed;
 			inv_timestep = 1.0f / timestep;
-
-			if(!SoldierBrain::IsFinished())
-			{
-				DoScoringStuff(dood);
-				DoAimUpdate(dood);				
-			}
 
 
 			// reset all the joints and bones
@@ -662,10 +625,57 @@ namespace Test
 			DoAnchorStuff  ( dood, time, p         );
 #endif
 
+			bool airborne   = true;			// TODO: determine values for this
+
+#if 0
+			if(jetpacking)
+			{
+				float dood_mass;
+				Vec3 dood_com, angular_momentum;
+				ComputeMomentumStuff(dood, dood_mass, dood_com, angular_momentum);
+				
+				Vec3 desired_jp_torque = angular_momentum * (-60.0f);
+
+				ResolveJetpackOutput(dood, time, dood_mass, dood_com, desired_jp_accel, desired_jp_torque);
+			}
+			else
+			{
+				// this will be necessary for when rendering for jetpack flames is eventually added
+				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+					iter->Reset();
+			}
+#endif
+
 			DoHeadOri      ( dood, time            );
 			DoArmsAimingGun( dood, time,        t2 );
-		//	DoTorsoOris    ( dood, time,    t1, t2 );
-			DoLegStuff     ( dood, time,    t1, t2 );
+
+			Quaternion yaw_ori = Quaternion::FromRVec(0, -dood->yaw, 0);
+
+			lfoot.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			rfoot.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			llleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			rlleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			luleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			ruleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,  inv_timestep);
+			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
+			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
+
+			lfoot.desired_torque -= lfoot.actual_torque;
+			rfoot.desired_torque -= rfoot.actual_torque;
+
+			spine2.SetTorqueToSatisfyB();
+			spine1.SetTorqueToSatisfyB();
+			lhip  .SetTorqueToSatisfyA();
+			rhip  .SetTorqueToSatisfyA();
+			lknee .SetTorqueToSatisfyA();
+			rknee .SetTorqueToSatisfyA();
+			lankle.SetTorqueToSatisfyB();
+			rankle.SetTorqueToSatisfyB();
+
+
+			//DoTorsoOris    ( dood, time,    t1, t2 );
+			//DoLegStuff     ( dood, time, p         );
 
 			++tick_age;
 		}
@@ -758,14 +768,18 @@ namespace Test
 						Vec3 horizontal_accel = forward * max(-1.0f, min(1.0f, control_state->GetFloatControl("forward"))) + rightward * max(-1.0f, min(1.0f, control_state->GetFloatControl("sidestep")));
 						fly_accel_vec += horizontal_accel * fly_accel_lateral;
 
-						float total_mass = 0.0f;
+						imp->desired_jp_accel = fly_accel_vec;
 
+#if 1
+						// TODO: remove this once similar functionality is moved to Soldier::Imp::ResolveJetpackOutput
+						float total_mass = 0.0f;
 						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
 							total_mass += (*iter)->GetMassInfo().mass;
-
 						Vec3 apply_force = fly_accel_vec * total_mass;
+
 						for(vector<RigidBody*>::iterator iter = jet_bones.begin(); iter != jet_bones.end(); ++iter)
 							(*iter)->ApplyCentralForce(apply_force / float(jet_bones.size()));
+#endif
 					}
 				}
 				else
@@ -776,6 +790,8 @@ namespace Test
 				}
 			}
 		}
+
+		imp->jetpacking = jetted;
 
 		if(!jetted && jet_loop != NULL)
 		{
@@ -877,14 +893,13 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		static const float half_pi = float(M_PI) * 0.5f;
-		pitch = Random3D::Rand() * Random3D::Rand(-half_pi, half_pi);
+		//static const float half_pi = float(M_PI) * 0.5f;
+		//pitch = Random3D::Rand() * Random3D::Rand(-half_pi, half_pi);
 
 		Dood::DoInitialPose();
 
+#if 0
 		static const float randomness = 0.3f;
-
-		posey->skeleton->GetNamedBone("pelvis")->pos += Vec3(0, 2.0f + Random3D::Rand(randomness), 0);
 
 		Quaternion& ori = posey->skeleton->GetNamedBone("pelvis")->ori;
 		ori = Quaternion::FromRVec(Random3D::RandomNormalizedVector(Random3D::Rand(randomness))) * ori;
@@ -898,6 +913,7 @@ namespace Test
 		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw, Random3D::Rand(-randomness, randomness));
 		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
 		posey->skeleton->GetNamedBone( "r foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw + Random3D::Rand(-randomness, randomness), Random3D::Rand(-randomness, randomness));
+#endif
 
 		PreparePAG(TimingInfo(0, 0), Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0));
 	}
