@@ -668,8 +668,8 @@ namespace Test
 			spine1.SetTorqueToSatisfyB();
 			lhip  .SetTorqueToSatisfyA();
 			rhip  .SetTorqueToSatisfyA();
-			lknee .SetTorqueToSatisfyA();
-			rknee .SetTorqueToSatisfyA();
+			lknee .SetTorqueToSatisfyB();
+			rknee .SetTorqueToSatisfyB();
 			lankle.SetTorqueToSatisfyB();
 			rankle.SetTorqueToSatisfyB();
 
