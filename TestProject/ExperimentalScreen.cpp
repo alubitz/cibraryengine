@@ -50,31 +50,7 @@ namespace Test
 			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
 				scr->AddItem(auto_menu_items[i]);
 
-			num_inputs  = 10;
-			num_outputs = 4;
-			num_middles = 50;
-
-			inputs .resize(num_inputs);
-			middles.resize(num_middles);
-			outputs.resize(num_outputs);
-
-			middle_sums.resize(num_middles);
-			output_sums.resize(num_outputs);
-
-			correct_outputs.resize(num_outputs);
-
-			float random_range = 0.5f;
-
-			top_matrix.resize(num_inputs * num_middles);
-			for(vector<float>::iterator iter = top_matrix.begin(); iter != top_matrix.end(); ++iter)
-				*iter = Random3D::Rand(-random_range, random_range);
-
-			bottom_matrix.resize(num_middles * num_outputs);
-			for(vector<float>::iterator iter = bottom_matrix.begin(); iter != bottom_matrix.end(); ++iter)
-				*iter = Random3D::Rand(-random_range, random_range);
-
-			moving_average = 0;
-			mavg_list.clear();
+			InitBrainStuff();
 		}
 
 		~Imp()
@@ -87,6 +63,32 @@ namespace Test
 				delete item;
 			}
 			auto_menu_items.clear();
+		}
+
+		void InitBrainStuff()
+		{
+			num_inputs  = 7;
+			num_outputs = 3;
+			num_middles = 50;
+
+			inputs         .resize(num_inputs );
+			middle_sums    .resize(num_middles);
+			middles        .resize(num_middles);
+			output_sums    .resize(num_outputs);
+			outputs        .resize(num_outputs);
+			correct_outputs.resize(num_outputs);
+
+			top_matrix   .resize(num_inputs  * num_middles);
+			bottom_matrix.resize(num_middles * num_outputs);
+
+			float random_range = 0.5f;
+			for(vector<float>::iterator iter = top_matrix.begin();    iter != top_matrix.end();    ++iter)
+				*iter = Random3D::Rand(-random_range, random_range);
+			for(vector<float>::iterator iter = bottom_matrix.begin(); iter != bottom_matrix.end(); ++iter)
+				*iter = Random3D::Rand(-random_range, random_range);
+
+			moving_average = 0;
+			mavg_list.clear();
 		}
 
 		void Multiply(const float* matrix, const float* in_begin, float* out_begin, unsigned int num_in, unsigned int num_out)
@@ -135,15 +137,18 @@ namespace Test
 		{
 			static const float dx = 0.000001f;
 
+			float* top_data    = top_matrix.data();
+			float* bottom_data = bottom_matrix.data();
+
 			for(float *mat_ptr = matrix, *mat_end = mat_ptr + size; mat_ptr != mat_end; ++mat_ptr)
 			{
-				Evaluate(top_matrix.data(), bottom_matrix.data(), inputs, middle_sums, middles, output_sums, outputs);
+				Evaluate(top_data, bottom_data, inputs, middle_sums, middles, output_sums, outputs);
 				float y1 = CheckOutput(outputs, correct_outputs, num_outputs);
 
 				float x1 = *mat_ptr;
 				*mat_ptr += dx;
 
-				Evaluate(top_matrix.data(), bottom_matrix.data(), inputs, middle_sums, middles, output_sums, outputs);
+				Evaluate(top_data, bottom_data, inputs, middle_sums, middles, output_sums, outputs);
 				float y2 = CheckOutput(outputs, correct_outputs, num_outputs);
 				float dy = y2 - y1;
 
@@ -160,16 +165,16 @@ namespace Test
 			DoVariations(bottom_matrix.data(), num_middles * num_outputs, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, learning_rate);
 			DoVariations(top_matrix.data(),    num_inputs  * num_middles, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, learning_rate);
 
-			//Evaluate(top_matrix.data(), bottom_matrix.data(), inputs, middle_sums, middles, output_sums, outputs);
-			//return CheckOutput(outputs, correct_outputs, num_outputs);
-
 			return initial_error;
 		}
 
 		void MaybeRandomizeCoefficient(float& coeff)
 		{
-			if(Random3D::RandInt() % 100 == 0)
-				coeff += Random3D::Rand(-0.001f, 0.001f);
+			static const unsigned int odds_against = 200;
+			static const float        amount       = 0.0001f;
+
+			if(Random3D::RandInt() % odds_against == 0)
+				coeff += Random3D::Rand(-amount, amount);
 		}
 
 		void Update(const TimingInfo& time)
@@ -190,11 +195,8 @@ namespace Test
 			{
 				Vec3 a = Random3D::RandomNormalizedVector(Random3D::Rand(domain));
 				Vec3 b = Random3D::RandomNormalizedVector(Random3D::Rand(domain));
-				Vec3 c = Random3D::RandomNormalizedVector(Random3D::Rand(domain));
 
-				Vec3 cross = Vec3::Cross(b - a, c - a);
-				float xmag = cross.ComputeMagnitude();
-				Vec3 d = xmag > 0.05f ? Vec3() : cross * (0.7f / xmag);
+				Vec3 c = Vec3::Cross(a, b);
 
 				inputs[0] = 1.0f;
 				inputs[1] = a.x;
@@ -203,14 +205,10 @@ namespace Test
 				inputs[4] = b.x;
 				inputs[5] = b.y;
 				inputs[6] = b.z;
-				inputs[7] = c.x;
-				inputs[8] = c.y;
-				inputs[9] = c.z;
 
-				correct_outputs[0] = d.x;
-				correct_outputs[1] = d.y;
-				correct_outputs[2] = d.z;
-				correct_outputs[3] = Vec3::Dot(d, a);
+				correct_outputs[0] = c.x;
+				correct_outputs[1] = c.y;
+				correct_outputs[2] = c.z;
 
 				tot += Train(inputs.data(), middle_sums.data(), middles.data(), output_sums.data(), outputs.data(), correct_outputs.data(), learning_rate);
 			}

@@ -12,9 +12,8 @@
 
 #define DIE_AFTER_ONE_SECOND   0
 
-#define ENABLE_PELVIS_ANCHOR   0
-
-#define NUM_BRAIN_ITERATIONS   2
+#define ENABLE_OLDVEL_TRACKING 0
+#define ENABLE_NEW_JETPACKING  0
 
 namespace Test
 {
@@ -63,20 +62,37 @@ namespace Test
 			RigidBody* rb;
 			Bone* posey;
 
-			Vec3 desired_torque;
-			Vec3 applied_torque;
+			Vec3 local_com;
 
+			Vec3 desired_torque;
+			Vec3 applied_torque;	
+
+#if ENABLE_OLDVEL_TRACKING
 			Vec3 old_vel, old_rot;
 			Vec3 actual_force, actual_torque;
+#endif
 
-			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)) { }
 
-			void Reset()
+			// inverse kinematics stuff
+			struct State
 			{
-				static const float inv_timestep   = 60.0f;							// TODO: don't hard-code this
-				static const float use_coeff      = inv_timestep / 60.0f;			// TODO: make this less arbitrary?
+				Vec3 pos;
+				Mat3 ori;
+				Vec3 vel;
+				Vec3 rot;
+			} rest, best, test;
 
+			typedef float (Imp::*OriChangeHandler)(CBone::State CBone::*which_state);
+
+			OriChangeHandler handler;
+
+
+			CBone() : handler(NULL) { }
+			CBone(const Soldier* dood, const string& name, OriChangeHandler handler = NULL) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com), handler(handler) { }
+
+#if ENABLE_OLDVEL_TRACKING
+			void Reset(float inv_timestep, float use_coeff)
+			{
 				Vec3 nu_vel = rb->GetLinearVelocity();
 				Vec3 nu_rot = rb->GetAngularVelocity();
 
@@ -86,7 +102,10 @@ namespace Test
 
 				old_vel = nu_vel;
 				old_rot = nu_rot;
-
+#else
+			void Reset()
+			{
+#endif
 				desired_torque = applied_torque = Vec3();
 			}
 
@@ -104,6 +123,18 @@ namespace Test
 			void ComputeDesiredTorqueWithDefaultMoI(const Quaternion& desired_ori, float inv_timestep) { ComputeDesiredTorque(desired_ori, Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
 			void ComputeDesiredTorqueWithPosey(const Mat3& use_moi, float inv_timestep)                { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), use_moi, inv_timestep); }
 			void ComputeDesiredTorqueWithDefaultMoIAndPosey(float inv_timestep)                        { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
+
+			void InitIKStates(float timestep, float inv_timestep)
+			{
+				rest.ori = rb->GetOrientation().ToMat3();
+				rest.pos = rb->GetPosition() + rest.ori * local_com;
+				rest.vel = rb->GetLinearVelocity();
+				rest.rot = rb->GetAngularVelocity();
+
+				// TODO: decide whether or not to move all bones according to current vel/rot
+
+				test = best = rest;
+			}
 		};
 
 		CBone pelvis,    torso1, torso2, head;
@@ -111,6 +142,8 @@ namespace Test
 		CBone rshoulder, ruarm,  rlarm,  rhand;
 		CBone luleg,     llleg,  lfoot;
 		CBone ruleg,     rlleg,  rfoot;
+
+		RigidBody* gun_rb;
 
 		struct CJoint
 		{
@@ -120,6 +153,8 @@ namespace Test
 			Vec3 actual;				// world-coords torque to be applied by this joint
 
 			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
+
+			Vec3 r1, r2;
 
 			CJoint() { }
 			CJoint(const Soldier* dood, CBone& bone_a, CBone& bone_b, float max_torque)
@@ -136,6 +171,9 @@ namespace Test
 
 						sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
 						sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
+
+						r1 = sjc->pos - a->local_com;
+						r2 = sjc->pos - b->local_com;
 
 						return;
 					}
@@ -182,6 +220,26 @@ namespace Test
 
 			bool SetTorqueToSatisfyA() { return SetWorldTorque(a->desired_torque - (a->applied_torque - actual)); }
 			bool SetTorqueToSatisfyB() { return SetWorldTorque((b->applied_torque + actual) - b->desired_torque); }
+
+			void SetBPosFromA(CBone::State CBone::* member)
+			{
+				const CBone::State& from = a->*member;
+				CBone::State& to = b->*member;
+
+				to.pos = from.pos + from.ori * r1 - to.ori * r2;
+			}
+			void SetAPosFromB(CBone::State CBone::* member)
+			{
+				const CBone::State& from = b->*member;
+				CBone::State& to = a->*member;
+
+				to.pos = from.pos + from.ori * r2 - to.ori * r1;
+			}
+			float GetIKError(CBone::State CBone::* member) const
+			{
+				const CBone::State &as = a->*member, &bs = b->*member;
+				return ((as.pos + as.ori * r1) - (bs.pos + bs.ori * r2)).ComputeMagnitudeSquared();
+			}
 		};
 
 		CJoint spine1, spine2, neck;
@@ -283,6 +341,8 @@ namespace Test
 		bool jetpacking;
 		Vec3 desired_jp_accel;
 
+		Vec3 desired_aim;
+
 		Imp() :
 			init(false),
 			timestep(0),
@@ -304,7 +364,7 @@ namespace Test
 			all_joints.clear();
 			jetpack_nozzles.clear();
 
-			RegisterBone( pelvis    = CBone( dood, "pelvis"     ));
+			RegisterBone( pelvis    = CBone( dood, "pelvis",    &Imp::PelvisOCH ));
 			RegisterBone( torso1    = CBone( dood, "torso 1"    ));
 			RegisterBone( torso2    = CBone( dood, "torso 2"    ));
 			RegisterBone( head      = CBone( dood, "head"       ));
@@ -359,21 +419,6 @@ namespace Test
 			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
-
-#if 0
-			// randomize initial velocities of bones, just to further diversify the initial states
-			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
-				ShakeRB((**iter).rb);
-			ShakeRB(((Gun*)dood->equipped_weapon)->rigid_body);
-#endif
-		}
-
-		void ShakeRB(RigidBody* rb)
-		{
-			static const float shake_amount = 0.25f;
-
-			rb->SetLinearVelocity (rb->GetLinearVelocity()  + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
-			rb->SetAngularVelocity(rb->GetAngularVelocity() + Random3D::RandomNormalizedVector(Random3D::Rand(shake_amount)));
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -396,29 +441,9 @@ namespace Test
 			t1 = Quaternion::FromRVec(twist_ori.ToRVec() * -0.5f) * t2;
 		}
 
-		void DoAnchorStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
-		{
-			static const float pos_helper_frac = 0.95f, pos_rest_frac = 1.0f - pos_helper_frac;
-			static const float ori_helper_frac = 0.95f, ori_rest_frac = 1.0f - ori_helper_frac;
-
-			Quaternion current_ori = pelvis.rb->GetOrientation();
-			Quaternion ctd         = current_ori * Quaternion::Reverse(p);
-			Quaternion use_ori     = Quaternion::FromRVec(ctd.ToRVec() * ori_rest_frac) * p;
-
-			Vec3 local_com = pelvis.rb->GetMassInfo().com;
-			Vec3 goal_pos = (local_com - use_ori * local_com);
-			//goal_pos += Vec3(0, 1, 0);
-			Vec3 use_pos = goal_pos * pos_helper_frac + pelvis.rb->GetPosition() * pos_rest_frac;
-
-			pelvis.rb->SetPosition(use_pos);
-			pelvis.rb->SetOrientation(use_ori);
-			pelvis.rb->SetLinearVelocity(Vec3());
-			pelvis.rb->SetAngularVelocity(Vec3());
-		}
-
 		void DoHeadOri(Soldier* dood, const TimingInfo& time)
 		{
-			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);			
 
 			head.ComputeDesiredTorqueWithDefaultMoI(desired_ori, inv_timestep);
 			neck.SetTorqueToSatisfyB();
@@ -458,44 +483,9 @@ namespace Test
 			}
 		}
 
-		void DoTorsoOris(Soldier* dood, const TimingInfo& time, const Quaternion& t1, const Quaternion& t2)
+		void ComputeMomentumStuff(Soldier* dood, float& dood_mass, Vec3& dood_com, Vec3& com_vel, Vec3& angular_momentum)
 		{
-			// figure out what net torques we want to apply to each bone
-			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
-
-			// come up with joint torques to accomplish those net torques
-			spine2.SetTorqueToSatisfyB();
-			spine1.SetTorqueToSatisfyB();
-		}
-
-		void DoLegStuff(Soldier* dood, const TimingInfo& time, const Quaternion& p)
-		{
-			// TODO: implement this for real
-
-			//pelvis.ComputeDesiredTorqueWithDefaultMoI(p, inv_timestep);
-
-			//lhip.SetWorldTorque(0.5f * (pelvis.desired_torque - pelvis.applied_torque));
-			//rhip.SetTorqueToSatisfyA();
-			//lhip.SetTorqueToSatisfyA();
-		}
-
-		void DoAirborneUpdate(Soldier* dood, const TimingInfo& time, const Quaternion& p, const Quaternion &t1, const Quaternion &t2)
-		{
-			// TODO: implement this for real
-			DoTorsoOris( dood, time,    t1, t2 );
-			DoLegStuff ( dood, time, p         );
-		}
-
-		void DoGroundedUpdate(Soldier* dood, const TimingInfo& time, const Quaternion& p, const Quaternion &t1, const Quaternion &t2)
-		{
-			DoTorsoOris( dood, time,    t1, t2 );
-			DoLegStuff ( dood, time, p         );
-		}
-
-		void ComputeMomentumStuff(Soldier* dood, float& dood_mass, Vec3& dood_com, Vec3& angular_momentum)
-		{
-			Vec3 com_vel;
+			com_vel = Vec3();
 			dood_mass = 0.0f;
 			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
 			{
@@ -534,7 +524,7 @@ namespace Test
 			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
 				iter->SolverInit(dood_com, 0.0f);
 
-#if 1
+#if ENABLE_NEW_JETPACKING
 			Vec3 desired_jp_force = desired_jp_accel * dood_mass;
 
 			float torque_coeff = 50.0f;
@@ -598,6 +588,77 @@ namespace Test
 				iter->ApplySelectedForce(timestep);
 		}
 
+		float ScorePose(CBone::State CBone::* which_state)
+		{
+			// TODO: implement this
+
+			float rhip_error = 0.0f;//rhip.GetIKError(which_state);
+			float head_error = (desired_aim - (head.*which_state).ori * Vec3(0, 0, 1)).ComputeMagnitudeSquared();
+
+			// TODO: implement these
+			float gun_error         = 0.0f;
+			float net_momenta_error = 0.0f;
+			float balance_error     = 0.0f;
+			float joint_ori_error   = 0.0f;
+
+			float bone_torque_cost  = 0.0f;
+
+			// TODO: additional considerations?
+
+			return rhip_error + head_error + gun_error + net_momenta_error + balance_error + joint_ori_error + bone_torque_cost;
+		}
+
+		float ScoreChanges(CBone::State CBone::* which_state, unsigned int bone, unsigned int comp)
+		{
+			CBone& cbone = *all_bones[bone];
+			CBone::State& state = cbone.*which_state;
+
+			// compute updated orientation for this bone
+			state.ori = Mat3::FromRVec(-state.rot * timestep) * cbone.rest.ori;
+
+			// compute updated positions for this and other bones as needed
+			if(CBone::OriChangeHandler& och = cbone.handler)
+				return (this->*och)(which_state);
+			else
+				return GenericOCH(which_state);
+		}
+
+		float PelvisOCH(CBone::State CBone::* which_state) { return GenericOCH(which_state); }				// TODO: implement this for real
+
+		float GenericOCH(CBone::State CBone::* which_state)
+		{
+			// do a complete recomputation of the positions of all the unconstrained bones
+
+			// make sure constrained bones stay in their constrained pos/ori
+			(lfoot.*which_state).pos = lfoot.rest.pos;
+			(rfoot.*which_state).pos = rfoot.rest.pos;
+
+			// TODO: constraint hands' relative ori, head ori, etc.?
+
+#if 1
+			lankle.SetAPosFromB(which_state);
+			rankle.SetAPosFromB(which_state);
+			lknee .SetAPosFromB(which_state);
+			rknee .SetAPosFromB(which_state);
+			lhip  .SetAPosFromB(which_state);
+			// rhip is a possible error source
+			spine1.SetBPosFromA(which_state);
+			spine2.SetBPosFromA(which_state);
+			neck  .SetBPosFromA(which_state);
+			lsja  .SetBPosFromA(which_state);
+			rsja  .SetBPosFromA(which_state);
+			lsjb  .SetBPosFromA(which_state);
+			rsjb  .SetBPosFromA(which_state);
+			lelbow.SetBPosFromA(which_state);
+			relbow.SetBPosFromA(which_state);
+			lwrist.SetBPosFromA(which_state);
+			rwrist.SetBPosFromA(which_state);
+			// TODO: compute resultant gun xform?
+#endif
+
+			return ScorePose(which_state);
+		}
+
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
 			if(!init)
@@ -610,32 +671,38 @@ namespace Test
 			inv_timestep = 1.0f / timestep;
 
 
+			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
+				gun_rb = gun->rigid_body;
+			else
+				gun_rb = NULL;
+
 			// reset all the joints and bones
 			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
 				(*iter)->Reset();
+
+#if ENABLE_OLDVEL_TRACKING
+			float use_coeff = inv_timestep / 60.0f;				// TODO: make this less arbitrary?
+			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+				(*iter)->Reset(inv_timestep, use_coeff);
+#else
 			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 				(*iter)->Reset();
+#endif
+
 
 
 			// do actual C/PHFT stuff
 			Quaternion p, t1, t2;
 			GetDesiredTorsoOris(dood, p, t1, t2);
 
-#if ENABLE_PELVIS_ANCHOR
-			DoAnchorStuff  ( dood, time, p         );
-#endif
+			float dood_mass;
+			Vec3 dood_com, com_vel, angular_momentum;
+			ComputeMomentumStuff(dood, dood_mass, dood_com, com_vel, angular_momentum);
 
-			bool airborne   = true;			// TODO: determine values for this
-
-#if 0
+#if ENABLE_NEW_JETPACKING
 			if(jetpacking)
 			{
-				float dood_mass;
-				Vec3 dood_com, angular_momentum;
-				ComputeMomentumStuff(dood, dood_mass, dood_com, angular_momentum);
-				
 				Vec3 desired_jp_torque = angular_momentum * (-60.0f);
-
 				ResolveJetpackOutput(dood, time, dood_mass, dood_com, desired_jp_accel, desired_jp_torque);
 			}
 			else
@@ -646,23 +713,83 @@ namespace Test
 			}
 #endif
 
+			
+			// TODO: decide whether each foot should remain/become grounded/ungrounded
+			// TODO: select desired net l&a momenta for the system, in order to satisfy movement controls (forward/sidestep/jump)
+
+			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+			desired_aim = desired_head_ori * Vec3(0, 0, 1);
+
+			// inverse kinematics maybe?
+			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+				(*iter)->InitIKStates(timestep, inv_timestep);
+			
+			// TODO: set constrained bones' pos/ori?
+
+			float rest_score = ScorePose(&CBone::best);
+			float last_score = rest_score;
+
+			unsigned int num_vars = all_bones.size() * 3;
+			for(unsigned int i = 0; i < 20; ++i)
+			{
+				for(unsigned int j = 0; j < num_vars; ++j)
+				{
+					static const float delta         = 0.01f;
+					static const float rate          = 5.0f;
+					static const float dydx_coeff    = rate / delta;
+
+					unsigned int bone = j / 3;
+					unsigned int comp = j % 3;
+
+					float& x = ((float*)&all_bones[bone]->best.rot)[comp];
+
+					float x1 = x;
+					float y1 = last_score;
+
+					x += delta;
+
+					float y2 = ScoreChanges(&CBone::best, bone, comp);
+					float dydx = (y2 - y1) / delta;
+					x = x1 - dydx * dydx_coeff;
+
+					float y3 = ScoreChanges(&CBone::best, bone, comp);
+
+					if(y1 < y2 && y1 < y3)
+					{
+						x = x1;
+						last_score = y1;
+					}
+					else if(y2 < y1 && y2 < y3)
+					{
+						x = x1 + delta;
+						last_score = y2;
+					}
+					else
+						last_score = y3;
+				}
+			}
+
+
+
+			// TODO: translate selected pose into joint torques somehow
+			Debug(((stringstream&)(stringstream() << "initial score = " << rest_score << "; final score = " << last_score << "; ratio = " << (rest_score / last_score) << endl)).str());
+
+
+
 			DoHeadOri      ( dood, time            );
 			DoArmsAimingGun( dood, time,        t2 );
 
 			Quaternion yaw_ori = Quaternion::FromRVec(0, -dood->yaw, 0);
 
-			lfoot.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			rfoot.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			llleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			rlleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			luleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			ruleg.ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,  inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
-			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
-
-			lfoot.desired_torque -= lfoot.actual_torque;
-			rfoot.desired_torque -= rfoot.actual_torque;
+			lfoot .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			rfoot .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			llleg .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			rlleg .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			luleg .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			ruleg .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,       inv_timestep);
+			torso1.ComputeDesiredTorqueWithDefaultMoI(t1,      inv_timestep);
+			torso2.ComputeDesiredTorqueWithDefaultMoI(t2,      inv_timestep);
 
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
@@ -672,10 +799,6 @@ namespace Test
 			rknee .SetTorqueToSatisfyB();
 			lankle.SetTorqueToSatisfyB();
 			rankle.SetTorqueToSatisfyB();
-
-
-			//DoTorsoOris    ( dood, time,    t1, t2 );
-			//DoLegStuff     ( dood, time, p         );
 
 			++tick_age;
 		}
@@ -770,7 +893,7 @@ namespace Test
 
 						imp->desired_jp_accel = fly_accel_vec;
 
-#if 1
+#if !ENABLE_NEW_JETPACKING
 						// TODO: remove this once similar functionality is moved to Soldier::Imp::ResolveJetpackOutput
 						float total_mass = 0.0f;
 						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
@@ -893,27 +1016,7 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		//static const float half_pi = float(M_PI) * 0.5f;
-		//pitch = Random3D::Rand() * Random3D::Rand(-half_pi, half_pi);
-
 		Dood::DoInitialPose();
-
-#if 0
-		static const float randomness = 0.3f;
-
-		Quaternion& ori = posey->skeleton->GetNamedBone("pelvis")->ori;
-		ori = Quaternion::FromRVec(Random3D::RandomNormalizedVector(Random3D::Rand(randomness))) * ori;
-
-		float lyaw = Random3D::Rand(0.25f);
-		posey->skeleton->GetNamedBone( "l leg 1" )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw, Random3D::Rand(-randomness, randomness));
-		posey->skeleton->GetNamedBone( "l leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
-		posey->skeleton->GetNamedBone( "l foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), lyaw + Random3D::Rand(-randomness, randomness), Random3D::Rand(-randomness, randomness));
-
-		float ryaw = Random3D::Rand(0.25f);
-		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw, Random3D::Rand(-randomness, randomness));
-		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::FromRVec(Random3D::Rand(randomness), 0, 0);
-		posey->skeleton->GetNamedBone( "r foot"  )->ori = Quaternion::FromRVec(Random3D::Rand(-randomness, randomness), ryaw + Random3D::Rand(-randomness, randomness), Random3D::Rand(-randomness, randomness));
-#endif
 
 		PreparePAG(TimingInfo(0, 0), Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0));
 	}
