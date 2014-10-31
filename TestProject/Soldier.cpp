@@ -601,7 +601,7 @@ namespace Test
 
 
 			// inverse kinematics maybe?
-
+			struct Scorer;
 			struct IKState
 			{
 				// joints
@@ -627,41 +627,78 @@ namespace Test
 				Bone rfoot,  rlleg,  ruleg;
 				Bone torso2, torso1, pelvis;
 
+				float iv_ori_error[6];
+				float dv_ori_error[2];
+				float dv_pos_error[2];
+
+				float score;
+
+
+
 				void SetInitialRVec(const CJoint& j, Vec3& rvec)
 				{
 					Quaternion aori = j.a->rb->GetOrientation();
 					Quaternion bori = j.b->rb->GetOrientation();
-
 					const Vec3& mins = j.sjc->min_extents;
 					const Vec3& maxs = j.sjc->max_extents;
-					rvec = j.sjc->axes * (Quaternion::Reverse(bori) * aori).ToRVec();
-					rvec.x /= rvec.x > 0 ? maxs.x : -mins.x;
-					rvec.y /= rvec.x > 0 ? maxs.y : -mins.y;
-					rvec.z /= rvec.x > 0 ? maxs.z : -mins.z;
+					rvec = j.sjc->axes * (Quaternion::Reverse(bori) * aori).ToRVec();			// TODO: check this
 				}
 
 				// updating the data of bone A (parent) based on the data of the child bone
 				void UpdateAFromB(const Vec3& rvec, const CJoint& j, const Bone& rest_a, const Bone& rest_b, float inv_timestep, Bone& a, Bone& b)
 				{
-					Mat3 axes   = j.sjc->axes;
+					const SkeletalJointConstraint& sjc = *j.sjc;
+					Mat3 axes   = sjc.axes;
 					Mat3 axes_t = axes.Transpose();
 
-					const Vec3& mins = j.sjc->min_extents;
-					const Vec3& maxs = j.sjc->max_extents;
-					Vec3 use_rvec = rvec;
-					use_rvec.x *= use_rvec.x > 0 ? maxs.x : -mins.x;
-					use_rvec.y *= use_rvec.y > 0 ? maxs.y : -mins.y;
-					use_rvec.z *= use_rvec.z > 0 ? maxs.z : -mins.z;
+					const Vec3& mins = sjc.min_extents;
+					const Vec3& maxs = sjc.max_extents;
 
 					// TODO: check this
+					Vec3 oribefore = Quaternion::FromRotationMatrix(a.ori).ToRVec();
 					a.ori = axes * Mat3::FromRVec(rvec) * axes_t * b.ori;
-					//a.ori = Mat3::FromRVec(rvec) * axes * b.ori;
-					
+					Vec3 oriafter  = Quaternion::FromRotationMatrix(a.ori).ToRVec();
+
+					Vec3 posbefore = a.pos;
 					a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
 					a.vel = (a.pos - rest_a.pos) * inv_timestep;
 
 					// TODO: check this; also maybe look for a more efficient way to do this computation?
 					a.rot = (Quaternion::FromRotationMatrix(a.ori.Transpose() * rest_a.ori)).ToRVec() * inv_timestep;
+
+					ComputeOriError(rvec, sjc, iv_ori_error[&rvec - &lankle]);
+				}
+
+				void ComputeOriError(const Vec3& rvec, const SkeletalJointConstraint& sjc, float& error)
+				{
+					const Vec3& mins = sjc.min_extents;
+					const Vec3& maxs = sjc.max_extents;
+
+					float dx = rvec.x - max(mins.x, min(maxs.x, rvec.x));
+					float dy = rvec.y - max(mins.y, min(maxs.y, rvec.y));
+					float dz = rvec.z - max(mins.z, min(maxs.z, rvec.z));
+
+					error = Vec3::MagnitudeSquared(dx, dy, dz);
+				}
+
+				void ComputeDVError(const CJoint& joint, const Bone& a, const Bone& b, float& ori_error, float& pos_error)
+				{
+					const SkeletalJointConstraint& sjc = *joint.sjc;
+
+					Mat3 axes = sjc.axes;
+					Mat3 rvecmat = axes.Transpose() * a.ori * b.ori.Transpose() * axes;		// TODO: check this
+					Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
+					Vec3 rvec_preclamp = rvec;
+					const Vec3& mins = sjc.min_extents;
+					const Vec3& maxs = sjc.max_extents;
+					float dx = rvec.x - max(mins.x, min(maxs.x, rvec.x));
+					float dy = rvec.y - max(mins.y, min(maxs.y, rvec.y));
+					float dz = rvec.z - max(mins.z, min(maxs.z, rvec.z));
+
+					Vec3 pos_delta = b.pos - a.pos + b.ori * joint.r2 - a.ori * joint.r1;
+					
+					ori_error = Vec3::MagnitudeSquared(dx, dy, dz);
+					pos_error = pos_delta.ComputeMagnitudeSquared();
 				}
 
 				void JointModified(unsigned int index, Imp* imp, const IKState& rest, float inv_timestep)
@@ -671,25 +708,84 @@ namespace Test
 						case 0:
 							UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
 							UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
 							break;
 						case 1:
 							UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
 							UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 							break;
 						case 2:
 							UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
 							break;
 						case 3:
 							UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 							break;
 						case 4:
 							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
+							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
+							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 							break;
 						case 5:
 							UpdateAFromB(spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, torso1, torso2);
 							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
+							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
+							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 							break;
 					}
+				}
+
+				float ScoreAll(Imp* imp, const IKState& rest, float inv_timestep, const Vec3& desired_net_force, const Vec3& desired_net_torque)
+				{
+					UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
+					UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+					UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
+					UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+					UpdateAFromB(spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, torso1, torso2);
+					UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
+
+					ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
+					ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
+
+					return score = SharedScoring(desired_net_force, desired_net_torque);
+				}
+
+				float ScoreChanges(Imp* imp, const IKState& rest, unsigned int joint_index, float inv_timestep, const Vec3& desired_net_force, const Vec3& desired_net_torque)
+				{
+					JointModified(joint_index, imp, rest, inv_timestep);
+
+					return score = SharedScoring(desired_net_force, desired_net_torque);
+				}
+
+				float SharedScoring(const Vec3& desired_net_force, const Vec3& desired_net_torque)
+				{
+					float iv_ori_error_tot        = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3] + iv_ori_error[4] + iv_ori_error[5];
+					float dv_ori_error_tot        = dv_ori_error[0] + dv_ori_error[1];
+					float dv_pos_error_tot        = dv_pos_error[0] + dv_pos_error[1];
+
+
+					// TODO: compute these
+					Vec3 net_force, net_torque;
+					float net_force_offness       = (net_force  - desired_net_force ).ComputeMagnitudeSquared();
+					float net_torque_offness      = (net_torque - desired_net_torque).ComputeMagnitudeSquared();
+
+					// TODO: compute these
+					float impossible_force_error  = 0.0f;
+					float impossible_torque_error = 0.0f;
+
+					float impossibility_penalty   = iv_ori_error_tot +
+													dv_ori_error_tot +
+													dv_pos_error_tot +
+													impossible_force_error +
+													impossible_torque_error;
+
+					float undesirability_penalty  = net_force_offness + net_torque_offness;
+
+					// TODO: compute per-joint torques and assign desirability/impossibility there? probably too expensive
+
+					return impossibility_penalty + undesirability_penalty;
 				}
 			};
 
@@ -700,9 +796,7 @@ namespace Test
 
 				Vec3 desired_net_force, desired_net_torque;
 
-				IKState rest, test;
-
-				float rest_score, last_score;
+				IKState rest, best, test1, test2;
 
 				Scorer(Imp* imp) : imp(imp)
 				{
@@ -721,75 +815,18 @@ namespace Test
 					rest.SetInitialRVec(imp->spine1, rest.spine1);
 					rest.SetInitialRVec(imp->spine2, rest.spine2);
 
+					ScoreAll(rest);
 
-					test = rest;
-
-					rest_score = ScoreAll(rest);
-					last_score = rest_score;
+					best = rest;
 
 					// TODO: assign to desired_net_force, desired_net_torque
 					//     compute & cache info about the center of mass, average velocity, net force & torque, etc.
 					//     also compute & cache info about the upper body (everything attached to torso2) (maybe just a MassInfo?)
 				}
 				
-				float ScoreAll(IKState& state)
-				{
-					state.UpdateAFromB(state.lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, state.llleg,  state.lfoot );
-					state.UpdateAFromB(state.lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, state.luleg,  state.llleg );
-					state.UpdateAFromB(state.rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, state.rlleg,  state.rfoot );
-					state.UpdateAFromB(state.rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, state.ruleg,  state.rlleg );
-					state.UpdateAFromB(state.spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, state.torso1, state.torso2);
-					state.UpdateAFromB(state.spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, state.pelvis, state.torso1);
+				float ScoreAll(IKState& state) { return state.ScoreAll(imp, rest, inv_timestep, desired_net_force, desired_net_torque); }
 
-					return SharedScoring(state);
-				}
-
-				float ScoreChanges(IKState& state, unsigned int joint_index)
-				{
-					Vec3& rvec = (&state.lankle)[joint_index];
-					rvec.x = max(-1.0f, min(1.0f, rvec.x));
-					rvec.y = max(-1.0f, min(1.0f, rvec.y));
-					rvec.z = max(-1.0f, min(1.0f, rvec.z));
-
-					state.JointModified(joint_index, imp, rest, inv_timestep);
-
-					return SharedScoring(state);
-				}
-
-				float SharedScoring(IKState& state)
-				{
-					Vec3 lhip_pos_delta = state.luleg.pos - state.pelvis.pos + state.luleg.ori * imp->lhip.r2 - state.pelvis.ori * imp->lhip.r1;
-					Vec3 rhip_pos_delta = state.ruleg.pos - state.pelvis.pos + state.ruleg.ori * imp->rhip.r2 - state.pelvis.ori * imp->rhip.r1;
-
-					float lhip_pos_error          = lhip_pos_delta.ComputeMagnitudeSquared();
-					float rhip_pos_error          = rhip_pos_delta.ComputeMagnitudeSquared();
-
-					// TODO: compute these
-					float lhip_ori_error          = 0.0f;
-					float rhip_ori_error          = 0.0f;
-
-					// TODO: compute these
-					Vec3 net_force, net_torque;
-					float net_force_offness       = (net_force  - desired_net_force ).ComputeMagnitudeSquared();
-					float net_torque_offness      = (net_torque - desired_net_torque).ComputeMagnitudeSquared();
-
-					// TODO: compute these
-					float impossible_force_error  = 0.0f;
-					float impossible_torque_error = 0.0f;
-
-					float impossibility_penalty   = lhip_pos_error +
-													rhip_pos_error +
-													lhip_ori_error +
-													rhip_ori_error +
-													impossible_force_error +
-													impossible_torque_error;
-
-					float undesirability_penalty  = net_force_offness + net_force_offness;
-
-					// TODO: compute per-joint torques and assign desirability/impossibility there? probably too expensive
-
-					return impossibility_penalty + undesirability_penalty;
-				}
+				float ScoreChanges(IKState& state, unsigned int joint_index) { return state.ScoreChanges(imp, rest, joint_index, inv_timestep, desired_net_force, desired_net_torque); }
 
 				void Search(unsigned int num_iterations)
 				{
@@ -798,39 +835,26 @@ namespace Test
 					{
 						for(unsigned int j = 0; j < num_vars; ++j)
 						{
-							static const float delta         = 0.00001f;
-							static const float rate          = 1.0f;
-							static const float dydx_coeff    = rate / delta;
+							unsigned int k = j;
+							unsigned int joint_index = k / 3;
 
-							unsigned int joint_index = j / 3;
+							float y0 = best.score;
+							float scale = (y0 > 1.0f ? y0 : sqrtf(y0) * 0.9f + 0.1f) * 0.1f;
 
-							float& x = ((float*)&test.lankle)[j];
+							test1 = best;
+							float& x1 = ((float*)&test1.lankle)[k];
+							x1 += scale;
+							float y1 = ScoreChanges(test1, joint_index);
 
-							float x1 = x;
-							float y1 = last_score;
+							test2 = best;
+							float& x2 = ((float*)&test2.lankle)[k];
+							x2 -= scale;
+							float y2 = ScoreChanges(test2, joint_index);
 
-							x += delta;
-							float y2 = ScoreChanges(test, joint_index);
-							float x2 = x;
-							float dydx = (y2 - y1) / delta;
-							x = x1 - dydx * dydx_coeff;
-
-							float y3 = ScoreChanges(test, joint_index);
-
-							if(y1 < y2 && y1 < y3)
-							{
-								x = x1;
-								last_score = ScoreChanges(test, joint_index);
-							}
-							else if(y2 < y1 && y2 < y3)
-							{
-								x = x2;
-								last_score = ScoreChanges(test, joint_index);
-							}
-							else
-							{
-								last_score = y3;
-							}
+							if(y1 < y0 && y1 < y2)
+								best = test1;
+							else if(y2 < y0 && y2 < y1)
+								best = test2;
 						}
 					}
 				}
@@ -838,7 +862,7 @@ namespace Test
 			} scorer(this);
 
 			scorer.Search(20);
-			Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest_score << "; final score = " << scorer.last_score << "; ratio = " << (scorer.rest_score / scorer.last_score) << endl)).str());
+			Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest.score << "; final score = " << scorer.best.score << "; ratio = " << (scorer.rest.score / scorer.best.score) << endl)).str());
 
 			// TODO: translate selected pose into joint torques somehow
 
