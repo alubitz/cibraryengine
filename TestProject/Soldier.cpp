@@ -72,23 +72,8 @@ namespace Test
 			Vec3 actual_force, actual_torque;
 #endif
 
-
-			// inverse kinematics stuff
-			struct State
-			{
-				Vec3 pos;
-				Mat3 ori;
-				Vec3 vel;
-				Vec3 rot;
-			} rest, best, test;
-
-			typedef float (Imp::*OriChangeHandler)(CBone::State CBone::*which_state);
-
-			OriChangeHandler handler;
-
-
-			CBone() : handler(NULL) { }
-			CBone(const Soldier* dood, const string& name, OriChangeHandler handler = NULL) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com), handler(handler) { }
+			CBone() { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com) { }
 
 #if ENABLE_OLDVEL_TRACKING
 			void Reset(float inv_timestep, float use_coeff)
@@ -123,18 +108,6 @@ namespace Test
 			void ComputeDesiredTorqueWithDefaultMoI(const Quaternion& desired_ori, float inv_timestep) { ComputeDesiredTorque(desired_ori, Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
 			void ComputeDesiredTorqueWithPosey(const Mat3& use_moi, float inv_timestep)                { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), use_moi, inv_timestep); }
 			void ComputeDesiredTorqueWithDefaultMoIAndPosey(float inv_timestep)                        { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
-
-			void InitIKStates(float timestep, float inv_timestep)
-			{
-				rest.ori = rb->GetOrientation().ToMat3();
-				rest.pos = rb->GetPosition() + rest.ori * local_com;
-				rest.vel = rb->GetLinearVelocity();
-				rest.rot = rb->GetAngularVelocity();
-
-				// TODO: decide whether or not to move all bones according to current vel/rot
-
-				test = best = rest;
-			}
 		};
 
 		CBone pelvis,    torso1, torso2, head;
@@ -220,26 +193,6 @@ namespace Test
 
 			bool SetTorqueToSatisfyA() { return SetWorldTorque(a->desired_torque - (a->applied_torque - actual)); }
 			bool SetTorqueToSatisfyB() { return SetWorldTorque((b->applied_torque + actual) - b->desired_torque); }
-
-			void SetBPosFromA(CBone::State CBone::* member)
-			{
-				const CBone::State& from = a->*member;
-				CBone::State& to = b->*member;
-
-				to.pos = from.pos + from.ori * r1 - to.ori * r2;
-			}
-			void SetAPosFromB(CBone::State CBone::* member)
-			{
-				const CBone::State& from = b->*member;
-				CBone::State& to = a->*member;
-
-				to.pos = from.pos + from.ori * r2 - to.ori * r1;
-			}
-			float GetIKError(CBone::State CBone::* member) const
-			{
-				const CBone::State &as = a->*member, &bs = b->*member;
-				return ((as.pos + as.ori * r1) - (bs.pos + bs.ori * r2)).ComputeMagnitudeSquared();
-			}
 		};
 
 		CJoint spine1, spine2, neck;
@@ -364,7 +317,7 @@ namespace Test
 			all_joints.clear();
 			jetpack_nozzles.clear();
 
-			RegisterBone( pelvis    = CBone( dood, "pelvis",    &Imp::PelvisOCH ));
+			RegisterBone( pelvis    = CBone( dood, "pelvis"     ));
 			RegisterBone( torso1    = CBone( dood, "torso 1"    ));
 			RegisterBone( torso2    = CBone( dood, "torso 2"    ));
 			RegisterBone( head      = CBone( dood, "head"       ));
@@ -588,76 +541,7 @@ namespace Test
 				iter->ApplySelectedForce(timestep);
 		}
 
-		float ScorePose(CBone::State CBone::* which_state)
-		{
-			// TODO: implement this
 
-			float rhip_error = 0.0f;//rhip.GetIKError(which_state);
-			float head_error = (desired_aim - (head.*which_state).ori * Vec3(0, 0, 1)).ComputeMagnitudeSquared();
-
-			// TODO: implement these
-			float gun_error         = 0.0f;
-			float net_momenta_error = 0.0f;
-			float balance_error     = 0.0f;
-			float joint_ori_error   = 0.0f;
-
-			float bone_torque_cost  = 0.0f;
-
-			// TODO: additional considerations?
-
-			return rhip_error + head_error + gun_error + net_momenta_error + balance_error + joint_ori_error + bone_torque_cost;
-		}
-
-		float ScoreChanges(CBone::State CBone::* which_state, unsigned int bone, unsigned int comp)
-		{
-			CBone& cbone = *all_bones[bone];
-			CBone::State& state = cbone.*which_state;
-
-			// compute updated orientation for this bone
-			state.ori = Mat3::FromRVec(-state.rot * timestep) * cbone.rest.ori;
-
-			// compute updated positions for this and other bones as needed
-			if(CBone::OriChangeHandler& och = cbone.handler)
-				return (this->*och)(which_state);
-			else
-				return GenericOCH(which_state);
-		}
-
-		float PelvisOCH(CBone::State CBone::* which_state) { return GenericOCH(which_state); }				// TODO: implement this for real
-
-		float GenericOCH(CBone::State CBone::* which_state)
-		{
-			// do a complete recomputation of the positions of all the unconstrained bones
-
-			// make sure constrained bones stay in their constrained pos/ori
-			(lfoot.*which_state).pos = lfoot.rest.pos;
-			(rfoot.*which_state).pos = rfoot.rest.pos;
-
-			// TODO: constraint hands' relative ori, head ori, etc.?
-
-#if 1
-			lankle.SetAPosFromB(which_state);
-			rankle.SetAPosFromB(which_state);
-			lknee .SetAPosFromB(which_state);
-			rknee .SetAPosFromB(which_state);
-			lhip  .SetAPosFromB(which_state);
-			// rhip is a possible error source
-			spine1.SetBPosFromA(which_state);
-			spine2.SetBPosFromA(which_state);
-			neck  .SetBPosFromA(which_state);
-			lsja  .SetBPosFromA(which_state);
-			rsja  .SetBPosFromA(which_state);
-			lsjb  .SetBPosFromA(which_state);
-			rsjb  .SetBPosFromA(which_state);
-			lelbow.SetBPosFromA(which_state);
-			relbow.SetBPosFromA(which_state);
-			lwrist.SetBPosFromA(which_state);
-			rwrist.SetBPosFromA(which_state);
-			// TODO: compute resultant gun xform?
-#endif
-
-			return ScorePose(which_state);
-		}
 
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
@@ -714,71 +598,257 @@ namespace Test
 #endif
 
 			
-			// TODO: decide whether each foot should remain/become grounded/ungrounded
-			// TODO: select desired net l&a momenta for the system, in order to satisfy movement controls (forward/sidestep/jump)
 
-			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-			desired_aim = desired_head_ori * Vec3(0, 0, 1);
 
 			// inverse kinematics maybe?
-			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
-				(*iter)->InitIKStates(timestep, inv_timestep);
-			
-			// TODO: set constrained bones' pos/ori?
 
-			float rest_score = ScorePose(&CBone::best);
-			float last_score = rest_score;
-
-			unsigned int num_vars = all_bones.size() * 3;
-			for(unsigned int i = 0; i < 20; ++i)
+			struct IKState
 			{
-				for(unsigned int j = 0; j < num_vars; ++j)
+				// joints
+				Vec3 lankle, rankle;
+				Vec3 lknee,  rknee;
+				Vec3 spine1, spine2;
+
+				struct Bone
 				{
-					static const float delta         = 0.01f;
-					static const float rate          = 5.0f;
-					static const float dydx_coeff    = rate / delta;
+					Vec3 pos, vel, rot;				// pos is of the com, not model origin
+					Mat3 ori;
 
-					unsigned int bone = j / 3;
-					unsigned int comp = j % 3;
-
-					float& x = ((float*)&all_bones[bone]->best.rot)[comp];
-
-					float x1 = x;
-					float y1 = last_score;
-
-					x += delta;
-
-					float y2 = ScoreChanges(&CBone::best, bone, comp);
-					float dydx = (y2 - y1) / delta;
-					x = x1 - dydx * dydx_coeff;
-
-					float y3 = ScoreChanges(&CBone::best, bone, comp);
-
-					if(y1 < y2 && y1 < y3)
+					void SetConstrained(const RigidBody& rb)
 					{
-						x = x1;
-						last_score = y1;
+						ori = rb.GetOrientation().ToMat3();
+						pos = rb.GetPosition() + ori * rb.GetMassInfo().com;
+
+						vel = rot = Vec3();
 					}
-					else if(y2 < y1 && y2 < y3)
-					{
-						x = x1 + delta;
-						last_score = y2;
-					}
-					else
-						last_score = y3;
+				};
+
+				Bone lfoot,  llleg,  luleg;
+				Bone rfoot,  rlleg,  ruleg;
+				Bone torso2, torso1, pelvis;
+
+				void SetInitialRVec(const CJoint& j, Vec3& rvec)
+				{
+					Quaternion aori = j.a->rb->GetOrientation();
+					Quaternion bori = j.b->rb->GetOrientation();
+
+					const Vec3& mins = j.sjc->min_extents;
+					const Vec3& maxs = j.sjc->max_extents;
+					rvec = j.sjc->axes * (Quaternion::Reverse(bori) * aori).ToRVec();
+					rvec.x /= rvec.x > 0 ? maxs.x : -mins.x;
+					rvec.y /= rvec.x > 0 ? maxs.y : -mins.y;
+					rvec.z /= rvec.x > 0 ? maxs.z : -mins.z;
 				}
-			}
+
+				// updating the data of bone A (parent) based on the data of the child bone
+				void UpdateAFromB(const Vec3& rvec, const CJoint& j, const Bone& rest_a, const Bone& rest_b, float inv_timestep, Bone& a, Bone& b)
+				{
+					Mat3 axes   = j.sjc->axes;
+					Mat3 axes_t = axes.Transpose();
+
+					const Vec3& mins = j.sjc->min_extents;
+					const Vec3& maxs = j.sjc->max_extents;
+					Vec3 use_rvec = rvec;
+					use_rvec.x *= use_rvec.x > 0 ? maxs.x : -mins.x;
+					use_rvec.y *= use_rvec.y > 0 ? maxs.y : -mins.y;
+					use_rvec.z *= use_rvec.z > 0 ? maxs.z : -mins.z;
+
+					// TODO: check this
+					a.ori = axes * Mat3::FromRVec(rvec) * axes_t * b.ori;
+					//a.ori = Mat3::FromRVec(rvec) * axes * b.ori;
+					
+					a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
+					a.vel = (a.pos - rest_a.pos) * inv_timestep;
+
+					// TODO: check this; also maybe look for a more efficient way to do this computation?
+					a.rot = (Quaternion::FromRotationMatrix(a.ori.Transpose() * rest_a.ori)).ToRVec() * inv_timestep;
+				}
+
+				void JointModified(unsigned int index, Imp* imp, const IKState& rest, float inv_timestep)
+				{
+					switch(index)
+					{
+						case 0:
+							UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
+							UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+							break;
+						case 1:
+							UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
+							UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+							break;
+						case 2:
+							UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+							break;
+						case 3:
+							UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+							break;
+						case 4:
+							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
+							break;
+						case 5:
+							UpdateAFromB(spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, torso1, torso2);
+							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
+							break;
+					}
+				}
+			};
+
+			struct Scorer
+			{
+				Imp* imp;
+				float inv_timestep;
+
+				Vec3 desired_net_force, desired_net_torque;
+
+				IKState rest, test;
+
+				float rest_score, last_score;
+
+				Scorer(Imp* imp) : imp(imp)
+				{
+					inv_timestep = imp->inv_timestep;
+
+					// set properties of constrained bones				// TODO: do this better
+					rest.lfoot .SetConstrained(*imp->lfoot .rb);
+					rest.rfoot .SetConstrained(*imp->rfoot .rb);
+					rest.torso2.SetConstrained(*imp->torso2.rb);
+
+					// initialize joints with "default" orientations
+					rest.SetInitialRVec(imp->lankle, rest.lankle);
+					rest.SetInitialRVec(imp->rankle, rest.rankle);
+					rest.SetInitialRVec(imp->lknee,  rest.lknee );
+					rest.SetInitialRVec(imp->rknee,  rest.rknee );
+					rest.SetInitialRVec(imp->spine1, rest.spine1);
+					rest.SetInitialRVec(imp->spine2, rest.spine2);
 
 
+					test = rest;
+
+					rest_score = ScoreAll(rest);
+					last_score = rest_score;
+
+					// TODO: assign to desired_net_force, desired_net_torque
+					//     compute & cache info about the center of mass, average velocity, net force & torque, etc.
+					//     also compute & cache info about the upper body (everything attached to torso2) (maybe just a MassInfo?)
+				}
+				
+				float ScoreAll(IKState& state)
+				{
+					state.UpdateAFromB(state.lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, state.llleg,  state.lfoot );
+					state.UpdateAFromB(state.lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, state.luleg,  state.llleg );
+					state.UpdateAFromB(state.rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, state.rlleg,  state.rfoot );
+					state.UpdateAFromB(state.rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, state.ruleg,  state.rlleg );
+					state.UpdateAFromB(state.spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, state.torso1, state.torso2);
+					state.UpdateAFromB(state.spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, state.pelvis, state.torso1);
+
+					return SharedScoring(state);
+				}
+
+				float ScoreChanges(IKState& state, unsigned int joint_index)
+				{
+					Vec3& rvec = (&state.lankle)[joint_index];
+					rvec.x = max(-1.0f, min(1.0f, rvec.x));
+					rvec.y = max(-1.0f, min(1.0f, rvec.y));
+					rvec.z = max(-1.0f, min(1.0f, rvec.z));
+
+					state.JointModified(joint_index, imp, rest, inv_timestep);
+
+					return SharedScoring(state);
+				}
+
+				float SharedScoring(IKState& state)
+				{
+					Vec3 lhip_pos_delta = state.luleg.pos - state.pelvis.pos + state.luleg.ori * imp->lhip.r2 - state.pelvis.ori * imp->lhip.r1;
+					Vec3 rhip_pos_delta = state.ruleg.pos - state.pelvis.pos + state.ruleg.ori * imp->rhip.r2 - state.pelvis.ori * imp->rhip.r1;
+
+					float lhip_pos_error          = lhip_pos_delta.ComputeMagnitudeSquared();
+					float rhip_pos_error          = rhip_pos_delta.ComputeMagnitudeSquared();
+
+					// TODO: compute these
+					float lhip_ori_error          = 0.0f;
+					float rhip_ori_error          = 0.0f;
+
+					// TODO: compute these
+					Vec3 net_force, net_torque;
+					float net_force_offness       = (net_force  - desired_net_force ).ComputeMagnitudeSquared();
+					float net_torque_offness      = (net_torque - desired_net_torque).ComputeMagnitudeSquared();
+
+					// TODO: compute these
+					float impossible_force_error  = 0.0f;
+					float impossible_torque_error = 0.0f;
+
+					float impossibility_penalty   = lhip_pos_error +
+													rhip_pos_error +
+													lhip_ori_error +
+													rhip_ori_error +
+													impossible_force_error +
+													impossible_torque_error;
+
+					float undesirability_penalty  = net_force_offness + net_force_offness;
+
+					// TODO: compute per-joint torques and assign desirability/impossibility there? probably too expensive
+
+					return impossibility_penalty + undesirability_penalty;
+				}
+
+				void Search(unsigned int num_iterations)
+				{
+					unsigned int num_vars = 6 * 3;								// six joints times three degrees of freedom
+					for(unsigned int i = 0; i < num_iterations; ++i)
+					{
+						for(unsigned int j = 0; j < num_vars; ++j)
+						{
+							static const float delta         = 0.00001f;
+							static const float rate          = 1.0f;
+							static const float dydx_coeff    = rate / delta;
+
+							unsigned int joint_index = j / 3;
+
+							float& x = ((float*)&test.lankle)[j];
+
+							float x1 = x;
+							float y1 = last_score;
+
+							x += delta;
+							float y2 = ScoreChanges(test, joint_index);
+							float x2 = x;
+							float dydx = (y2 - y1) / delta;
+							x = x1 - dydx * dydx_coeff;
+
+							float y3 = ScoreChanges(test, joint_index);
+
+							if(y1 < y2 && y1 < y3)
+							{
+								x = x1;
+								last_score = ScoreChanges(test, joint_index);
+							}
+							else if(y2 < y1 && y2 < y3)
+							{
+								x = x2;
+								last_score = ScoreChanges(test, joint_index);
+							}
+							else
+							{
+								last_score = y3;
+							}
+						}
+					}
+				}
+
+			} scorer(this);
+
+			scorer.Search(20);
+			Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest_score << "; final score = " << scorer.last_score << "; ratio = " << (scorer.rest_score / scorer.last_score) << endl)).str());
 
 			// TODO: translate selected pose into joint torques somehow
-			Debug(((stringstream&)(stringstream() << "initial score = " << rest_score << "; final score = " << last_score << "; ratio = " << (rest_score / last_score) << endl)).str());
+
 
 
 
 			DoHeadOri      ( dood, time            );
 			DoArmsAimingGun( dood, time,        t2 );
 
+#if 0
 			Quaternion yaw_ori = Quaternion::FromRVec(0, -dood->yaw, 0);
 
 			lfoot .ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
@@ -799,6 +869,7 @@ namespace Test
 			rknee .SetTorqueToSatisfyB();
 			lankle.SetTorqueToSatisfyB();
 			rankle.SetTorqueToSatisfyB();
+#endif
 
 			++tick_age;
 		}
