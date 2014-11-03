@@ -607,7 +607,6 @@ namespace Test
 				// joints
 				Vec3 lankle, rankle;
 				Vec3 lknee,  rknee;
-				Vec3 spine1, spine2;
 
 				struct Bone
 				{
@@ -625,9 +624,9 @@ namespace Test
 
 				Bone lfoot,  llleg,  luleg;
 				Bone rfoot,  rlleg,  ruleg;
-				Bone torso2, torso1, pelvis;
+				Bone pelvis;
 
-				float iv_ori_error[6];
+				float iv_ori_error[4];
 				float dv_ori_error[2];
 				float dv_pos_error[2];
 
@@ -639,9 +638,9 @@ namespace Test
 				{
 					Quaternion aori = j.a->rb->GetOrientation();
 					Quaternion bori = j.b->rb->GetOrientation();
-					const Vec3& mins = j.sjc->min_extents;
-					const Vec3& maxs = j.sjc->max_extents;
-					rvec = j.sjc->axes * (Quaternion::Reverse(bori) * aori).ToRVec();			// TODO: check this
+					const Mat3& axes = j.sjc->axes;
+
+					rvec = axes * Quaternion::Reverse(aori).ToMat3() * (bori * Quaternion::Reverse(aori)).ToRVec();
 				}
 
 				// updating the data of bone A (parent) based on the data of the child bone
@@ -651,15 +650,8 @@ namespace Test
 					Mat3 axes   = sjc.axes;
 					Mat3 axes_t = axes.Transpose();
 
-					const Vec3& mins = sjc.min_extents;
-					const Vec3& maxs = sjc.max_extents;
+					a.ori = b.ori * axes_t * Mat3::FromRVec(-rvec) * axes;
 
-					// TODO: check this
-					Vec3 oribefore = Quaternion::FromRotationMatrix(a.ori).ToRVec();
-					a.ori = axes * Mat3::FromRVec(rvec) * axes_t * b.ori;
-					Vec3 oriafter  = Quaternion::FromRotationMatrix(a.ori).ToRVec();
-
-					Vec3 posbefore = a.pos;
 					a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
 					a.vel = (a.pos - rest_a.pos) * inv_timestep;
 
@@ -685,19 +677,15 @@ namespace Test
 				{
 					const SkeletalJointConstraint& sjc = *joint.sjc;
 
-					Mat3 axes = sjc.axes;
-					Mat3 rvecmat = axes.Transpose() * a.ori * b.ori.Transpose() * axes;		// TODO: check this
-					Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
-					Vec3 rvec_preclamp = rvec;
-					const Vec3& mins = sjc.min_extents;
-					const Vec3& maxs = sjc.max_extents;
-					float dx = rvec.x - max(mins.x, min(maxs.x, rvec.x));
-					float dy = rvec.y - max(mins.y, min(maxs.y, rvec.y));
-					float dz = rvec.z - max(mins.z, min(maxs.z, rvec.z));
+					Quaternion a_to_b = Quaternion::FromRotationMatrix(b.ori) * Quaternion::Reverse(Quaternion::FromRotationMatrix(a.ori));
+
+					const Mat3& axes = sjc.axes;
+					Mat3 rmat = axes * a.ori.Transpose() * b.ori * axes.Transpose();
+					Vec3 rvec = Quaternion::FromRotationMatrix(rmat).ToRVec();
+
+					ComputeOriError(rvec, sjc, ori_error);
 
 					Vec3 pos_delta = b.pos - a.pos + b.ori * joint.r2 - a.ori * joint.r1;
-					
-					ori_error = Vec3::MagnitudeSquared(dx, dy, dz);
 					pos_error = pos_delta.ComputeMagnitudeSquared();
 				}
 
@@ -723,17 +711,6 @@ namespace Test
 							UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
 							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 							break;
-						case 4:
-							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
-							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
-							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
-							break;
-						case 5:
-							UpdateAFromB(spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, torso1, torso2);
-							UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
-							ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
-							ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
-							break;
 					}
 				}
 
@@ -743,8 +720,6 @@ namespace Test
 					UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
 					UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
 					UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
-					UpdateAFromB(spine2, imp->spine2, rest.torso1, rest.torso2, inv_timestep, torso1, torso2);
-					UpdateAFromB(spine1, imp->spine1, rest.pelvis, rest.torso1, inv_timestep, pelvis, torso1);
 
 					ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
 					ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
@@ -761,7 +736,7 @@ namespace Test
 
 				float SharedScoring(const Vec3& desired_net_force, const Vec3& desired_net_torque)
 				{
-					float iv_ori_error_tot        = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3] + iv_ori_error[4] + iv_ori_error[5];
+					float iv_ori_error_tot        = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3];
 					float dv_ori_error_tot        = dv_ori_error[0] + dv_ori_error[1];
 					float dv_pos_error_tot        = dv_pos_error[0] + dv_pos_error[1];
 
@@ -805,23 +780,21 @@ namespace Test
 					// set properties of constrained bones				// TODO: do this better
 					rest.lfoot .SetConstrained(*imp->lfoot .rb);
 					rest.rfoot .SetConstrained(*imp->rfoot .rb);
-					rest.torso2.SetConstrained(*imp->torso2.rb);
+					rest.pelvis.SetConstrained(*imp->pelvis.rb);
 
 					// initialize joints with "default" orientations
 					rest.SetInitialRVec(imp->lankle, rest.lankle);
 					rest.SetInitialRVec(imp->rankle, rest.rankle);
 					rest.SetInitialRVec(imp->lknee,  rest.lknee );
 					rest.SetInitialRVec(imp->rknee,  rest.rknee );
-					rest.SetInitialRVec(imp->spine1, rest.spine1);
-					rest.SetInitialRVec(imp->spine2, rest.spine2);
-
-					ScoreAll(rest);
-
-					best = rest;
 
 					// TODO: assign to desired_net_force, desired_net_torque
 					//     compute & cache info about the center of mass, average velocity, net force & torque, etc.
 					//     also compute & cache info about the upper body (everything attached to torso2) (maybe just a MassInfo?)
+
+					ScoreAll(rest);
+
+					best = rest;
 				}
 				
 				float ScoreAll(IKState& state) { return state.ScoreAll(imp, rest, inv_timestep, desired_net_force, desired_net_torque); }
@@ -830,7 +803,7 @@ namespace Test
 
 				void Search(unsigned int num_iterations)
 				{
-					unsigned int num_vars = 6 * 3;								// six joints times three degrees of freedom
+					unsigned int num_vars = 4 * 3;								// four joints times three degrees of freedom
 					for(unsigned int i = 0; i < num_iterations; ++i)
 					{
 						for(unsigned int j = 0; j < num_vars; ++j)

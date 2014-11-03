@@ -10,6 +10,17 @@
 namespace CibraryEngine
 {
 	/*
+	 *	Reference formulae:
+	 *	B = A * M_inv * R * M
+	 *	A = B * M_inv * R_inv * M
+	 *	R = M * A_inv * B * M_inv
+	 *	where A and B are the Mat3 bones' Mat3 oris, M is the axes matrix (not oriented), and R is Mat3::FromRVec of the clamped rvec
+	 */
+
+
+
+
+	/*
 	 * SkeletalJointConstraint methods
 	 */
 	SkeletalJointConstraint::SkeletalJointConstraint(RigidBody* ibody, RigidBody* jbody, const Vec3& pos, const Mat3& axes, const Vec3& min_extents, const Vec3& max_extents) :
