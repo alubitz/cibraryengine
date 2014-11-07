@@ -14,7 +14,7 @@ namespace CibraryEngine
 	 *	B = A * M_inv * R * M
 	 *	A = B * M_inv * R_inv * M
 	 *	R = M * A_inv * B * M_inv
-	 *	where A and B are the Mat3 bones' Mat3 oris, M is the axes matrix (not oriented), and R is Mat3::FromRVec of the clamped rvec
+	 *	where A and B are the bones' Mat3 oris, M is the axes matrix (not oriented), and R is Mat3::FromRVec of the clamped rvec
 	 */
 
 

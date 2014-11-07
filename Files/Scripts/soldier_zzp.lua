@@ -8,20 +8,22 @@ local Joint     = P.add_single_joint
 local SymJoints = P.add_symmetric_joints
 
 local m = 98.0 / 23.0;		-- divide total mass of 98 evenly across each of 18 bones, 5 of which have double weight
-local N = m * 2;
+local M = m * 2;
+local n = m;
+local N = M;
 
 local b = { }				-- bones
 local j = { }				-- joints
 
-Bone(b,     "pelvis",   N, { Sphere( 0.00, 1.08,  0.03, 0.18), Sphere( 0.14, 1.07, -0.07, 0.16), Sphere(-0.14, 1.07, -0.07, 0.16) } )
+Bone(b,     "pelvis",   M, { Sphere( 0.00, 1.08,  0.03, 0.18), Sphere( 0.14, 1.07, -0.07, 0.16), Sphere(-0.14, 1.07, -0.07, 0.16) } )
 Bone(b,     "torso 1",  N, { Sphere( 0.09, 1.28,  0.06, 0.15), Sphere(-0.09, 1.28,  0.06, 0.15), Sphere( 0.00, 1.37, -0.04, 0.20), Sphere(0.00, 1.28, -0.01, 0.20) } )
 Bone(b,     "torso 2",  N, { Sphere( 0.00, 1.65, -0.20, 0.20), Sphere( 0.14, 1.50,  0.09, 0.16), Sphere(-0.14, 1.50,  0.09, 0.16) } )
-Bone(b,     "head",     m, { Sphere( 0.00, 1.80,  0.00, 0.15) } )
+Bone(b,     "head",     n, { Sphere( 0.00, 1.80,  0.00, 0.15) } )
 
 SymBones(b, "shoulder", N, { Sphere( 0.29, 1.52,  0.00, 0.16), Sphere( 0.36, 1.66, -0.05, 0.11), Sphere( 0.42, 1.67, -0.31, 0.14), Sphere(0.30, 1.60, -0.37, 0.14) } )
-SymBones(b, "arm 1",    m, { Sphere( 0.30, 1.51, -0.02, 0.14), Sphere( 0.53, 1.40, -0.05, 0.11) } )
-SymBones(b, "arm 2",    m, { Sphere( 0.53, 1.40, -0.05, 0.11), Sphere( 0.77, 1.27,  0.02, 0.10) } )
-SymBones(b, "hand",     m, { Sphere( 0.92, 1.20,  0.01, 0.08), Sphere( 0.90, 1.21,  0.10, 0.08), Sphere( 1.08, 1.08,  0.09, 0.07) } )
+SymBones(b, "arm 1",    n, { Sphere( 0.30, 1.51, -0.02, 0.14), Sphere( 0.53, 1.40, -0.05, 0.11) } )
+SymBones(b, "arm 2",    n, { Sphere( 0.53, 1.40, -0.05, 0.11), Sphere( 0.77, 1.27,  0.02, 0.10) } )
+SymBones(b, "hand",     n, { Sphere( 0.92, 1.20,  0.01, 0.08), Sphere( 0.90, 1.21,  0.10, 0.08), Sphere( 1.08, 1.08,  0.09, 0.07) } )
 SymBones(b, "leg 1",    m, { Sphere( 0.15, 1.04,  0.03, 0.15), Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.15, 1.04, -0.04, 0.13) } )
 SymBones(b, "leg 2",    m, { Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.23, 0.28,  0.04, 0.11), Sphere( 0.23, 0.30, -0.10, 0.11) } )
 SymBones(b, "foot",     m, { Sphere( 0.23, 0.11, -0.10, 0.11), Sphere( 0.27, 0.07,  0.26, 0.07), Sphere( 0.21, 0.07,  0.26, 0.07) } )
