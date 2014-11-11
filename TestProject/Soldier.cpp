@@ -3,7 +3,6 @@
 
 #include "Gun.h"
 #include "WeaponEquip.h"
-#include "PlacedFootConstraint.h"
 
 #include "TestGame.h"
 
@@ -45,8 +44,55 @@ namespace Test
 			Quaternion OrientBottomToSurface(const Vec3& normal) const;
 	};
 
+	struct CoeffMatrix
+	{
+		static unsigned int next_id;
 
+		unsigned int id;
+		vector<float> matrix;
 
+		float errtot, wtot;
+
+		CoeffMatrix() : id(0), matrix(37 * 38 / 2 * 18), errtot(0), wtot(0) { }
+
+		float GetScore() const { return errtot / wtot; }
+
+		static bool Compare(const CoeffMatrix& a, const CoeffMatrix& b) { return a.wtot != 0 && b.wtot != 0 && a.GetScore() < b.GetScore(); }
+
+		CoeffMatrix CreateMutant(float mutation_scale, float mutation_exp)
+		{
+			CoeffMatrix result = *this;
+
+			for(unsigned int i = 0; i < result.matrix.size(); ++i)
+				result.matrix[i] += mutation_scale * pow(Random3D::Rand(-1.0f, 1.0f), mutation_exp);
+			result.id = ++next_id;
+
+			result.errtot = result.wtot = 0;
+
+			return result;
+		}
+
+		struct SaveComparator
+		{
+			float min_wtot;
+			SaveComparator(float min_wtot) : min_wtot(min_wtot) { }
+
+			bool operator ()(const CoeffMatrix& a, const CoeffMatrix& b) const
+			{
+				bool a_ok = a.wtot >= min_wtot, b_ok = b.wtot >= min_wtot;
+				return a_ok && !b_ok || a_ok == b_ok && a.wtot != 0 && b.wtot != 0 && a.GetScore() < b.GetScore();
+			}
+		};
+	};
+
+	unsigned int CoeffMatrix::next_id = 0;
+
+	list<CoeffMatrix> saved_coeffs;
+
+	static float original_score = 0;
+
+	static bool matrix_test_running = false;
+	static unsigned int trial = 0;
 
 	/*
 	 * Soldier private implementation struct
@@ -64,12 +110,29 @@ namespace Test
 			Vec3 local_com;
 
 			Vec3 desired_torque;
-			Vec3 applied_torque;	
+			Vec3 applied_torque;
+
+			Vec3 prev_desired_torque;
+
+			Vec3 old_rot, old_vel;
+			Vec3 measured_torque, measured_force;
 
 			CBone() { }
 			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com) { }
 
-			void Reset() { desired_torque = applied_torque = Vec3(); }
+			void Reset(float inv_timestep)
+			{
+				prev_desired_torque = desired_torque;
+				desired_torque = applied_torque = Vec3();
+
+				Vec3 new_rot = rb->GetAngularVelocity();
+				measured_torque = Mat3(rb->GetTransformedMassInfo().moi) * (new_rot - old_rot) * inv_timestep;
+				old_rot = new_rot;
+
+				Vec3 new_vel = rb->GetLinearVelocity();
+				measured_force = (new_vel - old_vel) * (inv_timestep * rb->GetMass());
+				old_vel = new_vel;
+			}
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
 			{
@@ -170,7 +233,52 @@ namespace Test
 
 			bool SetTorqueToSatisfyA() { return SetWorldTorque(a->desired_torque - (a->applied_torque - actual)); }
 			bool SetTorqueToSatisfyB() { return SetWorldTorque((b->applied_torque + actual) - b->desired_torque); }
+
+			bool SetOrientedTorque(const Vec3& local_torque)
+			{
+				Vec3 old = oriented_axes.TransposedMultiply(sjc->apply_torque);
+
+				const Vec3 &mint = sjc->min_torque, &maxt = sjc->max_torque;
+
+				sjc->apply_torque.x = max(mint.x, min(maxt.x, local_torque.x));
+				sjc->apply_torque.y = max(mint.y, min(maxt.y, local_torque.y));
+				sjc->apply_torque.z = max(mint.z, min(maxt.z, local_torque.z));
+
+				Vec3 dif = sjc->apply_torque - local_torque;
+				bool result = (dif.x != 0 || dif.y != 0 || dif.z != 0);
+
+				actual = oriented_axes.TransposedMultiply(sjc->apply_torque);
+
+				Vec3 delta = actual - old;
+
+				b->applied_torque -= delta;
+				a->applied_torque += delta;
+
+				return result;
+			}
 		};
+
+		struct PDValue
+		{
+			float second_last;
+			float last_error;
+			float error;
+			float derror_dt;
+			float integral;
+
+			PDValue() : last_error(0.0f), error(0.0f), derror_dt(0.0f), integral(0.0f) { }
+
+			void Update(float new_error, float timestep, float inv_timestep)
+			{
+				second_last = last_error;
+				last_error  = error;
+				error       = new_error;
+				derror_dt   = (error - last_error) * inv_timestep;
+				integral   += error * timestep;
+			}
+		};
+
+		PDValue pd_values[18];
 
 		CJoint spine1, spine2, neck;
 		CJoint lsja,   lsjb,   lelbow, lwrist;
@@ -289,6 +397,8 @@ namespace Test
 		void Init(Soldier* dood)
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
+
+			matrix_test_running = true;
 
 			all_bones.clear();
 			all_joints.clear();
@@ -542,7 +652,7 @@ namespace Test
 				(*iter)->Reset();
 
 			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
-				(*iter)->Reset();
+				(*iter)->Reset(inv_timestep);
 
 
 
@@ -577,8 +687,8 @@ namespace Test
 
 			Scorer scorer(this, p, lfoot_ori, rfoot_ori);
 
-			scorer.Search(20);
-			Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest.score << "; final score = " << scorer.best.score << "; ratio = " << (scorer.rest.score / scorer.best.score) << endl)).str());
+			scorer.Search(40);
+			//Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest.score << "; final score = " << scorer.best.score << "; ratio = " << (scorer.rest.score / scorer.best.score) << endl)).str());
 
 
 
@@ -586,29 +696,182 @@ namespace Test
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
 
-			// TODO: do this part for real
-			lfoot .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.lfoot.ori), inv_timestep);
-			rfoot .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.rfoot.ori), inv_timestep);
-			llleg .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.llleg.ori), inv_timestep);
-			rlleg .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.rlleg.ori), inv_timestep);
-			luleg .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.luleg.ori), inv_timestep);
-			ruleg .ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(scorer.best.ruleg.ori), inv_timestep);
-
 			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,  inv_timestep);
 			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
 			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
 
-			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
+			spine2.SetTorqueToSatisfyB();
 
+
+			// ... "somehow" ...
+
+			static const unsigned int tracked_bones       = 3;
+			static const unsigned int tracked_values      = tracked_bones * 6;
+			static const unsigned int num_inputs          = 1 + tracked_values * 2;
+			static const unsigned int num_output_vecs     = 6;
+			static const unsigned int num_output_floats   = num_output_vecs * 3;
+
+			CBone* cbones[tracked_bones] =
+			{
+				&pelvis,
+				&lfoot,
+				&rfoot
+			};
+			IKState::Bone* ik_bones[tracked_bones] =
+			{
+				&scorer.best.pelvis,
+				&scorer.best.lfoot,
+				&scorer.best.rfoot
+			};
+
+			Mat3 yaw_unrotate = Mat3::FromRVec(0, -dood->yaw, 0);
+
+			float errtot = 0.0f;
+			for(unsigned int i = 0; i < tracked_bones; ++i)
+			{
+				const IKState::Bone& ik = *ik_bones[i];
+				const CBone&         cb = *cbones  [i];
+				const RigidBody&     rb = *cb.rb;
+
+				MassInfo xmassinfo  = rb.GetTransformedMassInfo();
+
+				Quaternion ori         = rb.GetOrientation();
+				Quaternion desired_ori = Quaternion::FromRotationMatrix(ik.ori);
+
+				/*
+				Vec3 rot            = rb.GetAngularVelocity();
+				Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;
+				Vec3 desired_aaccel = (desired_rot - rot) * inv_timestep;			
+
+				Vec3 desired_torque = Mat3(xmassinfo.moi) * desired_aaccel;
+				Vec3 desired_force  = (ik.pos - xmassinfo.com) * (inv_timestep * xmassinfo.mass);
+
+				Vec3   errors[2]    = { yaw_unrotate * (desired_torque - cb.measured_torque), yaw_unrotate * (desired_force  - cb.measured_force) };
+				*/
+				Vec3   errors[2]    = { yaw_unrotate * -(desired_ori * Quaternion::Reverse(ori)).ToRVec(), yaw_unrotate * (ik.pos - xmassinfo.com) };
+				float* error_floats = (float*)errors;
+
+				for(unsigned int j = 0; j < 6; ++j)
+				{
+					float error = error_floats[j];
+					pd_values[i * 6 + j].Update(error, timestep, inv_timestep);
+
+					if(matrix_test_running)
+						 errtot += error * error;
+				}
+			}
+
+			CoeffMatrix& test_coeffs = *saved_coeffs.begin();
+			test_coeffs.errtot += errtot * timestep;
+			test_coeffs.wtot   += timestep;
+
+			float inputs[num_inputs];
+			float* in_ptr = inputs;
+			*(in_ptr++) = 1.0f;
+			for(unsigned int i = 0; i < tracked_values; ++i)
+			{
+				const PDValue& pd = pd_values[i];
+				*(in_ptr++) = pd.error;
+				*(in_ptr++) = pd.error - pd.last_error;//derror_dt * timestep;			// TODO: remove fudge?
+				//*(in_ptr++) = pd.second_last;//integral;
+			}
+			
+			Vec3 outputs[num_output_vecs];
+			float* output_floats = (float*)outputs;
+			float* of_end        = output_floats + num_output_floats;
+
+			const float* coeff_ptr = test_coeffs.matrix.data();
+			for(float *ti_iter = inputs, *ti_end = ti_iter + num_inputs; ti_iter != ti_end; ++ti_iter)
+				for(float* ti_jter = ti_iter; ti_jter != ti_end; ++ti_jter)
+				{
+					float term = *ti_iter * *ti_jter;
+					for(float* of_iter = output_floats; of_iter != of_end; ++of_iter, ++coeff_ptr)
+						*of_iter += term * *coeff_ptr;
+				}
+
+			CBone* obones[num_output_vecs] = { &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
+			for(unsigned int i = 0; i < num_output_vecs; ++i)
+			{
+				CBone& ob = *obones[i];
+				ob.desired_torque = ob.prev_desired_torque + yaw_unrotate.TransposedMultiply(outputs[i]);
+			}
+			lhip  .SetTorqueToSatisfyB();
+			rhip  .SetTorqueToSatisfyB();
+			lknee .SetTorqueToSatisfyB();
+			rknee .SetTorqueToSatisfyB();
 			lankle.SetTorqueToSatisfyB();
 			rankle.SetTorqueToSatisfyB();
-			lknee .SetTorqueToSatisfyA();
-			rknee .SetTorqueToSatisfyA();
-			lhip  .SetTorqueToSatisfyA();
-			rhip  .SetTorqueToSatisfyA();
+
+
+
+			// score amalgamation and mutation stuff
+			static const unsigned int max_tick_age      = 95;
+			static const unsigned int num_trials        = 20;
+
+			static const unsigned int max_saved_mats    = 10;
+			static const float        selection_exp     = 8.0f;
+			static const float        min_repro_wtot    = 40.0f;
+			static const float        mutation_chance   = 0.8f;
+			static const float        mutation_scale    = 0.5f;
+			static const float        mutation_exp      = 7.0f;
 
 			++tick_age;
+			if(matrix_test_running && tick_age >= max_tick_age)
+			{
+				matrix_test_running = false;
+
+				++trial;
+				if(trial == num_trials)
+				{
+					Debug(((stringstream&)(stringstream() << "id = " << test_coeffs.id << "; score = " << test_coeffs.GetScore() << " (" << test_coeffs.errtot << " / " << test_coeffs.wtot << ")" << endl)).str());
+
+					saved_coeffs.sort(CoeffMatrix::Compare);
+					if(saved_coeffs.size() > max_saved_mats)
+						saved_coeffs.pop_back();
+
+					float        fpick = pow(Random3D::Rand(), selection_exp);
+					unsigned int ipick = (unsigned int)(saved_coeffs.size() * fpick);
+
+					list<CoeffMatrix>::iterator iter = saved_coeffs.begin();
+					for(unsigned int i = 0; i < ipick; ++i)
+						++iter;
+
+					bool mutant = iter->wtot >= min_repro_wtot && Random3D::Rand() < mutation_chance;
+
+					for(list<CoeffMatrix>::iterator jter = saved_coeffs.begin(); jter != saved_coeffs.end(); ++jter)
+						if(jter->id == 0)
+							original_score = jter->GetScore();
+
+					string tabs = "\t\t\t\t\t\t\t";
+					stringstream ss;
+					ss << tabs << "number of matrices = " << saved_coeffs.size() << "; latest id = " << CoeffMatrix::next_id << "; original score = " << original_score << endl;
+					for(list<CoeffMatrix>::iterator jter = saved_coeffs.begin(); jter != saved_coeffs.end(); ++jter)
+					{
+						ss << tabs << '\t' << "id = " << jter->id << "; score = " << jter->GetScore() << " (" << jter->errtot << " / " << jter->wtot << ")";
+						if(jter == iter)
+							ss << ";\t\t" << (mutant ? "mutating" : "retest");
+						ss << endl;
+					}
+					((TestGame*)dood->game_state)->debug_text = ss.str();
+
+					if(mutant)
+					{
+						CoeffMatrix temp = (*iter).CreateMutant(mutation_scale, mutation_exp);
+
+						saved_coeffs.push_front(temp);
+					}
+					else
+					{
+						list<CoeffMatrix>::iterator begin = saved_coeffs.begin();
+						CoeffMatrix temp = *begin;
+						*begin = *iter;
+						*iter  = temp;
+					}
+					
+					trial = 0;
+				}
+			}
 		}
 
 
@@ -862,7 +1125,7 @@ namespace Test
 
 				rest.desired_com.x = (rest.lfoot.pos.x + rest.rfoot.pos.x) * 0.5f;
 				rest.desired_com.z = (rest.lfoot.pos.z + rest.rfoot.pos.z) * 0.5f;
-				rest.desired_com.y = 1.5f;		// measured value was about 1.8
+				rest.desired_com.y = 1.8f;		// measured value was about 1.8
 
 				ScoreAll(rest);
 
@@ -927,7 +1190,7 @@ namespace Test
 	{
 		use_cheaty_ori = false;
 
-		yaw = Random3D::Rand(float(M_PI) * 2.0f);
+		//yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
@@ -1135,6 +1398,59 @@ namespace Test
 			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
 
 		posey->skeleton->InvalidateCachedBoneXforms();
+	}
+
+
+
+
+	bool Soldier::IsExperimentDone() const { return imp->init && !matrix_test_running; }
+
+	void Soldier::LoadMatrix()
+	{
+		saved_coeffs.clear();
+		CoeffMatrix best_coeffs = CoeffMatrix();
+
+		ifstream file("Files/coeffs", ios::in | ios::binary);
+		if(!file)
+			Debug("Unable to load coefficient matrix!\n");
+		else
+		{
+			unsigned int size = ReadUInt32(file);
+
+			if(size != best_coeffs.matrix.size())
+				Debug("Coefficient matrix size doesn't match!\n");
+			else
+			{
+				for(unsigned int i = 0; i < size; ++i)
+					best_coeffs.matrix[i] = ReadSingle(file);
+			}
+
+			file.close();
+		}
+
+		saved_coeffs.push_back(best_coeffs);
+	}
+
+	void Soldier::SaveMatrix()
+	{
+		if(saved_coeffs.empty())
+			return;
+		saved_coeffs.sort(CoeffMatrix::SaveComparator(3.0f));
+
+		const CoeffMatrix& best_coeffs = *saved_coeffs.begin();
+
+		ofstream file("Files/coeffs", ios::out | ios::binary);
+		if(!file)
+			Debug("Failed to save coefficient matrix!\n");
+		else
+		{
+			unsigned int size = best_coeffs.matrix.size();
+			WriteUInt32(size, file);
+			for(unsigned int i = 0; i < size; ++i)
+				WriteSingle(best_coeffs.matrix[i], file);
+
+			file.close();
+		}
 	}
 
 

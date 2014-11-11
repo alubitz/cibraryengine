@@ -35,9 +35,9 @@
 
 #define CPHFT_THREAD_COUNT               1
 
-#define ENABLE_FPS_COUNTER               1
+#define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
-#define DO_RAPID_UPDATE_TESTING          0
+#define DO_RAPID_UPDATE_TESTING          1
 
 
 namespace Test
@@ -568,12 +568,13 @@ namespace Test
 
 		hud = new HUD(this, content);
 
+		Soldier::LoadMatrix();
+
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
 
 		// if your game_start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
-		hud->SetPlayer(player_pawn);
 
 		thread_script.Dispose();
 
@@ -607,6 +608,8 @@ namespace Test
 		player_controller->Possess(player_pawn);
 		player_controller->ctrl_update_interval = 0;
 		Spawn(player_controller);
+
+		hud->SetPlayer(player_pawn);
 
 		return player_pawn;
 	}
@@ -709,6 +712,9 @@ namespace Test
 #else
 			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
 #endif
+
+			if(((Soldier*)player_pawn)->IsExperimentDone())
+				SpawnPlayer(Vec3());
 
 			total_game_time += elapsed;
 
@@ -1066,6 +1072,8 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
+		Soldier::SaveMatrix();
+
 		load_status.Dispose();
 
 		if(imp) { delete imp; imp = NULL; }
