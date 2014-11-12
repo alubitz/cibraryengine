@@ -10,17 +10,21 @@ namespace Test
 	{
 		unsigned int num_inputs, num_outputs, num_middles;
 
-		vector<float> inputs;
-		vector<float> top_matrix;
-		vector<float> middle_sums;
-		vector<float> middles;
-		vector<float> bottom_matrix;
-		vector<float> output_sums;
-		vector<float> outputs;
-		vector<float> correct_outputs;
-		vector<float> errors;
-		vector<float> temp_tops;
-		vector<float> temp_bottoms;
+		vector<float> lots_of_floats;
+
+		float* inputs;
+		float* top_matrix;
+		float* middle_sums;
+		float* middles;
+		float* phiprime_mids;
+		float* bottom_matrix;
+		float* output_sums;
+		float* outputs;
+		float* phiprime_outs;
+		float* correct_outputs;
+		float* errors;
+		float* temp_tops;
+		float* temp_bottoms;
 
 		ExperimentalScreen* scr;
 		vector<AutoMenuItem*> auto_menu_items;
@@ -184,25 +188,37 @@ namespace Test
 			num_outputs = state_floats;
 			num_middles = 25;
 
-			inputs         .resize(num_inputs );
-			middle_sums    .resize(num_middles);
-			middles        .resize(num_middles);
-			output_sums    .resize(num_outputs);
-			outputs        .resize(num_outputs);
-			correct_outputs.resize(num_outputs);
-			errors         .resize(num_outputs);
+			unsigned int total_size = 0;
+			total_size += num_inputs;						// inputs
+			total_size += num_middles * 3;					// middle sums, middles, phiprime mids
+			total_size += num_outputs * 5;					// output sums, outputs, phiprime outs, correct outputs, and errors
+			total_size += num_inputs * num_middles * 2;		// top matrix, temp tops
+			total_size += num_middles * num_outputs * 2;	// bottom matrix, temp bottoms
 
-			top_matrix   .resize(num_inputs  * num_middles);
-			bottom_matrix.resize(num_middles * num_outputs);
+			lots_of_floats.clear();
+			lots_of_floats.resize(total_size);
+			float* fptr = lots_of_floats.data();
 
-			temp_tops   .resize(num_inputs  * num_middles);
-			temp_bottoms.resize(num_middles * num_outputs);
+			inputs          = fptr;    fptr += num_inputs;
+			middle_sums     = fptr;    fptr += num_middles;
+			middles         = fptr;    fptr += num_middles;
+			phiprime_mids   = fptr;    fptr += num_middles;
+			output_sums     = fptr;    fptr += num_outputs;
+			outputs         = fptr;    fptr += num_outputs;
+			phiprime_outs   = fptr;    fptr += num_outputs;
+			correct_outputs = fptr;    fptr += num_outputs;
+			errors          = fptr;    fptr += num_outputs;
+
+			top_matrix      = fptr;    fptr += num_inputs * num_middles;
+			temp_tops       = fptr;    fptr += num_inputs * num_middles;
+			bottom_matrix   = fptr;    fptr += num_middles * num_outputs;
+			temp_bottoms    = fptr;    fptr += num_middles * num_outputs;
 
 			float random_range = 0.5f;
-			for(vector<float>::iterator iter = top_matrix.begin();    iter != top_matrix.end();    ++iter)
-				*iter = Random3D::Rand(-random_range, random_range);
-			for(vector<float>::iterator iter = bottom_matrix.begin(); iter != bottom_matrix.end(); ++iter)
-				*iter = Random3D::Rand(-random_range, random_range);
+			for(unsigned int i = 0; i < num_inputs * num_middles; ++i)
+				top_matrix[i] = Random3D::Rand(-random_range, random_range);
+			for(unsigned int i = 0; i < num_middles * num_outputs; ++i)
+				bottom_matrix[i] = Random3D::Rand(-random_range, random_range);
 		}
 
 		void Multiply(const float* matrix, const float* in_begin, float* out_begin, unsigned int num_in, unsigned int num_out)
@@ -239,7 +255,7 @@ namespace Test
 			return tot;
 		}
 
-		void Evaluate(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs)
+		inline void Evaluate(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs)
 		{
 			Multiply(top_matrix,    inputs,  middle_sums, num_inputs,  num_middles);
 			Sigmoid(middle_sums, middles, num_middles);
@@ -247,7 +263,7 @@ namespace Test
 			Sigmoid(output_sums, outputs, num_outputs);
 		}
 
-		float EvaluateAndScore(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct, float* errors)
+		inline float EvaluateAndScore(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct, float* errors)
 		{
 			Evaluate(top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs);
 			
@@ -261,73 +277,47 @@ namespace Test
 			return tot;
 		}
 
-		void DoVariations(float* matrix, unsigned int size, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct_outputs, float learning_rate)
-		{
-			static const float dx = 0.000001f;
-
-			float* top_data    = top_matrix.data();
-			float* bottom_data = bottom_matrix.data();
-
-			for(float *mat_ptr = matrix, *mat_end = mat_ptr + size; mat_ptr != mat_end; ++mat_ptr)
-			{
-				float y1 = EvaluateAndScore(top_data, bottom_data, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors.data());
-
-				float x1 = *mat_ptr;
-				*mat_ptr += dx;
-
-				float y2 = EvaluateAndScore(top_data, bottom_data, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors.data());
-				float dy = y2 - y1;
-
-				*mat_ptr = x1 - learning_rate * dy / dx;
-			}
-		}
-
 		// outputs will not contain [particularly] useful results!
 		float Train(float learning_rate, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct_outputs, float* errors)
 		{
-			float initial_error = EvaluateAndScore(top_matrix.data(), bottom_matrix.data(), inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors);
+			float initial_error = EvaluateAndScore(top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors);
 
-			//DoVariations(bottom_matrix.data(), num_middles * num_outputs, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, learning_rate);
-			//DoVariations(top_matrix.data(),    num_inputs  * num_middles, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, learning_rate);
+			float* ppo_end = phiprime_outs + num_outputs;
+			float* ppm_end = phiprime_mids + num_middles;
+			for(float *ppo_ptr = phiprime_outs, *outputs_ptr = outputs; ppo_ptr != ppo_end; ++ppo_ptr, ++outputs_ptr)
+				*ppo_ptr = 1.0f - *outputs_ptr * *outputs_ptr;
+			for(float *ppm_ptr = phiprime_mids, *middles_ptr = middles; ppm_ptr != ppm_end; ++ppm_ptr, ++middles_ptr)
+				*ppm_ptr = 1.0f - *middles_ptr * *middles_ptr;
 
-			// x = inputs, a = middle sums, y = middles, b = output sums, z = outputs
-			for(unsigned int i = 0; i < num_outputs; ++i)
-			{
-				float phiprime_bi = 1.0f - outputs[i] * outputs[i];
-				for(unsigned int j = 0; j < num_middles; ++j)
+			float* temp_bottom_ptr = temp_bottoms;
+			float* bottom_ptr      = bottom_matrix;
+			float* middles_end     = middles + num_middles;
+			for(float *ppo_ptr = phiprime_outs, *ppo_end = ppo_ptr + num_outputs, *err_ptr = errors; ppo_ptr != ppo_end; ++ppo_ptr, ++err_ptr)
+				for(float* mid_ptr = middles; mid_ptr != middles_end; ++mid_ptr, ++temp_bottom_ptr, ++bottom_ptr)
+					*temp_bottom_ptr = *bottom_ptr - learning_rate * 2.0f * *err_ptr * *ppo_ptr * *mid_ptr;
+
+			float* temp_top_ptr = temp_tops;
+			float* top_ptr      = top_matrix;
+			const float* inputs_end   = inputs + num_inputs;
+			for(const float* input_ptr = inputs; input_ptr != inputs_end; ++input_ptr)
+				for(float* top_plus_middles = top_ptr + num_middles; top_ptr != top_plus_middles; ++top_ptr, ++temp_top_ptr)
 				{
-					float dzidnji = phiprime_bi * middles[j];
-					float depsdnji = 2.0f * errors[i] * dzidnji;
+					bottom_ptr = bottom_matrix;
 
-					temp_bottoms[i * num_middles + j] = bottom_matrix[i * num_middles + j] - learning_rate * depsdnji;
-				}
-			}
-
-			for(unsigned int k = 0; k < num_inputs; ++k)
-			{
-				for(unsigned int j = 0; j < num_middles; ++j)
-				{
-					float depsdmkj = 0.0f;
-					for(unsigned int i = 0; i < num_outputs; ++i)
+					float derrordtopcoeff = 0.0f;
+					for(float *ppo_ptr = phiprime_outs, *err_ptr = errors; ppo_ptr != ppo_end; ++ppo_ptr, ++err_ptr)
 					{
-						float phiprime_bi = 1.0f - outputs[i] * outputs[i];
-						float dzidmkj = 0.0f;
-						for(unsigned int jj = 0; jj < num_middles; ++jj)
-						{
-							float phiprime_aj = 1.0f - middles[jj] * middles[jj];
-							float dyjdmkj = phiprime_aj * inputs[k];
-							dzidmkj += bottom_matrix[i * num_middles + jj] * dyjdmkj;
-						}
-						dzidmkj *= phiprime_bi;
-						depsdmkj += errors[i] * dzidmkj;
+						float doutputdtopcoeff = 0.0f;
+						for(float* ppm_ptr = phiprime_mids; ppm_ptr != ppm_end; ++ppm_ptr, ++bottom_ptr)
+							doutputdtopcoeff += *bottom_ptr * *ppm_ptr * *input_ptr;
+						derrordtopcoeff += *err_ptr * doutputdtopcoeff * *ppo_ptr;
 					}
-					depsdmkj *= 2.0f;
-					temp_tops[j * num_inputs + k] = top_matrix[j * num_inputs + k] - learning_rate * depsdmkj;
+					derrordtopcoeff *= 2.0f;
+					*temp_top_ptr = *top_ptr - learning_rate * derrordtopcoeff;
 				}
-			}
 
-			memcpy(bottom_matrix.data(), temp_bottoms.data(), num_middles * num_outputs * sizeof(float));
-			memcpy(top_matrix.data(),    temp_tops.data(),    num_inputs  * num_middles * sizeof(float));
+			memcpy(bottom_matrix, temp_bottoms, num_middles * num_outputs * sizeof(float));
+			memcpy(top_matrix,    temp_tops,    num_inputs  * num_middles * sizeof(float));
 
 			return initial_error;
 		}
@@ -340,6 +330,8 @@ namespace Test
 			if(Random3D::RandInt() % odds_against == 0)
 				coeff += Random3D::Rand(-amount, amount);
 		}
+
+		
 
 		void Update(const TimingInfo& time)
 		{
@@ -355,32 +347,38 @@ namespace Test
 				shuffle.clear();
 				shuffle.resize(records_per_pass);
 
+				unsigned int* shuffle_begin = shuffle.data();
+				unsigned int* shuffle_end = shuffle_begin + records_per_pass;
 				for(unsigned int i = 1; i < records_per_pass; ++i)
 				{
-					unsigned int j = Random3D::RandInt() % records_per_pass;
-					while(shuffle[j] != 0)
-						j = (j + 1) % records_per_pass;
-					shuffle[j] = i;
+					unsigned int* shuffle_ptr = shuffle_begin + Random3D::RandInt() % records_per_pass;
+					while(*shuffle_ptr)
+					{
+						++shuffle_ptr;
+						if(shuffle_ptr == shuffle_end)
+							shuffle_ptr = shuffle_begin;
+					}
+					*shuffle_ptr = i;
 				}
 			}
 
-			for(vector<float>::iterator iter = top_matrix.begin();    iter != top_matrix.end();    ++iter)
-				MaybeRandomizeCoefficient(*iter);
-			for(vector<float>::iterator iter = bottom_matrix.begin(); iter != bottom_matrix.end(); ++iter)
-				MaybeRandomizeCoefficient(*iter);
+			for(float *tm_ptr = top_matrix, *tm_end = tm_ptr + num_inputs * num_middles; tm_ptr != tm_end; ++tm_ptr)
+				MaybeRandomizeCoefficient(*tm_ptr);
+			for(float *bm_ptr = top_matrix, *bm_end = bm_ptr + num_middles * num_outputs; bm_ptr != bm_end; ++bm_ptr)
+				MaybeRandomizeCoefficient(*bm_ptr);
 
 			// deliberately empty for loop
 			unsigned int use_record = shuffle[record];
 			const TransIndices& index = indices[use_record];
 
-			memcpy(inputs.data(),                                   states[index.state1].data(), state_floats * sizeof(float));
-			memcpy(inputs.data() + state_floats,                    trans [index.trans1].data(), trans_floats * sizeof(float));
-			memcpy(inputs.data() + state_floats     + trans_floats, states[index.state2].data(), state_floats * sizeof(float));
-			memcpy(inputs.data() + state_floats * 2 + trans_floats, trans [index.trans2].data(), trans_floats * sizeof(float));
-			memcpy(correct_outputs.data(),                          states[index.state3].data(), state_floats * sizeof(float));
+			memcpy(inputs,                                   states[index.state1].data(), state_floats * sizeof(float));
+			memcpy(inputs + state_floats,                    trans [index.trans1].data(), trans_floats * sizeof(float));
+			memcpy(inputs + state_floats     + trans_floats, states[index.state2].data(), state_floats * sizeof(float));
+			memcpy(inputs + state_floats * 2 + trans_floats, trans [index.trans2].data(), trans_floats * sizeof(float));
+			memcpy(correct_outputs,                          states[index.state3].data(), state_floats * sizeof(float));
 
-			float score_before = Train           ( learning_rate,                           inputs.data(), middle_sums.data(), middles.data(), output_sums.data(), outputs.data(), correct_outputs.data(), errors.data() );
-			float score_after  = EvaluateAndScore( top_matrix.data(), bottom_matrix.data(), inputs.data(), middle_sums.data(), middles.data(), output_sums.data(), outputs.data(), correct_outputs.data(), errors.data() );
+			float score_before = Train           ( learning_rate,             inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors );
+			float score_after  = EvaluateAndScore( top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors );
 
 			if(scores_before.empty())
 				scores_before.resize(records_per_pass);
