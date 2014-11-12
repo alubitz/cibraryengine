@@ -9,9 +9,11 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
-#define DIE_AFTER_ONE_SECOND   0
+#define DIE_AFTER_ONE_SECOND            0
 
-#define ENABLE_NEW_JETPACKING  0
+#define ENABLE_NEW_JETPACKING           0
+
+#define ENABLE_STATE_TRANSITION_LOGGING 1
 
 namespace Test
 {
@@ -93,6 +95,49 @@ namespace Test
 
 	static bool matrix_test_running = false;
 	static unsigned int trial = 0;
+
+
+
+	struct LoggerState
+	{
+		static const unsigned int num_bones = 9;
+
+		struct Bone
+		{
+			Mat3 ori;
+			Vec3 pos;
+			Vec3 vel;
+			Vec3 rot;
+
+			Bone() { }
+
+			Bone(const RigidBody* rb, const Vec3& untranslate, const Mat3& unrotate) :
+				ori(unrotate * rb->GetOrientation().ToMat3()),
+				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
+				vel(unrotate * rb->GetLinearVelocity()),
+				rot(unrotate * rb->GetAngularVelocity())
+			{
+			}
+
+			static const unsigned int num_floats;
+		} bones[num_bones];
+	};
+
+	struct LoggerTrans
+	{
+		static const unsigned int num_outputs = 18;
+
+		unsigned int from, to;
+		float outputs[num_outputs];
+
+		LoggerTrans() : from(0), to(0) { }
+	};
+	LoggerTrans wip_trans;
+
+	const unsigned int LoggerState::Bone::num_floats = sizeof(Bone) / sizeof(float);
+
+	static list<LoggerState> session_states;
+	static list<LoggerTrans> session_trans;
 
 	/*
 	 * Soldier private implementation struct
@@ -398,6 +443,7 @@ namespace Test
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
+			wip_trans = LoggerTrans();
 			matrix_test_running = true;
 
 			all_bones.clear();
@@ -805,6 +851,24 @@ namespace Test
 
 
 
+#if ENABLE_STATE_TRANSITION_LOGGING
+			// logger stuff
+			if(wip_trans.from == session_states.size() - 1 && wip_trans.to == tick_age)
+			{
+				wip_trans.to = session_states.size();
+				session_trans.push_back(wip_trans);
+			}
+
+			PushLoggerState(dood);
+
+			wip_trans.from = session_states.size() - 1;
+			wip_trans.to   = tick_age + 1;
+
+			memcpy(wip_trans.outputs, outputs, min(num_output_floats, LoggerTrans::num_outputs) * sizeof(float));
+#endif
+
+
+
 			// score amalgamation and mutation stuff
 			static const unsigned int max_tick_age      = 95;
 			static const unsigned int num_trials        = 20;
@@ -1168,6 +1232,76 @@ namespace Test
 			}
 
 		};
+
+
+		void PushLoggerState(Soldier* dood)
+		{
+			LoggerState state;
+
+			Mat3 unrotate    = Mat3::FromRVec(0, -dood->yaw, 0);
+			Vec3 untranslate = pelvis.rb->GetCenterOfMass();
+
+			state.bones[0] = LoggerState::Bone(lfoot .rb, untranslate, unrotate);
+			state.bones[1] = LoggerState::Bone(rfoot .rb, untranslate, unrotate);
+			state.bones[2] = LoggerState::Bone(llleg .rb, untranslate, unrotate);
+			state.bones[3] = LoggerState::Bone(rlleg .rb, untranslate, unrotate);
+			state.bones[4] = LoggerState::Bone(luleg .rb, untranslate, unrotate);
+			state.bones[5] = LoggerState::Bone(ruleg .rb, untranslate, unrotate);
+			state.bones[6] = LoggerState::Bone(pelvis.rb, untranslate, unrotate);
+			state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
+			state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
+
+			session_states.push_back(state);
+		}
+
+		static void SaveLogs()
+		{
+#if ENABLE_STATE_TRANSITION_LOGGING
+			time_t raw_time;
+			time(&raw_time);
+			tm now = *localtime(&raw_time);
+
+			string filename = ((stringstream&)(stringstream() << "Files/Logs/statelog-" << now.tm_year + 1900 << "-" << now.tm_mon + 1 << "-" << now.tm_mday << "-" << now.tm_hour << "-" << now.tm_min << "-" << now.tm_sec << ".statelog")).str();
+
+			ofstream file(filename, ios::out | ios::binary);
+			if(!file)
+				Debug("Failed to save state transitions log!\n");
+			else
+			{
+				WriteUInt32(LoggerState::Bone::num_floats, file);
+				WriteUInt32(LoggerState::num_bones,        file);
+				WriteUInt32(LoggerTrans::num_outputs,      file);
+
+				WriteUInt32(session_states.size(), file);
+				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter)
+				{
+					const LoggerState& ls          = *iter;
+					const Bone*        ls_bones    = (const Bone*)&ls;
+
+					for(unsigned int i = 0; i < LoggerState::num_bones; ++i)
+					{
+						const Bone&    bone        = ls_bones[i];
+						const float*   bone_floats = (const float*)&bone;
+
+						for(unsigned int j = 0; j < LoggerState::Bone::num_floats; ++j)
+							WriteSingle(bone_floats[j], file);
+					}
+				}
+
+				WriteUInt32(session_trans.size(), file);
+				for(list<LoggerTrans>::iterator iter = session_trans.begin(); iter != session_trans.end(); ++iter)
+				{
+					const LoggerTrans& lt = *iter;
+					WriteUInt32(lt.from, file);
+					WriteUInt32(lt.to,   file);
+					for(unsigned int i = 0; i < LoggerTrans::num_outputs; ++i)
+						WriteSingle(lt.outputs[i], file);
+				}
+
+				file.close();
+			}
+#endif
+		}
 	};
 
 
@@ -1429,6 +1563,11 @@ namespace Test
 		}
 
 		saved_coeffs.push_back(best_coeffs);
+
+
+		// this is also a convenient time to clear our state & transition logs
+		session_states.clear();
+		session_trans.clear();
 	}
 
 	void Soldier::SaveMatrix()
@@ -1451,6 +1590,10 @@ namespace Test
 
 			file.close();
 		}
+
+
+		// this is also a convenient time to save our state & transition logs
+		Imp::SaveLogs();
 	}
 
 

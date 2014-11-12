@@ -37,7 +37,10 @@
 
 #define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
-#define DO_RAPID_UPDATE_TESTING          1
+
+#define DO_RAPID_UPDATE_TESTING          0
+#define RAPID_UPDATE_COUNT               100
+#define SPAWN_PLAYER_REPEATEDLY          1
 
 
 namespace Test
@@ -706,18 +709,19 @@ namespace Test
 		}
 
 #if DO_RAPID_UPDATE_TESTING
-		for(unsigned int i = 0; i < 100; ++i)
+		for(unsigned int i = 0; i < RAPID_UPDATE_COUNT; ++i)
 		{
 			float elapsed = 1.0f / 60.0f;
 #else
 			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
 #endif
 
-			if(((Soldier*)player_pawn)->IsExperimentDone())
-				SpawnPlayer(Vec3());
-
 			total_game_time += elapsed;
 
+#if SPAWN_PLAYER_REPEATEDLY
+			if(((Soldier*)player_pawn)->IsExperimentDone())
+				SpawnPlayer(Vec3());
+#endif
 			TimingInfo clamped_time(elapsed, total_game_time);
 
 			hud->UpdateHUDGauges(clamped_time);
