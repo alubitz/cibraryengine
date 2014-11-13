@@ -1,6 +1,11 @@
 #include "StdAfx.h"
 #include "ExperimentalScreen.h"
 
+#include "NeuralNet.h"
+
+#define NUM_MIDDLE_LAYER_NEURONS   15
+#define LEARNING_RATE              0.002f
+
 namespace Test
 {
 	/*
@@ -8,23 +13,7 @@ namespace Test
 	 */
 	struct ExperimentalScreen::Imp
 	{
-		unsigned int num_inputs, num_outputs, num_middles;
-
-		vector<float> lots_of_floats;
-
-		float* inputs;
-		float* top_matrix;
-		float* middle_sums;
-		float* middles;
-		float* phiprime_mids;
-		float* bottom_matrix;
-		float* output_sums;
-		float* outputs;
-		float* phiprime_outs;
-		float* correct_outputs;
-		float* errors;
-		float* temp_tops;
-		float* temp_bottoms;
+		NeuralNet* nn;
 
 		ExperimentalScreen* scr;
 		vector<AutoMenuItem*> auto_menu_items;
@@ -39,6 +28,7 @@ namespace Test
 
 		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items(), output1(NULL), output2(NULL)
 		{
+			// init screen stuff
 			ContentMan* content = scr->content;
 
 			unsigned int row = 0;
@@ -53,7 +43,13 @@ namespace Test
 			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
 				scr->AddItem(auto_menu_items[i]);
 
-			InitBrainStuff();
+			// init brain stuff
+			LoadLogs();
+
+			step = 0;
+
+			nn = NeuralNet::New((state_floats + trans_floats) * 2, state_floats, NUM_MIDDLE_LAYER_NEURONS);
+			nn->Randomize(0.5f);
 		}
 
 		~Imp()
@@ -66,6 +62,8 @@ namespace Test
 				delete item;
 			}
 			auto_menu_items.clear();
+
+			if(nn) { NeuralNet::Delete(nn); nn = NULL; }
 		}
 
 		struct TransIndices
@@ -178,150 +176,6 @@ namespace Test
 			Debug(str);
 		}
 
-		void InitBrainStuff()
-		{
-			LoadLogs();
-
-			step = 0;
-
-			num_inputs  = (state_floats + trans_floats) * 2;
-			num_outputs = state_floats;
-			num_middles = 25;
-
-			unsigned int total_size = 0;
-			total_size += num_inputs;						// inputs
-			total_size += num_middles * 3;					// middle sums, middles, phiprime mids
-			total_size += num_outputs * 5;					// output sums, outputs, phiprime outs, correct outputs, and errors
-			total_size += num_inputs * num_middles * 2;		// top matrix, temp tops
-			total_size += num_middles * num_outputs * 2;	// bottom matrix, temp bottoms
-
-			lots_of_floats.clear();
-			lots_of_floats.resize(total_size);
-			float* fptr = lots_of_floats.data();
-
-			inputs          = fptr;    fptr += num_inputs;
-			middle_sums     = fptr;    fptr += num_middles;
-			middles         = fptr;    fptr += num_middles;
-			phiprime_mids   = fptr;    fptr += num_middles;
-			output_sums     = fptr;    fptr += num_outputs;
-			outputs         = fptr;    fptr += num_outputs;
-			phiprime_outs   = fptr;    fptr += num_outputs;
-			correct_outputs = fptr;    fptr += num_outputs;
-			errors          = fptr;    fptr += num_outputs;
-
-			top_matrix      = fptr;    fptr += num_inputs * num_middles;
-			temp_tops       = fptr;    fptr += num_inputs * num_middles;
-			bottom_matrix   = fptr;    fptr += num_middles * num_outputs;
-			temp_bottoms    = fptr;    fptr += num_middles * num_outputs;
-
-			float random_range = 0.5f;
-			for(unsigned int i = 0; i < num_inputs * num_middles; ++i)
-				top_matrix[i] = Random3D::Rand(-random_range, random_range);
-			for(unsigned int i = 0; i < num_middles * num_outputs; ++i)
-				bottom_matrix[i] = Random3D::Rand(-random_range, random_range);
-		}
-
-		void Multiply(const float* matrix, const float* in_begin, float* out_begin, unsigned int num_in, unsigned int num_out)
-		{
-			const float* in_end  = in_begin  + num_in;
-			const float* out_end = out_begin + num_out;
-			const float* mat_ptr = matrix;
-
-			float value;
-
-			for(float* out_ptr = out_begin; out_ptr != out_end; ++out_ptr)
-			{
-				value = 0.0f;
-				for(const float* in_ptr = in_begin; in_ptr != in_end; ++in_ptr, ++mat_ptr)
-					value += *mat_ptr * *in_ptr;
-				*out_ptr = value;
-			}
-		}
-
-		void Sigmoid(const float* inputs, float* outputs, unsigned int count)
-		{
-			for(const float* in_end = inputs + count; inputs != in_end; ++inputs, ++outputs)
-				*outputs = tanh(*inputs);
-		}
-
-		float CheckOutput(const float* outputs, const float* correct, unsigned int count)
-		{
-			float tot = 0.0f;
-			for(const float *out_ptr = outputs, *correct_ptr = correct, *out_end = out_ptr + count; out_ptr != out_end; ++out_ptr, ++correct_ptr)
-			{
-				float dif = *out_ptr - *correct_ptr;
-				tot += dif * dif;
-			}
-			return tot;
-		}
-
-		inline void Evaluate(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs)
-		{
-			Multiply(top_matrix,    inputs,  middle_sums, num_inputs,  num_middles);
-			Sigmoid(middle_sums, middles, num_middles);
-			Multiply(bottom_matrix, middles, output_sums, num_middles, num_outputs);
-			Sigmoid(output_sums, outputs, num_outputs);
-		}
-
-		inline float EvaluateAndScore(const float* top_matrix, const float* bottom_matrix, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct, float* errors)
-		{
-			Evaluate(top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs);
-			
-			float tot = 0.0f;
-			const float* correct_ptr = correct;
-			for(float *err_ptr = errors, *out_ptr = outputs, *out_end = out_ptr + num_outputs; out_ptr != out_end; ++err_ptr, ++out_ptr, ++correct_ptr)
-			{
-				*err_ptr = *out_ptr - *correct_ptr;
-				tot += *err_ptr * *err_ptr;
-			}
-			return tot;
-		}
-
-		// outputs will not contain [particularly] useful results!
-		float Train(float learning_rate, const float* inputs, float* middle_sums, float* middles, float* output_sums, float* outputs, const float* correct_outputs, float* errors)
-		{
-			float initial_error = EvaluateAndScore(top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors);
-
-			float* ppo_end = phiprime_outs + num_outputs;
-			float* ppm_end = phiprime_mids + num_middles;
-			for(float *ppo_ptr = phiprime_outs, *outputs_ptr = outputs; ppo_ptr != ppo_end; ++ppo_ptr, ++outputs_ptr)
-				*ppo_ptr = 1.0f - *outputs_ptr * *outputs_ptr;
-			for(float *ppm_ptr = phiprime_mids, *middles_ptr = middles; ppm_ptr != ppm_end; ++ppm_ptr, ++middles_ptr)
-				*ppm_ptr = 1.0f - *middles_ptr * *middles_ptr;
-
-			float* temp_bottom_ptr = temp_bottoms;
-			float* bottom_ptr      = bottom_matrix;
-			float* middles_end     = middles + num_middles;
-			for(float *ppo_ptr = phiprime_outs, *ppo_end = ppo_ptr + num_outputs, *err_ptr = errors; ppo_ptr != ppo_end; ++ppo_ptr, ++err_ptr)
-				for(float* mid_ptr = middles; mid_ptr != middles_end; ++mid_ptr, ++temp_bottom_ptr, ++bottom_ptr)
-					*temp_bottom_ptr = *bottom_ptr - learning_rate * 2.0f * *err_ptr * *ppo_ptr * *mid_ptr;
-
-			float* temp_top_ptr = temp_tops;
-			float* top_ptr      = top_matrix;
-			const float* inputs_end   = inputs + num_inputs;
-			for(const float* input_ptr = inputs; input_ptr != inputs_end; ++input_ptr)
-				for(float* top_plus_middles = top_ptr + num_middles; top_ptr != top_plus_middles; ++top_ptr, ++temp_top_ptr)
-				{
-					bottom_ptr = bottom_matrix;
-
-					float derrordtopcoeff = 0.0f;
-					for(float *ppo_ptr = phiprime_outs, *err_ptr = errors; ppo_ptr != ppo_end; ++ppo_ptr, ++err_ptr)
-					{
-						float doutputdtopcoeff = 0.0f;
-						for(float* ppm_ptr = phiprime_mids; ppm_ptr != ppm_end; ++ppm_ptr, ++bottom_ptr)
-							doutputdtopcoeff += *bottom_ptr * *ppm_ptr * *input_ptr;
-						derrordtopcoeff += *err_ptr * doutputdtopcoeff * *ppo_ptr;
-					}
-					derrordtopcoeff *= 2.0f;
-					*temp_top_ptr = *top_ptr - learning_rate * derrordtopcoeff;
-				}
-
-			memcpy(bottom_matrix, temp_bottoms, num_middles * num_outputs * sizeof(float));
-			memcpy(top_matrix,    temp_tops,    num_inputs  * num_middles * sizeof(float));
-
-			return initial_error;
-		}
-
 		void MaybeRandomizeCoefficient(float& coeff)
 		{
 			static const unsigned int odds_against = 200;
@@ -333,10 +187,14 @@ namespace Test
 
 		
 
+		void PushInputFloats(unsigned int size, float*& input_ptr, const vector<float>& source)
+		{
+			memcpy(input_ptr, source.data(), size * sizeof(float));
+			input_ptr += size;
+		}
+
 		void Update(const TimingInfo& time)
 		{
-			static const float learning_rate   = 0.035f;
-
 			unsigned int records_per_pass = indices.size();
 			
 			unsigned int pass   = step / records_per_pass;
@@ -362,23 +220,25 @@ namespace Test
 				}
 			}
 
-			for(float *tm_ptr = top_matrix, *tm_end = tm_ptr + num_inputs * num_middles; tm_ptr != tm_end; ++tm_ptr)
+			for(float *tm_ptr = nn->top_matrix, *tm_end = tm_ptr + nn->top_matrix_size; tm_ptr != tm_end; ++tm_ptr)
 				MaybeRandomizeCoefficient(*tm_ptr);
-			for(float *bm_ptr = top_matrix, *bm_end = bm_ptr + num_middles * num_outputs; bm_ptr != bm_end; ++bm_ptr)
+			for(float *bm_ptr = nn->bottom_matrix, *bm_end = bm_ptr + nn->bottom_matrix_size; bm_ptr != bm_end; ++bm_ptr)
 				MaybeRandomizeCoefficient(*bm_ptr);
 
 			// deliberately empty for loop
 			unsigned int use_record = shuffle[record];
 			const TransIndices& index = indices[use_record];
 
-			memcpy(inputs,                                   states[index.state1].data(), state_floats * sizeof(float));
-			memcpy(inputs + state_floats,                    trans [index.trans1].data(), trans_floats * sizeof(float));
-			memcpy(inputs + state_floats     + trans_floats, states[index.state2].data(), state_floats * sizeof(float));
-			memcpy(inputs + state_floats * 2 + trans_floats, trans [index.trans2].data(), trans_floats * sizeof(float));
-			memcpy(correct_outputs,                          states[index.state3].data(), state_floats * sizeof(float));
+			float* in_ptr = nn->inputs;
+			PushInputFloats(state_floats, in_ptr, states[index.state1]);
+			PushInputFloats(trans_floats, in_ptr, trans [index.trans1]);
+			PushInputFloats(state_floats, in_ptr, states[index.state2]);
+			PushInputFloats(trans_floats, in_ptr, trans [index.trans2]);
 
-			float score_before = Train           ( learning_rate,             inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors );
-			float score_after  = EvaluateAndScore( top_matrix, bottom_matrix, inputs, middle_sums, middles, output_sums, outputs, correct_outputs, errors );
+			memcpy(nn->correct_outputs, states[index.state3].data(), state_floats * sizeof(float));
+
+			float score_before = nn->Train(LEARNING_RATE);
+			float score_after  = nn->EvaluateAndScore();
 
 			if(scores_before.empty())
 				scores_before.resize(records_per_pass);

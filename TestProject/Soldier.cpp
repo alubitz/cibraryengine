@@ -13,7 +13,7 @@
 
 #define ENABLE_NEW_JETPACKING           0
 
-#define ENABLE_STATE_TRANSITION_LOGGING 1
+#define ENABLE_STATE_TRANSITION_LOGGING 0
 
 namespace Test
 {
@@ -104,7 +104,7 @@ namespace Test
 
 		struct Bone
 		{
-			Mat3 ori;
+			Quaternion ori;
 			Vec3 pos;
 			Vec3 vel;
 			Vec3 rot;
@@ -112,7 +112,7 @@ namespace Test
 			Bone() { }
 
 			Bone(const RigidBody* rb, const Vec3& untranslate, const Mat3& unrotate) :
-				ori(unrotate * rb->GetOrientation().ToMat3()),
+				ori(Quaternion::FromRotationMatrix(unrotate * rb->GetOrientation().ToMat3())),
 				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
 				vel(unrotate * rb->GetLinearVelocity()),
 				rot(unrotate * rb->GetAngularVelocity())
@@ -469,7 +469,7 @@ namespace Test
 			RegisterBone( rlleg     = CBone( dood, "r leg 2"    ));
 			RegisterBone( rfoot     = CBone( dood, "r foot"     ));
 
-			float SP = 5500, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 5400, K = 5800, A = 5500;
+			float SP = 1500, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 800, A = 500;
 			RegisterJoint( spine1 = CJoint( dood, pelvis,    torso1,    SP ));
 			RegisterJoint( spine2 = CJoint( dood, torso1,    torso2,    SP ));
 			RegisterJoint( neck   = CJoint( dood, torso2,    head,      N  ));
@@ -488,8 +488,8 @@ namespace Test
 			RegisterJoint( rknee  = CJoint( dood, ruleg,     rlleg,     K  ));
 			RegisterJoint( rankle = CJoint( dood, rlleg,     rfoot,     A  ));
 
-			//lknee.sjc->min_torque.y = lknee.sjc->min_torque.z = lknee.sjc->max_torque.y = lknee.sjc->max_torque.z = 0.0f;
-			//rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
+			lknee.sjc->min_torque.y = lknee.sjc->min_torque.z = lknee.sjc->max_torque.y = lknee.sjc->max_torque.z = 0.0f;
+			rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
 
 			Vec3 upward(0, 1, 0);
 			float jpn_angle = 1.0f;
@@ -870,14 +870,14 @@ namespace Test
 
 
 			// score amalgamation and mutation stuff
-			static const unsigned int max_tick_age      = 95;
-			static const unsigned int num_trials        = 20;
+			static const unsigned int max_tick_age      = 98;
+			static const unsigned int num_trials        = 50;
 
-			static const unsigned int max_saved_mats    = 10;
+			static const unsigned int max_saved_mats    = 20;
 			static const float        selection_exp     = 8.0f;
 			static const float        min_repro_wtot    = 40.0f;
 			static const float        mutation_chance   = 0.8f;
-			static const float        mutation_scale    = 0.5f;
+			static const float        mutation_scale    = 0.1f;
 			static const float        mutation_exp      = 7.0f;
 
 			++tick_age;
