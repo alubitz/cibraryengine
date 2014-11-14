@@ -9,11 +9,14 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
+#include "ScaledIOBrain.h"
+#include "NeuralNet.h"
+
 #define DIE_AFTER_ONE_SECOND            0
 
 #define ENABLE_NEW_JETPACKING           0
 
-#define ENABLE_STATE_TRANSITION_LOGGING 0
+#define ENABLE_STATE_TRANSITION_LOGGING 1
 
 namespace Test
 {
@@ -46,51 +49,6 @@ namespace Test
 			Quaternion OrientBottomToSurface(const Vec3& normal) const;
 	};
 
-	struct CoeffMatrix
-	{
-		static unsigned int next_id;
-
-		unsigned int id;
-		vector<float> matrix;
-
-		float errtot, wtot;
-
-		CoeffMatrix() : id(0), matrix(37 * 38 / 2 * 18), errtot(0), wtot(0) { }
-
-		float GetScore() const { return errtot / wtot; }
-
-		static bool Compare(const CoeffMatrix& a, const CoeffMatrix& b) { return a.wtot != 0 && b.wtot != 0 && a.GetScore() < b.GetScore(); }
-
-		CoeffMatrix CreateMutant(float mutation_scale, float mutation_exp)
-		{
-			CoeffMatrix result = *this;
-
-			for(unsigned int i = 0; i < result.matrix.size(); ++i)
-				result.matrix[i] += mutation_scale * pow(Random3D::Rand(-1.0f, 1.0f), mutation_exp);
-			result.id = ++next_id;
-
-			result.errtot = result.wtot = 0;
-
-			return result;
-		}
-
-		struct SaveComparator
-		{
-			float min_wtot;
-			SaveComparator(float min_wtot) : min_wtot(min_wtot) { }
-
-			bool operator ()(const CoeffMatrix& a, const CoeffMatrix& b) const
-			{
-				bool a_ok = a.wtot >= min_wtot, b_ok = b.wtot >= min_wtot;
-				return a_ok && !b_ok || a_ok == b_ok && a.wtot != 0 && b.wtot != 0 && a.GetScore() < b.GetScore();
-			}
-		};
-	};
-
-	unsigned int CoeffMatrix::next_id = 0;
-
-	list<CoeffMatrix> saved_coeffs;
-
 	static float original_score = 0;
 
 	static bool matrix_test_running = false;
@@ -100,7 +58,7 @@ namespace Test
 
 	struct LoggerState
 	{
-		static const unsigned int num_bones = 9;
+		static const unsigned int num_bones = 7;
 
 		struct Bone
 		{
@@ -157,19 +115,16 @@ namespace Test
 			Vec3 desired_torque;
 			Vec3 applied_torque;
 
-			Vec3 prev_desired_torque;
-
-			Vec3 old_rot, old_vel;
-			Vec3 measured_torque, measured_force;
+			//Vec3 old_rot, old_vel;
+			//Vec3 measured_torque, measured_force;
 
 			CBone() { }
 			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com) { }
 
 			void Reset(float inv_timestep)
 			{
-				prev_desired_torque = desired_torque;
 				desired_torque = applied_torque = Vec3();
-
+				/*
 				Vec3 new_rot = rb->GetAngularVelocity();
 				measured_torque = Mat3(rb->GetTransformedMassInfo().moi) * (new_rot - old_rot) * inv_timestep;
 				old_rot = new_rot;
@@ -177,6 +132,7 @@ namespace Test
 				Vec3 new_vel = rb->GetLinearVelocity();
 				measured_force = (new_vel - old_vel) * (inv_timestep * rb->GetMass());
 				old_vel = new_vel;
+				*/
 			}
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
@@ -303,28 +259,6 @@ namespace Test
 			}
 		};
 
-		struct PDValue
-		{
-			float second_last;
-			float last_error;
-			float error;
-			float derror_dt;
-			float integral;
-
-			PDValue() : last_error(0.0f), error(0.0f), derror_dt(0.0f), integral(0.0f) { }
-
-			void Update(float new_error, float timestep, float inv_timestep)
-			{
-				second_last = last_error;
-				last_error  = error;
-				error       = new_error;
-				derror_dt   = (error - last_error) * inv_timestep;
-				integral   += error * timestep;
-			}
-		};
-
-		PDValue pd_values[18];
-
 		CJoint spine1, spine2, neck;
 		CJoint lsja,   lsjb,   lelbow, lwrist;
 		CJoint rsja,   rsjb,   relbow, rwrist;
@@ -426,11 +360,20 @@ namespace Test
 
 		Vec3 desired_aim;
 
+		Vec3 initial_pelvis_pos, initial_lfoot_pos, initial_rfoot_pos;
+		Quaternion initial_lfoot_ori, initial_rfoot_ori;
+
+		ScaledIOBrain* siob;
+
+		LoggerState last_state;
+		vector<float> last_trans;
+
 		Imp() :
 			init(false),
 			timestep(0),
 			inv_timestep(0),
-			tick_age(0)
+			tick_age(0),
+			siob(NULL)
 		{
 		}
 
@@ -439,9 +382,33 @@ namespace Test
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
 		void RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
 
+		void LoadBrain()
+		{
+			ifstream file("Files/Brains/useme.brain", ios::in | ios::binary);
+			if(!file)
+				Debug("Unable to load brain!\n");
+			else
+			{
+				siob = new ScaledIOBrain();
+				if(unsigned int error = siob->Read(file))
+				{
+					Debug(((stringstream&)(stringstream() << "ScaledIOBrain::Read failed with error code " << error << endl)).str());
+
+					delete siob;
+					siob = NULL;
+				}
+				else
+					last_trans.resize(18);
+
+				file.close();
+			}
+		}
+
 		void Init(Soldier* dood)
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
+
+			LoadBrain();
 
 			wip_trans = LoggerTrans();
 			matrix_test_running = true;
@@ -505,6 +472,13 @@ namespace Test
 			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
+
+			initial_pelvis_pos = pelvis.rb->GetCenterOfMass();
+			initial_lfoot_pos  = lfoot .rb->GetCenterOfMass();
+			initial_rfoot_pos  = rfoot .rb->GetCenterOfMass();
+
+			initial_lfoot_ori = lfoot.rb->GetOrientation();
+			initial_rfoot_ori = rfoot.rb->GetOrientation();
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -726,18 +700,6 @@ namespace Test
 
 			
 
-
-			// inverse kinematics maybe
-			Quaternion lfoot_ori = ((SoldierFoot*)dood->feet[0])->OrientBottomToSurface(Vec3(0, 1, 0));
-			Quaternion rfoot_ori = ((SoldierFoot*)dood->feet[1])->OrientBottomToSurface(Vec3(0, 1, 0));
-
-			Scorer scorer(this, p, lfoot_ori, rfoot_ori);
-
-			scorer.Search(40);
-			//Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest.score << "; final score = " << scorer.best.score << "; ratio = " << (scorer.rest.score / scorer.best.score) << endl)).str());
-
-
-
 			// translate selected pose into joint torques somehow
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
@@ -752,104 +714,8 @@ namespace Test
 
 			// ... "somehow" ...
 
-			static const unsigned int tracked_bones       = 3;
-			static const unsigned int tracked_values      = tracked_bones * 6;
-			static const unsigned int num_inputs          = 1 + tracked_values * 2;
-			static const unsigned int num_output_vecs     = 6;
-			static const unsigned int num_output_floats   = num_output_vecs * 3;
-
-			CBone* cbones[tracked_bones] =
-			{
-				&pelvis,
-				&lfoot,
-				&rfoot
-			};
-			IKState::Bone* ik_bones[tracked_bones] =
-			{
-				&scorer.best.pelvis,
-				&scorer.best.lfoot,
-				&scorer.best.rfoot
-			};
-
-			Mat3 yaw_unrotate = Mat3::FromRVec(0, -dood->yaw, 0);
-
-			float errtot = 0.0f;
-			for(unsigned int i = 0; i < tracked_bones; ++i)
-			{
-				const IKState::Bone& ik = *ik_bones[i];
-				const CBone&         cb = *cbones  [i];
-				const RigidBody&     rb = *cb.rb;
-
-				MassInfo xmassinfo  = rb.GetTransformedMassInfo();
-
-				Quaternion ori         = rb.GetOrientation();
-				Quaternion desired_ori = Quaternion::FromRotationMatrix(ik.ori);
-
-				/*
-				Vec3 rot            = rb.GetAngularVelocity();
-				Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;
-				Vec3 desired_aaccel = (desired_rot - rot) * inv_timestep;			
-
-				Vec3 desired_torque = Mat3(xmassinfo.moi) * desired_aaccel;
-				Vec3 desired_force  = (ik.pos - xmassinfo.com) * (inv_timestep * xmassinfo.mass);
-
-				Vec3   errors[2]    = { yaw_unrotate * (desired_torque - cb.measured_torque), yaw_unrotate * (desired_force  - cb.measured_force) };
-				*/
-				Vec3   errors[2]    = { yaw_unrotate * -(desired_ori * Quaternion::Reverse(ori)).ToRVec(), yaw_unrotate * (ik.pos - xmassinfo.com) };
-				float* error_floats = (float*)errors;
-
-				for(unsigned int j = 0; j < 6; ++j)
-				{
-					float error = error_floats[j];
-					pd_values[i * 6 + j].Update(error, timestep, inv_timestep);
-
-					if(matrix_test_running)
-						 errtot += error * error;
-				}
-			}
-
-			CoeffMatrix& test_coeffs = *saved_coeffs.begin();
-			test_coeffs.errtot += errtot * timestep;
-			test_coeffs.wtot   += timestep;
-
-			float inputs[num_inputs];
-			float* in_ptr = inputs;
-			*(in_ptr++) = 1.0f;
-			for(unsigned int i = 0; i < tracked_values; ++i)
-			{
-				const PDValue& pd = pd_values[i];
-				*(in_ptr++) = pd.error;
-				*(in_ptr++) = pd.error - pd.last_error;//derror_dt * timestep;			// TODO: remove fudge?
-				//*(in_ptr++) = pd.second_last;//integral;
-			}
-			
-			Vec3 outputs[num_output_vecs];
-			float* output_floats = (float*)outputs;
-			float* of_end        = output_floats + num_output_floats;
-
-			const float* coeff_ptr = test_coeffs.matrix.data();
-			for(float *ti_iter = inputs, *ti_end = ti_iter + num_inputs; ti_iter != ti_end; ++ti_iter)
-				for(float* ti_jter = ti_iter; ti_jter != ti_end; ++ti_jter)
-				{
-					float term = *ti_iter * *ti_jter;
-					for(float* of_iter = output_floats; of_iter != of_end; ++of_iter, ++coeff_ptr)
-						*of_iter += term * *coeff_ptr;
-				}
-
-			CBone* obones[num_output_vecs] = { &luleg, &ruleg, &llleg, &rlleg, &lfoot, &rfoot };
-			for(unsigned int i = 0; i < num_output_vecs; ++i)
-			{
-				CBone& ob = *obones[i];
-				ob.desired_torque = ob.prev_desired_torque + yaw_unrotate.TransposedMultiply(outputs[i]);
-			}
-			lhip  .SetTorqueToSatisfyB();
-			rhip  .SetTorqueToSatisfyB();
-			lknee .SetTorqueToSatisfyB();
-			rknee .SetTorqueToSatisfyB();
-			lankle.SetTorqueToSatisfyB();
-			rankle.SetTorqueToSatisfyB();
-
-
+			Mat3 unrotate    = Mat3::FromRVec(0, -dood->yaw, 0);
+			Vec3 untranslate = pelvis.rb->GetCenterOfMass();
 
 #if ENABLE_STATE_TRANSITION_LOGGING
 			// logger stuff
@@ -859,280 +725,82 @@ namespace Test
 				session_trans.push_back(wip_trans);
 			}
 
-			PushLoggerState(dood);
+			session_states.push_back(MakeLoggerState(dood, unrotate, untranslate));
 
 			wip_trans.from = session_states.size() - 1;
 			wip_trans.to   = tick_age + 1;
-
-			memcpy(wip_trans.outputs, outputs, min(num_output_floats, LoggerTrans::num_outputs) * sizeof(float));
 #endif
 
+			CJoint* ik_joints[6] = { &lankle, &rankle, &lknee, &rknee, &lhip, &rhip };
 
-
-			// score amalgamation and mutation stuff
-			static const unsigned int max_tick_age      = 98;
-			static const unsigned int num_trials        = 50;
-
-			static const unsigned int max_saved_mats    = 20;
-			static const float        selection_exp     = 8.0f;
-			static const float        min_repro_wtot    = 40.0f;
-			static const float        mutation_chance   = 0.8f;
-			static const float        mutation_scale    = 0.1f;
-			static const float        mutation_exp      = 7.0f;
-
-			++tick_age;
-			if(matrix_test_running && tick_age >= max_tick_age)
+			if(siob != NULL)
 			{
-				matrix_test_running = false;
+				LoggerState state = MakeLoggerState(dood, unrotate, untranslate);
 
-				++trial;
-				if(trial == num_trials)
+				float* in_ptr = siob->nn->inputs;
+				memcpy(in_ptr, &last_state, sizeof(LoggerState));
+				in_ptr += sizeof(LoggerState) / sizeof(float);
+				memcpy(in_ptr, last_trans.data(), 18 * sizeof(float));
+				in_ptr += 18;
+				memcpy(in_ptr, &state, sizeof(LoggerState));
+				in_ptr += sizeof(LoggerState) / sizeof(float);
+
+				for(unsigned int i = 0; i < siob->input_scales.size(); ++i)
+					siob->nn->inputs[i] *= siob->input_scales[i];
+
+				float* torque_scales = siob->input_scales.data() + LoggerState::num_bones * LoggerState::Bone::num_floats * 2 + 18;
+				Scorer scorer(this, siob->nn, in_ptr, torque_scales, unrotate, untranslate, p);
+				scorer.Search(40);
+
+				static const float rand_scale      = 1.0f;					// in torque units!
+				static const float rand_twoscale   = rand_scale * 2.0f;
+
+				IKState noisified = scorer.best;
+				for(unsigned int i = 0; i < 18; ++i)
+					noisified.joint_torques[i] += (Random3D::Rand() * rand_twoscale - rand_scale) * torque_scales[i];
+				scorer.ComputeScore(noisified);
+
+				float current = scorer.ComputeScore(state);
+				Debug(((stringstream&)(stringstream() << "current actual = " << current << "; initial prediction = " << scorer.rest.score << "; final prediction = " << scorer.best.score << "; after noise = " << noisified.score << endl)).str());
+
+				float* sel_floats = noisified.joint_torques;
+				for(unsigned int i = 0; i < 18; ++i)
+					sel_floats[i] *= siob->output_scales[i] == 0 ? 1.0f : 1.0f / torque_scales[i];
+
+				Vec3* sel_torques = (Vec3*)sel_floats;
+				for(unsigned int i = 0; i < 6; ++i)
 				{
-					Debug(((stringstream&)(stringstream() << "id = " << test_coeffs.id << "; score = " << test_coeffs.GetScore() << " (" << test_coeffs.errtot << " / " << test_coeffs.wtot << ")" << endl)).str());
-
-					saved_coeffs.sort(CoeffMatrix::Compare);
-					if(saved_coeffs.size() > max_saved_mats)
-						saved_coeffs.pop_back();
-
-					float        fpick = pow(Random3D::Rand(), selection_exp);
-					unsigned int ipick = (unsigned int)(saved_coeffs.size() * fpick);
-
-					list<CoeffMatrix>::iterator iter = saved_coeffs.begin();
-					for(unsigned int i = 0; i < ipick; ++i)
-						++iter;
-
-					bool mutant = iter->wtot >= min_repro_wtot && Random3D::Rand() < mutation_chance;
-
-					for(list<CoeffMatrix>::iterator jter = saved_coeffs.begin(); jter != saved_coeffs.end(); ++jter)
-						if(jter->id == 0)
-							original_score = jter->GetScore();
-
-					string tabs = "\t\t\t\t\t\t\t";
-					stringstream ss;
-					ss << tabs << "number of matrices = " << saved_coeffs.size() << "; latest id = " << CoeffMatrix::next_id << "; original score = " << original_score << endl;
-					for(list<CoeffMatrix>::iterator jter = saved_coeffs.begin(); jter != saved_coeffs.end(); ++jter)
-					{
-						ss << tabs << '\t' << "id = " << jter->id << "; score = " << jter->GetScore() << " (" << jter->errtot << " / " << jter->wtot << ")";
-						if(jter == iter)
-							ss << ";\t\t" << (mutant ? "mutating" : "retest");
-						ss << endl;
-					}
-					((TestGame*)dood->game_state)->debug_text = ss.str();
-
-					if(mutant)
-					{
-						CoeffMatrix temp = (*iter).CreateMutant(mutation_scale, mutation_exp);
-
-						saved_coeffs.push_front(temp);
-					}
-					else
-					{
-						list<CoeffMatrix>::iterator begin = saved_coeffs.begin();
-						CoeffMatrix temp = *begin;
-						*begin = *iter;
-						*iter  = temp;
-					}
-					
-					trial = 0;
+					SkeletalJointConstraint* sjc = ik_joints[i]->sjc;
+					const Vec3& mint = sjc->min_torque;
+					const Vec3& maxt = sjc->max_torque;
+					const Vec3& selt = sel_torques[i];
+					sjc->apply_torque.x = max(mint.x, min(maxt.x, selt.x));
+					sjc->apply_torque.y = max(mint.y, min(maxt.y, selt.y));
+					sjc->apply_torque.z = max(mint.z, min(maxt.z, selt.z));
 				}
+
+				last_state = state;
 			}
+
+#if ENABLE_STATE_TRANSITION_LOGGING
+			float* trans_ptr = wip_trans.outputs;
+			for(unsigned int i = 0; i < 6; ++i, trans_ptr += 3)
+				memcpy(trans_ptr, &ik_joints[i]->sjc->apply_torque, 3 * sizeof(float));
+#endif
+			
+			++tick_age;
+			if(tick_age >= 25)
+				matrix_test_running = false;
 		}
 
 
 
 		struct IKState
 		{
-			// joints
-			Vec3 lankle, rankle;
-			Vec3 lknee,  rknee;
-
-			struct Bone
-			{
-				Vec3 pos, vel, rot;				// pos is of the com, not model origin
-				Mat3 ori;
-
-				void SetConstrained(const RigidBody& rb)
-				{
-					ori = rb.GetOrientation().ToMat3();
-					pos = rb.GetPosition() + ori * rb.GetMassInfo().com;
-
-					vel = rot = Vec3();
-				}
-			};
-
-			Bone lfoot,  llleg,  luleg;
-			Bone rfoot,  rlleg,  ruleg;
-			Bone pelvis;
-
-			Vec3 hip_local_avg;
-			Vec3 ubody_com_from_havg;
-			float ubody_mass;
-
-			Vec3 com;
-			Vec3 desired_com;
-
-			float iv_ori_error[4];
-			float dv_ori_error[2];
-			float dv_pos_error[2];
+			float joint_torques[18];				// already scaled down to neural-net range (-1 to 1)
+			vector<float> prediction;
 
 			float score;
-
-
-
-			void SetInitialRVec(const CJoint& j, Vec3& rvec)
-			{
-				Quaternion aori = j.a->rb->GetOrientation();
-				Quaternion bori = j.b->rb->GetOrientation();
-				const Mat3& axes = j.sjc->axes;
-
-				rvec = axes * Quaternion::Reverse(aori).ToMat3() * (bori * Quaternion::Reverse(aori)).ToRVec();
-			}
-
-			// updating the data of bone A (parent) based on the data of the child bone
-			void UpdateAFromB(const Vec3& rvec, const CJoint& j, const Bone& rest_a, const Bone& rest_b, float inv_timestep, Bone& a, Bone& b)
-			{
-				const SkeletalJointConstraint& sjc = *j.sjc;
-				Mat3 axes   = sjc.axes;
-				Mat3 axes_t = axes.Transpose();
-
-				a.ori = b.ori * axes_t * Mat3::FromRVec(-rvec) * axes;
-
-				a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
-				a.vel = (a.pos - rest_a.pos) * inv_timestep;
-
-				// TODO: check this; also maybe look for a more efficient way to do this computation?
-				a.rot = (Quaternion::FromRotationMatrix(a.ori.Transpose() * rest_a.ori)).ToRVec() * inv_timestep;
-
-				ComputeOriError(rvec, sjc, iv_ori_error[&rvec - &lankle]);
-			}
-
-			void ComputeOriError(const Vec3& rvec, const SkeletalJointConstraint& sjc, float& error)
-			{
-				const Vec3& mins = sjc.min_extents;
-				const Vec3& maxs = sjc.max_extents;
-
-				float dx = rvec.x - max(mins.x, min(maxs.x, rvec.x));
-				float dy = rvec.y - max(mins.y, min(maxs.y, rvec.y));
-				float dz = rvec.z - max(mins.z, min(maxs.z, rvec.z));
-
-				error = Vec3::MagnitudeSquared(dx, dy, dz);
-			}
-
-			void ComputeDVError(const CJoint& joint, const Bone& a, const Bone& b, float& ori_error, float& pos_error)
-			{
-				const SkeletalJointConstraint& sjc = *joint.sjc;
-
-				Quaternion a_to_b = Quaternion::FromRotationMatrix(b.ori) * Quaternion::Reverse(Quaternion::FromRotationMatrix(a.ori));
-
-				const Mat3& axes = sjc.axes;
-				Mat3 rmat = axes * a.ori.Transpose() * b.ori * axes.Transpose();
-				Vec3 rvec = Quaternion::FromRotationMatrix(rmat).ToRVec();
-
-				ComputeOriError(rvec, sjc, ori_error);
-
-				Vec3 pos_delta = b.pos - a.pos + b.ori * joint.r2 - a.ori * joint.r1;
-				pos_error = pos_delta.ComputeMagnitudeSquared();
-			}
-
-			void JointModified(unsigned int index, Imp* imp, const IKState& rest, float inv_timestep)
-			{
-				switch(index)
-				{
-					case 0:
-						UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
-						UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
-						break;
-					case 1:
-						UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
-						UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
-						break;
-					case 2:
-						UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
-						break;
-					case 3:
-						UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
-						break;
-				}
-
-				PlacePelvis(imp, rest, inv_timestep);
-			}
-
-			static void IncrementComAndMassTots(const RigidBody* rb, const Bone& bone, Vec3& comtot, float& masstot)
-			{
-				float mass = rb->GetMass();
-				masstot += mass;
-				comtot  += bone.pos * mass;
-			}
-
-			void PlacePelvis(Imp* imp, const IKState& rest, float inv_timestep)
-			{
-				Vec3 lhpos = luleg.pos + luleg.ori * imp->lhip.sjc->pos;
-				Vec3 rhpos = ruleg.pos + ruleg.ori * imp->rhip.sjc->pos;
-				Vec3 avg   = (lhpos + rhpos) * 0.5f;
-
-				pelvis.pos = avg - pelvis.ori * hip_local_avg;
-
-				ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
-				ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
-
-				Vec3 ubody_com = avg + ubody_com_from_havg;
-				float masstot = ubody_mass;
-				Vec3 comtot = ubody_com * ubody_mass;
-
-				IncrementComAndMassTots(imp->lfoot.rb, lfoot, comtot, masstot);
-				IncrementComAndMassTots(imp->rfoot.rb, rfoot, comtot, masstot);
-				IncrementComAndMassTots(imp->llleg.rb, llleg, comtot, masstot);
-				IncrementComAndMassTots(imp->rlleg.rb, rlleg, comtot, masstot);
-				IncrementComAndMassTots(imp->luleg.rb, luleg, comtot, masstot);
-				IncrementComAndMassTots(imp->ruleg.rb, ruleg, comtot, masstot);
-
-				com = comtot / masstot;
-			}
-
-			float ScoreAll(Imp* imp, const IKState& rest, float inv_timestep)
-			{
-				hip_local_avg = (imp->lhip.sjc->pos + imp->rhip.sjc->pos) * 0.5f;
-
-				UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
-				UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
-				UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
-				UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
-
-				PlacePelvis(imp, rest, inv_timestep);
-
-				return score = SharedScoring(imp, rest);
-			}
-
-			float ScoreChanges(Imp* imp, const IKState& rest, unsigned int joint_index, float inv_timestep)
-			{
-				JointModified(joint_index, imp, rest, inv_timestep);
-
-				return score = SharedScoring(imp, rest);
-			}
-
-			float SharedScoring(Imp* imp, const IKState& rest)
-			{
-				float iv_ori_error_tot        = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3];
-				float dv_ori_error_tot        = dv_ori_error[0] + dv_ori_error[1];
-				float dv_pos_error_tot        = dv_pos_error[0] + dv_pos_error[1];
-
-
-				// TODO: compute these
-				float impossible_force_error  = 0.0f;
-				float impossible_torque_error = 0.0f;
-
-				float impossibility_penalty   = iv_ori_error_tot +
-												dv_ori_error_tot +
-												dv_pos_error_tot +
-												impossible_force_error +
-												impossible_torque_error;
-
-				float undesirability_penalty  = (com - desired_com).ComputeMagnitudeSquared();
-
-				// TODO: compute per-joint torques and assign undesirability/impossibility there? probably too expensive
-
-				return impossibility_penalty + undesirability_penalty * 1.0f;
-			}
 		};
 
 		struct Scorer
@@ -1142,67 +810,36 @@ namespace Test
 
 			IKState rest, best, test1, test2;
 
-			Scorer(Imp* imp, const Quaternion& pelvis_ori, const Quaternion& lfoot_ori, const Quaternion& rfoot_ori) : imp(imp)
+			NeuralNet* ik_ann;
+			float* torques_go_here;
+			float* torque_scales;
+
+			Vec3 desired_pos[3];
+			Quaternion desired_ori[3];
+
+			Scorer(Imp* imp, NeuralNet* ik_ann, float* torques_go_here, float* torque_scales, const Mat3& unrotate, const Vec3& untranslate, const Quaternion& p) : imp(imp), inv_timestep(imp->inv_timestep), ik_ann(ik_ann), torques_go_here(torques_go_here), torque_scales(torque_scales)
 			{
-				inv_timestep = imp->inv_timestep;
+				desired_pos[0] = unrotate * (imp->initial_lfoot_pos  - untranslate);
+				desired_pos[1] = unrotate * (imp->initial_rfoot_pos  - untranslate);
+				desired_pos[2] = unrotate * (imp->initial_pelvis_pos - untranslate);
 
-				// set properties of constrained bones				// TODO: do this better
-				rest.lfoot .SetConstrained(*imp->lfoot .rb);
-				rest.rfoot .SetConstrained(*imp->rfoot .rb);
-				rest.pelvis.SetConstrained(*imp->pelvis.rb);
+				Quaternion unrotate_quat = Quaternion::FromRotationMatrix(unrotate);
 
-				rest.lfoot .ori = lfoot_ori .ToMat3();
-				rest.rfoot .ori = rfoot_ori .ToMat3();
-				rest.pelvis.ori = pelvis_ori.ToMat3();
+				desired_ori[0] = unrotate_quat * imp->initial_lfoot_ori;
+				desired_ori[1] = unrotate_quat * imp->initial_rfoot_ori;
+				desired_ori[2] = unrotate_quat * p;
 
-				rest.lfoot .pos.y = imp->lfoot .local_com.y;
-				rest.rfoot .pos.y = imp->rfoot .local_com.y;
-				
-				MassInfo upper_body_massinfos[] =
-				{
-					imp->pelvis   .rb->GetTransformedMassInfo(),
-					imp->torso1   .rb->GetTransformedMassInfo(),
-					imp->torso2   .rb->GetTransformedMassInfo(),
-					imp->head     .rb->GetTransformedMassInfo(),
-					imp->lshoulder.rb->GetTransformedMassInfo(),
-					imp->rshoulder.rb->GetTransformedMassInfo(),
-					imp->luarm    .rb->GetTransformedMassInfo(),
-					imp->ruarm    .rb->GetTransformedMassInfo(),
-					imp->llarm    .rb->GetTransformedMassInfo(),
-					imp->rlarm    .rb->GetTransformedMassInfo(),
-					imp->lhand    .rb->GetTransformedMassInfo(),
-					imp->rhand    .rb->GetTransformedMassInfo(),
-					imp->gun_rb      ->GetTransformedMassInfo(),
-				};
-				MassInfo sum = MassInfo::Sum(upper_body_massinfos, sizeof(upper_body_massinfos) / sizeof(MassInfo));
+				rest.prediction.resize(ik_ann->num_outputs);
+				memset(rest.joint_torques, 0, sizeof(rest.joint_torques));
 
-				rest.ubody_com_from_havg = sum.com - (rest.pelvis.pos + rest.pelvis.ori * rest.hip_local_avg);		// ish
-				rest.ubody_mass = sum.mass;
-
-				// initialize joints with "default" orientations
-				rest.SetInitialRVec(imp->lankle, rest.lankle);
-				rest.SetInitialRVec(imp->rankle, rest.rankle);
-				rest.SetInitialRVec(imp->lknee,  rest.lknee );
-				rest.SetInitialRVec(imp->rknee,  rest.rknee );
-
-				// TODO: determine and store "support polygon"
-
-				rest.desired_com.x = (rest.lfoot.pos.x + rest.rfoot.pos.x) * 0.5f;
-				rest.desired_com.z = (rest.lfoot.pos.z + rest.rfoot.pos.z) * 0.5f;
-				rest.desired_com.y = 1.8f;		// measured value was about 1.8
-
-				ScoreAll(rest);
+				ComputeScore(rest);
 
 				best = rest;
 			}
-				
-			float ScoreAll(IKState& state) { return state.ScoreAll(imp, rest, inv_timestep); }
-
-			float ScoreChanges(IKState& state, unsigned int joint_index) { return state.ScoreChanges(imp, rest, joint_index, inv_timestep); }
 
 			void Search(unsigned int num_iterations)
 			{
-				unsigned int num_vars = 4 * 3;								// four joints times three degrees of freedom
+				unsigned int num_vars = 6 * 3;								// four joints times three degrees of freedom
 				for(unsigned int i = 0; i < num_iterations; ++i)
 				{
 					for(unsigned int j = 0; j < num_vars; ++j)
@@ -1211,17 +848,17 @@ namespace Test
 						unsigned int joint_index = k / 3;
 
 						float y0 = best.score;
-						float scale = sqrtf(y0) * 0.1f;
+						float scale = sqrtf(y0) * 0.07f;
 
 						test1 = best;
-						float& x1 = ((float*)&test1.lankle)[k];
+						float& x1 = test1.joint_torques[k];
 						x1 += scale;
-						float y1 = ScoreChanges(test1, joint_index);
+						float y1 = ComputeScore(test1);
 
 						test2 = best;
-						float& x2 = ((float*)&test2.lankle)[k];
+						float& x2 = test2.joint_torques[k];
 						x2 -= scale;
-						float y2 = ScoreChanges(test2, joint_index);
+						float y2 = ComputeScore(test2);
 
 						if(y1 < y0 && y1 < y2)
 							best = test1;
@@ -1231,15 +868,52 @@ namespace Test
 				}
 			}
 
+			float ComputeScore(IKState& state)
+			{
+				memcpy(torques_go_here, state.joint_torques, 18 * sizeof(float));
+
+				ik_ann->Evaluate();
+
+				memcpy(state.prediction.data(), ik_ann->outputs, ik_ann->num_outputs * sizeof(float));
+
+				for(float *pred_ptr = state.prediction.data(), *pred_end = pred_ptr + ik_ann->num_outputs, *scale_ptr = imp->siob->output_scales.data(); pred_ptr != pred_end; ++pred_ptr, ++scale_ptr)
+					*pred_ptr *= *scale_ptr == 0.0f ? 0.0f : 1.0f / *scale_ptr;
+
+				return state.score = ComputeScore(*(LoggerState*)state.prediction.data());
+			}
+
+			float GetQuatErrorSquared(Quaternion predicted, const Quaternion& desired)
+			{
+				float inv_norm = 1.0f / predicted.Norm();
+				predicted.w *= -inv_norm;
+				predicted.x *= inv_norm;
+				predicted.y *= inv_norm;
+				predicted.z *= inv_norm;
+
+				float error = (predicted * desired).GetRotationAngle();
+				return error * error;
+			}
+
+			float ComputeScore(const LoggerState& ls)
+			{
+				float score = 0.0f;
+
+				score += (ls.bones[0].pos - desired_pos[0]).ComputeMagnitudeSquared();
+				score += GetQuatErrorSquared(ls.bones[0].ori, desired_ori[0]);
+
+				score += (ls.bones[1].pos - desired_pos[1]).ComputeMagnitudeSquared();
+				score += GetQuatErrorSquared(ls.bones[1].ori, desired_ori[1]);
+				
+				score += (ls.bones[6].pos - desired_pos[2]).ComputeMagnitudeSquared();
+				score += GetQuatErrorSquared(ls.bones[6].ori, desired_ori[2]);
+
+				return score;
+			}
 		};
 
-
-		void PushLoggerState(Soldier* dood)
+		LoggerState MakeLoggerState(Soldier* dood, const Mat3& unrotate, const Vec3& untranslate)
 		{
 			LoggerState state;
-
-			Mat3 unrotate    = Mat3::FromRVec(0, -dood->yaw, 0);
-			Vec3 untranslate = pelvis.rb->GetCenterOfMass();
 
 			state.bones[0] = LoggerState::Bone(lfoot .rb, untranslate, unrotate);
 			state.bones[1] = LoggerState::Bone(rfoot .rb, untranslate, unrotate);
@@ -1248,10 +922,10 @@ namespace Test
 			state.bones[4] = LoggerState::Bone(luleg .rb, untranslate, unrotate);
 			state.bones[5] = LoggerState::Bone(ruleg .rb, untranslate, unrotate);
 			state.bones[6] = LoggerState::Bone(pelvis.rb, untranslate, unrotate);
-			state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
-			state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
+			//state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
+			//state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
 
-			session_states.push_back(state);
+			return state;
 		}
 
 		static void SaveLogs()
@@ -1273,15 +947,16 @@ namespace Test
 				WriteUInt32(LoggerTrans::num_outputs,      file);
 
 				WriteUInt32(session_states.size(), file);
-				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter)
+				unsigned int derp = 0;
+				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter, ++derp)
 				{
-					const LoggerState& ls          = *iter;
-					const Bone*        ls_bones    = (const Bone*)&ls;
+					const LoggerState&       ls       = *iter;
+					const LoggerState::Bone* ls_bones = (LoggerState::Bone*)&ls;
 
 					for(unsigned int i = 0; i < LoggerState::num_bones; ++i)
 					{
-						const Bone&    bone        = ls_bones[i];
-						const float*   bone_floats = (const float*)&bone;
+						const LoggerState::Bone& bone = ls_bones[i];
+						const float*      bone_floats = (float*)&bone;
 
 						for(unsigned int j = 0; j < LoggerState::Bone::num_floats; ++j)
 							WriteSingle(bone_floats[j], file);
@@ -1541,30 +1216,6 @@ namespace Test
 
 	void Soldier::LoadMatrix()
 	{
-		saved_coeffs.clear();
-		CoeffMatrix best_coeffs = CoeffMatrix();
-
-		ifstream file("Files/coeffs", ios::in | ios::binary);
-		if(!file)
-			Debug("Unable to load coefficient matrix!\n");
-		else
-		{
-			unsigned int size = ReadUInt32(file);
-
-			if(size != best_coeffs.matrix.size())
-				Debug("Coefficient matrix size doesn't match!\n");
-			else
-			{
-				for(unsigned int i = 0; i < size; ++i)
-					best_coeffs.matrix[i] = ReadSingle(file);
-			}
-
-			file.close();
-		}
-
-		saved_coeffs.push_back(best_coeffs);
-
-
 		// this is also a convenient time to clear our state & transition logs
 		session_states.clear();
 		session_trans.clear();
@@ -1572,26 +1223,6 @@ namespace Test
 
 	void Soldier::SaveMatrix()
 	{
-		if(saved_coeffs.empty())
-			return;
-		saved_coeffs.sort(CoeffMatrix::SaveComparator(3.0f));
-
-		const CoeffMatrix& best_coeffs = *saved_coeffs.begin();
-
-		ofstream file("Files/coeffs", ios::out | ios::binary);
-		if(!file)
-			Debug("Failed to save coefficient matrix!\n");
-		else
-		{
-			unsigned int size = best_coeffs.matrix.size();
-			WriteUInt32(size, file);
-			for(unsigned int i = 0; i < size; ++i)
-				WriteSingle(best_coeffs.matrix[i], file);
-
-			file.close();
-		}
-
-
 		// this is also a convenient time to save our state & transition logs
 		Imp::SaveLogs();
 	}

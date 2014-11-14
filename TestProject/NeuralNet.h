@@ -65,6 +65,8 @@ namespace Test
 			float* bottom_matrix;
 			float* temp_bottom;
 
+			static unsigned int GetNumFloats(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_middles) { return num_inputs + num_middles * 3 + num_outputs * 5 + num_inputs * num_middles * 2 + num_middles * num_outputs * 2; }
+
 			void Randomize(float scale);
 
 			void Evaluate()
@@ -91,7 +93,9 @@ namespace Test
 
 			// constructor/destructor-ish
 			static NeuralNet* New(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_middles);
-
 			static void Delete(NeuralNet* nn);
+
+			unsigned int Write(ostream& s) const;
+			static unsigned int Read(istream& s, NeuralNet*& result);
 	};
 }

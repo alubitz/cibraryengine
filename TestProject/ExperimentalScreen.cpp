@@ -3,8 +3,10 @@
 
 #include "NeuralNet.h"
 
+#include "ScaledIOBrain.h"
+
 #define NUM_MIDDLE_LAYER_NEURONS   15
-#define LEARNING_RATE              0.002f
+#define LEARNING_RATE              0.005f
 
 namespace Test
 {
@@ -13,12 +15,12 @@ namespace Test
 	 */
 	struct ExperimentalScreen::Imp
 	{
-		NeuralNet* nn;
+		ScaledIOBrain* siob;
 
 		ExperimentalScreen* scr;
 		vector<AutoMenuItem*> auto_menu_items;
 
-		AutoMenuItem *output1, *output2;
+		AutoMenuItem* outputs[6];
 
 		struct BackButton : public AutoMenuItem
 		{
@@ -26,7 +28,7 @@ namespace Test
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(mse->menu->GetPreviousScreen()); }
 		};
 
-		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items(), output1(NULL), output2(NULL)
+		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items()
 		{
 			// init screen stuff
 			ContentMan* content = scr->content;
@@ -35,8 +37,8 @@ namespace Test
 			auto_menu_items.push_back(new AutoMenuItem(content, "Experimental Screen", row++, false));
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 
-			auto_menu_items.push_back(output1 = new AutoMenuItem(content, "", row++, false));
-			auto_menu_items.push_back(output2 = new AutoMenuItem(content, "", row++, false));
+			for(unsigned int i = 0; i < 6; ++i)
+				auto_menu_items.push_back(outputs[i] = new AutoMenuItem(content, "", row++, false));
 
 			auto_menu_items.push_back(new BackButton(content, row++));
 
@@ -48,8 +50,17 @@ namespace Test
 
 			step = 0;
 
-			nn = NeuralNet::New((state_floats + trans_floats) * 2, state_floats, NUM_MIDDLE_LAYER_NEURONS);
-			nn->Randomize(0.5f);
+			siob = new ScaledIOBrain(NeuralNet::New((state_floats + trans_floats) * 2, state_floats, NUM_MIDDLE_LAYER_NEURONS));
+			siob->nn->Randomize(0.1f);
+
+			siob->input_scales.clear();
+			siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
+			siob->input_scales.insert(siob->input_scales.end(), trans_scales.begin(), trans_scales.end());
+			siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
+			siob->input_scales.insert(siob->input_scales.end(), trans_scales.begin(), trans_scales.end());
+
+			siob->output_scales.clear();
+			siob->output_scales.insert(siob->output_scales.end(), state_scales.begin(), state_scales.end());
 		}
 
 		~Imp()
@@ -63,7 +74,8 @@ namespace Test
 			}
 			auto_menu_items.clear();
 
-			if(nn) { NeuralNet::Delete(nn); nn = NULL; }
+			SaveNeuralNet();
+			if(siob) { delete siob; siob = NULL; }
 		}
 
 		struct TransIndices
@@ -97,7 +109,7 @@ namespace Test
 				for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
 					scale = max(scale, fabs((*iter)[i]));
 
-				scale = scale > 0 ? 1.0f / scale : 1.0f;			// catch NAN, etc.
+				scale = scale > 0 ? 0.95f / scale : 1.0f;			// catch NAN, etc.
 			}
 			for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
 				for(unsigned int i = 0; i < entry_floats; ++i)
@@ -172,17 +184,8 @@ namespace Test
 			}
 			
 			string str = ((stringstream&)(stringstream() << "dataset contains " << trans.size() << " state transition records, within which there are " << indices.size() << " unique 2-transition samples" << endl)).str();
-			output1->SetText(str);
+			outputs[0]->SetText(str);
 			Debug(str);
-		}
-
-		void MaybeRandomizeCoefficient(float& coeff)
-		{
-			static const unsigned int odds_against = 200;
-			static const float        amount       = 0.0001f;
-
-			if(Random3D::RandInt() % odds_against == 0)
-				coeff += Random3D::Rand(-amount, amount);
 		}
 
 		
@@ -205,40 +208,26 @@ namespace Test
 				shuffle.clear();
 				shuffle.resize(records_per_pass);
 
-				unsigned int* shuffle_begin = shuffle.data();
-				unsigned int* shuffle_end = shuffle_begin + records_per_pass;
 				for(unsigned int i = 1; i < records_per_pass; ++i)
-				{
-					unsigned int* shuffle_ptr = shuffle_begin + Random3D::RandInt() % records_per_pass;
-					while(*shuffle_ptr)
-					{
-						++shuffle_ptr;
-						if(shuffle_ptr == shuffle_end)
-							shuffle_ptr = shuffle_begin;
-					}
-					*shuffle_ptr = i;
-				}
+					shuffle[i] = i;
+				for(unsigned int i = 0; i < records_per_pass; ++i)
+					swap(shuffle[i], shuffle[Random3D::RandInt(records_per_pass)]);
 			}
-
-			for(float *tm_ptr = nn->top_matrix, *tm_end = tm_ptr + nn->top_matrix_size; tm_ptr != tm_end; ++tm_ptr)
-				MaybeRandomizeCoefficient(*tm_ptr);
-			for(float *bm_ptr = nn->bottom_matrix, *bm_end = bm_ptr + nn->bottom_matrix_size; bm_ptr != bm_end; ++bm_ptr)
-				MaybeRandomizeCoefficient(*bm_ptr);
 
 			// deliberately empty for loop
 			unsigned int use_record = shuffle[record];
 			const TransIndices& index = indices[use_record];
 
-			float* in_ptr = nn->inputs;
+			float* in_ptr = siob->nn->inputs;
 			PushInputFloats(state_floats, in_ptr, states[index.state1]);
 			PushInputFloats(trans_floats, in_ptr, trans [index.trans1]);
 			PushInputFloats(state_floats, in_ptr, states[index.state2]);
 			PushInputFloats(trans_floats, in_ptr, trans [index.trans2]);
 
-			memcpy(nn->correct_outputs, states[index.state3].data(), state_floats * sizeof(float));
+			memcpy(siob->nn->correct_outputs, states[index.state3].data(), state_floats * sizeof(float));
 
-			float score_before = nn->Train(LEARNING_RATE);
-			float score_after  = nn->EvaluateAndScore();
+			float score_before = siob->nn->Train(LEARNING_RATE);
+			float score_after  = siob->nn->EvaluateAndScore();
 
 			if(scores_before.empty())
 				scores_before.resize(records_per_pass);
@@ -258,11 +247,34 @@ namespace Test
 					mavg_tot += scores_before[i];
 			float mavg = pass == 0 ? mavg_tot / (record + 1) : mavg_tot / records_per_pass;
 
-			string str = ((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << endl)).str();
-			output2->SetText(str);
-			Debug(str);
+			outputs[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record)).str());
+			outputs[2]->SetText(((stringstream&)(stringstream() << "last   = " << last)).str());
+			outputs[3]->SetText(((stringstream&)(stringstream() << "before = " << score_before)).str());
+			outputs[4]->SetText(((stringstream&)(stringstream() << "after  = " << score_after)).str());
+			outputs[5]->SetText(((stringstream&)(stringstream() << "recent \"before\" avg = " << mavg)).str());
+			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << endl)).str());
 
 			++step;
+		}
+
+
+
+		void SaveNeuralNet() const
+		{
+			time_t raw_time;
+			time(&raw_time);
+			tm now = *localtime(&raw_time);
+
+			string filename = ((stringstream&)(stringstream() << "Files/Brains/neuralnet-" << now.tm_year + 1900 << "-" << now.tm_mon + 1 << "-" << now.tm_mday << "-" << now.tm_hour << "-" << now.tm_min << "-" << now.tm_sec << ".brain")).str();
+
+			ofstream file(filename, ios::out | ios::binary);
+			if(!file)
+				Debug("Failed to save brain!\n");
+			else
+			{
+				siob->Write(file);
+				file.close();
+			}
 		}
 	};
 

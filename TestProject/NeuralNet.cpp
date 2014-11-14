@@ -40,8 +40,7 @@ namespace Test
 	// public static constructor-ish and destructor-ish functions
 	NeuralNet* NeuralNet::New(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_middles)
 	{
-		unsigned int num_floats = num_inputs + num_middles * 3 + num_outputs * 5 + num_inputs * num_middles * 2 + num_middles * num_outputs * 3;
-		unsigned int needed_size = sizeof(NeuralNet) + num_floats * sizeof(float);
+		unsigned int needed_size = sizeof(NeuralNet) + GetNumFloats(num_inputs, num_outputs, num_middles) * sizeof(float);
 
 		NeuralNet* nn_ptr = (NeuralNet*)malloc(needed_size);
 
@@ -102,5 +101,52 @@ namespace Test
 		memcpy(top_matrix,    temp_top,    num_inputs  * num_middles * sizeof(float));
 
 		return initial_error;
+	}
+
+
+
+	unsigned int NeuralNet::Write(ostream& s) const
+	{	
+		stringstream nnss;
+		WriteUInt32(num_inputs, nnss);
+		WriteUInt32(num_outputs, nnss);
+		WriteUInt32(num_middles, nnss);
+
+		unsigned int num_floats = GetNumFloats(num_inputs, num_outputs, num_middles);
+
+		WriteUInt32(num_floats,  nnss);					// write this to act as sort of a checksum
+		for(unsigned int i = 0; i < num_floats; ++i)
+			WriteSingle(data[i], nnss);
+
+		BinaryChunk chunk("NEURALNT");
+		chunk.data = nnss.str();
+		chunk.Write(s);
+
+		return 0;
+	}
+
+	unsigned int NeuralNet::Read(istream& s, NeuralNet*& result)
+	{
+		BinaryChunk chunk;
+		chunk.Read(s);
+
+		if(chunk.GetName() != "NEURALNT")
+			return 1;
+
+		istringstream nnss(chunk.data);
+
+		unsigned int num_inputs  = ReadUInt32(nnss);
+		unsigned int num_outputs = ReadUInt32(nnss);
+		unsigned int num_middles = ReadUInt32(nnss);
+		unsigned int num_floats  = ReadUInt32(nnss);
+
+		if(num_floats != GetNumFloats(num_inputs, num_outputs, num_middles))
+			return 2;
+
+		result = New(num_inputs, num_outputs, num_middles);
+		for(float *data_ptr = result->data, *data_end = data_ptr + num_floats; data_ptr != data_end; ++data_ptr)
+			*data_ptr = ReadSingle(nnss);
+
+		return 0;
 	}
 }
