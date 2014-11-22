@@ -5,8 +5,8 @@
 
 #include "ScaledIOBrain.h"
 
-#define NUM_MIDDLE_LAYER_NEURONS   15
-#define LEARNING_RATE              0.005f
+#define NUM_MIDDLE_LAYER_NEURONS   50
+#define BASE_LEARNING_RATE         0.002f
 
 namespace Test
 {
@@ -20,12 +20,18 @@ namespace Test
 		ExperimentalScreen* scr;
 		vector<AutoMenuItem*> auto_menu_items;
 
-		AutoMenuItem* outputs[6];
+		AutoMenuItem* output_text[6];
 
 		struct BackButton : public AutoMenuItem
 		{
-			BackButton (ContentMan* content, int row) : AutoMenuItem(content, "Back", row, true) { }
+			BackButton(ContentMan* content, int row) : AutoMenuItem(content, "Back", row, true) { }
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(mse->menu->GetPreviousScreen()); }
+		};
+
+		struct ShakeButton : public AutoMenuItem
+		{
+			ShakeButton(ContentMan* content, int row) : AutoMenuItem(content, "Shake", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->Shake(); }
 		};
 
 		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items()
@@ -38,8 +44,9 @@ namespace Test
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 
 			for(unsigned int i = 0; i < 6; ++i)
-				auto_menu_items.push_back(outputs[i] = new AutoMenuItem(content, "", row++, false));
+				auto_menu_items.push_back(output_text[i] = new AutoMenuItem(content, "", row++, false));
 
+			auto_menu_items.push_back(new ShakeButton(content, row++));
 			auto_menu_items.push_back(new BackButton(content, row++));
 
 			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
@@ -50,17 +57,21 @@ namespace Test
 
 			step = 0;
 
-			siob = new ScaledIOBrain(NeuralNet::New((state_floats + trans_floats) * 2, state_floats, NUM_MIDDLE_LAYER_NEURONS));
-			siob->nn->Randomize(0.1f);
+			mavg = -1;
 
-			siob->input_scales.clear();
-			siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
-			siob->input_scales.insert(siob->input_scales.end(), trans_scales.begin(), trans_scales.end());
-			siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
-			siob->input_scales.insert(siob->input_scales.end(), trans_scales.begin(), trans_scales.end());
+			if(state_floats > 0)
+			{
+				siob = new ScaledIOBrain(NeuralNet::New(state_floats, 21, NUM_MIDDLE_LAYER_NEURONS));
+				siob->nn->Randomize(0.1f);
 
-			siob->output_scales.clear();
-			siob->output_scales.insert(siob->output_scales.end(), state_scales.begin(), state_scales.end());
+				siob->input_scales.clear();
+				siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
+
+				siob->output_scales.clear();
+				siob->output_scales.insert(siob->output_scales.end(), out_scales.begin(), out_scales.end());
+			}
+			else
+				siob = NULL;
 		}
 
 		~Imp()
@@ -74,27 +85,35 @@ namespace Test
 			}
 			auto_menu_items.clear();
 
-			SaveNeuralNet();
-			if(siob) { delete siob; siob = NULL; }
+			if(siob != NULL)
+			{
+				SaveNeuralNet();
+
+				delete siob;
+				siob = NULL;
+			}
 		}
 
 		struct TransIndices
 		{
-			unsigned int state1, state2, state3;
-			unsigned int trans1, trans2;
+			unsigned int state1, state2;
+
+			float importance;
 		};
 
 		unsigned int step;
-		unsigned int state_floats, trans_floats;
+		unsigned int state_floats;
 		vector<vector<float>> states;
-		vector<vector<float>> trans;
-		vector<unsigned int> froms;
-		vector<unsigned int> tos;
+		vector<vector<float>> outputs;
 		vector<TransIndices> indices;
 		vector<float> state_scales;
-		vector<float> trans_scales;
+		vector<float> out_scales;
+
+
 		vector<float> scores_before;
 		vector<float> scores_after;
+
+		float mavg;
 
 		vector<unsigned int> shuffle;
 
@@ -129,14 +148,20 @@ namespace Test
 		{
 			ifstream file("Files/Logs/learnme.statelog", ios::in | ios::binary);
 			if(!file)
+			{
 				Debug("Unable to load state transitions logfile!\n");
+				/*trans_floats =*/ state_floats = 0;
+			}
 			else
 			{
-				unsigned int bone_floats = ReadUInt32(file);
-				unsigned int num_bones   = ReadUInt32(file);
+				unsigned int bone_floats      = ReadUInt32(file);
+				unsigned int num_bones        = ReadUInt32(file);
 
-				trans_floats         = ReadUInt32(file);
-				state_floats         = bone_floats * num_bones;
+				unsigned int cp_floats        = ReadUInt32(file);
+				unsigned int max_cps_per_foot = ReadUInt32(file);
+				unsigned int num_cps          = ReadUInt32(file);
+
+				state_floats = bone_floats * num_bones + cp_floats * num_cps;
 
 				unsigned int num_state_entries = ReadUInt32(file);
 				for(unsigned int i = 0; i < num_state_entries; ++i)
@@ -147,48 +172,88 @@ namespace Test
 					states.push_back(data);
 				}
 
+				// set up indices
 				unsigned int num_trans_entries = ReadUInt32(file);
 				for(unsigned int i = 0; i < num_trans_entries; ++i)
 				{
-					vector<float> data(trans_floats);
-					froms.push_back(ReadUInt32(file));
-					tos  .push_back(ReadUInt32(file));
-					for(unsigned int j = 0; j < trans_floats; ++j)
-						data[j] = ReadSingle(file);
-					trans.push_back(data);
+					TransIndices index;
+					index.state1 = ReadUInt32(file);
+					index.state2 = ReadUInt32(file);
+					indices.push_back(index);
 				}
 
 				file.close();
+				
+
+				// find output vector to match state2 vectors
+				outputs.clear();
+				for(unsigned int i = 0; i < num_state_entries; ++i)
+				{
+					vector<float> data;
+					for(unsigned int j = 0; j < num_trans_entries; ++j)
+						if(indices[j].state2 == i)
+						{
+							for(unsigned int k = 0; k < 7; ++k)
+								data.push_back(states[i][k]);
+							for(unsigned int k = 0; k < 7; ++k)
+								data.push_back(states[i][k + 13]);
+							for(unsigned int k = 0; k < 7; ++k)
+								data.push_back(states[i][k + 13 * 6]);
+
+							break;
+						}
+					if(data.empty())
+						data.resize(21);
+					outputs.push_back(data);
+				}
 
 				// scale everything to an appropriate range
-				SetTableScale(states, state_scales, state_floats);
-				SetTableScale(trans,  trans_scales, trans_floats);
+				SetTableScale(states,  state_scales,  state_floats);
+				SetTableScale(outputs, out_scales,    21);
 
-				// set up indices
-				for(unsigned int i = 0; i < num_trans_entries; ++i)
+				float importance_tot = 0.0f;
+				for(unsigned int i = 0; i < indices.size(); ++i)
 				{
-					TransIndices index;
-					index.state1 = froms[i];
-					index.trans1 = i;
-					index.state2 = tos[i];
-
-					for(unsigned int j = 0; j < num_trans_entries; ++j)
-						if(froms[j] == tos[i])
-						{
-							index.trans2 = j;
-							index.state3 = tos[j];
-
-							indices.push_back(index);
-						}
+					indices[i].importance = GetIndexTTL(i) < 2.0f ? 20.0f : 1.0f;
+					importance_tot += indices[i].importance;
 				}
+				importance_tot = indices.size() / importance_tot;
+				for(unsigned int i = 0; i < indices.size(); ++i)
+					indices[i].importance *= importance_tot;
 			}
 			
-			string str = ((stringstream&)(stringstream() << "dataset contains " << trans.size() << " state transition records, within which there are " << indices.size() << " unique 2-transition samples" << endl)).str();
-			outputs[0]->SetText(str);
+			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << indices.size() << " transitions" << endl)).str();
+			output_text[0]->SetText(str);
 			Debug(str);
 		}
 
-		
+		float GetIndexTTL(unsigned int index_index) const
+		{
+			float ttl = 0.0f;
+			float children = 0.0f;
+			TransIndices t = indices[index_index];
+			for(unsigned int i = 0; i < indices.size(); ++i)
+				if(indices[i].state1 == t.state2)
+				{
+					ttl += GetIndexTTL(i);
+					++children;
+				}
+			return children == 0 ? 0.0f : ttl / children;
+		}
+
+		void Shake()
+		{
+			if(siob == NULL)
+				return;
+
+			static const float shake_amount = 0.025f;
+
+			for(float *fptr = siob->nn->top_matrix, *fend = fptr + siob->nn->top_matrix_size; fptr != fend; ++fptr)
+				*fptr += Random3D::Rand(-shake_amount, shake_amount);
+			for(float *fptr = siob->nn->bottom_matrix, *fend = fptr + siob->nn->bottom_matrix_size; fptr != fend; ++fptr)
+				*fptr += Random3D::Rand(-shake_amount, shake_amount);
+		}
+
 
 		void PushInputFloats(unsigned int size, float*& input_ptr, const vector<float>& source)
 		{
@@ -198,6 +263,9 @@ namespace Test
 
 		void Update(const TimingInfo& time)
 		{
+			if(siob == NULL)
+				return;
+
 			unsigned int records_per_pass = indices.size();
 			
 			unsigned int pass   = step / records_per_pass;
@@ -220,13 +288,11 @@ namespace Test
 
 			float* in_ptr = siob->nn->inputs;
 			PushInputFloats(state_floats, in_ptr, states[index.state1]);
-			PushInputFloats(trans_floats, in_ptr, trans [index.trans1]);
-			PushInputFloats(state_floats, in_ptr, states[index.state2]);
-			PushInputFloats(trans_floats, in_ptr, trans [index.trans2]);
+			
+			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), 21 * sizeof(float));
 
-			memcpy(siob->nn->correct_outputs, states[index.state3].data(), state_floats * sizeof(float));
-
-			float score_before = siob->nn->Train(LEARNING_RATE);
+			float use_learning_rate = index.importance * BASE_LEARNING_RATE * (mavg > 1.0f ? 1.0f + 2.0f * (mavg - 1.0f) : 1.0f);
+			float score_before = siob->nn->Train(use_learning_rate);
 			float score_after  = siob->nn->EvaluateAndScore();
 
 			if(scores_before.empty())
@@ -238,20 +304,29 @@ namespace Test
 			scores_before[use_record] = score_before;
 			scores_after [use_record] = score_after;
 
-			float mavg_tot = 0.0f;
+			float mavg_tot  = 0.0f;
+			float mavg_wtot = 0.0f;
 			if(pass == 0)
 				for(unsigned int i = 0; i <= record; ++i)
-					mavg_tot += scores_before[shuffle[i]];
+				{
+					float weight = indices[shuffle[i]].importance;
+					mavg_tot  += weight * scores_before[shuffle[i]];
+					mavg_wtot += weight;
+				}
 			else
 				for(unsigned int i = 0; i < records_per_pass; ++i)
-					mavg_tot += scores_before[i];
-			float mavg = pass == 0 ? mavg_tot / (record + 1) : mavg_tot / records_per_pass;
+				{
+					float weight = indices[i].importance;
+					mavg_tot  += weight * scores_before[i];
+					mavg_wtot += weight;
+				}
+			mavg = mavg_tot / mavg_wtot;
 
-			outputs[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record)).str());
-			outputs[2]->SetText(((stringstream&)(stringstream() << "last   = " << last)).str());
-			outputs[3]->SetText(((stringstream&)(stringstream() << "before = " << score_before)).str());
-			outputs[4]->SetText(((stringstream&)(stringstream() << "after  = " << score_after)).str());
-			outputs[5]->SetText(((stringstream&)(stringstream() << "recent \"before\" avg = " << mavg)).str());
+			output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record)).str());
+			output_text[2]->SetText(((stringstream&)(stringstream() << "last   = " << last)).str());
+			output_text[3]->SetText(((stringstream&)(stringstream() << "before = " << score_before)).str());
+			output_text[4]->SetText(((stringstream&)(stringstream() << "after  = " << score_after)).str());
+			output_text[5]->SetText(((stringstream&)(stringstream() << "recent \"before\" avg = " << mavg)).str());
 			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << endl)).str());
 
 			++step;

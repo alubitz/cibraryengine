@@ -12,11 +12,14 @@
 #include "ScaledIOBrain.h"
 #include "NeuralNet.h"
 
-#define DIE_AFTER_ONE_SECOND            0
+#define DIE_AFTER_ONE_SECOND              0
 
-#define ENABLE_NEW_JETPACKING           0
+#define ENABLE_NEW_JETPACKING             0
 
-#define ENABLE_STATE_TRANSITION_LOGGING 1
+#define ENABLE_STATE_TRANSITION_LOGGING   1
+
+#define MAX_MAX_TICK_AGE                  3
+#define RANDOM_TORQUE_TICKS               2
 
 namespace Test
 {
@@ -58,10 +61,15 @@ namespace Test
 
 	struct LoggerState
 	{
-		static const unsigned int num_bones = 7;
+		static const unsigned int num_bones          = 9;
+
+		static const unsigned int max_cps_per_foot   = 3;
+		static const unsigned int num_cps            = max_cps_per_foot * 2;
 
 		struct Bone
 		{
+			static const unsigned int num_floats;
+
 			Quaternion ori;
 			Vec3 pos;
 			Vec3 vel;
@@ -76,23 +84,26 @@ namespace Test
 				rot(unrotate * rb->GetAngularVelocity())
 			{
 			}
-
-			static const unsigned int num_floats;
 		} bones[num_bones];
+
+		struct CP
+		{
+			static const unsigned int num_floats;
+
+			Vec3 pos, normal;
+		} cps[num_cps];
 	};
 
 	struct LoggerTrans
 	{
-		static const unsigned int num_outputs = 18;
-
 		unsigned int from, to;
-		float outputs[num_outputs];
 
 		LoggerTrans() : from(0), to(0) { }
 	};
 	LoggerTrans wip_trans;
 
-	const unsigned int LoggerState::Bone::num_floats = sizeof(Bone) / sizeof(float);
+	const unsigned int LoggerState::Bone::num_floats = sizeof(LoggerState::Bone) / sizeof(float);
+	const unsigned int LoggerState::CP::num_floats   = sizeof(LoggerState::CP)   / sizeof(float);
 
 	static list<LoggerState> session_states;
 	static list<LoggerTrans> session_trans;
@@ -115,25 +126,10 @@ namespace Test
 			Vec3 desired_torque;
 			Vec3 applied_torque;
 
-			//Vec3 old_rot, old_vel;
-			//Vec3 measured_torque, measured_force;
-
 			CBone() { }
 			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com) { }
 
-			void Reset(float inv_timestep)
-			{
-				desired_torque = applied_torque = Vec3();
-				/*
-				Vec3 new_rot = rb->GetAngularVelocity();
-				measured_torque = Mat3(rb->GetTransformedMassInfo().moi) * (new_rot - old_rot) * inv_timestep;
-				old_rot = new_rot;
-
-				Vec3 new_vel = rb->GetLinearVelocity();
-				measured_force = (new_vel - old_vel) * (inv_timestep * rb->GetMass());
-				old_vel = new_vel;
-				*/
-			}
+			void Reset(float inv_timestep) { desired_torque = applied_torque = Vec3(); }
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
 			{
@@ -270,7 +266,7 @@ namespace Test
 
 		float timestep, inv_timestep;
 
-		unsigned int tick_age;
+		unsigned int tick_age, max_tick_age;
 
 		struct JetpackNozzle
 		{
@@ -365,14 +361,12 @@ namespace Test
 
 		ScaledIOBrain* siob;
 
-		LoggerState last_state;
-		vector<float> last_trans;
-
 		Imp() :
 			init(false),
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
+			max_tick_age(Random3D::RandInt(3, MAX_MAX_TICK_AGE)),
 			siob(NULL)
 		{
 		}
@@ -397,8 +391,6 @@ namespace Test
 					delete siob;
 					siob = NULL;
 				}
-				else
-					last_trans.resize(18);
 
 				file.close();
 			}
@@ -733,63 +725,58 @@ namespace Test
 
 			CJoint* ik_joints[6] = { &lankle, &rankle, &lknee, &rknee, &lhip, &rhip };
 
+			static const float rand_scale      = 1.0f;						// as a fraction of the max possible torque
+			static const float rand_twoscale   = rand_scale * 2.0f;
+
 			if(siob != NULL)
 			{
 				LoggerState state = MakeLoggerState(dood, unrotate, untranslate);
 
-				float* in_ptr = siob->nn->inputs;
-				memcpy(in_ptr, &last_state, sizeof(LoggerState));
-				in_ptr += sizeof(LoggerState) / sizeof(float);
-				memcpy(in_ptr, last_trans.data(), 18 * sizeof(float));
-				in_ptr += 18;
-				memcpy(in_ptr, &state, sizeof(LoggerState));
-				in_ptr += sizeof(LoggerState) / sizeof(float);
-
+				memcpy(siob->nn->inputs, &state, sizeof(LoggerState));
 				for(unsigned int i = 0; i < siob->input_scales.size(); ++i)
 					siob->nn->inputs[i] *= siob->input_scales[i];
 
-				float* torque_scales = siob->input_scales.data() + LoggerState::num_bones * LoggerState::Bone::num_floats * 2 + 18;
-				Scorer scorer(this, siob->nn, in_ptr, torque_scales, unrotate, untranslate, p);
+				Scorer scorer(this, siob, unrotate, untranslate, p);
 				scorer.Search(40);
 
-				static const float rand_scale      = 1.0f;					// in torque units!
-				static const float rand_twoscale   = rand_scale * 2.0f;
-
 				IKState noisified = scorer.best;
-				for(unsigned int i = 0; i < 18; ++i)
-					noisified.joint_torques[i] += (Random3D::Rand() * rand_twoscale - rand_scale) * torque_scales[i];
-				scorer.ComputeScore(noisified);
-
-				float current = scorer.ComputeScore(state);
-				Debug(((stringstream&)(stringstream() << "current actual = " << current << "; initial prediction = " << scorer.rest.score << "; final prediction = " << scorer.best.score << "; after noise = " << noisified.score << endl)).str());
-
 				float* sel_floats = noisified.joint_torques;
-				for(unsigned int i = 0; i < 18; ++i)
-					sel_floats[i] *= siob->output_scales[i] == 0 ? 1.0f : 1.0f / torque_scales[i];
+				float* selt_ptr = sel_floats;
 
 				Vec3* sel_torques = (Vec3*)sel_floats;
 				for(unsigned int i = 0; i < 6; ++i)
 				{
 					SkeletalJointConstraint* sjc = ik_joints[i]->sjc;
-					const Vec3& mint = sjc->min_torque;
-					const Vec3& maxt = sjc->max_torque;
-					const Vec3& selt = sel_torques[i];
-					sjc->apply_torque.x = max(mint.x, min(maxt.x, selt.x));
-					sjc->apply_torque.y = max(mint.y, min(maxt.y, selt.y));
-					sjc->apply_torque.z = max(mint.z, min(maxt.z, selt.z));
+					const float* mint_ptr = (float*)&sjc->min_torque;
+					const float* maxt_ptr = (float*)&sjc->max_torque;
+					float* result_ptr = (float*)&sjc->apply_torque;
+					for(unsigned int j = 0; j < 3; ++j, ++mint_ptr, ++maxt_ptr, ++selt_ptr, ++result_ptr)
+					{
+						float& frac = *selt_ptr;
+						if(tick_age + (RANDOM_TORQUE_TICKS + 1) >= max_tick_age)
+							frac += Random3D::Rand() * rand_twoscale - rand_scale;
+						frac = min(1.0f, max(-1.0f, frac));
+						*result_ptr = frac >= 0 ? frac * *maxt_ptr : -frac * *mint_ptr;
+					}
 				}
 
-				last_state = state;
-			}
+				float current = scorer.ComputeScore(state);
+				scorer.ComputeScore(noisified);
 
 #if ENABLE_STATE_TRANSITION_LOGGING
-			float* trans_ptr = wip_trans.outputs;
-			for(unsigned int i = 0; i < 6; ++i, trans_ptr += 3)
-				memcpy(trans_ptr, &ik_joints[i]->sjc->apply_torque, 3 * sizeof(float));
+				session_states.pop_back();
+
+				for(float *iptr = siob->nn->inputs, *iend = iptr + siob->nn->num_inputs, *optr = (float*)&state.bones, *scale_ptr = siob->input_scales.data(); iptr != iend; ++iptr, ++optr, ++scale_ptr)
+					*optr = *iptr / *scale_ptr;
+
+				session_states.push_back(state);
 #endif
+
+				Debug(((stringstream&)(stringstream() << "current actual = " << current << "; initial prediction = " << scorer.rest.score << "; final prediction = " << scorer.best.score << "; after noise = " << noisified.score << endl)).str());
+			}
 			
 			++tick_age;
-			if(tick_age >= 25)
+			if(tick_age >= max_tick_age)
 				matrix_test_running = false;
 		}
 
@@ -810,14 +797,14 @@ namespace Test
 
 			IKState rest, best, test1, test2;
 
-			NeuralNet* ik_ann;
-			float* torques_go_here;
-			float* torque_scales;
+			ScaledIOBrain* siob;
+
+			Mat3 unrotate;
 
 			Vec3 desired_pos[3];
 			Quaternion desired_ori[3];
 
-			Scorer(Imp* imp, NeuralNet* ik_ann, float* torques_go_here, float* torque_scales, const Mat3& unrotate, const Vec3& untranslate, const Quaternion& p) : imp(imp), inv_timestep(imp->inv_timestep), ik_ann(ik_ann), torques_go_here(torques_go_here), torque_scales(torque_scales)
+			Scorer(Imp* imp, ScaledIOBrain* siob, const Mat3& unrotate, const Vec3& untranslate, const Quaternion& p) : imp(imp), inv_timestep(imp->inv_timestep), siob(siob), unrotate(unrotate)
 			{
 				desired_pos[0] = unrotate * (imp->initial_lfoot_pos  - untranslate);
 				desired_pos[1] = unrotate * (imp->initial_rfoot_pos  - untranslate);
@@ -829,7 +816,7 @@ namespace Test
 				desired_ori[1] = unrotate_quat * imp->initial_rfoot_ori;
 				desired_ori[2] = unrotate_quat * p;
 
-				rest.prediction.resize(ik_ann->num_outputs);
+				rest.prediction.resize(siob->nn->num_outputs);
 				memset(rest.joint_torques, 0, sizeof(rest.joint_torques));
 
 				ComputeScore(rest);
@@ -839,7 +826,7 @@ namespace Test
 
 			void Search(unsigned int num_iterations)
 			{
-				unsigned int num_vars = 6 * 3;								// four joints times three degrees of freedom
+				unsigned int num_vars = 6 * 3;								// six joints times three degrees of freedom
 				for(unsigned int i = 0; i < num_iterations; ++i)
 				{
 					for(unsigned int j = 0; j < num_vars; ++j)
@@ -848,7 +835,7 @@ namespace Test
 						unsigned int joint_index = k / 3;
 
 						float y0 = best.score;
-						float scale = sqrtf(y0) * 0.07f;
+						float scale = y0 * 0.2f;
 
 						test1 = best;
 						float& x1 = test1.joint_torques[k];
@@ -869,17 +856,58 @@ namespace Test
 			}
 
 			float ComputeScore(IKState& state)
-			{
-				memcpy(torques_go_here, state.joint_torques, 18 * sizeof(float));
+			{				
+				CJoint* cjoints[7] = { &imp->lankle, &imp->rankle, &imp->lknee, &imp->rknee, &imp->lhip, &imp->rhip, &imp->spine1 };
+				Vec3 joint_tvecs[7];
+				for(unsigned int i = 0; i < 6; ++i)
+				{
+					Vec3 use_torque;
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						float frac = min(1.0f, max(-1.0f, state.joint_torques[i * 3 + j]));
+						((float*)&use_torque)[j] = frac >= 0 ? frac * ((float*)&cjoints[i]->sjc->max_torque)[j] : -frac * ((float*)&cjoints[i]->sjc->min_torque)[j];
+					}
+					joint_tvecs[i] = cjoints[i]->oriented_axes * use_torque;
+				}
+				joint_tvecs[6] = imp->spine1.actual;
+
+				CBone* cbones[7] = { &imp->lfoot, &imp->rfoot, &imp->llleg, &imp->rlleg, &imp->luleg, &imp->ruleg, &imp->pelvis };
+				Vec3 bone_torques[7] =
+				{
+					-joint_tvecs[0],
+					-joint_tvecs[1],
+					joint_tvecs[0] - joint_tvecs[2],
+					joint_tvecs[1] - joint_tvecs[3],
+					joint_tvecs[2] - joint_tvecs[4],
+					joint_tvecs[3] - joint_tvecs[5],
+					joint_tvecs[4] + joint_tvecs[5] + joint_tvecs[6]
+				};
+
+				NeuralNet* ik_ann = siob->nn;
+
+				for(unsigned int i = 0; i < 7; ++i)
+				{
+					Vec3& rot = (Vec3&)ik_ann->inputs[LoggerState::Bone::num_floats * (i + 1) - 3];
+					rot = unrotate * (cbones[i]->rb->GetAngularVelocity() + cbones[i]->rb->GetInvMoI() * bone_torques[i] * imp->timestep);
+
+					const float* scale_ptr = siob->input_scales.data() + LoggerState::Bone::num_floats * (i + 1) - 3;
+					float* rot_ptr = (float*)&rot;
+					for(unsigned int j = 0; j < 3; ++j, ++scale_ptr, ++rot_ptr)
+						*rot_ptr *= *scale_ptr;
+				}
 
 				ik_ann->Evaluate();
 
 				memcpy(state.prediction.data(), ik_ann->outputs, ik_ann->num_outputs * sizeof(float));
+				ScaleUpOutputs(state.prediction.data());
 
-				for(float *pred_ptr = state.prediction.data(), *pred_end = pred_ptr + ik_ann->num_outputs, *scale_ptr = imp->siob->output_scales.data(); pred_ptr != pred_end; ++pred_ptr, ++scale_ptr)
-					*pred_ptr *= *scale_ptr == 0.0f ? 0.0f : 1.0f / *scale_ptr;
+				return state.score = ComputeScore(state.prediction.data());
+			}
 
-				return state.score = ComputeScore(*(LoggerState*)state.prediction.data());
+			void ScaleUpOutputs(float* outputs)
+			{
+				for(float *out_ptr = outputs, *out_end = outputs + siob->nn->num_outputs, *scale_ptr = siob->output_scales.data(); out_ptr != out_end; ++out_ptr, ++scale_ptr)
+					*out_ptr *= *scale_ptr == 0.0f ? 0.0f : 1.0f / *scale_ptr;
 			}
 
 			float GetQuatErrorSquared(Quaternion predicted, const Quaternion& desired)
@@ -896,16 +924,49 @@ namespace Test
 
 			float ComputeScore(const LoggerState& ls)
 			{
+				float twenty_one[21];
+				float* optr = twenty_one;
+
+				memcpy(optr, &ls.bones[0].ori, 4 * sizeof(float));
+				optr += 4;
+				memcpy(optr, &ls.bones[0].pos, 3 * sizeof(float));
+				optr += 3;
+
+				memcpy(optr, &ls.bones[1].ori, 4 * sizeof(float));
+				optr += 4;
+				memcpy(optr, &ls.bones[1].pos, 3 * sizeof(float));
+				optr += 3;
+
+				memcpy(optr, &ls.bones[6].ori, 4 * sizeof(float));
+				optr += 4;
+				memcpy(optr, &ls.bones[6].pos, 3 * sizeof(float));
+				//optr += 3;
+
+				//ScaleUpOutputs(twenty_one);
+
+				return ComputeScore(twenty_one);
+			}
+
+			float ComputeScore(const float* twenty_one)
+			{
 				float score = 0.0f;
 
-				score += (ls.bones[0].pos - desired_pos[0]).ComputeMagnitudeSquared();
-				score += GetQuatErrorSquared(ls.bones[0].ori, desired_ori[0]);
+				const float* iptr = twenty_one;
 
-				score += (ls.bones[1].pos - desired_pos[1]).ComputeMagnitudeSquared();
-				score += GetQuatErrorSquared(ls.bones[1].ori, desired_ori[1]);
-				
-				score += (ls.bones[6].pos - desired_pos[2]).ComputeMagnitudeSquared();
-				score += GetQuatErrorSquared(ls.bones[6].ori, desired_ori[2]);
+				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[0]);
+				iptr += 4;
+				score += (*((Vec3*)iptr) - desired_pos[0]).ComputeMagnitudeSquared();
+				iptr += 3;		
+
+				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[1]);
+				iptr += 4;
+				score += (*((Vec3*)iptr) - desired_pos[1]).ComputeMagnitudeSquared();
+				iptr += 3;
+
+				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[2]);
+				iptr += 4;
+				score += (*((Vec3*)iptr) - desired_pos[2]).ComputeMagnitudeSquared();
+				//iptr += 3;
 
 				return score;
 			}
@@ -922,8 +983,31 @@ namespace Test
 			state.bones[4] = LoggerState::Bone(luleg .rb, untranslate, unrotate);
 			state.bones[5] = LoggerState::Bone(ruleg .rb, untranslate, unrotate);
 			state.bones[6] = LoggerState::Bone(pelvis.rb, untranslate, unrotate);
-			//state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
-			//state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
+			state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
+			state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
+			
+			state.bones[7].rot += unrotate * (torso1.rb->GetInvMoI() * torso1.applied_torque * timestep);
+			state.bones[8].rot += unrotate * (torso2.rb->GetInvMoI() * torso2.applied_torque * timestep);
+
+			for(unsigned int i = 0; i < 2; ++i)
+			{
+				Dood::FootState* foot = dood->feet[i];
+				for(unsigned int j = 0; j < LoggerState::max_cps_per_foot; ++j)
+				{
+					LoggerState::CP cp;
+
+					if(j >= foot->contact_points.size())
+						cp.pos = cp.normal = Vec3();
+					else
+					{
+						const ContactPoint& fcp = foot->contact_points[j];
+						cp.pos = unrotate * (fcp.pos - untranslate);
+						cp.normal = unrotate * fcp.normal;
+					}
+
+					state.cps[i * LoggerState::max_cps_per_foot + j] = cp;
+				}
+			}
 
 			return state;
 		}
@@ -944,14 +1028,18 @@ namespace Test
 			{
 				WriteUInt32(LoggerState::Bone::num_floats, file);
 				WriteUInt32(LoggerState::num_bones,        file);
-				WriteUInt32(LoggerTrans::num_outputs,      file);
+
+				WriteUInt32(LoggerState::CP::num_floats,   file);
+				WriteUInt32(LoggerState::max_cps_per_foot, file);
+				WriteUInt32(LoggerState::num_cps,          file);
 
 				WriteUInt32(session_states.size(), file);
 				unsigned int derp = 0;
 				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter, ++derp)
 				{
 					const LoggerState&       ls       = *iter;
-					const LoggerState::Bone* ls_bones = (LoggerState::Bone*)&ls;
+					const LoggerState::Bone* ls_bones = (LoggerState::Bone*)&ls.bones;
+					const LoggerState::CP*   ls_cps   = (LoggerState::CP*)&ls.cps;
 
 					for(unsigned int i = 0; i < LoggerState::num_bones; ++i)
 					{
@@ -961,6 +1049,15 @@ namespace Test
 						for(unsigned int j = 0; j < LoggerState::Bone::num_floats; ++j)
 							WriteSingle(bone_floats[j], file);
 					}
+
+					for(unsigned int i = 0; i < LoggerState::num_cps; ++i)
+					{
+						const LoggerState::CP& cp = ls_cps[i];
+						const float*    cp_floats = (float*)&cp;
+
+						for(unsigned int j = 0; j < LoggerState::CP::num_floats; ++j)
+							WriteSingle(cp_floats[j], file);
+					}
 				}
 
 				WriteUInt32(session_trans.size(), file);
@@ -969,8 +1066,6 @@ namespace Test
 					const LoggerTrans& lt = *iter;
 					WriteUInt32(lt.from, file);
 					WriteUInt32(lt.to,   file);
-					for(unsigned int i = 0; i < LoggerTrans::num_outputs; ++i)
-						WriteSingle(lt.outputs[i], file);
 				}
 
 				file.close();
