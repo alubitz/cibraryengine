@@ -18,7 +18,7 @@
 
 #define ENABLE_STATE_TRANSITION_LOGGING   1
 
-#define MAX_MAX_TICK_AGE                  3
+#define MAX_MAX_TICK_AGE                  30
 #define RANDOM_TORQUE_TICKS               2
 
 namespace Test
@@ -61,7 +61,7 @@ namespace Test
 
 	struct LoggerState
 	{
-		static const unsigned int num_bones          = 9;
+		static const unsigned int num_bones          = 19;
 
 		static const unsigned int max_cps_per_foot   = 3;
 		static const unsigned int num_cps            = max_cps_per_foot * 2;
@@ -82,6 +82,14 @@ namespace Test
 				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
 				vel(unrotate * rb->GetLinearVelocity()),
 				rot(unrotate * rb->GetAngularVelocity())
+			{
+			}
+
+			Bone(const RigidBody* rb, const Vec3& untranslate, const Mat3& unrotate, const Vec3& world_torque_timestep) :
+				ori(Quaternion::FromRotationMatrix(unrotate * rb->GetOrientation().ToMat3())),
+				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
+				vel(unrotate * rb->GetLinearVelocity()),
+				rot(unrotate * (rb->GetAngularVelocity() + rb->GetInvMoI() * world_torque_timestep))
 			{
 			}
 		} bones[num_bones];
@@ -754,7 +762,7 @@ namespace Test
 					{
 						float& frac = *selt_ptr;
 						if(tick_age + (RANDOM_TORQUE_TICKS + 1) >= max_tick_age)
-							frac += Random3D::Rand() * rand_twoscale - rand_scale;
+							frac += Random3D::Rand() * Random3D::Rand() * (Random3D::Rand() * rand_twoscale - rand_scale);
 						frac = min(1.0f, max(-1.0f, frac));
 						*result_ptr = frac >= 0 ? frac * *maxt_ptr : -frac * *mint_ptr;
 					}
@@ -827,15 +835,17 @@ namespace Test
 			void Search(unsigned int num_iterations)
 			{
 				unsigned int num_vars = 6 * 3;								// six joints times three degrees of freedom
+
+				float scale_base = powf(0.0005f, 1.0f / num_iterations);
 				for(unsigned int i = 0; i < num_iterations; ++i)
 				{
+					float scale = powf(scale_base, float(i));
 					for(unsigned int j = 0; j < num_vars; ++j)
 					{
 						unsigned int k = j;
 						unsigned int joint_index = k / 3;
 
 						float y0 = best.score;
-						float scale = y0 * 0.2f;
 
 						test1 = best;
 						float& x1 = test1.joint_torques[k];
@@ -861,13 +871,17 @@ namespace Test
 				Vec3 joint_tvecs[7];
 				for(unsigned int i = 0; i < 6; ++i)
 				{
-					Vec3 use_torque;
-					for(unsigned int j = 0; j < 3; ++j)
+					SkeletalJointConstraint* sjc = cjoints[i]->sjc;
+					const float* mint_ptr = (float*)&sjc->min_torque;
+					const float* maxt_ptr = (float*)&sjc->max_torque;
+					const float* in_ptr = state.joint_torques + i * 3;
+					float* result_ptr = (float*)(joint_tvecs + i);
+					for(unsigned int j = 0; j < 3; ++j, ++mint_ptr, ++maxt_ptr, ++in_ptr, ++result_ptr)
 					{
-						float frac = min(1.0f, max(-1.0f, state.joint_torques[i * 3 + j]));
-						((float*)&use_torque)[j] = frac >= 0 ? frac * ((float*)&cjoints[i]->sjc->max_torque)[j] : -frac * ((float*)&cjoints[i]->sjc->min_torque)[j];
+						float frac = min(1.0f, max(-1.0f, *in_ptr));
+						*result_ptr = frac >= 0 ? frac * *maxt_ptr : -frac * *mint_ptr;
 					}
-					joint_tvecs[i] = cjoints[i]->oriented_axes * use_torque;
+					joint_tvecs[i] = cjoints[i]->oriented_axes.TransposedMultiply(joint_tvecs[i]);
 				}
 				joint_tvecs[6] = imp->spine1.actual;
 
@@ -976,18 +990,25 @@ namespace Test
 		{
 			LoggerState state;
 
-			state.bones[0] = LoggerState::Bone(lfoot .rb, untranslate, unrotate);
-			state.bones[1] = LoggerState::Bone(rfoot .rb, untranslate, unrotate);
-			state.bones[2] = LoggerState::Bone(llleg .rb, untranslate, unrotate);
-			state.bones[3] = LoggerState::Bone(rlleg .rb, untranslate, unrotate);
-			state.bones[4] = LoggerState::Bone(luleg .rb, untranslate, unrotate);
-			state.bones[5] = LoggerState::Bone(ruleg .rb, untranslate, unrotate);
-			state.bones[6] = LoggerState::Bone(pelvis.rb, untranslate, unrotate);
-			state.bones[7] = LoggerState::Bone(torso1.rb, untranslate, unrotate);
-			state.bones[8] = LoggerState::Bone(torso2.rb, untranslate, unrotate);
-			
-			state.bones[7].rot += unrotate * (torso1.rb->GetInvMoI() * torso1.applied_torque * timestep);
-			state.bones[8].rot += unrotate * (torso2.rb->GetInvMoI() * torso2.applied_torque * timestep);
+			state.bones[0]  = LoggerState::Bone(lfoot.rb,     untranslate, unrotate);
+			state.bones[1]  = LoggerState::Bone(rfoot.rb,     untranslate, unrotate);
+			state.bones[2]  = LoggerState::Bone(llleg.rb,     untranslate, unrotate);
+			state.bones[3]  = LoggerState::Bone(rlleg.rb,     untranslate, unrotate);
+			state.bones[4]  = LoggerState::Bone(luleg.rb,     untranslate, unrotate);
+			state.bones[5]  = LoggerState::Bone(ruleg.rb,     untranslate, unrotate);
+			state.bones[6]  = LoggerState::Bone(pelvis.rb,    untranslate, unrotate);
+			state.bones[7]  = LoggerState::Bone(torso1.rb,    untranslate, unrotate, torso1.applied_torque    * timestep);
+			state.bones[8]  = LoggerState::Bone(torso2.rb,    untranslate, unrotate, torso2.applied_torque    * timestep);
+			state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
+			state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
+			state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
+			state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
+			state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
+			state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
+			state.bones[15] = LoggerState::Bone(rlarm.rb,     untranslate, unrotate, rlarm.applied_torque     * timestep);
+			state.bones[16] = LoggerState::Bone(lhand.rb,     untranslate, unrotate, lhand.applied_torque     * timestep);
+			state.bones[17] = LoggerState::Bone(rhand.rb,     untranslate, unrotate, rhand.applied_torque     * timestep);
+			state.bones[18] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
 
 			for(unsigned int i = 0; i < 2; ++i)
 			{

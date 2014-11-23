@@ -5,7 +5,7 @@
 
 #include "ScaledIOBrain.h"
 
-#define NUM_MIDDLE_LAYER_NEURONS   50
+#define NUM_MIDDLE_LAYER_NEURONS   25
 #define BASE_LEARNING_RATE         0.002f
 
 namespace Test
@@ -20,12 +20,19 @@ namespace Test
 		ExperimentalScreen* scr;
 		vector<AutoMenuItem*> auto_menu_items;
 
-		AutoMenuItem* output_text[6];
+		AutoMenuItem* output_text[7];
 
 		struct BackButton : public AutoMenuItem
 		{
 			BackButton(ContentMan* content, int row) : AutoMenuItem(content, "Back", row, true) { }
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(mse->menu->GetPreviousScreen()); }
+		};
+
+		struct SpeedButton : public AutoMenuItem
+		{
+			int increment;
+			SpeedButton(ContentMan* content, const string text, int increment, int row) : AutoMenuItem(content, text, row, true), increment(increment) { }
+			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->ChangeSpeed(increment); }
 		};
 
 		struct ShakeButton : public AutoMenuItem
@@ -43,8 +50,11 @@ namespace Test
 			auto_menu_items.push_back(new AutoMenuItem(content, "Experimental Screen", row++, false));
 			auto_menu_items.push_back(new AutoMenuItem(content, "-------------------------------------------------------", row++, false));
 
-			for(unsigned int i = 0; i < 6; ++i)
+			for(unsigned int i = 0; i < 7; ++i)
 				auto_menu_items.push_back(output_text[i] = new AutoMenuItem(content, "", row++, false));
+
+			auto_menu_items.push_back(new SpeedButton(content, "Slower", -1, row++));
+			auto_menu_items.push_back(new SpeedButton(content, "Faster",  1, row++));
 
 			auto_menu_items.push_back(new ShakeButton(content, row++));
 			auto_menu_items.push_back(new BackButton(content, row++));
@@ -58,6 +68,7 @@ namespace Test
 			step = 0;
 
 			mavg = -1;
+			speed_exp = 0;
 
 			if(state_floats > 0)
 			{
@@ -114,6 +125,7 @@ namespace Test
 		vector<float> scores_after;
 
 		float mavg;
+		int speed_exp;
 
 		vector<unsigned int> shuffle;
 
@@ -150,7 +162,7 @@ namespace Test
 			if(!file)
 			{
 				Debug("Unable to load state transitions logfile!\n");
-				/*trans_floats =*/ state_floats = 0;
+				state_floats = 0;
 			}
 			else
 			{
@@ -211,18 +223,30 @@ namespace Test
 				SetTableScale(states,  state_scales,  state_floats);
 				SetTableScale(outputs, out_scales,    21);
 
+				vector<TransIndices> nu_indices;
 				float importance_tot = 0.0f;
 				for(unsigned int i = 0; i < indices.size(); ++i)
 				{
-					indices[i].importance = GetIndexTTL(i) < 2.0f ? 20.0f : 1.0f;
-					importance_tot += indices[i].importance;
+					float ttl = GetIndexTTL(i);
+					float importance = 6.0f - ttl;
+
+					if(importance > 0.0f || Random3D::RandInt() % 10 == 0)
+					{
+						importance = max(1.0f, importance);
+
+						importance_tot += importance;
+						indices[i].importance = importance;
+						nu_indices.push_back(indices[i]);
+					}
 				}
+				indices = nu_indices;
+				
 				importance_tot = indices.size() / importance_tot;
 				for(unsigned int i = 0; i < indices.size(); ++i)
 					indices[i].importance *= importance_tot;
 			}
 			
-			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << indices.size() << " transitions" << endl)).str();
+			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << indices.size() << " transitions of interest" << endl)).str();
 			output_text[0]->SetText(str);
 			Debug(str);
 		}
@@ -235,7 +259,7 @@ namespace Test
 			for(unsigned int i = 0; i < indices.size(); ++i)
 				if(indices[i].state1 == t.state2)
 				{
-					ttl += GetIndexTTL(i);
+					ttl += 1.0f + GetIndexTTL(i);
 					++children;
 				}
 			return children == 0 ? 0.0f : ttl / children;
@@ -253,6 +277,8 @@ namespace Test
 			for(float *fptr = siob->nn->bottom_matrix, *fend = fptr + siob->nn->bottom_matrix_size; fptr != fend; ++fptr)
 				*fptr += Random3D::Rand(-shake_amount, shake_amount);
 		}
+
+		void ChangeSpeed(int increment) { speed_exp += increment; }
 
 
 		void PushInputFloats(unsigned int size, float*& input_ptr, const vector<float>& source)
@@ -291,7 +317,7 @@ namespace Test
 			
 			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), 21 * sizeof(float));
 
-			float use_learning_rate = index.importance * BASE_LEARNING_RATE * (mavg > 1.0f ? 1.0f + 2.0f * (mavg - 1.0f) : 1.0f);
+			float use_learning_rate = pow(2.0f, speed_exp) * index.importance * BASE_LEARNING_RATE;
 			float score_before = siob->nn->Train(use_learning_rate);
 			float score_after  = siob->nn->EvaluateAndScore();
 
@@ -327,7 +353,15 @@ namespace Test
 			output_text[3]->SetText(((stringstream&)(stringstream() << "before = " << score_before)).str());
 			output_text[4]->SetText(((stringstream&)(stringstream() << "after  = " << score_after)).str());
 			output_text[5]->SetText(((stringstream&)(stringstream() << "recent \"before\" avg = " << mavg)).str());
-			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << endl)).str());
+
+			unsigned int pow = 1;
+			for(int i = 0; i < abs(speed_exp); ++i)
+				pow *= 2;
+			string speed_pow_str = ((stringstream&)(stringstream() << pow)).str();
+			string speed_str     = speed_exp >= 0 ? speed_pow_str : ((stringstream&)(stringstream() << "1 / " << speed_pow_str)).str();
+			output_text[6]->SetText(((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
+
+			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << "; speed multiplier = " << speed_str << endl)).str());
 
 			++step;
 		}
