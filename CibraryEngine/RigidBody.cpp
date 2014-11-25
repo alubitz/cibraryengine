@@ -48,6 +48,7 @@ namespace CibraryEngine
 		shape_cache(NULL),
 		angular_damp(0.1f),
 		can_rotate(false),
+		contact_callback(NULL),
 		collision_callback(NULL)
 	{
 		restitution = shape->CanMove() ? 0.2f : 1.0f;

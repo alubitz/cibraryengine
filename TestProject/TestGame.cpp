@@ -171,9 +171,8 @@ namespace Test
 					for(unsigned int i = 0; i < count; ++i)
 						doods.push_back((Dood*)doods_elist[i]);
 
-					// PFCs get added and removed here; can't multithread this
 					for(Dood **iter = doods.data(), **doods_end = iter + doods.size(); iter != doods_end; ++iter)
-						(*iter)->standing_callback.OnPhysicsTick(timestep);
+						(*iter)->standing_callback.PreCPHFT(timestep);
 
 					// the actual posey stuff can be multithreaded though!
 					unsigned int use_threads = CPHFT_THREAD_COUNT;
@@ -185,6 +184,9 @@ namespace Test
 
 					for(unsigned int i = 0; i < use_threads; ++i)
 						threads[i]->WaitForCompletion();
+
+					for(Dood **iter = doods.data(), **doods_end = iter + doods.size(); iter != doods_end; ++iter)
+						(*iter)->standing_callback.PostCPHFT(timestep);
 				}
 		} character_physics_happy_fun_time;
 

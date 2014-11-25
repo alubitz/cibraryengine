@@ -21,6 +21,8 @@ namespace CibraryEngine
 	class PhysicsConstraint;
 	class PhysicsRegionManager;
 
+	class ContactCallback;
+
 
 
 	/** Class representing a rigid body */
@@ -57,6 +59,7 @@ namespace CibraryEngine
 
 			bool can_rotate;
 
+			ContactCallback* contact_callback;
 			CollisionCallback* collision_callback;
 
 			Mat3 ComputeInvMoi()  { return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
@@ -146,6 +149,9 @@ namespace CibraryEngine
 
 			CollisionShape* GetCollisionShape() const              { return shape; };
 			ShapeType GetShapeType() const                         { return shape->GetShapeType(); };
+
+			void SetContactCallback(ContactCallback* callback)     { contact_callback = callback; }
+			ContactCallback* GetContactCallback() const            { return contact_callback; }
 
 			void SetCollisionCallback(CollisionCallback* callback) { collision_callback = callback; }
 			CollisionCallback* GetCollisionCallback() const        { return collision_callback; }

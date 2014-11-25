@@ -18,7 +18,7 @@
 
 #define ENABLE_STATE_TRANSITION_LOGGING   1
 
-#define MAX_MAX_TICK_AGE                  30
+#define MAX_MAX_TICK_AGE                  10
 #define RANDOM_TORQUE_TICKS               2
 
 namespace Test
@@ -66,6 +66,9 @@ namespace Test
 		static const unsigned int max_cps_per_foot   = 3;
 		static const unsigned int num_cps            = max_cps_per_foot * 2;
 
+		Vec3 untranslate;
+		Mat3 unrotate;
+
 		struct Bone
 		{
 			static const unsigned int num_floats;
@@ -110,8 +113,8 @@ namespace Test
 	};
 	LoggerTrans wip_trans;
 
-	const unsigned int LoggerState::Bone::num_floats = sizeof(LoggerState::Bone) / sizeof(float);
-	const unsigned int LoggerState::CP::num_floats   = sizeof(LoggerState::CP)   / sizeof(float);
+	const unsigned int LoggerState::Bone::num_floats  = sizeof(LoggerState::Bone)  / sizeof(float);
+	const unsigned int LoggerState::CP::num_floats    = sizeof(LoggerState::CP)    / sizeof(float);
 
 	static list<LoggerState> session_states;
 	static list<LoggerTrans> session_trans;
@@ -374,7 +377,7 @@ namespace Test
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
-			max_tick_age(Random3D::RandInt(3, MAX_MAX_TICK_AGE)),
+			max_tick_age(Random3D::RandInt(2, MAX_MAX_TICK_AGE)),
 			siob(NULL)
 		{
 		}
@@ -650,6 +653,12 @@ namespace Test
 
 
 
+		void PushInputs(float*& inptr, float* source, unsigned int count)
+		{
+			memcpy(inptr, source, count * sizeof(float));
+			inptr += count;
+		}
+
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
 			if(!init)
@@ -714,7 +723,7 @@ namespace Test
 
 			// ... "somehow" ...
 
-			Mat3 unrotate    = Mat3::FromRVec(0, -dood->yaw, 0);
+			Mat3 unrotate    = Mat3::FromRVec(0, dood->yaw, 0);			// confirmed: yaw sign should be positive
 			Vec3 untranslate = pelvis.rb->GetCenterOfMass();
 
 #if ENABLE_STATE_TRANSITION_LOGGING
@@ -740,9 +749,12 @@ namespace Test
 			{
 				LoggerState state = MakeLoggerState(dood, unrotate, untranslate);
 
-				memcpy(siob->nn->inputs, &state, sizeof(LoggerState));
-				for(unsigned int i = 0; i < siob->input_scales.size(); ++i)
-					siob->nn->inputs[i] *= siob->input_scales[i];
+				float* inptr = siob->nn->inputs;
+				PushInputs(inptr, (float*)state.bones, LoggerState::num_bones * LoggerState::Bone::num_floats);
+				PushInputs(inptr, (float*)state.cps,   LoggerState::num_cps   * LoggerState::CP::num_floats);
+
+				for(float *ioptr = siob->nn->inputs, *ioend = ioptr + siob->nn->num_inputs, *center_ptr = siob->input_centers.data(), *scale_ptr = siob->input_scales.data(); ioptr != ioend; ++ioptr, ++center_ptr, ++scale_ptr)
+					*ioptr = (*ioptr - *center_ptr) * *scale_ptr;
 
 				Scorer scorer(this, siob, unrotate, untranslate, p);
 				scorer.Search(40);
@@ -762,7 +774,7 @@ namespace Test
 					{
 						float& frac = *selt_ptr;
 						if(tick_age + (RANDOM_TORQUE_TICKS + 1) >= max_tick_age)
-							frac += Random3D::Rand() * Random3D::Rand() * (Random3D::Rand() * rand_twoscale - rand_scale);
+							frac += (Random3D::Rand() * rand_twoscale - rand_scale) * pow(Random3D::Rand(), 3.0f);
 						frac = min(1.0f, max(-1.0f, frac));
 						*result_ptr = frac >= 0 ? frac * *maxt_ptr : -frac * *mint_ptr;
 					}
@@ -774,8 +786,8 @@ namespace Test
 #if ENABLE_STATE_TRANSITION_LOGGING
 				session_states.pop_back();
 
-				for(float *iptr = siob->nn->inputs, *iend = iptr + siob->nn->num_inputs, *optr = (float*)&state.bones, *scale_ptr = siob->input_scales.data(); iptr != iend; ++iptr, ++optr, ++scale_ptr)
-					*optr = *iptr / *scale_ptr;
+				for(float *iptr = siob->nn->inputs, *iend = iptr + LoggerState::num_bones * LoggerState::Bone::num_floats, *optr = (float*)&state.bones, *center_ptr = siob->input_centers.data(), *scale_ptr = siob->input_scales.data(); iptr != iend; ++iptr, ++optr, ++center_ptr, ++scale_ptr)
+					*optr = *iptr / *scale_ptr + *center_ptr;
 
 				session_states.push_back(state);
 #endif
@@ -904,10 +916,11 @@ namespace Test
 					Vec3& rot = (Vec3&)ik_ann->inputs[LoggerState::Bone::num_floats * (i + 1) - 3];
 					rot = unrotate * (cbones[i]->rb->GetAngularVelocity() + cbones[i]->rb->GetInvMoI() * bone_torques[i] * imp->timestep);
 
-					const float* scale_ptr = siob->input_scales.data() + LoggerState::Bone::num_floats * (i + 1) - 3;
-					float* rot_ptr = (float*)&rot;
-					for(unsigned int j = 0; j < 3; ++j, ++scale_ptr, ++rot_ptr)
-						*rot_ptr *= *scale_ptr;
+					unsigned int start_index = LoggerState::Bone::num_floats * (i + 1) - 3;
+					const float* center_ptr = siob->input_centers.data() + start_index; 
+					const float* scale_ptr = siob->input_scales.data() + start_index;
+					for(float *rot_ptr = (float*)&rot, *rot_end = rot_ptr + 3; rot_ptr != rot_end; ++rot_ptr, ++center_ptr, ++scale_ptr)
+						*rot_ptr = (*rot_ptr - *center_ptr) * *scale_ptr;
 				}
 
 				ik_ann->Evaluate();
@@ -920,8 +933,8 @@ namespace Test
 
 			void ScaleUpOutputs(float* outputs)
 			{
-				for(float *out_ptr = outputs, *out_end = outputs + siob->nn->num_outputs, *scale_ptr = siob->output_scales.data(); out_ptr != out_end; ++out_ptr, ++scale_ptr)
-					*out_ptr *= *scale_ptr == 0.0f ? 0.0f : 1.0f / *scale_ptr;
+				for(float *out_ptr = outputs, *out_end = outputs + siob->nn->num_outputs, *center_ptr = siob->output_centers.data(), *scale_ptr = siob->output_scales.data(); out_ptr != out_end; ++out_ptr, ++center_ptr, ++scale_ptr)
+					*out_ptr = (*out_ptr * (*scale_ptr == 0.0f ? 0.0f : 1.0f / *scale_ptr)) + *center_ptr;
 			}
 
 			float GetQuatErrorSquared(Quaternion predicted, const Quaternion& desired)
@@ -941,22 +954,20 @@ namespace Test
 				float twenty_one[21];
 				float* optr = twenty_one;
 
-				memcpy(optr, &ls.bones[0].ori, 4 * sizeof(float));
-				optr += 4;
-				memcpy(optr, &ls.bones[0].pos, 3 * sizeof(float));
-				optr += 3;
-
 				memcpy(optr, &ls.bones[1].ori, 4 * sizeof(float));
 				optr += 4;
 				memcpy(optr, &ls.bones[1].pos, 3 * sizeof(float));
 				optr += 3;
 
-				memcpy(optr, &ls.bones[6].ori, 4 * sizeof(float));
+				memcpy(optr, &ls.bones[2].ori, 4 * sizeof(float));
 				optr += 4;
-				memcpy(optr, &ls.bones[6].pos, 3 * sizeof(float));
-				//optr += 3;
+				memcpy(optr, &ls.bones[2].pos, 3 * sizeof(float));
+				optr += 3;
 
-				//ScaleUpOutputs(twenty_one);
+				memcpy(optr, &ls.bones[0].ori, 4 * sizeof(float));
+				optr += 4;
+				memcpy(optr, &ls.bones[0].pos, 3 * sizeof(float));
+				//optr += 3;
 
 				return ComputeScore(twenty_one);
 			}
@@ -990,13 +1001,16 @@ namespace Test
 		{
 			LoggerState state;
 
-			state.bones[0]  = LoggerState::Bone(lfoot.rb,     untranslate, unrotate);
-			state.bones[1]  = LoggerState::Bone(rfoot.rb,     untranslate, unrotate);
-			state.bones[2]  = LoggerState::Bone(llleg.rb,     untranslate, unrotate);
-			state.bones[3]  = LoggerState::Bone(rlleg.rb,     untranslate, unrotate);
-			state.bones[4]  = LoggerState::Bone(luleg.rb,     untranslate, unrotate);
-			state.bones[5]  = LoggerState::Bone(ruleg.rb,     untranslate, unrotate);
-			state.bones[6]  = LoggerState::Bone(pelvis.rb,    untranslate, unrotate);
+			state.untranslate = untranslate;
+			state.unrotate = unrotate;
+
+			state.bones[0]  = LoggerState::Bone(pelvis.rb,    untranslate, unrotate);
+			state.bones[1]  = LoggerState::Bone(lfoot.rb,     untranslate, unrotate);
+			state.bones[2]  = LoggerState::Bone(rfoot.rb,     untranslate, unrotate);
+			state.bones[3]  = LoggerState::Bone(llleg.rb,     untranslate, unrotate);
+			state.bones[4]  = LoggerState::Bone(rlleg.rb,     untranslate, unrotate);
+			state.bones[5]  = LoggerState::Bone(luleg.rb,     untranslate, unrotate);
+			state.bones[6]  = LoggerState::Bone(ruleg.rb,     untranslate, unrotate);
 			state.bones[7]  = LoggerState::Bone(torso1.rb,    untranslate, unrotate, torso1.applied_torque    * timestep);
 			state.bones[8]  = LoggerState::Bone(torso2.rb,    untranslate, unrotate, torso2.applied_torque    * timestep);
 			state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
@@ -1055,16 +1069,16 @@ namespace Test
 				WriteUInt32(LoggerState::num_cps,          file);
 
 				WriteUInt32(session_states.size(), file);
-				unsigned int derp = 0;
-				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter, ++derp)
+				for(list<LoggerState>::iterator iter = session_states.begin(); iter != session_states.end(); ++iter)
 				{
-					const LoggerState&       ls       = *iter;
-					const LoggerState::Bone* ls_bones = (LoggerState::Bone*)&ls.bones;
-					const LoggerState::CP*   ls_cps   = (LoggerState::CP*)&ls.cps;
+					const LoggerState& ls = *iter;
+
+					WriteVec3(ls.untranslate, file);
+					WriteMat3(ls.unrotate, file);
 
 					for(unsigned int i = 0; i < LoggerState::num_bones; ++i)
 					{
-						const LoggerState::Bone& bone = ls_bones[i];
+						const LoggerState::Bone& bone = ls.bones[i];
 						const float*      bone_floats = (float*)&bone;
 
 						for(unsigned int j = 0; j < LoggerState::Bone::num_floats; ++j)
@@ -1073,7 +1087,7 @@ namespace Test
 
 					for(unsigned int i = 0; i < LoggerState::num_cps; ++i)
 					{
-						const LoggerState::CP& cp = ls_cps[i];
+						const LoggerState::CP& cp = ls.cps[i];
 						const float*    cp_floats = (float*)&cp;
 
 						for(unsigned int j = 0; j < LoggerState::CP::num_floats; ++j)
@@ -1115,7 +1129,7 @@ namespace Test
 	{
 		use_cheaty_ori = false;
 
-		//yaw = Random3D::Rand(float(M_PI) * 2.0f);
+		yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 

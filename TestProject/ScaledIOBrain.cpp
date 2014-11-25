@@ -36,9 +36,13 @@ namespace Test
 			if(num_inputs != temp->num_inputs)
 				return AbortRead(temp, 4);
 
+			input_centers.resize(num_inputs);
 			input_scales.resize(num_inputs);
 			for(unsigned int i = 0; i < num_inputs; ++i)
+			{
+				input_centers[i] = ReadSingle(ss);
 				input_scales[i] = ReadSingle(ss);
+			}
 
 			if(ss.bad())
 				return AbortRead(temp, 5);
@@ -47,9 +51,13 @@ namespace Test
 			if(num_outputs != temp->num_outputs)
 				return AbortRead(temp, 6);
 
+			output_centers.resize(num_outputs);
 			output_scales.resize(num_outputs);
 			for(unsigned int i = 0; i < num_outputs; ++i)
+			{
+				output_centers[i] = ReadSingle(ss);
 				output_scales[i] = ReadSingle(ss);
+			}
 
 			if(ss.bad())
 				return AbortRead(temp, 7);
@@ -70,13 +78,19 @@ namespace Test
 		stringstream ss;
 		nn->Write(ss);
 
-		WriteUInt32(input_scales.size(), ss);
+		WriteUInt32(input_centers.size(), ss);
 		for(unsigned int i = 0; i < input_scales.size(); ++i)
+		{
+			WriteSingle(input_centers[i], ss);
 			WriteSingle(input_scales[i], ss);
+		}
 
-		WriteUInt32(output_scales.size(), ss);
+		WriteUInt32(output_centers.size(), ss);
 		for(unsigned int i = 0; i < output_scales.size(); ++i)
+		{
+			WriteSingle(output_centers[i], ss);
 			WriteSingle(output_scales[i], ss);
+		}
 
 		WriteUInt32(7777777, ss);
 

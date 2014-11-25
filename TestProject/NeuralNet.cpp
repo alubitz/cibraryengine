@@ -59,10 +59,8 @@ namespace Test
 			*ptr = Random3D::Rand(-scale, scale);
 	}
 
-	float NeuralNet::Train(float learning_rate)
+	void NeuralNet::Train_AlreadyScored(float learning_rate)
 	{
-		float initial_error = EvaluateAndScore();
-
 		float* ppo_end = phiprime_outs + num_outputs;
 		float* ppm_end = phiprime_mids + num_middles;
 		for(float *ppo_ptr = phiprime_outs, *outputs_ptr = outputs; ppo_ptr != ppo_end; ++ppo_ptr, ++outputs_ptr)
@@ -99,8 +97,6 @@ namespace Test
 
 		memcpy(bottom_matrix, temp_bottom, num_middles * num_outputs * sizeof(float));
 		memcpy(top_matrix,    temp_top,    num_inputs  * num_middles * sizeof(float));
-
-		return initial_error;
 	}
 
 

@@ -601,7 +601,7 @@ namespace Test
 					if(bone_name == (*iter)->posey_id)
 					{
 						(*iter)->body = rigid_body;
-						rigid_body->SetCollisionCallback(&standing_callback);
+						rigid_body->SetContactCallback(&standing_callback);
 
 						break;
 					}
@@ -796,7 +796,7 @@ namespace Test
 	 */
 	Dood::StandingCallback::StandingCallback() : angular_coeff(0.0f) { }
 
-	void Dood::StandingCallback::OnCollision(const ContactPoint& collision)
+	void Dood::StandingCallback::OnContact(const ContactPoint& contact)
 	{
 		if(!dood->alive)
 			return;
@@ -805,16 +805,16 @@ namespace Test
 		{
 			FootState* foot_state = *iter;
 			RigidBody* foot = foot_state->body;
-			if(collision.obj_a == foot || collision.obj_b == foot)
+			if(contact.obj_a == foot || contact.obj_b == foot)
 			{
-				Vec3 normal = collision.obj_a == foot ? -collision.normal : collision.normal;
+				Vec3 normal = contact.obj_a == foot ? -contact.normal : contact.normal;
 				if(normal.y > 0.1f)
-					foot_state->contact_points.push_back(collision);
+					foot_state->contact_points.push_back(contact);
 			}
 		}
 	}
 
-	void Dood::StandingCallback::OnPhysicsTick(float timestep)
+	void Dood::StandingCallback::PreCPHFT(float timestep)
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
 		{
@@ -828,10 +828,14 @@ namespace Test
 			{
 				foot->no_contact_timer = 0.0f;
 				foot->standing = true;
-
-				foot->contact_points.clear();
 			}
 		}
+	}
+
+	void Dood::StandingCallback::PostCPHFT(float timestep)
+	{
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+			(*iter)->contact_points.clear();
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)

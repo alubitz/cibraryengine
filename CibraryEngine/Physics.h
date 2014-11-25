@@ -167,6 +167,14 @@ namespace CibraryEngine
 		virtual void GetRegionsOnRay(const Vec3& from, const Vec3& to, RegionSet& results) = 0;
 	};
 
+	class ContactCallback
+	{
+		public:
+
+			/** Two objects are in contact! Called after contact is detected, but before the PhysicsWorld's step callback */
+			virtual void OnContact(const ContactPoint& contact) = 0;
+	};
+
 	class CollisionCallback
 	{
 		public:

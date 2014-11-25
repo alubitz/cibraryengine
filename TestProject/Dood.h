@@ -156,7 +156,7 @@ namespace Test
 			};
 			vector<FootState*> feet;
 
-			struct StandingCallback : public CollisionCallback
+			struct StandingCallback : public ContactCallback
 			{
 				Dood* dood;
 
@@ -164,8 +164,9 @@ namespace Test
 
 				StandingCallback();
 
-				void OnCollision(const ContactPoint& collision);			// from CibraryEngine::CollisionCallback
-				void OnPhysicsTick(float timestep);							// resets foot contact points and no_contact_timer each tick
+				void OnContact(const ContactPoint& contact);				// from CibraryEngine::ContactCallback
+				void PreCPHFT(float timestep);								// updates no_contact_timer each tick
+				void PostCPHFT(float timestep);								// resets contact points
 
 				void ApplyVelocityChange(const Vec3& dv);
 

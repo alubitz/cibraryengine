@@ -302,6 +302,15 @@ namespace CibraryEngine
 				temp_contact_points.insert(temp_contact_points.end(), (*iter)->points.begin(), (*iter)->points.end());
 		}
 
+		for(unsigned int i = 0; i < temp_contact_points.size(); ++i)
+		{
+			const ContactPoint& cp = *temp_contact_points[i];
+			if(cp.obj_a->contact_callback != NULL)
+				cp.obj_a->contact_callback->OnContact(cp);
+			if(cp.obj_b->contact_callback != NULL)
+				cp.obj_b->contact_callback->OnContact(cp);
+		}
+
 #if PROFILE_DOFIXEDSTEP
 		timer_collide += timer.GetAndRestart();
 #endif

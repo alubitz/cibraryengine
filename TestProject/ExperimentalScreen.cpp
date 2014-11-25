@@ -75,11 +75,10 @@ namespace Test
 				siob = new ScaledIOBrain(NeuralNet::New(state_floats, 21, NUM_MIDDLE_LAYER_NEURONS));
 				siob->nn->Randomize(0.1f);
 
-				siob->input_scales.clear();
-				siob->input_scales.insert(siob->input_scales.end(), state_scales.begin(), state_scales.end());
-
-				siob->output_scales.clear();
-				siob->output_scales.insert(siob->output_scales.end(), out_scales.begin(), out_scales.end());
+				siob->input_centers  = state_centers;
+				siob->input_scales   = state_scales;
+				siob->output_centers = out_centers;
+				siob->output_scales  = out_scales;
 			}
 			else
 				siob = NULL;
@@ -114,11 +113,13 @@ namespace Test
 
 		unsigned int step;
 		unsigned int state_floats;
+		vector<Vec3> untranslates;
+		vector<Mat3> unrotates;
 		vector<vector<float>> states;
 		vector<vector<float>> outputs;
 		vector<TransIndices> indices;
-		vector<float> state_scales;
-		vector<float> out_scales;
+		vector<float> state_centers, state_scales;
+		vector<float> out_centers, out_scales;
 
 
 		vector<float> scores_before;
@@ -129,19 +130,47 @@ namespace Test
 
 		vector<unsigned int> shuffle;
 
-		static void SetTableScale(vector<vector<float>>& data, vector<float>& scales, unsigned int entry_floats)
+		static void SetTableScaling(vector<vector<float>>& data, vector<float>& centers, vector<float>& scales, unsigned int entry_floats)
 		{
+			unsigned int num_data = data.size();
+			vector<float> *data_begin = data.data(), *data_end = data_begin + num_data;
+
+			centers.resize(entry_floats);
+			for(unsigned int i = 0; i < entry_floats; ++i)
+			{
+				float tot = 0.0f;
+				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
+				{
+					if(float& datum = (*iter)[i])
+					{
+						float inv_datum = 1.0f / datum;
+						float product = datum * inv_datum;
+						if(fabs(product - 1.0f) > 0.001f || (!(datum >= 0.0f) && !(datum < 0.0f)))
+						{
+							Debug(((stringstream&)(stringstream() << "bad datum = " << datum << "; product = " << product << endl)).str());
+							datum = 0.0f;
+						}
+						tot += datum;
+					}
+				}
+
+				float avg = centers[i] = tot / float(num_data);
+				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
+					(*iter)[i] -= avg;
+			}
+
 			scales.resize(entry_floats);
 			for(unsigned int i = 0; i < entry_floats; ++i)
 			{
 				float& scale = scales[i];
 				
-				scale = 1.0f;
-				for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
+				scale = 0.01f;			// most it will ever scale something up by is 100x
+				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
 					scale = max(scale, fabs((*iter)[i]));
 
 				scale = scale > 0 ? 0.95f / scale : 1.0f;			// catch NAN, etc.
 			}
+
 			for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
 				for(unsigned int i = 0; i < entry_floats; ++i)
 				{
@@ -150,7 +179,7 @@ namespace Test
 					datum *= scales[i];
 					if(!(datum >= -1.0f && datum <= 1.0f))
 					{
-						Debug(((stringstream&)(stringstream() << "bad datum = " << datum << endl)).str());
+						Debug(((stringstream&)(stringstream() << "still bad datum = " << datum << endl)).str());
 						datum = 0.0f;
 					}
 				}
@@ -178,6 +207,9 @@ namespace Test
 				unsigned int num_state_entries = ReadUInt32(file);
 				for(unsigned int i = 0; i < num_state_entries; ++i)
 				{
+					untranslates.push_back(ReadVec3(file));
+					unrotates.push_back(ReadMat3(file));
+
 					vector<float> data(state_floats);
 					for(unsigned int j = 0; j < state_floats; ++j)
 						data[j] = ReadSingle(file);
@@ -197,31 +229,25 @@ namespace Test
 				file.close();
 				
 
-				// find output vector to match state2 vectors
+				// find output vector to match state2 vectors; search is needed so we can match up untransforms
 				outputs.clear();
 				for(unsigned int i = 0; i < num_state_entries; ++i)
 				{
-					vector<float> data;
+					vector<float> data(21);
+
 					for(unsigned int j = 0; j < num_trans_entries; ++j)
 						if(indices[j].state2 == i)
 						{
-							for(unsigned int k = 0; k < 7; ++k)
-								data.push_back(states[i][k]);
-							for(unsigned int k = 0; k < 7; ++k)
-								data.push_back(states[i][k + 13]);
-							for(unsigned int k = 0; k < 7; ++k)
-								data.push_back(states[i][k + 13 * 6]);
-
+							StateToOutput(indices[j], data.data());
 							break;
 						}
-					if(data.empty())
-						data.resize(21);
+
 					outputs.push_back(data);
 				}
 
 				// scale everything to an appropriate range
-				SetTableScale(states,  state_scales,  state_floats);
-				SetTableScale(outputs, out_scales,    21);
+				SetTableScaling(states,  state_centers, state_scales, state_floats);
+				SetTableScaling(outputs, out_centers,   out_scales,   21);
 
 				vector<TransIndices> nu_indices;
 				float importance_tot = 0.0f;
@@ -232,7 +258,8 @@ namespace Test
 
 					if(importance > 0.0f || Random3D::RandInt() % 10 == 0)
 					{
-						importance = max(1.0f, importance);
+						//importance = max(1.0f, importance);
+						importance = 1.0f;
 
 						importance_tot += importance;
 						indices[i].importance = importance;
@@ -280,11 +307,81 @@ namespace Test
 
 		void ChangeSpeed(int increment) { speed_exp += increment; }
 
-
-		void PushInputFloats(unsigned int size, float*& input_ptr, const vector<float>& source)
+		void MaybeRandomizeCoeff(float& c)
 		{
-			memcpy(input_ptr, source.data(), size * sizeof(float));
-			input_ptr += size;
+			if(Random3D::RandInt() % 50 == 0)
+				c += (Random3D::Rand() * 2.0f - 1.0f) * 0.0001f;
+		}
+
+		void StateToOutput(const TransIndices& index, float* twenty_one)
+		{
+			unsigned int a = index.state1;
+			unsigned int b = index.state2;
+
+			memcpy(twenty_one + 7 * 0, states[b].data() + 13 * 1, 7 * sizeof(float));
+			memcpy(twenty_one + 7 * 1, states[b].data() + 13 * 2, 7 * sizeof(float));
+			memcpy(twenty_one + 7 * 2, states[b].data() + 13 * 0, 7 * sizeof(float));
+
+			Mat3 b_to_a = unrotates[a] * unrotates[b].Transpose();
+			Quaternion bta_quat = Quaternion::FromRotationMatrix(b_to_a);
+
+			struct OriPos
+			{
+				Quaternion ori;
+				Vec3 pos;
+			};
+
+			OriPos* ops = (OriPos*)twenty_one;
+			for(unsigned int i = 0; i < 3; ++i)
+			{
+				OriPos& op = ops[i];
+
+				op.ori = bta_quat * op.ori;
+				op.pos = b_to_a * (op.pos + untranslates[b]) - untranslates[a];
+			}
+		}
+
+		float GetActualPredictionError(const float* prediction, const TransIndices& indices, bool verbose = false)
+		{
+			float* correct = outputs[indices.state2].data();
+
+			float scaled_p[21];
+			float scaled_c[21];
+
+			for(unsigned int i = 0; i < 21; ++i)
+			{
+				scaled_p[i] = prediction[i] / siob->output_scales[i] + siob->output_centers[i];
+				scaled_c[i] = correct[i]    / siob->output_scales[i] + siob->output_centers[i];
+			}
+
+			struct OriPos
+			{
+				Quaternion ori;
+				Vec3 pos;
+			};
+
+			OriPos* op_p = (OriPos*)&scaled_p;
+			OriPos* op_c = (OriPos*)&scaled_c;
+
+			float tot = 0.0f;
+			for(unsigned int i = 0; i < 3; ++i)
+			{
+				OriPos& op_pi = op_p[i];
+				OriPos& op_ci = op_c[i];				// confirmed: quaternion's norm is already 1 in "correct output" values
+				float pi_norm = op_pi.ori.Norm();
+				op_pi.ori /= pi_norm;
+
+				float ori_err = (op_ci.ori * Quaternion::Reverse(op_pi.ori)).GetRotationAngle();
+
+				tot += ori_err * ori_err;
+				float pos_errsq = (op_pi.pos - op_ci.pos).ComputeMagnitudeSquared();
+				tot += pos_errsq;
+
+				if(verbose)
+					Debug(((stringstream&)(stringstream() << "\tbone[" << i << "]: ori norm = " << pi_norm << "; ori error = " << ori_err << "; pos error = " << sqrtf(pos_errsq) << endl)).str());
+			}
+
+			return tot;
 		}
 
 		void Update(const TimingInfo& time)
@@ -308,18 +405,27 @@ namespace Test
 					swap(shuffle[i], shuffle[Random3D::RandInt(records_per_pass)]);
 			}
 
-			// deliberately empty for loop
+			for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
+				MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
+			for(unsigned int i = 0; i < siob->nn->bottom_matrix_size; ++i)
+				MaybeRandomizeCoeff(siob->nn->bottom_matrix[i]);
+
 			unsigned int use_record = shuffle[record];
 			const TransIndices& index = indices[use_record];
 
-			float* in_ptr = siob->nn->inputs;
-			PushInputFloats(state_floats, in_ptr, states[index.state1]);
-			
-			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), 21 * sizeof(float));
+			memcpy(siob->nn->inputs,          states[index.state1].data(),  sizeof(float) * siob->nn->num_inputs);
+			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), sizeof(float) * 21);
 
 			float use_learning_rate = pow(2.0f, speed_exp) * index.importance * BASE_LEARNING_RATE;
-			float score_before = siob->nn->Train(use_learning_rate);
-			float score_after  = siob->nn->EvaluateAndScore();
+			
+			float original_predictions[21];
+
+			siob->nn->EvaluateAndScore();
+			memcpy(original_predictions, siob->nn->outputs, 21 * sizeof(float));
+			float score_before = GetActualPredictionError(siob->nn->outputs, index);
+			siob->nn->Train_AlreadyScored(use_learning_rate);
+			siob->nn->Evaluate();
+			float score_after = GetActualPredictionError(siob->nn->outputs, index);
 
 			if(scores_before.empty())
 				scores_before.resize(records_per_pass);
@@ -362,6 +468,8 @@ namespace Test
 			output_text[6]->SetText(((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
 
 			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << "; speed multiplier = " << speed_str << endl)).str());
+
+			//GetActualPredictionError(original_predictions, index, true);
 
 			++step;
 		}

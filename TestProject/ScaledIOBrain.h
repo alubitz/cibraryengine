@@ -17,8 +17,8 @@ namespace Test
 		public:
 
 			NeuralNet* nn;
-			vector<float> input_scales;
-			vector<float> output_scales;
+			vector<float> input_centers, input_scales;
+			vector<float> output_centers, output_scales;
 
 			ScaledIOBrain() : nn(NULL) { }
 			ScaledIOBrain(NeuralNet* nn);
