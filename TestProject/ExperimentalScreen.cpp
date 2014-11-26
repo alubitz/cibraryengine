@@ -5,8 +5,9 @@
 
 #include "ScaledIOBrain.h"
 
-#define NUM_MIDDLE_LAYER_NEURONS   25
-#define BASE_LEARNING_RATE         0.002f
+#define NUM_MIDDLE_LAYER_NEURONS   50
+#define BASE_LEARNING_RATE         0.0005f
+#define INITIAL_RANDOMIZATION      0.005f
 
 namespace Test
 {
@@ -21,6 +22,12 @@ namespace Test
 		vector<AutoMenuItem*> auto_menu_items;
 
 		AutoMenuItem* output_text[7];
+
+		boost::thread* my_thread;
+		boost::mutex   mutex;
+
+		bool abort;
+		bool aborted;
 
 		struct BackButton : public AutoMenuItem
 		{
@@ -41,7 +48,7 @@ namespace Test
 			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->Shake(); }
 		};
 
-		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items()
+		Imp(ExperimentalScreen* scr) : scr(scr), auto_menu_items(), my_thread(NULL), mutex(), abort(false), aborted(false)
 		{
 			// init screen stuff
 			ContentMan* content = scr->content;
@@ -67,18 +74,20 @@ namespace Test
 
 			step = 0;
 
-			mavg = -1;
 			speed_exp = 0;
 
 			if(state_floats > 0)
 			{
 				siob = new ScaledIOBrain(NeuralNet::New(state_floats, 21, NUM_MIDDLE_LAYER_NEURONS));
-				siob->nn->Randomize(0.1f);
+				siob->nn->Randomize(INITIAL_RANDOMIZATION);
 
 				siob->input_centers  = state_centers;
 				siob->input_scales   = state_scales;
 				siob->output_centers = out_centers;
 				siob->output_scales  = out_scales;
+
+				thread_helper.imp = this;
+				my_thread = new boost::thread(thread_helper);
 			}
 			else
 				siob = NULL;
@@ -95,6 +104,18 @@ namespace Test
 			}
 			auto_menu_items.clear();
 
+			if(boost::thread* temp = my_thread)
+			{
+				{
+					boost::mutex::scoped_lock lock(mutex);
+
+					my_thread = NULL;
+				}
+
+				temp->join();
+				delete temp;
+			}
+
 			if(siob != NULL)
 			{
 				SaveNeuralNet();
@@ -104,14 +125,10 @@ namespace Test
 			}
 		}
 
-		struct TransIndices
-		{
-			unsigned int state1, state2;
-
-			float importance;
-		};
+		struct TransIndices { unsigned int state1, state2; };
 
 		unsigned int step;
+
 		unsigned int state_floats;
 		vector<Vec3> untranslates;
 		vector<Mat3> unrotates;
@@ -121,14 +138,7 @@ namespace Test
 		vector<float> state_centers, state_scales;
 		vector<float> out_centers, out_scales;
 
-
-		vector<float> scores_before;
-		vector<float> scores_after;
-
-		float mavg;
 		int speed_exp;
-
-		vector<unsigned int> shuffle;
 
 		static void SetTableScaling(vector<vector<float>>& data, vector<float>& centers, vector<float>& scales, unsigned int entry_floats)
 		{
@@ -187,6 +197,8 @@ namespace Test
 
 		void LoadLogs()
 		{
+			unsigned int original_count = 0;
+
 			ifstream file("Files/Logs/learnme.statelog", ios::in | ios::binary);
 			if(!file)
 			{
@@ -248,32 +260,18 @@ namespace Test
 				// scale everything to an appropriate range
 				SetTableScaling(states,  state_centers, state_scales, state_floats);
 				SetTableScaling(outputs, out_centers,   out_scales,   21);
-
-				vector<TransIndices> nu_indices;
-				float importance_tot = 0.0f;
-				for(unsigned int i = 0; i < indices.size(); ++i)
-				{
-					float ttl = GetIndexTTL(i);
-					float importance = 6.0f - ttl;
-
-					if(importance > 0.0f || Random3D::RandInt() % 10 == 0)
-					{
-						//importance = max(1.0f, importance);
-						importance = 1.0f;
-
-						importance_tot += importance;
-						indices[i].importance = importance;
-						nu_indices.push_back(indices[i]);
-					}
-				}
-				indices = nu_indices;
 				
-				importance_tot = indices.size() / importance_tot;
+				original_count = indices.size();
+#if 1
+				vector<TransIndices> nu_indices;
 				for(unsigned int i = 0; i < indices.size(); ++i)
-					indices[i].importance *= importance_tot;
+					if(GetIndexTTL(i) < 6.0f || Random3D::RandInt() % 4 == 0)
+						nu_indices.push_back(indices[i]);
+				indices = nu_indices;
+#endif
 			}
 			
-			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << indices.size() << " transitions of interest" << endl)).str();
+			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << original_count << " transitions, of which " << indices.size() << " have been selected" << endl)).str();
 			output_text[0]->SetText(str);
 			Debug(str);
 		}
@@ -297,7 +295,9 @@ namespace Test
 			if(siob == NULL)
 				return;
 
-			static const float shake_amount = 0.025f;
+			static const float shake_amount = 0.0025f;
+
+			boost::mutex::scoped_lock lock(mutex); 
 
 			for(float *fptr = siob->nn->top_matrix, *fend = fptr + siob->nn->top_matrix_size; fptr != fend; ++fptr)
 				*fptr += Random3D::Rand(-shake_amount, shake_amount);
@@ -305,12 +305,12 @@ namespace Test
 				*fptr += Random3D::Rand(-shake_amount, shake_amount);
 		}
 
-		void ChangeSpeed(int increment) { speed_exp += increment; }
+		void ChangeSpeed(int increment) { boost::mutex::scoped_lock lock(mutex); speed_exp += increment; }
 
 		void MaybeRandomizeCoeff(float& c)
 		{
-			if(Random3D::RandInt() % 50 == 0)
-				c += (Random3D::Rand() * 2.0f - 1.0f) * 0.0001f;
+			//if(Random3D::RandInt() % 50 == 0)
+			//	c += (Random3D::Rand() * 2.0f - 1.0f) * 0.001f;
 		}
 
 		void StateToOutput(const TransIndices& index, float* twenty_one)
@@ -384,97 +384,151 @@ namespace Test
 			return tot;
 		}
 
-		void Update(const TimingInfo& time)
+		void PrepareRecord(const TransIndices& index)
 		{
-			if(siob == NULL)
-				return;
-
-			unsigned int records_per_pass = indices.size();
-			
-			unsigned int pass   = step / records_per_pass;
-			unsigned int record = step % records_per_pass;
-
-			if(record == 0)
-			{
-				shuffle.clear();
-				shuffle.resize(records_per_pass);
-
-				for(unsigned int i = 1; i < records_per_pass; ++i)
-					shuffle[i] = i;
-				for(unsigned int i = 0; i < records_per_pass; ++i)
-					swap(shuffle[i], shuffle[Random3D::RandInt(records_per_pass)]);
-			}
-
-			for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
-				MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
-			for(unsigned int i = 0; i < siob->nn->bottom_matrix_size; ++i)
-				MaybeRandomizeCoeff(siob->nn->bottom_matrix[i]);
-
-			unsigned int use_record = shuffle[record];
-			const TransIndices& index = indices[use_record];
-
-			memcpy(siob->nn->inputs,          states[index.state1].data(),  sizeof(float) * siob->nn->num_inputs);
+			memcpy(siob->nn->inputs,          states [index.state1].data(), sizeof(float) * siob->nn->num_inputs);
 			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), sizeof(float) * 21);
-
-			float use_learning_rate = pow(2.0f, speed_exp) * index.importance * BASE_LEARNING_RATE;
-			
-			float original_predictions[21];
-
-			siob->nn->EvaluateAndScore();
-			memcpy(original_predictions, siob->nn->outputs, 21 * sizeof(float));
-			float score_before = GetActualPredictionError(siob->nn->outputs, index);
-			siob->nn->Train_AlreadyScored(use_learning_rate);
-			siob->nn->Evaluate();
-			float score_after = GetActualPredictionError(siob->nn->outputs, index);
-
-			if(scores_before.empty())
-				scores_before.resize(records_per_pass);
-			if(scores_after.empty())
-				scores_after.resize(records_per_pass);
-
-			float last = scores_after[use_record];
-			scores_before[use_record] = score_before;
-			scores_after [use_record] = score_after;
-
-			float mavg_tot  = 0.0f;
-			float mavg_wtot = 0.0f;
-			if(pass == 0)
-				for(unsigned int i = 0; i <= record; ++i)
-				{
-					float weight = indices[shuffle[i]].importance;
-					mavg_tot  += weight * scores_before[shuffle[i]];
-					mavg_wtot += weight;
-				}
-			else
-				for(unsigned int i = 0; i < records_per_pass; ++i)
-				{
-					float weight = indices[i].importance;
-					mavg_tot  += weight * scores_before[i];
-					mavg_wtot += weight;
-				}
-			mavg = mavg_tot / mavg_wtot;
-
-			output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record)).str());
-			output_text[2]->SetText(((stringstream&)(stringstream() << "last   = " << last)).str());
-			output_text[3]->SetText(((stringstream&)(stringstream() << "before = " << score_before)).str());
-			output_text[4]->SetText(((stringstream&)(stringstream() << "after  = " << score_after)).str());
-			output_text[5]->SetText(((stringstream&)(stringstream() << "recent \"before\" avg = " << mavg)).str());
-
-			unsigned int pow = 1;
-			for(int i = 0; i < abs(speed_exp); ++i)
-				pow *= 2;
-			string speed_pow_str = ((stringstream&)(stringstream() << pow)).str();
-			string speed_str     = speed_exp >= 0 ? speed_pow_str : ((stringstream&)(stringstream() << "1 / " << speed_pow_str)).str();
-			output_text[6]->SetText(((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
-
-			Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << use_record << "; last = " << last << "; before = " << score_before << "; after = " << score_after << "; recent \"before\" avg = " << mavg << "; speed multiplier = " << speed_str << endl)).str());
-
-			//GetActualPredictionError(original_predictions, index, true);
-
-			++step;
 		}
 
+		void SetAbort()	    { boost::mutex::scoped_lock lock(mutex); abort = true; }
+		bool CheckAbort()   { boost::mutex::scoped_lock lock(mutex); return abort; }
+		void SetAborted()   { boost::mutex::scoped_lock lock(mutex); aborted = true; }
+		bool CheckAborted() { boost::mutex::scoped_lock lock(mutex); return aborted; }
 
+		void ThreadAction()
+		{
+			unsigned int num_records = indices.size();
+			vector<unsigned int> shuffle;
+
+			unsigned int pass = 0;
+			unsigned int record = 0;
+
+			while(!CheckAbort())
+			{
+				if(record == 0)
+					siob->nn->MultiTrainBegin();
+
+				const TransIndices& index = indices[record];
+
+				PrepareRecord(index);
+				siob->nn->MultiTrainNext();
+
+				unsigned int pow = 1;
+				for(int i = 0; i < abs(speed_exp); ++i)
+					pow *= 2;
+				string speed_pow_str = ((stringstream&)(stringstream() << pow)).str();
+				string speed_str     = speed_exp >= 0 ? speed_pow_str : ((stringstream&)(stringstream() << "1 / " << speed_pow_str)).str();
+
+				{	// curly braces for scope
+					boost::mutex::scoped_lock lock(mutex);
+					output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record = " << record)).str());
+					output_text[6]->SetText(((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
+				}
+
+				++record;
+				if(record == num_records)
+				{
+					record = 0;
+
+					float initial_score = GetOverallNNScore(num_records);
+					{	// curly braces for scope
+						boost::mutex::scoped_lock lock(mutex);
+						output_text[2]->SetText(((stringstream&)(stringstream() << "base           = " << initial_score)).str());
+					}
+
+					vector<float> base_top   (siob->nn->top_matrix_size   );
+					vector<float> base_bottom(siob->nn->bottom_matrix_size);
+
+					memcpy(base_top   .data(), siob->nn->top_matrix,    sizeof(float) * siob->nn->top_matrix_size   );
+					memcpy(base_bottom.data(), siob->nn->bottom_matrix, sizeof(float) * siob->nn->bottom_matrix_size);
+
+					vector<float> best_top    = base_top;
+					vector<float> best_bottom = base_bottom;
+
+					float slope_sq = 0.0f;
+					for(float *iptr = siob->nn->temp_top, *iend = iptr + siob->nn->top_matrix_size; iptr != iend; ++iptr)
+						slope_sq += *iptr * *iptr;
+					for(float *iptr = siob->nn->temp_bottom, *iend = iptr + siob->nn->bottom_matrix_size; iptr != iend; ++iptr)
+						slope_sq += *iptr * *iptr;
+					float slope = sqrtf(slope_sq);
+					{	// curly braces for scope
+						boost::mutex::scoped_lock lock(mutex);
+						output_text[4]->SetText(((stringstream&)(stringstream() << "nn-scale slope = " << slope)).str());
+					}
+
+					float best_score    = initial_score;
+					float best_lr       = 0.0f;
+
+					static const int exp_range = 128;
+					for(int use_exp = -exp_range; use_exp <= exp_range && !CheckAbort(); ++use_exp)
+					{
+						{	// curly braces for scope
+							boost::mutex::scoped_lock lock(mutex);
+							output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; use exp = " << use_exp)).str());
+							output_text[3]->SetText(((stringstream&)(stringstream() << "best           = " << best_score)).str());
+							output_text[5]->SetText(((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
+						}
+
+						float use_learning_rate = BASE_LEARNING_RATE * powf(2.0f, speed_exp + use_exp * 0.0625f);
+						siob->nn->MultiTrainApply(use_learning_rate);
+
+						for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
+							MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
+						for(unsigned int i = 0; i < siob->nn->bottom_matrix_size; ++i)
+							MaybeRandomizeCoeff(siob->nn->bottom_matrix[i]);
+
+						float score = GetOverallNNScore(num_records);
+
+						if(score < best_score)
+						{
+							best_score = score;
+							best_lr = use_learning_rate;
+
+							memcpy(best_top   .data(), siob->nn->top_matrix,    sizeof(float) * siob->nn->top_matrix_size   );
+							memcpy(best_bottom.data(), siob->nn->bottom_matrix, sizeof(float) * siob->nn->bottom_matrix_size);
+						}
+
+						memcpy(siob->nn->top_matrix,    base_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
+						memcpy(siob->nn->bottom_matrix, base_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
+					}
+
+					memcpy(siob->nn->top_matrix,    best_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
+					memcpy(siob->nn->bottom_matrix, best_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
+
+					{	// curly braces for scope
+						boost::mutex::scoped_lock lock(mutex);
+						output_text[3]->SetText(((stringstream&)(stringstream() << "best           = " << best_score)).str());
+						output_text[5]->SetText(((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
+					}
+
+					Debug(((stringstream&)(stringstream() << "pass = " << pass << "; base = " << initial_score << "; best = " << best_score << "; nn-scale slope = " << slope << "; learning rate = " << best_lr << endl)).str());
+
+					++pass;
+				}
+			}
+
+			SetAborted();
+		}
+
+		float GetOverallNNScore(unsigned int num_records)
+		{
+			float score_tot = 0.0f;
+			for(unsigned int i = 0; i < num_records; ++i)
+			{
+				const TransIndices& index = indices[i];
+				PrepareRecord(index);
+				siob->nn->EvaluateAndScore();
+				score_tot += GetActualPredictionError(siob->nn->outputs, index);
+			}
+			return score_tot;
+		}
+
+		struct ThreadHelper
+		{
+			Imp* imp;
+			void operator()() { imp->ThreadAction(); }
+		} thread_helper;
+			
 
 		void SaveNeuralNet() const
 		{
@@ -515,8 +569,25 @@ namespace Test
 	{
 		MenuScreen::Deactivate();
 
-		if(imp) { delete imp; imp = NULL; }
+		if(imp)
+		{
+			imp->SetAbort();
+			while(!imp->CheckAborted()) { Sleep(1); }			// don't busy wait
+
+			delete imp; imp = NULL;
+		}
 	}
 
-	ProgramScreen* ExperimentalScreen::Update(const TimingInfo& time) { imp->Update(time); return MenuScreen::Update(time); }
+	void ExperimentalScreen::Draw(int width, int height)
+	{
+		if(imp != NULL)
+		{
+			boost::mutex::scoped_lock lock(imp->mutex);
+			MenuScreen::Draw(width, height);
+		}
+		else
+			MenuScreen::Draw(width, height);
+	}
+
+	ProgramScreen* ExperimentalScreen::Update(const TimingInfo& time) { Sleep(1); return MenuScreen::Update(time); }
 }

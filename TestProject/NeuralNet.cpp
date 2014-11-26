@@ -59,8 +59,16 @@ namespace Test
 			*ptr = Random3D::Rand(-scale, scale);
 	}
 
-	void NeuralNet::Train_AlreadyScored(float learning_rate)
+	void NeuralNet::MultiTrainBegin()
 	{
+		memset(temp_top,    0, sizeof(float) * top_matrix_size);
+		memset(temp_bottom, 0, sizeof(float) * bottom_matrix_size);
+	}
+
+	float NeuralNet::MultiTrainNext()
+	{
+		float score = EvaluateAndScore();
+
 		float* ppo_end = phiprime_outs + num_outputs;
 		float* ppm_end = phiprime_mids + num_middles;
 		for(float *ppo_ptr = phiprime_outs, *outputs_ptr = outputs; ppo_ptr != ppo_end; ++ppo_ptr, ++outputs_ptr)
@@ -73,7 +81,7 @@ namespace Test
 		float* middles_end     = middles + num_middles;
 		for(float *ppo_ptr = phiprime_outs, *ppo_end = ppo_ptr + num_outputs, *err_ptr = errors; ppo_ptr != ppo_end; ++ppo_ptr, ++err_ptr)
 			for(float* mid_ptr = middles; mid_ptr != middles_end; ++mid_ptr, ++temp_bottom_ptr, ++bottom_ptr)
-				*temp_bottom_ptr = *bottom_ptr - learning_rate * 2.0f * *err_ptr * *ppo_ptr * *mid_ptr;
+				*temp_bottom_ptr += -2.0f * *err_ptr * *ppo_ptr * *mid_ptr;
 
 		float* temp_top_ptr = temp_top;
 		float* top_ptr      = top_matrix;
@@ -92,11 +100,18 @@ namespace Test
 					derrordtop += *err_ptr * doutputdtop * *ppo_ptr;
 				}
 				derrordtop *= 2.0f;
-				*temp_top_ptr = *top_ptr - learning_rate * derrordtop;
+				*temp_top_ptr += -derrordtop;
 			}
 
-		memcpy(bottom_matrix, temp_bottom, num_middles * num_outputs * sizeof(float));
-		memcpy(top_matrix,    temp_top,    num_inputs  * num_middles * sizeof(float));
+		return score;
+	}
+
+	void NeuralNet::MultiTrainApply(float learning_rate)
+	{
+		for(float *optr = top_matrix, *oend = optr + top_matrix_size, *iptr = temp_top; optr != oend; ++optr, ++iptr)
+			*optr += *iptr * learning_rate;
+		for(float *optr = bottom_matrix, *oend = optr + bottom_matrix_size, *iptr = temp_bottom; optr != oend; ++optr, ++iptr)
+			*optr += *iptr * learning_rate;
 	}
 
 

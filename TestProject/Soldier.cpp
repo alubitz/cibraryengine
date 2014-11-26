@@ -18,7 +18,7 @@
 
 #define ENABLE_STATE_TRANSITION_LOGGING   1
 
-#define MAX_MAX_TICK_AGE                  10
+#define MAX_MAX_TICK_AGE                  30
 #define RANDOM_TORQUE_TICKS               2
 
 namespace Test
@@ -82,7 +82,7 @@ namespace Test
 
 			Bone(const RigidBody* rb, const Vec3& untranslate, const Mat3& unrotate) :
 				ori(Quaternion::FromRotationMatrix(unrotate * rb->GetOrientation().ToMat3())),
-				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
+				pos(unrotate * (rb->GetPosition() + rb->GetOrientation() * rb->GetMassInfo().com - untranslate)),
 				vel(unrotate * rb->GetLinearVelocity()),
 				rot(unrotate * rb->GetAngularVelocity())
 			{
@@ -90,7 +90,7 @@ namespace Test
 
 			Bone(const RigidBody* rb, const Vec3& untranslate, const Mat3& unrotate, const Vec3& world_torque_timestep) :
 				ori(Quaternion::FromRotationMatrix(unrotate * rb->GetOrientation().ToMat3())),
-				pos(unrotate * (rb->GetPosition() - untranslate) + ori * rb->GetMassInfo().com),
+				pos(unrotate * (rb->GetPosition() + rb->GetOrientation() * rb->GetMassInfo().com - untranslate)),
 				vel(unrotate * rb->GetLinearVelocity()),
 				rot(unrotate * (rb->GetAngularVelocity() + rb->GetInvMoI() * world_torque_timestep))
 			{

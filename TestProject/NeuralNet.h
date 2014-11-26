@@ -88,8 +88,9 @@ namespace Test
 
 			float EvaluateAndScore() { Evaluate(); return CheckOutput(); }
 
-			void Train_AlreadyScored(float learning_rate);
-			float Train(float learning_rate) { float initial_score = EvaluateAndScore(); Train_AlreadyScored(learning_rate); return initial_score; }
+			void MultiTrainBegin();
+			float MultiTrainNext();
+			void MultiTrainApply(float learning_rate);
 
 
 			// constructor/destructor-ish

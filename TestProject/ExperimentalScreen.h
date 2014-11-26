@@ -20,6 +20,8 @@ namespace Test
 			void Activate();
 			void Deactivate();
 
+			void Draw(int width, int height);
+
 			ProgramScreen* Update(const TimingInfo& time);
 	};
 }
