@@ -5,9 +5,11 @@
 
 #include "ScaledIOBrain.h"
 
-#define NUM_MIDDLE_LAYER_NEURONS   50
-#define BASE_LEARNING_RATE         0.0005f
-#define INITIAL_RANDOMIZATION      0.005f
+#define NUM_MIDDLE_LAYER_NEURONS   25
+
+#define BASE_LEARNING_RATE         1.0f
+#define INITIAL_RANDOMIZATION      0.0001f
+#define SHAKE_AMOUNT               0.025f;
 
 namespace Test
 {
@@ -108,7 +110,6 @@ namespace Test
 			{
 				{
 					boost::mutex::scoped_lock lock(mutex);
-
 					my_thread = NULL;
 				}
 
@@ -262,10 +263,10 @@ namespace Test
 				SetTableScaling(outputs, out_centers,   out_scales,   21);
 				
 				original_count = indices.size();
-#if 1
+#if 0
 				vector<TransIndices> nu_indices;
 				for(unsigned int i = 0; i < indices.size(); ++i)
-					if(GetIndexTTL(i) < 6.0f || Random3D::RandInt() % 4 == 0)
+					if(GetIndexTTL(i) <= 5.0f || Random3D::RandInt() % 5 != 0)
 						nu_indices.push_back(indices[i]);
 				indices = nu_indices;
 #endif
@@ -295,7 +296,7 @@ namespace Test
 			if(siob == NULL)
 				return;
 
-			static const float shake_amount = 0.0025f;
+			static const float shake_amount = SHAKE_AMOUNT;
 
 			boost::mutex::scoped_lock lock(mutex); 
 
@@ -309,8 +310,8 @@ namespace Test
 
 		void MaybeRandomizeCoeff(float& c)
 		{
-			//if(Random3D::RandInt() % 50 == 0)
-			//	c += (Random3D::Rand() * 2.0f - 1.0f) * 0.001f;
+			if(Random3D::RandInt() % 50 == 0)
+				c += (Random3D::Rand() * 2.0f - 1.0f) * 0.001f;
 		}
 
 		void StateToOutput(const TransIndices& index, float* twenty_one)
@@ -395,6 +396,8 @@ namespace Test
 		void SetAborted()   { boost::mutex::scoped_lock lock(mutex); aborted = true; }
 		bool CheckAborted() { boost::mutex::scoped_lock lock(mutex); return aborted; }
 
+		void ThreadsafeSetText(unsigned int index, const string& text) { boost::mutex::scoped_lock lock(mutex); output_text[index]->SetText(text); }
+
 		void ThreadAction()
 		{
 			unsigned int num_records = indices.size();
@@ -407,34 +410,31 @@ namespace Test
 			{
 				if(record == 0)
 					siob->nn->MultiTrainBegin();
-
-				const TransIndices& index = indices[record];
-
-				PrepareRecord(index);
-				siob->nn->MultiTrainNext();
-
+				
+				if(Random3D::RandInt() % 10 == 0)
+				{
+					PrepareRecord(indices[record]);
+					siob->nn->MultiTrainNext();
+				}
+				
 				unsigned int pow = 1;
 				for(int i = 0; i < abs(speed_exp); ++i)
 					pow *= 2;
 				string speed_pow_str = ((stringstream&)(stringstream() << pow)).str();
 				string speed_str     = speed_exp >= 0 ? speed_pow_str : ((stringstream&)(stringstream() << "1 / " << speed_pow_str)).str();
 
-				{	// curly braces for scope
-					boost::mutex::scoped_lock lock(mutex);
-					output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; record = " << record)).str());
-					output_text[6]->SetText(((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
-				}
+				ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; record = " << record)).str());
+				ThreadsafeSetText(6, ((stringstream&)(stringstream() << "speed multiplier = " << speed_str)).str());
 
 				++record;
 				if(record == num_records)
 				{
 					record = 0;
 
-					float initial_score = GetOverallNNScore(num_records);
-					{	// curly braces for scope
-						boost::mutex::scoped_lock lock(mutex);
-						output_text[2]->SetText(((stringstream&)(stringstream() << "base           = " << initial_score)).str());
-					}
+					float initial_score = GetOverallNNScore(num_records, false);
+					float display_initial = GetOverallNNScore(num_records, true);
+
+					ThreadsafeSetText(2, ((stringstream&)(stringstream() << "base           = " << display_initial<< " (" << initial_score << ")")).str());
 
 					vector<float> base_top   (siob->nn->top_matrix_size   );
 					vector<float> base_bottom(siob->nn->bottom_matrix_size);
@@ -451,57 +451,73 @@ namespace Test
 					for(float *iptr = siob->nn->temp_bottom, *iend = iptr + siob->nn->bottom_matrix_size; iptr != iend; ++iptr)
 						slope_sq += *iptr * *iptr;
 					float slope = sqrtf(slope_sq);
-					{	// curly braces for scope
-						boost::mutex::scoped_lock lock(mutex);
-						output_text[4]->SetText(((stringstream&)(stringstream() << "nn-scale slope = " << slope)).str());
-					}
 
-					float best_score    = initial_score;
-					float best_lr       = 0.0f;
+					ThreadsafeSetText(4, ((stringstream&)(stringstream() << "nn-scale slope = " << slope)).str());
 
-					static const int exp_range = 128;
+					float best_score   = initial_score;
+					float display_best = display_initial;
+					float best_lr      = 0.0f;
+
+					static const int exp_range = 16;
 					for(int use_exp = -exp_range; use_exp <= exp_range && !CheckAbort(); ++use_exp)
 					{
-						{	// curly braces for scope
-							boost::mutex::scoped_lock lock(mutex);
-							output_text[1]->SetText(((stringstream&)(stringstream() << "pass = " << pass << "; use exp = " << use_exp)).str());
-							output_text[3]->SetText(((stringstream&)(stringstream() << "best           = " << best_score)).str());
-							output_text[5]->SetText(((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
-						}
+						ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; use exp = " << use_exp)).str());
+						ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << display_best << " (" << best_score << ")")).str());
+						ThreadsafeSetText(5, ((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
 
-						float use_learning_rate = BASE_LEARNING_RATE * powf(2.0f, speed_exp + use_exp * 0.0625f);
+						memcpy(siob->nn->top_matrix,    base_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
+						memcpy(siob->nn->bottom_matrix, base_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
+
+						float use_learning_rate = BASE_LEARNING_RATE * powf(2.0f, speed_exp + use_exp * 0.0625f) / slope;
 						siob->nn->MultiTrainApply(use_learning_rate);
+
+						float score = GetOverallNNScore(num_records, false);
+						float display_score = GetOverallNNScore(num_records, true);
+
+						if(score < best_score)
+						{
+							display_best = display_score;
+							best_score   = score;
+							best_lr      = use_learning_rate;
+
+							memcpy(best_top   .data(), siob->nn->top_matrix,    sizeof(float) * siob->nn->top_matrix_size   );
+							memcpy(best_bottom.data(), siob->nn->bottom_matrix, sizeof(float) * siob->nn->bottom_matrix_size);
+						}
+					}
+
+					for(unsigned int j = 0; j < 500 && !CheckAbort(); ++j)
+					{
+						ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; random # " << j)).str());
+						ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << display_best << " (" << best_score << ")")).str());
+
+						memcpy(siob->nn->top_matrix,    best_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
+						memcpy(siob->nn->bottom_matrix, best_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
 
 						for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
 							MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
 						for(unsigned int i = 0; i < siob->nn->bottom_matrix_size; ++i)
 							MaybeRandomizeCoeff(siob->nn->bottom_matrix[i]);
 
-						float score = GetOverallNNScore(num_records);
+						float score = GetOverallNNScore(num_records, false);
+						float display_score = GetOverallNNScore(num_records, true);
 
 						if(score < best_score)
 						{
-							best_score = score;
-							best_lr = use_learning_rate;
+							display_best = display_score;
+							best_score   = score;
 
 							memcpy(best_top   .data(), siob->nn->top_matrix,    sizeof(float) * siob->nn->top_matrix_size   );
 							memcpy(best_bottom.data(), siob->nn->bottom_matrix, sizeof(float) * siob->nn->bottom_matrix_size);
 						}
-
-						memcpy(siob->nn->top_matrix,    base_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
-						memcpy(siob->nn->bottom_matrix, base_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
 					}
 
 					memcpy(siob->nn->top_matrix,    best_top   .data(), sizeof(float) * siob->nn->top_matrix_size   );
 					memcpy(siob->nn->bottom_matrix, best_bottom.data(), sizeof(float) * siob->nn->bottom_matrix_size);
 
-					{	// curly braces for scope
-						boost::mutex::scoped_lock lock(mutex);
-						output_text[3]->SetText(((stringstream&)(stringstream() << "best           = " << best_score)).str());
-						output_text[5]->SetText(((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
-					}
+					ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << display_best << " (" << best_score << ")")).str());
+					ThreadsafeSetText(5, ((stringstream&)(stringstream() << "learning rate  = " << best_lr)).str());
 
-					Debug(((stringstream&)(stringstream() << "pass = " << pass << "; base = " << initial_score << "; best = " << best_score << "; nn-scale slope = " << slope << "; learning rate = " << best_lr << endl)).str());
+					Debug(((stringstream&)(stringstream() << "pass = " << pass << "; base = " << display_initial << " (" << initial_score << "); best = " << display_best << " (" << best_score << "); nn-scale slope = " << slope << "; learning rate = " << best_lr << endl)).str());
 
 					++pass;
 				}
@@ -510,15 +526,20 @@ namespace Test
 			SetAborted();
 		}
 
-		float GetOverallNNScore(unsigned int num_records)
+		float GetOverallNNScore(unsigned int num_records, bool actual)
 		{
 			float score_tot = 0.0f;
 			for(unsigned int i = 0; i < num_records; ++i)
 			{
 				const TransIndices& index = indices[i];
 				PrepareRecord(index);
-				siob->nn->EvaluateAndScore();
-				score_tot += GetActualPredictionError(siob->nn->outputs, index);
+				if(actual)
+				{
+					siob->nn->EvaluateAndScore();
+					score_tot += GetActualPredictionError(siob->nn->outputs, index);
+				}
+				else
+					score_tot += siob->nn->EvaluateAndScore();
 			}
 			return score_tot;
 		}
