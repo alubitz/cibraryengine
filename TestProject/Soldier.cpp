@@ -18,7 +18,7 @@
 
 #define ENABLE_STATE_TRANSITION_LOGGING   1
 
-#define MAX_MAX_TICK_AGE                  30
+#define MAX_MAX_TICK_AGE                  10
 #define RANDOM_TORQUE_TICKS               2
 
 namespace Test
@@ -61,7 +61,7 @@ namespace Test
 
 	struct LoggerState
 	{
-		static const unsigned int num_bones          = 19;
+		static const unsigned int num_bones          = 13;
 
 		static const unsigned int max_cps_per_foot   = 3;
 		static const unsigned int num_cps            = max_cps_per_foot * 2;
@@ -1016,13 +1016,14 @@ namespace Test
 			state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
 			state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
 			state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
-			state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
-			state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
-			state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
-			state.bones[15] = LoggerState::Bone(rlarm.rb,     untranslate, unrotate, rlarm.applied_torque     * timestep);
-			state.bones[16] = LoggerState::Bone(lhand.rb,     untranslate, unrotate, lhand.applied_torque     * timestep);
-			state.bones[17] = LoggerState::Bone(rhand.rb,     untranslate, unrotate, rhand.applied_torque     * timestep);
-			state.bones[18] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
+			state.bones[12] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
+			//state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
+			//state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
+			//state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
+			//state.bones[15] = LoggerState::Bone(rlarm.rb,     untranslate, unrotate, rlarm.applied_torque     * timestep);
+			//state.bones[16] = LoggerState::Bone(lhand.rb,     untranslate, unrotate, lhand.applied_torque     * timestep);
+			//state.bones[17] = LoggerState::Bone(rhand.rb,     untranslate, unrotate, rhand.applied_torque     * timestep);
+			//state.bones[18] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
 
 			for(unsigned int i = 0; i < 2; ++i)
 			{

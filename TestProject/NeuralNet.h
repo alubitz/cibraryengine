@@ -43,7 +43,7 @@ namespace Test
 		public:
 
 			unsigned int num_inputs, num_outputs, num_middles;
-			unsigned int top_matrix_size, bottom_matrix_size;
+			unsigned int top_matrix_size, bot_matrix_size;
 
 			float* data;					// consolidate float arrays all in one place
 
@@ -62,8 +62,8 @@ namespace Test
 
 			float* top_matrix;
 			float* temp_top;
-			float* bottom_matrix;
-			float* temp_bottom;
+			float* bot_matrix;
+			float* temp_bot;
 
 			static unsigned int GetNumFloats(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_middles) { return num_inputs + num_middles * 3 + num_outputs * 5 + num_inputs * num_middles * 2 + num_middles * num_outputs * 2; }
 
@@ -71,8 +71,8 @@ namespace Test
 
 			void Evaluate()
 			{
-				MultiplyAndSigmoid(top_matrix,    inputs,  middle_sums, middles, num_inputs,  num_middles);
-				MultiplyAndSigmoid(bottom_matrix, middles, output_sums, outputs, num_middles, num_outputs);
+				MultiplyAndSigmoid(top_matrix, inputs,  middle_sums, middles, num_inputs,  num_middles);
+				MultiplyAndSigmoid(bot_matrix, middles, output_sums, outputs, num_middles, num_outputs);
 			}
 
 			float CheckOutput()
@@ -91,6 +91,10 @@ namespace Test
 			void MultiTrainBegin();
 			float MultiTrainNext();
 			void MultiTrainApply(float learning_rate);
+
+
+			// create a copy of the NN with a different number of middle neurons; only copies the coefficient matrices themselves!
+			NeuralNet* Resized(unsigned int new_num_middles) const;
 
 
 			// constructor/destructor-ish
