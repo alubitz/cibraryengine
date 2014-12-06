@@ -556,8 +556,7 @@ namespace Test
 
 		physics = game_state->physics_world;
 
-		collision_group = new CollisionGroup(this);
-		physics->AddCollisionObject(collision_group);
+		collision_group = new CollisionGroup(this);		// collision group will be added to PhysicsWorld once its children have been added
 
 		unsigned int count = mphys->bones.size();
 
@@ -613,6 +612,8 @@ namespace Test
 
 		if(root_rigid_body == NULL && !rigid_bodies.empty())
 			root_rigid_body = rigid_bodies[0];
+
+		physics->AddCollisionObject(collision_group);
 
 		// create constraints between bones
 		for(vector<ModelPhysics::JointPhysics>::iterator iter = mphys->joints.begin(); iter != mphys->joints.end(); ++iter)

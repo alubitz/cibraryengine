@@ -52,16 +52,12 @@ namespace Test
 			Quaternion OrientBottomToSurface(const Vec3& normal) const;
 	};
 
-	static float original_score = 0;
-
 	static bool matrix_test_running = false;
-	static unsigned int trial = 0;
-
 
 
 	struct LoggerState
 	{
-		static const unsigned int num_bones          = 13;
+		static const unsigned int num_bones          = 9;
 
 		static const unsigned int max_cps_per_foot   = 3;
 		static const unsigned int num_cps            = max_cps_per_foot * 2;
@@ -794,6 +790,9 @@ namespace Test
 
 				Debug(((stringstream&)(stringstream() << "current actual = " << current << "; initial prediction = " << scorer.rest.score << "; final prediction = " << scorer.best.score << "; after noise = " << noisified.score << endl)).str());
 			}
+
+			if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
+				matrix_test_running = false;	//max_tick_age = min(max_tick_age, tick_age + 2);
 			
 			++tick_age;
 			if(tick_age >= max_tick_age)
@@ -878,7 +877,9 @@ namespace Test
 			}
 
 			float ComputeScore(IKState& state)
-			{				
+			{
+				float exertion = 0.0f;
+
 				CJoint* cjoints[7] = { &imp->lankle, &imp->rankle, &imp->lknee, &imp->rknee, &imp->lhip, &imp->rhip, &imp->spine1 };
 				Vec3 joint_tvecs[7];
 				for(unsigned int i = 0; i < 6; ++i)
@@ -887,6 +888,9 @@ namespace Test
 					const float* mint_ptr = (float*)&sjc->min_torque;
 					const float* maxt_ptr = (float*)&sjc->max_torque;
 					const float* in_ptr = state.joint_torques + i * 3;
+
+					exertion += ((Vec3&)*in_ptr).ComputeMagnitudeSquared();
+
 					float* result_ptr = (float*)(joint_tvecs + i);
 					for(unsigned int j = 0; j < 3; ++j, ++mint_ptr, ++maxt_ptr, ++in_ptr, ++result_ptr)
 					{
@@ -928,7 +932,7 @@ namespace Test
 				memcpy(state.prediction.data(), ik_ann->outputs, ik_ann->num_outputs * sizeof(float));
 				ScaleUpOutputs(state.prediction.data());
 
-				return state.score = ComputeScore(state.prediction.data());
+				return state.score = ComputeScore(state.prediction.data()) + exertion * 1.0f;
 			}
 
 			void ScaleUpOutputs(float* outputs)
@@ -978,19 +982,22 @@ namespace Test
 
 				const float* iptr = twenty_one;
 
-				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[0]);
+				static const float foot_mult     = 100.0f;
+				static const float pelvis_mult   = 1.0f;
+
+				score += foot_mult * GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[0]);
 				iptr += 4;
-				score += (*((Vec3*)iptr) - desired_pos[0]).ComputeMagnitudeSquared();
+				score += foot_mult * (*((Vec3*)iptr) - desired_pos[0]).ComputeMagnitudeSquared();
 				iptr += 3;		
 
-				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[1]);
+				score += foot_mult * GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[1]);
 				iptr += 4;
-				score += (*((Vec3*)iptr) - desired_pos[1]).ComputeMagnitudeSquared();
+				score += foot_mult * (*((Vec3*)iptr) - desired_pos[1]).ComputeMagnitudeSquared();
 				iptr += 3;
 
-				score += GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[2]);
+				score += pelvis_mult * GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[2]);
 				iptr += 4;
-				score += (*((Vec3*)iptr) - desired_pos[2]).ComputeMagnitudeSquared();
+				score += pelvis_mult * (*((Vec3*)iptr) - desired_pos[2]).ComputeMagnitudeSquared();
 				//iptr += 3;
 
 				return score;
@@ -1013,10 +1020,9 @@ namespace Test
 			state.bones[6]  = LoggerState::Bone(ruleg.rb,     untranslate, unrotate);
 			state.bones[7]  = LoggerState::Bone(torso1.rb,    untranslate, unrotate, torso1.applied_torque    * timestep);
 			state.bones[8]  = LoggerState::Bone(torso2.rb,    untranslate, unrotate, torso2.applied_torque    * timestep);
-			state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
-			state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
-			state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
-			state.bones[12] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
+			//state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
+			//state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
+			//state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
 			//state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
 			//state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
 			//state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
@@ -1322,6 +1328,8 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
+		pos.y -= 0.01f;
+
 		Dood::DoInitialPose();
 
 		PreparePAG(TimingInfo(0, 0), Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0));

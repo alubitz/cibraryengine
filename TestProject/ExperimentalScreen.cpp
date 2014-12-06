@@ -7,9 +7,7 @@
 
 #define STARTING_MIDDLE_LAYER_NEURONS   25
 
-#define BASE_LEARNING_RATE              0.01f
 #define INITIAL_RANDOMIZATION           0.01f
-#define SHAKE_AMOUNT                    0.025f
 
 namespace Test
 {
@@ -31,8 +29,10 @@ namespace Test
 		bool abort;
 		bool aborted;
 
+		bool splat_requested;
+
 		int desired_size;
-		int speed_exp;
+		int gran_exp;
 
 		ProfilingTimer my_timer;
 		float time_spent;
@@ -43,11 +43,17 @@ namespace Test
 			void DoAction(MenuSelectionEvent* mse) { mse->menu->SetNextScreen(mse->menu->GetPreviousScreen()); }
 		};
 
-		struct SpeedButton : public AutoMenuItem
+		struct SplatButton : public AutoMenuItem
 		{
-			int speed;
-			SpeedButton(ContentMan* content, int row, int speed) : AutoMenuItem(content, (((stringstream&)(stringstream() << (speed > 0 ? "Speed + " : "Speed - ") << (speed > 0 ? speed : -speed))).str()), row, true), speed(speed) { }
-			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->SetSpeed(speed); }
+			SplatButton(ContentMan* content, int row) : AutoMenuItem(content, "Splat!", row, true) { }
+			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->SetSplat(true); }
+		};
+
+		struct GranButton : public AutoMenuItem
+		{
+			int gran;
+			GranButton(ContentMan* content, int row, int gran) : AutoMenuItem(content, (((stringstream&)(stringstream() << (gran > 0 ? "Granularity + " : "Granularity - ") << (gran > 0 ? gran : -gran))).str()), row, true), gran(gran) { }
+			void DoAction(MenuSelectionEvent* mse) { ((ExperimentalScreen*)mse->menu)->imp->SetGranularity(gran); }
 		};
 
 		struct ResizeButton : public AutoMenuItem
@@ -69,12 +75,13 @@ namespace Test
 			for(unsigned int i = 0; i < 6; ++i)
 				auto_menu_items.push_back(output_text[i] = new AutoMenuItem(content, "", row++, false));
 
+			auto_menu_items.push_back(new SplatButton (content, row++));
 			auto_menu_items.push_back(new ResizeButton(content, row++, -5));
 			auto_menu_items.push_back(new ResizeButton(content, row++, -1));
 			auto_menu_items.push_back(new ResizeButton(content, row++,  1));
 			auto_menu_items.push_back(new ResizeButton(content, row++,  5));
-			auto_menu_items.push_back(new SpeedButton (content, row++, -1));
-			auto_menu_items.push_back(new SpeedButton (content, row++,  1));
+			auto_menu_items.push_back(new GranButton  (content, row++, -1));
+			auto_menu_items.push_back(new GranButton  (content, row++,  1));
 			auto_menu_items.push_back(new BackButton  (content, row++));
 
 			for(unsigned int i = 0; i < auto_menu_items.size(); ++i)
@@ -88,7 +95,8 @@ namespace Test
 			if(state_floats > 0)
 			{
 				desired_size = STARTING_MIDDLE_LAYER_NEURONS;
-				speed_exp = 0;
+				gran_exp = 0;
+				splat_requested = false;
 
 				siob = new ScaledIOBrain(NeuralNet::New(state_floats, 21, desired_size));
 				siob->nn->Randomize(INITIAL_RANDOMIZATION);
@@ -147,7 +155,7 @@ namespace Test
 		vector<float> state_centers, state_scales;
 		vector<float> out_centers, out_scales;
 
-		static void SetTableScaling(vector<vector<float>>& data, vector<float>& centers, vector<float>& scales, unsigned int entry_floats)
+		static void SetTableScaling(vector<vector<float>>& data, vector<float>& centers, vector<float>& scales, unsigned int entry_floats, bool verbose = false)
 		{
 			unsigned int num_data = data.size();
 			vector<float> *data_begin = data.data(), *data_end = data_begin + num_data;
@@ -171,7 +179,7 @@ namespace Test
 					}
 				}
 
-				float avg = centers[i] = 0.0f;//tot / float(num_data);
+				float avg = centers[i] = tot / float(num_data);
 				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
 					(*iter)[i] -= avg;
 			}
@@ -187,6 +195,10 @@ namespace Test
 
 				scale = scale > 0 ? 0.95f / scale : 1.0f;			// catch NAN, etc.
 			}
+
+			if(verbose)
+				for(unsigned int i = 0; i < entry_floats; ++i)
+					Debug(((stringstream&)(stringstream() << "datum " << i << ": center = " << centers[i] << "; scale = " << scales[i] << endl)).str());
 
 			for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
 				for(unsigned int i = 0; i < entry_floats; ++i)
@@ -269,13 +281,11 @@ namespace Test
 				SetTableScaling(outputs, out_centers,   out_scales,   21);
 				
 				original_count = indices.size();
-#if 0
 				vector<TransIndices> nu_indices;
 				for(unsigned int i = 0; i < indices.size(); ++i)
-					if(GetIndexTTL(i) <= 2.0f || Random3D::RandInt() % 5 != 0)
+					if(GetIndexTTL(i) <= Random3D::Rand(2.0f, 5.0f))
 						nu_indices.push_back(indices[i]);
 				indices = nu_indices;
-#endif
 			}
 			
 			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << original_count << " transitions, of which " << indices.size() << " have been selected" << endl)).str();
@@ -297,27 +307,14 @@ namespace Test
 			return children == 0 ? 0.0f : ttl / children;
 		}
 
-		void Shake()
-		{
-			if(siob == NULL)
-				return;
-
-			boost::mutex::scoped_lock lock(mutex); 
-
-			for(float *fptr = siob->nn->top_matrix, *fend = fptr + siob->nn->top_matrix_size; fptr != fend; ++fptr)
-				*fptr += Random3D::Rand(-SHAKE_AMOUNT, SHAKE_AMOUNT);
-			for(float *fptr = siob->nn->bot_matrix, *fend = fptr + siob->nn->bot_matrix_size; fptr != fend; ++fptr)
-				*fptr += Random3D::Rand(-SHAKE_AMOUNT, SHAKE_AMOUNT);
-		}
-
-		void SetSpeed(int speed) { boost::mutex::scoped_lock lock(mutex); speed_exp += speed; }
+		void SetGranularity(int gran) { boost::mutex::scoped_lock lock(mutex); gran_exp += gran; }
 
 		void Resize(int size) { boost::mutex::scoped_lock lock(mutex); desired_size = max(1, desired_size + size); }
 
 		void MaybeRandomizeCoeff(float& c)
 		{
-			if(Random3D::RandInt() % 10 == 0)
-				c += (Random3D::Rand() * 2.0f - 1.0f) * 0.01f * pow(2.0f, speed_exp * 0.25f);
+			if(Random3D::RandInt() % 5 == 0)
+				c += (Random3D::Rand() * 2.0f - 1.0f) * 0.01f * pow(2.0f, gran_exp * 0.5f);
 		}
 
 		void StateToOutput(const TransIndices& index, float* twenty_one)
@@ -376,8 +373,6 @@ namespace Test
 				OriPos& op_pi = op_p[i];
 				OriPos& op_ci = op_c[i];				// confirmed: quaternion's norm is already 1 in "correct output" values
 
-				op_pi.ori.w += 1.0f;
-
 				float pi_norm = op_pi.ori.Norm();
 				if(pi_norm != 0)
 					op_pi.ori /= pi_norm;
@@ -385,9 +380,13 @@ namespace Test
 					op_pi.ori = Quaternion::Identity();
 				float ori_err = (op_ci.ori * Quaternion::Reverse(op_pi.ori)).GetRotationAngle();
 
-				tot += ori_err * ori_err;
+				static const float foot_mult     = 1.0f;
+				static const float pelvis_mult   = 1.0f;
+
+				float mult = i == 2 ? pelvis_mult : foot_mult;
+				tot += mult * ori_err * ori_err;
 				float pos_errsq = (op_pi.pos - op_ci.pos).ComputeMagnitudeSquared();
-				tot += pos_errsq;
+				tot += mult * pos_errsq;
 
 				if(verbose)
 					Debug(((stringstream&)(stringstream() << "\tbone[" << i << "]: ori norm = " << pi_norm << "; ori error = " << ori_err << "; pos error = " << sqrtf(pos_errsq) << endl)).str());
@@ -401,6 +400,9 @@ namespace Test
 			memcpy(siob->nn->inputs,          states [index.state1].data(), sizeof(float) * siob->nn->num_inputs);
 			memcpy(siob->nn->correct_outputs, outputs[index.state2].data(), sizeof(float) * 21);
 		}
+
+		void SetSplat(bool v) { boost::mutex::scoped_lock lock(mutex); splat_requested = v; }
+		bool GetSplat()       { boost::mutex::scoped_lock lock(mutex); return splat_requested; }
 
 		void SetAbort()	    { boost::mutex::scoped_lock lock(mutex); abort = true; }
 		bool CheckAbort()   { boost::mutex::scoped_lock lock(mutex); return abort; }
@@ -440,193 +442,88 @@ namespace Test
 			unsigned int num_records = indices.size();
 			vector<unsigned int> shuffle;
 
-			unsigned int pass = 0;
-			unsigned int record = 0;
-
 			my_timer.Start();
+
+			unsigned int iteration = 0;
+			LineSearchPoint best;
 
 			while(!CheckAbort())
 			{
-				if(ThreadsafeMaybeApplyResize())
-					record = 0;
-
-				if(record == 0)
+				bool splat = GetSplat();
+				if(ThreadsafeMaybeApplyResize() || iteration == 0 || splat)
 				{
-					shuffle.clear();
-					for(unsigned int i = 0; i < num_records; ++i)
-						shuffle.push_back(i);
-					for(unsigned int i = 0; i < num_records; ++i)
-						swap(shuffle[i], shuffle[Random3D::RandInt(num_records)]);
+					if(splat)
+					{
+						static const float splat_size = 0.5f;
+
+						SetSplat(false);
+
+						for(unsigned int i = 0; i < 3; ++i)
+						{
+							siob->nn->top_matrix[Random3D::RandInt(siob->nn->top_matrix_size)] += Random3D::Rand(-splat_size, splat_size);
+							siob->nn->bot_matrix[Random3D::RandInt(siob->nn->bot_matrix_size)] += Random3D::Rand(-splat_size, splat_size);
+						}
+					}
+
+					GetOverallNNScore(num_records, best.score, best.disp);
+					best.lr  = 0.0f;
+					best.top.resize(siob->nn->top_matrix_size);
+					best.bot.resize(siob->nn->bot_matrix_size);
+					memcpy(best.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
+					memcpy(best.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
 				}
 
-				ThreadsafeSetText(4, ((stringstream&)(stringstream() << "size = " << siob->nn->num_middles << "; speed exp = " << speed_exp)).str());
+				ThreadsafeSetText(4, ((stringstream&)(stringstream() << "middle layer size = " << siob->nn->num_middles)).str());
+				ThreadsafeSetText(5, ((stringstream&)(stringstream() << "granularity exp   = " << gran_exp)).str());
 
-				//siob->nn->MultiTrainBegin();
-				//PrepareRecord(indices[shuffle[record]]);
-				//siob->nn->MultiTrainNext();
+				ThreadsafeSetText(1, ((stringstream&)(stringstream() << "iteration = " << iteration)).str());
 
-				ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << shuffle[record])).str());
+				ThreadsafeSetText(2, ((stringstream&)(stringstream() << "base = " << best.disp << " (" << best.score << ")")).str());
 
-				//++record;
-				//if(record == num_records)
+				for(unsigned int j = 0; j < 10 && !CheckAbort(); ++j)
 				{
-					//record = 0;
-
-					vector<float> base_top(siob->nn->top_matrix_size);
-					vector<float> base_bot(siob->nn->bot_matrix_size);
-
-					memcpy(base_top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
-					memcpy(base_bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
-
-					LineSearchPoint initial;
-					GetOverallNNScore(num_records, initial.score, initial.disp);
-					initial.lr  = 0.0f;
-					initial.top = base_top;
-					initial.bot = base_bot;
-
-					ThreadsafeSetText(2, ((stringstream&)(stringstream() << "base           = " << initial.disp << " (" << initial.score << ")")).str());
-
-					float slope_sq = 0.0f;
-					for(float *iptr = siob->nn->temp_top, *iend = iptr + siob->nn->top_matrix_size; iptr != iend; ++iptr)
-						slope_sq += *iptr * *iptr;
-					for(float *iptr = siob->nn->temp_bot, *iend = iptr + siob->nn->bot_matrix_size; iptr != iend; ++iptr)
-						slope_sq += *iptr * *iptr;
-					float slope = sqrtf(slope_sq);
-
-					//ThreadsafeSetText(4, ((stringstream&)(stringstream() << "nn-scale slope = " << slope)).str());
-
-					LineSearchPoint best = initial;
-					if(slope != 0.0f)
-					{
-						//LineSearchPoint lsp_far = TryLearningRate(4.0f / slope, base_top, base_bot, num_records);
-						//if(lsp_far.score < best.score)
-						//best = lsp_far;
-						//LineSearchPoint lsp_mid = TryLearningRate(BASE_LEARNING_RATE / slope, base_top, base_bot, num_records);
-						//best = lsp_mid;
-					
-						/*
-						if(lsp_mid.score < best.score)
-							best = lsp_mid;
-						list<LineSearchPoint> lsps;
-						lsps.push_back(initial);
-						lsps.push_back(lsp_mid);
-						lsps.push_back(lsp_far);
-
-						for(int i = 0; i < 10 && !CheckAbort(); ++i)
-						{
-							ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << shuffle[record] << "; search i = " << i)).str());
-							ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << best.disp << " (" << best.score << ")")).str());
-							ThreadsafeSetText(5, ((stringstream&)(stringstream() << "learning rate  = " << best.lr << "; mag = " << best.lr * slope)).str());
-
-							unsigned int j = 0;
-							for(list<LineSearchPoint>::iterator iter = lsps.begin(); iter != lsps.end(); ++iter, ++j)
-							{
-								if(iter->lr == best.lr)
-								{
-									float best_lr = best.lr;
-									if(j != 0)
-									{
-										--iter;
-										LineSearchPoint lsp = TryLearningRate((iter->lr + best_lr) * 0.5f, base_top, base_bot, num_records);
-										if(lsp.score < best.score)
-											best = lsp;
-										++iter;
-										lsps.insert(iter, lsp);
-										++j;
-									}
-									if(j + 1 != lsps.size())
-									{
-										++iter;
-										LineSearchPoint lsp = TryLearningRate((iter->lr + best_lr) * 0.5f, base_top, base_bot, num_records);
-										if(lsp.score < best.score)
-											best = lsp;
-										lsps.insert(iter, lsp);
-										--iter;
-									}
-								
-									break;
-								}
-							}
-						}
-						*/
-					}
-
-					for(unsigned int j = 0; j < 10 && !CheckAbort(); ++j)
-					{
-						ThreadsafeSetText(1, ((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << shuffle[record] << "; random # " << j)).str());
-						ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << best.disp << " (" << best.score << ")")).str());
-
-						memcpy(siob->nn->top_matrix, best.top.data(), sizeof(float) * siob->nn->top_matrix_size);
-						memcpy(siob->nn->bot_matrix, best.bot.data(), sizeof(float) * siob->nn->bot_matrix_size);
-
-						LineSearchPoint lsp;
-						lsp.lr = best.lr;
-
-						{	// curly braces for scope; synchronizing scale_exp
-							boost::mutex::scoped_lock lock(mutex);
-							for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
-								MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
-							for(unsigned int i = 0; i < siob->nn->bot_matrix_size; ++i)
-								MaybeRandomizeCoeff(siob->nn->bot_matrix[i]);
-						}
-
-						lsp.top.resize(siob->nn->top_matrix_size);
-						lsp.bot.resize(siob->nn->bot_matrix_size);
-						memcpy(lsp.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
-						memcpy(lsp.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
-
-						GetOverallNNScore(num_records, lsp.score, lsp.disp);
-
-						if(lsp.disp < best.disp)
-							best = lsp;
-					}
+					ThreadsafeSetText(1, ((stringstream&)(stringstream() << "iteration = " << iteration << "; random # " << j)).str());
+					ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best = " << best.disp << " (" << best.score << ")")).str());
 
 					memcpy(siob->nn->top_matrix, best.top.data(), sizeof(float) * siob->nn->top_matrix_size);
 					memcpy(siob->nn->bot_matrix, best.bot.data(), sizeof(float) * siob->nn->bot_matrix_size);
 
-					ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best           = " << best.disp << " (" << best.score << ")")).str());
-					ThreadsafeSetText(5, ((stringstream&)(stringstream() << "learning rate  = " << best.lr << "; mag = " << best.lr * slope)).str());
+					LineSearchPoint lsp;
+					lsp.lr = best.lr;
 
-					time_spent += my_timer.GetAndRestart();
-					//Debug(((stringstream&)(stringstream() << "pass = " << pass << "; record[" << record << "] = " << shuffle[record] << "; base = " << initial.disp << " (" << initial.score << "); best = " << best.disp << " (" << best.score << "); nn-scale slope = " << slope << "; learning rate = " << best.lr << "; mag = " << best.lr * slope << endl)).str());
-					Debug(((stringstream&)(stringstream() << time_spent << " " << initial.disp << endl)).str());
+					{	// curly braces for scope; synchronizing scale_exp
+						boost::mutex::scoped_lock lock(mutex);
+						for(unsigned int i = 0; i < siob->nn->top_matrix_size; ++i)
+							MaybeRandomizeCoeff(siob->nn->top_matrix[i]);
+						for(unsigned int i = 0; i < siob->nn->bot_matrix_size; ++i)
+							MaybeRandomizeCoeff(siob->nn->bot_matrix[i]);
+					}
 
-				//	++pass;
+					lsp.top.resize(siob->nn->top_matrix_size);
+					lsp.bot.resize(siob->nn->bot_matrix_size);
+					memcpy(lsp.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
+					memcpy(lsp.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
+
+					GetOverallNNScore(num_records, lsp.score, lsp.disp);
+
+					if(lsp.score < best.score)
+						best = lsp;
 				}
 
-				++record;
-				if(record == num_records)
-				{
-					++pass;
-					record = 0;
-				}
+				memcpy(siob->nn->top_matrix, best.top.data(), sizeof(float) * siob->nn->top_matrix_size);
+				memcpy(siob->nn->bot_matrix, best.bot.data(), sizeof(float) * siob->nn->bot_matrix_size);
+
+				ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best = " << best.disp << " (" << best.score << ")")).str());
+
+				time_spent += my_timer.GetAndRestart();
+				Debug(((stringstream&)(stringstream() << time_spent << "\t" << best.score << endl)).str());
+
+				++iteration;
 			}
 
 			my_timer.Stop();
 
 			SetAborted();
-		}
-
-		LineSearchPoint TryLearningRate(	float use_learning_rate,
-											const vector<float>& base_top,
-											const vector<float>& base_bot,
-											unsigned int num_records         )
-		{
-			memcpy(siob->nn->top_matrix, base_top.data(), sizeof(float) * siob->nn->top_matrix_size);
-			memcpy(siob->nn->bot_matrix, base_bot.data(), sizeof(float) * siob->nn->bot_matrix_size);
-
-			siob->nn->MultiTrainApply(use_learning_rate);
-
-			LineSearchPoint result;
-			result.lr = use_learning_rate;
-			GetOverallNNScore(num_records, result.score, result.disp);
-
-			result.top.resize(siob->nn->top_matrix_size);
-			result.bot.resize(siob->nn->bot_matrix_size);
-			memcpy(result.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
-			memcpy(result.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
-
-			return result;
 		}
 
 		void GetOverallNNScore(unsigned int num_records, float& nn_scale, float& actual)

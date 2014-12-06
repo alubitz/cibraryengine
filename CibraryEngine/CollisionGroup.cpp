@@ -74,8 +74,8 @@ namespace CibraryEngine
 		return cached_aabb;
 	}
 
-	void CollisionGroup::AddChild(RigidBody* child)		{ child->SetGravity(gravity); children.insert(child); }
-	void CollisionGroup::RemoveChild(RigidBody* child)	{ children.erase(child); }
+	void CollisionGroup::AddChild(RigidBody* child)		{ child->SetGravity(gravity); children.insert(child); cache_valid = false; }
+	void CollisionGroup::RemoveChild(RigidBody* child)	{ children.erase(child); cache_valid = false; }
 
 	void CollisionGroup::UpdateVel(float timestep)
 	{
