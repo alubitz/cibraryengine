@@ -35,7 +35,7 @@
 
 #define CPHFT_THREAD_COUNT               1
 
-#define ENABLE_FPS_COUNTER               0
+#define ENABLE_FPS_COUNTER               1
 #define USE_GUN_AS_RUBBISH               0
 
 #define DO_RAPID_UPDATE_TESTING          1
@@ -573,7 +573,7 @@ namespace Test
 
 		hud = new HUD(this, content);
 
-		Soldier::LoadMatrix();
+		Soldier::LoadExperimentData();
 
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
@@ -1078,7 +1078,7 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
-		Soldier::SaveMatrix();
+		Soldier::SaveExperimentData();
 
 		load_status.Dispose();
 

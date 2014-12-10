@@ -18,7 +18,7 @@
 
 #define ENABLE_STATE_TRANSITION_LOGGING   1
 
-#define MAX_MAX_TICK_AGE                  10
+#define MAX_MAX_TICK_AGE                  60
 #define RANDOM_TORQUE_TICKS               2
 
 namespace Test
@@ -58,6 +58,7 @@ namespace Test
 	struct LoggerState
 	{
 		static const unsigned int num_bones          = 9;
+		static const unsigned int num_joints         = 8;
 
 		static const unsigned int max_cps_per_foot   = 3;
 		static const unsigned int num_cps            = max_cps_per_foot * 2;
@@ -92,6 +93,12 @@ namespace Test
 			{
 			}
 		} bones[num_bones];
+
+		struct Joint
+		{
+			Vec3 min;
+			Vec3 max;
+		} joints[num_joints];
 
 		struct CP
 		{
@@ -259,6 +266,15 @@ namespace Test
 				a->applied_torque += delta;
 
 				return result;
+			}
+
+			void GetLimitsDistances(LoggerState::Joint& joint)
+			{
+				Mat3 rmat = sjc->axes * Quaternion::Reverse(a->rb->GetOrientation()).ToMat3() * b->rb->GetOrientation().ToMat3() * sjc->axes.Transpose();
+				Vec3 rvec = Quaternion::FromRotationMatrix(rmat).ToRVec();
+
+				joint.min = rvec - sjc->min_extents;
+				joint.max = rvec - sjc->max_extents;
 			}
 		};
 
@@ -791,8 +807,8 @@ namespace Test
 				Debug(((stringstream&)(stringstream() << "current actual = " << current << "; initial prediction = " << scorer.rest.score << "; final prediction = " << scorer.best.score << "; after noise = " << noisified.score << endl)).str());
 			}
 
-			if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
-				matrix_test_running = false;	//max_tick_age = min(max_tick_age, tick_age + 2);
+			//if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
+			//	matrix_test_running = false;
 			
 			++tick_age;
 			if(tick_age >= max_tick_age)
@@ -982,7 +998,7 @@ namespace Test
 
 				const float* iptr = twenty_one;
 
-				static const float foot_mult     = 100.0f;
+				static const float foot_mult     = 1.0f;
 				static const float pelvis_mult   = 1.0f;
 
 				score += foot_mult * GetQuatErrorSquared(*((Quaternion*)iptr), desired_ori[0]);
@@ -1020,16 +1036,39 @@ namespace Test
 			state.bones[6]  = LoggerState::Bone(ruleg.rb,     untranslate, unrotate);
 			state.bones[7]  = LoggerState::Bone(torso1.rb,    untranslate, unrotate, torso1.applied_torque    * timestep);
 			state.bones[8]  = LoggerState::Bone(torso2.rb,    untranslate, unrotate, torso2.applied_torque    * timestep);
-			//state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
-			//state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
-			//state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
-			//state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
-			//state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
-			//state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
-			//state.bones[15] = LoggerState::Bone(rlarm.rb,     untranslate, unrotate, rlarm.applied_torque     * timestep);
-			//state.bones[16] = LoggerState::Bone(lhand.rb,     untranslate, unrotate, lhand.applied_torque     * timestep);
-			//state.bones[17] = LoggerState::Bone(rhand.rb,     untranslate, unrotate, rhand.applied_torque     * timestep);
-			//state.bones[18] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
+			/*
+			state.bones[9]  = LoggerState::Bone(head.rb,      untranslate, unrotate, head.applied_torque      * timestep);
+			state.bones[10] = LoggerState::Bone(lshoulder.rb, untranslate, unrotate, lshoulder.applied_torque * timestep);
+			state.bones[11] = LoggerState::Bone(rshoulder.rb, untranslate, unrotate, rshoulder.applied_torque * timestep);
+			state.bones[12] = LoggerState::Bone(luarm.rb,     untranslate, unrotate, luarm.applied_torque     * timestep);
+			state.bones[13] = LoggerState::Bone(ruarm.rb,     untranslate, unrotate, ruarm.applied_torque     * timestep);
+			state.bones[14] = LoggerState::Bone(llarm.rb,     untranslate, unrotate, llarm.applied_torque     * timestep);
+			state.bones[15] = LoggerState::Bone(rlarm.rb,     untranslate, unrotate, rlarm.applied_torque     * timestep);
+			state.bones[16] = LoggerState::Bone(lhand.rb,     untranslate, unrotate, lhand.applied_torque     * timestep);
+			state.bones[17] = LoggerState::Bone(rhand.rb,     untranslate, unrotate, rhand.applied_torque     * timestep);
+			state.bones[18] = LoggerState::Bone(gun_rb,       untranslate, unrotate);
+			*/
+
+			lankle.GetLimitsDistances(state.joints[0]);
+			rankle.GetLimitsDistances(state.joints[1]);
+			lknee .GetLimitsDistances(state.joints[2]);
+			rknee .GetLimitsDistances(state.joints[3]);
+			lhip  .GetLimitsDistances(state.joints[4]);
+			rhip  .GetLimitsDistances(state.joints[5]);
+			spine1.GetLimitsDistances(state.joints[6]);
+			spine2.GetLimitsDistances(state.joints[7]);
+
+			/*
+			state.joints[8]  = neck  .GetLimitsFraction();
+			state.joints[9]  = lsja  .GetLimitsFraction();
+			state.joints[10] = rsja  .GetLimitsFraction();
+			state.joints[11] = lsjb  .GetLimitsFraction();
+			state.joints[12] = rsjb  .GetLimitsFraction();
+			state.joints[13] = lelbow.GetLimitsFraction();
+			state.joints[14] = relbow.GetLimitsFraction();
+			state.joints[15] = lwrist.GetLimitsFraction();
+			state.joints[16] = rwrist.GetLimitsFraction();
+			*/
 
 			for(unsigned int i = 0; i < 2; ++i)
 			{
@@ -1071,6 +1110,8 @@ namespace Test
 				WriteUInt32(LoggerState::Bone::num_floats, file);
 				WriteUInt32(LoggerState::num_bones,        file);
 
+				WriteUInt32(LoggerState::num_joints,       file);
+
 				WriteUInt32(LoggerState::CP::num_floats,   file);
 				WriteUInt32(LoggerState::max_cps_per_foot, file);
 				WriteUInt32(LoggerState::num_cps,          file);
@@ -1091,7 +1132,14 @@ namespace Test
 						for(unsigned int j = 0; j < LoggerState::Bone::num_floats; ++j)
 							WriteSingle(bone_floats[j], file);
 					}
-
+					for(unsigned int i = 0; i < LoggerState::num_joints; ++i)
+					{
+						const LoggerState::Joint& joint = ls.joints[i];
+						const float*       joint_floats = (float*)&joint;
+						
+						for(unsigned int j = 0; j < 6; ++j)
+							WriteSingle(joint_floats[j], file);
+					}
 					for(unsigned int i = 0; i < LoggerState::num_cps; ++i)
 					{
 						const LoggerState::CP& cp = ls.cps[i];
@@ -1353,18 +1401,9 @@ namespace Test
 
 	bool Soldier::IsExperimentDone() const { return imp->init && !matrix_test_running; }
 
-	void Soldier::LoadMatrix()
-	{
-		// this is also a convenient time to clear our state & transition logs
-		session_states.clear();
-		session_trans.clear();
-	}
+	void Soldier::LoadExperimentData()     { session_states.clear(); session_trans.clear(); }
 
-	void Soldier::SaveMatrix()
-	{
-		// this is also a convenient time to save our state & transition logs
-		Imp::SaveLogs();
-	}
+	void Soldier::SaveExperimentData()     { Imp::SaveLogs(); }
 
 
 

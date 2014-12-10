@@ -55,9 +55,11 @@ namespace Test
 
 			void PreparePAG(const TimingInfo& time, const Quaternion& t2ori);
 
-			bool IsExperimentDone() const;
 
-			static void LoadMatrix();
-			static void SaveMatrix();
+
+			bool IsExperimentDone() const;			// for if we're trying to do some rapid-update experimentation
+
+			static void SaveExperimentData();
+			static void LoadExperimentData();
 	};
 }

@@ -5,7 +5,7 @@
 
 #include "ScaledIOBrain.h"
 
-#define STARTING_MIDDLE_LAYER_NEURONS   25
+#define STARTING_MIDDLE_LAYER_NEURONS   5
 
 #define INITIAL_RANDOMIZATION           0.01f
 
@@ -155,65 +155,6 @@ namespace Test
 		vector<float> state_centers, state_scales;
 		vector<float> out_centers, out_scales;
 
-		static void SetTableScaling(vector<vector<float>>& data, vector<float>& centers, vector<float>& scales, unsigned int entry_floats, bool verbose = false)
-		{
-			unsigned int num_data = data.size();
-			vector<float> *data_begin = data.data(), *data_end = data_begin + num_data;
-
-			centers.resize(entry_floats);
-			for(unsigned int i = 0; i < entry_floats; ++i)
-			{
-				float tot = 0.0f;
-				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
-				{
-					if(float& datum = (*iter)[i])
-					{
-						float inv_datum = 1.0f / datum;
-						float product = datum * inv_datum;
-						if(fabs(product - 1.0f) > 0.001f || (!(datum >= 0.0f) && !(datum < 0.0f)))
-						{
-							Debug(((stringstream&)(stringstream() << "bad datum = " << datum << "; product = " << product << endl)).str());
-							datum = 0.0f;
-						}
-						tot += datum;
-					}
-				}
-
-				float avg = centers[i] = tot / float(num_data);
-				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
-					(*iter)[i] -= avg;
-			}
-
-			scales.resize(entry_floats);
-			for(unsigned int i = 0; i < entry_floats; ++i)
-			{
-				float& scale = scales[i];
-				
-				scale = 0.01f;			// most it will ever scale something up by is 95x
-				for(vector<float>* iter = data_begin; iter != data_end; ++iter)
-					scale = max(scale, fabs((*iter)[i]));
-
-				scale = scale > 0 ? 0.95f / scale : 1.0f;			// catch NAN, etc.
-			}
-
-			if(verbose)
-				for(unsigned int i = 0; i < entry_floats; ++i)
-					Debug(((stringstream&)(stringstream() << "datum " << i << ": center = " << centers[i] << "; scale = " << scales[i] << endl)).str());
-
-			for(vector<vector<float>>::iterator iter = data.begin(); iter != data.end(); ++iter)
-				for(unsigned int i = 0; i < entry_floats; ++i)
-				{
-					float& datum = (*iter)[i];
-
-					datum *= scales[i];
-					if(!(datum >= -1.0f && datum <= 1.0f))
-					{
-						Debug(((stringstream&)(stringstream() << "still bad datum = " << datum << endl)).str());
-						datum = 0.0f;
-					}
-				}
-		}
-
 		void LoadLogs()
 		{
 			unsigned int original_count = 0;
@@ -229,11 +170,13 @@ namespace Test
 				unsigned int bone_floats      = ReadUInt32(file);
 				unsigned int num_bones        = ReadUInt32(file);
 
+				unsigned int num_joints       = ReadUInt32(file);
+
 				unsigned int cp_floats        = ReadUInt32(file);
 				unsigned int max_cps_per_foot = ReadUInt32(file);
 				unsigned int num_cps          = ReadUInt32(file);
 
-				state_floats = bone_floats * num_bones + cp_floats * num_cps;
+				state_floats = bone_floats * num_bones + 6 * num_joints + cp_floats * num_cps;
 
 				unsigned int num_state_entries = ReadUInt32(file);
 				for(unsigned int i = 0; i < num_state_entries; ++i)
@@ -277,18 +220,111 @@ namespace Test
 				}
 
 				// scale everything to an appropriate range
-				SetTableScaling(states,  state_centers, state_scales, state_floats);
-				SetTableScaling(outputs, out_centers,   out_scales,   21);
+				state_centers.clear();
+				state_centers.reserve(state_floats);
+				state_scales.clear();
+				state_scales.reserve(state_floats);
+				for(unsigned int i = 0; i < num_bones; ++i)
+				{
+					for(unsigned int j = 0; j < 4; ++j)		// ori
+					{
+						state_centers.push_back(0);
+						state_scales.push_back(0.95f);
+					}
+					for(unsigned int j = 0; j < 3; ++j)		// pos
+					{
+						state_centers.push_back(0);
+						state_scales.push_back(0.4f);
+					}
+					for(unsigned int j = 0; j < 3; ++j)		// vel
+					{
+						state_centers.push_back(0);
+						state_scales.push_back(0.005f);
+					}
+					for(unsigned int j = 0; j < 3; ++j)		// rot
+					{
+						state_centers.push_back(0);
+						state_scales.push_back(0.002f);
+					}
+				}
+
+				for(unsigned int i = 0; i < num_joints; ++i)
+					for(unsigned int j = 0; j < 6; ++j)
+					{
+						state_centers.push_back(0.5f);
+						state_scales.push_back(0.315f);		// a little less than 1 over pi
+					}
+
+				for(unsigned int i = 0; i < num_cps; ++i)
+				{
+					// pos
+					state_centers.push_back(0);
+					state_scales.push_back(0.25f);
+					state_centers.push_back(0);				// or do we want to use -1.0f?
+					state_scales.push_back(0.25f);
+					state_centers.push_back(0);
+					state_scales.push_back(0.25f);
+
+					for(unsigned int j = 0; j < 3; ++j)		// normal
+					{
+						state_centers.push_back(0);
+						state_scales.push_back(0.95f);
+					}
+				}
+
+				for(unsigned int i = 0; i < num_state_entries; ++i)
+					for(unsigned int j = 0; j < state_floats; ++j)
+					{
+						float& f = states[i][j];
+						f = (f - state_centers[j]) * state_scales[j];
+						if(abs(f) > 0.95f)
+							Debug(((stringstream&)(stringstream() << "state[" << i << "][" << j << "] = " << f << endl)).str());
+					}
+
+
+				out_centers.clear();
+				out_scales.clear();
+				out_centers.reserve(21);
+				out_scales.reserve(21);
+				for(unsigned int i = 0; i < 3; ++i)
+				{
+					// ori
+					for(unsigned int j = 0; j < 4; ++j)
+					{
+						out_centers.push_back(0);
+						out_scales.push_back(0.95f);
+					}
+
+					// pos
+					out_centers.push_back(0);
+					out_scales.push_back(0.25f);
+					out_centers.push_back(0);
+					out_scales.push_back(0.25f);
+					out_centers.push_back(0);
+					out_scales.push_back(0.25f);
+				}
+
+				for(unsigned int i = 0; i < outputs.size(); ++i)
+					for(unsigned int j = 0; j < 21; ++j)
+					{
+						float& f = outputs[i][j];
+						f = (f - out_centers[j]) * out_scales[j];
+						if(abs(f) > 0.95f)
+							Debug(((stringstream&)(stringstream() << "output[" << i << "][" << j << "] = " << f << endl)).str());
+					}
 				
+
+
+				// select some subset of the transitions which should be included in the training set
 				original_count = indices.size();
 				vector<TransIndices> nu_indices;
 				for(unsigned int i = 0; i < indices.size(); ++i)
-					if(GetIndexTTL(i) <= Random3D::Rand(2.0f, 5.0f))
+					if(GetIndexTTL(i) <= Random3D::Rand(2.0f, 15.0f) || Random3D::RandInt() % 5 == 0)
 						nu_indices.push_back(indices[i]);
 				indices = nu_indices;
 			}
 			
-			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << original_count << " transitions, of which " << indices.size() << " have been selected" << endl)).str();
+			string str = ((stringstream&)(stringstream() << "dataset contains " << states.size() << " state records, between which there are " << original_count << " transitions, of which " << indices.size() << " have been included in the training set" << endl)).str();
 			output_text[0]->SetText(str);
 			Debug(str);
 		}
@@ -418,11 +454,21 @@ namespace Test
 			if(desired_size != siob->nn->num_middles)
 			{
 				assert(desired_size > 0);
+				unsigned int new_size = (unsigned)desired_size;
 
 				NeuralNet* old = siob->nn;
-				siob->nn = old->Resized(desired_size);
+				siob->nn = old->Resized(new_size);
 
+				unsigned int old_size = old->num_middles;
 				NeuralNet::Delete(old);
+
+				if(new_size > old_size)
+				{
+					unsigned int num_inputs = siob->nn->num_inputs;
+					for(unsigned int i = old_size; i < new_size; ++i)
+						for(unsigned int j = 0; j < num_inputs; ++j)
+							siob->nn->top_matrix[i * num_inputs + j] = Random3D::Rand(-INITIAL_RANDOMIZATION, INITIAL_RANDOMIZATION);
+				}
 
 				return true;
 			}
@@ -430,9 +476,9 @@ namespace Test
 				return false;
 		}
 
-		struct LineSearchPoint
+		struct NNCandidate
 		{
-			float lr, score, disp;
+			float score, disp;
 
 			vector<float> top, bot;
 		};
@@ -445,7 +491,9 @@ namespace Test
 			my_timer.Start();
 
 			unsigned int iteration = 0;
-			LineSearchPoint best;
+			NNCandidate best;
+
+			float NNCandidate::* optimize_me = &NNCandidate::score;			// set this to either ::score or ::disp
 
 			while(!CheckAbort())
 			{
@@ -466,7 +514,6 @@ namespace Test
 					}
 
 					GetOverallNNScore(num_records, best.score, best.disp);
-					best.lr  = 0.0f;
 					best.top.resize(siob->nn->top_matrix_size);
 					best.bot.resize(siob->nn->bot_matrix_size);
 					memcpy(best.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
@@ -488,8 +535,7 @@ namespace Test
 					memcpy(siob->nn->top_matrix, best.top.data(), sizeof(float) * siob->nn->top_matrix_size);
 					memcpy(siob->nn->bot_matrix, best.bot.data(), sizeof(float) * siob->nn->bot_matrix_size);
 
-					LineSearchPoint lsp;
-					lsp.lr = best.lr;
+					NNCandidate nnc;
 
 					{	// curly braces for scope; synchronizing scale_exp
 						boost::mutex::scoped_lock lock(mutex);
@@ -499,15 +545,15 @@ namespace Test
 							MaybeRandomizeCoeff(siob->nn->bot_matrix[i]);
 					}
 
-					lsp.top.resize(siob->nn->top_matrix_size);
-					lsp.bot.resize(siob->nn->bot_matrix_size);
-					memcpy(lsp.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
-					memcpy(lsp.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
+					nnc.top.resize(siob->nn->top_matrix_size);
+					nnc.bot.resize(siob->nn->bot_matrix_size);
+					memcpy(nnc.top.data(), siob->nn->top_matrix, sizeof(float) * siob->nn->top_matrix_size);
+					memcpy(nnc.bot.data(), siob->nn->bot_matrix, sizeof(float) * siob->nn->bot_matrix_size);
 
-					GetOverallNNScore(num_records, lsp.score, lsp.disp);
+					GetOverallNNScore(num_records, nnc.score, nnc.disp);
 
-					if(lsp.score < best.score)
-						best = lsp;
+					if(nnc.*optimize_me < best.*optimize_me)
+						best = nnc;
 				}
 
 				memcpy(siob->nn->top_matrix, best.top.data(), sizeof(float) * siob->nn->top_matrix_size);
@@ -516,7 +562,7 @@ namespace Test
 				ThreadsafeSetText(3, ((stringstream&)(stringstream() << "best = " << best.disp << " (" << best.score << ")")).str());
 
 				time_spent += my_timer.GetAndRestart();
-				Debug(((stringstream&)(stringstream() << time_spent << "\t" << best.score << endl)).str());
+				Debug(((stringstream&)(stringstream() << time_spent << "\t" << best.*optimize_me << endl)).str());
 
 				++iteration;
 			}
