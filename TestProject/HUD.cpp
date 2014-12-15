@@ -16,6 +16,7 @@ namespace Test
 		game(game),
 		player(NULL),
 		enable_radar(true),
+		disable_all(false),
 		hud_flash_timer(0),
 		no_jump_flash_timer(0),
 		no_ammo_flash_timer(0),
@@ -445,6 +446,9 @@ namespace Test
 
 	void HUD::Draw(float w, float h)
 	{
+		if(disable_all)
+			return;
+
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 		glDisable(GL_LIGHTING);
 		glDisable(GL_DEPTH_TEST);

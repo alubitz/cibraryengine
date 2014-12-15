@@ -122,7 +122,10 @@ namespace CibraryEngine
 
 			MassInfo GetTransformedMassInfo() const;
 
-			Vec3 GetCenterOfMass()         { ComputeXformAsNeeded(); return cached_com; }
+			Vec3 GetLocalCoM() const       { return mass_info.com; }
+
+			Vec3 GetCachedCoM()            { ComputeXformAsNeeded(); return cached_com; }
+			Vec3 GetCenterOfMass() const   { return ori_rm * mass_info.com + pos; }					// assumes ori_rm is up to date!
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
 			Mat3 GetInvMoI() const         { return inv_moi; }

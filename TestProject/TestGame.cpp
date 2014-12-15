@@ -38,7 +38,7 @@
 #define ENABLE_FPS_COUNTER               1
 #define USE_GUN_AS_RUBBISH               0
 
-#define DO_RAPID_UPDATE_TESTING          1
+#define DO_RAPID_UPDATE_TESTING          0
 #define RAPID_UPDATE_COUNT               20
 #define SPAWN_PLAYER_REPEATEDLY          1
 

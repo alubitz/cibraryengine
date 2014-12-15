@@ -13,8 +13,7 @@
 
 #define ENABLE_NEW_JETPACKING             0
 
-#define MAX_MAX_TICK_AGE                  60
-#define RANDOM_TORQUE_TICKS               2
+#define MAX_TICK_AGE					  120
 
 namespace Test
 {
@@ -70,7 +69,7 @@ namespace Test
 			Vec3 applied_torque;
 
 			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetMassInfo().com) { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()) { }
 
 			void Reset(float inv_timestep) { desired_torque = applied_torque = Vec3(); }
 
@@ -143,6 +142,7 @@ namespace Test
 				oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
 			}
 
+			// returns true if UNABLE to match the requested value
 			bool SetWorldTorque(const Vec3& torque)
 			{
 				Vec3 local_torque = oriented_axes * torque;
@@ -239,7 +239,7 @@ namespace Test
 				apply_pos    = rm * pos + rb.GetPosition();
 
 				// compute force-to-torque Mat3
-				Vec3 bone_com = rb.GetPosition() + rb.GetOrientation() * rb.GetMassInfo().com;
+				Vec3 bone_com = rb.GetCenterOfMass();
 				Vec3 r1 = apply_pos - bone_com;
 				Mat3 xr1 = Mat3(        0,   r1.z,  -r1.y,
 									-r1.z,      0,   r1.x,
@@ -308,7 +308,7 @@ namespace Test
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
-			max_tick_age(Random3D::RandInt(2, MAX_MAX_TICK_AGE))
+			max_tick_age(MAX_TICK_AGE)
 		{
 		}
 
@@ -381,9 +381,9 @@ namespace Test
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
 
-			initial_pelvis_pos = pelvis.rb->GetCenterOfMass();
-			initial_lfoot_pos  = lfoot .rb->GetCenterOfMass();
-			initial_rfoot_pos  = rfoot .rb->GetCenterOfMass();
+			initial_pelvis_pos = pelvis.rb->GetCachedCoM();
+			initial_lfoot_pos  = lfoot .rb->GetCachedCoM();
+			initial_rfoot_pos  = rfoot .rb->GetCachedCoM();
 
 			initial_lfoot_ori = lfoot.rb->GetOrientation();
 			initial_rfoot_ori = rfoot.rb->GetOrientation();
@@ -460,7 +460,7 @@ namespace Test
 				RigidBody* rb = *iter;
 				float mass = rb->GetMass();
 				dood_mass += mass;
-				dood_com  += rb->GetCenterOfMass() * mass;
+				dood_com  += rb->GetCachedCoM() * mass;
 				com_vel   += rb->GetLinearVelocity() * mass;
 			}
 			dood_com /= dood_mass;
@@ -569,7 +569,6 @@ namespace Test
 			timestep     = time.elapsed;
 			inv_timestep = 1.0f / timestep;
 
-
 			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 				gun_rb = gun->rigid_body;
 			else
@@ -583,16 +582,15 @@ namespace Test
 				(*iter)->Reset(inv_timestep);
 
 
-
 			// do actual C/PHFT stuff
 			Quaternion p, t1, t2;
 			GetDesiredTorsoOris(dood, p, t1, t2);
 
+#if ENABLE_NEW_JETPACKING
 			float dood_mass;
 			Vec3 dood_com, com_vel, angular_momentum;
 			ComputeMomentumStuff(dood, dood_mass, dood_com, com_vel, angular_momentum);
 
-#if ENABLE_NEW_JETPACKING
 			if(jetpacking)
 			{
 				Vec3 desired_jp_torque = angular_momentum * (-60.0f);
@@ -606,14 +604,20 @@ namespace Test
 			}
 #endif
 
-			Scorer scorer(this, p, initial_lfoot_ori, initial_rfoot_ori);
-			scorer.Search(40);
-			Debug(((stringstream&)(stringstream() << "initial score = " << scorer.rest.score << "; final score = " << scorer.best.score << "; ratio = " << (scorer.rest.score / scorer.best.score) << endl)).str());
+			// TODO: top level: overall motion planning
+			void();
 
-			// translate selected pose into joint torques somehow
+
+			// middle level: inverse kinematics
+			IKSearch search(this, p, initial_lfoot_ori, initial_rfoot_ori);
+			search.Search(40);
+			Debug(((stringstream&)(stringstream() << "initial = " << search.rest.score << "; final = " << search.best.score << "; ratio = " << (search.rest.score / search.best.score) << endl)).str());
+
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
 
+
+			// bottom level: inverse dynamics
 			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,  inv_timestep);
 			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
 			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
@@ -621,24 +625,50 @@ namespace Test
 			spine1.SetTorqueToSatisfyB();
 			spine2.SetTorqueToSatisfyB();
 
+			// TODO: implement some proper inverse dynamics for the lower body
 
-			// ... "somehow" ...
-			
+			luleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.luleg.ori), inv_timestep);
+			llleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.llleg.ori), inv_timestep);
+			lfoot.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.lfoot.ori), inv_timestep);
+
+			ruleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.ruleg.ori), inv_timestep);
+			rlleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.rlleg.ori), inv_timestep);
+			rfoot.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.rfoot.ori), inv_timestep);
+
+			lhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque) * 0.75f);
+			if(rhip.SetTorqueToSatisfyA())
+				if(lhip.SetTorqueToSatisfyA())
+					rhip.SetTorqueToSatisfyA();
+
+			lankle.SetTorqueToSatisfyB();
+			rankle.SetTorqueToSatisfyB();
+
+			lknee.SetTorqueToSatisfyB();
+			rknee.SetTorqueToSatisfyB();
+
+
 			++tick_age;
 			if(tick_age >= max_tick_age)
 				experiment_done = true;
 		}
 
+		struct IKCommon
+		{
+			Vec3 havg_to_pelvis, havg_to_ubcom;
+			Vec3 desired_com;
+
+			float ubmass, masstot;
+		};
 
 		struct IKState
 		{
-			// joints
+			// joints; don't change the ordering of these without making appropriate changes to UpdateAFromB as well
 			Vec3 lankle, rankle;
 			Vec3 lknee,  rknee;
 
 			struct Bone
 			{
-				Vec3 pos;//, vel, rot;				// pos is of the com, not model origin
+				Vec3 pos;				// pos is of the com, not model origin
 				Mat3 ori;
 
 				// convenience members
@@ -648,9 +678,7 @@ namespace Test
 				void SetConstrained(const RigidBody& rb)
 				{
 					ori = rb.GetOrientation().ToMat3();
-					pos = rb.GetPosition() + ori * rb.GetMassInfo().com;
-
-					//vel = rot = Vec3();
+					pos = rb.GetCenterOfMass();
 				}
 
 				void InitMass(const CBone& cb) { mass = cb.rb->GetMass(); weighted_com = Vec3(); }
@@ -658,25 +686,17 @@ namespace Test
 				void UpdateComtot(Vec3& comtot) { comtot -= weighted_com; weighted_com = pos * mass; comtot += weighted_com; }
 			};
 
-			Bone lfoot,  llleg,  luleg;
-			Bone rfoot,  rlleg,  ruleg;
+			Bone lfoot, llleg, luleg;
+			Bone rfoot, rlleg, ruleg;
 			Bone pelvis;
 
-			Vec3 pelvis_com_from_havg;
-			Vec3 ubody_com_from_havg;
-			float ubody_mass;
-			float masstot;
-
-			Vec3 lbody_comtot;
-			Vec3 com, desired_com;
+			Vec3 lbody_comtot, com;
 
 			float iv_ori_error[4];
 			float dv_ori_error[2];
 			float dv_pos_error[2];
 
 			float score;
-
-
 
 			void SetInitialRVec(const CJoint& j, Vec3& rvec)
 			{
@@ -688,19 +708,14 @@ namespace Test
 			}
 
 			// updating the data of bone A (parent) based on the data of the child bone
-			void UpdateAFromB(const Vec3& rvec, const CJoint& j, const Bone& rest_a, const Bone& rest_b, float inv_timestep, Bone& a, Bone& b)
+			void UpdateAFromB(const Vec3& rvec, const CJoint& j, Bone& a, Bone& b)
 			{
 				const SkeletalJointConstraint& sjc = *j.sjc;
 				Mat3 axes   = sjc.axes;
 				Mat3 axes_t = axes.Transpose();
 
 				a.ori = b.ori * axes_t * Mat3::FromRVec(-rvec) * axes;
-
 				a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
-				//a.vel = (a.pos - rest_a.pos) * inv_timestep;
-
-				// TODO: maybe look for a more efficient way to do this computation?
-				//a.rot = (Quaternion::FromRotationMatrix(a.ori.Transpose() * rest_a.ori)).ToRVec() * inv_timestep;
 
 				a.UpdateComtot(lbody_comtot);
 
@@ -735,47 +750,47 @@ namespace Test
 				pos_error = pos_delta.ComputeMagnitudeSquared();
 			}
 
-			void JointModified(unsigned int index, Imp* imp, const IKState& rest, float inv_timestep)
+			void JointModified(unsigned int index, Imp* imp, const IKState& rest, const IKCommon& common)
 			{
 				switch(index)
 				{
 					case 0:
-						UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
-						UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+						UpdateAFromB( lankle, imp->lankle, llleg, lfoot );
+						UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
 						break;
 					case 1:
-						UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
-						UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+						UpdateAFromB( rankle, imp->rankle, rlleg, rfoot );
+						UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
 						break;
 					case 2:
-						UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
+						UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
 						break;
 					case 3:
-						UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+						UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
 						break;
 				}
 
-				PlacePelvis(imp, rest, inv_timestep);
+				PlacePelvis(imp, rest, common);
 			}
 
-			void PlacePelvis(Imp* imp, const IKState& rest, float inv_timestep)
+			void PlacePelvis(Imp* imp, const IKState& rest, const IKCommon& common)
 			{
-				Vec3 lhpos = luleg.pos + luleg.ori * imp->lhip.r2;//.sjc->pos;
-				Vec3 rhpos = ruleg.pos + ruleg.ori * imp->rhip.r2;//sjc->pos;
+				Vec3 lhpos = luleg.pos + luleg.ori * imp->lhip.r2;
+				Vec3 rhpos = ruleg.pos + ruleg.ori * imp->rhip.r2;
 				Vec3 avg   = (lhpos + rhpos) * 0.5f;
 
-				pelvis.pos = avg + pelvis_com_from_havg;
+				pelvis.pos = avg + common.havg_to_pelvis;
 				pelvis.UpdateComtot(lbody_comtot);
 
 				ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
 				ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
 
-				Vec3 ubody_com = avg + ubody_com_from_havg;
+				Vec3 ubody_com = avg + common.havg_to_ubcom;
 
-				com = (lbody_comtot + ubody_com * ubody_mass) / masstot;
+				com = (lbody_comtot + ubody_com * common.ubmass) / common.masstot;
 			}
 
-			float ScoreAll(Imp* imp, const IKState& rest, float inv_timestep)
+			float ScoreAll(Imp* imp, const IKState& rest, const IKCommon& common)
 			{
 				lfoot.InitMass(imp->lfoot);
 				rfoot.InitMass(imp->rfoot);
@@ -785,59 +800,47 @@ namespace Test
 				ruleg.InitMass(imp->ruleg);
 				pelvis.InitMass(imp->pelvis);
 
-				UpdateAFromB(lankle, imp->lankle, rest.llleg,  rest.lfoot,  inv_timestep, llleg,  lfoot );
-				UpdateAFromB(lknee,  imp->lknee,  rest.luleg,  rest.llleg,  inv_timestep, luleg,  llleg );
-				UpdateAFromB(rankle, imp->rankle, rest.rlleg,  rest.rfoot,  inv_timestep, rlleg,  rfoot );
-				UpdateAFromB(rknee,  imp->rknee,  rest.ruleg,  rest.rlleg,  inv_timestep, ruleg,  rlleg );
+				UpdateAFromB( lankle, imp->lankle, llleg, lfoot );
+				UpdateAFromB( rankle, imp->rankle, rlleg, rfoot );
+				UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
+				UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
 
-				PlacePelvis(imp, rest, inv_timestep);
+				PlacePelvis(imp, rest, common);
 
-				return score = SharedScoring(imp, rest);
+				return score = SharedScoring(imp, rest, common);
 			}
 
-			float ScoreChanges(Imp* imp, const IKState& rest, unsigned int joint_index, float inv_timestep)
+			float ScoreChanges(Imp* imp, const IKState& rest, unsigned int joint_index, const IKCommon& common)
 			{
-				JointModified(joint_index, imp, rest, inv_timestep);
+				JointModified(joint_index, imp, rest, common);
 
-				return score = SharedScoring(imp, rest);
+				return score = SharedScoring(imp, rest, common);
 			}
 
-			float SharedScoring(Imp* imp, const IKState& rest)
+			float SharedScoring(Imp* imp, const IKState& rest, const IKCommon& common)
 			{
-				float iv_ori_error_tot        = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3];
-				float dv_ori_error_tot        = dv_ori_error[0] + dv_ori_error[1];
-				float dv_pos_error_tot        = dv_pos_error[0] + dv_pos_error[1];
+				float iv_ori_error_tot = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3];
+				float dv_ori_error_tot = dv_ori_error[0] + dv_ori_error[1];
+				float dv_pos_error_tot = dv_pos_error[0] + dv_pos_error[1];
 
+				float impossibility_penalty  = iv_ori_error_tot + dv_ori_error_tot + dv_pos_error_tot;
+				float undesirability_penalty = (com - common.desired_com).ComputeMagnitudeSquared();
 
-				// TODO: compute these
-				float impossible_force_error  = 0.0f;
-				float impossible_torque_error = 0.0f;
-
-				float impossibility_penalty   = iv_ori_error_tot +
-												dv_ori_error_tot +
-												dv_pos_error_tot +
-												impossible_force_error +
-												impossible_torque_error;
-
-				float undesirability_penalty  = (com - desired_com).ComputeMagnitudeSquared();
-
-				// TODO: compute per-joint torques and assign undesirability/impossibility there? probably too expensive
+				// TODO: determine how much un-sinkable torque there is?
 
 				return impossibility_penalty + undesirability_penalty * 1.0f;
 			}
 		};
 
-		struct Scorer
+		struct IKSearch
 		{
 			Imp* imp;
-			float inv_timestep;
 
+			IKCommon common;
 			IKState rest, best, test1, test2;
 
-			Scorer(Imp* imp, const Quaternion& pelvis_ori, const Quaternion& lfoot_ori, const Quaternion& rfoot_ori) : imp(imp)
+			IKSearch(Imp* imp, const Quaternion& pelvis_ori, const Quaternion& lfoot_ori, const Quaternion& rfoot_ori) : imp(imp)
 			{
-				inv_timestep = imp->inv_timestep;
-
 				// set properties of constrained bones				// TODO: do this better
 				rest.lfoot .SetConstrained(*imp->lfoot .rb);
 				rest.rfoot .SetConstrained(*imp->rfoot .rb);
@@ -858,54 +861,48 @@ namespace Test
 					imp->rshoulder.rb, imp->ruarm.rb,  imp->rlarm.rb, imp->rhand.rb,
 					imp->gun_rb
 				};
-				float ubody_mass = 0.0f;
+				common.ubmass = 0.0f;
 				Vec3 ubody_com;
 				for(unsigned int i = 0; i < sizeof(ubody_rbs) / sizeof(RigidBody*); ++i)
 				{
 					RigidBody* rb = ubody_rbs[i];
-					float w = rb->GetMass();
-					ubody_mass += w;
-					ubody_com  += rb->GetCenterOfMass() * w;
+					float mass = rb->GetMass();
+					common.ubmass += mass;
+					ubody_com += rb->GetCachedCoM() * mass;
 				}
-				ubody_com /= ubody_mass;
+				ubody_com /= common.ubmass;
 
 				Vec3 hip_local_avg = (imp->lhip.sjc->pos + imp->rhip.sjc->pos) * 0.5f;
-				rest.pelvis_com_from_havg = rest.pelvis.ori * (imp->pelvis.rb->GetMassInfo().com - hip_local_avg);
-				rest.ubody_com_from_havg  = ubody_com - (imp->pelvis.rb->GetPosition() + imp->pelvis.rb->GetOrientation() * hip_local_avg);	// ish
-				rest.ubody_mass           = ubody_mass;
+				common.havg_to_pelvis = rest.pelvis.ori * (imp->pelvis.local_com - hip_local_avg);
+				common.havg_to_ubcom  = ubody_com - (imp->pelvis.rb->GetPosition() + imp->pelvis.rb->GetOrientation() * hip_local_avg);		// ish
 
-				// initialize joints with "default" orientations (based on bones' current relative ori)
+				// initialize joint rvecs using the current relative ori
 				rest.SetInitialRVec(imp->lankle, rest.lankle);
 				rest.SetInitialRVec(imp->rankle, rest.rankle);
 				rest.SetInitialRVec(imp->lknee,  rest.lknee );
 				rest.SetInitialRVec(imp->rknee,  rest.rknee );
 
-				// TODO: determine and store "support polygon"
-
-				rest.desired_com.x = (rest.lfoot.pos.x + rest.rfoot.pos.x) * 0.5f;
-				rest.desired_com.z = (rest.lfoot.pos.z + rest.rfoot.pos.z) * 0.5f;
-				rest.desired_com.y = 1.18f;			// measured value was 1.18117
+				// TODO: determine and store "support polygon" ?
+				common.desired_com.x = (rest.lfoot.pos.x + rest.rfoot.pos.x) * 0.5f;
+				common.desired_com.z = (rest.lfoot.pos.z + rest.rfoot.pos.z) * 0.5f;
+				common.desired_com.y = 1.18f;			// measured value was 1.18117
 
 				RigidBody* all_rbs[] = { imp->lfoot.rb, imp->rfoot.rb, imp->llleg.rb, imp->rlleg.rb, imp->luleg.rb, imp->ruleg.rb, imp->pelvis.rb, imp->torso1.rb, imp->torso2.rb, imp->head.rb, imp->lshoulder.rb, imp->rshoulder.rb, imp->luarm.rb, imp->ruarm.rb, imp->llarm.rb, imp->rlarm.rb, imp->lhand.rb, imp->rhand.rb, imp->gun_rb };
 				float masstot = 0.0f;
 				for(unsigned int i = 0; i < sizeof(all_rbs) / sizeof(RigidBody*); ++i)
 					masstot += all_rbs[i]->GetMass();
-				rest.masstot = masstot;
+				common.masstot = masstot;
 
-				ScoreAll(rest);
+				rest.ScoreAll(imp, rest, common);
 
 				best = rest;
 			}
-				
-			float ScoreAll(IKState& state) { return state.ScoreAll(imp, rest, inv_timestep); }
-
-			float ScoreChanges(IKState& state, unsigned int joint_index) { return state.ScoreChanges(imp, rest, joint_index, inv_timestep); }
 
 			void Search(unsigned int num_iterations)
 			{
 				unsigned int num_vars = 4 * 3;								// four joints times three degrees of freedom
 
-				float scale_base = powf(0.002f, 1.0f / num_iterations);
+				float scale_base = powf(0.002f, 1.0f / (num_iterations - 1));
 				for(unsigned int i = 0; i < num_iterations; ++i)
 				{
 					float scale = powf(scale_base, float(i));
@@ -919,12 +916,12 @@ namespace Test
 						test1 = best;
 						float& x1 = ((float*)&test1.lankle)[k];
 						x1 += scale;
-						float y1 = ScoreChanges(test1, joint_index);
+						float y1 = test1.ScoreChanges(imp, rest, joint_index, common);
 
 						test2 = best;
 						float& x2 = ((float*)&test2.lankle)[k];
 						x2 -= scale;
-						float y2 = ScoreChanges(test2, joint_index);
+						float y2 = test2.ScoreChanges(imp, rest, joint_index, common);
 
 						if(y1 < y0 && y1 < y2)
 							best = test1;
@@ -933,7 +930,6 @@ namespace Test
 					}
 				}
 			}
-
 		};
 	};
 

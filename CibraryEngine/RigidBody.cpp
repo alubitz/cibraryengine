@@ -52,16 +52,15 @@ namespace CibraryEngine
 		collision_callback(NULL)
 	{
 		restitution = shape->CanMove() ? 0.2f : 1.0f;
-		friction = 1.0f;
+		friction    = 1.0f;
 		linear_damp = 0.1f;
 
 		active = can_move = shape->CanMove() && mass_info.mass > 0;
 
-		Mat3 moi_rm(mass_info.moi);
-
-		if(moi_rm.Determinant() != 0.0f)
+		if(Mat3(mass_info.moi).Determinant() != 0.0f)
 			can_rotate = true;
 
+		ori_rm = ori.ToMat3();
 		inv_moi = ComputeInvMoi();
 	}
 
@@ -95,9 +94,10 @@ namespace CibraryEngine
 			{
 #endif
 				pos += vel * timestep;
-
 				pos += ori * mass_info.com;
-				if(float magsq = rot.ComputeMagnitudeSquared())						// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
+
+				// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
+				if(float magsq = rot.ComputeMagnitudeSquared())
 				{
 					float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = -sinf(half) / mag;
 					ori = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * ori;

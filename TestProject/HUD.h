@@ -17,6 +17,7 @@ namespace Test
 			Dood* player;
 
 			bool enable_radar;
+			bool disable_all;
 
 			Texture2D* reticle_tex;
 			Texture2D* hud_splat_tex;

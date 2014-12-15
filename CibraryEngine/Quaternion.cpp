@@ -38,21 +38,21 @@ namespace CibraryEngine
 
 	static Quaternion GetQFRMGivenBiggestPoint(const Mat3& mat, const Vec3& axis, Vec3& dir, float magsq)
 	{
-		if(float dmagsq = dir.ComputeMagnitudeSquared())
+		if(magsq == 0)
+			return Quaternion::Identity();
+		else
 		{
-			dir /= sqrtf(dmagsq);
+			dir /= sqrtf(magsq);
 
 			Vec3 other_axis = Vec3::Cross(axis, dir);
 			Vec3 mx = mat * dir;
 
 			float angle = atan2f(Vec3::Dot(mx, other_axis), Vec3::Dot(mx, dir));
-			float half = angle * 0.5f;
-			float sine = sinf(half);
+			float half  = angle * 0.5f;
+			float sine  = sinf(half);
 
 			return Quaternion(cosf(half), axis.x * sine, axis.y * sine, axis.z * sine);
 		}
-		else
-			return Quaternion::Identity();
 	}
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
