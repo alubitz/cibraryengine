@@ -178,4 +178,11 @@ namespace CibraryEngine
 		obj_a->rot += obj_a->inv_moi * world_torque;
 		obj_b->rot -= obj_b->inv_moi * world_torque;
 	}
+
+	Vec3 SkeletalJointConstraint::ComputeAveragePosition() const
+	{
+		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
+		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
+		return (a_pos + b_pos) * 0.5f;
+	}
 }

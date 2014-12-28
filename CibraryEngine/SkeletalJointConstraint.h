@@ -52,5 +52,8 @@ namespace CibraryEngine
 
 			bool DoConstraintAction();
 			void DoUpdateAction(float timestep);
+
+			/** Convenience method to compute the position of this joint, averaging the positions the two bones say it should be */
+			Vec3 ComputeAveragePosition() const;
 	};
 }
