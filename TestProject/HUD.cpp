@@ -493,7 +493,7 @@ namespace Test
 		{
 			string lines = game->debug_text;
 			string line;
-			int row = 0;
+			int row = 10;		// normally 0
 			while(lines.length() > 0)
 			{
 				int index = lines.find('\n');

@@ -218,6 +218,7 @@ namespace Test
 	{
 		imp->LoadPosesAsNeeded();
 
+		// convert desired aim direction into a point in a 2d pose space (aim_xy)
 		Quaternion desired_ori = Quaternion::FromRVec(0, -yaw, 0) * Quaternion::FromRVec(pitch, 0, 0);
 		Quaternion ori_off     = Quaternion::Reverse(torso2_ori) * desired_ori;
 		Vec3 ori_off_rvec      = ori_off.ToRVec();
@@ -227,12 +228,14 @@ namespace Test
 
 		Vec2 aim_xy(relative_aim.x, relative_aim.y);
 
+		// see if the point is inside any of these triangles
 		unsigned char count = 0;
 		float scores[3];
 		for(unsigned int i = 0; i < imp->tris.size(); ++i)
 		{
 			const Imp::PoseTri& tri = imp->tris[i];
 
+			// for each edge of this triangle, check which side the point is on
 			unsigned int j;
 			for(j = 0; j < 3; ++j)
 			{
@@ -240,13 +243,14 @@ namespace Test
 				if(scores[j] < 0.0f)
 					break;
 			}
-			if(j == 3)
+			if(j == 3)			// did it pass all 3 edge tests?
 			{
-				++count;
+				++count;		// uh... this shouldn't generally trigger more than once
 
 				unordered_map<unsigned int, Vec3> bone_values;
 				float total_weight = 0.0f;
 
+				// 3-way lerp between the poses of each vert of this triangle
 				for(unsigned int k = 0; k < 3; ++k)
 				{
 					const Imp::AimPose& aimp = imp->poses[tri.indices[k]];
@@ -270,16 +274,16 @@ namespace Test
 			}
 		}
 
-		// point is not inside any of the triangles... try to find closest edge or vert?
-		if(count == 0)
+		if(count == 0)			// so the point isn't inside any of the triangles... try to find closest edge or vert?
 		{
 			float best_dist      = -1;
-			unsigned int best_i  = 0;
-			unsigned int best_j1 = 0;
-			unsigned int best_j2 = 0;
-			float best_lerp      = 0;
+			unsigned int best_i  = 0;		// triangle index
+			unsigned int best_j1 = 0;		// first vert index
+			unsigned int best_j2 = 0;		// second vert index (same as j1 if it's not an edge)
+			float best_lerp      = 0;		// lerp fraction from j1 to j2 (or 0 if it's an edge)
 
-			for(unsigned int i = 0; i < imp->tris.size(); ++i)\
+			// start by checking distances to triangle verts
+			for(unsigned int i = 0; i < imp->tris.size(); ++i)
 			{
 				const Imp::PoseTri& tri = imp->tris[i];
 				for(unsigned int j = 0; j < 3; ++j)
@@ -296,6 +300,7 @@ namespace Test
 				}
 			}
 
+			// now check distances to edges
 			for(unsigned int i = 0; i < imp->tris.size(); ++i)
 			{
 				const Imp::PoseTri& tri = imp->tris[i];
@@ -316,7 +321,7 @@ namespace Test
 						if(u >= min_u && u <= max_u)
 						{
 							float dist = -scores[j];
-							if(best_dist == -1 || dist < best_dist)
+							if(best_dist == -1 || dist < best_dist)		// TODO: is it actually possible for best_dist to still equal -1 here?
 							{
 								best_dist = dist;
 								best_i    = i;
@@ -331,7 +336,7 @@ namespace Test
 				}
 			}
 
-			if(best_dist != -1)
+			if(best_dist != -1)						// this should only ever fail if there are no triangles
 			{
 				const Imp::PoseTri& tri = imp->tris[best_i];
 				unsigned int indices[2] = { tri.indices[best_j1], tri.indices[best_j2] };

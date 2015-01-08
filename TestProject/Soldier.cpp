@@ -13,7 +13,12 @@
 
 #define ENABLE_NEW_JETPACKING             0
 
-#define MAX_TICK_AGE					  120
+#define MAX_TICK_AGE					  60
+
+#define NUM_INPUTS                        172
+#define NUM_OUTPUTS                       28			// double the number of joint torque axes
+#define NUM_MEMORIES                      40			// must be >= NUM_OUTPUTS
+#define TARGET_LENGTH                     65			// should be >= NUM_MEMORIES
 
 namespace Test
 {
@@ -30,6 +35,396 @@ namespace Test
 	static const float jump_to_fly_delay  = 0.3f;
 
 	static const float torso2_yaw_offset  = 0.5f;
+
+	struct GABrain
+	{
+		struct Op
+		{
+			unsigned char op;
+			short ia, ib;
+
+			void Read(istream& ss)
+			{
+				op = ReadByte (ss);
+				ia = ReadInt16(ss);
+				ib = ReadInt16(ss);
+			}
+
+			void Write(ostream& ss) const
+			{
+				WriteByte (op, ss);
+				WriteInt16(ia, ss);
+				WriteInt16(ib, ss);
+			}
+		};
+		vector<Op> ops;
+
+		vector<float> initial_mems;
+
+		GABrain() : ops(), initial_mems(NUM_MEMORIES) { }
+
+		void Evaluate(const vector<float>& inputs, vector<float>& outputs) const
+		{
+			outputs.clear();
+
+			for(unsigned int i = 0; i < ops.size(); ++i)
+			{
+				const Op& o = ops[i];
+				float a = LookUp(o.ia, inputs, outputs);
+				float b = LookUp(o.ib, inputs, outputs);
+
+				if((o.op & 0x1) != 0)
+					a = 1.0f - a;
+				if((o.op & 0x2) != 0)
+					b = 1.0f - b;
+
+				bool op_bit_one = (o.op & 0x4) != 0;
+				bool op_bit_two = (o.op & 0x8) != 0;
+
+				float result;
+				if(op_bit_two)
+				{
+					if(op_bit_one)
+					{
+						result = 0.5f;//((b - a) / sqrtf(a * a + b * b)) * 0.5f + 0.5f;
+						//if(result > 1 || result < 0)
+						//	DEBUG();
+					}
+					else
+						result = (a + b) * 0.5f;
+				}
+				else
+				{
+					if(op_bit_one != 0)
+						result = a * b;
+					else
+						result = a + b - a * b;
+				}
+				outputs.push_back(result);
+			}
+		}
+
+		float LookUp(short index, const vector<float>& inputs, vector<float>& outputs) const
+		{
+			if(index >= 0)
+				return (unsigned)index < inputs.size() ? inputs[index] : 0.0f;
+			else
+			{
+				index = outputs.size() + index;
+				return index >= 0 ? outputs[index] : 0.0f;
+			}
+		}
+
+		static GABrain CreateCrossover(const GABrain& a, const GABrain& b)
+		{
+#if 1
+			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
+			{
+				// TODO: pick one parent or the other to be the 'primary' owner of this memory
+				// recurse through the nodes which contribute to that node's computation
+				// for every node, there is a chance that instead of using the original formula, a crossover or mutation will be made
+			}
+#else
+			const vector<Op> *av = &a.ops, *bv = &b.ops;
+			if(Random3D::RandInt() % 2 == 0)
+				swap(av, bv);
+
+			unsigned int alen = av->size(), blen = bv->size();
+			
+			unsigned int apart = alen, bpart = blen;
+			while(apart + bpart > TARGET_LENGTH)
+			{
+				if(Random3D::RandInt() % 2 == 0)
+				{
+					if(apart > 0)
+						--apart;
+				}
+				else
+				{
+					if(bpart > 0)
+						--bpart;
+				}
+			}
+
+			GABrain child;
+			for(unsigned int i = 0; i < apart; ++i)
+				child.ops.push_back(a.ops[i]);
+			for(unsigned int i = b.ops.size() - bpart; i < b.ops.size(); ++i)
+				child.ops.push_back(b.ops[i]);
+
+			for(unsigned int i = 0; i < child.ops.size(); ++i)
+			{
+				Op& o = child.ops[i];
+				if(Random3D::RandInt() % 35 == 0)
+					o.op = (unsigned char)Random3D::RandInt(16);
+				if(Random3D::RandInt() % 35 == 0)
+					o.ia = (short)Random3D::RandInt(-(signed)i, NUM_INPUTS * 2 + NUM_MEMORIES);
+				if(Random3D::RandInt() % 35 == 0)
+					o.ib = (short)Random3D::RandInt(-(signed)i, NUM_INPUTS * 2 + NUM_MEMORIES);
+			}
+
+			for(unsigned int i = 0; i < child.initial_mems.size(); ++i)
+				child.initial_mems[i] = Random3D::RandInt() % 2 == 0 ? a.initial_mems[i] : b.initial_mems[i];
+
+			child.MutateMemories();
+
+			return child;
+#endif
+		}
+
+		void MutateMemories()
+		{
+			static const unsigned int mutation_every = 10;
+			static const float        mutation_scale = 0.5f;
+
+			for(unsigned int i = 0; i < initial_mems.size(); ++i)
+			{
+				float& f = initial_mems[i];
+				if(Random3D::RandInt() % mutation_every == 0)
+					f += Random3D::Rand(-mutation_scale, mutation_scale);
+				f = max(0.0f, min(1.0f, f));
+			}
+		}
+
+		void Read(istream& ss)
+		{
+			unsigned int num_memories = ReadUInt32(ss);
+			initial_mems.resize(max((unsigned)NUM_MEMORIES, num_memories));
+			for(unsigned int i = 0; i < num_memories; ++i)
+				initial_mems[i] = ReadSingle(ss);
+			initial_mems.resize(NUM_MEMORIES);
+
+			ops.clear();
+
+			unsigned int count = ReadUInt32(ss);
+			for(unsigned int i = 0; i < count; ++i)
+			{
+				Op op;
+				op.Read(ss);
+				ops.push_back(op);
+			}
+		}
+
+		void Write(ostream& ss) const
+		{
+			WriteUInt32(NUM_MEMORIES, ss);
+			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
+				WriteSingle(initial_mems[i], ss);
+
+			unsigned int count = ops.size();
+			WriteUInt32(count, ss);
+			for(unsigned int i = 0; i < count; ++i)
+				ops[i].Write(ss);
+		}
+	};
+
+	struct Experiment
+	{
+		struct Record
+		{
+			GABrain brain;
+			float score;
+
+			Record() : score(0) { }
+
+			bool operator <(const Record& r) { return score < r.score; }
+		};
+
+		unsigned int batch, genome, trial;
+
+		vector<Record*> genepool;
+
+		Experiment()
+		{
+			batch = genome = trial = 0;
+
+			ifstream file("Files/brains", ios::in | ios::binary);
+			if(!file)
+				Debug("Failed to load brains!\n");
+			else
+			{
+				unsigned int num_brains   = ReadUInt32(file);
+				genepool.clear();
+				for(unsigned int i = 0; i < num_brains; ++i)
+				{
+					Record record;
+					record.brain.Read(file);
+
+					if(file.bad())
+					{
+						Debug(((stringstream&)(stringstream() << "Error while trying to load brains! " << genepool.size() << " brains loaded before error" << endl)).str());
+						file.close();
+						return;
+					}
+					else
+						genepool.push_back(new Record(record));
+				}
+
+				file.close();
+
+				Debug(((stringstream&)(stringstream() << "Successfully loaded " << genepool.size() << " brains from file" << endl)).str());
+			}
+		}
+
+		~Experiment()
+		{
+			SaveGenepool("Files/brains");
+
+			for(unsigned int i = 0; i < genepool.size(); ++i)
+				delete genepool[i];
+			genepool.clear();
+		}
+
+		void SaveGenepool(const string& filename)
+		{
+			ofstream file(filename, ios::out | ios::binary);
+			if(!file)
+				Debug("Failed to save brains!\n");
+			else
+			{
+				WriteUInt32(genepool.size(), file);
+				for(unsigned int i = 0; i < genepool.size(); ++i)
+					genepool[i]->brain.Write(file);
+
+				file.close();
+			}
+		}
+
+		static const unsigned int num_parents = 20;
+		static const unsigned int num_trials  = 18;
+
+		GABrain NextBrain()
+		{
+			static const unsigned int first_gen_size = num_parents;
+			static const float initial_rand = 0.0f;
+
+			if(genepool.empty())
+				for(unsigned int i = 0; i < first_gen_size; ++i)
+				{
+					Record* result = new Record();
+					for(unsigned int i = 0; i < TARGET_LENGTH; ++i)
+					{
+						GABrain::Op op;
+						op.op = 0x0;
+						op.ia = 0;
+						op.ib = 0;
+						result->brain.ops.push_back(op);
+					}
+					genepool.push_back(result);
+				}
+
+			return genepool[genome]->brain;
+		}
+
+		void NextGeneration()
+		{
+			static const unsigned int children_per_pair  = 1;
+			static const unsigned int mutants_per_parent = 1;
+
+			for(unsigned int i = 0; i < genepool.size(); ++i)
+				for(unsigned int j = i + 1; j < genepool.size(); ++j)
+					if(*genepool[j] < *genepool[i])
+						swap(genepool[i], genepool[j]);
+
+			while(genepool.size() > num_parents)
+			{
+				Record* r = *genepool.rbegin();
+				delete r;
+
+				genepool.pop_back();
+			}
+
+			unsigned int actual_parents = genepool.size();
+
+			time_t raw_time;
+			time(&raw_time);
+			tm now = *localtime(&raw_time);
+			string filename = ((stringstream&)(stringstream() << "Files/brains-" << now.tm_year + 1900 << "-" << now.tm_mon + 1 << "-" << now.tm_mday << "-" << now.tm_hour << "-" << now.tm_min << "-" << now.tm_sec)).str();
+			SaveGenepool(filename);
+
+			for(unsigned int i = 0; i < actual_parents; ++i)
+			{
+				Record* p1 = genepool[i];
+				for(unsigned int j = 0; j < mutants_per_parent; ++j)
+				{
+					Record* c = new Record();
+					c->brain = GABrain::CreateCrossover(p1->brain, p1->brain);
+					genepool.push_back(c);
+				}
+
+				for(unsigned int j = i + 1; j < actual_parents; ++j)
+					for(unsigned int k = 0; k < children_per_pair; ++k)
+					{
+						Record* p2 = genepool[j];
+
+						Record* c = new Record();
+						c->brain = GABrain::CreateCrossover(p1->brain, p2->brain);
+						genepool.push_back(c);
+					}
+			}
+
+			Debug(((stringstream&)(stringstream() << "generation " << batch << "; next gen will have " << genepool.size() << " genomes" << endl)).str());
+			for(unsigned int i = 0; i < actual_parents; ++i)
+				Debug(((stringstream&)(stringstream() << "\tparent " << i << " score = " << genepool[i]->score << "; len = " << genepool[i]->brain.ops.size() << endl)).str());
+
+			for(unsigned int i = 0; i < genepool.size(); ++i)
+				genepool[i]->score = 0;
+		}
+
+		void GotScore(float score, string& ss_target)
+		{
+			float& gscore = genepool[genome]->score;
+			gscore += score;
+
+			float score_to_beat = genome >= num_parents ? genepool[num_parents - 1]->score : -1;
+
+			{	// curly braces for scope
+				stringstream ss;
+
+				ss << "generation " << batch << ", genome " << genome << " of " << genepool.size() << ", trial " << trial << " of " << num_trials << "; cost so far = " << gscore / num_trials << endl;
+				for(unsigned int i = 0; i < genome && i < num_parents; ++i)
+					ss << endl << "top scorer # " << (i + 1) << " = " << genepool[i]->score;
+				
+				ss_target = ss.str();
+			}
+
+			bool quick = score_to_beat != -1 && gscore >= score_to_beat * num_trials;
+
+			++trial;
+			if(trial == num_trials || quick)
+			{
+				genepool[genome]->score /= num_trials;
+
+				stringstream ss;
+				ss << "b " << batch << " g " << genome << " score = " << gscore << "; len = " << genepool[genome]->brain.ops.size();
+				if(quick)
+					ss << "; fail (" << trial << " / " << num_trials << ")" << endl;
+				else
+					ss << "; pass" << endl;
+				Debug(ss.str());
+
+				for(unsigned int i = genome; i != 0; --i)
+				{
+					if(genepool[i]->score < genepool[i - 1]->score)
+						swap(genepool[i], genepool[i - 1]);
+					else
+						break;
+				}
+
+				trial = 0;
+				++genome;
+
+				if(genome == genepool.size())
+				{
+					NextGeneration();
+
+					genome = 0;
+					++batch;
+				}
+			}
+		}
+	};
+	static Experiment* experiment = NULL;
 
 
 
@@ -207,6 +602,14 @@ namespace Test
 		vector<CBone*>  all_bones;
 		vector<CJoint*> all_joints;
 
+		GABrain brain;
+		vector<float> memories;
+		vector<float> old_inputs;
+		float feet_error_cost, goal_error_cost, exertion_cost;
+		bool feet_failed;
+
+		Vec3 desired_pelvis_pos;
+
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
@@ -302,6 +705,10 @@ namespace Test
 		Imp() :
 			init(false),
 			experiment_done(false),
+			feet_error_cost(0),
+			goal_error_cost(0),
+			exertion_cost(0),
+			feet_failed(true),
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
@@ -313,6 +720,14 @@ namespace Test
 
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
 		void RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
+
+		void InitBrain(Soldier* dood)
+		{
+			brain = experiment->NextBrain();
+			memories = brain.initial_mems;
+
+			old_inputs.clear();
+		}
 
 		void Init(Soldier* dood)
 		{
@@ -377,6 +792,10 @@ namespace Test
 			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
 			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
+
+			InitBrain(dood);
+
+			desired_pelvis_pos = pelvis.rb->GetCenterOfMass();
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -552,26 +971,6 @@ namespace Test
 			Debug(((stringstream&)(stringstream() << "\t\t\tQuaternion( " << q.w << "f, " << q.x << "f, " << q.y << "f, " << q.z << "f )," << endl)).str());
 		}
 
-		struct IKState;
-		static void DebugLegBones(const IKState& state)
-		{
-			Quaternion pelvis_ori = Quaternion::FromRotationMatrix(state.pelvis.ori);
-			Quaternion luleg_ori  = Quaternion::FromRotationMatrix(state.luleg.ori);
-			Quaternion llleg_ori  = Quaternion::FromRotationMatrix(state.llleg.ori);
-			Quaternion lfoot_ori  = Quaternion::FromRotationMatrix(state.lfoot.ori);
-			Quaternion ruleg_ori  = Quaternion::FromRotationMatrix(state.ruleg.ori);
-			Quaternion rlleg_ori  = Quaternion::FromRotationMatrix(state.rlleg.ori);
-			Quaternion rfoot_ori  = Quaternion::FromRotationMatrix(state.rfoot.ori);
-
-			DebugQuatRelative(luleg_ori, pelvis_ori);
-			DebugQuatRelative(llleg_ori, luleg_ori);
-			DebugQuatRelative(lfoot_ori, llleg_ori);
-			DebugQuatRelative(ruleg_ori, pelvis_ori);
-			DebugQuatRelative(rlleg_ori, ruleg_ori);
-			DebugQuatRelative(rfoot_ori, rlleg_ori);
-		}
-
-
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
 			if(!init)
@@ -613,34 +1012,14 @@ namespace Test
 			}
 #endif
 
-
-			// top level: overall motion planning
+			// upper body stuff; mostly working
 			Quaternion p, t1, t2;
 			GetDesiredTorsoOris(dood, p, t1, t2);
-
-			Quaternion use_lfoot_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw + 0.3f);
-			Quaternion use_rfoot_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw - 0.3f);
-
 			Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
-			Vec3 use_lfoot_pos = yaw_ori * Vec3(  0.24f, 0.11f, 0.0f );		// foot local com = (0.24, 0.11, 0.06)
-			Vec3 use_rfoot_pos = yaw_ori * Vec3( -0.24f, 0.11f, 0.0f );
-
-			Vec3 com_placement = Vec3(0.0f, 1.175f, 0.02f);					// x and z are in yaw-coords relative to avg foot com; y is absolute
-
-
-			// middle level: inverse kinematics
-			IKSearch search(this, dood->yaw, p, use_lfoot_ori, use_rfoot_ori, use_lfoot_pos, use_rfoot_pos, com_placement);
-			search.Search(40);
-
-			if(tick_age == 0)
-				DebugLegBones(search.best);
-			Debug(((stringstream&)(stringstream() << "initial = " << search.rest.score << "; final = " << search.best.score << "; ratio = " << (search.rest.score / search.best.score) << endl)).str());
 
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
 
-
-			// bottom level: inverse dynamics
 			pelvis.ComputeDesiredTorqueWithDefaultMoI(p,  inv_timestep);
 			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
 			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
@@ -648,323 +1027,299 @@ namespace Test
 			spine1.SetTorqueToSatisfyB();
 			spine2.SetTorqueToSatisfyB();
 
-			// TODO: implement some proper inverse dynamics for the lower body
-
-			luleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.luleg.ori), inv_timestep);
-			llleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.llleg.ori), inv_timestep);
-			lfoot.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.lfoot.ori), inv_timestep);
-
-			ruleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.ruleg.ori), inv_timestep);
-			rlleg.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.rlleg.ori), inv_timestep);
-			rfoot.ComputeDesiredTorqueWithDefaultMoI(Quaternion::FromRotationMatrix(search.best.rfoot.ori), inv_timestep);
-
-			lhip.SetWorldTorque((pelvis.desired_torque - pelvis.applied_torque) * 0.5f);
-			if(rhip.SetTorqueToSatisfyA())
-				if(lhip.SetTorqueToSatisfyA())
-					rhip.SetTorqueToSatisfyA();
-
-			lankle.SetTorqueToSatisfyB();
-			rankle.SetTorqueToSatisfyB();
-
-			lknee.SetTorqueToSatisfyB();
-			rknee.SetTorqueToSatisfyB();
-
-
-			++tick_age;
-			if(tick_age >= max_tick_age)
-				experiment_done = true;
-		}
-
-		struct IKCommon
-		{
-			Vec3 havg_to_pelvis, havg_to_ubcom;
-			Vec3 desired_com;
-
-			Vec3 lknee_pos, rknee_pos;
-
-			float ubmass, masstot;
-		};
-
-		struct IKState
-		{
-			// joints; don't change the ordering of these without making appropriate changes to UpdateAFromB as well
-			Vec3 lankle, rankle;
-			Vec3 lknee,  rknee;
-
-			struct Bone
+			// per-sub-experiment goals changes
+#if 1
+			switch(experiment->trial % 6)
 			{
-				Vec3 pos;				// pos is of the com, not model origin
-				Mat3 ori;
+				case 1: desired_pelvis_pos.y -= 0.035f * timestep; break;
+				case 2: dood->yaw            += 0.1f   * timestep; break;
+				case 3: dood->yaw            -= 0.1f   * timestep; break;
+				case 4: dood->pitch          += 0.1f   * timestep; break;
+				case 5: dood->pitch          -= 0.1f   * timestep; break;
+				default: break;
+			}
+#endif
 
-				// convenience members
-				Vec3 weighted_com;
-				float mass;
 
-				void InitMass(const CBone& cb) { mass = cb.rb->GetMass(); weighted_com = Vec3(); }
+			// stuff info about the dood into an array, which will then be crammed into a brain... maybe something cool will happen
+			vector<float> inputs;
 
-				void UpdateComtot(Vec3& comtot) { comtot -= weighted_com; weighted_com = pos * mass; comtot += weighted_com; }
+			struct PushVec3
+			{
+				PushVec3(vector<float>& inputs, const Vec3& vec)
+				{
+					inputs.push_back(vec.x);
+					inputs.push_back(vec.y);
+					inputs.push_back(vec.z);
+				}
 			};
 
-			Bone lfoot, llleg, luleg;
-			Bone rfoot, rlleg, ruleg;
-			Bone pelvis;
-
-			Vec3 lbody_comtot, com;
-			Vec3 lknee_pos, rknee_pos;
-
-			float lknee_error, rknee_error;
-
-			float iv_ori_error[4];
-			float dv_ori_error[2];
-			float dv_pos_error[2];
-
-			float score;
-
-			void SetInitialRVec(const CJoint& j, Vec3& rvec)
+			struct PushBoneRelative
 			{
-				Quaternion aori = j.a->rb->GetOrientation();
-				Quaternion bori = j.b->rb->GetOrientation();
-				const Mat3& axes = j.sjc->axes;
-
-				rvec = axes * Quaternion::Reverse(aori).ToMat3() * (bori * Quaternion::Reverse(aori)).ToRVec();
-			}
-
-			// updating the data of bone A (parent) based on the data of the child bone
-			void UpdateAFromB(const Vec3& rvec, const CJoint& j, Bone& a, Bone& b)
-			{
-				const SkeletalJointConstraint& sjc = *j.sjc;
-				Mat3 axes   = sjc.axes;
-				Mat3 axes_t = axes.Transpose();
-
-				a.ori = b.ori * axes_t * Mat3::FromRVec(-rvec) * axes;
-				a.pos = b.pos + b.ori * j.r2 - a.ori * j.r1;
-
-				a.UpdateComtot(lbody_comtot);
-
-				ComputeOriError(rvec, sjc, iv_ori_error[&rvec - &lankle]);
-			}
-
-			void ComputeOriError(const Vec3& rvec, const SkeletalJointConstraint& sjc, float& error)
-			{
-				const Vec3& mins = sjc.min_extents;
-				const Vec3& maxs = sjc.max_extents;
-
-				float dx = rvec.x - max(mins.x, min(maxs.x, rvec.x));
-				float dy = rvec.y - max(mins.y, min(maxs.y, rvec.y));
-				float dz = rvec.z - max(mins.z, min(maxs.z, rvec.z));
-
-				error = Vec3::MagnitudeSquared(dx, dy, dz);
-			}
-
-			void ComputeDVError(const CJoint& joint, const Bone& a, const Bone& b, float& ori_error, float& pos_error)
-			{
-				const SkeletalJointConstraint& sjc = *joint.sjc;
-
-				Quaternion a_to_b = Quaternion::FromRotationMatrix(b.ori) * Quaternion::Reverse(Quaternion::FromRotationMatrix(a.ori));
-
-				const Mat3& axes = sjc.axes;
-				Mat3 rmat = axes * a.ori.Transpose() * b.ori * axes.Transpose();
-				Vec3 rvec = Quaternion::FromRotationMatrix(rmat).ToRVec();
-
-				ComputeOriError(rvec, sjc, ori_error);
-
-				Vec3 pos_delta = b.pos - a.pos + b.ori * joint.r2 - a.ori * joint.r1;
-				pos_error = pos_delta.ComputeMagnitudeSquared();
-			}
-
-			void UpdateKnee(const Bone& lleg, const CJoint& knee, const Vec3& desired_pos, Vec3& pos, float& err)
-			{
-				pos = lleg.pos + lleg.ori * knee.r2;
-				err = (pos - desired_pos).ComputeMagnitudeSquared();
-			}
-
-			void JointModified(unsigned int index, Imp* imp, const IKState& rest, const IKCommon& common)
-			{
-				switch(index)
+				PushBoneRelative(vector<float>& inputs, const CBone& pushme, const CBone& rel, const CJoint& joint)
 				{
-					case 0:
-						UpdateAFromB( lankle, imp->lankle, llleg, lfoot );
-						UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
-						UpdateKnee(llleg, imp->lknee, common.lknee_pos, lknee_pos, lknee_error);
-						break;
-					case 1:
-						UpdateAFromB( rankle, imp->rankle, rlleg, rfoot );
-						UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
-						UpdateKnee(rlleg, imp->rknee, common.rknee_pos, rknee_pos, rknee_error);
-						break;
-					case 2:
-						UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
-						break;
-					case 3:
-						UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
-						break;
+					Mat3 unrotate = rel.rb->GetOrientation().ToMat3().Transpose();
+					PushVec3(inputs, unrotate * (pushme.rb->GetCenterOfMass() - rel.rb->GetCenterOfMass()));
+					PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity() * 0.02f);
+					PushVec3(inputs, unrotate * pushme.rb->GetAngularVelocity() * 0.02f);
+
+					Mat3 rvecmat = joint.sjc->axes * Quaternion::Reverse(joint.a->rb->GetOrientation()).ToMat3() * joint.b->rb->GetOrientation().ToMat3() * joint.sjc->axes.Transpose();
+					Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
+
+					PushVec3(inputs, rvec);
 				}
+			};
 
-				PlacePelvis(imp, rest, common);
-			}
+			// root bone info
+			Mat3 reverse_pelvis = Quaternion::Reverse(pelvis.rb->GetOrientation()).ToMat3();
+			PushVec3(inputs, reverse_pelvis * Vec3(0, 1, 0));
+			PushVec3(inputs, reverse_pelvis * pelvis.rb->GetLinearVelocity()  * 0.02f);
+			PushVec3(inputs, reverse_pelvis * pelvis.rb->GetAngularVelocity() * 0.02f);
 
-			void PlacePelvis(Imp* imp, const IKState& rest, const IKCommon& common)
+			// specifying other bones relative to that
+			PushBoneRelative( inputs, torso1, pelvis, spine1 );
+			PushBoneRelative( inputs, torso2, torso1, spine2 );
+			PushBoneRelative( inputs, luleg,  pelvis, lhip   );
+			PushBoneRelative( inputs, llleg,  luleg,  lknee  );
+			PushBoneRelative( inputs, lfoot,  llleg,  lankle );
+			PushBoneRelative( inputs, ruleg,  pelvis, rhip   );
+			PushBoneRelative( inputs, rlleg,  ruleg,  rknee  );
+			PushBoneRelative( inputs, rfoot,  rlleg,  rankle );
+
+			// foot stuff (contact point state info & desired values for position and normal vector, and ETA to get there)
+			struct PushFootStuff
 			{
-				Vec3 lhpos = luleg.pos + luleg.ori * imp->lhip.r2;
-				Vec3 rhpos = ruleg.pos + ruleg.ori * imp->rhip.r2;
-				Vec3 avg   = (lhpos + rhpos) * 0.5f;
-
-				pelvis.pos = avg + common.havg_to_pelvis;
-				pelvis.UpdateComtot(lbody_comtot);
-
-				ComputeDVError(imp->lhip, pelvis, luleg, dv_ori_error[0], dv_pos_error[0]);
-				ComputeDVError(imp->rhip, pelvis, ruleg, dv_ori_error[1], dv_pos_error[1]);
-
-				Vec3 ubody_com = avg + common.havg_to_ubcom;
-
-				com = (lbody_comtot + ubody_com * common.ubmass) / common.masstot;
-			}
-
-			float ScoreAll(Imp* imp, const IKState& rest, const IKCommon& common)
-			{
-				lfoot.InitMass(imp->lfoot);
-				rfoot.InitMass(imp->rfoot);
-				llleg.InitMass(imp->llleg);
-				rlleg.InitMass(imp->rlleg);
-				luleg.InitMass(imp->luleg);
-				ruleg.InitMass(imp->ruleg);
-				pelvis.InitMass(imp->pelvis);
-
-				UpdateAFromB( lankle, imp->lankle, llleg, lfoot );
-				UpdateAFromB( rankle, imp->rankle, rlleg, rfoot );
-				UpdateAFromB( lknee,  imp->lknee,  luleg, llleg );
-				UpdateAFromB( rknee,  imp->rknee,  ruleg, rlleg );
-
-				UpdateKnee(llleg, imp->lknee, common.lknee_pos, lknee_pos, lknee_error);
-				UpdateKnee(rlleg, imp->rknee, common.rknee_pos, rknee_pos, rknee_error);
-
-				PlacePelvis(imp, rest, common);
-
-				return score = SharedScoring(imp, rest, common);
-			}
-
-			float ScoreChanges(Imp* imp, const IKState& rest, unsigned int joint_index, const IKCommon& common)
-			{
-				JointModified(joint_index, imp, rest, common);
-
-				return score = SharedScoring(imp, rest, common);
-			}
-
-			float SharedScoring(Imp* imp, const IKState& rest, const IKCommon& common)
-			{
-				float iv_ori_error_tot = iv_ori_error[0] + iv_ori_error[1] + iv_ori_error[2] + iv_ori_error[3];
-				float dv_ori_error_tot = dv_ori_error[0] + dv_ori_error[1];
-				float dv_pos_error_tot = dv_pos_error[0] + dv_pos_error[1];
-				float knee_errors      = lknee_error + rknee_error;
-
-				float impossibility_penalty  = iv_ori_error_tot + dv_ori_error_tot + dv_pos_error_tot;
-				float undesirability_penalty = (com - common.desired_com).ComputeMagnitudeSquared();// + knee_errors * 1.0f;
-
-				// TODO: determine how much un-sinkable torque there is?
-
-				return impossibility_penalty * 1000.0f + undesirability_penalty * 1.0f;
-			}
-		};
-
-		struct IKSearch
-		{
-			Imp* imp;
-
-			IKCommon common;
-			IKState rest, best, test1, test2;
-
-			IKSearch(Imp* imp, float yaw, const Quaternion& pelvis_ori, const Quaternion& lfoot_ori, const Quaternion& rfoot_ori, const Vec3& lfoot_pos, const Vec3& rfoot_pos, const Vec3& com_placement) : imp(imp)
-			{
-				// set properties of constrained bones
-				rest.lfoot.ori = lfoot_ori.ToMat3();
-				rest.rfoot.ori = rfoot_ori.ToMat3();
-				rest.lfoot.pos = lfoot_pos;
-				rest.rfoot.pos = rfoot_pos;
-
-				rest.pelvis.pos = imp->pelvis.rb->GetCenterOfMass();
-				rest.pelvis.ori = pelvis_ori.ToMat3();
-				
-				// pelvis is treated as a lower body bone; otherwise a special case would be needed to disable Bone::weighted_com stuff
-				RigidBody* ubody_rbs[] =
+				PushFootStuff(vector<float>& inputs, const Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
 				{
-					imp->torso1.rb,    imp->torso2.rb, imp->head.rb,
-					imp->lshoulder.rb, imp->luarm.rb,  imp->llarm.rb, imp->lhand.rb,
-					imp->rshoulder.rb, imp->ruarm.rb,  imp->rlarm.rb, imp->rhand.rb,
-					imp->gun_rb
-				};
-				common.ubmass = 0.0f;
-				Vec3 ubody_com;
-				for(unsigned int i = 0; i < sizeof(ubody_rbs) / sizeof(RigidBody*); ++i)
-				{
-					RigidBody* rb = ubody_rbs[i];
-					float mass = rb->GetMass();
-					common.ubmass += mass;
-					ubody_com += rb->GetCachedCoM() * mass;
-				}
-				ubody_com /= common.ubmass;
+					const SoldierFoot* sf = (SoldierFoot*)foot;
+					const RigidBody*   rb = sf->body;
+					Mat3 unrotate    = rb->GetOrientation().ToMat3().Transpose();
+					Vec3 untranslate = rb->GetCenterOfMass();
 
-				Vec3 hip_local_avg = (imp->lhip.sjc->pos + imp->rhip.sjc->pos) * 0.5f;
-				common.havg_to_pelvis = rest.pelvis.ori * (imp->pelvis.local_com - hip_local_avg);
-				common.havg_to_ubcom  = ubody_com - (imp->pelvis.rb->GetPosition() + imp->pelvis.rb->GetOrientation() * hip_local_avg);		// ish
-
-				common.lknee_pos = imp->lknee.sjc->ComputeAveragePosition();
-				common.rknee_pos = imp->rknee.sjc->ComputeAveragePosition();
-
-				// initialize joint rvecs using the current relative ori
-				rest.SetInitialRVec(imp->lankle, rest.lankle);
-				rest.SetInitialRVec(imp->rankle, rest.rankle);
-				rest.SetInitialRVec(imp->lknee,  rest.lknee );
-				rest.SetInitialRVec(imp->rknee,  rest.rknee );
-
-				// TODO: determine and store "support polygon" ?
-				common.desired_com = (rest.lfoot.pos + rest.rfoot.pos) * 0.5f;					// com of feet; local geometry z center is 0.06f
-				common.desired_com.y = 0;
-				common.desired_com += Mat3::FromAxisAngle(0, 1, 0, -yaw) * com_placement;
-
-				RigidBody* all_rbs[] = { imp->lfoot.rb, imp->rfoot.rb, imp->llleg.rb, imp->rlleg.rb, imp->luleg.rb, imp->ruleg.rb, imp->pelvis.rb, imp->torso1.rb, imp->torso2.rb, imp->head.rb, imp->lshoulder.rb, imp->rshoulder.rb, imp->luarm.rb, imp->ruarm.rb, imp->llarm.rb, imp->rlarm.rb, imp->lhand.rb, imp->rhand.rb, imp->gun_rb };
-				float masstot = 0.0f;
-				for(unsigned int i = 0; i < sizeof(all_rbs) / sizeof(RigidBody*); ++i)
-					masstot += all_rbs[i]->GetMass();
-				common.masstot = masstot;
-
-				rest.ScoreAll(imp, rest, common);
-
-				best = rest;
-			}
-
-			void Search(unsigned int num_iterations)
-			{
-				unsigned int num_vars = 4 * 3;								// four joints times three degrees of freedom
-
-				float scale_base = powf(0.002f, 1.0f / (num_iterations - 1));
-				for(unsigned int i = 0; i < num_iterations; ++i)
-				{
-					float scale = powf(scale_base, float(i));
-					for(unsigned int j = 0; j < num_vars; ++j)
+					// contact points
+					for(unsigned int j = 0; j < 3; ++j)
 					{
-						unsigned int k = j;
-						unsigned int joint_index = k / 3;
-
-						float y0 = best.score;
-
-						test1 = best;
-						float& x1 = ((float*)&test1.lankle)[k];
-						x1 += scale;
-						float y1 = test1.ScoreChanges(imp, rest, joint_index, common);
-
-						test2 = best;
-						float& x2 = ((float*)&test2.lankle)[k];
-						x2 -= scale;
-						float y2 = test2.ScoreChanges(imp, rest, joint_index, common);
-
-						if(y1 < y0 && y1 < y2)
-							best = test1;
-						else if(y2 < y0 && y2 < y1)
-							best = test2;
+						if(j < sf->contact_points.size())
+						{
+							const ContactPoint& cp = sf->contact_points[j];
+							PushVec3(inputs, unrotate * (cp.pos - untranslate));
+							PushVec3(inputs, unrotate * cp.normal);
+						}
+						else
+						{
+							PushVec3(inputs, Vec3());
+							PushVec3(inputs, Vec3());
+						}
 					}
+					
+					// goal info												// TODO: change this once desired foot pos has reasonable values
+					PushVec3(inputs, Vec3());//unrotate * (pos - untranslate));
+					PushVec3(inputs, unrotate * normal);
+					inputs.push_back(eta);
+				}
+			};
+			Vec3 zero(0, 0, 0), yvec(0, 1, 0), zvec(0, 0, 1);				// TODO: come up with actual values for this desired foot state info
+			PushFootStuff(inputs, dood->feet[0], zero, yvec, -1.0f);
+			PushFootStuff(inputs, dood->feet[1], zero, yvec, -1.0f);
+
+			// spinal column bone pos/ori goal satisfaction sensors (also used for scoring)
+			Vec3 ppos  = pelvis.rb->GetOrientation().ToMat3().Transpose() * (pelvis.rb->GetCenterOfMass() - desired_pelvis_pos);
+			Vec3 pori  = (Quaternion::Reverse(pelvis.rb->GetOrientation()) * p ).ToRVec();
+			Vec3 t1ori = (Quaternion::Reverse(torso1.rb->GetOrientation()) * t1).ToRVec();
+			Vec3 t2ori = (Quaternion::Reverse(torso2.rb->GetOrientation()) * t2).ToRVec();
+			Vec3 hori  = (Quaternion::Reverse(head.rb->GetOrientation()) * yaw_ori).ToRVec();
+			PushVec3( inputs, ppos  );
+			PushVec3( inputs, pori  );
+			PushVec3( inputs, t1ori );
+			PushVec3( inputs, t2ori );
+			PushVec3( inputs, hori  );
+
+			// gun forward vector goal satisfaction sensors (ditto)
+			Vec3 desired_gun_fwd = yaw_ori * zvec;
+			Vec3 actual_gun_fwd  = gun_rb->GetOrientation() * zvec;
+			Vec2 gunxz_d = Vec2::Normalize(Vec2(desired_gun_fwd.x, desired_gun_fwd.z));
+			Vec2 gunxz_a = Vec2::Normalize(Vec2(actual_gun_fwd.x,  actual_gun_fwd.z ));
+			
+			// TODO: add something for the gun's up vector?
+			float gunx = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxz_a, Vec2(gunxz_d.y, -gunxz_d.x)))));
+			float guny = acosf(max(-1.0f, min(1.0f, desired_gun_fwd.y * actual_gun_fwd.y)));
+			inputs.push_back(gunx);
+			inputs.push_back(guny);
+
+			// don't add any more sensor inputs after this line!
+			static bool showed_inputs_count = false;
+			if(!showed_inputs_count)
+			{
+				Debug(((stringstream&)(stringstream() << "#inputs = " << inputs.size() << endl)).str());
+				showed_inputs_count = true;
+			}
+
+			// final preparations for letting the brain evaluate
+			inputs.resize(NUM_INPUTS * 2 + NUM_MEMORIES);
+
+			if(!old_inputs.empty())
+			{
+				for(unsigned int i = 0; i < NUM_INPUTS; ++i)
+				{
+					inputs[NUM_INPUTS + i] = inputs[i] - old_inputs[i];
+					old_inputs[i] = inputs[i];
 				}
 			}
-		};
+			else
+			{
+				// input array slots for old inputs will have been default-initialized to zero
+				old_inputs.resize(NUM_INPUTS);
+				for(unsigned int i = 0; i < NUM_INPUTS; ++i)
+					old_inputs[i] = inputs[i];
+			}
+
+			for(unsigned int i = 0; i < NUM_INPUTS * 2; ++i)
+				inputs[i] = tanhf(inputs[i]) * 0.5f + 0.5f;
+
+			memcpy(inputs.data() + NUM_INPUTS * 2, memories.data(), NUM_MEMORIES * sizeof(float));
+
+			// evaluate all the things!
+			vector<float> outputs;
+			brain.Evaluate(inputs, outputs);
+
+			// crop outputs list to the number of memories
+			memories.clear();
+			if(outputs.size() >= NUM_MEMORIES)
+				for(unsigned int i = outputs.size() - NUM_MEMORIES; i < outputs.size(); ++i)
+					memories.push_back(outputs[i]);
+			else
+			{
+				memories.resize(NUM_MEMORIES);
+				for(unsigned int i = 0; i < outputs.size(); ++i)
+					memories[i] = outputs[i];
+			}
+
+			// apply the outputs the brain just came up with (also, beginning of scoring stuff)
+			struct SetJointTorques
+			{
+				SetJointTorques(float& part_cost, const float*& optr, CJoint& joint, unsigned int n = 3)
+				{
+					part_cost = 0.0f;
+
+					const float* minptr = (float*)&joint.sjc->min_torque;
+					const float* maxptr = (float*)&joint.sjc->max_torque;
+
+					Vec3 v;
+					float* vptr = (float*)&v;
+
+					for(const float* oend = optr + n * 2; optr != oend; ++vptr, ++minptr, ++maxptr)
+					{
+						float plus  = *(optr++);
+						float minus = *(optr++);
+
+						*vptr = plus * *maxptr + minus * *minptr;
+
+						part_cost += plus + minus + plus * minus;
+					}
+
+					joint.SetOrientedTorque(v);
+				}
+			};
+
+			const float* optr = memories.data();
+			float pcosts[6];
+			SetJointTorques(pcosts[0], optr, lhip);
+			SetJointTorques(pcosts[1], optr, rhip);
+			SetJointTorques(pcosts[2], optr, lknee, 1);
+			SetJointTorques(pcosts[3], optr, rknee, 1);
+			SetJointTorques(pcosts[4], optr, lankle);
+			SetJointTorques(pcosts[5], optr, rankle);
+
+			// scoring stuff
+			for(unsigned int i = 0; i < 6; ++i)
+				exertion_cost += pcosts[i];
+
+			++tick_age;
+			if(!experiment_done)
+			{
+				if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
+					feet_failed = false;
+				if(!feet_failed)
+					++feet_error_cost;
+
+				goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, hori, gunx, guny);
+
+				if(tick_age >= max_tick_age)
+				{
+					experiment_done = true;
+					experiment->GotScore(ComputeTotalCost(), ((TestGame*)dood->game_state)->debug_text);
+				}
+			}
+		}
+
+		float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori, const Vec3& t1ori, const Vec3& t2ori, const Vec3& hori, float gunx, float guny)
+		{
+			float exp_coeff = 0.1f;
+
+			float errors[7] =
+			{
+				ppos.ComputeMagnitudeSquared(),
+				pori.ComputeMagnitudeSquared(),
+				t1ori.ComputeMagnitudeSquared(),
+				t2ori.ComputeMagnitudeSquared(),
+				hori.ComputeMagnitudeSquared(),
+				gunx * gunx,
+				guny * guny
+			};
+
+			float goodness[7];
+			for(unsigned int i = 0; i < 7; ++i)
+				goodness[i] = expf(-exp_coeff * errors[i]);
+
+			float use_goodness[7] = 
+			{
+				goodness[0],
+				goodness[1],
+				goodness[1] * goodness[2],
+				goodness[1] * goodness[2] * goodness[3],
+				goodness[1] * goodness[2] * goodness[3] * goodness[4],
+				goodness[1] * goodness[2] * goodness[3] * goodness[5],
+				goodness[1] * goodness[2] * goodness[3] * goodness[6]
+			};
+
+			float cost_coeffs[7] = { 0.5f, 0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f };
+			float tot = 0.0f;
+			for(unsigned int i = 0; i < 7; ++i)
+			{
+				if(use_goodness[i] == 0.0f)
+					DEBUG();
+				tot += cost_coeffs[i] * -logf(use_goodness[i]) / exp_coeff;
+			}
+
+			return tot;
+		}
+
+		float ComputeTotalCost()
+		{
+			float exp_coeff = 0.025f;
+			float errors[3] = { feet_error_cost, goal_error_cost, exertion_cost };
+			float goodness[3];
+			for(unsigned int i = 0; i < 3; ++i)
+				goodness[i] = exp(-exp_coeff * errors[i]);
+
+			float use_goodness[3] =
+			{
+				goodness[0],
+				goodness[0] * goodness[1],
+				goodness[0] * goodness[1] * goodness[2]
+			};
+
+			float cost_coeffs[3] = { 10.0f, 1.0f, 0.02f };
+			float tot = 0.0f;
+			for(unsigned int i = 0; i < 3; ++i)
+			{
+				if(use_goodness[i] == 0.0f)
+					DEBUG();
+				tot += cost_coeffs[i] * -logf(use_goodness[i]) / exp_coeff;
+			}
+
+			return tot;
+		}
 	};
 
 
@@ -1179,7 +1534,7 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		pos.y -= 0.0f;
+		pos.y -= 0.01f;
 
 		Dood::DoInitialPose();
 
@@ -1189,7 +1544,7 @@ namespace Test
 		posey->skeleton->GetNamedBone( "pelvis"  )->ori = p;
 		posey->skeleton->GetNamedBone( "torso 1" )->ori = t1 * Quaternion::Reverse(p);
 		posey->skeleton->GetNamedBone( "torso 2" )->ori = t2 * Quaternion::Reverse(t1);
-#if 1
+#if 0
 		Quaternion qlist[6] =
 		{
 			Quaternion( 0.98935f,   0.058987f,    0.124063f,    -0.0481096f   ),
@@ -1228,9 +1583,9 @@ namespace Test
 
 	bool Soldier::IsExperimentDone() const { return imp->init && imp->experiment_done; }
 
-	void Soldier::LoadExperimentData()     { }
+	void Soldier::LoadExperimentData()     { experiment = new Experiment(); }
 
-	void Soldier::SaveExperimentData()     { }
+	void Soldier::SaveExperimentData()     { if(experiment) { delete experiment; experiment = NULL; } }
 
 
 

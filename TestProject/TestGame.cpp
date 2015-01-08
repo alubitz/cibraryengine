@@ -35,11 +35,11 @@
 
 #define CPHFT_THREAD_COUNT               1
 
-#define ENABLE_FPS_COUNTER               1
+#define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
 
-#define DO_RAPID_UPDATE_TESTING          0
-#define RAPID_UPDATE_COUNT               20
+#define DO_RAPID_UPDATE_TESTING          1
+#define RAPID_UPDATE_COUNT               100
 #define SPAWN_PLAYER_REPEATEDLY          1
 
 
