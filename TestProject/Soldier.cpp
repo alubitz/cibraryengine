@@ -13,7 +13,10 @@
 
 #define ENABLE_NEW_JETPACKING             0
 
-#define MAX_TICK_AGE					  60
+#define MAX_TICK_AGE					  120
+
+#define NUM_PARENTS                       20
+#define NUM_TRIALS                        60
 
 #define NUM_INPUTS                        172
 #define NUM_OUTPUTS                       28			// double the number of joint torque axes
@@ -38,38 +41,277 @@ namespace Test
 
 	struct GABrain
 	{
-		struct Op
+		struct GraphOp;
+		struct GraphOperand
+		{
+			bool is_other_op;
+			union
+			{
+				GraphOp*       other_op;
+				unsigned short input_index;
+			};
+
+			GraphOperand() : is_other_op(true), other_op(NULL) { }
+
+			short ToCompiledOpIndex(short current_index) const
+			{
+				if(!is_other_op)
+					return input_index;
+				else if(other_op != NULL)
+					return other_op->my_index - current_index;
+				else
+					return -1 - current_index;
+			}
+
+			void Read(istream& ss, const vector<GraphOp*>& graph_ops)
+			{
+				if(ReadBool(ss))
+				{
+					is_other_op = true;
+					unsigned short index = ReadUInt16(ss);
+					if(index > 0)
+					{
+						assert((unsigned)(index - 1) < graph_ops.size());
+						other_op = graph_ops[index - 1];
+					}
+					else
+						other_op = NULL;
+				}
+				else
+				{
+					is_other_op = false;
+					input_index = ReadUInt16(ss);
+				}
+			}
+
+			void Write(ostream& ss) const		// precondition: all ops have had my_index set
+			{
+				if(is_other_op)
+				{
+					WriteBool(true, ss);
+					if(other_op != NULL)
+						WriteUInt16(other_op->my_index + 1, ss);
+					else
+						WriteUInt16(0, ss);
+				}
+				else
+				{
+					WriteBool(false, ss);
+					WriteUInt16(input_index, ss);
+				}
+			}
+		};
+
+		struct GraphOp
+		{
+			unsigned short my_index;
+			unsigned short usage;				// 1 or more means this maps to an output (subtract 1 to get its index), 0 means it doesn't
+			unsigned char op;
+			GraphOperand arga, argb;
+
+			GraphOp() : usage(0), op(0x0) { }
+
+			// returns true if there's an infinite recursive loop; marks all things referenced prior to that as true in "inclusion"
+			bool RecursiveReferenceCheck(vector<bool>& stack, vector<bool>& inclusion, const vector<GraphOp*>& all_owned = vector<GraphOp*>()) const
+			{
+				// optional check to make sure that all of the referenced nodes' pointers belong to the correct graph
+				if(!all_owned.empty())
+				{
+					bool ok = false;
+					for(unsigned int i = 0; i < all_owned.size(); ++i)
+						if(all_owned[i] == this)
+							ok = true;
+					if(!ok)
+						DEBUG();
+				}
+
+				if(stack[my_index])
+					return true;
+				else
+				{
+					stack[my_index] = true;
+
+					if(arga.is_other_op && arga.other_op != NULL)
+						if(arga.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
+							return true;
+					if(argb.is_other_op && argb.other_op != NULL)
+						if(argb.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
+							return true;
+
+					stack[my_index] = false;
+					inclusion[my_index] = true;
+
+					return false;
+				}
+			}
+
+			void Read(istream& ss, const vector<GraphOp*>& graph_ops)
+			{
+				usage = ReadUInt16(ss);
+				op = ReadByte(ss);
+				arga.Read(ss, graph_ops);
+				argb.Read(ss, graph_ops);
+			}
+
+			void Write(ostream& ss) const		// precondition: all ops have had my_index set
+			{
+				WriteUInt16(usage, ss);
+				WriteByte(op, ss);
+				arga.Write(ss);
+				argb.Write(ss);
+			}
+		};
+		vector<GraphOp*> graph_ops;
+
+		struct CompiledOp
 		{
 			unsigned char op;
 			short ia, ib;
-
-			void Read(istream& ss)
-			{
-				op = ReadByte (ss);
-				ia = ReadInt16(ss);
-				ib = ReadInt16(ss);
-			}
-
-			void Write(ostream& ss) const
-			{
-				WriteByte (op, ss);
-				WriteInt16(ia, ss);
-				WriteInt16(ib, ss);
-			}
 		};
-		vector<Op> ops;
+		vector<CompiledOp> compiled_ops;
 
 		vector<float> initial_mems;
 
-		GABrain() : ops(), initial_mems(NUM_MEMORIES) { }
+		GABrain() : graph_ops(), compiled_ops(), initial_mems(NUM_MEMORIES) { }
+
+		~GABrain()
+		{
+			CleanupGraphOps();
+
+			compiled_ops.clear();
+			initial_mems.clear();
+		}
+
+		void CleanupGraphOps()
+		{
+			for(unsigned int i = 0; i < graph_ops.size(); ++i)
+				delete graph_ops[i];
+			graph_ops.clear();
+		}
+
+		// returns an error code, or zero if no error
+		unsigned int Compile()
+		{
+			compiled_ops.clear();
+
+			unsigned short num_gops = graph_ops.size();
+			for(unsigned short i = 0; i < num_gops; ++i)
+				graph_ops[i]->my_index = i;
+
+			// find whatever ops will be used as memory outputs, and find all the ops those memory output ops will need to reference, recursively
+			vector<bool> stack(num_gops, false);
+			vector<bool> inclusion(num_gops, false);
+			vector<GraphOp*> usages(NUM_MEMORIES, false);
+			unsigned int found_usages = 0;
+			for(unsigned short i = 0; i < num_gops; ++i)
+			{
+				GraphOp* gop = graph_ops[i];
+				if(gop->usage > 0 && usages[gop->usage - 1] == NULL)
+				{
+					usages[gop->usage - 1] = gop;
+					++found_usages;
+					if(gop->RecursiveReferenceCheck(stack, inclusion, graph_ops))
+					{
+						Debug("Error! Infinite recursion detected while trying to compile GABrain!\n");
+						return 1;
+					}
+				}
+			}
+
+			// condense those into a shorter list, and re-index
+			vector<GraphOp*> condensed;
+			for(unsigned short i = 0; i < num_gops; ++i)
+				if(inclusion[i])
+					condensed.push_back(graph_ops[i]);
+			for(unsigned short i = 0; i < condensed.size(); ++i)
+				condensed[i]->my_index = i;
+
+			// construct a "what-needs-what?" reference table
+			vector<vector<bool>> all_needs;
+			for(unsigned short i = 0; i < condensed.size(); ++i)
+			{
+				vector<bool> my_needs(condensed.size(), false);
+				condensed[i]->RecursiveReferenceCheck(stack, my_needs, condensed);
+				my_needs[i] = false;				// safety check for infinite recursion has already been done
+				all_needs.push_back(my_needs);
+			}
+
+			// now use that to sort items
+			vector<GraphOp*> sorted_gops;
+			unsigned short memories_begin = condensed.size() - found_usages;
+			inclusion = vector<bool>(condensed.size(), false);					// reuse this to track what's ready for inclusion in compiled_ops
+			for(unsigned short i = 0; i < memories_begin; ++i)
+			{
+				for(unsigned short j = 0; j < memories_begin; ++j)
+				{
+					if(!inclusion[j])
+					{
+						const vector<bool>& my_needs = all_needs[j];
+						bool ok = true;
+						for(unsigned short k = 0; k < condensed.size() && ok; ++k)
+							if(my_needs[k] && !inclusion[k])
+								ok = false;
+						if(ok)
+						{
+							inclusion[j] = true;
+							sorted_gops.push_back(condensed[j]);
+						}
+					}
+				}
+			}
+			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
+				sorted_gops.push_back(usages[i]);
+			
+			// populate the compiled ops array (which has already been cleared)
+			for(unsigned short i = 0; i < sorted_gops.size(); ++i)
+			{
+				if(GraphOp* gop = sorted_gops[i])
+				{
+					gop->my_index = i;		// we can safely wait until now to do this, thanks to the sorting
+
+					CompiledOp cop;
+					cop.op = gop->op;
+					cop.ia = gop->arga.ToCompiledOpIndex(i);
+					cop.ib = gop->argb.ToCompiledOpIndex(i);
+					compiled_ops.push_back(cop);
+				}
+				else
+				{
+					CompiledOp cop;
+					cop.op = 0;
+					cop.ia = -i;
+					cop.ib = -i;
+					compiled_ops.push_back(cop);
+				}
+			}
+
+			RestoreDefaultIndexing();
+
+			return 0;
+		}
+
+		void RestoreDefaultIndexing()
+		{
+			for(unsigned short i = 0; i < graph_ops.size(); ++i)
+				graph_ops[i]->my_index = i;
+		}
+
+		// returns true if any indices mismatch
+		bool CheckDefaultIndexing() const
+		{
+			for(unsigned short i = 0; i < graph_ops.size(); ++i)
+				if(graph_ops[i]->my_index != i)
+					return true;
+			return false;
+		}
 
 		void Evaluate(const vector<float>& inputs, vector<float>& outputs) const
 		{
 			outputs.clear();
 
-			for(unsigned int i = 0; i < ops.size(); ++i)
+			for(unsigned int i = 0; i < compiled_ops.size(); ++i)
 			{
-				const Op& o = ops[i];
+				const CompiledOp& o = compiled_ops[i];
 				float a = LookUp(o.ia, inputs, outputs);
 				float b = LookUp(o.ib, inputs, outputs);
 
@@ -85,11 +327,7 @@ namespace Test
 				if(op_bit_two)
 				{
 					if(op_bit_one)
-					{
-						result = 0.5f;//((b - a) / sqrtf(a * a + b * b)) * 0.5f + 0.5f;
-						//if(result > 1 || result < 0)
-						//	DEBUG();
-					}
+						result = 0.5f;
 					else
 						result = (a + b) * 0.5f;
 				}
@@ -115,106 +353,232 @@ namespace Test
 			}
 		}
 
-		static GABrain CreateCrossover(const GABrain& a, const GABrain& b)
+		static void RandomizeArg(GABrain::GraphOperand& arg, const vector<GraphOp*>& ops, unsigned int inputs)
 		{
-#if 1
-			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
+			unsigned int index = Random3D::RandInt() % (inputs + ops.size() + 1);
+			if(index == 0)
 			{
-				// TODO: pick one parent or the other to be the 'primary' owner of this memory
-				// recurse through the nodes which contribute to that node's computation
-				// for every node, there is a chance that instead of using the original formula, a crossover or mutation will be made
+				arg.is_other_op = true;
+				arg.other_op = NULL;
 			}
-#else
-			const vector<Op> *av = &a.ops, *bv = &b.ops;
-			if(Random3D::RandInt() % 2 == 0)
-				swap(av, bv);
-
-			unsigned int alen = av->size(), blen = bv->size();
-			
-			unsigned int apart = alen, bpart = blen;
-			while(apart + bpart > TARGET_LENGTH)
+			else if(index < inputs + 1)
 			{
-				if(Random3D::RandInt() % 2 == 0)
-				{
-					if(apart > 0)
-						--apart;
-				}
-				else
-				{
-					if(bpart > 0)
-						--bpart;
-				}
+				arg.is_other_op = false;
+				arg.input_index = index - 1;
 			}
-
-			GABrain child;
-			for(unsigned int i = 0; i < apart; ++i)
-				child.ops.push_back(a.ops[i]);
-			for(unsigned int i = b.ops.size() - bpart; i < b.ops.size(); ++i)
-				child.ops.push_back(b.ops[i]);
-
-			for(unsigned int i = 0; i < child.ops.size(); ++i)
+			else
 			{
-				Op& o = child.ops[i];
-				if(Random3D::RandInt() % 35 == 0)
-					o.op = (unsigned char)Random3D::RandInt(16);
-				if(Random3D::RandInt() % 35 == 0)
-					o.ia = (short)Random3D::RandInt(-(signed)i, NUM_INPUTS * 2 + NUM_MEMORIES);
-				if(Random3D::RandInt() % 35 == 0)
-					o.ib = (short)Random3D::RandInt(-(signed)i, NUM_INPUTS * 2 + NUM_MEMORIES);
+				arg.is_other_op = true;
+				arg.other_op = ops[index - (inputs + 1)];
 			}
-
-			for(unsigned int i = 0; i < child.initial_mems.size(); ++i)
-				child.initial_mems[i] = Random3D::RandInt() % 2 == 0 ? a.initial_mems[i] : b.initial_mems[i];
-
-			child.MutateMemories();
-
-			return child;
-#endif
 		}
 
-		void MutateMemories()
+		static void CopyArgByIndex(GABrain::GraphOperand& dest, const GABrain::GraphOperand& src, const vector<GraphOp*>& ops, unsigned int offset)
 		{
-			static const unsigned int mutation_every = 10;
-			static const float        mutation_scale = 0.5f;
+			dest.is_other_op = src.is_other_op;
+			if(src.is_other_op)
+				if(src.other_op != NULL)
+					dest.other_op = ops[src.other_op->my_index + offset];
+				else
+					dest.other_op = NULL;
+			else
+				dest.input_index = src.input_index;
+		}
 
-			for(unsigned int i = 0; i < initial_mems.size(); ++i)
+		static GABrain* CreateCrossover(const GABrain* a, const GABrain* b)
+		{
+			GABrain* child = new GABrain();
+
+			// collect all of both parents' graph ops into one list
+			if(a->CheckDefaultIndexing())
+				DEBUG();
+			if(b->CheckDefaultIndexing())
+				DEBUG();
+
+			for(unsigned int i = 0; i < a->graph_ops.size() + b->graph_ops.size(); ++i)
+				child->graph_ops.push_back(new GraphOp());
+			for(unsigned int i = 0; i < a->graph_ops.size(); ++i)
 			{
-				float& f = initial_mems[i];
-				if(Random3D::RandInt() % mutation_every == 0)
-					f += Random3D::Rand(-mutation_scale, mutation_scale);
-				f = max(0.0f, min(1.0f, f));
+				GraphOp *p_gop = a->graph_ops[i];
+				GraphOp* c_gop = child->graph_ops[i];
+
+				c_gop->usage = p_gop->usage;
+				c_gop->op    = p_gop->op;
+				
+				CopyArgByIndex(c_gop->arga, p_gop->arga, child->graph_ops, 0);
+				CopyArgByIndex(c_gop->argb, p_gop->argb, child->graph_ops, 0);
 			}
+			for(unsigned int i = 0; i < b->graph_ops.size(); ++i)
+			{
+				GraphOp* p_gop = b->graph_ops[i];
+				GraphOp* c_gop = child->graph_ops[i + a->graph_ops.size()];
+
+				c_gop->usage = p_gop->usage;
+				c_gop->op    = p_gop->op;
+				
+				CopyArgByIndex(c_gop->arga, p_gop->arga, child->graph_ops, a->graph_ops.size());
+				CopyArgByIndex(c_gop->argb, p_gop->argb, child->graph_ops, a->graph_ops.size());
+			}
+
+			// randomize some ops
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+			{
+				GraphOp* grop = child->graph_ops[i];
+				if(Random3D::RandInt() % 45 == 0)
+				{
+					if(grop->usage == 0)
+						grop->usage = Random3D::RandInt(1, NUM_MEMORIES);
+					else
+						grop->usage = 0;
+				}
+				if(Random3D::RandInt() % 45 == 0)
+					grop->op = Random3D::RandInt(16);
+				if(Random3D::RandInt() % 45 == 0)
+					RandomizeArg(grop->arga, child->graph_ops, NUM_INPUTS * 2 + NUM_MEMORIES);
+				if(Random3D::RandInt() % 45 == 0)
+					RandomizeArg(grop->argb, child->graph_ops, NUM_INPUTS * 2 + NUM_MEMORIES);
+			}
+
+			// shuffle
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+				swap(child->graph_ops[i], child->graph_ops[Random3D::RandInt(i, child->graph_ops.size() - 1)]);
+			child->RestoreDefaultIndexing();
+
+			// select which ops are to be included: mostly this will be first-occurrence 'usage' ops, but with some randomness
+			vector<bool> referenced(child->graph_ops.size(), false);
+			vector<bool> stack(child->graph_ops.size(), false);
+			vector<bool> usages(NUM_MEMORIES, false);
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+			{
+				GraphOp* grop = child->graph_ops[i];
+				if(grop->usage != 0 && !usages[grop->usage - 1] && Random3D::RandInt() % 20 != 0 || Random3D::RandInt() % 3 == 0)
+				{
+					grop->RecursiveReferenceCheck(stack, referenced);
+					if(grop->usage != 0)
+						usages[grop->usage - 1] = true;
+				}
+			}
+
+			vector<GraphOp*> new_ops;
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+			{
+				GraphOp* op = child->graph_ops[i];
+				if(referenced[i])
+				{
+					op->my_index = new_ops.size();
+					new_ops.push_back(op);
+				}
+				else
+					op->my_index = child->graph_ops.size();		// set to an index which is guaranteed to be invalid in the resulting array
+			}
+
+			// sever references to ops that haven't been included
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+			{
+				GraphOp* op = child->graph_ops[i];
+				if(op->arga.is_other_op && op->arga.other_op != NULL && op->arga.other_op->my_index >= new_ops.size())
+					op->arga.other_op = NULL;
+				if(op->argb.is_other_op && op->argb.other_op != NULL && op->argb.other_op->my_index >= new_ops.size())
+					op->argb.other_op = NULL;
+			}
+
+			// once everything that needs to check the ops' my_index property has finished, it's safe to delete the unreferenced ops
+			for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
+			{
+				GraphOp* op = child->graph_ops[i];
+				if(op->my_index >= new_ops.size())
+					delete op;
+			}
+			child->graph_ops = new_ops;
+
+			// combine and mutate initial memory values
+			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
+			{
+				static const unsigned int mutation_every = 20;
+				static const float        mutation_scale = 0.5f;
+
+				float& f = child->initial_mems[i];
+				f = Random3D::RandInt() % 2 == 0 ? a->initial_mems[i] : b->initial_mems[i];
+				if(Random3D::RandInt() % mutation_every == 0)
+					f = max(0.0f, min(1.0f, f + Random3D::Rand(-mutation_scale, mutation_scale)));
+			}
+
+			child->Compile();
+			if(child->compiled_ops.empty())
+			{
+				delete child;
+				return NULL;
+			}
+			else
+				return child;
 		}
 
 		void Read(istream& ss)
 		{
-			unsigned int num_memories = ReadUInt32(ss);
-			initial_mems.resize(max((unsigned)NUM_MEMORIES, num_memories));
-			for(unsigned int i = 0; i < num_memories; ++i)
-				initial_mems[i] = ReadSingle(ss);
-			initial_mems.resize(NUM_MEMORIES);
+			BinaryChunk chunk;
+			chunk.Read(ss);
 
-			ops.clear();
-
-			unsigned int count = ReadUInt32(ss);
-			for(unsigned int i = 0; i < count; ++i)
+			if(chunk.GetName() != "GABRAIN_")
 			{
-				Op op;
-				op.Read(ss);
-				ops.push_back(op);
+				Debug(((stringstream&)(stringstream() << "Expected a chunk with name \"GABRAIN_\", but instead got " << chunk.GetName() << endl)).str());
+				return;
+			}
+			else
+			{
+				istringstream iss(chunk.data);
+
+				CleanupGraphOps();
+
+				unsigned int num_memories = ReadUInt16(iss);
+				initial_mems.resize(max((unsigned)NUM_MEMORIES, num_memories));
+				for(unsigned short i = 0; i < num_memories; ++i)
+					initial_mems[i] = ReadSingle(iss);
+				initial_mems.resize(NUM_MEMORIES);
+
+				unsigned short count = ReadUInt16(iss);
+				graph_ops.reserve(count);
+				for(unsigned short i = 0; i < count; ++i)
+					graph_ops.push_back(new GraphOp());
+				for(unsigned short i = 0; i < count; ++i)
+				{
+					graph_ops[i]->my_index = i;
+					graph_ops[i]->Read(iss, graph_ops);
+				}
+
+				unsigned int sevens = ReadUInt32(iss);
+				if(sevens != 7777)
+				{
+					Debug("GABrain chunk is supposed to end with the number 7777, but didn't!\n");
+					return;
+				}
+
+				Compile();
 			}
 		}
 
 		void Write(ostream& ss) const
 		{
-			WriteUInt32(NUM_MEMORIES, ss);
-			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
-				WriteSingle(initial_mems[i], ss);
+			stringstream oss;
 
-			unsigned int count = ops.size();
-			WriteUInt32(count, ss);
-			for(unsigned int i = 0; i < count; ++i)
-				ops[i].Write(ss);
+			WriteUInt16(NUM_MEMORIES, oss);
+			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
+				WriteSingle(initial_mems[i], oss);
+
+			unsigned short count = graph_ops.size();
+			if(count != graph_ops.size())
+				DEBUG();
+
+			WriteUInt16(count, oss);
+			for(unsigned short i = 0; i < count; ++i)
+				graph_ops[i]->my_index = i;
+			for(unsigned short i = 0; i < count; ++i)
+				graph_ops[i]->Write(oss);
+
+			WriteUInt32(7777, oss);
+
+			BinaryChunk chunk("GABRAIN_");
+			chunk.data = oss.str();
+			chunk.Write(ss);
 		}
 	};
 
@@ -222,10 +586,11 @@ namespace Test
 	{
 		struct Record
 		{
-			GABrain brain;
+			GABrain* brain;
 			float score;
 
-			Record() : score(0) { }
+			Record() : brain(new GABrain()), score(0) { }
+			~Record() { if(brain) { delete brain; brain = NULL; } }
 
 			bool operator <(const Record& r) { return score < r.score; }
 		};
@@ -247,8 +612,8 @@ namespace Test
 				genepool.clear();
 				for(unsigned int i = 0; i < num_brains; ++i)
 				{
-					Record record;
-					record.brain.Read(file);
+					Record* record = new Record();
+					record->brain->Read(file);
 
 					if(file.bad())
 					{
@@ -257,7 +622,7 @@ namespace Test
 						return;
 					}
 					else
-						genepool.push_back(new Record(record));
+						genepool.push_back(record);
 				}
 
 				file.close();
@@ -284,18 +649,15 @@ namespace Test
 			{
 				WriteUInt32(genepool.size(), file);
 				for(unsigned int i = 0; i < genepool.size(); ++i)
-					genepool[i]->brain.Write(file);
+					genepool[i]->brain->Write(file);
 
 				file.close();
 			}
 		}
 
-		static const unsigned int num_parents = 20;
-		static const unsigned int num_trials  = 18;
-
-		GABrain NextBrain()
+		GABrain* NextBrain()
 		{
-			static const unsigned int first_gen_size = num_parents;
+			static const unsigned int first_gen_size = NUM_PARENTS;
 			static const float initial_rand = 0.0f;
 
 			if(genepool.empty())
@@ -304,12 +666,14 @@ namespace Test
 					Record* result = new Record();
 					for(unsigned int i = 0; i < TARGET_LENGTH; ++i)
 					{
-						GABrain::Op op;
-						op.op = 0x0;
-						op.ia = 0;
-						op.ib = 0;
-						result->brain.ops.push_back(op);
+						GABrain::GraphOp* gop = new GABrain::GraphOp();
+						if(i < NUM_MEMORIES)
+							gop->usage = i + 1;
+						result->brain->graph_ops.push_back(gop);
 					}
+
+					result->brain->Compile();
+
 					genepool.push_back(result);
 				}
 
@@ -318,15 +682,15 @@ namespace Test
 
 		void NextGeneration()
 		{
-			static const unsigned int children_per_pair  = 1;
-			static const unsigned int mutants_per_parent = 1;
+			static const unsigned int children_per_pair  = 2;
+			static const unsigned int mutants_per_parent = 2;
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				for(unsigned int j = i + 1; j < genepool.size(); ++j)
 					if(*genepool[j] < *genepool[i])
 						swap(genepool[i], genepool[j]);
 
-			while(genepool.size() > num_parents)
+			while(genepool.size() > NUM_PARENTS)
 			{
 				Record* r = *genepool.rbegin();
 				delete r;
@@ -349,7 +713,10 @@ namespace Test
 				{
 					Record* c = new Record();
 					c->brain = GABrain::CreateCrossover(p1->brain, p1->brain);
-					genepool.push_back(c);
+					if(c->brain == NULL)
+						delete c;
+					else
+						genepool.push_back(c);
 				}
 
 				for(unsigned int j = i + 1; j < actual_parents; ++j)
@@ -359,13 +726,16 @@ namespace Test
 
 						Record* c = new Record();
 						c->brain = GABrain::CreateCrossover(p1->brain, p2->brain);
-						genepool.push_back(c);
+						if(c->brain == NULL)
+							delete c;
+						else
+							genepool.push_back(c);
 					}
 			}
 
 			Debug(((stringstream&)(stringstream() << "generation " << batch << "; next gen will have " << genepool.size() << " genomes" << endl)).str());
 			for(unsigned int i = 0; i < actual_parents; ++i)
-				Debug(((stringstream&)(stringstream() << "\tparent " << i << " score = " << genepool[i]->score << "; len = " << genepool[i]->brain.ops.size() << endl)).str());
+				Debug(((stringstream&)(stringstream() << "\tparent " << i << " score = " << genepool[i]->score << "; graph n = " << genepool[i]->brain->graph_ops.size() << "; compiled n = " << genepool[i]->brain->compiled_ops.size() << endl)).str());
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				genepool[i]->score = 0;
@@ -376,29 +746,29 @@ namespace Test
 			float& gscore = genepool[genome]->score;
 			gscore += score;
 
-			float score_to_beat = genome >= num_parents ? genepool[num_parents - 1]->score : -1;
+			float score_to_beat = genome >= NUM_PARENTS ? genepool[NUM_PARENTS - 1]->score : -1;
 
 			{	// curly braces for scope
 				stringstream ss;
 
-				ss << "generation " << batch << ", genome " << genome << " of " << genepool.size() << ", trial " << trial << " of " << num_trials << "; cost so far = " << gscore / num_trials << endl;
-				for(unsigned int i = 0; i < genome && i < num_parents; ++i)
+				ss << "generation " << batch << ", genome " << genome << " of " << genepool.size() << ", trial " << trial << " of " << NUM_TRIALS << "; cost so far = " << gscore / NUM_TRIALS << endl;
+				for(unsigned int i = 0; i < genome && i < NUM_PARENTS; ++i)
 					ss << endl << "top scorer # " << (i + 1) << " = " << genepool[i]->score;
 				
 				ss_target = ss.str();
 			}
 
-			bool quick = score_to_beat != -1 && gscore >= score_to_beat * num_trials;
+			bool quick = score_to_beat != -1 && gscore >= score_to_beat * NUM_TRIALS;
 
 			++trial;
-			if(trial == num_trials || quick)
+			if(trial == NUM_TRIALS || quick)
 			{
-				genepool[genome]->score /= num_trials;
+				genepool[genome]->score /= NUM_TRIALS;
 
 				stringstream ss;
-				ss << "b " << batch << " g " << genome << " score = " << gscore << "; len = " << genepool[genome]->brain.ops.size();
+				ss << "b " << batch << " g " << genome << " score = " << gscore << "; graph n = " << genepool[genome]->brain->graph_ops.size() << "; compiled n = " << genepool[genome]->brain->compiled_ops.size();
 				if(quick)
-					ss << "; fail (" << trial << " / " << num_trials << ")" << endl;
+					ss << "; fail (" << trial << " / " << NUM_TRIALS << ")" << endl;
 				else
 					ss << "; pass" << endl;
 				Debug(ss.str());
@@ -602,7 +972,7 @@ namespace Test
 		vector<CBone*>  all_bones;
 		vector<CJoint*> all_joints;
 
-		GABrain brain;
+		GABrain* brain;
 		vector<float> memories;
 		vector<float> old_inputs;
 		float feet_error_cost, goal_error_cost, exertion_cost;
@@ -724,7 +1094,7 @@ namespace Test
 		void InitBrain(Soldier* dood)
 		{
 			brain = experiment->NextBrain();
-			memories = brain.initial_mems;
+			memories = brain->initial_mems;
 
 			old_inputs.clear();
 		}
@@ -1041,7 +1411,7 @@ namespace Test
 #endif
 
 
-			// stuff info about the dood into an array, which will then be crammed into a brain... maybe something cool will happen
+			// stuff info about the dood into an array, which will then be crammed through a brain... maybe something cool will happen
 			vector<float> inputs;
 
 			struct PushVec3
@@ -1180,7 +1550,7 @@ namespace Test
 
 			// evaluate all the things!
 			vector<float> outputs;
-			brain.Evaluate(inputs, outputs);
+			brain->Evaluate(inputs, outputs);
 
 			// crop outputs list to the number of memories
 			memories.clear();
