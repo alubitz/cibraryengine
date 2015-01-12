@@ -15,13 +15,13 @@
 
 #define MAX_TICK_AGE					  120
 
-#define NUM_PARENTS                       20
-#define NUM_TRIALS                        60
+#define NUM_PARENTS                       50
+#define NUM_TRIALS                        6
 
-#define NUM_INPUTS                        172
+#define NUM_INPUTS                        155
 #define NUM_OUTPUTS                       28			// double the number of joint torque axes
 #define NUM_MEMORIES                      40			// must be >= NUM_OUTPUTS
-#define TARGET_LENGTH                     65			// should be >= NUM_MEMORIES
+#define TARGET_LENGTH                     65			// should be >= NUM_MEMORIES; currently only used for initial genome length
 
 namespace Test
 {
@@ -387,6 +387,8 @@ namespace Test
 
 		static GABrain* CreateCrossover(const GABrain* a, const GABrain* b)
 		{
+			static const unsigned int total_inputs = NUM_INPUTS * 2 + NUM_MEMORIES;
+
 			GABrain* child = new GABrain();
 
 			// collect all of both parents' graph ops into one list
@@ -434,9 +436,9 @@ namespace Test
 				if(Random3D::RandInt() % 45 == 0)
 					grop->op = Random3D::RandInt(16);
 				if(Random3D::RandInt() % 45 == 0)
-					RandomizeArg(grop->arga, child->graph_ops, NUM_INPUTS * 2 + NUM_MEMORIES);
+					RandomizeArg(grop->arga, child->graph_ops, total_inputs);
 				if(Random3D::RandInt() % 45 == 0)
-					RandomizeArg(grop->argb, child->graph_ops, NUM_INPUTS * 2 + NUM_MEMORIES);
+					RandomizeArg(grop->argb, child->graph_ops, total_inputs);
 			}
 
 			// shuffle
@@ -491,6 +493,21 @@ namespace Test
 			}
 			child->graph_ops = new_ops;
 
+			// if certain usages are unfilled, maybe make something up
+			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
+			{
+				if(usages[i] == NULL && Random3D::RandInt() % 5 != 0)
+				{
+					GraphOp* op = new GraphOp();
+					op->usage = i;
+					op->my_index = child->graph_ops.size();
+					op->op = Random3D::RandInt(16);
+					RandomizeArg(op->arga, child->graph_ops, total_inputs);
+					RandomizeArg(op->argb, child->graph_ops, total_inputs);
+					child->graph_ops.push_back(op);
+				}
+			}
+
 			// combine and mutate initial memory values
 			for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
 			{
@@ -502,6 +519,8 @@ namespace Test
 				if(Random3D::RandInt() % mutation_every == 0)
 					f = max(0.0f, min(1.0f, f + Random3D::Rand(-mutation_scale, mutation_scale)));
 			}
+
+			// TODO: detect when some subgraphs are (nearly?) identical, and when that happens, maybe unify them
 
 			child->Compile();
 			if(child->compiled_ops.empty())
@@ -682,8 +701,8 @@ namespace Test
 
 		void NextGeneration()
 		{
-			static const unsigned int children_per_pair  = 2;
-			static const unsigned int mutants_per_parent = 2;
+			static const unsigned int children_per_pair  = 4;
+			static const unsigned int mutants_per_single = 4;
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				for(unsigned int j = i + 1; j < genepool.size(); ++j)
@@ -709,7 +728,7 @@ namespace Test
 			for(unsigned int i = 0; i < actual_parents; ++i)
 			{
 				Record* p1 = genepool[i];
-				for(unsigned int j = 0; j < mutants_per_parent; ++j)
+				for(unsigned int j = 0; j < mutants_per_single; ++j)
 				{
 					Record* c = new Record();
 					c->brain = GABrain::CreateCrossover(p1->brain, p1->brain);
@@ -763,16 +782,18 @@ namespace Test
 			++trial;
 			if(trial == NUM_TRIALS || quick)
 			{
-				genepool[genome]->score /= NUM_TRIALS;
+				gscore /= NUM_TRIALS;
 
 				stringstream ss;
 				ss << "b " << batch << " g " << genome << " score = " << gscore << "; graph n = " << genepool[genome]->brain->graph_ops.size() << "; compiled n = " << genepool[genome]->brain->compiled_ops.size();
 				if(quick)
-					ss << "; fail (" << trial << " / " << NUM_TRIALS << ")" << endl;
+					ss << "; fail (" << trial << " / " << NUM_TRIALS << "); proj: " << (gscore * NUM_TRIALS / trial) << endl;
 				else
 					ss << "; pass" << endl;
 				Debug(ss.str());
 
+				if(quick)
+					gscore *= NUM_TRIALS / trial;
 				for(unsigned int i = genome; i != 0; --i)
 				{
 					if(genepool[i]->score < genepool[i - 1]->score)
@@ -1482,10 +1503,12 @@ namespace Test
 						}
 					}
 					
-					// goal info												// TODO: change this once desired foot pos has reasonable values
-					PushVec3(inputs, Vec3());//unrotate * (pos - untranslate));
+#if 0
+					// goal info
+					PushVec3(inputs, unrotate * (pos - untranslate));
 					PushVec3(inputs, unrotate * normal);
 					inputs.push_back(eta);
+#endif
 				}
 			};
 			Vec3 zero(0, 0, 0), yvec(0, 1, 0), zvec(0, 0, 1);				// TODO: come up with actual values for this desired foot state info
@@ -1497,22 +1520,23 @@ namespace Test
 			Vec3 pori  = (Quaternion::Reverse(pelvis.rb->GetOrientation()) * p ).ToRVec();
 			Vec3 t1ori = (Quaternion::Reverse(torso1.rb->GetOrientation()) * t1).ToRVec();
 			Vec3 t2ori = (Quaternion::Reverse(torso2.rb->GetOrientation()) * t2).ToRVec();
-			Vec3 hori  = (Quaternion::Reverse(head.rb->GetOrientation()) * yaw_ori).ToRVec();
 			PushVec3( inputs, ppos  );
 			PushVec3( inputs, pori  );
 			PushVec3( inputs, t1ori );
 			PushVec3( inputs, t2ori );
-			PushVec3( inputs, hori  );
 
 			// gun forward vector goal satisfaction sensors (ditto)
 			Vec3 desired_gun_fwd = yaw_ori * zvec;
 			Vec3 actual_gun_fwd  = gun_rb->GetOrientation() * zvec;
 			Vec2 gunxz_d = Vec2::Normalize(Vec2(desired_gun_fwd.x, desired_gun_fwd.z));
 			Vec2 gunxz_a = Vec2::Normalize(Vec2(actual_gun_fwd.x,  actual_gun_fwd.z ));
+
+			Vec2 gunxzy_d = Vec2(Vec2::Magnitude(desired_gun_fwd.x, desired_gun_fwd.z), desired_gun_fwd.y);
+			Vec2 gunxzy_a = Vec2(Vec2::Magnitude(actual_gun_fwd.x, actual_gun_fwd.z), actual_gun_fwd.y);
 			
 			// TODO: add something for the gun's up vector?
-			float gunx = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxz_a, Vec2(gunxz_d.y, -gunxz_d.x)))));
-			float guny = acosf(max(-1.0f, min(1.0f, desired_gun_fwd.y * actual_gun_fwd.y)));
+			float gunx = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxz_a,  Vec2(gunxz_d.y,  -gunxz_d.x)))));
+			float guny = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxzy_a, Vec2(gunxzy_d.y, -gunxzy_d.x)))));
 			inputs.push_back(gunx);
 			inputs.push_back(guny);
 
@@ -1612,7 +1636,7 @@ namespace Test
 				if(!feet_failed)
 					++feet_error_cost;
 
-				goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, hori, gunx, guny);
+				goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, gunx, guny);
 
 				if(tick_age >= max_tick_age)
 				{
@@ -1622,23 +1646,22 @@ namespace Test
 			}
 		}
 
-		float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori, const Vec3& t1ori, const Vec3& t2ori, const Vec3& hori, float gunx, float guny)
+		float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori, const Vec3& t1ori, const Vec3& t2ori, float gunx, float guny)
 		{
 			float exp_coeff = 0.1f;
 
-			float errors[7] =
+			float errors[6] =
 			{
 				ppos.ComputeMagnitudeSquared(),
 				pori.ComputeMagnitudeSquared(),
 				t1ori.ComputeMagnitudeSquared(),
 				t2ori.ComputeMagnitudeSquared(),
-				hori.ComputeMagnitudeSquared(),
 				gunx * gunx,
 				guny * guny
 			};
 
-			float goodness[7];
-			for(unsigned int i = 0; i < 7; ++i)
+			float goodness[6];
+			for(unsigned int i = 0; i < 6; ++i)
 				goodness[i] = expf(-exp_coeff * errors[i]);
 
 			float use_goodness[7] = 
@@ -1648,13 +1671,12 @@ namespace Test
 				goodness[1] * goodness[2],
 				goodness[1] * goodness[2] * goodness[3],
 				goodness[1] * goodness[2] * goodness[3] * goodness[4],
-				goodness[1] * goodness[2] * goodness[3] * goodness[5],
-				goodness[1] * goodness[2] * goodness[3] * goodness[6]
+				goodness[1] * goodness[2] * goodness[3] * goodness[5]
 			};
 
-			float cost_coeffs[7] = { 0.5f, 0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f };
+			float cost_coeffs[6] = { 0.5f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f };
 			float tot = 0.0f;
-			for(unsigned int i = 0; i < 7; ++i)
+			for(unsigned int i = 0; i < 6; ++i)
 			{
 				if(use_goodness[i] == 0.0f)
 					DEBUG();
