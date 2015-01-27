@@ -9,19 +9,19 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
-#define DIE_AFTER_ONE_SECOND              0
+#define DIE_AFTER_ONE_SECOND    0
 
-#define ENABLE_NEW_JETPACKING             0
+#define ENABLE_NEW_JETPACKING   0
 
-#define MAX_TICK_AGE					  60
+#define MAX_TICK_AGE			300
 
-#define NUM_PARENTS                       20
-#define NUM_TRIALS                        120
+#define NUM_PARENTS             5
+#define NUM_TRIALS              180
 
-#define NUM_INPUTS                        155			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
-#define NUM_OUTPUTS                       28			// double the number of joint torque axes
-#define NUM_MEMORIES                      40			// must be >= NUM_OUTPUTS
-#define TARGET_LENGTH                     65			// should be >= NUM_MEMORIES; currently only used for initial genome length
+#define NUM_INPUTS              217			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
+#define NUM_OUTPUTS             28			// double the number of joint torque axes
+#define NUM_MEMORIES            36			// must be >= NUM_OUTPUTS
+#define TARGET_LENGTH           100			// should be >= NUM_MEMORIES
 
 namespace Test
 {
@@ -81,7 +81,7 @@ namespace Test
 			}
 			void SeverLinkIfInvalid(unsigned int max_allowed)
 			{
-				if(is_other_op && other_op != NULL && other_op->my_index >= max_allowed)
+				if(is_other_op && other_op != NULL && (other_op->my_index >= max_allowed || other_op->usage != 0))
 					other_op = NULL;
 			}
 
@@ -173,17 +173,20 @@ namespace Test
 					return true;
 				else
 				{
-					stack[my_index] = true;
+					if(!inclusion[my_index])
+					{
+						stack[my_index] = true;
 
-					if(arga.is_other_op && arga.other_op != NULL)
-						if(arga.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
-							return true;
-					if(argb.is_other_op && argb.other_op != NULL)
-						if(argb.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
-							return true;
+						if(arga.is_other_op && arga.other_op != NULL)
+							if(arga.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
+								return true;
+						if(argb.is_other_op && argb.other_op != NULL)
+							if(argb.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
+								return true;
 
-					stack[my_index] = false;
-					inclusion[my_index] = true;
+						stack[my_index] = false;
+						inclusion[my_index] = true;
+					}
 
 					return false;
 				}
@@ -257,7 +260,7 @@ namespace Test
 				{
 					usages[gop->usage - 1] = gop;
 					++found_usages;
-					if(gop->RecursiveReferenceCheck(stack, inclusion, graph_ops))
+					if(gop->RecursiveReferenceCheck(stack, inclusion))
 					{
 						Debug("Error! Infinite recursion detected while trying to compile GABrain!\n");
 						return 1;
@@ -278,7 +281,7 @@ namespace Test
 			for(unsigned short i = 0; i < condensed.size(); ++i)
 			{
 				vector<bool> my_needs(condensed.size(), false);
-				condensed[i]->RecursiveReferenceCheck(stack, my_needs, condensed);
+				condensed[i]->RecursiveReferenceCheck(stack, my_needs);
 				my_needs[i] = false;				// safety check for infinite recursion has already been done
 				all_needs.push_back(my_needs);
 			}
@@ -406,7 +409,7 @@ namespace Test
 				DEBUG();
 
 			GABrain* best = NULL;
-			//for(unsigned int ci = 0; ci < 3; ++ci)	// make several attempts at a crossover; the one with the most compiled ops will be selected
+			for(unsigned int ci = 0; ci < 5; ++ci)	// make several attempts at a crossover; select the one with num compiled ops closest to closest to TARGET_LENGTH
 			{
 				GABrain* child = new GABrain();
 				for(unsigned int i = 0; i < a->graph_ops.size() + b->graph_ops.size(); ++i)
@@ -453,13 +456,14 @@ namespace Test
 						grop->argb.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
 				}
 
-				// randomly add some "ifs" (or the fuzzy-logic equivalent)
+				// randomly add some "ifs" (or the fuzzy-logic equivalent) around existing ops
 				unsigned int prev_size = child->graph_ops.size();
 				for(unsigned int i = 0; i < prev_size; ++i)
 				{
-					GraphOp* grop = child->graph_ops[i];
 					if(Random3D::RandInt() % 60 == 0)
 					{
+						GraphOp* grop = child->graph_ops[i];
+
 						GraphOperand condition;
 						condition.Randomize(child->graph_ops, prev_size, total_inputs);
 
@@ -484,17 +488,38 @@ namespace Test
 
 						grop->op = 1;				// formula: (condition and (old formula for grop)) or (!condition and (some other value))
 						grop->arga.SetOtherOp(cond_and_old);
+						grop->arga.negated = false;
 						grop->argb.SetOtherOp(ncond_and_else);
+						grop->argb.negated = false;
 					}
 				}
 
-				// also randomly cut out some "ands", "ors", and "avgs"
+				// also randomly cut out some "ands", "ors", and "avgs" from existing ops
 				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
 				{
-					if(Random3D::RandInt() % 50 == 0)
+					if(Random3D::RandInt() % 45 == 0)
 						child->graph_ops[i]->arga.SkipLinkIfApplicable();
-					if(Random3D::RandInt() % 50 == 0)
+					if(Random3D::RandInt() % 45 == 0)
 						child->graph_ops[i]->argb.SkipLinkIfApplicable();
+				}
+
+				// also randomly insert some "ands", "ors", and "avgs" onto existing ops
+				prev_size = child->graph_ops.size();
+				for(unsigned int i = 0; i < prev_size; ++i)
+				{
+					if(Random3D::RandInt() % 60 == 0)
+					{
+						GraphOp* grop = child->graph_ops[i];
+
+						GraphOp* copy = new GraphOp(*grop);
+						copy->my_index = child->graph_ops.size();
+						child->graph_ops.push_back(copy);
+
+						grop->op = Random3D::RandInt() % 3;
+						grop->arga.SetOtherOp(copy);
+						grop->arga.negated = false;
+						grop->argb.Randomize(child->graph_ops, prev_size, total_inputs);
+					}
 				}
 
 				// shuffle
@@ -530,7 +555,7 @@ namespace Test
 						op->my_index = child->graph_ops.size();		// set to an index which is guaranteed to be invalid in the resulting array
 				}
 
-				// sever references to ops that haven't been included
+				// sever references to ops that haven't been included; this will also make sure memory outputs aren't used as other ops' inputs
 				for(GraphOp **gptr = child->graph_ops.data(), **gend = gptr + child->graph_ops.size(); gptr != gend; ++gptr)
 				{
 					GraphOp& grop = **gptr;
@@ -574,7 +599,7 @@ namespace Test
 				// TODO: detect when some subgraphs are (nearly?) identical, and when that happens, maybe unify them
 
 				child->Compile();
-				if(!child->compiled_ops.empty() && (best == NULL || child->compiled_ops.size() > best->compiled_ops.size()))
+				if(!child->compiled_ops.empty() && (best == NULL || fabs((float)child->compiled_ops.size() - TARGET_LENGTH) < fabs((float)best->compiled_ops.size() - TARGET_LENGTH)))
 				{
 					if(best != NULL)
 						delete best;
@@ -740,14 +765,14 @@ namespace Test
 			static const float initial_rand = 0.0f;
 
 			if(genepool.empty())
+			{
 				for(unsigned int i = 0; i < first_gen_size; ++i)
 				{
 					Record* result = new Record(next_id++, 0, 0);
-					for(unsigned int i = 0; i < TARGET_LENGTH; ++i)
+					for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
 					{
 						GABrain::GraphOp* gop = new GABrain::GraphOp();
-						if(i < NUM_MEMORIES)
-							gop->usage = i + 1;
+						gop->usage = i + 1;
 						result->brain->graph_ops.push_back(gop);
 					}
 
@@ -755,14 +780,22 @@ namespace Test
 
 					genepool.push_back(result);
 				}
+			}
+			else if(genome == genepool.size())
+			{
+				NextGeneration();
+
+				genome = 0;
+				++batch;
+			}
 
 			return genepool[genome]->brain;
 		}
 
 		void NextGeneration()
 		{
-			static const unsigned int children_per_pair  = 4;
-			static const unsigned int mutants_per_single = 6;
+			static const unsigned int children_per_pair  = 8;
+			static const unsigned int mutants_per_single = 12;
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				for(unsigned int j = i + 1; j < genepool.size(); ++j)
@@ -877,14 +910,6 @@ namespace Test
 
 				trial = 0;
 				++genome;
-
-				if(genome == genepool.size())
-				{
-					NextGeneration();
-
-					genome = 0;
-					++batch;
-				}
 			}
 		}
 	};
@@ -1071,7 +1096,7 @@ namespace Test
 		vector<float> old_inputs;
 		vector<float> outputs;				// make this a member, for memory reuse purposes
 		float feet_error_cost, goal_error_cost, exertion_cost;
-		bool feet_failed;
+		bool feet_ok;
 
 		Vec3 desired_pelvis_pos;
 
@@ -1173,7 +1198,7 @@ namespace Test
 			feet_error_cost(0),
 			goal_error_cost(0),
 			exertion_cost(0),
-			feet_failed(true),
+			feet_ok(true),
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
@@ -1185,6 +1210,12 @@ namespace Test
 
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
 		void RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
+
+		void RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force)
+		{
+			jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
+			jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
+		}
 
 		void InitBrain(Soldier* dood)
 		{
@@ -1244,21 +1275,21 @@ namespace Test
 			rknee.sjc->min_torque.y = rknee.sjc->min_torque.z = rknee.sjc->max_torque.y = rknee.sjc->max_torque.z = 0.0f;
 
 			Vec3 upward(0, 1, 0);
-			float jpn_angle = 1.0f;
-			float jpn_force = 150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
+			float jp_angle = 1.0f;
+			float jp_force = 150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
 
-			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( lshoulder, Vec3( 0.277547f, 1.480827f, -0.385142f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.359399f, 1.523561f, -0.366495f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.442619f, 1.576419f, -0.349652f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( rshoulder, Vec3(-0.277547f, 1.480827f, -0.385142f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( lfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.237806f, 0.061778f,  0.038247f ), upward, jpn_angle, jpn_force ));
-			jetpack_nozzles.push_back(JetpackNozzle( rfoot,     Vec3(-0.238084f, 0.063522f, -0.06296f  ), upward, jpn_angle, jpn_force ));
+			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jp_angle, jp_force );
+			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jp_angle, jp_force );
+			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.277547f, 1.480827f, -0.385142f ), upward, jp_angle, jp_force );
+			RegisterSymmetricJetpackNozzles( lfoot,     rfoot,     Vec3( 0.237806f, 0.061778f,  0.038247f ), upward, jp_angle, jp_force );
+			RegisterSymmetricJetpackNozzles( lfoot,     rfoot,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jp_angle, jp_force );
 
 			InitBrain(dood);
+
+			no_touchy.imp = this;
+			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
+				if(*iter != lfoot.rb && *iter != rfoot.rb)
+					(*iter)->SetContactCallback(&no_touchy);
 
 			desired_pelvis_pos = pelvis.rb->GetCenterOfMass();
 		}
@@ -1450,6 +1481,12 @@ namespace Test
 			Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
 
 			PushVec3(inputs, rvec);
+
+			for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&joint.sjc->min_extents, *maxp = (float*)&joint.sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
+			{
+				inputs.push_back((*rptr > *maxp ? *maxp - *rptr : 0.0f) * 2.0f - 1.0f);		// scaling to -1,1 range to undo later compression
+				inputs.push_back((*rptr < *minp ? *rptr - *minp : 0.0f) * 2.0f - 1.0f);
+			}
 		}
 
 		static void PushFootStuff(vector<float>& inputs, const Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
@@ -1475,12 +1512,10 @@ namespace Test
 				}
 			}
 					
-#if 0
 			// goal info
 			PushVec3(inputs, unrotate * (pos - untranslate));
 			PushVec3(inputs, unrotate * normal);
 			inputs.push_back(eta);
-#endif
 		}
 
 		static void SetJointTorques(float& part_cost, const float*& optr, CJoint& joint, unsigned int n = 3)
@@ -1568,7 +1603,7 @@ namespace Test
 #if 1
 			switch(experiment->trial % 6)
 			{
-				case 1: desired_pelvis_pos.y -= 0.035f * timestep; break;
+				case 1: desired_pelvis_pos.y -= 0.02f * timestep; break;
 				case 2: dood->yaw            += 0.1f   * timestep; break;
 				case 3: dood->yaw            -= 0.1f   * timestep; break;
 				case 4: dood->pitch          += 0.1f   * timestep; break;
@@ -1685,24 +1720,29 @@ namespace Test
 			if(!experiment_done)
 			{
 				if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
-					feet_failed = false;
-				if(!feet_failed)
-					++feet_error_cost;
+					feet_ok = false;
 
-				goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, gunx, guny);
-
-				if(tick_age >= max_tick_age)
+				if(!feet_ok || tick_age >= max_tick_age)
 				{
 					experiment_done = true;
-					experiment->GotScore(ComputeTotalCost(), ((TestGame*)dood->game_state)->debug_text);
+					experiment->GotScore(float(max_tick_age - tick_age), ((TestGame*)dood->game_state)->debug_text);
 				}
+
+				//if(!feet_ok)
+				//	++feet_error_cost;
+
+				//goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, gunx, guny);
+
+				//if(tick_age >= max_tick_age)
+				//{
+				//	experiment_done = true;
+				//	experiment->GotScore(ComputeTotalCost(), ((TestGame*)dood->game_state)->debug_text);
+				//}
 			}
 		}
 
 		static float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori, const Vec3& t1ori, const Vec3& t2ori, float gunx, float guny)
 		{
-			float exp_coeff = 0.1f;
-
 			float errors[6] =
 			{
 				ppos.ComputeMagnitudeSquared(),
@@ -1713,58 +1753,31 @@ namespace Test
 				guny * guny
 			};
 
-			float goodness[6];
-			for(unsigned int i = 0; i < 6; ++i)
-				goodness[i] = expf(-exp_coeff * errors[i]);
-
-			float use_goodness[7] = 
-			{
-				goodness[0],
-				goodness[1],
-				goodness[1] * goodness[2],
-				goodness[1] * goodness[2] * goodness[3],
-				goodness[1] * goodness[2] * goodness[3] * goodness[4],
-				goodness[1] * goodness[2] * goodness[3] * goodness[5]
-			};
-
-			float cost_coeffs[6] = { 0.5f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f };
+			float cost_coeffs[6] = { 1.0f, 0.5f, 0.2f, 0.2f, 0.2f, 0.2f };
 			float tot = 0.0f;
 			for(unsigned int i = 0; i < 6; ++i)
-			{
-				if(use_goodness[i] == 0.0f)
-					DEBUG();
-				tot += cost_coeffs[i] * -logf(use_goodness[i]) / exp_coeff;
-			}
+				tot += cost_coeffs[i] * errors[i];
 
 			return tot;
 		}
 
 		float ComputeTotalCost()
 		{
-			float exp_coeff = 0.025f;
 			float errors[3] = { feet_error_cost, goal_error_cost, exertion_cost };
-			float goodness[3];
-			for(unsigned int i = 0; i < 3; ++i)
-				goodness[i] = exp(-exp_coeff * errors[i]);
 
-			float use_goodness[3] =
-			{
-				goodness[0],
-				goodness[0] * goodness[1],
-				goodness[0] * goodness[1] * goodness[2]
-			};
-
-			float cost_coeffs[3] = { 10.0f, 1.0f, 0.0f };
+			float cost_coeffs[3] = { 50.0f, 0.0f, 0.0f };
 			float tot = 0.0f;
 			for(unsigned int i = 0; i < 3; ++i)
-			{
-				if(use_goodness[i] == 0.0f)
-					DEBUG();
-				tot += cost_coeffs[i] * -logf(use_goodness[i]) / exp_coeff;
-			}
+				tot += cost_coeffs[i] * errors[i];
 
 			return tot;
 		}
+
+		struct NoTouchy : public ContactCallback
+		{
+			Imp* imp;
+			void OnContact(const ContactPoint& contact) { imp->feet_ok = false; }
+		} no_touchy;
 	};
 
 
