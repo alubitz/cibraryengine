@@ -11,28 +11,41 @@ namespace Test
 			float value;
 			float tot;
 
+			float fatigue, ftot;
+
 			// TODO: add stuff here
 
-			Neuron() : value(0.0f), tot(0.0f) { }
+			Neuron() : value(0.0f), tot(0.0f), fatigue(0.0f), ftot(0.0f) { }
 
-			void Update() { value = tanhf(tot) * 0.5f + 0.5f; tot = 0.0f; }
+			void Update(const float* goal_scores)
+			{
+				value = (tanhf(tot) * 0.5f + 0.5f) * (1.0f - fatigue);
+				tot = 0.0f;
+
+				// TODO: do this better
+				fatigue = max(0.0f, min(1.0f, fatigue * 0.9f + ftot * 0.1f));
+				ftot = 0.0f;
+			}
 		};
 
 		struct Synapse
 		{
 			Neuron *from, *to;
 
-			float base_coeff;
-			float fatigue;
+			float coeff;
 
 			// TODO: add stuff here
 
-			Synapse() : from(NULL), to(NULL), base_coeff(0), fatigue(0) { }
+			Synapse() : from(NULL), to(NULL), coeff(0.0f) { }
 
-			void IncrementNeuron() const { to->tot += from->value * GetUseCoeff(); }
-			float GetUseCoeff() const { return base_coeff * (1.0f - fatigue); }				// TODO: do this better
+			void IncrementNeuron() const
+			{
+				float delta = from->value * coeff;
+				from->ftot += delta;
+				to->tot    += delta;
+			}
 
-			void Update(const float* scores) { }											// TODO: implement this
+			void Update(const float* scores) { }							// TODO: implement this
 		};
 
 		unsigned int num_neurons, num_synapses, num_goals;
@@ -100,7 +113,7 @@ namespace Test
 				sptr->IncrementNeuron();
 
 			for(Neuron  *nptr = neurons,  *nend = nptr + num_neurons;  nptr != nend; ++nptr)
-				nptr->Update();
+				nptr->Update(goal_scores);
 
 			for(Synapse *sptr = synapses, *send = sptr + num_synapses; sptr != send; ++sptr)
 				sptr->Update(goal_scores);
