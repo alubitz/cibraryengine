@@ -15,10 +15,10 @@
 
 #define MAX_TICK_AGE			300
 
-#define NUM_PARENTS             5
-#define NUM_TRIALS              180
+#define NUM_PARENTS             25
+#define NUM_TRIALS              60
 
-#define NUM_INPUTS              217			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
+#define NUM_INPUTS              213			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
 #define NUM_OUTPUTS             28			// double the number of joint torque axes
 #define NUM_MEMORIES            36			// must be >= NUM_OUTPUTS
 #define TARGET_LENGTH           100			// should be >= NUM_MEMORIES
@@ -441,18 +441,18 @@ namespace Test
 				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
 				{
 					GraphOp* grop = child->graph_ops[i];
-					if(Random3D::RandInt() % 80 == 0)
+					if(Random3D::RandInt() % 100 == 0)
 					{
 						if(grop->usage == 0)
 							grop->usage = Random3D::RandInt(1, NUM_MEMORIES);
 						else
 							grop->usage = 0;
 					}
-					if(Random3D::RandInt() % 80 == 0)
+					if(Random3D::RandInt() % 100 == 0)
 						grop->op = Random3D::RandInt() % 4;
-					if(Random3D::RandInt() % 80 == 0)
+					if(Random3D::RandInt() % 100 == 0)
 						grop->arga.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
-					if(Random3D::RandInt() % 80 == 0)
+					if(Random3D::RandInt() % 100 == 0)
 						grop->argb.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
 				}
 
@@ -460,7 +460,7 @@ namespace Test
 				unsigned int prev_size = child->graph_ops.size();
 				for(unsigned int i = 0; i < prev_size; ++i)
 				{
-					if(Random3D::RandInt() % 60 == 0)
+					if(Random3D::RandInt() % 100 == 0)
 					{
 						GraphOp* grop = child->graph_ops[i];
 
@@ -497,9 +497,9 @@ namespace Test
 				// also randomly cut out some "ands", "ors", and "avgs" from existing ops
 				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
 				{
-					if(Random3D::RandInt() % 45 == 0)
+					if(Random3D::RandInt() % 70 == 0)
 						child->graph_ops[i]->arga.SkipLinkIfApplicable();
-					if(Random3D::RandInt() % 45 == 0)
+					if(Random3D::RandInt() % 70 == 0)
 						child->graph_ops[i]->argb.SkipLinkIfApplicable();
 				}
 
@@ -507,7 +507,7 @@ namespace Test
 				prev_size = child->graph_ops.size();
 				for(unsigned int i = 0; i < prev_size; ++i)
 				{
-					if(Random3D::RandInt() % 60 == 0)
+					if(Random3D::RandInt() % 70 == 0)
 					{
 						GraphOp* grop = child->graph_ops[i];
 
@@ -534,7 +534,7 @@ namespace Test
 				for(GraphOp **gptr = child->graph_ops.data(), **gend = gptr + child->graph_ops.size(); gptr != gend; ++gptr)
 				{
 					GraphOp& grop = **gptr;
-					if(grop.usage != 0 && !usages[grop.usage - 1] && Random3D::RandInt() % 20 != 0 || Random3D::RandInt() % 8 == 0)
+					if(grop.usage != 0 && !usages[grop.usage - 1] && Random3D::RandInt() % 20 != 0 || Random3D::RandInt() % 25 == 0)
 					{
 						grop.RecursiveReferenceCheck(stack, referenced);
 						if(grop.usage != 0)
@@ -794,8 +794,8 @@ namespace Test
 
 		void NextGeneration()
 		{
-			static const unsigned int children_per_pair  = 8;
-			static const unsigned int mutants_per_single = 12;
+			static const unsigned int children_per_pair  = 4;
+			static const unsigned int mutants_per_single = 6;
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				for(unsigned int j = i + 1; j < genepool.size(); ++j)
@@ -1489,10 +1489,10 @@ namespace Test
 			}
 		}
 
-		static void PushFootStuff(vector<float>& inputs, const Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
+		static void PushFootStuff(vector<float>& inputs, Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
 		{
-			const SoldierFoot* sf = (SoldierFoot*)foot;
-			const RigidBody*   rb = sf->body;
+			SoldierFoot* sf = (SoldierFoot*)foot;
+			const RigidBody* rb = sf->body;
 			Mat3 unrotate    = rb->GetOrientation().ToMat3().Transpose();
 			Vec3 untranslate = rb->GetCenterOfMass();
 
@@ -1511,11 +1511,15 @@ namespace Test
 					PushVec3(inputs, Vec3());
 				}
 			}
-					
+
+			// net force and torque
+			PushVec3(inputs, unrotate * foot->net_force  * 0.2f);
+			PushVec3(inputs, unrotate * foot->net_torque * 0.2f);
+
 			// goal info
-			PushVec3(inputs, unrotate * (pos - untranslate));
-			PushVec3(inputs, unrotate * normal);
-			inputs.push_back(eta);
+			//PushVec3(inputs, unrotate * (pos - untranslate));
+			//PushVec3(inputs, unrotate * normal);
+			//inputs.push_back(eta);
 		}
 
 		static void SetJointTorques(float& part_cost, const float*& optr, CJoint& joint, unsigned int n = 3)
@@ -1526,14 +1530,14 @@ namespace Test
 			const float* maxptr = (float*)&joint.sjc->max_torque;
 
 			Vec3 v;
-			float* vptr = (float*)&v;
+			float* vptr = (float*)&v;			// TODO: oh right, this is zero... maybe change it so it can actually do deltas
 
 			for(const float* oend = optr + n * 2; optr != oend; ++vptr, ++minptr, ++maxptr)
 			{
 				float plus  = *(optr++);
 				float minus = *(optr++);
 
-				*vptr = plus * *maxptr + minus * *minptr;
+				*vptr = plus * *maxptr + minus * *minptr + *vptr * max(0.0f, 1.0f - plus - minus);
 
 				part_cost += plus + minus + plus * minus;
 			}
@@ -1604,10 +1608,10 @@ namespace Test
 			switch(experiment->trial % 6)
 			{
 				case 1: desired_pelvis_pos.y -= 0.02f * timestep; break;
-				case 2: dood->yaw            += 0.1f   * timestep; break;
-				case 3: dood->yaw            -= 0.1f   * timestep; break;
-				case 4: dood->pitch          += 0.1f   * timestep; break;
-				case 5: dood->pitch          -= 0.1f   * timestep; break;
+				case 2: dood->yaw            += 0.1f  * timestep; break;
+				case 3: dood->yaw            -= 0.1f  * timestep; break;
+				case 4: dood->pitch          += 0.1f  * timestep; break;
+				case 5: dood->pitch          -= 0.1f  * timestep; break;
 				default: break;
 			}
 #endif
@@ -1646,21 +1650,6 @@ namespace Test
 			PushVec3( inputs, pori  );
 			PushVec3( inputs, t1ori );
 			PushVec3( inputs, t2ori );
-
-			// gun forward vector goal satisfaction sensors (ditto)
-			Vec3 desired_gun_fwd = yaw_ori * zvec;
-			Vec3 actual_gun_fwd  = gun_rb->GetOrientation() * zvec;
-			Vec2 gunxz_d = Vec2::Normalize(Vec2(desired_gun_fwd.x, desired_gun_fwd.z));
-			Vec2 gunxz_a = Vec2::Normalize(Vec2(actual_gun_fwd.x,  actual_gun_fwd.z ));
-
-			Vec2 gunxzy_d = Vec2(Vec2::Magnitude(desired_gun_fwd.x, desired_gun_fwd.z), desired_gun_fwd.y);
-			Vec2 gunxzy_a = Vec2(Vec2::Magnitude(actual_gun_fwd.x, actual_gun_fwd.z), actual_gun_fwd.y);
-			
-			// TODO: add something for the gun's up vector?
-			float gunx = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxz_a,  Vec2(gunxz_d.y,  -gunxz_d.x)))));
-			float guny = asinf(max(-1.0f, min(1.0f, Vec2::Dot(gunxzy_a, Vec2(gunxzy_d.y, -gunxzy_d.x)))));
-			inputs.push_back(gunx);
-			inputs.push_back(guny);
 
 			// don't add any more sensor inputs after this line!
 			static bool showed_inputs_count = false;
@@ -1719,7 +1708,8 @@ namespace Test
 			++tick_age;
 			if(!experiment_done)
 			{
-				if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
+				//if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
+				if((pelvis.rb->GetCenterOfMass() - desired_pelvis_pos).ComputeMagnitude() > 0.2f)
 					feet_ok = false;
 
 				if(!feet_ok || tick_age >= max_tick_age)
@@ -1777,6 +1767,7 @@ namespace Test
 		{
 			Imp* imp;
 			void OnContact(const ContactPoint& contact) { imp->feet_ok = false; }
+			void AfterResolution(const ContactPoint& cp) { }
 		} no_touchy;
 	};
 

@@ -4,6 +4,8 @@
 #include "ContactPoint.h"
 #include "ContactRegion.h"
 
+#include "RigidBody.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -103,6 +105,24 @@ namespace CibraryEngine
 		results.push_back(result);
 
 		return result;
+	}
+
+	void ContactDataCollector::RunPostResolutionCallbacks()
+	{
+		for(vector<ContactRegion*>::iterator iter = results.begin(), results_end = results.end(); iter != results_end; ++iter)
+		{
+			ContactRegion* region = *iter;
+
+			for(vector<ContactPoint*>::iterator jter = region->points.begin(), points_end = region->points.end(); jter != points_end; ++jter)
+			{
+				ContactPoint* cp = *jter;
+
+				if(ContactCallback* cb = cp->obj_a->GetContactCallback())
+					cb->AfterResolution(*cp);
+				if(ContactCallback* cb = cp->obj_b->GetContactCallback())
+					cb->AfterResolution(*cp);
+			}
+		}
 	}
 
 	void ContactDataCollector::ClearResults()

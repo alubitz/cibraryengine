@@ -12,15 +12,18 @@ namespace CibraryEngine
 	 */
 	Vec3 ContactPoint::GetRelativeLocalVelocity() const { return obj_b->vel - obj_a->vel + Vec3::Cross(r2, obj_b->rot) - Vec3::Cross(r1, obj_a->rot); }
 
-	void ContactPoint::ApplyImpulse(const Vec3& impulse) const
+	void ContactPoint::ApplyImpulse(const Vec3& impulse)
 	{
 		obj_a->vel += impulse * obj_a->inv_mass;
 		obj_a->rot += impulse_to_arot * impulse;
 		obj_b->vel -= impulse * obj_b->inv_mass;
 		obj_b->rot -= impulse_to_brot * impulse;
+
+		net_impulse_linear  += impulse;
+		net_impulse_angular += impulse_to_net * impulse;
 	}
 
-	bool ContactPoint::DoCollisionResponse() const
+	bool ContactPoint::DoCollisionResponse()
 	{
 		static const float adhesion_threshold   = 0.0f;
 		static const float impulse_sq_threshold = 0.0f;
@@ -66,6 +69,8 @@ namespace CibraryEngine
 
 	void ContactPoint::DoUpdateAction(float timestep)
 	{
+		PhysicsConstraint::DoUpdateAction(timestep);
+
 		restitution_coeff = obj_a->restitution * obj_b->restitution + 1.0f;
 		fric_coeff        = obj_a->friction    * obj_b->friction;
 
@@ -89,6 +94,7 @@ namespace CibraryEngine
 
 		impulse_to_arot = obj_a->inv_moi * xr1;
 		impulse_to_brot = obj_b->inv_moi * xr2;
+		impulse_to_net = impulse_to_arot + impulse_to_brot;
 
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
 	}

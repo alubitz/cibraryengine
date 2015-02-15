@@ -75,6 +75,7 @@ namespace CibraryEngine
 	static float timer_collide				= 0.0f;
 	static float timer_constraints			= 0.0f;
 	static float timer_cgraph				= 0.0f;
+	static float timer_postcg               = 0.0f;
 	static float timer_update_pos			= 0.0f;
 	static float timer_total				= 0.0f;
 
@@ -164,8 +165,9 @@ namespace CibraryEngine
 		Debug(((stringstream&)(stringstream() << '\t' << "collide =\t\t\t\t"		<< timer_collide						<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "constraints =\t\t\t"		<< timer_constraints					<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "cgraph =\t\t\t\t"			<< timer_cgraph							<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "postcg =\t\t\t\t"			<< timer_postcg							<< endl)).str());
 		Debug(((stringstream&)(stringstream() << '\t' << "update_pos =\t\t\t"		<< timer_update_pos						<< endl)).str());
-		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_step_callback + timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_update_pos << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_step_callback + timer_update_vel + timer_ray_update + timer_collide + timer_constraints + timer_cgraph + timer_postcg + timer_update_pos << endl)).str());
 #endif
 	}
 
@@ -363,11 +365,18 @@ namespace CibraryEngine
 		// evaluate the constraints we collected
 		cgraph_solver->Solve(timestep, MAX_SEQUENTIAL_SOLVER_ITERATIONS, use_constraints);
 
-		for(unsigned int i = 0; i < use_collider_threads; ++i)
-			collision_initiators[i].collect->ClearResults();
-
 #if PROFILE_DOFIXEDSTEP
 		timer_cgraph += timer.GetAndRestart();
+#endif
+
+		for(unsigned int i = 0; i < use_collider_threads; ++i)
+		{
+			collision_initiators[i].collect->RunPostResolutionCallbacks();
+			collision_initiators[i].collect->ClearResults();
+		}
+
+#if PROFILE_DOFIXEDSTEP
+		timer_postcg += timer.GetAndRestart();
 #endif
 
 		// update positions

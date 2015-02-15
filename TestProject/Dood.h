@@ -145,6 +145,9 @@ namespace Test
 					unsigned int posey_id;
 					Vec3 ee_pos;							// local-coords position of end effector
 
+					Vec3 net_force, net_torque;
+					Vec3 temp_net_force, temp_net_torque;
+
 					RigidBody* body;
 
 					vector<ContactPoint> contact_points;
@@ -165,6 +168,8 @@ namespace Test
 				StandingCallback();
 
 				void OnContact(const ContactPoint& contact);				// from CibraryEngine::ContactCallback
+				void AfterResolution(const ContactPoint& cp);
+
 				void PreCPHFT(float timestep);								// updates no_contact_timer each tick
 				void PostCPHFT(float timestep);								// resets contact points
 

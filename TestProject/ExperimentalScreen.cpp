@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "ExperimentalScreen.h"
 
-#include "DynamicBrain.h"
+#include "NeuralNet.h"
 
 namespace Test
 {
@@ -27,51 +27,100 @@ namespace Test
 
 		struct DBDemoSimulation
 		{
-			float value;
-			float guess;
-			float up, down;
+			float x, y, angle;
+			float vx, vy, spin;
+
+			float tx, ty;
+
+			float ldx, ldy;
+
+			float motors[2];
+			float sensors[5];
+			float old_sensors[5];
+
 			float score;
 
-			DBDemoSimulation() : value(0), guess(0), up(0), down(0), score(0) { value = Random3D::Rand(); }
-
-			float GetInputValue (unsigned int index) const
+			DBDemoSimulation() : x(0), y(0), angle(0), vx(0), vy(0), spin(0)
 			{
-				switch(index)
-				{
-				case 0:
-					return tanhf((guess - value) * 3.0f) * 0.5f + 0.5f;
+				motors[0] = motors[1] = 0.0f;
 
-				case 1:
-					return tanhf((value - guess) * 3.0f) * 0.5f + 0.5f;
+				Randomize();
 
-				default:
-					return 1.0f;
-				}
+				ComputeInputs();
+				for(unsigned int i = 0; i < 4; ++i)
+					old_sensors[i] = sensors[i];
 			}
-			float GetGoalScore  (unsigned int category) const { return score; }
-			void  SetOutputValue(unsigned int index, float v) { (index == 1 ? down : up) = v; }
-			
-			void IncrementWeightedTotal(float& tot, float& wtot, float weight, float amount)
+
+			void Randomize()
 			{
-				wtot += weight;
-				tot  += weight * amount;
+				tx = Random3D::Rand(-10, 10);
+				ty = Random3D::Rand(-10, 10);
 			}
 
 			void Simulate()
 			{
-				if(Random3D::RandInt() % 60 == 0)
-					value = Random3D::Rand();
-				
-				float tot = 0.0f, wtot = 0.0f;
+				static const float timestep = 1.0f / 60.0f;
 
-				IncrementWeightedTotal( tot, wtot,         2, guess );
-				IncrementWeightedTotal( tot, wtot,   10 * up,     1 );
-				IncrementWeightedTotal( tot, wtot, 10 * down,     0 );
+				float hx = cosf(angle);
+				float hy = sinf(angle);
 
-				guess = tot / wtot;
-			
-				float error = value - guess;
-				score = error * error;
+
+				//float vdamp = expf(-10.0f * timestep);
+				float vdamp = 0.0f;
+				vx *= vdamp;
+				vy *= vdamp;
+
+				float dv = (motors[0] + motors[1]) * 60.0f * timestep;
+				vx += hx * dv;
+				vy += hy * dv;
+
+				//spin *= expf(-10.0f * timestep);
+				spin = 0.0f;
+				spin += (motors[0] - motors[1]) * 60.0f * timestep;
+
+				x += vx * timestep;
+				y += vy * timestep;
+				angle += spin * timestep;
+			}
+
+			void ComputeInputs()
+			{
+				float hx = cosf(angle);
+				float hy = sinf(angle);
+				float rx = -hy;
+				float ry = hx;
+
+				float dx = tx - x;
+				float dy = ty - y;
+
+				ldx = dx * rx + dy * ry;
+				ldy = dx * hx + dy * hy;
+
+				float dmagsq = Vec2::MagnitudeSquared(dx, dy); 
+				score = expf(-dmagsq * 0.01f) * 0.95f + 0.05f * powf(ldy / sqrtf(dmagsq) * 0.5f + 0.5f, 2.0f);
+
+				float sr[4] = { -0.1f, 0.1f, -0.1f,  0.1f };
+				float sh[4] = {  0.1f, 0.1f, -0.1f, -0.1f };
+
+				for(unsigned int i = 0; i < 5; ++i)
+					old_sensors[i] = sensors[i];
+
+				sensors[4] = 0.0f;
+				for(unsigned int i = 0; i < 4; ++i)
+				{
+					float sx = sr[i] * rx + sh[i] * hx - dx;
+					float sy = sr[i] * ry + sh[i] * hy - dy;
+
+					float dsq = Vec2::MagnitudeSquared(sx, sy);
+					sensors[i] = expf(-dsq * 0.05f) * 2.0f - 1.0f;
+					sensors[4] += sensors[i];
+				}
+				sensors[4] /= 4.0f;
+				for(unsigned int i = 0; i < 4; ++i)
+				{
+					sensors[i] -= sensors[4];
+					sensors[i] *= 10.0f;
+				}
 			}
 		};
 
@@ -134,122 +183,102 @@ namespace Test
 
 		void ThreadsafeSetText(unsigned int index, const string& text) { if(index >= num_output_texts) return; boost::mutex::scoped_lock lock(mutex); output_text[index]->SetText(text); }
 
-		string GetFixedLengthString(float f)
-		{
-			float a;
-			string s = "  .      ";
-			if(f < 0)
-			{
-				a = -f;
-				s[0] = '-';
-			}
-			else
-			{
-				a = f;
-				s[1] = ' ';
-			}
-
-			if(a >= 10)
-				a -= 10 * (int)(a / 10);
-
-			s[1] = '0' + (int)a;
-			for(unsigned int i = 0; i < 6; ++i)
-			{
-				a -= (int)a;
-				a *= 10;
-				s[i + 3] = '0' + (int)a;
-			}
-
-			return s;
-		}
-
 		void ThreadAction()
 		{
 			srand((unsigned int)time(NULL));
 
 			my_timer.Start();
 			
-			static const unsigned int num_input_neurons    = 2;
-			static const unsigned int num_output_neurons   = 2;
-			static const unsigned int num_misc_neurons     = 2;
-			static const unsigned int total_neurons        = num_input_neurons + num_output_neurons + num_misc_neurons;
-
-			static const unsigned int max_synapses         = total_neurons * (total_neurons - num_input_neurons);
-
-			static const unsigned int num_score_categories = 1;
-			bool n = false, Y = true;
-			bool included_synapses[max_synapses] = 
-			{
-				Y, Y, Y, Y,
-				Y, Y, Y, Y,
-				n, n, Y, n,
-				n, n, n, Y,
-				Y, n, Y, n,
-				n, Y, n, Y
-			};
-			unsigned int scount = 0;
-			for(unsigned int i = 0; i < max_synapses; ++i)
-				if(included_synapses[i])
-					++scount;		
-
-			DynamicBrain brain(total_neurons, scount, num_score_categories);
-
-			DynamicBrain::Synapse* sptr = brain.synapses;
-			for(unsigned int y = 0; y < total_neurons; ++y)
-				for(unsigned int x = num_input_neurons; x < total_neurons; ++x)
-				{
-					if(included_synapses[y * (num_output_neurons + num_misc_neurons) + (x - num_input_neurons)])
-					{
-						DynamicBrain::Synapse& s = *sptr;
-						s.from = &brain.neurons[y];
-						s.to = &brain.neurons[x];
-
-						++sptr;
-					}
-				}
+			static const unsigned int num_inputs    = 14;
+			static const unsigned int num_outputs   = 3;
+			static const unsigned int num_middles   = 50;
+			
+			NeuralNet* nn = NeuralNet::New(num_inputs, num_outputs, num_middles);
+			nn->Randomize(0.1f);
 
 			DBDemoSimulation sim;
+
 			static const unsigned int mavg_over_n = 60;
 			float mavg_win[mavg_over_n];
 			memset(mavg_win, 0, mavg_over_n * sizeof(float));
 			float mavg_tot = 0.0f;
 
-			for(unsigned int j = 0; j < num_input_neurons; ++j)
-				brain.neurons[j].value = sim.GetInputValue(j);
+			list<vector<float>> records;
 
+			float nns = 0;
 			unsigned int iteration = 0;
 			while(!CheckAbort())
 			{
-				float goal_scores[num_score_categories];
-				for(unsigned int j = 0; j < num_score_categories; ++j)
-					goal_scores[j] = sim.GetGoalScore(j);
+				unsigned int use_iteration = iteration % 360;
+				if(iteration % 360 == 0)
+				{
+					sim.x = sim.y = 0.0f;
+					sim.Randomize();
+				}
 
-				brain.Update(goal_scores);
+				sim.ComputeInputs();
 
-				for(unsigned int j = 0; j < num_output_neurons; ++j)
-					sim.SetOutputValue(j, brain.neurons[j + num_input_neurons].value);
+				float score = sim.score;
+				mavg_tot -= mavg_win[iteration % mavg_over_n];
+				mavg_tot += mavg_win[iteration % mavg_over_n] = score;
+
+				for(unsigned int i = 0; i < 5; ++i)
+				{
+					nn->inputs[i]     = tanhf(sim.sensors[i]);
+					nn->inputs[i + 5] = tanhf((sim.sensors[i] - sim.old_sensors[i]) * 5.0f);
+				}
+				nn->inputs[10] = tanhf(sim.motors[0]);
+				nn->inputs[11] = tanhf(sim.motors[1]);
+				nn->inputs[12] = tanhf((1.0f - sim.score) * 0.25f);
+				nn->inputs[13] = tanhf(sim.score);
+				
+
+				nn->Evaluate();
+
+				static const float exploration_scale = 0.1f;
+				sim.motors[0] = min(1.0f, max(-1.0f, nn->outputs[0] + Random3D::Rand(-exploration_scale, exploration_scale)));
+				sim.motors[1] = min(1.0f, max(-1.0f, nn->outputs[1] + Random3D::Rand(-exploration_scale, exploration_scale)));
+
+				vector<float> nrecord(15);
+				for(unsigned int i = 0; i < 12; ++i)
+					nrecord[i] = nn->inputs[i];
+				nrecord[12] = sim.motors[0];
+				nrecord[13] = sim.motors[1];
+				nrecord[14] = sim.score;
+				records.push_back(nrecord);
 
 				sim.Simulate();
 
-				for(unsigned int j = 0; j < num_input_neurons; ++j)
-					brain.neurons[j].value = sim.GetInputValue(j);
-
-				mavg_tot -= mavg_win[iteration % mavg_over_n];
-				mavg_tot += mavg_win[iteration % mavg_over_n] = sim.score;
-
-				ThreadsafeSetText(0, ((stringstream&)(stringstream() << "i = " << iteration << "; guess = " << GetFixedLengthString(sim.guess) << "; score = " << GetFixedLengthString(sim.score) << "; moving average of score over past " << mavg_over_n << " = " << GetFixedLengthString(mavg_tot / min(iteration + 1, mavg_over_n)))).str());
-				for(unsigned int i = 0; i < brain.num_neurons; ++i)
+				if(records.size() == 5)
 				{
-					const DynamicBrain::Neuron& n = brain.neurons[i];
-					ThreadsafeSetText(i + 1, ((stringstream&)(stringstream() << "\tneuron " << i << ": value = " << GetFixedLengthString(n.value))).str());
+					vector<float> rec = *records.begin();
+					records.pop_front();
+
+					for(unsigned int i = 0; i < 12; ++i)
+						nn->inputs[i] = rec[i];
+					nn->inputs[12] = tanhf(sim.score - rec[14]);
+					nn->inputs[13] = tanhf(rec[14]);
+
+					nn->correct_outputs[0] = rec[12];
+					nn->correct_outputs[1] = rec[13];
+					nn->correct_outputs[2] = sim.score * 2.0f - 1.0f;
+
+					nn->MultiTrainBegin();
+					nns = nn->MultiTrainNext();
+					nn->MultiTrainApply(0.2f);
 				}
-				for(unsigned int i = 0; i < brain.num_synapses; ++i)
-				{
-					const DynamicBrain::Synapse& s = brain.synapses[i];
-					unsigned int from = s.from - brain.neurons;
-					unsigned int to   = s.to   - brain.neurons;
-					ThreadsafeSetText(i + 1 + brain.num_neurons, ((stringstream&)(stringstream() << "\tsynapse from " << from << " to " << to << ": coeff = " << GetFixedLengthString(s.coeff))).str());
-				}
+
+				ThreadsafeSetText(0, ((stringstream&)(stringstream() << "i = " << use_iteration << "; score = " << score << "; moving average of score over past " << mavg_over_n << " = " << mavg_tot / min(iteration + 1, mavg_over_n))).str());
+				ThreadsafeSetText(1, ((stringstream&)(stringstream() << "nn score = " << nns)).str());
+				ThreadsafeSetText(2, ((stringstream&)(stringstream() << "ldx = " << sim.ldx)).str());
+				ThreadsafeSetText(3, ((stringstream&)(stringstream() << "ldy = " << sim.ldy)).str());
+				ThreadsafeSetText(4, ((stringstream&)(stringstream() << "lf = " << sim.sensors[0])).str());
+				ThreadsafeSetText(5, ((stringstream&)(stringstream() << "rf = " << sim.sensors[1])).str());
+				ThreadsafeSetText(6, ((stringstream&)(stringstream() << "lr = " << sim.sensors[2])).str());
+				ThreadsafeSetText(7, ((stringstream&)(stringstream() << "rr = " << sim.sensors[3])).str());
+				ThreadsafeSetText(8, ((stringstream&)(stringstream() << "c  = " << sim.sensors[4])).str());
+				ThreadsafeSetText(9, ((stringstream&)(stringstream() << "lmotor = " << sim.motors[0])).str());
+				ThreadsafeSetText(10, ((stringstream&)(stringstream() << "rmotor = " << sim.motors[1])).str());
 
 				time_spent += my_timer.GetAndRestart();
 
@@ -257,6 +286,9 @@ namespace Test
 
 				Sleep(16);
 			}
+
+			NeuralNet::Delete(nn);
+			nn = NULL;
 
 			my_timer.Stop();
 

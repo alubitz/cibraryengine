@@ -34,6 +34,7 @@ namespace CibraryEngine
 
 			ContactRegion* AddRegion(RigidBody* obj_a, RigidBody* obj_b, const Vec3& normal, unsigned int n_points, const Vec3* points);
 
+			void RunPostResolutionCallbacks();
 			void ClearResults();
 	};
 }

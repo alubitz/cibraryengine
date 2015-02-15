@@ -27,6 +27,7 @@ namespace CibraryEngine
 			Mat3 rlv_to_impulse;
 			Mat3 impulse_to_arot, impulse_to_brot;
 			Mat3 alpha_to_obja, alpha_to_objb;
+			Mat3 net_moi;
 
 			float half_timestep, inv_timestep;
 

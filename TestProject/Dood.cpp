@@ -815,6 +815,28 @@ namespace Test
 		}
 	}
 
+	void Dood::StandingCallback::AfterResolution(const ContactPoint& contact)
+	{
+		if(!dood->alive)
+			return;
+
+		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+		{
+			FootState* foot_state = *iter;
+			RigidBody* foot = foot_state->body;
+			if(contact.obj_a == foot)
+			{
+				foot_state->temp_net_force  += contact.net_impulse_linear;
+				foot_state->temp_net_torque += contact.net_impulse_angular;
+			}
+			else if(contact.obj_b == foot)
+			{
+				foot_state->temp_net_force  -= contact.net_impulse_linear;
+				foot_state->temp_net_torque -= contact.net_impulse_angular;
+			}
+		}
+	}
+
 	void Dood::StandingCallback::PreCPHFT(float timestep)
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
@@ -836,7 +858,14 @@ namespace Test
 	void Dood::StandingCallback::PostCPHFT(float timestep)
 	{
 		for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+		{
 			(*iter)->contact_points.clear();
+
+			(*iter)->net_force  = (*iter)->temp_net_force;
+			(*iter)->net_torque = (*iter)->temp_net_torque;
+
+			(*iter)->temp_net_force = (*iter)->temp_net_torque = Vec3();
+		}
 	}
 
 	void Dood::StandingCallback::ApplyVelocityChange(const Vec3& dv)

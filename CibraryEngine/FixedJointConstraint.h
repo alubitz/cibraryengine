@@ -24,6 +24,7 @@ namespace CibraryEngine
 			float inv_amass, inv_bmass;
 			Mat3 rlv_to_impulse, impulse_to_arot, impulse_to_brot;
 			Mat3 alpha_to_arot, alpha_to_brot;
+			Mat3 impulse_ltoa, net_moi;
 
 		public:
 

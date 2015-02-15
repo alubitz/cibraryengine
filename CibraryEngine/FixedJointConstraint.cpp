@@ -38,6 +38,9 @@ namespace CibraryEngine
 			arot += impulse_to_arot * impulse;
 			brot -= impulse_to_brot * impulse;
 
+			net_impulse_linear  += impulse;
+			net_impulse_angular += impulse_ltoa * impulse;
+
 			wakeup = true;
 		}
 
@@ -47,6 +50,8 @@ namespace CibraryEngine
 		{
 			arot += alpha_to_arot * alpha;
 			brot -= alpha_to_brot * alpha;
+
+			net_impulse_angular += net_moi * alpha;
 
 			wakeup = true;
 		}
@@ -66,6 +71,8 @@ namespace CibraryEngine
 
 	void FixedJointConstraint::DoUpdateAction(float timestep)
 	{
+		PhysicsConstraint::DoUpdateAction(timestep);
+
 		float inv_timestep = 1.0f / timestep;
 
 		Vec3 p1 = obj_a->GetTransformationMatrix().TransformVec3_1(a_pos);
@@ -100,8 +107,9 @@ namespace CibraryEngine
 		rlv_to_impulse = Mat3::Invert(impulse_to_rlv);
 		impulse_to_arot = a_invmoi * xr1;
 		impulse_to_brot = b_invmoi * xr2;
+		impulse_ltoa = impulse_to_arot + impulse_to_brot;
 
-		Mat3 net_moi = Mat3::Invert(a_invmoi + b_invmoi);
+		net_moi = Mat3::Invert(a_invmoi + b_invmoi);
 		alpha_to_arot = a_invmoi * net_moi;
 		alpha_to_brot = b_invmoi * net_moi;
 

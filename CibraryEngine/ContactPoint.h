@@ -20,7 +20,7 @@ namespace CibraryEngine
 
 		Vec3 r1, r2;
 		Mat3 rlv_to_impulse;
-		Mat3 impulse_to_arot, impulse_to_brot;
+		Mat3 impulse_to_arot, impulse_to_brot, impulse_to_net;
 
 		float bounce_threshold;
 
@@ -29,11 +29,11 @@ namespace CibraryEngine
 
 
 		Vec3 GetRelativeLocalVelocity() const;
-		void ApplyImpulse(const Vec3& impulse) const;
+		void ApplyImpulse(const Vec3& impulse);
 
 		bool DoConstraintAction();
 		void DoUpdateAction(float timestep);
 
-		bool DoCollisionResponse() const;
+		bool DoCollisionResponse();
 	};
 }

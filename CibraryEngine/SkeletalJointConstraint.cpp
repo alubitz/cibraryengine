@@ -66,10 +66,15 @@ namespace CibraryEngine
 		{
 			Vec3 impulse = rlv_to_impulse * dv;
 
+			Vec3 arot = impulse_to_arot * impulse;
+			Vec3 brot = impulse_to_brot * impulse;
 			obj_a->vel += impulse * obj_a->inv_mass;
-			obj_a->rot += impulse_to_arot * impulse;
+			obj_a->rot += arot;
 			obj_b->vel -= impulse * obj_b->inv_mass;
-			obj_b->rot -= impulse_to_brot * impulse;
+			obj_b->rot -= brot;
+
+			net_impulse_linear  += impulse;
+			net_impulse_angular += arot + brot;
 
 			wakeup = true;
 		}
@@ -114,6 +119,8 @@ namespace CibraryEngine
 			obj_a->rot += alpha_to_obja * alpha;
 			obj_b->rot -= alpha_to_objb * alpha;
 
+			net_impulse_angular += net_moi * alpha;
+
 			wakeup = true;
 		}
 
@@ -122,6 +129,8 @@ namespace CibraryEngine
 
 	void SkeletalJointConstraint::DoUpdateAction(float timestep)
 	{
+		PhysicsConstraint::DoUpdateAction(timestep);
+
 		half_timestep = timestep * 0.5f;
 		inv_timestep = 1.0f / timestep;
 
@@ -131,7 +140,7 @@ namespace CibraryEngine
 		a_to_b = a_ori * Quaternion::Reverse(b_ori);
 		b_to_a = Quaternion::Reverse(a_to_b);
 
-		Mat3 net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
+		net_moi = Mat3::Invert(obj_a->GetInvMoI() + obj_b->GetInvMoI());
 		alpha_to_obja = obj_a->inv_moi * net_moi;
 		alpha_to_objb = obj_b->inv_moi * net_moi;
 
@@ -177,6 +186,7 @@ namespace CibraryEngine
 		Vec3 world_torque = oriented_axes.TransposedMultiply(use_torque) * timestep;
 		obj_a->rot += obj_a->inv_moi * world_torque;
 		obj_b->rot -= obj_b->inv_moi * world_torque;
+		net_impulse_angular += world_torque;
 	}
 
 	Vec3 SkeletalJointConstraint::ComputeAveragePosition() const

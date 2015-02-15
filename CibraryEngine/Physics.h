@@ -134,12 +134,15 @@ namespace CibraryEngine
 			virtual ~PhysicsConstraint() { }
 
 			virtual bool DoConstraintAction() = 0;
-			virtual void DoUpdateAction(float timestep)		{ }
+			virtual void DoUpdateAction(float timestep)		{ net_impulse_linear = net_impulse_angular = Vec3(); }
 
 			virtual void OnObjectRemoved(RigidBody* object)	{ }		// one of our objects has been removed from the world, so this constraint must be removed as well
 
 			RigidBody* obj_a;
 			RigidBody* obj_b;
+
+			Vec3 net_impulse_linear;				// positive side is obj_a
+			Vec3 net_impulse_angular;
 	};
 
 	class PhysicsRegionManager
@@ -173,6 +176,9 @@ namespace CibraryEngine
 
 			/** Two objects are in contact! Called after contact is detected, but before the PhysicsWorld's step callback */
 			virtual void OnContact(const ContactPoint& contact) = 0;
+
+			/** Called after all constraint evaluation is done */
+			virtual void AfterResolution(const ContactPoint& cp) = 0;
 	};
 
 	class CollisionCallback
@@ -180,7 +186,7 @@ namespace CibraryEngine
 		public:
 
 			/** A collision has occurred! Return whether or not to do the normal collision response behavior */
-			virtual void OnCollision(const ContactPoint& collision) = 0;
+			virtual void OnCollision(const ContactPoint& collision) = 0;			
 	};
 
 	class PhysicsStepCallback
