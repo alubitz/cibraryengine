@@ -13,12 +13,12 @@
 
 #define ENABLE_NEW_JETPACKING   0
 
-#define MAX_TICK_AGE			300
+#define MAX_TICK_AGE			100
 
-#define NUM_PARENTS             25
-#define NUM_TRIALS              60
+#define NUM_PARENTS             15
+#define NUM_TRIALS              6
 
-#define NUM_INPUTS              213			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
+#define NUM_INPUTS              87			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
 #define NUM_OUTPUTS             28			// double the number of joint torque axes
 #define NUM_MEMORIES            36			// must be >= NUM_OUTPUTS
 #define TARGET_LENGTH           100			// should be >= NUM_MEMORIES
@@ -65,7 +65,11 @@ namespace Test
 				else if(index < inputs + 1)
 					SetInput(index - 1);
 				else
+				{
 					SetOtherOp(ops[index - (inputs + 1)]);
+					if(other_op->usage != 0)
+						other_op = NULL;
+				}
 
 				negated = Random3D::RandInt() % 2 != 0;
 			}
@@ -93,14 +97,25 @@ namespace Test
 					SetInput(other.input_index);
 			}
 
-			unsigned short ToCompiledOpIndex(short num_inputs, short current_index) const
+			unsigned short ToCompiledOpIndex(unsigned short num_inputs, unsigned short current_index) const
 			{
 				if(!is_other_op)
-					return input_index + 1;
-				else if(other_op != NULL)
-					return 0;
+				{
+					if(input_index < num_inputs)
+						return input_index + 1;
+					else
+						return 0;
+				}
 				else
-					return num_inputs + current_index;
+				{
+					if(other_op != NULL)
+					{
+						unsigned short index = num_inputs + other_op->my_index + 1;
+						return index >= current_index ? 0 : index;
+					}
+					else
+						return 0;
+				}
 			}
 
 			void Read(istream& ss, const vector<GraphOp*>& graph_ops)
@@ -311,8 +326,17 @@ namespace Test
 					}
 				}
 			}
+
+			for(unsigned short i = 0; i < memories_begin; ++i)
+				if(!inclusion[i])
+					return 2;
+
 			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
 				sorted_gops.push_back(usages[i]);
+
+			for(unsigned int i = 0; i < sorted_gops.size(); ++i)
+				if(sorted_gops[i] != NULL)
+					sorted_gops[i]->my_index = i;
 			
 			// populate the compiled ops array (which has already been cleared)
 			for(unsigned short i = 0; i < sorted_gops.size(); ++i)
@@ -325,6 +349,12 @@ namespace Test
 					cop.op = gop->op;
 					cop.ia = gop->arga.ToCompiledOpIndex(total_inputs, i);
 					cop.ib = gop->argb.ToCompiledOpIndex(total_inputs, i);
+					if(cop.ia > compiled_ops.size() + total_inputs + 1 || cop.ib > compiled_ops.size() + total_inputs + 1)
+					{
+						Debug(((stringstream&)(stringstream() << "Compiled op references an index that hasn't been written to yet! ia = " << cop.ia << "; ib = " << cop.ib << "; max allowed = " << compiled_ops.size() + total_inputs << endl)).str());
+						compiled_ops.clear();
+						return 3;
+					}
 					cop.na = gop->arga.negated;
 					cop.nb = gop->argb.negated;
 				}
@@ -409,7 +439,7 @@ namespace Test
 				DEBUG();
 
 			GABrain* best = NULL;
-			for(unsigned int ci = 0; ci < 5; ++ci)	// make several attempts at a crossover; select the one with num compiled ops closest to closest to TARGET_LENGTH
+			for(unsigned int ci = 0; ci < 50; ++ci)	// make several attempts at a crossover; select the one with num compiled ops closest to closest to TARGET_LENGTH
 			{
 				GABrain* child = new GABrain();
 				for(unsigned int i = 0; i < a->graph_ops.size() + b->graph_ops.size(); ++i)
@@ -599,7 +629,7 @@ namespace Test
 				// TODO: detect when some subgraphs are (nearly?) identical, and when that happens, maybe unify them
 
 				child->Compile();
-				if(!child->compiled_ops.empty() && (best == NULL || fabs((float)child->compiled_ops.size() - TARGET_LENGTH) < fabs((float)best->compiled_ops.size() - TARGET_LENGTH)))
+				if(!child->compiled_ops.empty() && (best == NULL || fabs((float)child->compiled_ops.size() - (float)TARGET_LENGTH) < fabs((float)best->compiled_ops.size() - (float)TARGET_LENGTH)))
 				{
 					if(best != NULL)
 						delete best;
@@ -797,6 +827,9 @@ namespace Test
 			static const unsigned int children_per_pair  = 4;
 			static const unsigned int mutants_per_single = 6;
 
+			ProfilingTimer timer;
+			timer.Start();
+
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				for(unsigned int j = i + 1; j < genepool.size(); ++j)
 					if(*genepool[j] < *genepool[i])
@@ -860,6 +893,10 @@ namespace Test
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				genepool[i]->score = 0;
+
+			float elapsed = timer.Stop();
+
+			Debug(((stringstream&)(stringstream() << "building next gen took " << elapsed << " seconds" << endl)).str());
 		}
 
 		void GotScore(float score, string& ss_target)
@@ -892,21 +929,24 @@ namespace Test
 
 				stringstream ss;
 				ss << "b " << batch << " g " << genome << ": score = " << gscore << "; id = " << r->id << "; parents = (" << r->p1 << ", " << r->p2 << "); graph n = " << brain->graph_ops.size() << "; compiled n = " << brain->compiled_ops.size();
-				if(quick)
-					ss << "; fail (" << trial << " / " << NUM_TRIALS << "); proj = " << (gscore * NUM_TRIALS / trial) << endl;
-				else
-					ss << "; pass" << endl;
-				Debug(ss.str());
 
 				if(quick)
-					gscore *= NUM_TRIALS / trial;
-				for(unsigned int i = genome; i != 0; --i)
+					gscore *= (float)NUM_TRIALS / trial;
+
+				unsigned int i;
+				for(i = genome; i != 0; --i)
 				{
 					if(genepool[i]->score < genepool[i - 1]->score)
 						swap(genepool[i], genepool[i - 1]);
 					else
 						break;
 				}
+
+				if(i >= NUM_PARENTS)
+					ss << "; fail (" << trial << " / " << NUM_TRIALS << "); proj = " << gscore << endl;
+				else
+					ss << "; pass" << endl;
+				Debug(ss.str());
 
 				trial = 0;
 				++genome;
@@ -1473,20 +1513,20 @@ namespace Test
 		static void PushBoneRelative(vector<float>& inputs, const CBone& pushme, const CBone& rel, const CJoint& joint)
 		{
 			Mat3 unrotate = rel.rb->GetOrientation().ToMat3().Transpose();
-			PushVec3(inputs, unrotate * (pushme.rb->GetCenterOfMass() - rel.rb->GetCenterOfMass()));
-			PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity() * 0.02f);
-			PushVec3(inputs, unrotate * pushme.rb->GetAngularVelocity() * 0.02f);
+			//PushVec3(inputs, unrotate * (pushme.rb->GetCenterOfMass() - rel.rb->GetCenterOfMass()));
+			//PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity() * 0.02f);
+			//PushVec3(inputs, unrotate * pushme.rb->GetAngularVelocity() * 0.02f);
 
 			Mat3 rvecmat = joint.sjc->axes * Quaternion::Reverse(joint.a->rb->GetOrientation()).ToMat3() * joint.b->rb->GetOrientation().ToMat3() * joint.sjc->axes.Transpose();
 			Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
 
 			PushVec3(inputs, rvec);
 
-			for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&joint.sjc->min_extents, *maxp = (float*)&joint.sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
-			{
-				inputs.push_back((*rptr > *maxp ? *maxp - *rptr : 0.0f) * 2.0f - 1.0f);		// scaling to -1,1 range to undo later compression
-				inputs.push_back((*rptr < *minp ? *rptr - *minp : 0.0f) * 2.0f - 1.0f);
-			}
+			//for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&joint.sjc->min_extents, *maxp = (float*)&joint.sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
+			//{
+			//	inputs.push_back((*rptr > *maxp ? *maxp - *rptr : 0.0f) * 2.0f - 1.0f);		// scaling to -1,1 range to undo later compression
+			//	inputs.push_back((*rptr < *minp ? *rptr - *minp : 0.0f) * 2.0f - 1.0f);
+			//}
 		}
 
 		static void PushFootStuff(vector<float>& inputs, Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
@@ -1648,8 +1688,8 @@ namespace Test
 			Vec3 t2ori = (Quaternion::Reverse(torso2.rb->GetOrientation()) * t2).ToRVec();
 			PushVec3( inputs, ppos  );
 			PushVec3( inputs, pori  );
-			PushVec3( inputs, t1ori );
-			PushVec3( inputs, t2ori );
+			//PushVec3( inputs, t1ori );
+			//PushVec3( inputs, t2ori );
 
 			// don't add any more sensor inputs after this line!
 			static bool showed_inputs_count = false;
@@ -1709,7 +1749,14 @@ namespace Test
 			if(!experiment_done)
 			{
 				//if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
-				if((pelvis.rb->GetCenterOfMass() - desired_pelvis_pos).ComputeMagnitude() > 0.2f)
+				if(ppos.ComputeMagnitude() + 0.5f * pori.ComputeMagnitude() > 0.1f)
+					feet_ok = false;
+
+				if((lfoot.rb->GetOrientation() * Vec3(0, 1, 0)).y < 0.9f)
+					feet_ok = false;
+				if((rfoot.rb->GetOrientation() * Vec3(0, 1, 0)).y < 0.9f)
+					feet_ok = false;
+				if(dood->feet[0]->no_contact_timer > 0.05f || dood->feet[1]->no_contact_timer > 0.05f)
 					feet_ok = false;
 
 				if(!feet_ok || tick_age >= max_tick_age)
@@ -1790,7 +1837,7 @@ namespace Test
 	{
 		use_cheaty_ori = false;
 
-		yaw = Random3D::Rand(float(M_PI) * 2.0f);
+		//yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
 		gun_hand_bone = character->skeleton->GetNamedBone("r grip");
 
