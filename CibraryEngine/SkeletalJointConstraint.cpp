@@ -186,7 +186,9 @@ namespace CibraryEngine
 		Vec3 world_torque = oriented_axes.TransposedMultiply(use_torque) * timestep;
 		obj_a->rot += obj_a->inv_moi * world_torque;
 		obj_b->rot -= obj_b->inv_moi * world_torque;
-		net_impulse_angular += world_torque;
+
+		net_impulse_linear  = Vec3();
+		net_impulse_angular = world_torque;
 	}
 
 	Vec3 SkeletalJointConstraint::ComputeAveragePosition() const

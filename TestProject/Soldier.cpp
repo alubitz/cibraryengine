@@ -9,19 +9,22 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
+#include "NeuralNet.h"
+
 #define DIE_AFTER_ONE_SECOND    0
 
 #define ENABLE_NEW_JETPACKING   0
 
-#define MAX_TICK_AGE			100
+#define MAX_TICK_AGE			15
 
-#define NUM_PARENTS             15
-#define NUM_TRIALS              6
+#define NUM_PARENTS             10
+#define NUM_TRIALS              10
 
-#define NUM_INPUTS              87			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
-#define NUM_OUTPUTS             28			// double the number of joint torque axes
-#define NUM_MEMORIES            36			// must be >= NUM_OUTPUTS
-#define TARGET_LENGTH           100			// should be >= NUM_MEMORIES
+#define NUM_INPUTS              110			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
+#define NUM_OUTPUTS             14			// double the number of joint torque axes
+#define NUM_MEMORIES            0
+
+#define NUM_MIDDLE_NEURONS		20			// should be >= NUM_OUTPUTS + NUM_MEMORIES
 
 namespace Test
 {
@@ -41,605 +44,111 @@ namespace Test
 
 	struct GABrain
 	{
-		struct GraphOp;
-		struct GraphOperand
-		{
-			bool negated;
-			bool is_other_op;
-			union
-			{
-				GraphOp*       other_op;
-				unsigned short input_index;
-			};
-
-			GraphOperand() : negated(false), is_other_op(true), other_op(NULL) { }
-
-			void SetOtherOp(GraphOp* other)     { is_other_op = true;  other_op = other; }
-			void SetInput(unsigned short index) { is_other_op = false; input_index = index; }
-
-			void Randomize(const vector<GraphOp*>& ops, unsigned int max_use_op, unsigned int inputs)
-			{
-				unsigned int index = Random3D::RandInt() % (inputs + max_use_op + 1);
-				if(index == 0)
-					SetOtherOp(NULL);
-				else if(index < inputs + 1)
-					SetInput(index - 1);
-				else
-				{
-					SetOtherOp(ops[index - (inputs + 1)]);
-					if(other_op->usage != 0)
-						other_op = NULL;
-				}
-
-				negated = Random3D::RandInt() % 2 != 0;
-			}
-
-			void SkipLinkIfApplicable()
-			{
-				if(is_other_op && other_op != NULL)
-				{
-					unsigned char code = other_op->op;
-					if(code == 0 || code == 1 || code == 2)
-						*this = Random3D::RandInt() % 2 == 0 ? other_op->arga : other_op->argb;
-				}
-			}
-			void SeverLinkIfInvalid(unsigned int max_allowed)
-			{
-				if(is_other_op && other_op != NULL && (other_op->my_index >= max_allowed || other_op->usage != 0))
-					other_op = NULL;
-			}
-
-			void CopyByIndex(const GraphOperand& other, const vector<GraphOp*>& ops, unsigned int offset)
-			{
-				if(other.is_other_op)
-					SetOtherOp(other.other_op != NULL ? ops[other.other_op->my_index + offset] : NULL);
-				else
-					SetInput(other.input_index);
-			}
-
-			unsigned short ToCompiledOpIndex(unsigned short num_inputs, unsigned short current_index) const
-			{
-				if(!is_other_op)
-				{
-					if(input_index < num_inputs)
-						return input_index + 1;
-					else
-						return 0;
-				}
-				else
-				{
-					if(other_op != NULL)
-					{
-						unsigned short index = num_inputs + other_op->my_index + 1;
-						return index >= current_index ? 0 : index;
-					}
-					else
-						return 0;
-				}
-			}
-
-			void Read(istream& ss, const vector<GraphOp*>& graph_ops)
-			{
-				negated = ReadBool(ss);
-
-				if(ReadBool(ss))
-				{
-					is_other_op = true;
-					unsigned short index = ReadUInt16(ss);
-					if(index > 0)
-					{
-						assert((unsigned)(index - 1) < graph_ops.size());
-						other_op = graph_ops[index - 1];
-					}
-					else
-						other_op = NULL;
-				}
-				else
-				{
-					is_other_op = false;
-					input_index = ReadUInt16(ss);
-				}
-			}
-
-			void Write(ostream& ss) const		// precondition: all ops have had my_index set
-			{
-				WriteBool(negated, ss);
-
-				if(is_other_op)
-				{
-					WriteBool(true, ss);
-					if(other_op != NULL)
-						WriteUInt16(other_op->my_index + 1, ss);
-					else
-						WriteUInt16(0, ss);
-				}
-				else
-				{
-					WriteBool(false, ss);
-					WriteUInt16(input_index, ss);
-				}
-			}
-		};
-
-		struct GraphOp
-		{
-			unsigned short my_index;
-			unsigned short usage;				// 1 or more means this maps to an output (subtract 1 to get its index), 0 means it doesn't
-			unsigned char op;
-			GraphOperand arga, argb;
-
-			GraphOp() : usage(0), op(0x0) { }
-
-			// returns true if there's an infinite recursive loop; marks all things referenced prior to that as true in "inclusion"
-			bool RecursiveReferenceCheck(vector<bool>& stack, vector<bool>& inclusion, const vector<GraphOp*>& all_owned = vector<GraphOp*>()) const
-			{
-				// optional check to make sure that all of the referenced nodes' pointers belong to the correct graph
-				if(!all_owned.empty())
-				{
-					bool ok = false;
-					for(unsigned int i = 0; i < all_owned.size(); ++i)
-						if(all_owned[i] == this)
-							ok = true;
-					if(!ok)
-						DEBUG();
-				}
-
-				if(stack[my_index])
-					return true;
-				else
-				{
-					if(!inclusion[my_index])
-					{
-						stack[my_index] = true;
-
-						if(arga.is_other_op && arga.other_op != NULL)
-							if(arga.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
-								return true;
-						if(argb.is_other_op && argb.other_op != NULL)
-							if(argb.other_op->RecursiveReferenceCheck(stack, inclusion, all_owned))
-								return true;
-
-						stack[my_index] = false;
-						inclusion[my_index] = true;
-					}
-
-					return false;
-				}
-			}
-
-			void Read(istream& ss, const vector<GraphOp*>& graph_ops)
-			{
-				usage = ReadUInt16(ss);
-				op = ReadByte(ss);
-				arga.Read(ss, graph_ops);
-				argb.Read(ss, graph_ops);
-			}
-
-			void Write(ostream& ss) const		// precondition: all ops have had my_index set
-			{
-				WriteUInt16(usage, ss);
-				WriteByte(op, ss);
-				arga.Write(ss);
-				argb.Write(ss);
-			}
-		};
-		vector<GraphOp*> graph_ops;
-
-		struct CompiledOp
-		{
-			unsigned char op;
-			bool na, nb;
-			unsigned short ia, ib;
-		};
-		vector<CompiledOp> compiled_ops;
-
 		vector<float> initial_mems;
+		NeuralNet* nn;
 
-		GABrain() : graph_ops(), compiled_ops(), initial_mems(NUM_MEMORIES) { }
+		GABrain() : initial_mems(NUM_MEMORIES), nn(NeuralNet::New(NUM_INPUTS * 2 + NUM_MEMORIES, NUM_OUTPUTS + NUM_MEMORIES, NUM_MIDDLE_NEURONS)) { }
 
-		~GABrain()
-		{
-			CleanupGraphOps();
-
-			compiled_ops.clear();
-			initial_mems.clear();
-		}
-
-		void CleanupGraphOps()
-		{
-			for(unsigned int i = 0; i < graph_ops.size(); ++i)
-				delete graph_ops[i];
-			graph_ops.clear();
-		}
-
-		// returns an error code, or zero if no error
-		unsigned int Compile()
-		{
-			static const unsigned int total_inputs = NUM_INPUTS * 2 + NUM_MEMORIES;
-
-			compiled_ops.clear();
-
-			unsigned short num_gops = graph_ops.size();
-			for(unsigned short i = 0; i < num_gops; ++i)
-				graph_ops[i]->my_index = i;
-
-			// find whatever ops will be used as memory outputs, and find all the ops those memory output ops will need to reference, recursively
-			vector<bool> stack(num_gops, false);
-			vector<bool> inclusion(num_gops, false);
-			vector<GraphOp*> usages(NUM_MEMORIES, false);
-			unsigned int found_usages = 0;
-			for(unsigned short i = 0; i < num_gops; ++i)
-			{
-				GraphOp* gop = graph_ops[i];
-				if(gop->usage > 0 && usages[gop->usage - 1] == NULL)
-				{
-					usages[gop->usage - 1] = gop;
-					++found_usages;
-					if(gop->RecursiveReferenceCheck(stack, inclusion))
-					{
-						Debug("Error! Infinite recursion detected while trying to compile GABrain!\n");
-						return 1;
-					}
-				}
-			}
-
-			// condense those into a shorter list, and re-index
-			vector<GraphOp*> condensed;
-			for(unsigned short i = 0; i < num_gops; ++i)
-				if(inclusion[i])
-					condensed.push_back(graph_ops[i]);
-			for(unsigned short i = 0; i < condensed.size(); ++i)
-				condensed[i]->my_index = i;
-
-			// construct a "what-needs-what?" reference table
-			vector<vector<bool>> all_needs;
-			for(unsigned short i = 0; i < condensed.size(); ++i)
-			{
-				vector<bool> my_needs(condensed.size(), false);
-				condensed[i]->RecursiveReferenceCheck(stack, my_needs);
-				my_needs[i] = false;				// safety check for infinite recursion has already been done
-				all_needs.push_back(my_needs);
-			}
-
-			// TODO: redundancy detection somehow?
-
-			// now use that to sort items
-			vector<GraphOp*> sorted_gops;
-			unsigned short memories_begin = condensed.size() - found_usages;
-			inclusion = vector<bool>(condensed.size(), false);					// reuse this to track what's ready for inclusion in compiled_ops
-			for(unsigned short i = 0; i < memories_begin; ++i)
-			{
-				for(unsigned short j = 0; j < memories_begin; ++j)
-				{
-					if(!inclusion[j])
-					{
-						const vector<bool>& my_needs = all_needs[j];
-						bool ok = true;
-						for(unsigned short k = 0; k < condensed.size() && ok; ++k)
-							if(my_needs[k] && !inclusion[k])
-								ok = false;
-						if(ok)
-						{
-							inclusion[j] = true;
-							sorted_gops.push_back(condensed[j]);
-						}
-					}
-				}
-			}
-
-			for(unsigned short i = 0; i < memories_begin; ++i)
-				if(!inclusion[i])
-					return 2;
-
-			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
-				sorted_gops.push_back(usages[i]);
-
-			for(unsigned int i = 0; i < sorted_gops.size(); ++i)
-				if(sorted_gops[i] != NULL)
-					sorted_gops[i]->my_index = i;
-			
-			// populate the compiled ops array (which has already been cleared)
-			for(unsigned short i = 0; i < sorted_gops.size(); ++i)
-			{
-				CompiledOp cop;
-				if(GraphOp* gop = sorted_gops[i])
-				{
-					gop->my_index = i;		// we can safely wait until now to do this, thanks to the sorting
-
-					cop.op = gop->op;
-					cop.ia = gop->arga.ToCompiledOpIndex(total_inputs, i);
-					cop.ib = gop->argb.ToCompiledOpIndex(total_inputs, i);
-					if(cop.ia > compiled_ops.size() + total_inputs + 1 || cop.ib > compiled_ops.size() + total_inputs + 1)
-					{
-						Debug(((stringstream&)(stringstream() << "Compiled op references an index that hasn't been written to yet! ia = " << cop.ia << "; ib = " << cop.ib << "; max allowed = " << compiled_ops.size() + total_inputs << endl)).str());
-						compiled_ops.clear();
-						return 3;
-					}
-					cop.na = gop->arga.negated;
-					cop.nb = gop->argb.negated;
-				}
-				else
-				{
-					cop.op = 0;
-					cop.ia = 0;
-					cop.ib = 0;
-					cop.na = false;
-					cop.nb = false;
-				}
-				compiled_ops.push_back(cop);
-			}
-
-			RestoreDefaultIndexing();
-
-			return 0;
-		}
-
-		void RestoreDefaultIndexing()
-		{
-			for(unsigned short i = 0; i < graph_ops.size(); ++i)
-				graph_ops[i]->my_index = i;
-		}
-
-		// returns true if any indices mismatch
-		bool CheckDefaultIndexing() const
-		{
-			for(unsigned short i = 0; i < graph_ops.size(); ++i)
-				if(graph_ops[i]->my_index != i)
-					return true;
-			return false;
-		}
+		~GABrain() { if(nn) { NeuralNet::Delete(nn); nn = NULL; } }
 
 		void Evaluate(const vector<float>& inputs, vector<float>& outputs) const
 		{
-			outputs.clear();
-			outputs.push_back(0.0f);
-			outputs.insert(outputs.end(), inputs.begin(), inputs.end());
+			memcpy(nn->inputs, inputs.data(), nn->num_inputs * sizeof(float));
 
-			for(unsigned int i = 0; i < compiled_ops.size(); ++i)
+			nn->Evaluate();
+			
+			outputs.resize(nn->num_outputs);
+			memcpy(outputs.data(), nn->outputs, nn->num_outputs * sizeof(float));
+		}
+
+		void GetNonzeroCounts(unsigned int& mems, unsigned int& top, unsigned int& bottom) const
+		{
+			mems = top = bottom = 0;
+			for(const float *fptr = initial_mems.data(), *fend = fptr + initial_mems.size(); fptr != fend; ++fptr)
+				if(*fptr != 0.0f)
+					++mems;
+			for(const float *fptr = nn->top_matrix, *fend = fptr + nn->top_matrix_size; fptr != fend; ++fptr)
+				if(*fptr != 0.0f)
+					++top;
+			for(const float *fptr = nn->bot_matrix, *fend = fptr + nn->bot_matrix_size; fptr != fend; ++fptr)
+				if(*fptr != 0.0f)
+					++bottom;
+		}
+
+		static void MakeChildCoeff(float& x, float a, float b)
+		{
+			static const unsigned int ztn_odds_against = 200;		// zero to nonzero
+			static const unsigned int ntz_odds_against = 190;		// nonzero to zero
+			static const unsigned int mut_odds_against = 180;		// nonzero to some other nonzero
+
+			static const float        ztn_rand_scale   = 0.15f;
+			static const float        mut_rand_scale   = 0.1f;
+
+			if(a != 0.0f && b != 0.0f)
 			{
-				const CompiledOp& o = compiled_ops[i];
-				float a = outputs[o.ia];
-				float b = outputs[o.ib];
-				if(o.na)
-					a = 1.0f - a;
-				if(o.nb)
-					b = 1.0f - b;
-
-				float result;
-				switch(o.op)
+				switch(Random3D::RandInt() % 3)
 				{
-					case 0:
-						result = a * b;
-						break;
-					case 1:
-						result = a + b - a * b;
-						break;
-					case 2:
-						result = (a + b) * 0.5f;
-						break;
-					case 3:
-						if(float magsq = a * a + b * b)
-							result = (b - a) / sqrtf(magsq) * 0.5f + 0.5f;
-						else
-							result = 0.5f;
-						break;
+					case 0: x = a; break;
+					case 1: x = b; break;
+					case 2: x = (a + b) * 0.5f; break;
 				}
-				outputs.push_back(result);
+			}
+			else if(a != 0.0f || b != 0.0f)
+				x = Random3D::RandInt() % 2 == 0 ? a : b;
+			else
+				x = 0.0f;
+
+			if(x == 0.0f)
+			{
+				if(Random3D::RandInt() % ztn_odds_against == 0)
+					x = Random3D::Rand(-ztn_rand_scale, ztn_rand_scale);
+			}
+			else
+			{
+				if(Random3D::RandInt() % ntz_odds_against == 0)
+					x = 0.0f;
+				else if(Random3D::RandInt() % mut_odds_against == 0)
+					x += Random3D::Rand(-mut_rand_scale, mut_rand_scale);
 			}
 		}
 
 		static GABrain* CreateCrossover(const GABrain* a, const GABrain* b)
 		{
-			static const unsigned int total_inputs = NUM_INPUTS * 2 + NUM_MEMORIES;
+			static const unsigned int mut_odds_against = 200;
+			static const float        mut_rand_scale   = 0.1f;
 
-			// collect all of both parents' graph ops into one list
-			if(a->CheckDefaultIndexing())
-				DEBUG();
-			if(b->CheckDefaultIndexing())
-				DEBUG();
+			GABrain* child = new GABrain();
 
-			GABrain* best = NULL;
-			for(unsigned int ci = 0; ci < 50; ++ci)	// make several attempts at a crossover; select the one with num compiled ops closest to closest to TARGET_LENGTH
+			// initialize top matrix
+			for(unsigned int i = 0; i < child->nn->num_inputs; ++i)
+				for(unsigned int j = 0; j < child->nn->num_middles; ++j)
+					MakeChildCoeff
+					(
+						child->nn->top_matrix[i * child->nn->num_middles + j],
+						i < a->nn->num_inputs && j < a->nn->num_middles ? a->nn->top_matrix[i * a->nn->num_middles + j] : 0.0f,
+						i < b->nn->num_inputs && j < b->nn->num_middles ? b->nn->top_matrix[i * b->nn->num_middles + j] : 0.0f
+					);
+
+
+			// initialize bottom matrix
+			for(unsigned int i = 0; i < child->nn->num_middles; ++i)
+				for(unsigned int j = 0; j < child->nn->num_outputs; ++j)
+					MakeChildCoeff
+					(
+						child->nn->bot_matrix[i * child->nn->num_outputs + j],
+						i < a->nn->num_middles && j < a->nn->num_outputs ? a->nn->bot_matrix[i * a->nn->num_outputs + j] : 0.0f,
+						i < b->nn->num_middles && j < b->nn->num_outputs ? b->nn->bot_matrix[i * b->nn->num_outputs + j] : 0.0f
+					);
+
+			// initialize initial memories
+			const float* aptr = a->initial_mems.data();
+			const float* bptr = b->initial_mems.data();
+			for(float* optr = child->initial_mems.data(), *oend = optr + a->initial_mems.size(); optr != oend; ++optr, ++aptr, ++bptr)
 			{
-				GABrain* child = new GABrain();
-				for(unsigned int i = 0; i < a->graph_ops.size() + b->graph_ops.size(); ++i)
-					child->graph_ops.push_back(new GraphOp());
-				for(unsigned int i = 0; i < a->graph_ops.size(); ++i)
-				{
-					GraphOp* parent_op = a->graph_ops[i];
-					GraphOp* child_op  = child->graph_ops[i];
-
-					child_op->usage = parent_op->usage;
-					child_op->op    = parent_op->op;
-				
-					child_op->arga.CopyByIndex(parent_op->arga, child->graph_ops, 0);
-					child_op->argb.CopyByIndex(parent_op->argb, child->graph_ops, 0);
-				}
-				for(unsigned int i = 0; i < b->graph_ops.size(); ++i)
-				{
-					GraphOp* parent_op = b->graph_ops[i];
-					GraphOp* child_op  = child->graph_ops[i + a->graph_ops.size()];
-
-					child_op->usage = parent_op->usage;
-					child_op->op    = parent_op->op;
-				
-					child_op->arga.CopyByIndex(parent_op->arga, child->graph_ops, a->graph_ops.size());
-					child_op->argb.CopyByIndex(parent_op->argb, child->graph_ops, a->graph_ops.size());
-				}
-
-				// randomize some ops
-				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
-				{
-					GraphOp* grop = child->graph_ops[i];
-					if(Random3D::RandInt() % 100 == 0)
-					{
-						if(grop->usage == 0)
-							grop->usage = Random3D::RandInt(1, NUM_MEMORIES);
-						else
-							grop->usage = 0;
-					}
-					if(Random3D::RandInt() % 100 == 0)
-						grop->op = Random3D::RandInt() % 4;
-					if(Random3D::RandInt() % 100 == 0)
-						grop->arga.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
-					if(Random3D::RandInt() % 100 == 0)
-						grop->argb.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
-				}
-
-				// randomly add some "ifs" (or the fuzzy-logic equivalent) around existing ops
-				unsigned int prev_size = child->graph_ops.size();
-				for(unsigned int i = 0; i < prev_size; ++i)
-				{
-					if(Random3D::RandInt() % 100 == 0)
-					{
-						GraphOp* grop = child->graph_ops[i];
-
-						GraphOperand condition;
-						condition.Randomize(child->graph_ops, prev_size, total_inputs);
-
-						GraphOp* copy = new GraphOp(*grop);
-						copy->my_index = child->graph_ops.size();
-						child->graph_ops.push_back(copy);
-
-						GraphOp* cond_and_old = new GraphOp();
-						cond_and_old->my_index = child->graph_ops.size();
-						cond_and_old->op = 0;
-						cond_and_old->arga.SetOtherOp(copy);
-						cond_and_old->argb = condition;
-						child->graph_ops.push_back(cond_and_old);
-
-						GraphOp* ncond_and_else = new GraphOp();
-						ncond_and_else->my_index = child->graph_ops.size();
-						ncond_and_else->op = 0;
-						ncond_and_else->arga.Randomize(child->graph_ops, prev_size, total_inputs);
-						ncond_and_else->argb = condition;
-						ncond_and_else->argb.negated = !condition.negated;
-						child->graph_ops.push_back(ncond_and_else);
-
-						grop->op = 1;				// formula: (condition and (old formula for grop)) or (!condition and (some other value))
-						grop->arga.SetOtherOp(cond_and_old);
-						grop->arga.negated = false;
-						grop->argb.SetOtherOp(ncond_and_else);
-						grop->argb.negated = false;
-					}
-				}
-
-				// also randomly cut out some "ands", "ors", and "avgs" from existing ops
-				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
-				{
-					if(Random3D::RandInt() % 70 == 0)
-						child->graph_ops[i]->arga.SkipLinkIfApplicable();
-					if(Random3D::RandInt() % 70 == 0)
-						child->graph_ops[i]->argb.SkipLinkIfApplicable();
-				}
-
-				// also randomly insert some "ands", "ors", and "avgs" onto existing ops
-				prev_size = child->graph_ops.size();
-				for(unsigned int i = 0; i < prev_size; ++i)
-				{
-					if(Random3D::RandInt() % 70 == 0)
-					{
-						GraphOp* grop = child->graph_ops[i];
-
-						GraphOp* copy = new GraphOp(*grop);
-						copy->my_index = child->graph_ops.size();
-						child->graph_ops.push_back(copy);
-
-						grop->op = Random3D::RandInt() % 3;
-						grop->arga.SetOtherOp(copy);
-						grop->arga.negated = false;
-						grop->argb.Randomize(child->graph_ops, prev_size, total_inputs);
-					}
-				}
-
-				// shuffle
-				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
-					swap(child->graph_ops[i], child->graph_ops[Random3D::RandInt(i, child->graph_ops.size() - 1)]);
-				child->RestoreDefaultIndexing();
-
-				// select which ops are to be included: mostly this will be first-occurrence 'usage' ops, but with some randomness
-				vector<bool> referenced(child->graph_ops.size(), false);
-				vector<bool> stack(child->graph_ops.size(), false);
-				vector<bool> usages(NUM_MEMORIES, false);
-				for(GraphOp **gptr = child->graph_ops.data(), **gend = gptr + child->graph_ops.size(); gptr != gend; ++gptr)
-				{
-					GraphOp& grop = **gptr;
-					if(grop.usage != 0 && !usages[grop.usage - 1] && Random3D::RandInt() % 20 != 0 || Random3D::RandInt() % 25 == 0)
-					{
-						grop.RecursiveReferenceCheck(stack, referenced);
-						if(grop.usage != 0)
-							usages[grop.usage - 1] = true;
-					}
-				}
-
-				vector<GraphOp*> new_ops;
-				for(unsigned int i = 0; i < child->graph_ops.size(); ++i)
-				{
-					GraphOp* op = child->graph_ops[i];
-					if(referenced[i])
-					{
-						op->my_index = new_ops.size();
-						new_ops.push_back(op);
-					}
-					else
-						op->my_index = child->graph_ops.size();		// set to an index which is guaranteed to be invalid in the resulting array
-				}
-
-				// sever references to ops that haven't been included; this will also make sure memory outputs aren't used as other ops' inputs
-				for(GraphOp **gptr = child->graph_ops.data(), **gend = gptr + child->graph_ops.size(); gptr != gend; ++gptr)
-				{
-					GraphOp& grop = **gptr;
-					grop.arga.SeverLinkIfInvalid(new_ops.size());
-					grop.argb.SeverLinkIfInvalid(new_ops.size());
-				}
-
-				// once everything that needs to check the ops' my_index property has finished, it's safe to delete the unreferenced ops
-				for(GraphOp **gptr = child->graph_ops.data(), **gend = gptr + child->graph_ops.size(); gptr != gend; ++gptr)
-					if((**gptr).my_index >= new_ops.size())
-						delete *gptr;
-				child->graph_ops = new_ops;
-
-				// if certain usages are unfilled, maybe make something up
-				for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
-				{
-					if(usages[i] == NULL && Random3D::RandInt() % 5 != 0)
-					{
-						GraphOp* op = new GraphOp();
-						op->usage = i;
-						op->my_index = child->graph_ops.size();
-						op->op = Random3D::RandInt() % 4;
-						op->arga.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
-						op->argb.Randomize(child->graph_ops, child->graph_ops.size(), total_inputs);
-						child->graph_ops.push_back(op);
-					}
-				}
-
-				// combine and mutate initial memory values
-				for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
-				{
-					static const unsigned int mutation_every = 30;
-					static const float        mutation_scale = 0.5f;
-
-					float& f = child->initial_mems[i];
-					f = Random3D::RandInt() % 2 == 0 ? a->initial_mems[i] : b->initial_mems[i];
-					if(Random3D::RandInt() % mutation_every == 0)
-						f = max(0.0f, min(1.0f, f + Random3D::Rand(-mutation_scale, mutation_scale)));
-				}
-
-				// TODO: detect when some subgraphs are (nearly?) identical, and when that happens, maybe unify them
-
-				child->Compile();
-				if(!child->compiled_ops.empty() && (best == NULL || fabs((float)child->compiled_ops.size() - (float)TARGET_LENGTH) < fabs((float)best->compiled_ops.size() - (float)TARGET_LENGTH)))
-				{
-					if(best != NULL)
-						delete best;
-					best = child;
-				}
-				else
-					delete child;
+				MakeChildCoeff(*optr, *aptr, *bptr);
+				*optr = max(0.0f, min(1.0f, *optr));
 			}
-
-			return best;
+			return child;
 		}
 
 		void Read(istream& ss)
@@ -647,16 +156,14 @@ namespace Test
 			BinaryChunk chunk;
 			chunk.Read(ss);
 
-			if(chunk.GetName() != "GABRAIN_")
+			if(chunk.GetName() != "NNBRAIN_")
 			{
-				Debug(((stringstream&)(stringstream() << "Expected a chunk with name \"GABRAIN_\", but instead got " << chunk.GetName() << endl)).str());
+				Debug(((stringstream&)(stringstream() << "Expected a chunk with name \"NNBRAIN_\", but instead got " << chunk.GetName() << endl)).str());
 				return;
 			}
 			else
 			{
 				istringstream iss(chunk.data);
-
-				CleanupGraphOps();
 
 				unsigned int num_memories = ReadUInt16(iss);
 				initial_mems.resize(max((unsigned)NUM_MEMORIES, num_memories));
@@ -664,15 +171,12 @@ namespace Test
 					initial_mems[i] = ReadSingle(iss);
 				initial_mems.resize(NUM_MEMORIES);
 
-				unsigned short count = ReadUInt16(iss);
-				graph_ops.reserve(count);
-				for(unsigned short i = 0; i < count; ++i)
-					graph_ops.push_back(new GraphOp());
-				for(unsigned short i = 0; i < count; ++i)
-				{
-					graph_ops[i]->my_index = i;
-					graph_ops[i]->Read(iss, graph_ops);
-				}
+				if(nn) { NeuralNet::Delete(nn); nn = NULL; }
+
+				NeuralNet* temp;
+				NeuralNet::Read(iss, temp);
+				nn = temp->Resized(NUM_MIDDLE_NEURONS);
+				NeuralNet::Delete(temp);
 
 				unsigned int sevens = ReadUInt32(iss);
 				if(sevens != 7777)
@@ -680,8 +184,6 @@ namespace Test
 					Debug("GABrain chunk is supposed to end with the number 7777, but didn't!\n");
 					return;
 				}
-
-				Compile();
 			}
 		}
 
@@ -693,19 +195,11 @@ namespace Test
 			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
 				WriteSingle(initial_mems[i], oss);
 
-			unsigned short count = graph_ops.size();
-			if(count != graph_ops.size())
-				DEBUG();
-
-			WriteUInt16(count, oss);
-			for(unsigned short i = 0; i < count; ++i)
-				graph_ops[i]->my_index = i;
-			for(unsigned short i = 0; i < count; ++i)
-				graph_ops[i]->Write(oss);
+			nn->Write(oss);
 
 			WriteUInt32(7777, oss);
 
-			BinaryChunk chunk("GABRAIN_");
+			BinaryChunk chunk("NNBRAIN_");
 			chunk.data = oss.str();
 			chunk.Write(ss);
 		}
@@ -767,7 +261,7 @@ namespace Test
 
 		~Experiment()
 		{
-			SaveGenepool("Files/brains");
+			//SaveGenepool("Files/brains");
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
 				delete genepool[i];
@@ -799,15 +293,6 @@ namespace Test
 				for(unsigned int i = 0; i < first_gen_size; ++i)
 				{
 					Record* result = new Record(next_id++, 0, 0);
-					for(unsigned int i = 0; i < NUM_MEMORIES; ++i)
-					{
-						GABrain::GraphOp* gop = new GABrain::GraphOp();
-						gop->usage = i + 1;
-						result->brain->graph_ops.push_back(gop);
-					}
-
-					result->brain->Compile();
-
 					genepool.push_back(result);
 				}
 			}
@@ -849,7 +334,11 @@ namespace Test
 			time(&raw_time);
 			tm now = *localtime(&raw_time);
 			string filename = ((stringstream&)(stringstream() << "Files/brains-" << now.tm_year + 1900 << "-" << now.tm_mon + 1 << "-" << now.tm_mday << "-" << now.tm_hour << "-" << now.tm_min << "-" << now.tm_sec)).str();
+
+			Debug(((stringstream&)(stringstream() << "Saving the selected parent brains to \"" << filename << "\"" << endl)).str());
+
 			SaveGenepool(filename);
+			SaveGenepool("Files/brains");
 
 			for(unsigned int i = 0; i < actual_parents; ++i)
 			{
@@ -888,11 +377,16 @@ namespace Test
 			for(unsigned int i = 0; i < actual_parents; ++i)
 			{
 				Record* r = genepool[i];
-				Debug(((stringstream&)(stringstream() << "\tparent " << i << ": score = " << genepool[i]->score << "; id = " << r->id << "; parent ids = (" << r->p1 << ", " << r->p2 << "); graph n = " << genepool[i]->brain->graph_ops.size() << "; compiled n = " << genepool[i]->brain->compiled_ops.size() << endl)).str());
+				unsigned int mems, top, bot;
+				r->brain->GetNonzeroCounts(mems, top, bot);
+				Debug(((stringstream&)(stringstream() << "\tparent " << i << ": score = " << genepool[i]->score << "; id = " << r->id << "; parent ids = (" << r->p1 << ", " << r->p2 << "); nonzero: mems = " << mems << "; top = " << top << "; bottom = " << bot << endl)).str());
 			}
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
+			{
+				swap(genepool[i], genepool[Random3D::RandInt(i, genepool.size() - 1)]);
 				genepool[i]->score = 0;
+			}
 
 			float elapsed = timer.Stop();
 
@@ -903,14 +397,15 @@ namespace Test
 		{
 			Record* r = genepool[genome];
 			GABrain* brain = r->brain;
+			
 			float& gscore = r->score;
 
-			gscore += score;
+			gscore += score / NUM_TRIALS;
 
 			{	// curly braces for scope
 				stringstream ss;
 
-				ss << "generation " << batch << ", genome " << genome << " of " << genepool.size() << ", trial " << trial << " of " << NUM_TRIALS << "; cost so far = " << gscore / NUM_TRIALS << endl;
+				ss << "generation " << batch << ", genome " << genome << " of " << genepool.size() << ", trial " << trial << " of " << NUM_TRIALS << "; score so far = " << gscore << endl;
 				for(unsigned int i = 0; i < genome && i < NUM_PARENTS; ++i)
 				{
 					const Record& p = *genepool[i];
@@ -920,18 +415,15 @@ namespace Test
 				ss_target = ss.str();
 			}
 
-			bool quick = genome >= NUM_PARENTS && gscore >= genepool[NUM_PARENTS - 1]->score * NUM_TRIALS;
+			bool quick = genome >= NUM_PARENTS && gscore >= genepool[NUM_PARENTS - 1]->score;
 
 			++trial;
 			if(trial == NUM_TRIALS || quick)
 			{
-				gscore /= NUM_TRIALS;
-
 				stringstream ss;
-				ss << "b " << batch << " g " << genome << ": score = " << gscore << "; id = " << r->id << "; parents = (" << r->p1 << ", " << r->p2 << "); graph n = " << brain->graph_ops.size() << "; compiled n = " << brain->compiled_ops.size();
-
-				if(quick)
-					gscore *= (float)NUM_TRIALS / trial;
+				unsigned int mems, top, bot;
+				brain->GetNonzeroCounts(mems, top, bot);
+				ss << "b " << batch << " g " << genome << ": score = " << gscore << "; id = " << r->id << "; parents = (" << r->p1 << ", " << r->p2 << "); nonzero: mems = " << mems << "; top = " << top << "; bottom = " << bot;
 
 				unsigned int i;
 				for(i = genome; i != 0; --i)
@@ -943,7 +435,7 @@ namespace Test
 				}
 
 				if(i >= NUM_PARENTS)
-					ss << "; fail (" << trial << " / " << NUM_TRIALS << "); proj = " << gscore << endl;
+					ss << "; fail (" << trial << " / " << NUM_TRIALS << "); proj = " << (gscore * NUM_TRIALS / trial) << endl;
 				else
 					ss << "; pass" << endl;
 				Debug(ss.str());
@@ -992,8 +484,11 @@ namespace Test
 			Vec3 desired_torque;
 			Vec3 applied_torque;
 
+			Vec3 initial_pos;
+			Quaternion initial_ori;
+
 			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()) { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()) { }
 
 			void Reset(float inv_timestep) { desired_torque = applied_torque = Vec3(); }
 
@@ -1027,6 +522,7 @@ namespace Test
 			CBone *a, *b;
 
 			Vec3 actual;				// world-coords torque to be applied by this joint
+			Vec3 last;
 
 			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
 
@@ -1062,6 +558,8 @@ namespace Test
 
 			void Reset()
 			{
+				last = sjc->apply_torque;
+
 				sjc->apply_torque = actual = Vec3();
 				oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
 			}
@@ -1135,8 +633,7 @@ namespace Test
 		vector<float> memories;
 		vector<float> old_inputs;
 		vector<float> outputs;				// make this a member, for memory reuse purposes
-		float feet_error_cost, goal_error_cost, exertion_cost;
-		bool feet_ok;
+		float worst, goal_error_cost;
 
 		Vec3 desired_pelvis_pos;
 
@@ -1232,13 +729,14 @@ namespace Test
 
 		Vec3 desired_aim;
 
+		Vec3 gun_initial_pos;
+		Quaternion gun_initial_ori;
+
 		Imp() :
 			init(false),
 			experiment_done(false),
-			feet_error_cost(0),
+			worst(0),
 			goal_error_cost(0),
-			exertion_cost(0),
-			feet_ok(true),
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
@@ -1332,6 +830,43 @@ namespace Test
 					(*iter)->SetContactCallback(&no_touchy);
 
 			desired_pelvis_pos = pelvis.rb->GetCenterOfMass();
+
+			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
+			{
+				gun_rb = gun->rigid_body;
+				gun_initial_pos = gun_rb->GetPosition();
+				gun_initial_ori = gun_rb->GetOrientation();
+			}
+		}
+
+		void ReInit(Soldier* dood)
+		{
+			for(unsigned int i = 0; i < all_bones.size(); ++i)
+			{
+				CBone& cb = *all_bones[i];
+				RigidBody& rb = *cb.rb;
+				rb.SetPosition(cb.initial_pos);
+				rb.SetOrientation(cb.initial_ori);
+				rb.SetLinearVelocity(Vec3());
+				rb.SetAngularVelocity(Vec3());
+			}
+
+			if(gun_rb != NULL)
+			{
+				gun_rb->SetPosition(gun_initial_pos);
+				gun_rb->SetOrientation(gun_initial_ori);
+				gun_rb->SetLinearVelocity(Vec3());
+				gun_rb->SetAngularVelocity(Vec3());
+			}
+
+			for(unsigned int i = 0; i < all_joints.size(); ++i)
+				all_joints[i]->last = Vec3();
+
+			InitBrain(dood);
+
+			experiment_done = false;
+			worst = goal_error_cost = 0.0f;
+			tick_age = 0;
 		}
 
 		void GetDesiredTorsoOris(Soldier* dood, Quaternion& p, Quaternion& t1, Quaternion& t2)
@@ -1510,22 +1045,30 @@ namespace Test
 			inputs.push_back(vec.z);
 		}
 
-		static void PushBoneRelative(vector<float>& inputs, const CBone& pushme, const CBone& rel, const CJoint& joint)
+		static void PushBoneRelative(vector<float>& inputs, const CBone& pushme, const CBone& rel, const CJoint& joint, unsigned int n = 3)
 		{
 			Mat3 unrotate = rel.rb->GetOrientation().ToMat3().Transpose();
 			//PushVec3(inputs, unrotate * (pushme.rb->GetCenterOfMass() - rel.rb->GetCenterOfMass()));
 			//PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity() * 0.02f);
 			//PushVec3(inputs, unrotate * pushme.rb->GetAngularVelocity() * 0.02f);
 
-			Mat3 rvecmat = joint.sjc->axes * Quaternion::Reverse(joint.a->rb->GetOrientation()).ToMat3() * joint.b->rb->GetOrientation().ToMat3() * joint.sjc->axes.Transpose();
+			const SkeletalJointConstraint* sjc = joint.sjc;
+
+			Mat3 rvecmat = sjc->axes * Quaternion::Reverse(joint.a->rb->GetOrientation()).ToMat3() * joint.b->rb->GetOrientation().ToMat3() * joint.sjc->axes.Transpose();
 			Vec3 rvec = Quaternion::FromRotationMatrix(rvecmat).ToRVec();
 
 			PushVec3(inputs, rvec);
 
-			//for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&joint.sjc->min_extents, *maxp = (float*)&joint.sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
+			for(const float *optr = (float*)&joint.last, *oend = optr + n, *minp = (float*)&sjc->min_torque, *maxp = (float*)&sjc->max_torque; optr != oend; ++optr, ++minp, ++maxp)
+				inputs.push_back(*optr * 2.0f / max(*maxp, -*minp));
+
+			PushVec3(inputs, sjc->net_impulse_linear);
+			PushVec3(inputs, sjc->net_impulse_angular);
+
+			//for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&sjc->min_extents, *maxp = (float*)&sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
 			//{
-			//	inputs.push_back((*rptr > *maxp ? *maxp - *rptr : 0.0f) * 2.0f - 1.0f);		// scaling to -1,1 range to undo later compression
-			//	inputs.push_back((*rptr < *minp ? *rptr - *minp : 0.0f) * 2.0f - 1.0f);
+			//	inputs.push_back(*rptr > *maxp ? *maxp - *rptr : 0.0f);
+			//	inputs.push_back(*rptr < *minp ? *rptr - *minp : 0.0f);
 			//}
 		}
 
@@ -1536,6 +1079,7 @@ namespace Test
 			Mat3 unrotate    = rb->GetOrientation().ToMat3().Transpose();
 			Vec3 untranslate = rb->GetCenterOfMass();
 
+			/*
 			// contact points
 			for(unsigned int j = 0; j < 3; ++j)
 			{
@@ -1551,6 +1095,7 @@ namespace Test
 					PushVec3(inputs, Vec3());
 				}
 			}
+			*/
 
 			// net force and torque
 			PushVec3(inputs, unrotate * foot->net_force  * 0.2f);
@@ -1562,24 +1107,18 @@ namespace Test
 			//inputs.push_back(eta);
 		}
 
-		static void SetJointTorques(float& part_cost, const float*& optr, CJoint& joint, unsigned int n = 3)
+		static void SetJointTorques(const float*& optr, CJoint& joint, unsigned int n = 3)
 		{
-			part_cost = 0.0f;
-
 			const float* minptr = (float*)&joint.sjc->min_torque;
 			const float* maxptr = (float*)&joint.sjc->max_torque;
 
-			Vec3 v;
-			float* vptr = (float*)&v;			// TODO: oh right, this is zero... maybe change it so it can actually do deltas
+			Vec3 v = joint.sjc->apply_torque;
+			float* vptr = (float*)&v;
 
-			for(const float* oend = optr + n * 2; optr != oend; ++vptr, ++minptr, ++maxptr)
+			for(const float* oend = optr + n; optr != oend; ++optr, ++vptr, ++minptr, ++maxptr)
 			{
-				float plus  = *(optr++);
-				float minus = *(optr++);
-
-				*vptr = plus * *maxptr + minus * *minptr + *vptr * max(0.0f, 1.0f - plus - minus);
-
-				part_cost += plus + minus + plus * minus;
+				float o = *optr;
+				*vptr = o >= 0.0f ? o * *maxptr : -o * *minptr;
 			}
 
 			joint.SetOrientedTorque(v);
@@ -1594,6 +1133,8 @@ namespace Test
 				Init(dood);
 				init = true;
 			}
+			else if(experiment_done)
+				ReInit(dood);
 
 			timestep     = time.elapsed;
 			inv_timestep = 1.0f / timestep;
@@ -1610,11 +1151,11 @@ namespace Test
 			for(vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 				(*iter)->Reset(inv_timestep);
 
-#if ENABLE_NEW_JETPACKING
 			float dood_mass;
 			Vec3 dood_com, com_vel, angular_momentum;
 			ComputeMomentumStuff(dood, dood_mass, dood_com, com_vel, angular_momentum);
 
+#if ENABLE_NEW_JETPACKING
 			if(jetpacking)
 			{
 				Vec3 desired_jp_torque = angular_momentum * (-60.0f);
@@ -1644,7 +1185,7 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 
 			// per-sub-experiment goals changes
-#if 1
+#if 0
 			switch(experiment->trial % 6)
 			{
 				case 1: desired_pelvis_pos.y -= 0.02f * timestep; break;
@@ -1663,18 +1204,21 @@ namespace Test
 			// root bone info
 			Mat3 reverse_pelvis = Quaternion::Reverse(pelvis.rb->GetOrientation()).ToMat3();
 			PushVec3(inputs, reverse_pelvis * Vec3(0, 1, 0));
-			PushVec3(inputs, reverse_pelvis * pelvis.rb->GetLinearVelocity()  * 0.02f);
-			PushVec3(inputs, reverse_pelvis * pelvis.rb->GetAngularVelocity() * 0.02f);
+			//PushVec3(inputs, reverse_pelvis * pelvis.rb->GetLinearVelocity()  * 0.02f);
+			//PushVec3(inputs, reverse_pelvis * pelvis.rb->GetAngularVelocity() * 0.02f);
+			PushVec3(inputs, reverse_pelvis * (dood_com - pelvis.rb->GetCenterOfMass()));
+			PushVec3(inputs, reverse_pelvis * com_vel * 0.02f);
+			PushVec3(inputs, reverse_pelvis * angular_momentum * 0.02f);
 
 			// specifying other bones relative to that
-			PushBoneRelative( inputs, torso1, pelvis, spine1 );
-			PushBoneRelative( inputs, torso2, torso1, spine2 );
-			PushBoneRelative( inputs, luleg,  pelvis, lhip   );
-			PushBoneRelative( inputs, llleg,  luleg,  lknee  );
-			PushBoneRelative( inputs, lfoot,  llleg,  lankle );
-			PushBoneRelative( inputs, ruleg,  pelvis, rhip   );
-			PushBoneRelative( inputs, rlleg,  ruleg,  rknee  );
-			PushBoneRelative( inputs, rfoot,  rlleg,  rankle );
+			PushBoneRelative( inputs, torso1, pelvis, spine1    );
+			//PushBoneRelative( inputs, torso2, torso1, spine2    );
+			PushBoneRelative( inputs, luleg,  pelvis, lhip      );
+			PushBoneRelative( inputs, llleg,  luleg,  lknee,  1 );
+			PushBoneRelative( inputs, lfoot,  llleg,  lankle    );
+			PushBoneRelative( inputs, ruleg,  pelvis, rhip      );
+			PushBoneRelative( inputs, rlleg,  ruleg,  rknee,  1 );
+			PushBoneRelative( inputs, rfoot,  rlleg,  rankle    );
 
 			
 			Vec3 zero(0, 0, 0), yvec(0, 1, 0), zvec(0, 0, 1);				// TODO: come up with actual values for this desired foot state info
@@ -1712,7 +1256,7 @@ namespace Test
 			memcpy(old_inputs.data(), inputs.data(), NUM_INPUTS * sizeof(float));
 
 			for(float *iptr = inputs.data(), *iend = iptr + NUM_INPUTS * 2; iptr != iend; ++iptr)
-				*iptr = tanhf(*iptr) * 0.5f + 0.5f;
+				*iptr = tanhf(*iptr);
 
 			memcpy(inputs.data() + NUM_INPUTS * 2, memories.data(), NUM_MEMORIES * sizeof(float));
 
@@ -1721,99 +1265,70 @@ namespace Test
 
 			// crop outputs list to the number of memories
 			memories.clear();
-			if(outputs.size() >= NUM_MEMORIES)
-				for(unsigned int i = outputs.size() - NUM_MEMORIES; i < outputs.size(); ++i)
-					memories.push_back(outputs[i]);
-			else
-			{
-				memories.resize(NUM_MEMORIES);
-				for(unsigned int i = 0; i < outputs.size(); ++i)
-					memories[i] = outputs[i];
-			}
+			for(unsigned int i = NUM_OUTPUTS, iend = i + NUM_MEMORIES; i < iend; ++i)
+				memories.push_back(outputs[i]);
 
 			// apply the outputs the brain just came up with (also, beginning of scoring stuff)
-			const float* optr = memories.data();
-			float pcosts[6];
-			SetJointTorques(pcosts[0], optr, lhip);
-			SetJointTorques(pcosts[1], optr, rhip);
-			SetJointTorques(pcosts[2], optr, lknee, 1);
-			SetJointTorques(pcosts[3], optr, rknee, 1);
-			SetJointTorques(pcosts[4], optr, lankle);
-			SetJointTorques(pcosts[5], optr, rankle);
+			const float* optr = outputs.data();
+			SetJointTorques(optr, lhip);
+			SetJointTorques(optr, rhip);
+			SetJointTorques(optr, lknee, 1);
+			SetJointTorques(optr, rknee, 1);
+			SetJointTorques(optr, lankle);
+			SetJointTorques(optr, rankle);
 
 			// scoring stuff
-			for(unsigned int i = 0; i < 6; ++i)
-				exertion_cost += pcosts[i];
-
 			++tick_age;
 			if(!experiment_done)
 			{
-				//if(dood->feet[0]->contact_points.empty() || dood->feet[1]->contact_points.empty())
-				if(ppos.ComputeMagnitude() + 0.5f * pori.ComputeMagnitude() > 0.1f)
-					feet_ok = false;
+				worst = max(worst, ComputeInstantGoalCost(ppos, pori));
+				goal_error_cost += worst;
 
-				if((lfoot.rb->GetOrientation() * Vec3(0, 1, 0)).y < 0.9f)
-					feet_ok = false;
-				if((rfoot.rb->GetOrientation() * Vec3(0, 1, 0)).y < 0.9f)
-					feet_ok = false;
-				if(dood->feet[0]->no_contact_timer > 0.05f || dood->feet[1]->no_contact_timer > 0.05f)
-					feet_ok = false;
-
-				if(!feet_ok || tick_age >= max_tick_age)
+				if(tick_age >= max_tick_age)
 				{
 					experiment_done = true;
-					experiment->GotScore(float(max_tick_age - tick_age), ((TestGame*)dood->game_state)->debug_text);
+					experiment->GotScore(goal_error_cost, ((TestGame*)dood->game_state)->debug_text);
 				}
-
-				//if(!feet_ok)
-				//	++feet_error_cost;
-
-				//goal_error_cost += ComputeInstantGoalCost(ppos, pori, t1ori, t2ori, gunx, guny);
-
-				//if(tick_age >= max_tick_age)
-				//{
-				//	experiment_done = true;
-				//	experiment->GotScore(ComputeTotalCost(), ((TestGame*)dood->game_state)->debug_text);
-				//}
 			}
 		}
 
-		static float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori, const Vec3& t1ori, const Vec3& t2ori, float gunx, float guny)
+		float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori) const
 		{
-			float errors[6] =
+			static const unsigned int N = 16;
+
+			float errors[N] =
 			{
 				ppos.ComputeMagnitudeSquared(),
 				pori.ComputeMagnitudeSquared(),
-				t1ori.ComputeMagnitudeSquared(),
-				t2ori.ComputeMagnitudeSquared(),
-				gunx * gunx,
-				guny * guny
+				pelvis.rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				pelvis.rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				luleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				luleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				ruleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				ruleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				llleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				llleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				rlleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				rlleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				lfoot .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				lfoot .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				rfoot .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
+				rfoot .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
 			};
 
-			float cost_coeffs[6] = { 1.0f, 0.5f, 0.2f, 0.2f, 0.2f, 0.2f };
+			float vc = 0.02f;
+			float cost_coeffs[N] = { 50.0f, 25.0f, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc };
 			float tot = 0.0f;
-			for(unsigned int i = 0; i < 6; ++i)
+			for(unsigned int i = 0; i < N; ++i)
 				tot += cost_coeffs[i] * errors[i];
 
-			return tot;
-		}
-
-		float ComputeTotalCost()
-		{
-			float errors[3] = { feet_error_cost, goal_error_cost, exertion_cost };
-
-			float cost_coeffs[3] = { 50.0f, 0.0f, 0.0f };
-			float tot = 0.0f;
-			for(unsigned int i = 0; i < 3; ++i)
-				tot += cost_coeffs[i] * errors[i];
-
-			return tot;
+			return 1.0f - expf(-tot);
 		}
 
 		struct NoTouchy : public ContactCallback
 		{
 			Imp* imp;
-			void OnContact(const ContactPoint& contact) { imp->feet_ok = false; }
+			void OnContact(const ContactPoint& contact) { /*++imp->goal_error_cost;*/ }
 			void AfterResolution(const ContactPoint& cp) { }
 		} no_touchy;
 	};

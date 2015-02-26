@@ -40,7 +40,7 @@
 
 #define DO_RAPID_UPDATE_TESTING          1
 #define RAPID_UPDATE_COUNT               100
-#define SPAWN_PLAYER_REPEATEDLY          1
+#define SPAWN_PLAYER_REPEATEDLY          0
 
 
 namespace Test
@@ -588,14 +588,15 @@ namespace Test
 
 	Dood* TestGame::SpawnPlayer(const Vec3& pos)
 	{
+		if(player_controller != NULL)
+			player_controller->Exorcise();
+
 		if(player_pawn != NULL)
 		{
 			player_pawn->is_valid = false;
 			if(player_pawn->equipped_weapon != NULL)
 				player_pawn->equipped_weapon->is_valid = false;
 		}
-		if(player_controller != NULL)
-			player_controller->is_valid = false;
 
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		player_pawn->blood_material = imp->blood_red;
@@ -609,10 +610,15 @@ namespace Test
 		player_pawn->OnDeath += &imp->player_death_handler;
 		player_pawn->OnDamageTaken += &imp->player_damage_handler;
 
-		player_controller = new ScriptedController(this, "player_ai");
-		player_controller->Possess(player_pawn);
-		player_controller->ctrl_update_interval = 0;
-		Spawn(player_controller);
+		if(player_controller == NULL)
+		{
+			player_controller = new ScriptedController(this, "player_ai");
+			player_controller->Possess(player_pawn);
+			player_controller->ctrl_update_interval = 0;
+			Spawn(player_controller);
+		}
+		else
+			player_controller->Possess(player_pawn);
 
 		hud->SetPlayer(player_pawn);
 

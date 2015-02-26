@@ -97,5 +97,7 @@ namespace CibraryEngine
 		impulse_to_net = impulse_to_arot + impulse_to_brot;
 
 		bounce_threshold = -9.8f * 5.0f * timestep;			// minus sign is for normal vector direction, not downwardness of gravity!
+
+		net_impulse_linear = net_impulse_angular = Vec3();
 	}
 }

@@ -115,5 +115,7 @@ namespace CibraryEngine
 
 		Quaternion a_ori = obj_a->GetOrientation(), b_ori = obj_b->GetOrientation();
 		desired_av = (a_ori * Quaternion::Reverse(desired_ori) * Quaternion::Reverse(b_ori)).ToRVec() * -inv_timestep;
+
+		net_impulse_linear = net_impulse_angular = Vec3();
 	}
 }
