@@ -15,16 +15,16 @@
 
 #define ENABLE_NEW_JETPACKING   0
 
-#define MAX_TICK_AGE			15
+#define MAX_TICK_AGE			25
 
-#define NUM_PARENTS             10
-#define NUM_TRIALS              10
+#define NUM_PARENTS             5
+#define NUM_TRIALS              100
 
-#define NUM_INPUTS              110			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
+#define NUM_INPUTS              68			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
 #define NUM_OUTPUTS             14			// double the number of joint torque axes
 #define NUM_MEMORIES            0
 
-#define NUM_MIDDLE_NEURONS		20			// should be >= NUM_OUTPUTS + NUM_MEMORIES
+#define NUM_MIDDLE_NEURONS		100			// seems like it makes sense for this to be >= NUM_OUTPUTS + NUM_MEMORIES
 
 namespace Test
 {
@@ -47,9 +47,11 @@ namespace Test
 		vector<float> initial_mems;
 		NeuralNet* nn;
 
-		GABrain() : initial_mems(NUM_MEMORIES), nn(NeuralNet::New(NUM_INPUTS * 2 + NUM_MEMORIES, NUM_OUTPUTS + NUM_MEMORIES, NUM_MIDDLE_NEURONS)) { }
+		GABrain() : initial_mems(NUM_MEMORIES), nn(NULL) { }
 
-		~GABrain() { if(nn) { NeuralNet::Delete(nn); nn = NULL; } }
+		~GABrain() { if(nn) { NeuralNet::Delete(nn); nn = NULL; } initial_mems.clear(); }
+
+		void InitBrain() { if(nn == NULL) { nn = NeuralNet::New(NUM_INPUTS * 2 + NUM_MEMORIES, NUM_OUTPUTS + NUM_MEMORIES, NUM_MIDDLE_NEURONS); } }
 
 		void Evaluate(const vector<float>& inputs, vector<float>& outputs) const
 		{
@@ -77,12 +79,12 @@ namespace Test
 
 		static void MakeChildCoeff(float& x, float a, float b)
 		{
-			static const unsigned int ztn_odds_against = 200;		// zero to nonzero
-			static const unsigned int ntz_odds_against = 190;		// nonzero to zero
-			static const unsigned int mut_odds_against = 180;		// nonzero to some other nonzero
+			static const unsigned int ztn_odds_against = 400;		// zero to nonzero
+			static const unsigned int ntz_odds_against = 380;		// nonzero to zero
+			static const unsigned int mut_odds_against = 350;		// nonzero to some other nonzero
 
-			static const float        ztn_rand_scale   = 0.15f;
-			static const float        mut_rand_scale   = 0.1f;
+			static const float        ztn_rand_scale   = 0.05f;
+			static const float        mut_rand_scale   = 0.05f;
 
 			if(a != 0.0f && b != 0.0f)
 			{
@@ -114,40 +116,38 @@ namespace Test
 
 		static GABrain* CreateCrossover(const GABrain* a, const GABrain* b)
 		{
-			static const unsigned int mut_odds_against = 200;
-			static const float        mut_rand_scale   = 0.1f;
-
 			GABrain* child = new GABrain();
+			child->InitBrain();
 
 			// initialize top matrix
-			for(unsigned int i = 0; i < child->nn->num_inputs; ++i)
+			for(unsigned int i = 0; i < child->nn->num_middles; ++i)
+				for(unsigned int j = 0; j < child->nn->num_inputs; ++j)
+					MakeChildCoeff
+					(
+						child->nn->top_matrix[i * child->nn->num_inputs + j],
+						i < a->nn->num_middles && j < a->nn->num_inputs ? a->nn->top_matrix[i * a->nn->num_inputs + j] : 0.0f,
+						i < b->nn->num_middles && j < b->nn->num_inputs ? b->nn->top_matrix[i * b->nn->num_inputs + j] : 0.0f
+					);
+
+			// initialize bottom matrix
+			for(unsigned int i = 0; i < child->nn->num_outputs; ++i)
 				for(unsigned int j = 0; j < child->nn->num_middles; ++j)
 					MakeChildCoeff
 					(
-						child->nn->top_matrix[i * child->nn->num_middles + j],
-						i < a->nn->num_inputs && j < a->nn->num_middles ? a->nn->top_matrix[i * a->nn->num_middles + j] : 0.0f,
-						i < b->nn->num_inputs && j < b->nn->num_middles ? b->nn->top_matrix[i * b->nn->num_middles + j] : 0.0f
-					);
-
-
-			// initialize bottom matrix
-			for(unsigned int i = 0; i < child->nn->num_middles; ++i)
-				for(unsigned int j = 0; j < child->nn->num_outputs; ++j)
-					MakeChildCoeff
-					(
-						child->nn->bot_matrix[i * child->nn->num_outputs + j],
-						i < a->nn->num_middles && j < a->nn->num_outputs ? a->nn->bot_matrix[i * a->nn->num_outputs + j] : 0.0f,
-						i < b->nn->num_middles && j < b->nn->num_outputs ? b->nn->bot_matrix[i * b->nn->num_outputs + j] : 0.0f
+						child->nn->bot_matrix[i * child->nn->num_middles + j],
+						i < a->nn->num_outputs && j < a->nn->num_middles ? a->nn->bot_matrix[i * a->nn->num_middles + j] : 0.0f,
+						i < b->nn->num_outputs && j < b->nn->num_middles ? b->nn->bot_matrix[i * b->nn->num_middles + j] : 0.0f
 					);
 
 			// initialize initial memories
-			const float* aptr = a->initial_mems.data();
-			const float* bptr = b->initial_mems.data();
-			for(float* optr = child->initial_mems.data(), *oend = optr + a->initial_mems.size(); optr != oend; ++optr, ++aptr, ++bptr)
-			{
-				MakeChildCoeff(*optr, *aptr, *bptr);
-				*optr = max(0.0f, min(1.0f, *optr));
-			}
+			for(unsigned int i = 0; i < child->initial_mems.size(); ++i)
+				MakeChildCoeff
+				(
+					child->initial_mems[i],
+					i < a->initial_mems.size() ? a->initial_mems[i] : 0.0f,
+					i < b->initial_mems.size() ? b->initial_mems[i] : 0.0f
+				);
+
 			return child;
 		}
 
@@ -215,7 +215,7 @@ namespace Test
 			unsigned int id;
 			unsigned int p1, p2;
 
-			Record(unsigned int id, unsigned int p1, unsigned int p2) : brain(new GABrain()), score(0), id(id), p1(p1), p2(p2) { }
+			Record(unsigned int id, unsigned int p1, unsigned int p2) : brain(), score(0), id(id), p1(p1), p2(p2) { }
 			~Record() { if(brain) { delete brain; brain = NULL; } }
 
 			bool operator <(const Record& r) { return score < r.score; }
@@ -241,6 +241,7 @@ namespace Test
 				for(unsigned int i = 0; i < num_brains; ++i)
 				{
 					Record* record = new Record(next_id++, 0, 0);
+					record->brain = new GABrain();
 					record->brain->Read(file);
 
 					if(file.bad())
@@ -293,6 +294,8 @@ namespace Test
 				for(unsigned int i = 0; i < first_gen_size; ++i)
 				{
 					Record* result = new Record(next_id++, 0, 0);
+					result->brain = new GABrain();
+					result->brain->InitBrain();
 					genepool.push_back(result);
 				}
 			}
@@ -347,13 +350,8 @@ namespace Test
 				{
 					Record* c = new Record(next_id, p1->id, p1->id);
 					c->brain = GABrain::CreateCrossover(p1->brain, p1->brain);
-					if(c->brain == NULL)
-						delete c;
-					else
-					{
-						genepool.push_back(c);
-						++next_id;
-					}
+					genepool.push_back(c);
+					++next_id;
 				}
 
 				for(unsigned int j = i + 1; j < actual_parents; ++j)
@@ -363,13 +361,8 @@ namespace Test
 
 						Record* c = new Record(next_id, p1->id, p2->id);
 						c->brain = GABrain::CreateCrossover(p1->brain, p2->brain);
-						if(c->brain == NULL)
-							delete c;
-						else
-						{
-							genepool.push_back(c);
-							++next_id;
-						}
+						genepool.push_back(c);
+						++next_id;
 					}
 			}
 
@@ -758,7 +751,7 @@ namespace Test
 		void InitBrain(Soldier* dood)
 		{
 			brain = experiment->NextBrain();
-			memories = brain->initial_mems;
+			memories.assign(brain->initial_mems.begin(), brain->initial_mems.end());
 
 			old_inputs.clear();
 		}
@@ -841,6 +834,8 @@ namespace Test
 
 		void ReInit(Soldier* dood)
 		{
+			dood->yaw = dood->pitch = 0.0f;
+
 			for(unsigned int i = 0; i < all_bones.size(); ++i)
 			{
 				CBone& cb = *all_bones[i];
@@ -1062,8 +1057,8 @@ namespace Test
 			for(const float *optr = (float*)&joint.last, *oend = optr + n, *minp = (float*)&sjc->min_torque, *maxp = (float*)&sjc->max_torque; optr != oend; ++optr, ++minp, ++maxp)
 				inputs.push_back(*optr * 2.0f / max(*maxp, -*minp));
 
-			PushVec3(inputs, sjc->net_impulse_linear);
-			PushVec3(inputs, sjc->net_impulse_angular);
+			//PushVec3(inputs, sjc->net_impulse_linear);
+			//PushVec3(inputs, sjc->net_impulse_angular);
 
 			//for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&sjc->min_extents, *maxp = (float*)&sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
 			//{
@@ -1281,7 +1276,7 @@ namespace Test
 			++tick_age;
 			if(!experiment_done)
 			{
-				worst = max(worst, ComputeInstantGoalCost(ppos, pori));
+				worst = max(worst, ComputeInstantGoalCost());
 				goal_error_cost += worst;
 
 				if(tick_age >= max_tick_age)
@@ -1292,32 +1287,32 @@ namespace Test
 			}
 		}
 
-		float ComputeInstantGoalCost(const Vec3& ppos, const Vec3& pori) const
+		float GetBoneDeviation(const CBone& bone) const
 		{
-			static const unsigned int N = 16;
+			Vec3 initial_com = bone.initial_pos + bone.initial_ori * bone.local_com;
+			Vec3 dpos = bone.rb->GetCenterOfMass() - initial_com;
+
+			Vec3 dori = (bone.initial_ori * Quaternion::Reverse(bone.rb->GetOrientation())).ToRVec();
+
+			return dpos.ComputeMagnitudeSquared() + dori.ComputeMagnitudeSquared();
+		}
+
+		float ComputeInstantGoalCost() const
+		{
+			static const unsigned int N = 7;
 
 			float errors[N] =
 			{
-				ppos.ComputeMagnitudeSquared(),
-				pori.ComputeMagnitudeSquared(),
-				pelvis.rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				pelvis.rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				luleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				luleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				ruleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				ruleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				llleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				llleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				rlleg .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				rlleg .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				lfoot .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				lfoot .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
-				rfoot .rb->GetLinearVelocity ().ComputeMagnitudeSquared(),
-				rfoot .rb->GetAngularVelocity().ComputeMagnitudeSquared(),
+				GetBoneDeviation(pelvis),
+				GetBoneDeviation(luleg),
+				GetBoneDeviation(ruleg),
+				GetBoneDeviation(llleg),
+				GetBoneDeviation(rlleg),
+				GetBoneDeviation(lfoot),
+				GetBoneDeviation(rfoot),
 			};
 
-			float vc = 0.02f;
-			float cost_coeffs[N] = { 50.0f, 25.0f, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc, vc };
+			float cost_coeffs[N] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
 			float tot = 0.0f;
 			for(unsigned int i = 0; i < N; ++i)
 				tot += cost_coeffs[i] * errors[i];
