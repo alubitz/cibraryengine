@@ -9,22 +9,23 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
-#include "NeuralNet.h"
+#include "BetterBrain.h"
 
-#define DIE_AFTER_ONE_SECOND    0
+#define DIE_AFTER_ONE_SECOND	0
 
-#define ENABLE_NEW_JETPACKING   0
+#define ENABLE_NEW_JETPACKING	0
 
-#define MAX_TICK_AGE			25
+#define MAX_TICK_AGE			20
 
-#define NUM_PARENTS             5
-#define NUM_TRIALS              100
+#define NUM_PARENTS				5
+#define CHILDREN_PER_PAIR       4
+#define MUTANTS_PER_SINGLE      6
 
-#define NUM_INPUTS              68			// number of "sensor" inputs; actual brain inputs are: sensor values, sensor deltas, memory vars
-#define NUM_OUTPUTS             14			// double the number of joint torque axes
-#define NUM_MEMORIES            0
+#define NUM_TRIALS				100
 
-#define NUM_MIDDLE_NEURONS		100			// seems like it makes sense for this to be >= NUM_OUTPUTS + NUM_MEMORIES
+#define NUM_LRINPUTS			85
+#define NUM_CINPUTS				51
+#define NUM_LROUTPUTS			63
 
 namespace Test
 {
@@ -44,48 +45,113 @@ namespace Test
 
 	struct GABrain
 	{
+		BetterBrain* nn;
 		vector<float> initial_mems;
-		NeuralNet* nn;
 
-		GABrain() : initial_mems(NUM_MEMORIES), nn(NULL) { }
+		GABrain() : nn(NULL) { }
 
-		~GABrain() { if(nn) { NeuralNet::Delete(nn); nn = NULL; } initial_mems.clear(); }
+		~GABrain() { if(nn) { delete nn; nn = NULL; } }
 
-		void InitBrain() { if(nn == NULL) { nn = NeuralNet::New(NUM_INPUTS * 2 + NUM_MEMORIES, NUM_OUTPUTS + NUM_MEMORIES, NUM_MIDDLE_NEURONS); } }
-
-		void Evaluate(const vector<float>& inputs, vector<float>& outputs) const
+		void InitBrain()
 		{
-			memcpy(nn->inputs, inputs.data(), nn->num_inputs * sizeof(float));
+			if(nn == NULL)
+			{
+				static const unsigned int num_lr_mems      = 20;
+				static const unsigned int num_c_mems       = 20;
 
-			nn->Evaluate();
-			
-			outputs.resize(nn->num_outputs);
-			memcpy(outputs.data(), nn->outputs, nn->num_outputs * sizeof(float));
+				static const unsigned int num_lr_hiddens_a = 20;
+				static const unsigned int num_lr_hiddens_b = 20;
+				static const unsigned int num_c_hiddens_a  = 40;
+				static const unsigned int num_c_hiddens_b  = 40;		// needs to be large enough to hold instructions for both legs + updated c mems
+
+				nn = new BetterBrain();
+
+				unsigned int inputs_c   = nn->AddArray(NUM_CINPUTS);
+				unsigned int inputs_l   = nn->AddArray(NUM_LRINPUTS);
+				unsigned int inputs_r   = nn->AddArray(NUM_LRINPUTS);
+				unsigned int outputs_l  = nn->AddArray(NUM_LROUTPUTS);
+				unsigned int outputs_r  = nn->AddArray(NUM_LROUTPUTS);
+
+				unsigned int mem_l      = nn->AddArray(num_lr_mems);
+				unsigned int mem_r      = nn->AddArray(num_lr_mems);
+				unsigned int mem_c      = nn->AddArray(num_c_mems);
+
+				unsigned int hidden_l_a = nn->AddArray(num_lr_hiddens_a);
+				unsigned int hidden_l_b = nn->AddArray(num_lr_hiddens_b);
+				unsigned int hidden_r_a = nn->AddArray(num_lr_hiddens_a);
+				unsigned int hidden_r_b = nn->AddArray(num_lr_hiddens_b);
+				unsigned int hidden_c_a = nn->AddArray(num_c_hiddens_a);
+				unsigned int hidden_c_b = nn->AddArray(num_c_hiddens_b);
+
+				BetterBrain::Op lop_a;
+				lop_a.from.push_back(inputs_l);
+				lop_a.from.push_back(mem_l);
+				lop_a.to.push_back(hidden_l_a);
+				unsigned int lr_ha_mat = nn->AddOpCreateMatrix(lop_a);
+				lop_a.from[0] = inputs_r;
+				lop_a.from[1] = mem_r;
+				lop_a.to[0]   = hidden_r_a;
+				nn->AddOpExistingMatrix(lr_ha_mat, lop_a.from, lop_a.to);
+
+				BetterBrain::Op lrc_a;
+				lrc_a.from.push_back(hidden_l_a);
+				lrc_a.from.push_back(hidden_r_a);
+				lrc_a.from.push_back(inputs_c);
+				lrc_a.from.push_back(mem_c);
+				lrc_a.to.push_back(hidden_c_a);
+				unsigned int cmat_a = nn->AddOpCreateMatrix(lrc_a);
+
+				BetterBrain::Op lrc_b;
+				lrc_b.from.push_back(hidden_c_a);
+				lrc_b.to.push_back(hidden_c_b);
+				unsigned int cmat_b = nn->AddOpCreateMatrix(lrc_b);
+
+				BetterBrain::Op lrc_c;
+				lrc_c.from.push_back(hidden_c_b);
+				lrc_c.to.push_back(mem_c);
+				unsigned int cmat_c = nn->AddOpCreateMatrix(lrc_c);
+
+				BetterBrain::Op lop_b;
+				lop_b.from.push_back(hidden_l_a);
+				lop_b.from.push_back(hidden_c_b);
+				lop_b.to.push_back(hidden_l_b);
+				unsigned int lr_hb_mat = nn->AddOpCreateMatrix(lop_b);
+				lop_b.from[0] = hidden_r_a;
+				lop_b.from[1] = hidden_c_b;
+				lop_b.to[0]   = hidden_r_b;
+				nn->AddOpExistingMatrix(lr_hb_mat, lop_b.from, lop_b.to);
+
+				BetterBrain::Op lop_c;
+				lop_c.from.push_back(hidden_l_b);
+				lop_c.to.push_back(outputs_l);
+				unsigned int lr_o_mat = nn->AddOpCreateMatrix(lop_c);
+				lop_c.from[0] = hidden_r_b;
+				lop_c.to[0]   = outputs_r;
+				nn->AddOpExistingMatrix(lr_o_mat, lop_c.from, lop_c.to);
+
+				BetterBrain::Op lop_d;
+				lop_d.from.push_back(hidden_l_b);
+				lop_d.to.push_back(mem_l);
+				unsigned int lr_m_mat = nn->AddOpCreateMatrix(lop_d);
+				lop_d.from[0] = hidden_r_b;
+				lop_d.to[0]   = mem_r;
+				nn->AddOpExistingMatrix(lr_m_mat, lop_d.from, lop_d.to);
+
+				bool def = true;
+				nn->mats[lr_ha_mat]->mutate = def;
+				nn->mats[cmat_a   ]->mutate = def;
+				nn->mats[cmat_b   ]->mutate = def;
+				nn->mats[cmat_c   ]->mutate = def;
+				nn->mats[lr_hb_mat]->mutate = def;
+				nn->mats[lr_o_mat ]->mutate = def;
+				nn->mats[lr_m_mat ]->mutate = def;
+			}
+
+			initial_mems = vector<float>(14);
 		}
 
-		void GetNonzeroCounts(unsigned int& mems, unsigned int& top, unsigned int& bottom) const
+		static void MakeChildCoeff(float& x, float a, float b, bool mutate)
 		{
-			mems = top = bottom = 0;
-			for(const float *fptr = initial_mems.data(), *fend = fptr + initial_mems.size(); fptr != fend; ++fptr)
-				if(*fptr != 0.0f)
-					++mems;
-			for(const float *fptr = nn->top_matrix, *fend = fptr + nn->top_matrix_size; fptr != fend; ++fptr)
-				if(*fptr != 0.0f)
-					++top;
-			for(const float *fptr = nn->bot_matrix, *fend = fptr + nn->bot_matrix_size; fptr != fend; ++fptr)
-				if(*fptr != 0.0f)
-					++bottom;
-		}
-
-		static void MakeChildCoeff(float& x, float a, float b)
-		{
-			static const unsigned int ztn_odds_against = 400;		// zero to nonzero
-			static const unsigned int ntz_odds_against = 380;		// nonzero to zero
-			static const unsigned int mut_odds_against = 350;		// nonzero to some other nonzero
-
-			static const float        ztn_rand_scale   = 0.05f;
-			static const float        mut_rand_scale   = 0.05f;
-
 			if(a != 0.0f && b != 0.0f)
 			{
 				switch(Random3D::RandInt() % 3)
@@ -100,108 +166,50 @@ namespace Test
 			else
 				x = 0.0f;
 
-			if(x == 0.0f)
+			if(mutate)
 			{
-				if(Random3D::RandInt() % ztn_odds_against == 0)
-					x = Random3D::Rand(-ztn_rand_scale, ztn_rand_scale);
-			}
-			else
-			{
-				if(Random3D::RandInt() % ntz_odds_against == 0)
-					x = 0.0f;
-				else if(Random3D::RandInt() % mut_odds_against == 0)
-					x += Random3D::Rand(-mut_rand_scale, mut_rand_scale);
-			}
-		}
+				static const unsigned int ztn_odds_against = 1000;		// zero to nonzero
+				static const unsigned int ntz_odds_against = 900;		// nonzero to zero
+				static const unsigned int mut_odds_against = 100;		// nonzero to some other nonzero
 
-		static GABrain* CreateCrossover(const GABrain* a, const GABrain* b)
-		{
-			GABrain* child = new GABrain();
-			child->InitBrain();
+				static const float        ztn_rand_scale   = 0.05f;
+				static const float        mut_rand_scale   = 0.01f;
 
-			// initialize top matrix
-			for(unsigned int i = 0; i < child->nn->num_middles; ++i)
-				for(unsigned int j = 0; j < child->nn->num_inputs; ++j)
-					MakeChildCoeff
-					(
-						child->nn->top_matrix[i * child->nn->num_inputs + j],
-						i < a->nn->num_middles && j < a->nn->num_inputs ? a->nn->top_matrix[i * a->nn->num_inputs + j] : 0.0f,
-						i < b->nn->num_middles && j < b->nn->num_inputs ? b->nn->top_matrix[i * b->nn->num_inputs + j] : 0.0f
-					);
-
-			// initialize bottom matrix
-			for(unsigned int i = 0; i < child->nn->num_outputs; ++i)
-				for(unsigned int j = 0; j < child->nn->num_middles; ++j)
-					MakeChildCoeff
-					(
-						child->nn->bot_matrix[i * child->nn->num_middles + j],
-						i < a->nn->num_outputs && j < a->nn->num_middles ? a->nn->bot_matrix[i * a->nn->num_middles + j] : 0.0f,
-						i < b->nn->num_outputs && j < b->nn->num_middles ? b->nn->bot_matrix[i * b->nn->num_middles + j] : 0.0f
-					);
-
-			// initialize initial memories
-			for(unsigned int i = 0; i < child->initial_mems.size(); ++i)
-				MakeChildCoeff
-				(
-					child->initial_mems[i],
-					i < a->initial_mems.size() ? a->initial_mems[i] : 0.0f,
-					i < b->initial_mems.size() ? b->initial_mems[i] : 0.0f
-				);
-
-			return child;
-		}
-
-		void Read(istream& ss)
-		{
-			BinaryChunk chunk;
-			chunk.Read(ss);
-
-			if(chunk.GetName() != "NNBRAIN_")
-			{
-				Debug(((stringstream&)(stringstream() << "Expected a chunk with name \"NNBRAIN_\", but instead got " << chunk.GetName() << endl)).str());
-				return;
-			}
-			else
-			{
-				istringstream iss(chunk.data);
-
-				unsigned int num_memories = ReadUInt16(iss);
-				initial_mems.resize(max((unsigned)NUM_MEMORIES, num_memories));
-				for(unsigned short i = 0; i < num_memories; ++i)
-					initial_mems[i] = ReadSingle(iss);
-				initial_mems.resize(NUM_MEMORIES);
-
-				if(nn) { NeuralNet::Delete(nn); nn = NULL; }
-
-				NeuralNet* temp;
-				NeuralNet::Read(iss, temp);
-				nn = temp->Resized(NUM_MIDDLE_NEURONS);
-				NeuralNet::Delete(temp);
-
-				unsigned int sevens = ReadUInt32(iss);
-				if(sevens != 7777)
+				if(x == 0.0f)
 				{
-					Debug("GABrain chunk is supposed to end with the number 7777, but didn't!\n");
-					return;
+					if(Random3D::RandInt() % ztn_odds_against == 0)
+						x = Random3D::Rand(-ztn_rand_scale, ztn_rand_scale);
+				}
+				else
+				{
+					if(Random3D::RandInt() % ntz_odds_against == 0)
+						x = 0.0f;
+					else if(Random3D::RandInt() % ztn_odds_against == 0)
+						x = Random3D::Rand(-ztn_rand_scale, ztn_rand_scale);		// re-roll
+					else if(Random3D::RandInt() % mut_odds_against == 0)
+						x += Random3D::Rand(-mut_rand_scale, mut_rand_scale);
 				}
 			}
 		}
 
-		void Write(ostream& ss) const
+		void InitCrossover(const GABrain& p1, const GABrain& p2)
 		{
-			stringstream oss;
+			InitBrain();
 
-			WriteUInt16(NUM_MEMORIES, oss);
-			for(unsigned short i = 0; i < NUM_MEMORIES; ++i)
-				WriteSingle(initial_mems[i], oss);
+			for(unsigned int i = 0; i < nn->mats.size(); ++i)
+			{
+				BetterBrain::Matrix& cmat = *nn->mats[i];
+				float *cptr = cmat.ptr, *cend = cptr + cmat.wh;
+				for(const float *aptr = p1.nn->mats[i]->ptr, *bptr = p2.nn->mats[i]->ptr; cptr != cend; ++aptr, ++bptr, ++cptr)
+					MakeChildCoeff(*cptr, *aptr, *bptr, cmat.mutate);
+			}
 
-			nn->Write(oss);
-
-			WriteUInt32(7777, oss);
-
-			BinaryChunk chunk("NNBRAIN_");
-			chunk.data = oss.str();
-			chunk.Write(ss);
+			for(unsigned int i = 0; i < initial_mems.size(); ++i)
+			{
+				float *cptr = initial_mems.data(), *cend = cptr + initial_mems.size();
+				for(const float *aptr = p1.initial_mems.data(), *bptr = p2.initial_mems.data(); cptr != cend; ++aptr, ++bptr, ++cptr)
+					MakeChildCoeff(*cptr, *aptr, *bptr, true);
+			}
 		}
 	};
 
@@ -215,7 +223,7 @@ namespace Test
 			unsigned int id;
 			unsigned int p1, p2;
 
-			Record(unsigned int id, unsigned int p1, unsigned int p2) : brain(), score(0), id(id), p1(p1), p2(p2) { }
+			Record(unsigned int id, unsigned int p1, unsigned int p2) : brain(new GABrain()), score(0), id(id), p1(p1), p2(p2) { }
 			~Record() { if(brain) { delete brain; brain = NULL; } }
 
 			bool operator <(const Record& r) { return score < r.score; }
@@ -232,31 +240,24 @@ namespace Test
 			batch = genome = trial = 0;
 
 			ifstream file("Files/brains", ios::in | ios::binary);
-			if(!file)
-				Debug("Failed to load brains!\n");
-			else
+			if(!!file)
 			{
-				unsigned int num_brains   = ReadUInt32(file);
-				genepool.clear();
-				for(unsigned int i = 0; i < num_brains; ++i)
-				{
-					Record* record = new Record(next_id++, 0, 0);
-					record->brain = new GABrain();
-					record->brain->Read(file);
+				unsigned int num_genomes = ReadUInt32(file);
 
-					if(file.bad())
-					{
-						Debug(((stringstream&)(stringstream() << "Error while trying to load brains! " << genepool.size() << " brains loaded before error" << endl)).str());
-						file.close();
-						return;
-					}
-					else
-						genepool.push_back(record);
+				for(unsigned int i = 0; i < num_genomes; ++i)
+				{
+					Record* r = new Record(next_id++, 0, 0);
+
+					r->brain->nn = BetterBrain::Read(file);
+
+					unsigned int num_mems = ReadUInt32(file);
+					for(unsigned int j = 0; j < num_mems; ++j)
+						r->brain->initial_mems.push_back(ReadSingle(file));
+
+					genepool.push_back(r);
 				}
 
-				file.close();
-
-				Debug(((stringstream&)(stringstream() << "Successfully loaded " << genepool.size() << " brains from file" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "Loaded " << num_genomes << " brains from file" << endl)).str());
 			}
 		}
 
@@ -278,7 +279,15 @@ namespace Test
 			{
 				WriteUInt32(genepool.size(), file);
 				for(unsigned int i = 0; i < genepool.size(); ++i)
-					genepool[i]->brain->Write(file);
+				{
+					const GABrain& brain = *genepool[i]->brain;
+
+					brain.nn->Write(file);
+
+					WriteUInt32(brain.initial_mems.size(), file);
+					for(unsigned int j = 0; j < brain.initial_mems.size(); ++j)
+						WriteSingle(brain.initial_mems[j], file);
+				}
 
 				file.close();
 			}
@@ -286,19 +295,8 @@ namespace Test
 
 		GABrain* NextBrain()
 		{
-			static const unsigned int first_gen_size = NUM_PARENTS;
-			static const float initial_rand = 0.0f;
-
 			if(genepool.empty())
-			{
-				for(unsigned int i = 0; i < first_gen_size; ++i)
-				{
-					Record* result = new Record(next_id++, 0, 0);
-					result->brain = new GABrain();
-					result->brain->InitBrain();
-					genepool.push_back(result);
-				}
-			}
+				FirstGeneration();
 			else if(genome == genepool.size())
 			{
 				NextGeneration();
@@ -310,11 +308,26 @@ namespace Test
 			return genepool[genome]->brain;
 		}
 
+		void FirstGeneration()
+		{
+			static const unsigned int first_gen_size = NUM_PARENTS * ((NUM_PARENTS - 1) * CHILDREN_PER_PAIR / 2 + MUTANTS_PER_SINGLE + 1);
+			for(unsigned int i = 0; i < first_gen_size; ++i)
+			{
+				Record* result = new Record(next_id++, 0, 0);
+
+				result->brain = new GABrain();
+				result->brain->InitBrain();
+				result->brain->nn->MutateAll(50, 1.5f);
+				
+				for(unsigned int i = 0; i < result->brain->initial_mems.size(); ++i)
+					result->brain->initial_mems[i] = Random3D::Rand(-0.5f, 0.5f);
+				
+				genepool.push_back(result);
+			}
+		}
+
 		void NextGeneration()
 		{
-			static const unsigned int children_per_pair  = 4;
-			static const unsigned int mutants_per_single = 6;
-
 			ProfilingTimer timer;
 			timer.Start();
 
@@ -346,21 +359,21 @@ namespace Test
 			for(unsigned int i = 0; i < actual_parents; ++i)
 			{
 				Record* p1 = genepool[i];
-				for(unsigned int j = 0; j < mutants_per_single; ++j)
+				for(unsigned int j = 0; j < MUTANTS_PER_SINGLE; ++j)
 				{
 					Record* c = new Record(next_id, p1->id, p1->id);
-					c->brain = GABrain::CreateCrossover(p1->brain, p1->brain);
+					c->brain->InitCrossover(*p1->brain, *p1->brain);
 					genepool.push_back(c);
 					++next_id;
 				}
 
 				for(unsigned int j = i + 1; j < actual_parents; ++j)
-					for(unsigned int k = 0; k < children_per_pair; ++k)
+					for(unsigned int k = 0; k < CHILDREN_PER_PAIR; ++k)
 					{
 						Record* p2 = genepool[j];
 
 						Record* c = new Record(next_id, p1->id, p2->id);
-						c->brain = GABrain::CreateCrossover(p1->brain, p2->brain);
+						c->brain->InitCrossover(*p1->brain, *p2->brain);
 						genepool.push_back(c);
 						++next_id;
 					}
@@ -370,9 +383,7 @@ namespace Test
 			for(unsigned int i = 0; i < actual_parents; ++i)
 			{
 				Record* r = genepool[i];
-				unsigned int mems, top, bot;
-				r->brain->GetNonzeroCounts(mems, top, bot);
-				Debug(((stringstream&)(stringstream() << "\tparent " << i << ": score = " << genepool[i]->score << "; id = " << r->id << "; parent ids = (" << r->p1 << ", " << r->p2 << "); nonzero: mems = " << mems << "; top = " << top << "; bottom = " << bot << endl)).str());
+				Debug(((stringstream&)(stringstream() << "\tparent " << i << ": score = " << genepool[i]->score << "; id = " << r->id << "; parent ids = (" << r->p1 << ", " << r->p2 << ")" << endl)).str());
 			}
 
 			for(unsigned int i = 0; i < genepool.size(); ++i)
@@ -393,7 +404,11 @@ namespace Test
 			
 			float& gscore = r->score;
 
-			gscore += score / NUM_TRIALS;
+			//score -= 5.4f;
+			//score *= score;
+			score /= NUM_TRIALS;
+
+			gscore += score;
 
 			{	// curly braces for scope
 				stringstream ss;
@@ -414,9 +429,7 @@ namespace Test
 			if(trial == NUM_TRIALS || quick)
 			{
 				stringstream ss;
-				unsigned int mems, top, bot;
-				brain->GetNonzeroCounts(mems, top, bot);
-				ss << "b " << batch << " g " << genome << ": score = " << gscore << "; id = " << r->id << "; parents = (" << r->p1 << ", " << r->p2 << "); nonzero: mems = " << mems << "; top = " << top << "; bottom = " << bot;
+				ss << "b " << batch << " g " << genome << ": score = " << gscore << "; id = " << r->id << "; parents = (" << r->p1 << ", " << r->p2 << ")";
 
 				unsigned int i;
 				for(i = genome; i != 0; --i)
@@ -624,7 +637,6 @@ namespace Test
 
 		GABrain* brain;
 		vector<float> memories;
-		vector<float> old_inputs;
 		vector<float> outputs;				// make this a member, for memory reuse purposes
 		float worst, goal_error_cost;
 
@@ -751,9 +763,18 @@ namespace Test
 		void InitBrain(Soldier* dood)
 		{
 			brain = experiment->NextBrain();
-			memories.assign(brain->initial_mems.begin(), brain->initial_mems.end());
+			for(unsigned int i = 0; i < brain->nn->arrays.size(); ++i)
+				brain->nn->arrays[i]->SetZero();
 
-			old_inputs.clear();
+			vector<float> initial_mems = brain->initial_mems;
+			float* mptr = initial_mems.data();
+
+			InitialSetJointTorques(mptr, lankle);
+			InitialSetJointTorques(mptr, rankle);
+			InitialSetJointTorques(mptr, lknee, 1);
+			InitialSetJointTorques(mptr, rknee, 1);
+			InitialSetJointTorques(mptr, lhip);
+			InitialSetJointTorques(mptr, rhip);
 		}
 
 		void Init(Soldier* dood)
@@ -1040,12 +1061,23 @@ namespace Test
 			inputs.push_back(vec.z);
 		}
 
+		static void GetBoneDesiredLAImpulse(const CBone& bone, float inv_timestep, Vec3& force, Vec3& torque)
+		{
+			force = ((bone.local_com - bone.rb->GetCenterOfMass()) * inv_timestep - bone.rb->GetLinearVelocity()) * (inv_timestep * bone.rb->GetMass());
+
+			Vec3 desired_rot    = (bone.initial_ori * Quaternion::Reverse(bone.rb->GetOrientation())).ToRVec() * -inv_timestep;
+			Vec3 desired_aaccel = (desired_rot - bone.rb->GetAngularVelocity()) * inv_timestep;
+			torque = Mat3(bone.rb->GetTransformedMassInfo().moi) * desired_aaccel;
+		}
+
 		static void PushBoneRelative(vector<float>& inputs, const CBone& pushme, const CBone& rel, const CJoint& joint, unsigned int n = 3)
 		{
 			Mat3 unrotate = rel.rb->GetOrientation().ToMat3().Transpose();
-			//PushVec3(inputs, unrotate * (pushme.rb->GetCenterOfMass() - rel.rb->GetCenterOfMass()));
-			//PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity() * 0.02f);
+			PushVec3(inputs, unrotate * (joint.sjc->obj_b->LocalPosToWorld(joint.sjc->pos) - joint.sjc->obj_a->LocalPosToWorld(joint.sjc->pos) * 10.0f));
+			//PushVec3(inputs, unrotate * pushme.rb->GetLinearVelocity()  * 0.02f);
 			//PushVec3(inputs, unrotate * pushme.rb->GetAngularVelocity() * 0.02f);
+
+			//PushVec3(inputs, (pushme.rb->GetOrientation() * Quaternion::Reverse(pushme.initial_ori)).ToRVec());
 
 			const SkeletalJointConstraint* sjc = joint.sjc;
 
@@ -1057,14 +1089,20 @@ namespace Test
 			for(const float *optr = (float*)&joint.last, *oend = optr + n, *minp = (float*)&sjc->min_torque, *maxp = (float*)&sjc->max_torque; optr != oend; ++optr, ++minp, ++maxp)
 				inputs.push_back(*optr * 2.0f / max(*maxp, -*minp));
 
-			//PushVec3(inputs, sjc->net_impulse_linear);
-			//PushVec3(inputs, sjc->net_impulse_angular);
+			PushVec3(inputs, sjc->net_impulse_linear);
+			PushVec3(inputs, sjc->net_impulse_angular);
 
-			//for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&sjc->min_extents, *maxp = (float*)&sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
-			//{
-			//	inputs.push_back(*rptr > *maxp ? *maxp - *rptr : 0.0f);
-			//	inputs.push_back(*rptr < *minp ? *rptr - *minp : 0.0f);
-			//}
+			Vec3 force, torque;
+			GetBoneDesiredLAImpulse(pushme, 60.0f, force, torque);
+			
+			PushVec3(inputs, unrotate * force  * 0.02f);
+			PushVec3(inputs, unrotate * torque * 0.02f);
+
+			for(const float *rptr = (float*)&rvec, *rend = rptr + 3, *minp = (float*)&sjc->min_extents, *maxp = (float*)&sjc->max_extents; rptr != rend; ++rptr, ++minp, ++maxp)
+			{
+				inputs.push_back(*rptr - *maxp);
+				inputs.push_back(*minp - *rptr);
+			}
 		}
 
 		static void PushFootStuff(vector<float>& inputs, Dood::FootState* foot, const Vec3& pos, const Vec3& normal, float eta)
@@ -1102,6 +1140,17 @@ namespace Test
 			//inputs.push_back(eta);
 		}
 
+		static void InitialSetJointTorques(float*& vptr, CJoint& joint, unsigned int n = 3)
+		{
+			const float* minptr = (float*)&joint.sjc->min_torque;
+			const float* maxptr = (float*)&joint.sjc->max_torque;
+
+			for(float *optr = (float*)&joint.sjc->apply_torque, *oend = optr + n; optr != oend; ++optr, ++vptr, ++minptr, ++maxptr)
+				*optr = *vptr >= 0.0f ? *vptr * *maxptr : -*vptr * *minptr;
+
+			joint.last = joint.sjc->apply_torque;
+		}
+
 		static void SetJointTorques(const float*& optr, CJoint& joint, unsigned int n = 3)
 		{
 			const float* minptr = (float*)&joint.sjc->min_torque;
@@ -1109,11 +1158,34 @@ namespace Test
 
 			Vec3 v = joint.sjc->apply_torque;
 			float* vptr = (float*)&v;
+			float* lptr = (float*)&joint.last;
 
-			for(const float* oend = optr + n; optr != oend; ++optr, ++vptr, ++minptr, ++maxptr)
+			for(const float* oend = optr + n * 3 * 3; optr != oend; ++vptr, ++lptr, ++minptr, ++maxptr)
 			{
-				float o = *optr;
-				*vptr = o >= 0.0f ? o * *maxptr : -o * *minptr;
+				float zero = 0.0f, incr = 0.0f, decr = 0.0f;
+				for(unsigned int i = 0; i < 3; ++i)
+				{
+					zero += max(0.0f, *(optr++));
+					incr += max(0.0f, *(optr++));
+					decr += max(0.0f, *(optr++));
+				}
+				zero /= 3.0f;
+				incr /= 3.0f;
+				decr /= 3.0f;
+
+				float def  = max(0.0f, 1.0f - zero - incr - decr);
+
+				if(zero != 0.0f || incr != 0.0f || decr != 0.0f)
+				{
+					float& x = *vptr;
+					x  = *lptr   * def;
+					x += *maxptr * incr;
+					x += *minptr * decr;
+
+					x /= zero + incr + decr;
+				}
+				else
+					*vptr = *lptr;
 			}
 
 			joint.SetOrientedTorque(v);
@@ -1181,96 +1253,95 @@ namespace Test
 
 			// per-sub-experiment goals changes
 #if 0
-			switch(experiment->trial % 6)
+			switch(experiment->batch % 5)
 			{
-				case 1: desired_pelvis_pos.y -= 0.02f * timestep; break;
-				case 2: dood->yaw            += 0.1f  * timestep; break;
-				case 3: dood->yaw            -= 0.1f  * timestep; break;
-				case 4: dood->pitch          += 0.1f  * timestep; break;
-				case 5: dood->pitch          -= 0.1f  * timestep; break;
+				case 1: dood->yaw            += 0.1f  * timestep; break;
+				case 2: dood->yaw            -= 0.1f  * timestep; break;
+				case 3: dood->pitch          += 0.1f  * timestep; break;
+				case 4: dood->pitch          -= 0.1f  * timestep; break;
 				default: break;
 			}
 #endif
 
 
 			// stuff info about the dood into an array, which will then be crammed through a brain... maybe something cool will happen
-			vector<float> inputs;
+			vector<float> linputs, rinputs, cinputs;
 
 			// root bone info
 			Mat3 reverse_pelvis = Quaternion::Reverse(pelvis.rb->GetOrientation()).ToMat3();
-			PushVec3(inputs, reverse_pelvis * Vec3(0, 1, 0));
-			//PushVec3(inputs, reverse_pelvis * pelvis.rb->GetLinearVelocity()  * 0.02f);
-			//PushVec3(inputs, reverse_pelvis * pelvis.rb->GetAngularVelocity() * 0.02f);
-			PushVec3(inputs, reverse_pelvis * (dood_com - pelvis.rb->GetCenterOfMass()));
-			PushVec3(inputs, reverse_pelvis * com_vel * 0.02f);
-			PushVec3(inputs, reverse_pelvis * angular_momentum * 0.02f);
+			PushVec3(cinputs, reverse_pelvis * Vec3(0, 1, 0));
+			//PushVec3(cinputs, reverse_pelvis * pelvis.rb->GetLinearVelocity()  * 0.02f);
+			//PushVec3(cinputs, reverse_pelvis * pelvis.rb->GetAngularVelocity() * 0.02f);
+			PushVec3(cinputs, reverse_pelvis * (dood_com - pelvis.rb->GetCenterOfMass()));
+			PushVec3(cinputs, reverse_pelvis * com_vel * 0.02f);
+			PushVec3(cinputs, reverse_pelvis * angular_momentum * 0.02f);
+
+			Vec3 pforce, ptorque;
+			GetBoneDesiredLAImpulse(pelvis, inv_timestep, pforce, ptorque);
+			PushVec3(cinputs, reverse_pelvis * pforce  * 0.02f);
+			PushVec3(cinputs, reverse_pelvis * ptorque * 0.02f);
 
 			// specifying other bones relative to that
-			PushBoneRelative( inputs, torso1, pelvis, spine1    );
-			//PushBoneRelative( inputs, torso2, torso1, spine2    );
-			PushBoneRelative( inputs, luleg,  pelvis, lhip      );
-			PushBoneRelative( inputs, llleg,  luleg,  lknee,  1 );
-			PushBoneRelative( inputs, lfoot,  llleg,  lankle    );
-			PushBoneRelative( inputs, ruleg,  pelvis, rhip      );
-			PushBoneRelative( inputs, rlleg,  ruleg,  rknee,  1 );
-			PushBoneRelative( inputs, rfoot,  rlleg,  rankle    );
+			PushBoneRelative( cinputs, torso1, pelvis, spine1    );
+			//PushBoneRelative( cinputs, torso2, torso1, spine2    );
+			PushBoneRelative( linputs, luleg,  pelvis, lhip      );
+			PushBoneRelative( linputs, llleg,  luleg,  lknee,  1 );
+			PushBoneRelative( linputs, lfoot,  llleg,  lankle    );
+			PushBoneRelative( rinputs, ruleg,  pelvis, rhip      );
+			PushBoneRelative( rinputs, rlleg,  ruleg,  rknee,  1 );
+			PushBoneRelative( rinputs, rfoot,  rlleg,  rankle    );
 
 			
 			Vec3 zero(0, 0, 0), yvec(0, 1, 0), zvec(0, 0, 1);				// TODO: come up with actual values for this desired foot state info
-			PushFootStuff(inputs, dood->feet[0], zero, yvec, -1.0f);
-			PushFootStuff(inputs, dood->feet[1], zero, yvec, -1.0f);
+			PushFootStuff(linputs, dood->feet[0], zero, yvec, -1.0f);
+			PushFootStuff(rinputs, dood->feet[1], zero, yvec, -1.0f);
 
 			// spinal column bone pos/ori goal satisfaction sensors (also used for scoring)
 			Vec3 ppos  = pelvis.rb->GetOrientation().ToMat3().Transpose() * (pelvis.rb->GetCenterOfMass() - desired_pelvis_pos);
 			Vec3 pori  = (Quaternion::Reverse(pelvis.rb->GetOrientation()) * p ).ToRVec();
 			Vec3 t1ori = (Quaternion::Reverse(torso1.rb->GetOrientation()) * t1).ToRVec();
 			Vec3 t2ori = (Quaternion::Reverse(torso2.rb->GetOrientation()) * t2).ToRVec();
-			PushVec3( inputs, ppos  );
-			PushVec3( inputs, pori  );
-			//PushVec3( inputs, t1ori );
-			//PushVec3( inputs, t2ori );
+			PushVec3( cinputs, ppos  );
+			PushVec3( cinputs, pori  );
+			//PushVec3( cinputs, t1ori );
+			//PushVec3( cinputs, t2ori );
 
 			// don't add any more sensor inputs after this line!
 			static bool showed_inputs_count = false;
 			if(!showed_inputs_count)
 			{
-				Debug(((stringstream&)(stringstream() << "#inputs = " << inputs.size() << endl)).str());
+				Debug(((stringstream&)(stringstream() << "#inputs: left = " << linputs.size() << "; right = " << rinputs.size() << "; center = " << cinputs.size() << endl)).str());
 				showed_inputs_count = true;
 			}
 
-			// final preparations for letting the brain evaluate
-			inputs.resize(NUM_INPUTS * 2 + NUM_MEMORIES);
-
-			if(!old_inputs.empty())
-			{
-				for(float *iptr = inputs.data(), *dptr = iptr + NUM_INPUTS, *optr = old_inputs.data(), *iend = iptr + NUM_INPUTS; iptr != iend; ++iptr, ++dptr, ++optr)
-					*dptr = *iptr - *optr;
-			}
-			else	
-				old_inputs.resize(NUM_INPUTS);											// input array slots for old inputs were default-init'd to zero
-			memcpy(old_inputs.data(), inputs.data(), NUM_INPUTS * sizeof(float));
-
-			for(float *iptr = inputs.data(), *iend = iptr + NUM_INPUTS * 2; iptr != iend; ++iptr)
+			for(float *iptr = cinputs.data(), *iend = iptr + cinputs.size(); iptr != iend; ++iptr)
+				*iptr = tanhf(*iptr);
+			for(float *iptr = linputs.data(), *iend = iptr + linputs.size(); iptr != iend; ++iptr)
+				*iptr = tanhf(*iptr);
+			for(float *iptr = rinputs.data(), *iend = iptr + rinputs.size(); iptr != iend; ++iptr)
 				*iptr = tanhf(*iptr);
 
-			memcpy(inputs.data() + NUM_INPUTS * 2, memories.data(), NUM_MEMORIES * sizeof(float));
+			brain->nn->arrays[0]->CopyFromVector(cinputs);
+			brain->nn->arrays[1]->CopyFromVector(linputs);
+			brain->nn->arrays[2]->CopyFromVector(rinputs);
 
 			// evaluate all the things!
-			brain->Evaluate(inputs, outputs);
+			brain->nn->Evaluate();
 
 			// crop outputs list to the number of memories
-			memories.clear();
-			for(unsigned int i = NUM_OUTPUTS, iend = i + NUM_MEMORIES; i < iend; ++i)
-				memories.push_back(outputs[i]);
+			vector<float> loutputs(brain->nn->arrays[3]->size), routputs(brain->nn->arrays[4]->size);
+			brain->nn->arrays[3]->CopyToVector(loutputs);
+			brain->nn->arrays[4]->CopyToVector(routputs);
 
 			// apply the outputs the brain just came up with (also, beginning of scoring stuff)
-			const float* optr = outputs.data();
-			SetJointTorques(optr, lhip);
-			SetJointTorques(optr, rhip);
-			SetJointTorques(optr, lknee, 1);
-			SetJointTorques(optr, rknee, 1);
-			SetJointTorques(optr, lankle);
-			SetJointTorques(optr, rankle);
+			const float* loptr = loutputs.data();
+			const float* roptr = routputs.data();
+			SetJointTorques(loptr, lhip);
+			SetJointTorques(roptr, rhip);
+			SetJointTorques(loptr, lknee, 1);
+			SetJointTorques(roptr, rknee, 1);
+			SetJointTorques(loptr, lankle);
+			SetJointTorques(roptr, rankle);
 
 			// scoring stuff
 			++tick_age;
@@ -1294,15 +1365,16 @@ namespace Test
 
 			Vec3 dori = (bone.initial_ori * Quaternion::Reverse(bone.rb->GetOrientation())).ToRVec();
 
-			return dpos.ComputeMagnitudeSquared() + dori.ComputeMagnitudeSquared();
+			return dpos.ComputeMagnitude() + dori.ComputeMagnitude() * 4.0f;
 		}
 
 		float ComputeInstantGoalCost() const
 		{
-			static const unsigned int N = 7;
+			static const unsigned int N = 8;
 
 			float errors[N] =
 			{
+				GetBoneDeviation(torso1),
 				GetBoneDeviation(pelvis),
 				GetBoneDeviation(luleg),
 				GetBoneDeviation(ruleg),
@@ -1312,7 +1384,10 @@ namespace Test
 				GetBoneDeviation(rfoot),
 			};
 
-			float cost_coeffs[N] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+			float cost_coeffs[N];
+			for(unsigned int i = 0; i < N; ++i)
+				cost_coeffs[i] = 0.05f;
+
 			float tot = 0.0f;
 			for(unsigned int i = 0; i < N; ++i)
 				tot += cost_coeffs[i] * errors[i];

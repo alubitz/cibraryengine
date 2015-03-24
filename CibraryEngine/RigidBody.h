@@ -108,13 +108,14 @@ namespace CibraryEngine
 
 			
 
-			Vec3 GetAngularVelocity() const             { return rot; }
-			void SetAngularVelocity(const Vec3& vel)    { rot = vel; }
+			Vec3 GetAngularVelocity() const          { return rot; }
+			void SetAngularVelocity(const Vec3& vel) { rot = vel; }
 
 			
 			// point is in world-space
 			// returns a world-space velocity
-			Vec3 GetLocalVelocity(const Vec3& point)    { ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
+			Vec3 GetLocalVelocity(const Vec3& point) { ComputeXformAsNeeded(); return vel + Vec3::Cross(point - cached_com, rot); }
+			Vec3 LocalPosToWorld(const Vec3& point) const { return ori_rm * point + pos; }			// assumes ori_rm is up to date!
 
 			/** Gets a 4x4 transformation matrix representing the position and orientation of this rigid body */
 			Mat4 GetTransformationMatrix() { ComputeXformAsNeeded(); return xform; }
@@ -130,7 +131,7 @@ namespace CibraryEngine
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
 			Mat3 GetInvMoI() const         { return inv_moi; }
 
-			
+
 
 			bool MergesSubgraphs() const   { return shape->CanMove(); }
 
