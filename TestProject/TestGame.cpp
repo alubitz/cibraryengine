@@ -40,7 +40,7 @@
 
 #define DO_RAPID_UPDATE_TESTING          1
 #define RAPID_UPDATE_COUNT               100
-#define SPAWN_PLAYER_REPEATEDLY          0
+#define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood? no good for >1 initial poses
 
 
 namespace Test
@@ -588,6 +588,7 @@ namespace Test
 
 	Dood* TestGame::SpawnPlayer(const Vec3& pos)
 	{
+#if 1
 		if(player_controller != NULL)
 			player_controller->Exorcise();
 
@@ -597,6 +598,7 @@ namespace Test
 			if(player_pawn->equipped_weapon != NULL)
 				player_pawn->equipped_weapon->is_valid = false;
 		}
+#endif
 
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 		player_pawn->blood_material = imp->blood_red;

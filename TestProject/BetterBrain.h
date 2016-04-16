@@ -43,6 +43,9 @@ namespace Test
 
 			void Write(ostream& o) const;
 			static Matrix* Read(istream& i);
+
+			// copies elements that are within the range of both matrices (no resizing)
+			void CopySharedElements(const Matrix& other);
 		};
 
 		struct Op
@@ -74,9 +77,11 @@ namespace Test
 		unsigned int AddArray(unsigned int size);
 		unsigned int AddMatrixBySize(unsigned int w, unsigned int h);
 		unsigned int AddMatrixAndOp(const vector<unsigned int>& from, const vector<unsigned int>& to);			// returns matrix index
+		unsigned int AddMatrixAndOp(unsigned int from, unsigned int to);										// returns matrix index
 		
 		unsigned int AddOpCreateMatrix(Op& op);																	// returns matrix index
 		void AddOpExistingMatrix(unsigned int mat, const vector<unsigned int>& from, const vector<unsigned int>& to);
+		void AddOpExistingMatrix(unsigned int mat, unsigned int from, unsigned int to);
 
 		void Write(ostream& o) const;
 		static BetterBrain* Read(istream& i);

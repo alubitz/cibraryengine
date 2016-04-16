@@ -7,7 +7,7 @@ local SymBones  = P.add_symmetric_bones
 local Joint     = P.add_single_joint
 local SymJoints = P.add_symmetric_joints
 
-local m = 98.0 / 23.0;		-- divide total mass of 98 evenly across each of 18 bones, 5 of which have double weight
+local m = 98.0 / 25.0;		-- divide total mass of 98 evenly across each of 20 bones, 5 of which have double weight
 local M = m * 2;
 local n = m;
 local N = M;
@@ -26,7 +26,8 @@ SymBones(b, "arm 2",    n, { Sphere( 0.53, 1.40, -0.05, 0.11), Sphere( 0.77, 1.2
 SymBones(b, "hand",     n, { Sphere( 0.92, 1.20,  0.01, 0.08), Sphere( 0.90, 1.21,  0.10, 0.08), Sphere( 1.08, 1.08,  0.09, 0.07) } )
 SymBones(b, "leg 1",    m, { Sphere( 0.15, 1.04,  0.03, 0.15), Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.15, 1.04, -0.04, 0.13) } )
 SymBones(b, "leg 2",    m, { Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.23, 0.28,  0.04, 0.11), Sphere( 0.23, 0.30, -0.10, 0.11) } )
-SymBones(b, "foot",     m, { Sphere( 0.23, 0.11, -0.10, 0.11), Sphere( 0.27, 0.07,  0.26, 0.07), Sphere( 0.21, 0.07,  0.26, 0.07) } )
+SymBones(b, "heel",     m, { Sphere( 0.23, 0.09, -0.12, 0.09), Sphere( 0.23, 0.10, -0.03, 0.10) } )
+SymBones(b, "toe",      m, { Sphere( 0.24, 0.09,  0.13, 0.09), Sphere( 0.27, 0.07,  0.26, 0.07), Sphere( 0.21, 0.07,  0.26, 0.07) } )
 
 local hand_axes = { Vec3(11.6, 22.0, 0.0), Vec3(0, 0, -1) }
 local knee_axes = { Vec3(28.2, 2.5,  0.0) }
@@ -39,7 +40,8 @@ SymJoints(j, b, "shoulder", "arm 1",    Vec3(0.30, 1.51, -0.04), nil, nil,      
 SymJoints(j, b, "arm 1",    "arm 2",    Vec3(0.53, 1.40, -0.04), nil, hand_axes, Vec3(-2.0,  -0.5,  -1.0 ), Vec3(0.5,   0.5,  1.0 ))
 SymJoints(j, b, "arm 2",    "hand",     Vec3(0.84, 1.25,  0.02), nil, hand_axes, Vec3(-1.0,  -1.5,  -1.8 ), Vec3(1.0,   1.5,  1.8 ))
 SymJoints(j, b, "pelvis",   "leg 1",    Vec3(0.15, 1.04, -0.02), nil, nil,       Vec3(-1.0,  -0.25, -0.2 ), Vec3(1.0,   0.25, 1.0 ))
-SymJoints(j, b, "leg 1",    "leg 2",    Vec3(0.19, 0.63,  0.05), nil, knee_axes, Vec3(-0.02, -0.02, -0.02), Vec3(1.745, 0.02, 0.02))
-SymJoints(j, b, "leg 2",    "foot",     Vec3(0.23, 0.16, -0.06), nil, nil,       Vec3(-0.3,  -0.3,  -0.3 ), Vec3(0.3,   0.3,  0.3 ))
+SymJoints(j, b, "leg 1",    "leg 2",    Vec3(0.19, 0.63,  0.05), nil, knee_axes, Vec3(-0.02,  0.0,  -0.02), Vec3(1.745, 0.0,  0.0 ))		-- zeros used to be +/- 0.02
+SymJoints(j, b, "leg 2",    "heel",     Vec3(0.23, 0.16, -0.06), nil, nil,       Vec3(-0.3,  -0.3,  -0.3 ), Vec3(0.3,   0.3,  0.3 ))
+SymJoints(j, b, "heel",     "toe",      Vec3(0.24, 0.10,  0.08), nil, nil,       Vec3(-0.3,  -0.05, -0.1 ), Vec3(0.3,   0.05, 0.1 ))
 
 ba.saveModelPhysics(b, j, "soldier")

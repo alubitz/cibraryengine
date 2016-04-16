@@ -396,6 +396,42 @@ namespace CibraryEngine
 		}
 	};
 
+	/** Class representing a generic MxN matrix */
+	struct GenericMatrix
+	{
+		unsigned int w, h;
+		unsigned int wh;
+		
+		float* data;
+
+		GenericMatrix() : w(0), h(0), wh(0), data(NULL) { }
+
+		// NOTE: the matrix doesn't take ownership of the data pointer; deletion remains the allocator's job
+		GenericMatrix(unsigned int w, unsigned int h, float* data) : w(w), h(h), wh(w * h), data(data) { }
+
+
+		// row operations (for e.g. Gaussian elimination)
+		void RowSwap(unsigned int r1, unsigned int r2)
+		{
+			for(float *aptr = data + r1 * w, *aend = aptr + w, *bptr = data + r2 * w; aptr != aend; ++aptr, ++bptr)
+				swap(*aptr, *bptr);
+		}
+		void RowMult(unsigned int row, float coeff)
+		{
+			for(float *rptr = data + row * w, *rend = rptr + w; rptr != rend; ++rptr)
+				*rptr *= coeff;
+		}
+		void RowCombine(unsigned int from, unsigned int to, float coeff)
+		{
+			for(float *fptr = data + from * w, *fend = fptr + w, *tptr = data + to * w; fptr != fend; ++fptr, ++tptr)
+				*tptr += *fptr * coeff;
+		}
+
+		// return a reference to a row of this matrix
+		float*       operator[](unsigned int r)       { assert(r < h); return data + r * w; }
+		const float* operator[](unsigned int r) const { assert(r < h); return data + r * w; }
+	};
+
 
 
 

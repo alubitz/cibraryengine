@@ -16,6 +16,8 @@ namespace Test
 			struct Imp;
 			Imp* imp;
 
+			friend struct Imp;
+
 		protected:
 
 			void InnerDispose();

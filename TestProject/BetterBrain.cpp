@@ -12,7 +12,6 @@ namespace Test
 
 
 
-
 	/*
 	 * BetterBrain::Matrix methods
 	 */
@@ -43,6 +42,16 @@ namespace Test
 			*p = ReadSingle(i);
 
 		return result;
+	}
+
+	void BetterBrain::Matrix::CopySharedElements(const Matrix& other)
+	{
+		unsigned int minw = min(w, other.w);
+		unsigned int minh = min(h, other.h);
+
+		for(float *rowa = ptr, *rowb = other.ptr, *rend = rowa + w * minh; rowa != rend; rowa += w, rowb += other.w)
+			for(float *aptr = rowa, *bptr = rowb, *aend = rowa + minw; aptr != aend; ++aptr, ++bptr)
+				*aptr = *bptr;
 	}
 
 
@@ -147,7 +156,6 @@ namespace Test
 					*optr = 0.0f;
 					for(iptr = ibegin; iptr != iend; ++iptr, ++mptr)
 						*optr += *iptr * *mptr;
-
 					*optr = tanhf(*optr);
 				}
 
@@ -181,6 +189,7 @@ namespace Test
 		mats.push_back(new Matrix(w, h));
 		return mats.size() - 1;
 	}
+
 	unsigned int BetterBrain::AddMatrixAndOp(const vector<unsigned int>& from, const vector<unsigned int>& to)
 	{
 		unsigned int atot = 0, btot = 0;
@@ -194,7 +203,28 @@ namespace Test
 		ops.push_back(Op(mats.size() - 1, from, to));
 		return mats.size() - 1;
 	}
+
+	unsigned int BetterBrain::AddMatrixAndOp(unsigned int from, unsigned int to)
+	{
+		vector<unsigned int> froms, tos;
+
+		froms.push_back(from);
+		tos.push_back(to);
+
+		return AddMatrixAndOp(froms, tos);
+	}
+
 	void BetterBrain::AddOpExistingMatrix(unsigned int mat, const vector<unsigned int>& from, const vector<unsigned int>& to) { ops.push_back(Op(mat, from, to)); }
+
+	void BetterBrain::AddOpExistingMatrix(unsigned int mat, unsigned int from, unsigned int to)
+	{
+		vector<unsigned int> froms, tos;
+
+		froms.push_back(from);
+		tos.push_back(to);
+
+		AddOpExistingMatrix(mat, froms, tos);
+	}
 
 	unsigned int BetterBrain::AddOpCreateMatrix(Op& op) { return op.mat = AddMatrixAndOp(op.from, op.to); }
 
