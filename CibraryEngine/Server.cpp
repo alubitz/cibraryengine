@@ -98,7 +98,7 @@ namespace CibraryEngine
 			Imp* imp;
 			bool accept;
 
-			boost::mutex mutex;
+			mutex mutex;
 
 			ImpPtr(Imp* imp) : imp(imp), accept(false), mutex() { }
 
@@ -135,7 +135,7 @@ namespace CibraryEngine
 		{
 			// curly braces to limit scope of lock
 			{
-				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 				self->imp = NULL;
 				if(self->CanDelete()) { delete self; self = NULL; }
@@ -154,7 +154,7 @@ namespace CibraryEngine
 
 		void SendBufferedPackets()
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			for(map<unsigned int, ServerConnection*>::iterator iter = connections.begin(); iter != connections.end(); ++iter)
 				iter->second->SendBufferedPackets();
@@ -181,7 +181,7 @@ namespace CibraryEngine
 
 		void Start(unsigned short port_num)
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 			
 			if(!started)
 			{
@@ -204,7 +204,7 @@ namespace CibraryEngine
 
 		void Disconnect()
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			if(started && !terminated)
 			{
@@ -253,7 +253,7 @@ namespace CibraryEngine
 
 			void operator() (const boost::system::error_code& error)
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->accept = false;
 				Imp* imp = ptr->imp;

@@ -50,7 +50,7 @@ namespace CibraryEngine
 
 	void RayCollider::CollideCollisionGroup(CollisionGroup* group, const Ray& ray, float max_time, list<RayResult>& hits, RayCollider* collider)
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = group->children.begin(); iter != group->children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = group->children.begin(); iter != group->children.end(); ++iter)
 			CollideRigidBody(*iter, ray, max_time, hits, collider);
 	}
 

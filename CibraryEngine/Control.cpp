@@ -9,8 +9,6 @@
 
 namespace CibraryEngine
 {
-	using boost::unordered_map;
-
 	/*
 	 * ControlState methods
 	 */

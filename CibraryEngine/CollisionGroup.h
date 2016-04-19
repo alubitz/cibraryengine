@@ -32,7 +32,7 @@ namespace CibraryEngine
 			};
 			DummyRegionManager* dummy_region_man;
 
-			boost::unordered_set<RigidBody*> children;
+			unordered_set<RigidBody*> children;
 			bool collide_within;
 
 			AABB cached_aabb;

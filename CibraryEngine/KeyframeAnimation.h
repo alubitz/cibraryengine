@@ -6,7 +6,6 @@
 namespace CibraryEngine
 {
 	using namespace std;
-	using boost::unordered_map;
 
 	/** Class storing the Pose information for a single frame of a KeyframeAnimation */
 	struct Keyframe

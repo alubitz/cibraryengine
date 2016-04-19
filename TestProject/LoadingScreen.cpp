@@ -29,7 +29,7 @@ namespace Test
 		ProgramScreen* next;
 		ProgramScreen* previous;
 
-		boost::thread* my_thread;
+		thread* my_thread;
 
 		InputState* input_state;
 
@@ -123,7 +123,7 @@ namespace Test
 		void Activate()
 		{
 			if(my_thread == NULL)
-				my_thread = new boost::thread(test_game->load_status);
+				my_thread = new thread(test_game->load_status);
 
 			window->input_state->KeyStateChanged += &key_handler;
 		}

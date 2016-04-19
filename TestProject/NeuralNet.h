@@ -101,7 +101,7 @@ namespace Test
 			static NeuralNet* New(unsigned int num_inputs, unsigned int num_outputs, unsigned int num_middles);
 			static void Delete(NeuralNet* nn);
 
-			unsigned int Write(ostream& s) const;
-			static unsigned int Read(istream& s, NeuralNet*& result);
+			unsigned int Write(std::ostream& s) const;
+			static unsigned int Read(std::istream& s, NeuralNet*& result);
 	};
 }

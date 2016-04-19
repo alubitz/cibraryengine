@@ -35,7 +35,7 @@ namespace CibraryEngine
 
 	void CollisionGroup::InnerDispose()
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 		{
 			RigidBody* child = *iter;
 
@@ -49,7 +49,7 @@ namespace CibraryEngine
 
 	void CollisionGroup::DebugDraw(SceneRenderer* renderer) const
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->DebugDraw(renderer);
 	}
 
@@ -61,7 +61,7 @@ namespace CibraryEngine
 				cached_aabb = AABB();
 			else
 			{
-				boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end();
+				unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end();
 
 				cached_aabb = (*iter)->GetCachedAABB();
 				while(++iter != children_end)
@@ -79,13 +79,13 @@ namespace CibraryEngine
 
 	void CollisionGroup::UpdateVel(float timestep)
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->UpdateVel(timestep);
 	}
 
 	void CollisionGroup::UpdatePos(float timestep, PhysicsRegionManager* region_man)
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->UpdatePos(timestep, dummy_region_man);		// NOTE: we are passing a different PhysicsRegionManager from the one we were passed
 
 		cache_valid = false;
@@ -98,12 +98,12 @@ namespace CibraryEngine
 		// do collisions between contained objects, if enabled
 		if(collide_within)
 		{
-			for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children_end; ++iter)
+			for(unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children_end; ++iter)
 			{
 				RigidBody* ibody = *iter;
 				AABB iaabb = ibody->GetCachedAABB();
 
-				for(boost::unordered_set<RigidBody*>::iterator jter = iter; jter != children_end; ++jter)
+				for(unordered_set<RigidBody*>::iterator jter = iter; jter != children_end; ++jter)
 					if(jter != iter)
 					{
 						RigidBody* jbody = *jter;
@@ -164,7 +164,7 @@ namespace CibraryEngine
 		AABB body_aabb = body->GetCachedAABB();
 		bool aabb_exempt = body->GetShapeType() == ST_InfinitePlane;
 
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(), children_end = children.end(); iter != children.end(); ++iter)
 		{
 			RigidBody* child = *iter;
 			if(aabb_exempt || AABB::IntersectTest(body_aabb, child->GetCachedAABB()))
@@ -176,11 +176,11 @@ namespace CibraryEngine
 	{
 		// TODO: consult disabled_collisions for child-group and child-other-child collisions?
 
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 		{
 			RigidBody* ibody = *iter;
 			AABB iaabb = ibody->GetCachedAABB();
-			for(boost::unordered_set<RigidBody*>::iterator jter = other->children.begin(); jter != other->children.end(); ++jter)
+			for(unordered_set<RigidBody*>::iterator jter = other->children.begin(); jter != other->children.end(); ++jter)
 			{
 				RigidBody* jbody = *jter;
 				if(AABB::IntersectTest(iaabb, jbody->GetCachedAABB()))
@@ -193,13 +193,13 @@ namespace CibraryEngine
 	{
 		gravity = gravity_;
 
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->SetGravity(gravity_);
 	}
 
 	void CollisionGroup::ResetForces()
 	{
-		for(boost::unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
+		for(unordered_set<RigidBody*>::iterator iter = children.begin(); iter != children.end(); ++iter)
 			(*iter)->ResetForces();
 	}
 }

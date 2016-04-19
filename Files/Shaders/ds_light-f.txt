@@ -33,7 +33,7 @@ vec3 cameraPosToWorld(vec3 v) { vec4 temp = vec4(v, 1.0) * inv_view_matrix; retu
 			return texture2D(shadow_depths[2], shadow_coord * 0.5 + 0.5).x;
 	}
 
-	bool getUnshadowedAmount(int index, vec3 uLight, vec3 world_pos, in out float brightness)
+	bool getUnshadowedAmount(int index, vec3 uLight, vec3 world_pos, inout float brightness)
 	{
 		vec3 shadow_coord = worldToShadow(index, world_pos);
 		if(abs(shadow_coord.x) <= 1.0 && abs(shadow_coord.y) <= 1.0)

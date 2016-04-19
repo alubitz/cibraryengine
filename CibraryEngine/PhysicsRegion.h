@@ -11,9 +11,6 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	using boost::unordered_map;
-	using boost::unordered_set;
-
 	class CollisionObject;
 	class CollisionCallback;
 	class SceneRenderer;

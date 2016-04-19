@@ -52,7 +52,7 @@ namespace Test
 	 */
 	struct TestGame::Loader::Imp
 	{
-		boost::mutex mutex;
+		mutex mutex;
 
 		bool stopped;
 		bool abort;
@@ -61,12 +61,12 @@ namespace Test
 
 		Imp() : mutex(), stopped(false), abort(false), task("") { }
 
-		bool HasStopped()				{ boost::mutex::scoped_lock lock(mutex); return stopped; }
-		bool HasAborted()				{ boost::mutex::scoped_lock lock(mutex); return abort; }
-		void Stop()						{ boost::mutex::scoped_lock lock(mutex); stopped = true; }
-		void Abort()					{ boost::mutex::scoped_lock lock(mutex); abort = true; }
-		void SetTask(const string& str)	{ boost::mutex::scoped_lock lock(mutex); task = str; }
-		void GetTask(string& str)		{ boost::mutex::scoped_lock lock(mutex); str = task; }
+		bool HasStopped()				{ unique_lock<std::mutex> lock(mutex); return stopped; }
+		bool HasAborted()				{ unique_lock<std::mutex> lock(mutex); return abort; }
+		void Stop()						{ unique_lock<std::mutex> lock(mutex); stopped = true; }
+		void Abort()					{ unique_lock<std::mutex> lock(mutex); abort = true; }
+		void SetTask(const string& str)	{ unique_lock<std::mutex> lock(mutex); task = str; }
+		void GetTask(string& str)		{ unique_lock<std::mutex> lock(mutex); str = task; }
 	};
 
 

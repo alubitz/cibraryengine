@@ -66,13 +66,13 @@ namespace CibraryEngine
 
 	struct VoxelMaterialNodeData
 	{
-		boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
+		unordered_map<unsigned char, VoxelMaterialVBO> vbos;
 		VertexBuffer* depth_vbo;
 
 		Vec3 chunk_pos;
 		Mat4 xform;
 
-		VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform);
+		VoxelMaterialNodeData(unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform);
 	};
 
 	class VoxelMaterial : public Material
@@ -86,7 +86,7 @@ namespace CibraryEngine
 
 			ShaderProgram* shader;
 			ShaderProgram* depth_shader;
-			boost::unordered_map<unsigned char, TerrainTexture> textures;
+			unordered_map<unsigned char, TerrainTexture> textures;
 
 			VoxelMaterial(ContentMan* content);
 

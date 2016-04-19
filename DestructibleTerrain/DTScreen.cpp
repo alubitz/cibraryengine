@@ -179,7 +179,7 @@ namespace DestructibleTerrain
 		int frames_since_fps;
 		int fps;
 
-		boost::unordered_map<unsigned char, TerrainTexture>::iterator add_tex;
+		unordered_map<unsigned char, TerrainTexture>::iterator add_tex;
 
 		Imp(ProgramWindow* window) :
 			window(window),
@@ -526,11 +526,11 @@ namespace DestructibleTerrain
 		struct KeyPressHandler : public EventHandler
 		{
 			VoxelMaterial* material;
-			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
+			unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 			AddBrush* add_brush;
 			bool *use_fixed_distance, *enable_editing;
 
-			KeyPressHandler(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush, bool* use_fixed_distance, bool* enable_editing) : material(NULL), which_ptr(which_ptr), add_brush(add_brush), use_fixed_distance(use_fixed_distance), enable_editing(enable_editing) { }
+			KeyPressHandler(unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr, AddBrush* add_brush, bool* use_fixed_distance, bool* enable_editing) : material(NULL), which_ptr(which_ptr), add_brush(add_brush), use_fixed_distance(use_fixed_distance), enable_editing(enable_editing) { }
 
 			void HandleEvent(Event* evt)
 			{
@@ -571,9 +571,9 @@ namespace DestructibleTerrain
 		struct AddBrush : public EditorBrush
 		{
 			VoxelMaterial* material;
-			boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
+			unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr;
 
-			AddBrush(boost::unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
+			AddBrush(unordered_map<unsigned char, TerrainTexture>::iterator* which_ptr) : EditorBrush("Add"), material(NULL), which_ptr(which_ptr) { }
 
 			void UpdateName()		{ if(material != NULL) { name = ((stringstream&)(stringstream() << "Add \"" << (*which_ptr)->second.name << "\"")).str(); } }
 

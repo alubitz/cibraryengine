@@ -327,7 +327,9 @@ namespace CibraryEngine
 	{
 		unsigned int vbo = GetVBO();
 
+		GLDEBUG();
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		GLDEBUG();
 
 		int offset = 0;
 		for(map<string, VertexAttribute>::iterator iter = attributes.begin(); iter != attributes.end(); ++iter)
@@ -340,31 +342,41 @@ namespace CibraryEngine
 			{
 				if(!strcmp(name_cstr, "gl_Vertex"))
 				{
-					glEnable(GL_VERTEX_ARRAY);
+					glEnableClientState(GL_VERTEX_ARRAY);
+					GLDEBUG();
 					glVertexPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
+					GLDEBUG();
 				}
 				else if(!strcmp(name_cstr, "gl_Normal"))
 				{
-					glEnable(GL_NORMAL_ARRAY);
+					glEnableClientState(GL_NORMAL_ARRAY);
+					GLDEBUG();
 					glNormalPointer((GLenum)attrib.type, 0, (void*)(num_verts * offset));
+					GLDEBUG();
 				}
 				else if(!strcmp(name_cstr, "gl_Color"))
 				{
-					glEnable(GL_COLOR_ARRAY);
+					glEnableClientState(GL_COLOR_ARRAY);
 					glColorPointer(attrib.n_per_vertex, (GLenum)attrib.type, 0, (void*)(num_verts * offset));
+					GLDEBUG();
 				}
 				else
 				{
 					int max_texture_units;
 					glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
+					GLDEBUG();
 
 					for(int j = 0; j < max_texture_units; ++j)
 					{
 						if(name == multi_tex_names[j])
 						{
+							GLDEBUG();
 							glClientActiveTexture(GL_TEXTURE0 + j);
-							glEnable(GL_TEXTURE_COORD_ARRAY);
+							GLDEBUG();
+							glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+							GLDEBUG();
 							glTexCoordPointer(attrib.n_per_vertex,	(GLenum)attrib.type, 0, (void*)(num_verts * offset));
+							GLDEBUG();
 						}
 					}
 				}
@@ -405,12 +417,13 @@ namespace CibraryEngine
 
 			if(name.length() >= 3 && memcmp(name_cstr, "gl_", 3) == 0)
 			{
+#if 1
 				if(!strcmp(name_cstr, "gl_Vertex"))
-					glDisable(GL_VERTEX_ARRAY);
+					glDisableClientState(GL_VERTEX_ARRAY);
 				else if(!strcmp(name_cstr, "gl_Normal"))
-					glDisable(GL_NORMAL_ARRAY);
+					glDisableClientState(GL_NORMAL_ARRAY);
 				else if(!strcmp(name_cstr, "gl_Color"))
-					glDisable(GL_COLOR_ARRAY);
+					glDisableClientState(GL_COLOR_ARRAY);
 				else
 				{
 					int max_texture_units;
@@ -420,10 +433,11 @@ namespace CibraryEngine
 						if(name == multi_tex_names[j])
 						{
 							glClientActiveTexture(GL_TEXTURE0 + j);
-							glDisable(GL_TEXTURE_COORD_ARRAY);
+							glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 						}
 					}
 				}
+#endif
 			}
 			else if(ShaderProgram* shader = ShaderProgram::GetActiveProgram())
 			{
@@ -436,8 +450,12 @@ namespace CibraryEngine
 			}
 		}
 
+		GLDEBUG();
+
 		glClientActiveTexture(GL_TEXTURE0);			// get texcoords back to working "the normal way"
 		glBindBuffer(GL_ARRAY_BUFFER, 0);			// don't leave hardware vbo on
+
+		GLDEBUG();
 	}
 
 	void VertexBuffer::Draw() { Draw(storage_mode); }

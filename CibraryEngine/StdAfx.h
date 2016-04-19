@@ -26,19 +26,25 @@
 #include <fstream>
 #include <sstream>
 
+#include <algorithm>			// required for std::min and std::max
+
 #define BOOST_SYSTEM_USE_LIB
 #include <boost/asio.hpp>
 
-#define BOOST_THREAD_USE_LIB
-#include <boost/thread.hpp>
+//#define BOOST_THREAD_USE_LIB
+//#include <boost/thread.hpp>
+#include <thread>
+#include <mutex>
 
-#include <boost/unordered/unordered_map.hpp>
-#include <boost/unordered/unordered_set.hpp>
+//#include <boost/unordered/unordered_map.hpp>
+//#include <boost/unordered/unordered_set.hpp>
 
 #include <vector>
 #include <list>
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <cmath>
 #include <cassert>
 #include <string>

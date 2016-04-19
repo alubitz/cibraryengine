@@ -80,10 +80,10 @@ namespace CibraryEngine
 
 	void ShaderProgram::InnerDispose()
 	{
-		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		for(map<const type_info*, unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
 		{
-			boost::unordered_map<string, UniformVariable*>& m = iter->second;
-			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+			unordered_map<string, UniformVariable*>& m = iter->second;
+			for(unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
 				delete jter->second;
 
 			m.clear();
@@ -160,10 +160,10 @@ namespace CibraryEngine
 	{
 		Build();
 
-		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		for(map<const type_info*, unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
 		{
-			boost::unordered_map<string, UniformVariable*>& m = iter->second;
-			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+			unordered_map<string, UniformVariable*>& m = iter->second;
+			for(unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
 				jter->second->ApplyValue(this);
 		}
 	}
@@ -172,10 +172,10 @@ namespace CibraryEngine
 	{
 		Build();
 
-		for(map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
+		for(map<const type_info*, unordered_map<string, UniformVariable*>, UTypeInfoComp>::iterator iter = type_caches.begin(); iter != type_caches.end(); ++iter)
 		{
-			boost::unordered_map<string, UniformVariable*>& m = iter->second;
-			for(boost::unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
+			unordered_map<string, UniformVariable*>& m = iter->second;
+			for(unordered_map<string, UniformVariable*>::iterator jter = m.begin(); jter != m.end(); ++jter)
 				jter->second->Disable();
 		}
 	}

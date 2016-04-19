@@ -15,7 +15,6 @@
 namespace CibraryEngine
 {
 	using namespace std;
-	using boost::unordered_map;
 
 	class Texture1D;
 

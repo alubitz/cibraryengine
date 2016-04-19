@@ -44,7 +44,7 @@ namespace CibraryEngine
 
 				vector<CubeTriangles> tri_data;
 
-				boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos;
+				unordered_map<unsigned char, VoxelMaterialVBO> vbos;
 				VertexBuffer* depth_vbo;
 
 				bool valid;
@@ -113,9 +113,9 @@ namespace CibraryEngine
 			void CreateVBOs(CombinedVBO& target);
 
 			// these are functions used within CreateVBOs...
-			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& vbo_builders, float*& depth_vert_ptr, unsigned int num_verts);
+			void ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unordered_map<unsigned char, VoxelMaterialVBOBuilder>& vbo_builders, float*& depth_vert_ptr, unsigned int num_verts);
 			VertexBuffer* CreateVBO(unsigned int allocate_n);
-			VoxelMaterialVBOBuilder& GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create);
+			VoxelMaterialVBOBuilder& GetOrCreateVBO(unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create);
 			void ProcessVert(RelativeTerrainVertex& vert, VoxelMaterialVBOBuilder& target_vbo, unsigned char material, float inv_total);
 
 			VoxelTerrain* owner;

@@ -9,9 +9,6 @@ namespace CibraryEngine
 {
 	using namespace boost::asio;
 
-
-
-
 	/*
 	 * Client private implementation struct
 	 */
@@ -24,7 +21,7 @@ namespace CibraryEngine
 			bool receive;
 			bool connect;
 
-			boost::mutex mutex;
+			mutex mutex;
 
 			ImpPtr(Imp* imp) : imp(imp), send(false), receive(false), connect(false), mutex() { }
 
@@ -45,7 +42,7 @@ namespace CibraryEngine
 
 		Inbox* inbox;
 
-		ip::tcp::socket* socket;
+		boost::asio::ip::tcp::socket* socket;
 
 		Imp(Client* client, Inbox* inbox) :
 			client(client),
@@ -63,7 +60,7 @@ namespace CibraryEngine
 		~Imp()
 		{
 			{
-				boost::mutex::scoped_lock lock(self->mutex);				// synchronize this block of code...
+				unique_lock<mutex> lock(self->mutex);				// synchronize this block of code...
 
 				self->imp = NULL;
 				if(self->CanDelete())
@@ -78,7 +75,7 @@ namespace CibraryEngine
 
 		void Connect(const string& server_ip_string, unsigned short port_num)
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			if(!started)
 			{
@@ -99,7 +96,7 @@ namespace CibraryEngine
 
 		void Disconnect()
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			if(connected && !terminated)
 			{
@@ -121,7 +118,7 @@ namespace CibraryEngine
 
 		void Send(Packet p)
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			if(connected && !terminated)
 			{
@@ -144,7 +141,7 @@ namespace CibraryEngine
 
 			void operator ()(const boost::system::error_code& error) 
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->connect = false;
 				Imp* imp = ptr->imp;
@@ -182,7 +179,7 @@ namespace CibraryEngine
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->receive = false;
 				Imp* imp = ptr->imp;
@@ -232,7 +229,7 @@ namespace CibraryEngine
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->send = false;
 				Imp* imp = ptr->imp;

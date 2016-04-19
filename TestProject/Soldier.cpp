@@ -2816,7 +2816,7 @@ namespace Test
 		p_ag->torso2_ori = t2ori;
 		p_ag->UpdatePose(time);
 
-		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
+		for(unordered_map<unsigned int, BoneInfluence>::iterator iter = p_ag->bones.begin(); iter != p_ag->bones.end(); ++iter)
 			posey->skeleton->GetNamedBone(iter->first)->ori = Quaternion::FromRVec(iter->second.ori);
 
 		posey->skeleton->InvalidateCachedBoneXforms();

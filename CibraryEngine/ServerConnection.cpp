@@ -20,7 +20,7 @@ namespace CibraryEngine
 			bool receive;
 			bool send;
 
-			boost::mutex mutex;
+			mutex mutex;
 
 			ImpPtr(Imp* imp) : imp(imp), receive(false), send(false), mutex() { }
 
@@ -51,7 +51,7 @@ namespace CibraryEngine
 		~Imp()
 		{ 
 			{
-				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 				self->imp = NULL;
 				if(self->CanDelete())
@@ -65,7 +65,7 @@ namespace CibraryEngine
 		{
 			if(!disconnected)
 			{
-				boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 				if(socket)
 				{
@@ -88,7 +88,7 @@ namespace CibraryEngine
 
 		void Send(Packet p)
 		{
-			boost::mutex::scoped_lock lock(self->mutex);				// synchronize the following...
+			unique_lock<mutex> lock(self->mutex);				// synchronize the following...
 
 			if(!disconnected)
 			{
@@ -111,7 +111,7 @@ namespace CibraryEngine
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->receive = false;
 				if(Imp* imp = ptr->imp)
@@ -158,7 +158,7 @@ namespace CibraryEngine
 
 			void operator ()(const boost::system::error_code& error, size_t bytes_transferred)
 			{
-				boost::mutex::scoped_lock lock(ptr->mutex);				// synchronize the following...
+				unique_lock<mutex> lock(ptr->mutex);				// synchronize the following...
 
 				ptr->send = false;
 

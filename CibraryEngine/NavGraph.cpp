@@ -11,8 +11,6 @@
 
 namespace CibraryEngine
 {
-	using boost::unordered_map;
-
 	/*
 	 * NavNode and NavEdge structs
 	 */

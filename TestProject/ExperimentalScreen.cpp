@@ -16,8 +16,8 @@ namespace Test
 		static const unsigned int num_output_texts = 20;
 		AutoMenuItem* output_text[num_output_texts];
 
-		boost::thread* my_thread;
-		boost::mutex   mutex;
+		thread* my_thread;
+		mutex   mutex;
 
 		bool abort;
 		bool aborted;
@@ -150,7 +150,7 @@ namespace Test
 			time_spent = 0.0f;
 
 			thread_helper.imp = this;
-			my_thread = new boost::thread(thread_helper);
+			my_thread = new thread(thread_helper);
 		}
 
 		~Imp()
@@ -164,10 +164,10 @@ namespace Test
 			}
 			auto_menu_items.clear();
 
-			if(boost::thread* temp = my_thread)
+			if(thread* temp = my_thread)
 			{
 				{
-					boost::mutex::scoped_lock lock(mutex);
+					unique_lock<std::mutex> lock(mutex);
 					my_thread = NULL;
 				}
 
@@ -176,12 +176,12 @@ namespace Test
 			}
 		}
 
-		void SetAbort()	    { boost::mutex::scoped_lock lock(mutex); abort = true; }
-		bool CheckAbort()   { boost::mutex::scoped_lock lock(mutex); return abort; }
-		void SetAborted()   { boost::mutex::scoped_lock lock(mutex); aborted = true; }
-		bool CheckAborted() { boost::mutex::scoped_lock lock(mutex); return aborted; }
+		void SetAbort()	    { unique_lock<std::mutex> lock(mutex); abort = true; }
+		bool CheckAbort()   { unique_lock<std::mutex> lock(mutex); return abort; }
+		void SetAborted()   { unique_lock<std::mutex> lock(mutex); aborted = true; }
+		bool CheckAborted() { unique_lock<std::mutex> lock(mutex); return aborted; }
 
-		void ThreadsafeSetText(unsigned int index, const string& text) { if(index >= num_output_texts) return; boost::mutex::scoped_lock lock(mutex); output_text[index]->SetText(text); }
+		void ThreadsafeSetText(unsigned int index, const string& text) { if(index >= num_output_texts) return; unique_lock<std::mutex> lock(mutex); output_text[index]->SetText(text); }
 
 		void ThreadAction()
 		{
@@ -335,7 +335,7 @@ namespace Test
 	{
 		if(imp != NULL)
 		{
-			boost::mutex::scoped_lock lock(imp->mutex);
+			unique_lock<std::mutex> lock(imp->mutex);
 			MenuScreen::Draw(width, height);
 		}
 		else

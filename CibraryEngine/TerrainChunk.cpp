@@ -60,7 +60,7 @@ namespace CibraryEngine
 		{
 			valid = false;
 
-			for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
+			for(unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vbos.begin(); iter != vbos.end(); ++iter)
 			{
 				VertexBuffer* model = iter->second.vbo;
 
@@ -560,7 +560,7 @@ namespace CibraryEngine
 
 			float* depth_vert_ptr = target.depth_vbo->GetFloatPointer("gl_Vertex");
 
-			boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder> builders;
+			unordered_map<unsigned char, VoxelMaterialVBOBuilder> builders;
 
 			// now build the actual vbo with the values we computed
 			for(int x = 0; x < cmax_x; ++x)
@@ -583,7 +583,7 @@ namespace CibraryEngine
 						}
 					}
 
-			for(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator iter = builders.begin(); iter != builders.end(); ++iter)
+			for(unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator iter = builders.begin(); iter != builders.end(); ++iter)
 			{
 				VoxelMaterialVBOBuilder& builder = iter->second;
 
@@ -602,7 +602,7 @@ namespace CibraryEngine
 	}
 
 	static unsigned int PickTriangleMaterials(const MultiMaterial& m1, const MultiMaterial& m2, const MultiMaterial& m3, unsigned char* pick);
-	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, float*& depth_vert_ptr, unsigned int num_verts)
+	void TerrainChunk::ProcessTriangle(RelativeTerrainVertex* v1, RelativeTerrainVertex* v2, RelativeTerrainVertex* v3, unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, float*& depth_vert_ptr, unsigned int num_verts)
 	{
 		RelativeTerrainVertex* verts[] = { v1, v2, v3 };
 
@@ -648,9 +648,9 @@ namespace CibraryEngine
 		
 	}
 
-	VoxelMaterialVBOBuilder& TerrainChunk::GetOrCreateVBO(boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, boost::unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create)
+	VoxelMaterialVBOBuilder& TerrainChunk::GetOrCreateVBO(unordered_map<unsigned char, VoxelMaterialVBOBuilder>& builders, unordered_map<unsigned char, VoxelMaterialVBO>& vbos, unsigned char material, unsigned int size_to_create)
 	{
-		boost::unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator found = builders.find(material);
+		unordered_map<unsigned char, VoxelMaterialVBOBuilder>::iterator found = builders.find(material);
 		if(found != builders.end())
 			return found->second;
 		else

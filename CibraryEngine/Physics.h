@@ -14,9 +14,6 @@ namespace CibraryEngine
 {
 	using namespace std;
 
-	using boost::unordered_map;
-	using boost::unordered_set;
-
 	struct Mat4;
 
 	class CollisionObject;

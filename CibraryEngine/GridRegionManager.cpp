@@ -10,8 +10,6 @@
 
 namespace CibraryEngine
 {
-	using boost::unordered_set;
-
 	/*
 	 * GridRegionManager methods
 	 */

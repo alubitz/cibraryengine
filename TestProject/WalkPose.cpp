@@ -153,7 +153,7 @@ namespace Test
 		float inv_total = 1.0f / coeffs_total;
 
 		// doing a weighted average of the various animations
-		boost::unordered_map<unsigned int, BoneInfluence> all_bones;
+		unordered_map<unsigned int, BoneInfluence> all_bones;
 
 		for(int i = 0; i < num_anims; ++i)
 			if(KeyframeAnimation* anim = anims[i].anim)
@@ -162,9 +162,9 @@ namespace Test
 					anim->JumpToTime(anim_timer);
 					anim->UpdatePose(TimingInfo(0, anim_timer));
 
-					for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = anim->bones.begin(); iter != anim->bones.end(); ++iter)
+					for(unordered_map<unsigned int, BoneInfluence>::iterator iter = anim->bones.begin(); iter != anim->bones.end(); ++iter)
 					{
-						boost::unordered_map<unsigned int, BoneInfluence>::iterator found = all_bones.find(iter->first);
+						unordered_map<unsigned int, BoneInfluence>::iterator found = all_bones.find(iter->first);
 						if(found != all_bones.end())
 							found->second         += BoneInfluence(iter->second.ori * coeff, iter->second.pos * coeff);
 						else
@@ -178,7 +178,7 @@ namespace Test
 		// TODO: do the actual IK and generate the new pose bone influences
 
 		// apply the pose we computed
-		for(boost::unordered_map<unsigned int, BoneInfluence>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+		for(unordered_map<unsigned int, BoneInfluence>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 			SetBonePose(iter->first, iter->second.ori, iter->second.pos);
 
 		// apply yaw changes

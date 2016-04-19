@@ -26,7 +26,7 @@ namespace CibraryEngine
 		};
 
 		vector<ChunkVBO> depth_vbos;
-		boost::unordered_map<unsigned char, vector<ChunkVBO> > material_vbos;
+		unordered_map<unsigned char, vector<ChunkVBO> > material_vbos;
 
 		DrawCache() : depth_vbos(), material_vbos() { }
 
@@ -70,7 +70,7 @@ namespace CibraryEngine
 			glDepthMask(false);
 			glDepthFunc(GL_EQUAL);
 
-			for(boost::unordered_map<unsigned char, vector<ChunkVBO> >::const_iterator iter = material_vbos.begin(); iter != material_vbos.end(); ++iter)
+			for(unordered_map<unsigned char, vector<ChunkVBO> >::const_iterator iter = material_vbos.begin(); iter != material_vbos.end(); ++iter)
 			{
 				const vector<ChunkVBO>& vbos = iter->second;
 
@@ -110,7 +110,7 @@ namespace CibraryEngine
 	/*
 	 * VoxelMaterialNodeData methods
 	 */
-	VoxelMaterialNodeData::VoxelMaterialNodeData(boost::unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform) : vbos(vbos), depth_vbo(depth_vbo), chunk_pos(chunk_pos), xform(xform) { }
+	VoxelMaterialNodeData::VoxelMaterialNodeData(unordered_map<unsigned char, VoxelMaterialVBO> vbos, VertexBuffer* depth_vbo, const Vec3& chunk_pos, const Mat4& xform) : vbos(vbos), depth_vbo(depth_vbo), chunk_pos(chunk_pos), xform(xform) { }
 
 
 
@@ -180,11 +180,11 @@ namespace CibraryEngine
 
 		draw_cache->depth_vbos.push_back(DrawCache::ChunkVBO(xform, chunk_pos, vmnd->depth_vbo));
 
-		for(boost::unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vmnd->vbos.begin(); iter != vmnd->vbos.end(); ++iter)
+		for(unordered_map<unsigned char, VoxelMaterialVBO>::iterator iter = vmnd->vbos.begin(); iter != vmnd->vbos.end(); ++iter)
 		{
 			unsigned char material = iter->first;
 
-			boost::unordered_map<unsigned char, vector<DrawCache::ChunkVBO> >::iterator found = draw_cache->material_vbos.find(material);
+			unordered_map<unsigned char, vector<DrawCache::ChunkVBO> >::iterator found = draw_cache->material_vbos.find(material);
 
 			if(found == draw_cache->material_vbos.end())
 			{

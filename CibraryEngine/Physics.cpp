@@ -43,12 +43,6 @@
 
 namespace CibraryEngine
 {
-	using boost::unordered_set;
-	using boost::unordered_map;
-
-
-
-
 	/*
 	 * PhysicsWorld orphan callback struct (private)
 	 */

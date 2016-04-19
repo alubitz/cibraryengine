@@ -82,14 +82,14 @@ namespace CibraryEngine
 			virtual void SetValue(T* t) = 0;
 	};
 
-	struct UTypeInfoComp { bool operator ()(const type_info* L , const type_info* R) { return L->before(*R) != 0; } };
+	struct UTypeInfoComp { bool operator ()(const type_info* L , const type_info* R) const { return L->before(*R) != 0; } };
 
 	/** Class representing a linked shader program, which exposes the uniform variables of that shader program */
 	class ShaderProgram : public Disposable
 	{
 		private:
 
-			map<const type_info*, boost::unordered_map<string, UniformVariable*>, UTypeInfoComp> type_caches;			// map type_infos to Caches
+			map<const type_info*, unordered_map<string, UniformVariable*>, UTypeInfoComp> type_caches;			// map type_infos to Caches
 
 			void LinkProgram();
 

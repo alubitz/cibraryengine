@@ -4,7 +4,6 @@
 namespace CibraryEngine
 {
 	using namespace std;
-	using boost::unordered_map;
 
 	/*
 	 * StringTable private implementation struct

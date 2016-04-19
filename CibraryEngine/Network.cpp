@@ -29,14 +29,14 @@ namespace CibraryEngine
 
 	void DoAsyncStuff();
 
-	boost::thread* async_thread = NULL;
+	thread* async_thread = NULL;
 	bool async_go = false;
 	void Network::StartAsyncSystem()
 	{
 		if(async_thread == NULL)
 		{
 			async_go = true;
-			async_thread = new boost::thread(DoAsyncStuff);
+			async_thread = new thread(DoAsyncStuff);
 		}
 	}
 

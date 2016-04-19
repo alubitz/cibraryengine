@@ -15,11 +15,11 @@ namespace CibraryEngine
 	struct TaskThread
 	{
 		ThreadTask* task;
-		bool stopped;
+		bool shutdown;
 
-		boost::thread* my_thread;
-		boost::mutex* mutex;
-		boost::condition_variable* cond;
+		thread* my_thread;
+		mutex* my_mutex;
+		condition_variable* cond;
 
 		TaskThread();
 

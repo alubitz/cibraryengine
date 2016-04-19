@@ -6,7 +6,7 @@
 
 #include "DebugLog.h"
 
-#include "../SOIL/SOIL.h"
+#include "SOIL.h"
 
 namespace CibraryEngine
 {

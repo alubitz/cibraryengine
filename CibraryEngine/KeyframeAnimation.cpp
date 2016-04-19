@@ -5,9 +5,6 @@
 
 namespace CibraryEngine
 {
-	using boost::unordered_map;
-	using boost::unordered_set;
-
 	/*
 	 * Keyframe methods
 	 */
