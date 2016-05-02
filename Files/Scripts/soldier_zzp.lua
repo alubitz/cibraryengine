@@ -40,7 +40,7 @@ SymJoints(j, b, "shoulder", "arm 1",    Vec3(0.30, 1.51, -0.04), nil, nil,      
 SymJoints(j, b, "arm 1",    "arm 2",    Vec3(0.53, 1.40, -0.04), nil, hand_axes, Vec3(-2.0,  -0.5,  -1.0 ), Vec3(0.5,   0.5,  1.0 ))
 SymJoints(j, b, "arm 2",    "hand",     Vec3(0.84, 1.25,  0.02), nil, hand_axes, Vec3(-1.0,  -1.5,  -1.8 ), Vec3(1.0,   1.5,  1.8 ))
 SymJoints(j, b, "pelvis",   "leg 1",    Vec3(0.15, 1.04, -0.02), nil, nil,       Vec3(-1.0,  -0.25, -0.2 ), Vec3(1.0,   0.25, 1.0 ))
-SymJoints(j, b, "leg 1",    "leg 2",    Vec3(0.19, 0.63,  0.05), nil, knee_axes, Vec3(-0.02,  0.0,  -0.02), Vec3(1.745, 0.0,  0.0 ))		-- zeros used to be +/- 0.02
+SymJoints(j, b, "leg 1",    "leg 2",    Vec3(0.19, 0.63,  0.05), nil, knee_axes, Vec3(-0.02,  0.0,   0.0 ), Vec3(1.745, 0.0,  0.0 ))		-- zeros used to be +/- 0.02
 SymJoints(j, b, "leg 2",    "heel",     Vec3(0.23, 0.16, -0.06), nil, nil,       Vec3(-0.3,  -0.3,  -0.3 ), Vec3(0.3,   0.3,  0.3 ))
 SymJoints(j, b, "heel",     "toe",      Vec3(0.24, 0.10,  0.08), nil, nil,       Vec3(-0.3,  -0.05, -0.1 ), Vec3(0.3,   0.05, 0.1 ))
 

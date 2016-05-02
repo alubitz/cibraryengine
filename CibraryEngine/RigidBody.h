@@ -62,8 +62,6 @@ namespace CibraryEngine
 			ContactCallback* contact_callback;
 			CollisionCallback* collision_callback;
 
-			Mat3 ComputeInvMoi()  { return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
-
 			void ComputeXform();
 
 			void ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
@@ -127,6 +125,8 @@ namespace CibraryEngine
 
 			Vec3 GetCachedCoM()            { ComputeXformAsNeeded(); return cached_com; }
 			Vec3 GetCenterOfMass() const   { return ori_rm * mass_info.com + pos; }					// assumes ori_rm is up to date!
+
+			Mat3 ComputeInvMoI()           { ComputeXformAsNeeded();  return ori_rm * Mat3::Invert(Mat3(mass_info.moi)) * ori_rm.Transpose(); }
 
 			/** Gets the inverse of the moment of inertia matrix, in the world coordinate system; assumes nothing has modified the orientation or mass info since the object was created or UpdateVel was called */
 			Mat3 GetInvMoI() const         { return inv_moi; }

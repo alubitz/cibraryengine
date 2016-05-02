@@ -61,7 +61,7 @@ namespace CibraryEngine
 			can_rotate = true;
 
 		ori_rm = ori.ToMat3();
-		inv_moi = ComputeInvMoi();
+		inv_moi = ComputeInvMoI();
 	}
 
 	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
@@ -75,7 +75,7 @@ namespace CibraryEngine
 
 			if(can_rotate)
 			{
-				inv_moi = ComputeInvMoi();
+				inv_moi = ComputeInvMoI();
 				rot += inv_moi * (torque * timestep);
 
 				rot *= expf(-angular_damp * timestep);
