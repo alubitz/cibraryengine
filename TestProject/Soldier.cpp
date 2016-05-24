@@ -9,6 +9,8 @@
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
+#include "Particle.h"
+
 #define PROFILE_CPHFT					1
 #define PROFILE_QP_SOLVER				1
 #define PROFILE_SCORE_PROPOSED_F		0
@@ -19,10 +21,10 @@
 
 #define DIE_AFTER_ONE_SECOND			0
 
-#define ENABLE_NEW_JETPACKING			0
+#define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					60
+#define MAX_TICK_AGE					1000
 
 
 #define NUM_LOWER_BODY_BONES			9
@@ -30,18 +32,20 @@
 
 #define NUM_LEG_JOINTS					8
 #define NUM_JOINT_AXES					(3 * NUM_LEG_JOINTS)
+#define MUSCLES_PER_JOINT				8
+#define NUM_DATA_NEURONS				108
 
 #define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
 
-#define NUM_SUBTESTS					10
-#define TRIALS_PER_SUBTEST				1
+#define NUM_SUBTESTS					7
+#define TRIALS_PER_SUBTEST				3
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
 #define NUM_ELITES						32
 #define MUTANTS_PER_ELITE				0
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_SCALE					0.002f
+#define MUTATION_SCALE					0.01f
 #define MUTATION_COUNT					10000
 
 namespace Test
@@ -49,14 +53,14 @@ namespace Test
 	/*
 	 * Soldier constants
 	 */
-	static const float jump_speed         = 4.0f;
+	static const float jump_speed         = 0;//4.0f;
 
 	static const float fly_accel_up       = 15.0f;
 	static const float fly_accel_lateral  = 8.0f;
 
 	static const float fuel_spend_rate    = 0.5f;
 	static const float fuel_refill_rate   = 0.4f;
-	static const float jump_to_fly_delay  = 0.3f;
+	static const float jump_to_fly_delay  = 0;//0.3f;
 
 	static const float torso2_yaw_offset  = 0.5f;
 
@@ -67,10 +71,8 @@ namespace Test
 	static float timer_reset				= 0.0f;
 	static float timer_massinfo				= 0.0f;
 	static float timer_ub_stuff				= 0.0f;
-	static float timer_a_matrix				= 0.0f;
-	static float timer_solve_qp				= 0.0f;
 
-	static float timer_use_results			= 0.0f;
+	static float timer_lb_stuff				= 0.0f;
 	static float timer_scoring				= 0.0f;
 	static float timer_end_of_test			= 0.0f;
 	static float timer_cphft_total			= 0.0f;
@@ -112,14 +114,11 @@ namespace Test
 			Debug(((stringstream&)(stringstream() << '\t' << "reset =\t\t\t\t\t"		<< timer_reset				<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "massinfo =\t\t\t\t"		<< timer_massinfo			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "ub_stuff =\t\t\t\t"		<< timer_ub_stuff			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "a_matrix =\t\t\t\t"		<< timer_a_matrix			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "solve_qp =\t\t\t\t"		<< timer_solve_qp			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "use_results =\t\t\t"		<< timer_use_results		<< endl)).str());
+			Debug(((stringstream&)(stringstream() << '\t' << "lb_stuff =\t\t\t\t"		<< timer_lb_stuff			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "scoring =\t\t\t\t"		<< timer_scoring			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "end_of_test =\t\t\t"		<< timer_end_of_test		<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<<
-				timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_a_matrix +
-				timer_solve_qp + timer_use_results + timer_scoring + timer_end_of_test << endl)).str());
+				timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_lb_stuff + timer_scoring + timer_end_of_test << endl)).str());
 #endif
 	}
 #endif
@@ -206,123 +205,91 @@ namespace Test
 		static const FrameParams kmax;
 
 		// don't add any members that aren't floats!
-		float qp_bone_weights_angular[NUM_LOWER_BODY_BONES];
-		float qp_bone_weights_linear[NUM_LOWER_BODY_BONES];
+		float first_member;
 
-		float gravity_coeff[NUM_LOWER_BODY_BONES];
-		
-		float foot_torque_coeff[4];
-		//float foot_force_coeff[4];
-		//float ground_foott_subfrac[4];
-		//float ground_netf_subfrac[4];
+		struct MuscleParams
+		{
+			Vec3 apos, bpos;
+			float mmin, mmax;
+		} muscle_params[NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2];
 
-		float prediction_error_pcoeff[NUM_LOWER_BODY_BONES];		// PID-ish
-		float prediction_error_icoeff[NUM_LOWER_BODY_BONES];
+		float brain_coeffs[(NUM_LEG_JOINTS * MUSCLES_PER_JOINT) * (NUM_LOWER_BODY_BONES * 12)];
+		float input_to_data[(NUM_LOWER_BODY_BONES * 12) * NUM_DATA_NEURONS];
+		float data_to_data[NUM_DATA_NEURONS * NUM_DATA_NEURONS];
+		float data_to_output[NUM_DATA_NEURONS * (NUM_LEG_JOINTS * MUSCLES_PER_JOINT)];
 
-		float partial_dx;
-		float pelvis_error_weight;
-
-		float knee_strength;
-
-		float qpbw_lleg, qpbw_uleg;
-		float grav_lleg, grav_uleg;
-
-		float hmax;
-
-		float&       operator[](unsigned int index)       { assert(index < num_params); return *(qp_bone_weights_angular + index); }
-		const float& operator[](unsigned int index) const { assert(index < num_params); return *(qp_bone_weights_angular + index); }
+		float&       operator[](unsigned int index)       { assert(index < num_params); return *(&first_member + index); }
+		const float& operator[](unsigned int index) const { assert(index < num_params); return *(&first_member + index); }
 
 		static FrameParams InitMin()
 		{
 			FrameParams k;
-			memset(k.qp_bone_weights_angular, 0, sizeof(FrameParams));
+			memset(&k, 0, sizeof(FrameParams));
 
-			Mat3 m;
-			for(unsigned int i = 0; i < 9; ++i)
-				m[i] = -1.0f;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
+			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
+				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
+				{
+					if(i == 0 || i == 1 ? j < 6 : i == 2 ? j < 2 : true)
+					{
+						MuscleParams& p = k.muscle_params[i * MUSCLES_PER_JOINT + j];
+						p.apos = p.bpos = Vec3(1, 1, 1) * -0.5f;
+						p.mmin = 0.0f;
+						p.mmax = 1.0f;
+
+						for(unsigned int kk = 0; kk < NUM_LOWER_BODY_BONES * 12; ++kk)
+						{
+							//k.brain_coeffs[((i    ) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = -0.1f;
+							//k.brain_coeffs[((i + 4) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = -0.1f;
+						}
+					}
+				}
+
+			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
 			{
-				k.qp_bone_weights_angular[i] = 0.0f;
-				k.qp_bone_weights_linear[i]  = 0.0f;
-				k.prediction_error_pcoeff[i] = 0.0f;
-				k.prediction_error_icoeff[i] = 0.0f;
-
-				k.gravity_coeff[i] = 0.0f;
+				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
+					k.input_to_data[j * NUM_DATA_NEURONS + i] = -1;
+				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
+					k.data_to_data[j * NUM_DATA_NEURONS + i] = -1;
+				for(unsigned int j = 0; j < NUM_LEG_JOINTS * MUSCLES_PER_JOINT; ++j)
+					if(k.muscle_params[j % (NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2)].mmax != 0)
+						k.data_to_output[j * NUM_DATA_NEURONS + i] = -1;
 			}
-			k.gravity_coeff[4] = 50.0f;
-
-			// leg shaft bones don't get to have a desired torque; use desired forces to achieve the same thing
-			k.qp_bone_weights_angular[2] = k.qp_bone_weights_angular[3] = k.qp_bone_weights_angular[5] = k.qp_bone_weights_angular[6] = 0.5f;
-
-			// treat feet as immobile
-			k.qp_bone_weights_angular[0] = k.qp_bone_weights_angular[1] = k.qp_bone_weights_angular[7] = k.qp_bone_weights_angular[8] = 0.0f;
-			k.qp_bone_weights_linear[0] = k.qp_bone_weights_linear[1] = k.qp_bone_weights_linear[7] = k.qp_bone_weights_linear[8] = 0.0f;
-
-			//k.qp_bone_weights_linear[4] = 1.0f;
-
-			for(unsigned int i = 0; i < 4; ++i)
-			{
-				k.foot_torque_coeff[i] = 0.0f;//0.5f;
-				//k.foot_force_coeff[i] = 1;//0.0f;//0.5f;
-				//k.ground_foott_subfrac[i] = 0.0f;
-				//k.ground_netf_subfrac[i] = 0;//-1.0f;
-			}
-
-			k.partial_dx = -5.0f;
-			k.pelvis_error_weight = -1.0f;
-
-			//k.hmax = -100.0f;
 
 			return k;
 		}
 		static FrameParams InitMax()
 		{
 			FrameParams k;
-			memset(k.qp_bone_weights_angular, 0, sizeof(FrameParams));
+			memset(&k, 0, sizeof(FrameParams));
 
-			Mat3 m;
-			for(unsigned int i = 0; i < 9; ++i)
-				m[i] = 1.0f;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
+			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
+				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
+				{
+					if(i == 0 || i == 1 ? j < 6 : i == 2 ? j < 2 : true)
+					{
+						MuscleParams& p = k.muscle_params[i * MUSCLES_PER_JOINT + j];
+						p.apos = p.bpos = Vec3(1, 1, 1) * 0.5f;
+						//p.mmin = 10.0f;
+						p.mmax = 1000.0f;
+
+						for(unsigned int kk = 0; kk < NUM_LOWER_BODY_BONES * 12; ++kk)
+						{
+							//k.brain_coeffs[((i    ) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = 0.1f;
+							//k.brain_coeffs[((i + 4) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = 0.1f;
+						}
+					}
+				}
+
+			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
 			{
-				//k.qp_bone_weights_angular[i] = 4.0f;
-				//k.qp_bone_weights_linear[i]  = 2.0f;
-				//k.prediction_error_pcoeff[i] = i > 1 && i < 7 ? 1.0f : 0.0f;
-				//k.prediction_error_icoeff[i] = i > 1 && i < 7 ? 1.0f : 0.0f;
-
-				k.gravity_coeff[i] = i == 4 ? 100.0f : 0.0f;// i > 1 && i < 7 ? 100.0f : 0.0f;
+				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
+					k.input_to_data[j * NUM_DATA_NEURONS + i] = 1;
+				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
+					k.data_to_data[j * NUM_DATA_NEURONS + i] = 1;
+				for(unsigned int j = 0; j < NUM_LEG_JOINTS * MUSCLES_PER_JOINT; ++j)
+					if(k.muscle_params[j % (NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2)].mmax != 0)
+						k.data_to_output[j * NUM_DATA_NEURONS + i] = 1;
 			}
-			//k.gravity_coeff[4] = 100.0f;
-
-			// leg shaft bones don't get to have a desired torque; use desired forces to achieve the same thing
-			k.qp_bone_weights_angular[2] = k.qp_bone_weights_angular[3] = k.qp_bone_weights_angular[5] = k.qp_bone_weights_angular[6] = 0.5f;
-
-			// treat feet as immobile
-			k.qp_bone_weights_angular[0] = k.qp_bone_weights_angular[1] = k.qp_bone_weights_angular[7] = k.qp_bone_weights_angular[8] = 0.0f;
-			k.qp_bone_weights_linear[0] = k.qp_bone_weights_linear[1] = k.qp_bone_weights_linear[7] = k.qp_bone_weights_linear[8] = 0.0f;
-
-			//k.qp_bone_weights_linear[4] = 1.0f;
-			//k.prediction_error_pcoeff[4] = 1.0f;
-			//k.prediction_error_icoeff[4] = 1.0f;
-
-			for(unsigned int i = 0; i < 4; ++i)
-			{
-				k.foot_torque_coeff[i] = 1.0f;//1.2f;
-				//k.foot_force_coeff[i] = 1.0f;//1.2f;
-				//k.ground_foott_subfrac[i] = 0;//1.0f;
-				//k.ground_netf_subfrac[i] = 0;//1.0f;
-			}
-
-			k.partial_dx = -2;
-			k.pelvis_error_weight = 2.0f;
-			k.knee_strength = 100.0f;
-
-			k.qpbw_lleg = 4.0f;
-			k.qpbw_uleg = 4.0f;
-			k.grav_lleg = 100.0f;
-			k.grav_uleg = 100.0f;
-
-			//k.hmax = 500.0f;
 
 			return k;
 		}
@@ -355,8 +322,9 @@ namespace Test
 		float gun_aimvec;
 		float com;
 		float energy_cost;
-		float prediction_error;
+		float data_store_cost;
 		float helper_force_penalty;
+		float invalid_muslce_cost;
 
 		float total;
 
@@ -457,47 +425,13 @@ namespace Test
 
 		void Randomize(float scale, unsigned int count)
 		{
-#if 0
-			for(unsigned int i = 0; i < frames.size(); ++i)
-			{
-				FrameParams& k = frames[i];
-
-				FrameParams best_delta;
-				float best_dsq = -1;
-				for(unsigned int jj = 0; jj < 20; ++jj)
-				{
-					FrameParams delta;
-					float dsq = 0.0f;
-					for(unsigned int j = 0; j < FrameParams::num_params; ++j)
-						if(FrameParams::kmin[j] != FrameParams::kmax[j])
-						{
-							float d = delta[j] = Random3D::Rand() * 2.0f - 1.0f;
-							dsq += d * d;
-						}
-				
-					if(jj == 0 || dsq < best_dsq)
-					{
-						best_dsq = dsq;
-						best_delta = delta;
-
-						if(dsq <= 1.0f)
-							break;
-					}
-				}
-
-				float delta_scale = best_dsq <= 1.0f ? scale : Random3D::Rand(scale) / best_dsq;
-
-				for(unsigned int j = 0; j < FrameParams::num_params; ++j)
-				{
-					float *ki = &k[j], kmini = FrameParams::kmin[j], kmaxi = FrameParams::kmax[j];
-					*ki = max(kmini, min(kmaxi, *ki + delta_scale * (kmaxi - kmini) * best_delta[j]));
-				}
-			}
-#else
 			vector<unsigned int> nonequal;
 			for(unsigned int i = 0; i < FrameParams::num_params; ++i)
 				if(FrameParams::kmin[i] != FrameParams::kmax[i])
 					nonequal.push_back(i);
+
+			if(nonequal.empty())
+				return;
 
 			for(unsigned int i = 0; i < count; ++i)
 			{
@@ -506,7 +440,7 @@ namespace Test
 				float *k, kmin, kmax;
 				do
 				{
-					int index = nonequal[Random3D::RandInt() % nonequal.size()];//Random3D::RandInt() % FrameParams::num_params;
+					int index = nonequal[Random3D::RandInt() % nonequal.size()];
 					k = &frame[index];
 					kmin = FrameParams::kmin[index];
 					kmax = FrameParams::kmax[index];
@@ -515,7 +449,6 @@ namespace Test
 				float kscale = scale * (kmax - kmin);
 				*k = max(kmin, min(kmax, *k + Random3D::Rand() * kscale * 2.0f - kscale));
 			}
-#endif
 		}
 
 		GABrain* CreateCrossover(const GABrain& b, unsigned int nextid) const
@@ -686,6 +619,16 @@ namespace Test
 				//s.torso_rot     = Vec3(0, Random3D::Rand(-1.0f, 1.0f), 0);
 				//s.desired_accel = Vec3(0, 0, i * 0.25f / float(NUM_SUBTESTS - 1));
 
+				switch(i % 7)
+				{
+					case 1: s.torso_vel.x--; break;
+					case 2: s.torso_vel.x++; break;
+					case 3: s.torso_vel.z--; break;
+					case 4: s.torso_vel.z++; break;
+					case 5: s.torso_vel.y--; break;
+					case 6: s.torso_vel.y++; break;
+				}
+
 				subtests.push_back(s);
 			}
 		}
@@ -732,48 +675,7 @@ namespace Test
 						{
 							ss << "\t\tframe " << f << ":" << endl;
 							const FrameParams& frame = b->frames[f];
-							for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-							{
-								ss << "\t\t\tbone " << i << ": weight A = " << frame.qp_bone_weights_angular[i] << ", L = " << frame.qp_bone_weights_linear[i] << "; L pred PID = ( " << frame.prediction_error_pcoeff[i] << ", " << frame.prediction_error_icoeff[i] << ", 0 )";
-								ss << " }; gravity coeff = " << frame.gravity_coeff[i] << endl;
-							}
-						
-							ss << "\t\t\tfoot torque coeff = { ";
-							for(unsigned int i = 0; i < 4; ++i)
-							{
-								if(i != 0)
-									ss << ", ";
-								ss << frame.foot_torque_coeff[i];
-							}
-							ss << " }; pelvis err weight = " << powf(10.0f, frame.pelvis_error_weight);// << endl;
-							/*
-							ss << " }; foot force coeff = { ";
-							for(unsigned int i = 0; i < 4; ++i)
-							{
-								if(i != 0)
-									ss << ", ";
-								ss << frame.foot_force_coeff[i];
-							}
-							ss << " }" << endl;
-							ss << "\t\t\tgr foot t sub = { ";
-							for(unsigned int i = 0; i < 4; ++i)
-							{
-								if(i != 0)
-									ss << ", ";
-								ss << frame.ground_foott_subfrac[i];
-							}
-							ss << " }; net f sub = { ";
-							for(unsigned int i = 0; i < 4; ++i)
-							{
-								if(i != 0)
-									ss << ", ";
-								ss << frame.ground_netf_subfrac[i];
-							}
-							ss << " }" << endl;
-							*/
-							//ss << "\t\t\t";
-							ss << "; partial dx = " << powf(10.0f, frame.partial_dx) << "; knee str = " << frame.knee_strength << endl;
-							ss << "\t\t\tqpbw lleg = " << frame.qpbw_lleg << "; qpbw uleg = " << frame.qpbw_uleg << "; grav lleg = " << frame.grav_lleg << "; grav uleg = " << frame.grav_uleg << "; hmax = " << frame.hmax << endl;
+							// TODO: display FrameParams members here
 						}
 						Debug(ss.str());
 					}
@@ -878,7 +780,7 @@ namespace Test
 
 		void MakeFirstGeneration()
 		{
-			static const bool random_from_middle = false;
+			static const bool random_from_middle = true;
 
 			unsigned int first_gen_size = NUM_ELITES * NUM_ELITES;
 			for(unsigned int i = 0; i < first_gen_size; ++i)
@@ -888,14 +790,35 @@ namespace Test
 				for(unsigned int j = 0; j < b->frames.size(); ++j)
 				{
 					FrameParams& frame = b->frames[j];
-					for(unsigned int k = 0; k < FrameParams::num_params; ++k)
-						if(random_from_middle)
+					if(random_from_middle)
+					{
+						for(unsigned int k = 0; k < FrameParams::num_params; ++k)
 							frame[k] = 0.5f * (FrameParams::kmin[k] + FrameParams::kmax[k]);
-						else
-							frame[k] = Random3D::Rand(FrameParams::kmin[k], FrameParams::kmax[k]);						
+
+						if(NUM_DATA_NEURONS == NUM_LOWER_BODY_BONES * 12)
+							for(unsigned int k = 0; k < NUM_DATA_NEURONS; ++k)
+								frame.input_to_data[k * NUM_DATA_NEURONS + k] = 1.0f;
+					}
+					else
+					{
+						for(unsigned int k = 0; k < FrameParams::num_params; ++k)
+							frame[k] = Random3D::Rand(FrameParams::kmin[k], FrameParams::kmax[k]);
+
+						for(unsigned int k = 0; k < NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2; ++k)
+						{
+							// make sure muscle attach points aren sommehere within their respective bones, so we don't have to spend several generations fixing that
+							FrameParams::MuscleParams& mk = frame.muscle_params[k];
+							mk.apos.x *= 0.25f;		// TODO: do this for real
+							mk.bpos.x *= 0.25f;
+							mk.apos.y *= 0.5f;
+							mk.bpos.y *= 0.5f;
+							mk.apos.z *= 0.25f;
+							mk.bpos.z *= 0.25f;
+						}					
+					}
 				}
 
-				if(random_from_middle && i >= NUM_ELITES)
+				//if(random_from_middle && i >= NUM_ELITES)
 					b->Randomize(MUTATION_SCALE, MUTATION_COUNT);
 
 				candidates.push_back(b);
@@ -1146,16 +1069,44 @@ namespace Test
 		CJoint* leg_joints[NUM_LEG_JOINTS];
 		CBone* lower_body_bones[NUM_LOWER_BODY_BONES];
 
+		struct Muscle
+		{
+			CBone *a, *b;
+			Vec3 apos, bpos;		// local attachment pos - bone's CoM
+			float kmin, kmax;
+			float k;
+
+			Muscle(CBone& a, CBone& b, const Vec3& apos, const Vec3& bpos, float kmin, float kmax) : a(&a), b(&b), apos(apos), bpos(bpos), kmin(kmin), kmax(kmax), k(kmin) { }
+
+			void Reset() { k = kmin; }
+
+			float ApplyForce(float timestep)				// return value is energy cost
+			{
+				RigidBody *arb = a->rb, *brb = b->rb;
+				Vec3 alocal = arb->GetLocalCoM() + apos;
+				Vec3 blocal = brb->GetLocalCoM() + bpos;
+				Vec3 ax = arb->LocalPosToWorld(alocal);
+				Vec3 bx = brb->LocalPosToWorld(blocal);
+
+				k = max(kmin, min(kmax, k));
+				Vec3 impulse = Vec3::Normalize(bx - ax, k * timestep);
+				arb->ApplyWorldImpulse( impulse, ax);
+				brb->ApplyWorldImpulse(-impulse, bx);
+
+				float cost = impulse.ComputeMagnitudeSquared();	// TODO: double-check the physics of this computation
+				return cost;
+			}
+		};
+		vector<Muscle> muscles;
+
 		Scores cat_scores;
 
-		Vec3 desired_pelvis_pos;
 		Vec3 initial_com, desired_com;
-
-		Quaternion old_p;
 
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
+		float data_neurons[NUM_DATA_NEURONS];
 
 		struct JetpackNozzle
 		{
@@ -1208,7 +1159,7 @@ namespace Test
 			{
 				nu_force = world_force + nudge;
 
-				/*
+				
 				float dot = Vec3::Dot(nu_force, world_center);
 				if(dot <= 0.0f)
 					nu_force = nu_torque = Vec3();
@@ -1222,14 +1173,14 @@ namespace Test
 					{
 						ortho *= sqrtf(axialsq * cone_cossq / orthosq);
 						nu_force = axial + ortho;
-					}*/
+					}
 
 					float magsq = nu_force.ComputeMagnitudeSquared();
 					if(magsq > max_forcesq)
 						nu_force *= sqrtf(max_forcesq / magsq);
 
 					nu_torque = force_to_torque * nu_force;
-				//}
+				}
 			}
 
 			void ApplySelectedForce(float timestep)
@@ -1246,6 +1197,7 @@ namespace Test
 		Vec3 desired_jp_accel;
 
 		Vec3 desired_aim;
+		float invalid_muscle_penalty;
 
 		Vec3 gun_initial_pos;
 		Quaternion gun_initial_ori;
@@ -1275,6 +1227,12 @@ namespace Test
 		{
 			jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
 			jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
+		}
+
+		void RegisterSymmetricMuscles(CBone& la, CBone& lb, CBone& ra, CBone& rb, const Vec3& lapos, const Vec3& lbpos, float kmin, float kmax)
+		{
+			muscles.push_back(Muscle(la, lb, lapos,                            lbpos,                            kmin, kmax));
+			muscles.push_back(Muscle(ra, rb, Vec3(-lapos.x, lapos.y, lapos.z), Vec3(-lbpos.x, lbpos.y, lbpos.z), kmin, kmax));
 		}
 
 
@@ -1355,6 +1313,23 @@ namespace Test
 			RegisterSymmetricJetpackNozzles( lheel,     rheel,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jp_angle, jp_force );
 		}
 
+		void InitMuscles(const FrameParams& params)
+		{
+			muscles.clear();
+			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
+			{
+				CJoint& lcj = *leg_joints[i];
+				CJoint& rcj = *leg_joints[i + 4];
+				CBone& la = *lcj.a;
+				CBone& lb = *lcj.b;
+				CBone& ra = *rcj.a;
+				CBone& rb = *rcj.b;
+				const FrameParams::MuscleParams& p = params.muscle_params[i];
+				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
+					RegisterSymmetricMuscles(la, lb, ra, rb, p.apos, p.bpos, p.mmin, p.mmax);
+			}
+		}
+
 		void Init(Soldier* dood)
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
@@ -1378,8 +1353,6 @@ namespace Test
 				if(*iter != lheel.rb && *iter != rheel.rb && *iter != ltoe.rb && *iter != rtoe.rb)
 					(*iter)->SetContactCallback(&no_touchy);
 
-			desired_pelvis_pos = pelvis.rb->GetCenterOfMass();
-
 			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 			{
 				gun_rb = gun->rigid_body;
@@ -1389,6 +1362,7 @@ namespace Test
 
 			brain = experiment->GetBrain();
 			cat_scores = Scores();
+			memset(data_neurons, 0, sizeof(data_neurons));
 
 			frame_index = 0;
 			frame_time = 0.0f;
@@ -1451,6 +1425,7 @@ namespace Test
 
 			brain = experiment->GetBrain();
 			cat_scores = Scores();
+			memset(data_neurons, 0, sizeof(data_neurons));
 		}
 
 
@@ -1635,11 +1610,11 @@ namespace Test
 		}
 		void DoSubtestInitialVelocity(Soldier* dood, const Subtest& subtest)
 		{
-			Vec3 vvec = subtest.torso_vel * 0.005f;
-			head  .rb->SetLinearVelocity(head.old_vel = vvec);
-			torso2.rb->SetLinearVelocity(head.old_vel = vvec);
-			torso1.rb->SetLinearVelocity(head.old_vel = vvec * 0.6f);
-			pelvis.rb->SetLinearVelocity(head.old_vel = vvec * 0.2f);
+			Vec3 vvec = subtest.torso_vel * 0.1f;
+			head  .rb->SetLinearVelocity(vvec);
+			torso2.rb->SetLinearVelocity(vvec);
+			torso1.rb->SetLinearVelocity(vvec * 0.6f);
+			pelvis.rb->SetLinearVelocity(vvec * 0.2f);
 
 			static const float r = 0.00125f;
 			Vec3 avvec = subtest.torso_rot * r;
@@ -1680,8 +1655,8 @@ namespace Test
 
 			const Subtest& subtest = experiment->GetSubtest();
 			DoSubtestAimMove(dood, subtest);
-			//if(tick_age == 0)
-			//	DoSubtestInitialVelocity(dood, subtest);
+			if(tick_age == 0)
+				DoSubtestInitialVelocity(dood, subtest);
 
 			//RigidBody& t2rb = *torso2.rb;
 			//t2rb.SetLinearVelocity(t2rb.GetLinearVelocity() + subtest.torso_vel * (10.0f * timestep / t2rb.GetMass()));
@@ -1708,14 +1683,15 @@ namespace Test
 			Vec3 dood_com, com_vel, angular_momentum;
 
 			set<RigidBody*> included_rbs;
-			//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-				//included_rbs.insert(lower_body_bones[i]->rb);
-			included_rbs.insert(pelvis.rb);		// TODO: remove this when reverting?
-			included_rbs.insert(torso1.rb);
-			included_rbs.insert(torso2.rb);
-			included_rbs.insert(head.rb);
-			included_rbs.insert(lshoulder.rb);
-			included_rbs.insert(rshoulder.rb);
+			included_rbs.insert(dood->velocity_change_bodies.begin(), dood->velocity_change_bodies.end());
+			////for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
+			//	//included_rbs.insert(lower_body_bones[i]->rb);
+			//included_rbs.insert(pelvis.rb);		// TODO: remove this when reverting?
+			//included_rbs.insert(torso1.rb);
+			//included_rbs.insert(torso2.rb);
+			//included_rbs.insert(head.rb);
+			//included_rbs.insert(lshoulder.rb);
+			//included_rbs.insert(rshoulder.rb);
 
 			ComputeMomentumStuff(included_rbs, dood_mass, dood_com, com_vel, angular_momentum);
 
@@ -1760,6 +1736,29 @@ namespace Test
 			WalkKeyframe use_pose = WalkKeyframe::Interpolate(*current_frame, *next_frame, kf_frac);
 			FrameParams use_params = FrameParams::Interpolate(brain->frames[kf_index1], brain->frames[kf_index2], kf_frac);
 
+			InitMuscles(use_params);		// TODO: do this better
+
+			if(tick_age == 0)
+			{
+				invalid_muscle_penalty = 0.0f;
+				RayResult rr;
+				Vec3 fwd(0, 0, 1), back(0, 0, -1);
+				for(unsigned int i = 0; i < muscles.size(); ++i)
+				{
+					const Muscle& muscle = muscles[i];
+					const RigidBody* arb = muscle.a->rb;
+					const RigidBody* brb = muscle.b->rb;
+					Vec3 alocal = arb->GetLocalCoM() + muscle.apos;
+					Vec3 blocal = brb->GetLocalCoM() + muscle.bpos;
+					if(MultiSphereShape* as = dynamic_cast<MultiSphereShape*>(arb->GetCollisionShape()))
+						if(!(as->CollideRay(Ray(alocal, fwd), rr) && as->CollideRay(Ray(alocal, back), rr)))
+							invalid_muscle_penalty++;
+					if(MultiSphereShape* bs = dynamic_cast<MultiSphereShape*>(brb->GetCollisionShape()))
+						if(!(bs->CollideRay(Ray(blocal, fwd), rr) && bs->CollideRay(Ray(blocal, back), rr)))
+							invalid_muscle_penalty++;
+				}
+			}
+
 			// upper body stuff; mostly working
 			Quaternion p, t1, t2;
 			Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
@@ -1800,12 +1799,17 @@ namespace Test
 			Quaternion lb_desired_oris[NUM_LOWER_BODY_BONES];
 			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 			{
+				CBone& lbbi = *lower_body_bones[i];
 				if(i == 4)
 					lb_desired_oris[i] = p;
 				else
-					lb_desired_oris[i] = lower_body_bones[i]->initial_ori;
+					lb_desired_oris[i] = lbbi.initial_ori;
 
-				lower_body_bones[i]->ComputeDesiredTorqueWithDefaultMoI(lb_desired_oris[i], inv_timestep);
+				lbbi.ComputeDesiredTorqueWithDefaultMoI(lb_desired_oris[i], inv_timestep);
+
+				//Vec3 initial_pos = lbbi.initial_pos + lbbi.initial_ori * lbbi.local_com;
+				//Vec3 cur_pos = lbbi.rb->GetPosition() + lbbi.rb->GetOrientation() * lbbi.local_com;
+				//lower_body_bones[i]->desired_force = ((initial_pos - cur_pos) * inv_timestep - lbbi.rb->GetLinearVelocity()) * (inv_timestep * lbbi.rb->GetMass());
 			}
 
 			spine2.SetTorqueToSatisfyB();
@@ -1815,161 +1819,81 @@ namespace Test
 			timer_ub_stuff += timer.GetAndRestart();
 #endif
 
-			// more factors affecting computation of bones' desired torques
-			float ideal_bone_torques[NUM_LB_BONE_FLOATS + 3];
-			memset(ideal_bone_torques, 0, sizeof(float) * (NUM_LB_BONE_FLOATS + 3));
-			float* ibt_ptr = ideal_bone_torques;
+			for(unsigned int i = 0; i < muscles.size(); ++i)
+				muscles[i].Reset();
 
+			float desired_values[NUM_LOWER_BODY_BONES * 12];
 			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 			{
-				CBone* bone = lower_body_bones[i];
+				Vec3* vv = ((Vec3*)desired_values) + i * 4;
 
-				Vec3 ibt, bdesired_force;
-				
-				ibt = bone->desired_torque - bone->applied_torque;
-
-				//if(i == 4)
-				//	bdesired_force = desired_force;// * (pelvis.rb->GetMass() / dood_mass);
-				//else
-				//{
-					Vec3 desired_pos = bone->initial_pos + bone->initial_ori * bone->local_com;
-					Vec3 got_com = bone->rb->GetCenterOfMass();
-					Vec3 actual_com = bone->rb->GetPosition() + bone->rb->GetOrientation() * bone->rb->GetLocalCoM();
-					//Debug(((stringstream&)(stringstream() << "com error = " << (actual_com - got_com).ComputeMagnitude() << endl)).str());
-					Vec3 desired_vel = (desired_pos - actual_com) * (inv_timestep * 0.25f);
-					bdesired_force = (desired_vel - bone->rb->GetLinearVelocity()) * (inv_timestep * 0.25f * bone->rb->GetMass());
-				//}
-
-				*(ibt_ptr++) = ibt.x;
-				*(ibt_ptr++) = ibt.y;
-				*(ibt_ptr++) = ibt.z;
-
-				bone->desired_force = bdesired_force;
-				*(ibt_ptr++) = bdesired_force.x;
-				*(ibt_ptr++) = bdesired_force.y;
-				*(ibt_ptr++) = bdesired_force.z;
-			}
-			// final 3 elements (for desired pelvis mismatch) are zero
-
-			static const unsigned int foot_bt_indices[4] = { 0, 2, 16, 14 };	// l toe, l heel, r toe, r heel
-//			for(unsigned int i = 0; i < 4; ++i)
-//				((Vec3*)ideal_bone_torques)[foot_bt_indices[i]] -= dood->feet[i]->net_torque * use_params.ground_foott_subfrac[i];
-
-			// generate matrix A (in "Af = b"), which maps joint torques to bone torques & forces
-			vector<float> base_forces(NUM_LOWER_BODY_BONES * 3 + 3);
-			GenericMatrix A = ComputeMatrixA(dood->feet, use_params, a_data, base_forces, com_vel, angular_momentum, dood_mass);
-
-#if 0
-			stringstream ss;
-			ss << "t = " << tick_age << "; Matrix A:" << endl;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES * 6 + 3; ++i)
-			{
-				ss << "\t{ ";
-				for(unsigned int j = 0; j < NUM_LEG_JOINTS * 3; ++j)
-				{
-					if(j != 0)
-						ss << ", ";
-					ss << A[i][j];
-				}
-				if(i % 6 >= 3 || i >= NUM_LB_BONE_FLOATS)
-					ss << " } - " << base_forces[(i / 6) * 3 + i % 3] << endl;
-				else
-					ss << " }" << endl;
-			}
-			Debug(ss.str());
-#endif
-
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-				((Vec3*)ideal_bone_torques)[i * 2 + 1] -= ((Vec3*)base_forces.data())[i];
-			((Vec3*)ideal_bone_torques)[NUM_LOWER_BODY_BONES * 2] -= ((Vec3*)base_forces.data())[NUM_LOWER_BODY_BONES];
-
-			//for (unsigned int i = 0; i < NUM_LB_BONE_FLOATS + 3; ++i)
-			//	Debug(((stringstream&)(stringstream() << "\tibt[" << i << "] = " << ideal_bone_torques[i] << endl)).str());
-
-#if PROFILE_CPHFT
-			timer_a_matrix += timer.GetAndRestart();
-#endif
-
-			// solve the QP (quadratic program) ... aka find the f which minimizes ||Af-b||^2 with some component-specific weights
-			float joint_torques     [NUM_JOINT_AXES];
-			float bone_torque_errors[NUM_LB_BONE_FLOATS + 3];
-			memset(joint_torques, 0, sizeof(float) * NUM_JOINT_AXES);
-
-			SolveForOptimalF(use_params, A, ideal_bone_torques, joint_torques, bone_torque_errors);
-
-
-#if PROFILE_CPHFT
-			timer_solve_qp += timer.GetAndRestart();
-#endif
-
-			// finally, tell the joints to output these torques
-			const Vec3 *tptr = (Vec3*)joint_torques;
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-				leg_joints[i]->SetOrientedTorque(*(tptr++));
-
-			//Debug(((stringstream&)(stringstream() << "pelvis torque error = " << (pelvis.desired_torque - pelvis.applied_torque).ComputeMagnitude() << endl)).str());
-
-			float mis_prediction = 0.0f;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
 				CBone& bone = *lower_body_bones[i];
-				if (i <= 1 || i >= 7 || i == 4)
-					mis_prediction += (i == 4 ? 1.0f : 0.25f ) * bone.prediction_error.ComputeMagnitudeSquared() * timestep / bone.rb->GetMass();
+				RigidBody& rb = *bone.rb;
 
-				for(unsigned int j = 0; j < 3; ++j)			// ... this is to prevent a floating point overflow
+				Vec3 desired_vel = Vec3();
+				Vec3 desired_rot = Vec3();
+
+				vv[0] = (bone.initial_pos + bone.initial_ori * bone.local_com) - (rb.GetPosition() + rb.GetOrientation() * bone.local_com);
+				vv[1] = desired_vel - rb.GetLinearVelocity();
+				vv[2] = (bone.initial_ori * Quaternion::Reverse(rb.GetOrientation())).ToRVec();
+				vv[3] = desired_rot - rb.GetAngularVelocity();
+			}
+
+			float nu_data[NUM_DATA_NEURONS];
+			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
+			{
+				float tot = 0.0f;
+				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
+					tot += use_params.input_to_data[j * NUM_DATA_NEURONS + i] * desired_values[j];
+				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
+					tot += use_params.data_to_data[j * NUM_DATA_NEURONS + i] * data_neurons[j];
+
+				nu_data[i] = tanhf(tot);//tot > 0 ? tanhf(tot) : 0.0f;
+			}
+
+			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
+			{
+				unsigned int ii = i % 4;
+				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
 				{
-					float& bteij = bone_torque_errors[i * 6 + 3 + j];
-					bteij = max(-500.0f, min(500.0f, bteij));
-				}
-				int index = i * 2 + 1;
-				bone.predicted_force = ((Vec3*)bone_torque_errors)[index] + ((Vec3*)ideal_bone_torques)[index] + ((Vec3*)base_forces.data())[i];
-			}
+					float tot = 0.0f;
+					for(unsigned int k = 0; k < NUM_LOWER_BODY_BONES * 12; ++k)
+					{
+						unsigned int kb = k / 12;
+						unsigned int kk = k % 12;
 
-			// compute helper forces and apply them
-			float use_hmax = max(0.0f, use_params.hmax);
-			static const unsigned int HF_DIM = NUM_LB_BONE_FLOATS + 3;
-			float helper_force[HF_DIM];
-			Vec3* hf_vec = (Vec3*)helper_force;
+						float value = desired_values[kb * 12 + kk];
+						tot += use_params.brain_coeffs[(i * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + k] * value;
+					}
 
-			//hf_vec[0] = desired_force - torso2.predicted_force;
-			for(unsigned int i = 0; i < 9; ++i)
-			{
-				hf_vec[i * 2 + 1] = hf_vec[i * 2 + 2] = Vec3();
+					for(unsigned int k = 0; k < NUM_DATA_NEURONS; ++k)
+						tot += use_params.data_to_output[(i * MUSCLES_PER_JOINT + j) * NUM_DATA_NEURONS + k] * data_neurons[k];
 
-				const CBone& bone = *lower_body_bones[i];
-				//if(i != 4)
-					hf_vec[i * 2 + 1] = bone.desired_force - bone.predicted_force;
-				hf_vec[i * 2 + 2] = bone.desired_torque - bone.applied_torque;					
-			}
-			
-			float hfmagsq = 0.0f;
-			for(unsigned int i = 0; i < HF_DIM; ++i)
-				hfmagsq += helper_force[i] * helper_force[i];
-			if(hfmagsq > 0)
-			{
-				float hfmag = sqrtf(hfmagsq);
-				float hfcoeff = min(use_hmax, hfmag) * timestep / hfmag;
-				for(unsigned int i = 0; i < HF_DIM; ++i)
-					helper_force[i] *= hfcoeff;
-
-				//Vec3 ubody_helper_force = hf_vec[0] / dood_mass;
-				//for(set<RigidBody*>::iterator iter = included_rbs.begin(); iter != included_rbs.end(); ++iter)
-				//{
-				//	RigidBody& rb = **iter;
-				//	rb.SetLinearVelocity(rb.GetLinearVelocity() + ubody_helper_force);
-				//}
-
-				for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-				{	
-					RigidBody& rb = *lower_body_bones[i]->rb;
-					rb.SetLinearVelocity (rb.GetLinearVelocity () + hf_vec[i * 2 + 1] / rb.GetMass());
-					rb.SetAngularVelocity(rb.GetAngularVelocity() + rb.GetInvMoI() * hf_vec[i * 2 + 2]);
+					if(tot > 0)
+					{
+						float frac = tanhf(tot);
+						Muscle& m = muscles[i * MUSCLES_PER_JOINT + j];
+						m.k = m.kmin + frac * (m.kmax - m.kmin);
+					}
 				}
 			}
 
+			memcpy(data_neurons, nu_data, sizeof(data_neurons));
+
+			float energy_cost = 0.0f;
+			for(unsigned int i = 0; i < muscles.size(); ++i)
+				energy_cost += muscles[i].ApplyForce(timestep);
+
+			float data_store_cost = 0.0f;
+			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
+				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
+				{
+					float d = use_params.data_to_data[i * NUM_DATA_NEURONS + j];
+					data_store_cost += d * d * timestep;
+				}
 
 #if PROFILE_CPHFT
-			timer_use_results += timer.GetAndRestart();
+			timer_lb_stuff += timer.GetAndRestart();
 #endif
 
 			// scoring
@@ -1979,18 +1903,19 @@ namespace Test
 				//cat_weights.bone_ori[i] = i == 4 ? 10.0f : 1.0f;
 				//cat_weights.bone_pos[i] = i == 1 || i == 7 ? 100.0f : 1.0f;//10.0f;
 
-				cat_weights.bone_ori[i] = i == 4 ? 50.0f : i <= 1 || i >= 7 ? 1.0f : 0;//0.1f;
+				cat_weights.bone_ori[i] = i == 4 ? 50.0f : 1.0f;
 				cat_weights.bone_pos[i] = 100.0f;// i <= 1 || i >= 7 || i == 4 ? 100.0f : 0;// 10.0f;
 			}
 
 			//cat_weights.head_ori = 100.0f;
 			//cat_weights.gun_aimvec = 10.0f;
 			//cat_weights.com = 1000.0f;
-			//cat_weights.energy_cost = 0.00005f;
-			cat_weights.prediction_error = 0.005f;
+			cat_weights.energy_cost = 0.0005f;
+			cat_weights.data_store_cost = 10.0f;						// create an incentive to keep the use of data neurons as simple as possible
 			cat_weights.helper_force_penalty = 100.0f / 60.0f;
+			cat_weights.invalid_muslce_cost = 1000000.0f;
 
-			float energy_cost = 0.0f;
+			
 			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
 				energy_cost += leg_joints[i]->actual.ComputeMagnitudeSquared();
 			energy_cost += spine1.actual.ComputeMagnitudeSquared();
@@ -1999,11 +1924,13 @@ namespace Test
 			Scores instant_scores;
 			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 			{
-				CBone& bone = *lower_body_bones[i];
-				RigidBody* rb = bone.rb;
-				instant_scores.bone_ori[i] = (lb_desired_oris[i] * Quaternion::Reverse(rb->GetOrientation())).ToRVec().ComputeMagnitudeSquared();
-				Vec3 actual_com = rb->GetPosition() + rb->GetOrientation() * rb->GetLocalCoM();
-				instant_scores.bone_pos[i] = ((bone.initial_ori * bone.local_com + bone.initial_pos) - actual_com).ComputeMagnitudeSquared();
+				//CBone& bone = *lower_body_bones[i];
+				//RigidBody* rb = bone.rb;
+				//instant_scores.bone_ori[i] = (lb_desired_oris[i] * Quaternion::Reverse(rb->GetOrientation())).ToRVec().ComputeMagnitudeSquared();
+				//Vec3 actual_com = rb->GetPosition() + rb->GetOrientation() * rb->GetLocalCoM();
+				//instant_scores.bone_pos[i] = ((bone.initial_ori * bone.local_com + bone.initial_pos) - actual_com).ComputeMagnitudeSquared();
+				instant_scores.bone_ori[i] = ((Vec3*)&desired_values)[i * 4 + 2].ComputeMagnitudeSquared() + ((Vec3*)&desired_values)[i * 4 + 3].ComputeMagnitudeSquared();
+				instant_scores.bone_pos[i] = ((Vec3*)&desired_values)[i * 4    ].ComputeMagnitudeSquared() + ((Vec3*)&desired_values)[i * 4 + 1].ComputeMagnitudeSquared();
 			}
 
 			Quaternion head_desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
@@ -2012,8 +1939,9 @@ namespace Test
 			instant_scores.gun_aimvec = (Vec3::Normalize(gun_rb->GetOrientation() * Vec3(0, 0, 1)) - Vec3::Normalize(head_desired_ori * Vec3(0, 0, 1))).ComputeMagnitude();
 			instant_scores.com = (dood_com - desired_com).ComputeMagnitudeSquared();
 			instant_scores.energy_cost = energy_cost;
-			instant_scores.prediction_error = mis_prediction;
-			instant_scores.helper_force_penalty = use_hmax;
+			instant_scores.data_store_cost = data_store_cost;
+			instant_scores.invalid_muslce_cost = invalid_muscle_penalty;
+			//instant_scores.helper_force_penalty = use_hmax;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;
@@ -2052,6 +1980,7 @@ namespace Test
 				}
 			}
 
+
 #if PROFILE_CPHFT
 			timer_end_of_test += timer.GetAndRestart();
 			timer_cphft_total += timer2.Stop();
@@ -2060,593 +1989,7 @@ namespace Test
 #endif
 		}
 
-		void ComputeBoneForcesFromTorques(const float torques[NUM_LOWER_BODY_BONES * 3], float* results, const Mat3 lmat[NUM_LOWER_BODY_BONES + 1])
-		{
-			// predict positions of each bone, assuming bone angular velocities are unchanged
-			// TODO: implement cases for when one or both feet are not in contact with the ground
-			Quaternion predicted_bone_ori[NUM_LOWER_BODY_BONES];
-			Vec3 predicted_bone_pos[NUM_LOWER_BODY_BONES];
-			predicted_bone_pos[0] = lower_body_bones[0]->rb->GetPosition() + lower_body_bones[0]->rb->GetOrientation() * lower_body_bones[0]->rb->GetLocalCoM();
-			predicted_bone_pos[1] = lower_body_bones[1]->rb->GetPosition() + lower_body_bones[1]->rb->GetOrientation() * lower_body_bones[1]->rb->GetLocalCoM();
-			predicted_bone_pos[7] = lower_body_bones[7]->rb->GetPosition() + lower_body_bones[7]->rb->GetOrientation() * lower_body_bones[7]->rb->GetLocalCoM();
-			predicted_bone_pos[8] = lower_body_bones[8]->rb->GetPosition() + lower_body_bones[8]->rb->GetOrientation() * lower_body_bones[8]->rb->GetLocalCoM();
-			for (unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				Quaternion ori = lower_body_bones[i]->rb->GetOrientation();
-				if (i <= 1 || i >= 7)
-					predicted_bone_ori[i] = ori;
-				else
-				{
-					Vec3 rot = lower_body_bones[i]->rb->GetAngularVelocity();
-					rot += lmat[i] * Vec3(torques[i * 3 + 0], torques[i * 3 + 1], torques[i * 3 + 2]);
-					// this block equivalent to: ori = Quaternion::FromRVec(-rot * timestep) * ori
-					if (float magsq = rot.ComputeMagnitudeSquared())
-					{
-						float mag = sqrtf(magsq), half = mag * timestep * 0.5f, coeff = -sinf(half) / mag;
-						predicted_bone_ori[i] = Quaternion(cosf(half), rot.x * coeff, rot.y * coeff, rot.z * coeff) * ori;
-					}
-					else
-						predicted_bone_ori[i] = ori;
-				}
-			}
-			predicted_bone_pos[2] = predicted_bone_pos[1] + predicted_bone_ori[1] * (lankle.sjc->pos - lheel.rb->GetLocalCoM()) + predicted_bone_ori[2] * (llleg.rb->GetLocalCoM() - lankle.sjc->pos);
-			predicted_bone_pos[3] = predicted_bone_pos[2] + predicted_bone_ori[2] * (lknee.sjc->pos - llleg.rb->GetLocalCoM()) + predicted_bone_ori[3] * (luleg.rb->GetLocalCoM() - lknee.sjc->pos);
 
-			predicted_bone_pos[6] = predicted_bone_pos[7] + predicted_bone_ori[7] * (rankle.sjc->pos - rheel.rb->GetLocalCoM()) + predicted_bone_ori[6] * (rlleg.rb->GetLocalCoM() - rankle.sjc->pos);
-			predicted_bone_pos[5] = predicted_bone_pos[6] + predicted_bone_ori[6] * (rknee.sjc->pos - rlleg.rb->GetLocalCoM()) + predicted_bone_ori[5] * (ruleg.rb->GetLocalCoM() - rknee.sjc->pos);
-
-			Vec3 pelvis_a = predicted_bone_pos[3] + predicted_bone_ori[3] * (lhip.sjc->pos - luleg.rb->GetLocalCoM()) + predicted_bone_ori[4] * (pelvis.rb->GetLocalCoM() - lhip.sjc->pos);
-			Vec3 pelvis_b = predicted_bone_pos[5] + predicted_bone_ori[5] * (rhip.sjc->pos - ruleg.rb->GetLocalCoM()) + predicted_bone_ori[4] * (pelvis.rb->GetLocalCoM() - rhip.sjc->pos);
-			predicted_bone_pos[4] = 0.5f * (pelvis_a + pelvis_b);
-
-			for (unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				const RigidBody* rb = lower_body_bones[i]->rb;
-				Vec3 com = rb->GetPosition() + rb->GetOrientation() * rb->GetLocalCoM();
-				((Vec3*)results)[i] = ((predicted_bone_pos[i] - com) * inv_timestep - rb->GetLinearVelocity()) * (rb->GetMass() * inv_timestep);
-			}
-			((Vec3*)results)[NUM_LOWER_BODY_BONES] = pelvis_b - pelvis_a;
-		}
-
-		GenericMatrix ComputeMatrixA(const vector<FootState*>& feet, const FrameParams& use_params, vector<float>& a_data, vector<float>& base_forces, const Vec3& ub_vel, const Vec3& angular_momentum, float ub_mass)
-		{
-			GenericMatrix A(NUM_JOINT_AXES, NUM_LB_BONE_FLOATS + 3, NULL);
-			a_data.resize(A.wh);
-			A.data = a_data.data();
-			memset(A.data, 0, A.wh * sizeof(float));
-
-			base_forces.clear();
-			base_forces.resize(NUM_LB_BONE_FLOATS + 3);
-			Vec3* base_forces_v = (Vec3*)base_forces.data();
-
-			static const unsigned int joint_bone_indices[NUM_LEG_JOINTS][2] = { {1, 0}, {2, 1}, {3, 2}, {4, 3}, {7, 8}, {6, 7}, {5, 6}, {4, 5} };
-
-			float bone_torque_coeffs[NUM_LOWER_BODY_BONES] = { use_params.foot_torque_coeff[1], use_params.foot_torque_coeff[0], 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, use_params.foot_torque_coeff[2], use_params.foot_torque_coeff[3] };
-	//		float bone_torque_coeffs[NUM_LOWER_BODY_BONES] = { 0, 0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0, 0 };
-
-			// compute mapping of bone torques to bone angular velocities
-			Mat3 bone_lmat[NUM_LOWER_BODY_BONES];
-			for (unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				RigidBody* rb = lower_body_bones[i]->rb;
-				Mat3 ori_rm = rb->GetOrientation().ToMat3();
-				Mat3 invmoi = ori_rm * Mat3::Invert(Mat3(rb->GetMassInfo().moi)) * ori_rm.Transpose();
-				bone_lmat[i] = invmoi * timestep;
-			}
-
-			// compute predicted forces given zero torque applied, and mapping of bone angular velocities to bone forces (numerical approximation of the gradient)
-			float proposed_torques[NUM_LOWER_BODY_BONES * 3];
-			memset(proposed_torques, 0, sizeof(proposed_torques));
-			ComputeBoneForcesFromTorques(proposed_torques, base_forces.data(), bone_lmat);
-
-			float partials[(NUM_LOWER_BODY_BONES * 3 + 3) * (NUM_LOWER_BODY_BONES * 3)];
-			float dx = powf(10.0f, use_params.partial_dx);
-			for (unsigned int i = 0; i < NUM_LOWER_BODY_BONES * 3; ++i)
-			{
-				proposed_torques[i] = dx;
-				ComputeBoneForcesFromTorques(proposed_torques, partials + i * (NUM_LOWER_BODY_BONES * 3 + 3), bone_lmat);
-
-				for (unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 3 + 3; ++j)
-				{
-					float& f = partials[i * (NUM_LOWER_BODY_BONES * 3 + 3) + j];
-					f -= base_forces[j];
-					f /= dx;
-				}
-
-				proposed_torques[i] = 0.0f;
-			}
-
-
-
-			// adjust our force predictions according to a PID controller and gravity
-			for (unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				CBone& bone = *lower_body_bones[i];
-
-				Vec3 vel = bone.rb->GetLinearVelocity();
-				Vec3 measured_force = (vel - bone.old_vel) * (inv_timestep * bone.rb->GetMass());
-				bone.old_vel = vel;
-				bone.prediction_error = measured_force - bone.predicted_force;
-				bone.perr_integral += bone.prediction_error * timestep;
-
-				base_forces_v[i] += bone.prediction_error * use_params.prediction_error_pcoeff[i] + bone.perr_integral * use_params.prediction_error_icoeff[i];
-
-				float grav = i == 4 ? use_params.gravity_coeff[4] : i == 3 || i == 5 ? use_params.grav_uleg : i == 2 || i == 6 ? use_params.grav_lleg : 0.0f;
-				base_forces_v[i] += Vec3(0, -9.8f * grav, 0);// *bone.rb->GetMass(), 0);
-			}
-
-			// joint torques to bone torques & forces
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-			{
-				Vec3 avg_pos = leg_joints[i]->sjc->ComputeAveragePosition();
-				Mat3 mat = leg_joints[i]->oriented_axes.Transpose();
-				unsigned int k0 = i * 3;
-				unsigned int bone_a = joint_bone_indices[i][0];
-				unsigned int bone_b = joint_bone_indices[i][1];
-
-				unsigned int a0 = bone_a * 6;
-				unsigned int b0 = bone_b * 6;
-
-				// joint torques to bone torques
-				float acoeff = bone_torque_coeffs[bone_a];
-				float bcoeff = bone_torque_coeffs[bone_b];
-				const float* m = mat.values;
-
-				for(unsigned int j = 0; j < 3; ++j)
-					for(unsigned int k = 0; k < 3; ++k, ++m)
-					{
-						A[a0 + j][k0 + k] += *m * acoeff;
-						A[b0 + j][k0 + k] -= *m * bcoeff;
-					}
-
-				// joint torques to bone forces
-				for(unsigned int ob = 0; ob < NUM_LOWER_BODY_BONES + 1; ++ob)
-				{
-					Mat3 pmata, pmatb;
-					for(unsigned int j = 0; j < 3; ++j)
-						for (unsigned int k = 0; k < 3; ++k)
-						{
-							pmata[j * 3 + k] = partials[(NUM_LOWER_BODY_BONES * 3 + 3) * (bone_a * 3 + k) + (ob * 3 + j)];
-							pmatb[j * 3 + k] = partials[(NUM_LOWER_BODY_BONES * 3 + 3) * (bone_b * 3 + k) + (ob * 3 + j)];
-						}
-
-					Mat3 lmat = (pmata * acoeff - pmatb * bcoeff) * mat;
-					float* L = lmat.values;
-
-					int ob0 = (ob == NUM_LOWER_BODY_BONES) ? NUM_LB_BONE_FLOATS : ob * 6 + 3;
-					for (unsigned int j = 0; j < 3; ++j)
-						for (unsigned int k = 0; k < 3; ++k, ++L)
-							A[ob0 + j][k0 + k] += *L;
-				}
-			}
-
-			// account for the null-space issue (knees can't produce inward/outward force when exactly straight)
-			Vec3 hka[2][3] = {
-				{ lhip.sjc->ComputeAveragePosition(), lknee.sjc->ComputeAveragePosition(), lankle.sjc->ComputeAveragePosition() },
-				{ rhip.sjc->ComputeAveragePosition(), rknee.sjc->ComputeAveragePosition(), rankle.sjc->ComputeAveragePosition() }
-			};
-			for(unsigned int leg = 0; leg < 2; ++leg)
-			{
-				Vec3 hk = hka[leg][1] - hka[leg][0];
-				Vec3 ka = hka[leg][2] - hka[leg][1];
-				Vec3 ha = hka[leg][2] - hka[leg][0];
-				float cosine = Vec3::Dot(hk, ka) / sqrtf(hk.ComputeMagnitudeSquared() * ka.ComputeMagnitudeSquared());
-
-				Vec3 knee_force = ha * (cosine * use_params.knee_strength / ha.ComputeMagnitude());
-				int p0 = 4 * 6 + 3;
-				int m0 = NUM_LOWER_BODY_BONES * 6;
-				float mismatch_coeff = timestep / pelvis.rb->GetMass();
-				for (unsigned int j = 0; j < 3; ++j)
-				{
-					A[p0 + j][leg * 12 + 6] += ((float*)&knee_force)[j];
-					A[m0 + j][leg * 12 + 6] += ((float*)&knee_force)[j] * mismatch_coeff;
-				}
-			}
-
-			
-
-			return A;
-		}
-		
-		void ComputeConstraintRowMagnitudes(GenericMatrix& all_constraints, unsigned int cmagsq_index) const
-		{
-			for(unsigned int i = 0; i < all_constraints.h; ++i)
-			{
-				float* row = all_constraints[i];
-				float magsq = 0.0f;
-				for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-					magsq += row[j] * row[j];
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-				if (magsq == 0.0f)
-					Debug(((stringstream&)(stringstream() << "constraint " << i << " magsq = 0" << endl)).str());
-#endif
-				row[cmagsq_index] = magsq;
-			}
-		}
-
-		void SolveForOptimalF(
-			const FrameParams& use_params, const GenericMatrix& A, const float b[NUM_LB_BONE_FLOATS], float f[NUM_JOINT_AXES], float force_errors[NUM_LB_BONE_FLOATS]) const
-		{
-#if PROFILE_QP_SOLVER
-			ProfilingTimer timer, timer2;
-			timer2.Start();
-			timer.Start();
-#endif
-
-			// collect all of the constraints into a single array
-			static const unsigned int ac_w = NUM_JOINT_AXES + 3, ac_h = NUM_JOINT_AXES + NUM_JOINT_AXES;
-			GenericMatrix all_constraints(ac_w, ac_h, NULL);
-			float acd[ac_w * ac_h];
-			all_constraints.data = acd;
-			all_constraints.h = 0;
-
-			float torque_mins[NUM_JOINT_AXES];
-			float torque_maxs[NUM_JOINT_AXES];
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-			{
-				const SkeletalJointConstraint* sjc = leg_joints[i]->sjc;
-				memcpy(torque_mins + i * 3, &sjc->min_torque, sizeof(float) * 3);
-				memcpy(torque_maxs + i * 3, &sjc->max_torque, sizeof(float) * 3);
-			}
-
-			static const unsigned int minbound_index = NUM_JOINT_AXES;
-			static const unsigned int maxbound_index = NUM_JOINT_AXES + 1;
-			static const unsigned int cmagsq_index   = NUM_JOINT_AXES + 2;
-
-			// ...the pelvis mismatch constraint is one such constraint (x 3 dimensions)
-			memset(acd, 0, sizeof(float) * all_constraints.wh);
-#if 0
-			for (unsigned int i = 0; i < 3; ++i)
-			{
-				unsigned int j;
-				for (j = 0; j < NUM_JOINT_AXES; ++j)
-				{
-					float x = A[NUM_LB_BONE_FLOATS + i][j];
-					if (x * x != 0.0f)
-						break;
-				}
-				if (j != NUM_JOINT_AXES)
-				{
-					int index = all_constraints.h++;
-					memcpy(all_constraints[index], A[NUM_LB_BONE_FLOATS + i], NUM_JOINT_AXES * sizeof(float));
-					all_constraints[index][minbound_index] = all_constraints[index][maxbound_index] = -b[NUM_LB_BONE_FLOATS + i];
-				}
-			}
-#endif
-			{
-				Mat3 a = lhip.oriented_axes.Transpose();
-				Mat3 b = rhip.oriented_axes.Transpose();
-				Vec3 x = pelvis.desired_torque - pelvis.applied_torque;
-				Vec3 abx = x;//(a + b) * x;
-				float* abxv = (float*)&abx;
-
-				for (unsigned int i = 0; i < 3; ++i)
-				{
-					int index = all_constraints.h++;
-					for (unsigned int j = 0; j < 3; ++j)
-					{
-#if 0
-						int abi = i * 3 + j;
-#else
-						int abi = j * 3 + i;
-#endif
-
-						all_constraints[index][3 * 3 + j] += a[abi];
-						all_constraints[index][7 * 3 + j] += b[abi];
-					}
-					all_constraints[index][minbound_index] = all_constraints[index][maxbound_index] = abxv[i];
-				}
-			}
-
-#if PROFILE_QP_SOLVER
-			timer_jt_constraints += timer.GetAndRestart();
-#endif
-
-			// compute magnitudes of all of those constraint vectors
-			ComputeConstraintRowMagnitudes(all_constraints, cmagsq_index);
-
-#if PROFILE_QP_SOLVER
-			timer_constraint_mags += timer.GetAndRestart();
-#endif
-
-			// initialize the search value to zero
-			memset(f, 0, sizeof(float) * NUM_JOINT_AXES);
-
-			float weights[NUM_LB_BONE_FLOATS + 3];
-			float* wptr = weights;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				float angular = use_params.qp_bone_weights_angular[i];
-				*(wptr++) = angular;
-				*(wptr++) = angular;
-				*(wptr++) = angular;
-
-				float linear = i == 4 ? use_params.qp_bone_weights_linear[i] : i == 3 || i == 5 ? use_params.qpbw_uleg : i == 2 || i == 6 ? use_params.qpbw_lleg : 0.0f;
-				*(wptr++) = linear;
-				*(wptr++) = linear;
-				*(wptr++) = linear;
-			}
-			float pelvis_error = powf(10.0f, use_params.pelvis_error_weight);
-			*(wptr++) = pelvis_error;
-			*(wptr++) = pelvis_error;
-			*(wptr++) = pelvis_error;
-
-			memset(f, 0, sizeof(float) * NUM_JOINT_AXES);
-			DoGradientSearch<NUM_LB_BONE_FLOATS + 3>(100, torque_mins, torque_maxs, all_constraints, A, b, weights, f, force_errors, 0, all_constraints.h);
-
-			ScoreProposedF<NUM_LB_BONE_FLOATS + 3>(A, b, f, weights, force_errors);
-
-#if PROFILE_QP_SOLVER
-			timer_gradient_descent += timer.Stop();
-			timer_qp_total += timer2.Stop();
-
-			++counter_qp;
-#endif
-		}
-
-		// searches for f to minimize ||Af - b||^2_W, and puts the final Af - b in h
-		template<unsigned int B> void DoGradientSearch(unsigned int iterations, const float iv_mins[NUM_JOINT_AXES], const float iv_maxs[NUM_JOINT_AXES], const GenericMatrix& all_constraints, const GenericMatrix& A, const float b[B], const float W[B], float f[NUM_JOINT_AXES], float h[B], unsigned int gradient_constraints_begin, unsigned int gradient_constraints_end) const
-		{
-			// TODO: undo this bullshit
-			//for(int i = 0; i < NUM_JOINT_AXES; ++i)
-			//	f[i] = ((iv_maxs[i] - iv_mins[i]) * experiment->GetSubtest().jt[i] + iv_mins[i]) * 0.25f;
-			//iterations = 1;
-
-			unsigned int ifails = 0;
-			while (ifails < 10 && CheckConstraintsTryFixSome(iv_mins, iv_maxs, all_constraints, f) > 0.000001f)
-				++ifails;
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-			Debug(((stringstream&)(stringstream() << "age = " << tick_age << "; starting gradient search, max iterations = " << iterations << "; initial constraint fixer fails = " << ifails << endl)).str());
-#endif
-
-			float old_y1;
-			// do a bunch of iterations of gradient descent
-			for(unsigned int i = 0; i < iterations; ++i)
-			{
-				float y1 = ScoreProposedF<B>(A, b, f, W, h);
-				//for(int j = 0; j < B; ++j)
-				//	if(_isnan(b[j]))
-				//		Debug(((stringstream&)(stringstream() << "b[" << j << "] is NaN" << endl)).str());
-
-				if(i != 0 && old_y1 - y1 < 0.0001f)
-				{
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-					Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; early return 1" << endl)).str());
-#endif
-					return;
-				}
-
-				// compute the gradient, using calculus! we do u-substitution where u = Af-b, aka what's already stored in force_errors
-				float gradient[NUM_JOINT_AXES];
-				memset(gradient, 0, sizeof(float) * NUM_JOINT_AXES);
-				
-				float* gend = gradient + NUM_JOINT_AXES;
-				for(const float *uptr = h, *uend = uptr + B, *aptr = A.data, *wptr = W; uptr != uend; ++uptr, ++wptr)
-				{
-					float two_w_u = 2.0f * *wptr * *uptr;
-					for(float* gptr = gradient; gptr != gend; ++gptr, ++aptr)
-						*gptr += two_w_u * *aptr;
-				}
-
-				float gr_magsq = 0.0f;
-				for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-				{
-					float& gj = gradient[j];
-					gr_magsq += gj * gj;
-				}
-
-				float original_grmag = sqrtf(gr_magsq);
-
-				// make sure the gradient satisfies the null space constraints
-				MakeGradientSatisfyNullSpaceConstraints(all_constraints, gradient_constraints_begin, gradient_constraints_end, gradient);
-
-				gr_magsq = 0.0f;
-				for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-				{
-					float& gj = gradient[j];
-					if(gj > 0 ? f[j] >= iv_maxs[j] : f[j] <= iv_mins[j])
-						gj = 0.0f;
-					gr_magsq += gj * gj;
-				}
-
-				if(gr_magsq < 0.000001f)
-				{
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-					Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; gr mag = " << original_grmag << "; gr' mag = " << sqrtf(gr_magsq) << "; early return 2" << endl)).str());
-#endif
-					return;
-				}
-
-				// find the minimum of the quadratic along this ray
-				float best_f[NUM_JOINT_AXES];
-				memcpy(best_f, f, sizeof(float) * NUM_JOINT_AXES);
-
-				float* fend = f + NUM_JOINT_AXES;
-				for(float *fptr = f, *gptr = gradient; fptr != fend; ++fptr, ++gptr)
-					*fptr -= *gptr;
-				float y2 = ScoreProposedF<B>(A, b, f, W, h);
-
-				for(float *fptr = f, *gptr = gradient; fptr != fend; ++fptr, ++gptr)
-					*fptr -= *gptr;
-				float y3 = ScoreProposedF<B>(A, b, f, W, h);
-
-				// solve for the coefficients in ax^2 + bx + c... except we don't actually care about c
-				float qa = 0.5f * (y1 + y3) - y2;
-				float qb = -1.5f * y1 + 2.0f * y2 - 0.5f * y3;
-
-				if(qa <= 0.0f)				// if the quadratic is concave down, we have a problem
-				{
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-					Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; y2 = " << y2 << "; y3 = " << y3 << "; gr mag = " << original_grmag << "; gr' mag = " << sqrtf(gr_magsq) << "; qa = " << qa << "; early return 3" << endl)).str());
-#endif
-#ifndef NDEBUG
-					//__debugbreak();
-#endif
-					return;
-				}
-
-				// d(ax^2 + bx + c) / dx = 2ax + b; find where this = 0 to find the vertex of the parabola
-				float extremum_x = -0.5f * qb / qa;
-				
-				for(float *fptr = f, *bptr = best_f, *gptr = gradient; fptr != fend; ++fptr, ++bptr, ++gptr)
-					*fptr = *bptr - *gptr * extremum_x;
-
-				// make sure we stay within constraints
-				unsigned int fails = 0;
-				while(fails < 10 && CheckConstraintsTryFixSome(iv_mins, iv_maxs, all_constraints, f) > 0.000001f)
-					++fails;
-
-#if DEBUG_GRADIENT_SEARCH_PROGRESS
-				Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; gr mag = " << original_grmag << "; gr' mag = " << sqrtf(gr_magsq) << "; fails = " << fails << endl)).str());
-#endif
-
-				old_y1 = y1;
-			}
-		}
-
-		// h = Af - b = force errors
-		template<unsigned int B> float ScoreProposedF(const GenericMatrix& A, const float b[B], const float f[NUM_JOINT_AXES], const float W[B], float h[B]) const
-		{
-#if PROFILE_SCORE_PROPOSED_F
-			ProfilingTimer timer;
-			timer.Start();
-#endif
-			JointTorquesToBoneTorqueErrors<B>(A, f, b, h);
-			//for (unsigned int i = 0; i < B; ++i)
-			//	Debug(((stringstream&)(stringstream() << "i = " << i << "; h = " << h[i] << "; W = " << W[i] << endl)).str());
-			float result = ScoreBoneTorqueErrors<B>(h, W);
-			//Debug(((stringstream&)(stringstream() << "total  = " << result << endl)).str());
-
-#if PROFILE_SCORE_PROPOSED_F
-			timer_score_proposed_f += timer.Stop();
-			++counter_score_f;
-#endif
-
-			return result;
-		}
-
-		void MakeGradientSatisfyNullSpaceConstraints(const GenericMatrix& constraints, unsigned int from, unsigned int to, float gradient[NUM_JOINT_AXES]) const
-		{
-			static const unsigned int minbound_index = NUM_JOINT_AXES;
-			static const unsigned int maxbound_index = NUM_JOINT_AXES + 1;
-			static const unsigned int cmagsq_index   = NUM_JOINT_AXES + 2;
-
-			float errsq;
-			unsigned int fails = 0;
-			while(fails < 10)
-			{
-				errsq = 0.0f;
-				for(unsigned int i = from; i < to; ++i)
-				{
-					const float* constraint = constraints[i];
-
-					float dot = 0.0f;
-					for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-						dot += constraint[j] * gradient[j];
-
-					float cmagsq = constraint[cmagsq_index];
-
-					float frac = dot / cmagsq;
-					for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-						gradient[j] -= constraint[j] * frac;
-		
-					errsq += dot * dot / cmagsq;
-				}
-				if(errsq < 0.000001f)
-					break;
-				else
-					++fails;
-			}
-		}
-
-		// returns magnitude squared of all the errors that had to be corrected
-		float CheckConstraintsTryFixSome(const float iv_mins[NUM_JOINT_AXES], const float iv_maxs[NUM_JOINT_AXES], const GenericMatrix& constraints, float f[NUM_JOINT_AXES]) const
-		{
-			static const unsigned int minbound_index = NUM_JOINT_AXES;
-			static const unsigned int maxbound_index = NUM_JOINT_AXES + 1;
-			static const unsigned int cmagsq_index   = NUM_JOINT_AXES + 2;
-
-			float errsq = 0.0f;
-
-			// check ranges of the independent variables (f) against +/- fmax; no need to do dot product for these
-			for(unsigned int i = 0; i < NUM_JOINT_AXES; ++i)
-			{
-				float& fi = f[i];
-				if(fi < iv_mins[i])
-				{
-					errsq += (fi + iv_mins[i]) * (fi - iv_mins[i]);
-					fi = iv_mins[i];
-				}
-				else if(fi > iv_maxs[i])
-				{
-					errsq += (fi - iv_maxs[i]) * (fi - iv_maxs[i]);
-					fi = iv_maxs[i];
-				}
-			}
-
-			// now check the more complicated constraints which require computing a dot product
-			for(unsigned int i = 0; i < constraints.h; ++i)
-			{
-				const float* constraint = constraints[i];
-
-				float dot = 0.0f;
-				for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-					dot += constraint[j] * f[j];
-
-				float minb   = constraint[minbound_index];
-				float maxb   = constraint[maxbound_index];
-				float cmagsq = constraint[cmagsq_index];
-
-				if(dot < minb)
-				{
-					float dif = minb - dot;
-					errsq += dif * dif / cmagsq;
-				
-					float frac = (minb - dot) / cmagsq;
-					for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-						f[j] += constraint[j] * frac;
-				}
-				else if(dot > maxb)
-				{
-					float dif = maxb - dot;
-					errsq += dif * dif / cmagsq;
-
-					float frac = dif / cmagsq;
-					for(unsigned int j = 0; j < NUM_JOINT_AXES; ++j)
-						f[j] += constraint[j] * frac;
-				}
-			}
-
-			return errsq;
-		}
-
-
-
-		// h = Af - b = bone torque errors
-		template<unsigned int B> void JointTorquesToBoneTorqueErrors(const GenericMatrix& A, const float f[NUM_JOINT_AXES], const float b[B], float h[B]) const
-		{
-			const float* fend = f + NUM_JOINT_AXES;
-			const float* aptr = A.data;
-			const float* bptr = b;
-
-			for(float *hptr = h, *hend = hptr + B; hptr != hend; ++hptr, ++bptr)
-			{
-				*hptr = -*bptr;
-				for(const float *fptr = f; fptr != fend; ++fptr, ++aptr)
-					*hptr += *fptr * *aptr;
-			}
-		}
-
-		template<unsigned int B> float ScoreBoneTorqueErrors(const float h[B], const float W[B]) const
-		{
-			float tot = 0.0f;
-			for (const float *hptr = h, *hend = h + B, *wptr = W; hptr != hend; ++hptr, ++wptr)
-			{
-				//Debug(((stringstream&)(stringstream() << "running total = " << tot << "; *hptr = " << *hptr << "; *wptr = " << *wptr << "; increment = " << *hptr * *hptr * *wptr << endl)).str());
-				tot += *hptr * *hptr * *wptr;
-			}
-			return tot;
-		}
 
 		struct NoTouchy : public ContactCallback
 		{
@@ -2708,7 +2051,7 @@ namespace Test
 		bool jetted = false;
 		if(control_state->GetBoolControl("jump"))
 		{
-			if(standing_callback.IsStanding() && time.total > jump_start_timer)							// jump off the ground
+			if(standing_callback.IsStanding() && time.total > jump_start_timer && jump_to_fly_delay > 0)							// jump off the ground
 			{
 				standing_callback.ApplyVelocityChange(Vec3(0, jump_speed, 0));
 
@@ -2824,6 +2167,19 @@ namespace Test
 #endif
 
 		Dood::Update(time);
+
+		for(unsigned int i = 0; i < imp->jetpack_nozzles.size(); ++i)
+		{
+			const Imp::JetpackNozzle& jn = imp->jetpack_nozzles[i];
+			if(jn.world_force.ComputeMagnitudeSquared() != 0.0f)
+			{
+				Particle* p = new Particle(game_state, jn.apply_pos, jn.bone->rb->GetLinearVelocity() - jn.world_force * 0.01f, NULL, blood_material, jn.world_force.ComputeMagnitude() * 0.001f, 0.125f);
+				p->gravity = 9.8f;
+				p->damp = 0.05f;
+
+				game_state->Spawn(p);
+			}
+		}
 	}
 
 	void Soldier::Die(const Damage& cause)
@@ -2950,7 +2306,6 @@ namespace Test
 
 		posey->skeleton->InvalidateCachedBoneXforms();
 	}
-
 
 
 

@@ -110,7 +110,7 @@ namespace Test
 			Vec3 GetPosition();
 			void SetPosition(const Vec3& pos);
 
-			void Vis(SceneRenderer* renderer);
+			virtual void Vis(SceneRenderer* renderer);
 			Mat4 GetViewMatrix();
 			Vec3 GetEyePos();
 
