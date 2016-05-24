@@ -12,12 +12,10 @@
 #include "Particle.h"
 
 #define PROFILE_CPHFT					1
-#define PROFILE_QP_SOLVER				1
+#define PROFILE_QP_SOLVER				0
 #define PROFILE_SCORE_PROPOSED_F		0
 
 #define PROFILE_ANY_CPHFT				(PROFILE_CPHFT || PROFILE_QP_SOLVER || PROFILE_SCORE_PROPOSED_F)
-
-#define DEBUG_GRADIENT_SEARCH_PROGRESS	0
 
 #define DIE_AFTER_ONE_SECOND			0
 
@@ -1786,6 +1784,20 @@ namespace Test
 			for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
 				AddNozzleToTable(i, L);
 			lua_setfield(L, -2, "nozzles");
+
+			// hv.controls
+			lua_newtable(L);
+			PushLuaMat3(L, Mat3::FromRVec(0, -dood->yaw, 0));
+			lua_setfield(L, -2, "yaw_mat");
+			lua_pushnumber(L, dood->pitch);
+			lua_setfield(L, -2, "pitch");
+			PushLuaVector(L, dood->desired_vel_2d);
+			lua_setfield(L, -2, "walkvel");
+			PushLuaVector(L, desired_jp_accel);
+			lua_setfield(L, -2, "jpaccel");
+			lua_pushboolean(L, dood->control_state->GetBoolControl("jump"));
+			lua_setfield(L, -2, "jump");
+			lua_setfield(L, -2, "controls");
 			
 			lua_setglobal(L, "hv");
 
@@ -1886,14 +1898,10 @@ namespace Test
 
 				if		(key == "pos")				{ PushLuaVector(	L, bone->rb->GetCenterOfMass());									return 1; }
 				else if	(key == "vel")				{ PushLuaVector(	L, bone->rb->GetLinearVelocity());									return 1; }
-				else if	(key == "orix")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(1, 0, 0));						return 1; }
-				else if	(key == "oriy")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(0, 1, 0));						return 1; }
-				else if	(key == "oriz")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(0, 0, 1));						return 1; }
+				else if	(key == "ori")				{ PushLuaMat3(		L, bone->rb->GetOrientation().ToMat3());							return 1; }
 				else if	(key == "rot")				{ PushLuaVector(	L, bone->rb->GetAngularVelocity());									return 1; }
 				else if	(key == "mass")				{ lua_pushnumber(	L, bone->rb->GetMass());											return 1; }
-				else if (key == "moix")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(1, 0, 0));	return 1; }
-				else if (key == "moiy")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(0, 1, 0));	return 1; }
-				else if (key == "moiz")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(0, 0, 1));	return 1; }
+				else if (key == "moi")				{ PushLuaMat3(		L, Mat3(bone->rb->GetTransformedMassInfo().moi));					return 1; }
 				else if (key == "desired_torque")	{ PushLuaVector(	L, bone->desired_torque);											return 1; }
 				else if (key == "applied_torque")	{ PushLuaVector(	L, bone->applied_torque);											return 1; }
 				else
@@ -1939,9 +1947,7 @@ namespace Test
 				lua_settop(L, 0);
 
 				if		(key == "pos")				{ PushLuaVector(	L, joint->sjc->ComputeAveragePosition());							return 1; }
-				else if	(key == "axisx")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(1, 0, 0));							return 1; }
-				else if	(key == "axisy")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(0, 1, 0));							return 1; }
-				else if	(key == "axisz")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(0, 0, 1));							return 1; }
+				else if	(key == "axes")				{ PushLuaMat3(		L, joint->oriented_axes);											return 1; }
 				else if	(key == "min_extents")		{ PushLuaVector(	L, joint->sjc->min_extents);										return 1; }
 				else if	(key == "max_extents")		{ PushLuaVector(	L, joint->sjc->max_extents);										return 1; }
 				else if	(key == "min_torque")		{ PushLuaVector(	L, joint->sjc->min_torque);											return 1; }
@@ -2093,9 +2099,7 @@ namespace Test
 				else if (key == "max_force")	{ lua_pushnumber	(L, nozzle.max_force);							return 1; }
 				else if (key == "force")		{ PushLuaVector		(L, nozzle.world_force);						return 1; }
 				else if (key == "torque")		{ PushLuaVector		(L, nozzle.world_torque);						return 1; }
-				else if (key == "fttx")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(1, 0, 0));	return 1; }
-				else if (key == "ftty")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(0, 1, 0));	return 1; }
-				else if (key == "fttz")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(0, 0, 1));	return 1; }
+				else if (key == "ftt")			{ PushLuaMat3		(L, nozzle.force_to_torque);					return 1; }
 				else if (key == "setForce")
 				{
 					lua_pushlightuserdata(L, jptr);

@@ -163,6 +163,15 @@ namespace CibraryEngine
 				-values[6], -values[7], -values[8]
 			);
 		}
+		/** Tests whether two matrices are equal */
+		bool operator ==(const Mat3& b) const
+		{
+			const float* bvals = b.values;
+			return
+				values[0] == bvals[0] && values[1] == bvals[1] && values[2] == bvals[2] &&
+				values[3] == bvals[3] && values[4] == bvals[4] && values[5] == bvals[5] &&
+				values[6] == bvals[6] && values[7] == bvals[7] && values[8] == bvals[8];
+		}
 	};
 
 	/** Class representing a 4x4 matrix */
@@ -440,4 +449,8 @@ namespace CibraryEngine
 
 	Mat3 ReadMat3(istream& stream);
 	Mat4 ReadMat4(istream& stream);
+
+
+	void PushLuaMat3(lua_State* L, const Mat3& mat);
+	int ba_createMat3(lua_State* L);
 }

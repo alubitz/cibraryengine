@@ -5,6 +5,9 @@
 
 #include "Serialize.h"
 
+#include "DebugLog.h"
+#include "Scripting.h"
+
 namespace CibraryEngine
 {
 	/*
@@ -229,5 +232,253 @@ namespace CibraryEngine
 		for(int i = 0; i < 16; ++i)
 			values[i] = ReadSingle(stream);
 		return Mat4(values);
+	}
+
+
+
+	
+	/*
+	 * Mat3 scripting stuff
+	 */
+	int ba_createMat3(lua_State* L)
+	{
+		int n = lua_gettop(L);
+
+		Mat3 mat;
+
+		if(n == 0 || n == 9)
+		{
+			if(n == 0)
+				mat = Mat3();
+			else if(
+				lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) &&
+				lua_isnumber(L, 4) && lua_isnumber(L, 5) && lua_isnumber(L, 6) && 
+				lua_isnumber(L, 7) && lua_isnumber(L, 8) && lua_isnumber(L, 9))
+			{
+				mat = Mat3(
+					(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3),
+					(float)lua_tonumber(L, 4), (float)lua_tonumber(L, 5), (float)lua_tonumber(L, 6),
+					(float)lua_tonumber(L, 7), (float)lua_tonumber(L, 8), (float)lua_tonumber(L, 9)
+				);
+			}
+
+			PushLuaMat3(L, mat);
+
+			return 1;
+		}
+
+		Debug("ba.createMat3 takes either no parameters, or 9 numbers as parameters; returning nil\n");
+		return 0;
+	}
+
+
+	int ba_mat3_index(lua_State* L)
+	{
+		Mat3* mat = (Mat3*)lua_touserdata(L, 1);
+
+		if(lua_isnumber(L, 2))
+		{
+			int key = lua_tointeger(L, 2);
+
+			lua_settop(L, 0);
+
+			if(key >= 0 && key < 9)
+			{
+				lua_pushnumber(L, mat->values[key]);
+				return 1;
+			}
+		}
+		else if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+			if      (key == "inverse")   { PushLuaMat3(L, Mat3::Invert(*mat));	return 1; }
+			else if (key == "transpose") { PushLuaMat3(L, mat->Transpose());	return 1; }
+		}
+
+		return 0;
+	}
+
+	int ba_mat3_newindex(lua_State* L)
+	{
+		Mat3* mat = (Mat3*)lua_touserdata(L, 1);
+
+		if(lua_isnumber(L, 2) && lua_isnumber(L, 3))
+		{
+			int key = lua_tointeger(L, 2);
+
+			lua_settop(L, 0);
+
+			if(key >= 0 && key < 9)
+				mat->values[key] = (float)lua_tonumber(L, 3);
+		}
+
+		return 0;
+	}
+
+	int ba_mat3_eq(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+		Mat3 b = *(Mat3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		lua_pushboolean(L, (a == b));
+		return 1;
+	}
+
+
+
+	int ba_mat3_add(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+		Mat3 b = *(Mat3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaMat3(L, a + b);
+		return 1;
+	}
+
+	int ba_mat3_unm(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+
+		lua_settop(L, 0);
+
+		PushLuaMat3(L, -a);
+		return 1;
+	}
+
+	int ba_mat3_sub(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+		Mat3 b = *(Mat3*)lua_touserdata(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaMat3(L, a - b);
+		return 1;
+	}
+
+	int ba_mat3_mul(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+		if(lua_isuserdata(L, 2))
+		{
+			void* bv = lua_touserdata(L, 2);
+			lua_getmetatable(L, -1);
+			lua_getglobal(L, "Mat3Meta");
+			if(lua_equal(L, -1, -2))
+			{
+				Mat3* b = (Mat3*)bv;
+				lua_settop(L, 0);
+				PushLuaMat3(L, a * *b);
+				return 1;
+			}
+
+			lua_pop(L, 1);
+			lua_getglobal(L, "VectorMeta");
+			if(lua_equal(L, -1, -2))
+			{
+				Vec3* b = (Vec3*)bv;
+				lua_settop(L, 0);
+				PushLuaVector(L, a * *b);
+				return 1;
+			}
+		}
+		else if(lua_isnumber(L, 2))
+		{
+			float b = (float)lua_tonumber(L, 2);
+
+			PushLuaMat3(L, a * b);
+			return 1;
+		}
+
+		lua_settop(L, 0);
+		Debug("Invalid operand for Lua Mat3 multiplication");
+		return 0;
+	}
+
+	int ba_mat3_div(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+		float b = (float)lua_tonumber(L, 2);
+
+		lua_settop(L, 0);
+
+		PushLuaMat3(L, a * (1.0f / b));
+		return 1;
+	}
+
+	int ba_mat3_tostring(lua_State* L)
+	{
+		Mat3 a = *(Mat3*)lua_touserdata(L, 1);
+
+		lua_pop(L, 1);			// pop; stack = 0 (normally)
+
+		stringstream ss;
+		ss << "[[";
+		for(unsigned int i = 0; i < 9; ++i)
+		{
+			if(i != 0)
+				ss << " ";
+			ss << a[i];
+		}
+		ss << "]]";
+
+		lua_pushstring(L, ss.str().c_str());
+
+		return 1;
+	}
+
+	void PushLuaMat3(lua_State* L, const Mat3& mat)
+	{
+		//lua_settop(L, 0);
+
+		Mat3* ptr = (Mat3*)lua_newuserdata(L, sizeof(Mat3));				// push; top = 1
+		*ptr = mat;
+
+		lua_getglobal(L, "Mat3Meta");
+		if(lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);
+			// we must create the metatable
+			lua_newtable(L);												// push; top = 2
+
+			lua_pushcclosure(L, ba_mat3_index, 0);							// push; top = 3
+			lua_setfield(L, -2, "__index");									// pop; top = 2
+
+			lua_pushcclosure(L, ba_mat3_newindex, 0);						// push; top = 3
+			lua_setfield(L, -2, "__newindex");								// pop; top = 2
+
+			lua_pushcclosure(L, ba_mat3_eq, 0);
+			lua_setfield(L, -2, "__eq");
+
+			lua_pushcclosure(L, ba_mat3_add, 0);
+			lua_setfield(L, -2, "__add");
+
+			lua_pushcclosure(L, ba_mat3_unm, 0);
+			lua_setfield(L, -2, "__unm");
+
+			lua_pushcclosure(L, ba_mat3_sub, 0);
+			lua_setfield(L, -2, "__sub");
+
+			lua_pushcclosure(L, ba_mat3_mul, 0);
+			lua_setfield(L, -2, "__mul");
+
+			lua_pushcclosure(L, ba_mat3_div, 0);
+			lua_setfield(L, -2, "__div");
+
+			lua_pushcclosure(L, ba_mat3_tostring, 0);
+			lua_setfield(L, -2, "__tostring");
+
+			lua_pushcclosure(L, ba_generic_concat, 0);
+			lua_setfield(L, -2, "__concat");
+
+			lua_setglobal(L, "Mat3Meta");
+			lua_getglobal(L, "Mat3Meta");
+		}
+
+		lua_setmetatable(L, -2);											// set field of 1; pop; top = 1
 	}
 }

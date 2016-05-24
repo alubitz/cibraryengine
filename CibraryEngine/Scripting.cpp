@@ -4,6 +4,7 @@
 #include "Serialize.h"
 #include "DebugLog.h"
 #include "Vector.h"
+#include "Matrix.h"
 #include "Content.h"
 #include "GameState.h"
 
@@ -220,6 +221,9 @@ namespace CibraryEngine
 	int ba_println(lua_State* L);
 	int ba_loadModel(lua_State* L);
 
+	int ba_mat3toRvec(lua_State* L);
+	int ba_rvecToMat3(lua_State* L);
+
 	void SetupDefaultFunctions(ScriptingState& state)
 	{
 		lua_State* L = state.GetLuaState();
@@ -232,6 +236,12 @@ namespace CibraryEngine
 		lua_setfield(L, 1, "println");				// set field of 1; pop; top = 1
 		lua_pushcclosure(L, ba_createVector, 0);	// push; top = 2
 		lua_setfield(L, 1, "createVector");			// set field of 1; pop; top = 1
+		lua_pushcclosure(L, ba_createMat3, 0);		// push; top = 2
+		lua_setfield(L, 1, "createMat3");			// set field of 1; pop; top = 1
+		lua_pushcclosure(L, ba_mat3toRvec, 0);
+		lua_setfield(L, 1, "mat3ToRvec");
+		lua_pushcclosure(L, ba_rvecToMat3, 0);
+		lua_setfield(L, 1, "rvecToMat3");
 		lua_pushcclosure(L, ba_loadModel, 0);
 		lua_setfield(L, 1, "loadModel");
 		lua_pushcclosure(L, ba_saveModelPhysics, 0);
@@ -250,6 +260,33 @@ namespace CibraryEngine
 	/*
 	 * And now for the implementation of those lua functions...
 	 */
+	int ba_mat3toRvec(lua_State* L)
+	{
+		if(lua_gettop(L) == 1)
+		{
+			Mat3* mat = (Mat3*)lua_touserdata(L, -1);
+
+			lua_settop(L, 0);
+			PushLuaVector(L, Quaternion::FromRotationMatrix(*mat).ToRVec());
+			return 1;
+		}
+
+		return 0;
+	}
+	int ba_rvecToMat3(lua_State* L)
+	{
+		if(lua_gettop(L) == 1)
+		{
+			Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+
+			lua_settop(L, 0);
+			PushLuaMat3(L, Mat3::FromRVec(*vec));
+			return 1;
+		}
+
+		return 0;
+	}
+
 	int ba_println(lua_State* L)
 	{
 		int n = lua_gettop(L);
