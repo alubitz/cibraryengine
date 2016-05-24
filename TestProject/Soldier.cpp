@@ -32,8 +32,6 @@
 
 #define NUM_LEG_JOINTS					8
 #define NUM_JOINT_AXES					(3 * NUM_LEG_JOINTS)
-#define MUSCLES_PER_JOINT				8
-#define NUM_DATA_NEURONS				108
 
 #define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
 
@@ -207,17 +205,6 @@ namespace Test
 		// don't add any members that aren't floats!
 		float first_member;
 
-		struct MuscleParams
-		{
-			Vec3 apos, bpos;
-			float mmin, mmax;
-		} muscle_params[NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2];
-
-		float brain_coeffs[(NUM_LEG_JOINTS * MUSCLES_PER_JOINT) * (NUM_LOWER_BODY_BONES * 12)];
-		float input_to_data[(NUM_LOWER_BODY_BONES * 12) * NUM_DATA_NEURONS];
-		float data_to_data[NUM_DATA_NEURONS * NUM_DATA_NEURONS];
-		float data_to_output[NUM_DATA_NEURONS * (NUM_LEG_JOINTS * MUSCLES_PER_JOINT)];
-
 		float&       operator[](unsigned int index)       { assert(index < num_params); return *(&first_member + index); }
 		const float& operator[](unsigned int index) const { assert(index < num_params); return *(&first_member + index); }
 
@@ -226,70 +213,12 @@ namespace Test
 			FrameParams k;
 			memset(&k, 0, sizeof(FrameParams));
 
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
-				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
-				{
-					if(i == 0 || i == 1 ? j < 6 : i == 2 ? j < 2 : true)
-					{
-						MuscleParams& p = k.muscle_params[i * MUSCLES_PER_JOINT + j];
-						p.apos = p.bpos = Vec3(1, 1, 1) * -0.5f;
-						p.mmin = 0.0f;
-						p.mmax = 1.0f;
-
-						for(unsigned int kk = 0; kk < NUM_LOWER_BODY_BONES * 12; ++kk)
-						{
-							//k.brain_coeffs[((i    ) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = -0.1f;
-							//k.brain_coeffs[((i + 4) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = -0.1f;
-						}
-					}
-				}
-
-			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
-			{
-				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
-					k.input_to_data[j * NUM_DATA_NEURONS + i] = -1;
-				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
-					k.data_to_data[j * NUM_DATA_NEURONS + i] = -1;
-				for(unsigned int j = 0; j < NUM_LEG_JOINTS * MUSCLES_PER_JOINT; ++j)
-					if(k.muscle_params[j % (NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2)].mmax != 0)
-						k.data_to_output[j * NUM_DATA_NEURONS + i] = -1;
-			}
-
 			return k;
 		}
 		static FrameParams InitMax()
 		{
 			FrameParams k;
 			memset(&k, 0, sizeof(FrameParams));
-
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
-				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
-				{
-					if(i == 0 || i == 1 ? j < 6 : i == 2 ? j < 2 : true)
-					{
-						MuscleParams& p = k.muscle_params[i * MUSCLES_PER_JOINT + j];
-						p.apos = p.bpos = Vec3(1, 1, 1) * 0.5f;
-						//p.mmin = 10.0f;
-						p.mmax = 1000.0f;
-
-						for(unsigned int kk = 0; kk < NUM_LOWER_BODY_BONES * 12; ++kk)
-						{
-							//k.brain_coeffs[((i    ) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = 0.1f;
-							//k.brain_coeffs[((i + 4) * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + kk] = 0.1f;
-						}
-					}
-				}
-
-			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
-			{
-				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
-					k.input_to_data[j * NUM_DATA_NEURONS + i] = 1;
-				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
-					k.data_to_data[j * NUM_DATA_NEURONS + i] = 1;
-				for(unsigned int j = 0; j < NUM_LEG_JOINTS * MUSCLES_PER_JOINT; ++j)
-					if(k.muscle_params[j % (NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2)].mmax != 0)
-						k.data_to_output[j * NUM_DATA_NEURONS + i] = 1;
-			}
 
 			return k;
 		}
@@ -322,9 +251,7 @@ namespace Test
 		float gun_aimvec;
 		float com;
 		float energy_cost;
-		float data_store_cost;
 		float helper_force_penalty;
-		float invalid_muslce_cost;
 
 		float total;
 
@@ -794,27 +721,11 @@ namespace Test
 					{
 						for(unsigned int k = 0; k < FrameParams::num_params; ++k)
 							frame[k] = 0.5f * (FrameParams::kmin[k] + FrameParams::kmax[k]);
-
-						if(NUM_DATA_NEURONS == NUM_LOWER_BODY_BONES * 12)
-							for(unsigned int k = 0; k < NUM_DATA_NEURONS; ++k)
-								frame.input_to_data[k * NUM_DATA_NEURONS + k] = 1.0f;
 					}
 					else
 					{
 						for(unsigned int k = 0; k < FrameParams::num_params; ++k)
 							frame[k] = Random3D::Rand(FrameParams::kmin[k], FrameParams::kmax[k]);
-
-						for(unsigned int k = 0; k < NUM_LEG_JOINTS * MUSCLES_PER_JOINT / 2; ++k)
-						{
-							// make sure muscle attach points aren sommehere within their respective bones, so we don't have to spend several generations fixing that
-							FrameParams::MuscleParams& mk = frame.muscle_params[k];
-							mk.apos.x *= 0.25f;		// TODO: do this for real
-							mk.bpos.x *= 0.25f;
-							mk.apos.y *= 0.5f;
-							mk.bpos.y *= 0.5f;
-							mk.apos.z *= 0.25f;
-							mk.bpos.z *= 0.25f;
-						}					
 					}
 				}
 
@@ -918,14 +829,12 @@ namespace Test
 			Vec3 applied_torque;
 
 			Vec3 desired_force;
-			Vec3 old_vel;
-			Vec3 predicted_force, prediction_error, perr_integral;
 
 			Vec3 initial_pos;
 			Quaternion initial_ori;
 
 			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), predicted_force(), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()) { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()) { }
 
 			void Reset() { desired_torque = applied_torque = desired_force = Vec3(); }
 
@@ -1069,36 +978,6 @@ namespace Test
 		CJoint* leg_joints[NUM_LEG_JOINTS];
 		CBone* lower_body_bones[NUM_LOWER_BODY_BONES];
 
-		struct Muscle
-		{
-			CBone *a, *b;
-			Vec3 apos, bpos;		// local attachment pos - bone's CoM
-			float kmin, kmax;
-			float k;
-
-			Muscle(CBone& a, CBone& b, const Vec3& apos, const Vec3& bpos, float kmin, float kmax) : a(&a), b(&b), apos(apos), bpos(bpos), kmin(kmin), kmax(kmax), k(kmin) { }
-
-			void Reset() { k = kmin; }
-
-			float ApplyForce(float timestep)				// return value is energy cost
-			{
-				RigidBody *arb = a->rb, *brb = b->rb;
-				Vec3 alocal = arb->GetLocalCoM() + apos;
-				Vec3 blocal = brb->GetLocalCoM() + bpos;
-				Vec3 ax = arb->LocalPosToWorld(alocal);
-				Vec3 bx = brb->LocalPosToWorld(blocal);
-
-				k = max(kmin, min(kmax, k));
-				Vec3 impulse = Vec3::Normalize(bx - ax, k * timestep);
-				arb->ApplyWorldImpulse( impulse, ax);
-				brb->ApplyWorldImpulse(-impulse, bx);
-
-				float cost = impulse.ComputeMagnitudeSquared();	// TODO: double-check the physics of this computation
-				return cost;
-			}
-		};
-		vector<Muscle> muscles;
-
 		Scores cat_scores;
 
 		Vec3 initial_com, desired_com;
@@ -1106,7 +985,6 @@ namespace Test
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
-		float data_neurons[NUM_DATA_NEURONS];
 
 		struct JetpackNozzle
 		{
@@ -1185,6 +1063,8 @@ namespace Test
 
 			void ApplySelectedForce(float timestep)
 			{
+				GetNudgeEffects(Vec3(), world_force, world_torque);
+
 				//bone->rb->ApplyWorldForce(world_force, apply_pos);				// TODO: make this work?
 				bone->rb->ApplyWorldImpulse(world_force * timestep, apply_pos);
 			}
@@ -1197,7 +1077,6 @@ namespace Test
 		Vec3 desired_jp_accel;
 
 		Vec3 desired_aim;
-		float invalid_muscle_penalty;
 
 		Vec3 gun_initial_pos;
 		Quaternion gun_initial_ori;
@@ -1228,13 +1107,6 @@ namespace Test
 			jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
 			jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
 		}
-
-		void RegisterSymmetricMuscles(CBone& la, CBone& lb, CBone& ra, CBone& rb, const Vec3& lapos, const Vec3& lbpos, float kmin, float kmax)
-		{
-			muscles.push_back(Muscle(la, lb, lapos,                            lbpos,                            kmin, kmax));
-			muscles.push_back(Muscle(ra, rb, Vec3(-lapos.x, lapos.y, lapos.z), Vec3(-lbpos.x, lbpos.y, lbpos.z), kmin, kmax));
-		}
-
 
 		// helper functions, called by Soldier::Imp::Init
 		void InitBoneHelpers(Soldier* dood)
@@ -1313,23 +1185,6 @@ namespace Test
 			RegisterSymmetricJetpackNozzles( lheel,     rheel,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jp_angle, jp_force );
 		}
 
-		void InitMuscles(const FrameParams& params)
-		{
-			muscles.clear();
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS / 2; ++i)
-			{
-				CJoint& lcj = *leg_joints[i];
-				CJoint& rcj = *leg_joints[i + 4];
-				CBone& la = *lcj.a;
-				CBone& lb = *lcj.b;
-				CBone& ra = *rcj.a;
-				CBone& rb = *rcj.b;
-				const FrameParams::MuscleParams& p = params.muscle_params[i];
-				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
-					RegisterSymmetricMuscles(la, lb, ra, rb, p.apos, p.bpos, p.mmin, p.mmax);
-			}
-		}
-
 		void Init(Soldier* dood)
 		{
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
@@ -1360,9 +1215,8 @@ namespace Test
 				gun_initial_ori = gun_rb->GetOrientation();
 			}
 
-			brain = experiment->GetBrain();
+			//brain = experiment->GetBrain();
 			cat_scores = Scores();
-			memset(data_neurons, 0, sizeof(data_neurons));
 
 			frame_index = 0;
 			frame_time = 0.0f;
@@ -1409,11 +1263,6 @@ namespace Test
 				gun_rb->SetAngularVelocity(Vec3());
 			}
 
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
-			{
-				CBone& bone = *all_bones[i];
-				bone.old_vel = bone.predicted_force = bone.prediction_error = bone.perr_integral = Vec3();
-			}
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				all_joints[i]->last = Vec3();
 
@@ -1423,9 +1272,8 @@ namespace Test
 			frame_index = 0;
 			frame_time = 0.0f;
 
-			brain = experiment->GetBrain();
+			//brain = experiment->GetBrain();
 			cat_scores = Scores();
-			memset(data_neurons, 0, sizeof(data_neurons));
 		}
 
 
@@ -1653,10 +1501,10 @@ namespace Test
 			else
 				gun_rb = NULL;
 
-			const Subtest& subtest = experiment->GetSubtest();
-			DoSubtestAimMove(dood, subtest);
-			if(tick_age == 0)
-				DoSubtestInitialVelocity(dood, subtest);
+			//const Subtest& subtest = experiment->GetSubtest();
+			//DoSubtestAimMove(dood, subtest);
+			//if(tick_age == 0)
+			//	DoSubtestInitialVelocity(dood, subtest);
 
 			//RigidBody& t2rb = *torso2.rb;
 			//t2rb.SetLinearVelocity(t2rb.GetLinearVelocity() + subtest.torso_vel * (10.0f * timestep / t2rb.GetMass()));
@@ -1701,21 +1549,6 @@ namespace Test
 #if PROFILE_CPHFT
 			timer_massinfo += timer.GetAndRestart();
 #endif
-
-#if ENABLE_NEW_JETPACKING
-			if(jetpacking)
-			{
-				Vec3 desired_jp_torque = angular_momentum * (-60.0f);
-				ResolveJetpackOutput(dood, time, dood_mass, dood_com, desired_jp_accel, desired_jp_torque);
-			}
-			else
-			{
-				// this will be necessary for when rendering for jetpack flames is eventually added
-				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-					iter->Reset();
-			}
-#endif
-
 			
 
 			// compute desired pose for leg bones
@@ -1734,30 +1567,7 @@ namespace Test
 			unsigned int kf_index1 = ((unsigned int)kf_time) % num_walk_keyframes;
 			unsigned int kf_index2 = (kf_index1 + 1) % num_walk_keyframes;
 			WalkKeyframe use_pose = WalkKeyframe::Interpolate(*current_frame, *next_frame, kf_frac);
-			FrameParams use_params = FrameParams::Interpolate(brain->frames[kf_index1], brain->frames[kf_index2], kf_frac);
-
-			InitMuscles(use_params);		// TODO: do this better
-
-			if(tick_age == 0)
-			{
-				invalid_muscle_penalty = 0.0f;
-				RayResult rr;
-				Vec3 fwd(0, 0, 1), back(0, 0, -1);
-				for(unsigned int i = 0; i < muscles.size(); ++i)
-				{
-					const Muscle& muscle = muscles[i];
-					const RigidBody* arb = muscle.a->rb;
-					const RigidBody* brb = muscle.b->rb;
-					Vec3 alocal = arb->GetLocalCoM() + muscle.apos;
-					Vec3 blocal = brb->GetLocalCoM() + muscle.bpos;
-					if(MultiSphereShape* as = dynamic_cast<MultiSphereShape*>(arb->GetCollisionShape()))
-						if(!(as->CollideRay(Ray(alocal, fwd), rr) && as->CollideRay(Ray(alocal, back), rr)))
-							invalid_muscle_penalty++;
-					if(MultiSphereShape* bs = dynamic_cast<MultiSphereShape*>(brb->GetCollisionShape()))
-						if(!(bs->CollideRay(Ray(blocal, fwd), rr) && bs->CollideRay(Ray(blocal, back), rr)))
-							invalid_muscle_penalty++;
-				}
-			}
+			//FrameParams use_params = FrameParams::Interpolate(brain->frames[kf_index1], brain->frames[kf_index2], kf_frac);
 
 			// upper body stuff; mostly working
 			Quaternion p, t1, t2;
@@ -1765,14 +1575,14 @@ namespace Test
 			Mat3 yawmat = yaw_ori.ToMat3();
 			Mat3 unyaw = yawmat.Transpose();
 
-			{
+			/*{
 				Vec3 desired_vel = (tick_age * timestep) * subtest.desired_accel;
 				float dvmag = desired_vel.ComputeMagnitude();
 				if(dvmag > 5.0f)
 					desired_vel *= 5.0f / dvmag;
 
 				desired_com += desired_vel;
-			}
+			}*/
 
 			Vec3 momentum = com_vel * dood_mass;
 			Vec3 com_error = desired_com - dood_com;
@@ -1815,12 +1625,28 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
 
+			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				iter->SolverInit(dood_com, 0.0f);
+
+			DoScriptedMotorControl(dood);
+
+#if ENABLE_NEW_JETPACKING
+			if(jetpacking)
+			{
+				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+					iter->ApplySelectedForce(timestep);
+			}
+			else
+			{
+				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+					iter->Reset();
+			}
+
+#endif
+
 #if PROFILE_CPHFT
 			timer_ub_stuff += timer.GetAndRestart();
 #endif
-
-			for(unsigned int i = 0; i < muscles.size(); ++i)
-				muscles[i].Reset();
 
 			float desired_values[NUM_LOWER_BODY_BONES * 12];
 			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
@@ -1838,59 +1664,6 @@ namespace Test
 				vv[2] = (bone.initial_ori * Quaternion::Reverse(rb.GetOrientation())).ToRVec();
 				vv[3] = desired_rot - rb.GetAngularVelocity();
 			}
-
-			float nu_data[NUM_DATA_NEURONS];
-			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
-			{
-				float tot = 0.0f;
-				for(unsigned int j = 0; j < NUM_LOWER_BODY_BONES * 12; ++j)
-					tot += use_params.input_to_data[j * NUM_DATA_NEURONS + i] * desired_values[j];
-				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
-					tot += use_params.data_to_data[j * NUM_DATA_NEURONS + i] * data_neurons[j];
-
-				nu_data[i] = tanhf(tot);//tot > 0 ? tanhf(tot) : 0.0f;
-			}
-
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-			{
-				unsigned int ii = i % 4;
-				for(unsigned int j = 0; j < MUSCLES_PER_JOINT; ++j)
-				{
-					float tot = 0.0f;
-					for(unsigned int k = 0; k < NUM_LOWER_BODY_BONES * 12; ++k)
-					{
-						unsigned int kb = k / 12;
-						unsigned int kk = k % 12;
-
-						float value = desired_values[kb * 12 + kk];
-						tot += use_params.brain_coeffs[(i * MUSCLES_PER_JOINT + j) * (NUM_LOWER_BODY_BONES * 12) + k] * value;
-					}
-
-					for(unsigned int k = 0; k < NUM_DATA_NEURONS; ++k)
-						tot += use_params.data_to_output[(i * MUSCLES_PER_JOINT + j) * NUM_DATA_NEURONS + k] * data_neurons[k];
-
-					if(tot > 0)
-					{
-						float frac = tanhf(tot);
-						Muscle& m = muscles[i * MUSCLES_PER_JOINT + j];
-						m.k = m.kmin + frac * (m.kmax - m.kmin);
-					}
-				}
-			}
-
-			memcpy(data_neurons, nu_data, sizeof(data_neurons));
-
-			float energy_cost = 0.0f;
-			for(unsigned int i = 0; i < muscles.size(); ++i)
-				energy_cost += muscles[i].ApplyForce(timestep);
-
-			float data_store_cost = 0.0f;
-			for(unsigned int i = 0; i < NUM_DATA_NEURONS; ++i)
-				for(unsigned int j = 0; j < NUM_DATA_NEURONS; ++j)
-				{
-					float d = use_params.data_to_data[i * NUM_DATA_NEURONS + j];
-					data_store_cost += d * d * timestep;
-				}
 
 #if PROFILE_CPHFT
 			timer_lb_stuff += timer.GetAndRestart();
@@ -1911,11 +1684,9 @@ namespace Test
 			//cat_weights.gun_aimvec = 10.0f;
 			//cat_weights.com = 1000.0f;
 			cat_weights.energy_cost = 0.0005f;
-			cat_weights.data_store_cost = 10.0f;						// create an incentive to keep the use of data neurons as simple as possible
 			cat_weights.helper_force_penalty = 100.0f / 60.0f;
-			cat_weights.invalid_muslce_cost = 1000000.0f;
 
-			
+			float energy_cost = 0.0f;
 			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
 				energy_cost += leg_joints[i]->actual.ComputeMagnitudeSquared();
 			energy_cost += spine1.actual.ComputeMagnitudeSquared();
@@ -1939,8 +1710,6 @@ namespace Test
 			instant_scores.gun_aimvec = (Vec3::Normalize(gun_rb->GetOrientation() * Vec3(0, 0, 1)) - Vec3::Normalize(head_desired_ori * Vec3(0, 0, 1))).ComputeMagnitude();
 			instant_scores.com = (dood_com - desired_com).ComputeMagnitudeSquared();
 			instant_scores.energy_cost = energy_cost;
-			instant_scores.data_store_cost = data_store_cost;
-			instant_scores.invalid_muslce_cost = invalid_muscle_penalty;
 			//instant_scores.helper_force_penalty = use_hmax;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
@@ -1952,33 +1721,33 @@ namespace Test
 
 			// update the timer, and check for when the experiment is over
 			++tick_age;
-			if(!experiment_done)
-			{
-				bool early_fail = false;
+			//if(!experiment_done)
+			//{
+			//	bool early_fail = false;
 
-				if(experiment->elites.size() >= NUM_ELITES)
-				{
-					Scores quasi_scores;
-					if(experiment->trial != 0)
-						quasi_scores = experiment->test->scores;
-					quasi_scores += cat_scores;
-					quasi_scores.helper_force_penalty *= float(max_tick_age) * NUM_TRIALS / (float(max_tick_age) * experiment->trial + tick_age);
-					if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
-					{
-						cat_scores.helper_force_penalty *= float(max_tick_age) / tick_age;
-						early_fail = true;
-					}
-				}
+			//	if(experiment->elites.size() >= NUM_ELITES)
+			//	{
+			//		Scores quasi_scores;
+			//		if(experiment->trial != 0)
+			//			quasi_scores = experiment->test->scores;
+			//		quasi_scores += cat_scores;
+			//		quasi_scores.helper_force_penalty *= float(max_tick_age) * NUM_TRIALS / (float(max_tick_age) * experiment->trial + tick_age);
+			//		if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
+			//		{
+			//			cat_scores.helper_force_penalty *= float(max_tick_age) / tick_age;
+			//			early_fail = true;
+			//		}
+			//	}
 
-				if(tick_age >= max_tick_age || early_fail)
-				{
-					// end-of-test stuff
-					cat_scores.ComputeTotal();
+			//	if(tick_age >= max_tick_age || early_fail)
+			//	{
+			//		// end-of-test stuff
+			//		cat_scores.ComputeTotal();
 
-					experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail);
-					experiment_done = true;
-				}
-			}
+			//		experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail);
+			//		experiment_done = true;
+			//	}
+			//}
 
 
 #if PROFILE_CPHFT
@@ -1988,6 +1757,386 @@ namespace Test
 			++counter_cphft;
 #endif
 		}
+
+		void DoScriptedMotorControl(Soldier* dood)
+		{
+			string filename = ((stringstream&)(stringstream() << "Files/Scripts/soldier_motor_control.lua")).str();
+
+			ScriptingState script = ScriptSystem::GetGlobalState();
+			lua_State* L = script.GetLuaState();
+
+			// hook variables (hv)
+			lua_newtable(L);
+
+			// hv.bones
+			lua_newtable(L);
+			for(unsigned int i = 0; i < all_bones.size(); ++i)
+				AddBoneToTable(all_bones[i], L);
+			lua_setfield(L, -2, "bones");
+
+			// hv.joints
+			lua_newtable(L);
+			for(unsigned int i = 0; i < all_joints.size(); ++i)
+				AddJointToTable(all_joints[i], i + 1, L);
+			lua_setfield(L, -2, "joints");
+
+
+			// hv.nozzles
+			lua_newtable(L);
+			for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
+				AddNozzleToTable(i, L);
+			lua_setfield(L, -2, "nozzles");
+			
+			lua_setglobal(L, "hv");
+
+			script.DoFile(filename);
+
+			lua_pushnil(L);
+			lua_setglobal(L, "hv");
+		}
+
+		void AddBoneToTable(CBone* bone, lua_State* L)
+		{
+			CBone** bptr = (CBone**)lua_newuserdata(L, sizeof(CBone*));
+			*bptr = bone;
+
+			lua_getglobal(L, "CBoneMeta");
+			if(lua_isnil(L, -1))
+			{
+				lua_pop(L, 1);
+				// must create metatable for globals
+				lua_newtable(L);									// push; top = 2
+
+				lua_pushcclosure(L, cbone_index, 0);				// push; top = 3
+				lua_setfield(L, -2, "__index");						// pop; top = 2
+
+				lua_pushcclosure(L, cbone_newindex, 0);
+				lua_setfield(L, -2, "__newindex");
+
+				lua_setglobal(L, "CBoneMeta");
+				lua_getglobal(L, "CBoneMeta");
+			}
+			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+			lua_setfield(L, -2, bone->name.c_str());
+		}
+
+		void AddJointToTable(CJoint* joint, int i, lua_State* L)
+		{
+			lua_pushinteger(L, i);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the joints list)
+
+			CJoint** jptr = (CJoint**)lua_newuserdata(L, sizeof(CJoint*));
+			*jptr = joint;
+
+			lua_getglobal(L, "CJointMeta");
+			if(lua_isnil(L, -1))
+			{
+				lua_pop(L, 1);
+				// must create metatable for globals
+				lua_newtable(L);									// push; top = 2
+
+				lua_pushcclosure(L, cjoint_index, 0);				// push; top = 3
+				lua_setfield(L, -2, "__index");						// pop; top = 2
+
+				lua_setglobal(L, "CJointMeta");
+				lua_getglobal(L, "CJointMeta");
+			}
+			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+			lua_settable(L, -3);
+		}
+
+		void AddNozzleToTable(int i, lua_State* L)
+		{
+			lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
+
+			JetpackNozzle** jptr = (JetpackNozzle**)lua_newuserdata(L, sizeof(JetpackNozzle*));
+			*jptr = jetpack_nozzles.data() + i;
+
+			lua_getglobal(L, "JNozzleMeta");
+			if(lua_isnil(L, -1))
+			{
+				lua_pop(L, 1);
+				// must create metatable for globals
+				lua_newtable(L);									// push; top = 2
+
+				lua_pushcclosure(L, jnozzle_index, 0);
+				lua_setfield(L, -2, "__index");
+
+				lua_setglobal(L, "JNozzleMeta");
+				lua_getglobal(L, "JNozzleMeta");
+			}
+			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+			lua_settable(L, -3);
+		}
+
+
+
+
+		static int cbone_index(lua_State* L)
+		{
+			CBone* bone = *((CBone**)lua_touserdata(L, 1));
+
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+
+				lua_settop(L, 0);
+
+				if		(key == "pos")				{ PushLuaVector(	L, bone->rb->GetCenterOfMass());									return 1; }
+				else if	(key == "vel")				{ PushLuaVector(	L, bone->rb->GetLinearVelocity());									return 1; }
+				else if	(key == "orix")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(1, 0, 0));						return 1; }
+				else if	(key == "oriy")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(0, 1, 0));						return 1; }
+				else if	(key == "oriz")				{ PushLuaVector(	L, bone->rb->GetOrientation() * Vec3(0, 0, 1));						return 1; }
+				else if	(key == "rot")				{ PushLuaVector(	L, bone->rb->GetAngularVelocity());									return 1; }
+				else if	(key == "mass")				{ lua_pushnumber(	L, bone->rb->GetMass());											return 1; }
+				else if (key == "moix")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(1, 0, 0));	return 1; }
+				else if (key == "moiy")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(0, 1, 0));	return 1; }
+				else if (key == "moiz")				{ PushLuaVector(	L, Mat3(bone->rb->GetTransformedMassInfo().moi) * Vec3(0, 0, 1));	return 1; }
+				else if (key == "desired_torque")	{ PushLuaVector(	L, bone->desired_torque);											return 1; }
+				else if (key == "applied_torque")	{ PushLuaVector(	L, bone->applied_torque);											return 1; }
+				else
+					Debug("unrecognized key for CBone:index: " + key + "\n");
+			}
+			return 0;
+		}
+
+		static int cbone_newindex(lua_State* L)
+		{
+			CBone* bone = *((CBone**)lua_touserdata(L, 1));
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+				if(key == "desired_torque")
+				{
+					if(lua_isuserdata(L, 3))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, 3);
+						bone->desired_torque = *vec;
+
+						lua_settop(L, 0);
+						return 0;
+					}
+				}
+				else
+					Debug("unrecognized key for CBone:newindex: " + key + "\n");
+			}
+
+			return 0;
+		}
+
+
+
+		static int cjoint_index(lua_State* L)
+		{
+			CJoint* joint = *((CJoint**)lua_touserdata(L, 1));
+
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+
+				lua_settop(L, 0);
+
+				if		(key == "pos")				{ PushLuaVector(	L, joint->sjc->ComputeAveragePosition());							return 1; }
+				else if	(key == "axisx")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(1, 0, 0));							return 1; }
+				else if	(key == "axisy")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(0, 1, 0));							return 1; }
+				else if	(key == "axisz")			{ PushLuaVector(	L, joint->oriented_axes * Vec3(0, 0, 1));							return 1; }
+				else if	(key == "min_extents")		{ PushLuaVector(	L, joint->sjc->min_extents);										return 1; }
+				else if	(key == "max_extents")		{ PushLuaVector(	L, joint->sjc->max_extents);										return 1; }
+				else if	(key == "min_torque")		{ PushLuaVector(	L, joint->sjc->min_torque);											return 1; }
+				else if	(key == "max_torque")		{ PushLuaVector(	L, joint->sjc->max_torque);											return 1; }
+				else if (key == "rvec")
+				{
+					PushLuaVector(L, joint->oriented_axes * -(joint->a->rb->GetOrientation() * Quaternion::Reverse(joint->b->rb->GetOrientation())).ToRVec());
+					return 1;
+				}
+				else if (key == "local_torque")		{ PushLuaVector(	L, joint->sjc->apply_torque);										return 1; }
+				else if (key == "world_torque")		{ PushLuaVector(	L, joint->actual);													return 1; }
+				else if (key == "a")				{ lua_pushstring(	L, joint->a->name.c_str());											return 1; }
+				else if (key == "b")				{ lua_pushstring(	L, joint->b->name.c_str());											return 1; }
+				else if (key == "setWorldTorque")
+				{
+					lua_pushlightuserdata(L, joint);
+					lua_pushcclosure(L, cjoint_setworld, 1);
+					return 1;
+				}
+				else if (key == "setOrientedTorque")
+				{
+					lua_pushlightuserdata(L, joint);
+					lua_pushcclosure(L, cjoint_setoriented, 1);
+					return 1;
+				}
+				else if (key == "satisfyA")
+				{
+					lua_pushlightuserdata(L, joint);
+					lua_pushcclosure(L, cjoint_satisfy_a, 1);
+					return 1;
+				}
+				else if (key == "satisfyB")
+				{
+					lua_pushlightuserdata(L, joint);
+					lua_pushcclosure(L, cjoint_satisfy_b, 1);
+					return 1;
+				}
+				else
+					Debug("unrecognized key for CJoint:index: " + key + "\n");
+			}
+			return 0;
+		}
+
+		static int cjoint_setworld(lua_State* L)
+		{
+			int n = lua_gettop(L);
+			if(n == 1 && lua_isuserdata(L, 1))
+			{
+				void* ptr = lua_touserdata(L, 1);
+				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+				lua_settop(L, 0);
+
+				if(vec != NULL)
+				{
+					lua_pushvalue(L, lua_upvalueindex(1));
+					CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+					lua_pop(L, 1);
+
+					joint->SetWorldTorque(*vec);
+
+					return 0;
+				}
+			}
+
+			Debug("cjoint.setWorldTorque takes exactly 1 argument, a world-coords torque vector\n");
+			return 0;
+		}
+
+		static int cjoint_satisfy_a(lua_State* L)
+		{
+			int n = lua_gettop(L);
+			if(n == 0)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+				lua_pop(L, 1);
+
+				joint->SetTorqueToSatisfyA();
+
+				return 0;
+			}
+
+			Debug("cjoint.satisfyA does not take any arguments\n");
+			return 0;
+		}
+
+		static int cjoint_satisfy_b(lua_State* L)
+		{
+			int n = lua_gettop(L);
+			if(n == 0)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+				lua_pop(L, 1);
+
+				joint->SetTorqueToSatisfyB();
+
+				return 0;
+			}
+
+			Debug("cjoint.satisfyB does not take any arguments\n");
+			return 0;
+		}
+
+		static int cjoint_setoriented(lua_State* L)
+		{
+			int n = lua_gettop(L);
+			if(n == 1 && lua_isuserdata(L, 1))
+			{
+				void* ptr = lua_touserdata(L, 1);
+				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+				lua_settop(L, 0);
+
+				if(vec != NULL)
+				{
+					lua_pushvalue(L, lua_upvalueindex(1));
+					CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+					lua_pop(L, 1);
+
+					joint->SetOrientedTorque(*vec);
+
+					return 0;
+				}
+			}
+
+			Debug("cjoint.setOrientedTorque takes exactly 1 argument, a joint-coords torque vector\n");
+			return 0;
+		}
+
+
+
+		static int jnozzle_index(lua_State* L)
+		{
+			JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, 1);
+			JetpackNozzle& nozzle = **jptr;
+
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+
+				lua_settop(L, 0);
+
+				if		(key == "bone")			{ lua_pushstring	(L, nozzle.bone->name.c_str());					return 1; }
+				else if (key == "pos")			{ PushLuaVector		(L, nozzle.apply_pos);							return 1; }
+				else if (key == "center")		{ PushLuaVector		(L, nozzle.world_center);						return 1; }
+				else if (key == "cone_cossq")	{ lua_pushnumber	(L, nozzle.cone_cossq);							return 1; }
+				else if (key == "max_force")	{ lua_pushnumber	(L, nozzle.max_force);							return 1; }
+				else if (key == "force")		{ PushLuaVector		(L, nozzle.world_force);						return 1; }
+				else if (key == "torque")		{ PushLuaVector		(L, nozzle.world_torque);						return 1; }
+				else if (key == "fttx")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(1, 0, 0));	return 1; }
+				else if (key == "ftty")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(0, 1, 0));	return 1; }
+				else if (key == "fttz")			{ PushLuaVector		(L, nozzle.force_to_torque * Vec3(0, 0, 1));	return 1; }
+				else if (key == "setForce")
+				{
+					lua_pushlightuserdata(L, jptr);
+					lua_pushcclosure(L, jnozzle_set_force, 1);
+					return 1;
+				}
+				else
+					Debug("unrecognized key for JetpackNozzle:index: " + key + "\n");
+			}
+			return 0;
+		}
+
+		static int jnozzle_set_force(lua_State* L)
+		{
+			lua_pushvalue(L, lua_upvalueindex(1));
+			JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, -1);
+			lua_pop(L, 1);
+
+			JetpackNozzle& nozzle = **jptr;
+
+			int n = lua_gettop(L);
+			if(n == 1 && lua_isuserdata(L, 1))
+			{
+				void* ptr = lua_touserdata(L, 1);
+				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+				lua_settop(L, 0);
+
+				if(vec != NULL)
+				{
+					nozzle.world_force = *vec;
+					nozzle.GetNudgeEffects(Vec3(), nozzle.world_force, nozzle.world_torque);
+
+					return 0;
+				}
+			}
+
+			Debug("jnozzle.setForce takes exactly 1 argument, a world-coords forcej vector\n");
+			return 0;
+		}
+
 
 
 
@@ -2168,12 +2317,14 @@ namespace Test
 
 		Dood::Update(time);
 
+		BillboardMaterial* jetpack_trail = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("jetpack");
+
 		for(unsigned int i = 0; i < imp->jetpack_nozzles.size(); ++i)
 		{
 			const Imp::JetpackNozzle& jn = imp->jetpack_nozzles[i];
 			if(jn.world_force.ComputeMagnitudeSquared() != 0.0f)
 			{
-				Particle* p = new Particle(game_state, jn.apply_pos, jn.bone->rb->GetLinearVelocity() - jn.world_force * 0.01f, NULL, blood_material, jn.world_force.ComputeMagnitude() * 0.001f, 0.125f);
+				Particle* p = new Particle(game_state, jn.apply_pos, jn.bone->rb->GetLinearVelocity() - jn.world_force * 0.01f, NULL, jetpack_trail, jn.world_force.ComputeMagnitude() * 0.001f, 0.125f);
 				p->gravity = 9.8f;
 				p->damp = 0.05f;
 
@@ -2223,16 +2374,16 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		const Subtest& subtest = experiment->GetSubtest();
+		//const Subtest& subtest = experiment->GetSubtest();
 
 		Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -yaw);
 		//Quaternion lb_oris[NUM_LOWER_BODY_BONES];
 		//const WalkKeyframe& frame = walk_keyframes[subtest.initial_frame];
 		//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 		//	lb_oris[i] = yaw_ori * Quaternion::FromRVec(frame.desired_oris[i]);
-		pos.y += subtest.initial_y;
+		//pos.y += subtest.initial_y;
 
-		pitch += subtest.initial_pitch;
+		//pitch += subtest.initial_pitch;
 
 		Dood::DoInitialPose();
 
@@ -2253,7 +2404,7 @@ namespace Test
 		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::Reverse(lb_oris[5]) * lb_oris[6];
 		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::Reverse(p) * lb_oris[5];
 #else
-		if(subtest.initial_frame == 0)
+		if(true)//subtest.initial_frame == 0)
 		{
 			posey->skeleton->GetNamedBone( "l leg 1" )->ori = Quaternion::FromRVec( -0.05f, 0.1f,  0.05f );
 			posey->skeleton->GetNamedBone( "l leg 2" )->ori = Quaternion::FromRVec(  0.1f,  0,     0     );

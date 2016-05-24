@@ -35,7 +35,7 @@
 
 #define CPHFT_THREAD_COUNT               1
 
-#define ENABLE_FPS_COUNTER               0
+#define ENABLE_FPS_COUNTER               1
 #define USE_GUN_AS_RUBBISH               0
 
 #define DO_RAPID_UPDATE_TESTING          0
