@@ -7,6 +7,8 @@
 			rot							the bone's angular velocity
 			mass						mass
 			moi							the moment of inertia matrix
+			impulse_linear				measured net linear impulse (delta of mass * vel) on this bone
+			impulse_angular				measured net angular impulse (delta of MoI * angular vel) on this bone
 			applied_torque				net torque applied by joints; updates when you use any of the joint methods
 		read-write:
 			desired_torque				use this to control the values satisfyA and satisfyB try to reach
@@ -20,6 +22,8 @@
 			rvec						current orientation of the joint (orientation of bone b wrt bone a, in the coordinate system specified by axes relative to bone_a)
 			local_torque				torque to be applied by the joint in its local coordinate system (same coords as _extents, _torque, and rvec)
 			world_torque				world-coords torque to be applied by the joint
+			impulse_linear				measured value from the previous timestep, of how much linear impulse was applied to A from B
+			impulse_angular				measured value from the previous timestep, of how much angular impulse was applied to A from B
 			a							name of the first adjoined bone
 			b							name of the second adjoined bone
 		methods:
@@ -89,25 +93,41 @@
 
 ]]--
 
+local function findJoint(a, b)
+	for k,v in pairs(hv.joints) do
+		if v.a == a and v.b == b then
+			return v
+		end
+	end
+	return nil
+end
+
+local pelvis = hv.bones["pelvis"]
+local pelvisMissing = pelvis.desired_torque - pelvis.applied_torque
+findJoint("pelvis", "l leg 1").setWorldTorque(pelvisMissing * 0.5)
+findJoint("pelvis", "r leg 1").satisfyA()
+
+findJoint("l leg 1", "l leg 2").satisfyA()
+findJoint("l leg 2", "l heel").satisfyA()
+findJoint("r leg 1", "r leg 2").satisfyA()
+findJoint("r leg 2", "r heel").satisfyA()
+
+ba.println("hv.joints:")
+for k,v in pairs(hv.joints) do
+	ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
+end
+
 ba.println("hv.bones:")
 for k,v in pairs(hv.bones) do
 	ba.println("\t" .. k .. "; missing torque = " .. (v.desired_torque - v.applied_torque))
 end
 
-ba.println("hv.joints:")
-for k,v in pairs(hv.joints) do
-	if v.a == "pelvis" and v.b ~= "torso 1" then
-		v.satisfyA()
-		ba.println("\tjoint between " .. v.a .. " and " .. v.b .. ": local torque = " .. v.local_torque)
-	end
-end
-
-ba.println("pelvis missing torque = " .. (hv.bones.pelvis.desired_torque - hv.bones.pelvis.applied_torque))
-
 ba.println("hv.nozzles:")
 for k,v in pairs(hv.nozzles) do
 	local desired = hv.controls.jpaccel * (98.0 / 10.0)		-- 98 kg / 10 nozzles
 	v.setForce(desired)--ba.createVector(0, 150, 0))
-	ba.println("\tnozzle " .. k .. " desired force = " .. desired .. "; got = " .. v.force)
-	ba.println("\t" .. (v.ftt * v.force) .. " - " .. v.torque .. " = " .. (v.ftt * v.force - v.torque))
+	ba.println("\tnozzle " .. k .. " desired force = " .. desired .. "; got = " .. v.force .. "; torque = " .. v.torque)
 end
+
+ba.println("")
+

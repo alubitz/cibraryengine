@@ -831,10 +831,22 @@ namespace Test
 			Vec3 initial_pos;
 			Quaternion initial_ori;
 
-			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()) { }
+			Vec3 last_vel, last_rot;
+			Vec3 net_impulse_linear, net_impulse_angular;
 
-			void Reset() { desired_torque = applied_torque = desired_force = Vec3(); }
+			CBone() { }
+			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()), last_vel(rb->GetLinearVelocity()), last_rot(rb->GetAngularVelocity()), net_impulse_linear(), net_impulse_angular() { }
+
+			void Reset(float inv_timestep)
+			{
+				Vec3 vel = rb->GetLinearVelocity();
+				Vec3 rot = rb->GetAngularVelocity();
+				net_impulse_linear = (vel - last_vel) * (inv_timestep * rb->GetMass());
+				net_impulse_angular = Mat3(rb->GetTransformedMassInfo().moi) * (rot - last_rot) * inv_timestep;
+				last_vel = vel;
+				last_rot = rot;
+				desired_torque = applied_torque = desired_force = Vec3(); 
+			}
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
 			{
@@ -1517,7 +1529,7 @@ namespace Test
 				(*iter)->Reset();
 			for (vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
 			{
-				(*iter)->Reset();
+				(*iter)->Reset(inv_timestep);
 				(*iter)->rb->ComputeInvMoI();		// force recomputation of stuffs
 			}
 
@@ -1902,6 +1914,8 @@ namespace Test
 				else if	(key == "rot")				{ PushLuaVector(	L, bone->rb->GetAngularVelocity());									return 1; }
 				else if	(key == "mass")				{ lua_pushnumber(	L, bone->rb->GetMass());											return 1; }
 				else if (key == "moi")				{ PushLuaMat3(		L, Mat3(bone->rb->GetTransformedMassInfo().moi));					return 1; }
+				else if (key == "impulse_linear")	{ PushLuaVector(	L, bone->net_impulse_linear);										return 1; }
+				else if (key == "impulse_angular")	{ PushLuaVector(	L, bone->net_impulse_angular);										return 1; }
 				else if (key == "desired_torque")	{ PushLuaVector(	L, bone->desired_torque);											return 1; }
 				else if (key == "applied_torque")	{ PushLuaVector(	L, bone->applied_torque);											return 1; }
 				else
@@ -1959,6 +1973,8 @@ namespace Test
 				}
 				else if (key == "local_torque")		{ PushLuaVector(	L, joint->sjc->apply_torque);										return 1; }
 				else if (key == "world_torque")		{ PushLuaVector(	L, joint->actual);													return 1; }
+				else if (key == "impulse_linear")	{ PushLuaVector(	L, joint->sjc->net_impulse_linear);									return 1; }
+				else if (key == "impulse_angular")	{ PushLuaVector(	L, joint->sjc->net_impulse_angular);								return 1; }
 				else if (key == "a")				{ lua_pushstring(	L, joint->a->name.c_str());											return 1; }
 				else if (key == "b")				{ lua_pushstring(	L, joint->b->name.c_str());											return 1; }
 				else if (key == "setWorldTorque")
