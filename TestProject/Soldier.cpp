@@ -1186,7 +1186,7 @@ namespace Test
 		{
 			Vec3 upward(0, 1, 0);
 			float jp_angle = 1.0f;
-			float jp_force = 150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
+			float jp_force = 200.0f;//150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
 
 			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jp_angle, jp_force );
 			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jp_angle, jp_force );
@@ -2336,19 +2336,26 @@ namespace Test
 #endif
 
 		Dood::Update(time);
+	}
+
+	void Soldier::Vis(SceneRenderer* renderer)
+	{
+		Dood::Vis(renderer);
 
 		BillboardMaterial* jetpack_trail = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("jetpack");
 
 		for(unsigned int i = 0; i < imp->jetpack_nozzles.size(); ++i)
 		{
 			const Imp::JetpackNozzle& jn = imp->jetpack_nozzles[i];
-			if(jn.world_force.ComputeMagnitudeSquared() != 0.0f)
+			if(float magsq = jn.world_force.ComputeMagnitudeSquared())
 			{
-				Particle* p = new Particle(game_state, jn.apply_pos, jn.bone->rb->GetLinearVelocity() - jn.world_force * 0.01f, NULL, jetpack_trail, jn.world_force.ComputeMagnitude() * 0.001f, 0.125f);
-				p->gravity = 9.8f;
-				p->damp = 0.05f;
+				static const float max_len = 0.8f;
+				Vec3 lenvec = jn.world_force * (max_len / jn.max_force);
+				Vec3 front = jn.apply_pos;// + lenvec / 8.0f;	// the "orb" at the front of the flame effect is centered at x=16 in the image, out of 128 total width
+				Vec3 back = front - lenvec;
 
-				game_state->Spawn(p);
+				BillboardMaterial::NodeData* nd = jetpack_trail->NewNodeData(front, back, 0.15f);
+				renderer->objects.push_back(RenderNode(jetpack_trail, nd, Vec3::Dot(renderer->camera->GetForward(), front)));
 			}
 		}
 	}

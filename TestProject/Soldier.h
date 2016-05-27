@@ -49,6 +49,8 @@ namespace Test
 			void RegisterFeet();
 			void Update(const TimingInfo& time);
 
+			void Vis(SceneRenderer* renderer);
+
 			void Die(const Damage& cause);
 
 			void Spawned();

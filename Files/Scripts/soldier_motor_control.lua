@@ -93,6 +93,17 @@
 
 ]]--
 
+-- dot product of two vec3s ... equal to the product of the lengths times the cosine of the angle between them
+local function dot(a, b)
+	return a.x * b.x + a.y * b.y + a.z * b.z
+end
+
+-- cross product of two vec3s ... a vector perpendicular to both inputs, whose magnitude is the sine of the angle between them
+local function cross(a, b)
+	return ba.createVector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
+end
+
+-- find the joint between the specified two bones (bones must be provided in the correct order)
 local function findJoint(a, b)
 	for k,v in pairs(hv.joints) do
 		if v.a == a and v.b == b then
@@ -101,6 +112,10 @@ local function findJoint(a, b)
 	end
 	return nil
 end
+
+
+
+-- lower body control
 
 local pelvis = hv.bones["pelvis"]
 local pelvisMissing = pelvis.desired_torque - pelvis.applied_torque
@@ -112,6 +127,35 @@ findJoint("l leg 2", "l heel").satisfyA()
 findJoint("r leg 1", "r leg 2").satisfyA()
 findJoint("r leg 2", "r heel").satisfyA()
 
+
+
+-- jetpack control
+-- tries to achieve the requested amount of thrust by splitting it evenly across all nozzles
+-- then if that didn't match the requested amount, splits the remainder ... tries up to 3 times
+
+local desiredThrust = hv.controls.jpaccel * 98.0			-- 98 kg Dood
+local actualThrust = ba.createVector()
+for i = 1, 3 do
+	local missing = desiredThrust - actualThrust
+	if missing.length > 0 then
+		for k,v in pairs(hv.nozzles) do
+			v.setForce(v.force + missing / #hv.nozzles)		-- currently there are 10 nozzles
+		end
+	end
+	actualThrust = ba.createVector()
+	for k,v in pairs(hv.nozzles) do
+		actualThrust = actualThrust + v.force
+	end
+end
+
+local torque = ba.createVector()
+for k,v in pairs(hv.nozzles) do
+	torque = torque + v.torque
+end
+
+
+-- print some debug output
+
 ba.println("hv.joints:")
 for k,v in pairs(hv.joints) do
 	ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
@@ -119,15 +163,12 @@ end
 
 ba.println("hv.bones:")
 for k,v in pairs(hv.bones) do
-	ba.println("\t" .. k .. "; missing torque = " .. (v.desired_torque - v.applied_torque))
+	ba.println("\t" .. k .. ": missing torque = " .. (v.desired_torque - v.applied_torque))
 end
 
-ba.println("hv.nozzles:")
+ba.println("hv.nozzles: desired force = " .. desiredThrust .. "; got = " .. actualThrust .. "; net torque = " .. torque)
 for k,v in pairs(hv.nozzles) do
-	local desired = hv.controls.jpaccel * (98.0 / 10.0)		-- 98 kg / 10 nozzles
-	v.setForce(desired)--ba.createVector(0, 150, 0))
-	ba.println("\tnozzle " .. k .. " desired force = " .. desired .. "; got = " .. v.force .. "; torque = " .. v.torque)
+	ba.println("\tnozzle " .. k .. " (on '" .. v.bone .. "'): force = " .. v.force .. "; torque = " .. v.torque)
 end
 
-ba.println("")
 
