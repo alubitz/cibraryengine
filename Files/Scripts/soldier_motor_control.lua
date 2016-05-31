@@ -52,6 +52,20 @@
 		jpaccel							desired jetpack acceleration vector (only relevant when jetpacking)
 		jump							whether the jump key (spacebar) is pressed
 
+	contact points:
+		hv.oldcp contains contact points from the previous timestep, whose net linear and angular impulses are now known
+		hv.newcp contains contact points for the current timestep, which has yet to be resolved
+	hv.oldcp and hv.newcp elements have...
+		a								the name of the first of the two objects in contact (either a bone name, "gun", or "<external>")
+		b								the name of the second of the two objects in contact (either a bone name, "gun", or "<external>")
+		pos								the position of this contact point
+		normal							the normal vector of this contact point (points from A to B)
+		restitution						restitution coefficient for this contact point (like "bounciness", or resistance to inter-penetration)
+		friction						coefficient of friction between these two objects
+		bounce_threshold				a threshold above which these objects may bounce instead of sticking to each other
+		impulse_linear					measured value from the previous timestep, of how much linear impulse was applied to A from B
+		impulse_angular					measured value from the previous timestep, of how much angular impulse was applied to A from B
+
 
 
 	type vec3 has...
@@ -156,6 +170,7 @@ end
 
 -- print some debug output
 
+ba.println("")
 ba.println("hv.joints:")
 for k,v in pairs(hv.joints) do
 	ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
@@ -171,4 +186,12 @@ for k,v in pairs(hv.nozzles) do
 	ba.println("\tnozzle " .. k .. " (on '" .. v.bone .. "'): force = " .. v.force .. "; torque = " .. v.torque)
 end
 
+ba.println("hv.oldcp:")
+for k,v in pairs(hv.oldcp) do
+	ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal .. "; restitution = " .. v.restitution .. "; friction = " .. v.friction .. "; bounce = " .. v.bounce_threshold .. "; measured impulse L = " .. v.impulse_linear .. "; A = " .. v.impulse_angular)
+end
 
+ba.println("hv.newcp:")
+for k,v in pairs(hv.newcp) do
+	ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal .. "; restitution = " .. v.restitution .. "; friction = " .. v.friction .. "; bounce = " .. v.bounce_threshold)
+end

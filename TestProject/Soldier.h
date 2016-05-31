@@ -59,6 +59,9 @@ namespace Test
 
 			void PreparePAG(const TimingInfo& time, const Quaternion& t2ori);
 
+			virtual void PreCPHFT(float timestep);
+			virtual void PostCPHFT(float timestep);
+
 
 
 			bool IsExperimentDone() const;			// for if we're trying to do some rapid-update experimentation

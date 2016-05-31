@@ -172,7 +172,7 @@ namespace Test
 						doods.push_back((Dood*)doods_elist[i]);
 
 					for(Dood **iter = doods.data(), **doods_end = iter + doods.size(); iter != doods_end; ++iter)
-						(*iter)->standing_callback.PreCPHFT(timestep);
+						(*iter)->PreCPHFT(timestep);
 
 					// the actual posey stuff can be multithreaded though!
 					unsigned int use_threads = CPHFT_THREAD_COUNT;
@@ -186,7 +186,7 @@ namespace Test
 						threads[i]->WaitForCompletion();
 
 					for(Dood **iter = doods.data(), **doods_end = iter + doods.size(); iter != doods_end; ++iter)
-						(*iter)->standing_callback.PostCPHFT(timestep);
+						(*iter)->PostCPHFT(timestep);
 				}
 		} character_physics_happy_fun_time;
 

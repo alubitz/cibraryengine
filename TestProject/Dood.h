@@ -138,6 +138,9 @@ namespace Test
 
 			virtual void RegisterFeet() { }					// use this to create (custom?) FootState instances and add them to feet
 
+			virtual void PreCPHFT(float timestep);
+			virtual void PostCPHFT(float timestep);
+
 			class FootState : public Disposable
 			{
 				public:

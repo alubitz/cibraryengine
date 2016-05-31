@@ -1097,6 +1097,15 @@ namespace Test
 		unsigned int frame_index;
 		float frame_time;
 
+		struct MyContactPoint 
+		{
+			ContactPoint cp;
+			Imp* imp;
+			MyContactPoint(const ContactPoint& cp, Imp* imp) : cp(cp), imp(imp) { }
+		};
+		vector<MyContactPoint> old_contact_points;
+		vector<MyContactPoint> new_contact_points;
+
 		Imp() :
 			init(false),
 			experiment_done(false),
@@ -1218,6 +1227,12 @@ namespace Test
 				if(*iter != lheel.rb && *iter != rheel.rb && *iter != ltoe.rb && *iter != rtoe.rb)
 					(*iter)->SetContactCallback(&no_touchy);
 
+			foot_touchy.imp = this;
+			foot_touchy.standing_callback = &dood->standing_callback;
+			for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
+				(*iter)->body->SetContactCallback(&foot_touchy);
+
+
 			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 			{
 				gun_rb = gun->rigid_body;
@@ -1232,6 +1247,9 @@ namespace Test
 			frame_time = 0.0f;
 
 			initial_pos = dood->pos;
+
+			old_contact_points.clear();
+			new_contact_points.clear();
 		}
 
 		void ReInit(Soldier* dood)
@@ -1284,6 +1302,9 @@ namespace Test
 
 			//brain = experiment->GetBrain();
 			cat_scores = Scores();
+
+			old_contact_points.clear();
+			new_contact_points.clear();
 		}
 
 
@@ -1810,6 +1831,18 @@ namespace Test
 			lua_pushboolean(L, dood->control_state->GetBoolControl("jump"));
 			lua_setfield(L, -2, "jump");
 			lua_setfield(L, -2, "controls");
+
+			// hv.newcp
+			lua_newtable(L);
+			for(unsigned int i = 0; i < new_contact_points.size(); ++i)
+				AddContactPointToTable(new_contact_points[i], i, L);
+			lua_setfield(L, -2, "newcp");
+
+			// hv.oldcp
+			lua_newtable(L);
+			for(unsigned int i = 0; i < old_contact_points.size(); ++i)
+				AddContactPointToTable(old_contact_points[i], i, L);
+			lua_setfield(L, -2, "oldcp");
 			
 			lua_setglobal(L, "hv");
 
@@ -1889,6 +1922,33 @@ namespace Test
 
 				lua_setglobal(L, "JNozzleMeta");
 				lua_getglobal(L, "JNozzleMeta");
+			}
+			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+			lua_settable(L, -3);
+		}
+
+		
+
+		void AddContactPointToTable(MyContactPoint& cp, int i, lua_State* L)
+		{
+			lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
+
+			MyContactPoint** cpptr = (MyContactPoint**)lua_newuserdata(L, sizeof(MyContactPoint*));
+			*cpptr = &cp;
+
+			lua_getglobal(L, "ContactPointMeta");
+			if(lua_isnil(L, -1))
+			{
+				lua_pop(L, 1);
+				// must create metatable for globals
+				lua_newtable(L);									// push; top = 2
+
+				lua_pushcclosure(L, cp_index, 0);
+				lua_setfield(L, -2, "__index");
+
+				lua_setglobal(L, "ContactPointMeta");
+				lua_getglobal(L, "ContactPointMeta");
 			}
 			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
 
@@ -2158,14 +2218,64 @@ namespace Test
 		}
 
 
+		static int cp_index(lua_State* L)
+		{
+			MyContactPoint** cpptr = (MyContactPoint**)lua_touserdata(L, 1);
+			MyContactPoint& mcp = **cpptr;
+			ContactPoint& cp = mcp.cp;
+			Imp* imp = mcp.imp;
+
+			if(lua_isstring(L, 2))
+			{
+				string key = lua_tostring(L, 2);
+
+				lua_settop(L, 0);
+
+				if(key == "a" || key == "b")
+				{
+					string rbname = "<external>";
+
+					RigidBody* ab = key == "a" ? cp.obj_a : cp.obj_b;
+					if(ab == imp->gun_rb)
+						rbname = "gun";
+					else
+					{
+						for(unsigned int i = 0; i < imp->all_bones.size(); ++i)
+							if(imp->all_bones[i]->rb == ab)
+								rbname = imp->all_bones[i]->name;
+					}
+							
+					lua_pushstring(L, rbname.c_str());
+					return 1; 
+				}
+				else if (key == "pos")				{ PushLuaVector	(L, cp.pos);									return 1; }
+				else if (key == "normal")			{ PushLuaVector	(L, cp.normal);									return 1; }
+				else if (key == "restitution")		{ lua_pushnumber(L, cp.restitution_coeff);						return 1; }
+				else if (key == "friction")			{ lua_pushnumber(L, cp.fric_coeff);								return 1; }
+				else if (key == "bounce_threshold")	{ lua_pushnumber(L, cp.bounce_threshold);						return 1; }
+				else if (key == "impulse_linear")	{ PushLuaVector	(L, cp.net_impulse_linear);						return 1; }
+				else if (key == "impulse_angular")	{ PushLuaVector	(L, cp.net_impulse_angular);					return 1; }
+				else
+					Debug("unrecognized key for ContactPoint:index: " + key + "\n");
+			}
+			return 0;
+		}
+
 
 
 		struct NoTouchy : public ContactCallback
 		{
 			Imp* imp;
-			void OnContact(const ContactPoint& contact) { /*++imp->goal_error_cost;*/ }
-			void AfterResolution(const ContactPoint& cp) { }
+			void OnContact(const ContactPoint& contact) { imp->new_contact_points.push_back(MyContactPoint(contact, imp)); }
+			void AfterResolution(const ContactPoint& cp) { imp->old_contact_points.push_back(MyContactPoint(cp, imp)); }
 		} no_touchy;
+		struct FootTouchy : public ContactCallback
+		{
+			Dood::StandingCallback* standing_callback;
+			Imp* imp;
+			void OnContact(const ContactPoint& contact) { standing_callback->OnContact(contact); imp->new_contact_points.push_back(MyContactPoint(contact, imp)); }
+			void AfterResolution(const ContactPoint& cp) { standing_callback->AfterResolution(cp); imp->old_contact_points.push_back(MyContactPoint(cp, imp)); }
+		} foot_touchy;
 	};
 
 
@@ -2484,6 +2594,9 @@ namespace Test
 
 		posey->skeleton->InvalidateCachedBoneXforms();
 	}
+
+	void Soldier::PreCPHFT(float timestep) { }
+	void Soldier::PostCPHFT(float timestep) { imp->old_contact_points.clear(); imp->new_contact_points.clear(); }
 
 
 

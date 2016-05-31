@@ -789,6 +789,9 @@ namespace Test
 		return false;
 	}
 
+	void Dood::PreCPHFT(float timestep) { standing_callback.PreCPHFT(timestep); }
+	void Dood::PostCPHFT(float timestep) { standing_callback.PostCPHFT(timestep); }
+
 
 
 
