@@ -1248,8 +1248,8 @@ namespace Test
 
 			initial_pos = dood->pos;
 
-			old_contact_points.clear();
-			new_contact_points.clear();
+			//old_contact_points.clear();
+			//new_contact_points.clear();
 		}
 
 		void ReInit(Soldier* dood)
@@ -1303,8 +1303,8 @@ namespace Test
 			//brain = experiment->GetBrain();
 			cat_scores = Scores();
 
-			old_contact_points.clear();
-			new_contact_points.clear();
+			//old_contact_points.clear();
+			//new_contact_points.clear();
 		}
 
 
@@ -1843,6 +1843,9 @@ namespace Test
 			for(unsigned int i = 0; i < old_contact_points.size(); ++i)
 				AddContactPointToTable(old_contact_points[i], i, L);
 			lua_setfield(L, -2, "oldcp");
+
+			lua_pushnumber(L, tick_age);
+			lua_setfield(L, -2, "age");
 			
 			lua_setglobal(L, "hv");
 

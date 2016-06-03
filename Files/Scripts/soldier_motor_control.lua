@@ -66,6 +66,8 @@
 		impulse_linear					measured value from the previous timestep, of how much linear impulse was applied to A from B
 		impulse_angular					measured value from the previous timestep, of how much angular impulse was applied to A from B
 
+	hv.age is how many ticks old the dood is
+
 
 
 	type vec3 has...
@@ -112,7 +114,7 @@ local function dot(a, b)
 	return a.x * b.x + a.y * b.y + a.z * b.z
 end
 
--- cross product of two vec3s ... a vector perpendicular to both inputs, whose magnitude is the sine of the angle between them
+-- cross product of two vec3s ... a vector perpendicular to both inputs, whose magnitude is the product of the lengths times the sine of the angle between them
 local function cross(a, b)
 	return ba.createVector(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
 end
@@ -130,23 +132,21 @@ end
 
 
 -- lower body control
-
 local pelvis = hv.bones["pelvis"]
 local pelvisMissing = pelvis.desired_torque - pelvis.applied_torque
 findJoint("pelvis", "l leg 1").setWorldTorque(pelvisMissing * 0.5)
 findJoint("pelvis", "r leg 1").satisfyA()
 
-findJoint("l leg 1", "l leg 2").satisfyA()
-findJoint("l leg 2", "l heel").satisfyA()
-findJoint("r leg 1", "r leg 2").satisfyA()
-findJoint("r leg 2", "r heel").satisfyA()
+--findJoint("l leg 1", "l leg 2").satisfyA()
+--findJoint("l leg 2", "l heel").satisfyA()
+--findJoint("r leg 1", "r leg 2").satisfyA()
+--findJoint("r leg 2", "r heel").satisfyA()
 
 
 
 -- jetpack control
 -- tries to achieve the requested amount of thrust by splitting it evenly across all nozzles
 -- then if that didn't match the requested amount, splits the remainder ... tries up to 3 times
-
 local desiredThrust = hv.controls.jpaccel * 98.0			-- 98 kg Dood
 local actualThrust = ba.createVector()
 for i = 1, 3 do
@@ -162,36 +162,38 @@ for i = 1, 3 do
 	end
 end
 
-local torque = ba.createVector()
+local netTorque = ba.createVector()
 for k,v in pairs(hv.nozzles) do
-	torque = torque + v.torque
+	netTorque = netTorque + v.torque
 end
 
 
--- print some debug output
+-- print some debug output ... this is actually surprisingly slow
+if true then
+	ba.println("")
+	ba.println("age = " .. hv.age)
+	ba.println("hv.joints:")
+	for k,v in pairs(hv.joints) do
+		ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
+	end
 
-ba.println("")
-ba.println("hv.joints:")
-for k,v in pairs(hv.joints) do
-	ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
-end
+	ba.println("hv.bones:")
+	for k,v in pairs(hv.bones) do
+		ba.println("\t" .. k .. ": missing torque = " .. (v.desired_torque - v.applied_torque))
+	end
 
-ba.println("hv.bones:")
-for k,v in pairs(hv.bones) do
-	ba.println("\t" .. k .. ": missing torque = " .. (v.desired_torque - v.applied_torque))
-end
+	ba.println("hv.nozzles: desired force = " .. desiredThrust .. "; got = " .. actualThrust .. "; net torque = " .. netTorque)
+	for k,v in pairs(hv.nozzles) do
+		ba.println("\tnozzle " .. k .. " (on '" .. v.bone .. "'): force = " .. v.force .. "; torque = " .. v.torque)
+	end
 
-ba.println("hv.nozzles: desired force = " .. desiredThrust .. "; got = " .. actualThrust .. "; net torque = " .. torque)
-for k,v in pairs(hv.nozzles) do
-	ba.println("\tnozzle " .. k .. " (on '" .. v.bone .. "'): force = " .. v.force .. "; torque = " .. v.torque)
-end
+	ba.println("hv.oldcp:")
+	for k,v in pairs(hv.oldcp) do
+		ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal .. "; measured impulse L = " .. v.impulse_linear .. "; A = " .. v.impulse_angular)
+	end
 
-ba.println("hv.oldcp:")
-for k,v in pairs(hv.oldcp) do
-	ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal .. "; restitution = " .. v.restitution .. "; friction = " .. v.friction .. "; bounce = " .. v.bounce_threshold .. "; measured impulse L = " .. v.impulse_linear .. "; A = " .. v.impulse_angular)
-end
-
-ba.println("hv.newcp:")
-for k,v in pairs(hv.newcp) do
-	ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal .. "; restitution = " .. v.restitution .. "; friction = " .. v.friction .. "; bounce = " .. v.bounce_threshold)
+	ba.println("hv.newcp:")
+	for k,v in pairs(hv.newcp) do
+		ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal)
+	end
 end
