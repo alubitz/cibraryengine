@@ -129,18 +129,96 @@ local function findJoint(a, b)
 	return nil
 end
 
+-- like the above, but will find two joints, one on the left side of the body and the other on the right, if one or both of the joined bones has the corresponding prefix
+local function findSymmetricJoints(a, b)
+	local left = nil
+	local right = nil
+	local la = "l " .. a
+	local lb = "l " .. b
+	local ra = "r " .. a
+	local rb = "r " .. b
+	for k,v in pairs(hv.joints) do
+		if (v.a == la and v.b == b) or (v.a == a and v.b == lb) or (v.a == la and v.b == lb) then
+			left = v
+		elseif (v.a == ra and v.b == b) or (v.a == a and v.b == rb) or (v.a == ra and v.b == rb) then
+			right = v
+		end
+	end
+	return left, right
+end
+
+-- put all the joints into named variables
+local spine1 = findJoint( "pelvis",  "torso 1" )
+local spine2 = findJoint( "torso 1", "torso 2" )
+local neck   = findJoint( "torso 2", "head"    )
+
+local lsja,   rsja   = findSymmetricJoints( "torso 2",  "shoulder" )
+local lsjb,   rsjb   = findSymmetricJoints( "shoulder", "arm 1"    )
+local lelbow, relbow = findSymmetricJoints( "arm 1",    "arm 2"    )
+local lwrist, rwrist = findSymmetricJoints( "arm 2",    "hand"     )
+
+local lhip,   rhip   = findSymmetricJoints( "pelvis",   "leg 1" )
+local lknee,  rknee  = findSymmetricJoints( "leg 1",    "leg 2" )
+local lankle, rankle = findSymmetricJoints( "leg 2",    "heel"  )
+local lht,    rht    = findSymmetricJoints( "heel",     "toe"   )
+
+
+if hv.age == 0 then
+	-- if you have any variables that you want to persist between simulation steps, but not after the Dood respawns, initialize them here
+end
+
+
+--[[
+
+	the computation of desired torques for the bones of the upper body is based on what i call the "get me there immediately" formula
+
+		desired torque = moment of inertia * (desired angular velocity - current angular velocity) / timestep
+		desired angular velocity = ba.mat3ToRvec(desired orientation * (current orientation).transpose) / timestep
+
+	the computation of the desired orientation is more complicated than i can explain here
+
+	timestep is 1/60, i.e. each simulation step represents 1/60th of a second, and ideally the simulation runs fast enough to do this 60 times a second
+
+	this is not a particularly great scheme, but it seemed to work well enough for the upper body
+
+]]--
+
+-- upper body control (desired bone torques use the above formula)
+neck.satisfyB()
+
+local hng_desired_torque = hv.bones["l hand"].desired_torque		-- desired "hands and gun" torque; these bones are attached to one another with a fixed joint
+lwrist.setWorldTorque(hng_desired_torque * 0.75)					-- distribute the task of atching the desired gun+hands torque unevenly
+rwrist.setWorldTorque(-lwrist.world_torque - hng_desired_torque)
+
+lelbow.satisfyB()
+lsjb  .satisfyB()
+lsja  .satisfyB()
+
+relbow.satisfyB()
+rsjb  .satisfyB()
+rsja  .satisfyB()
+
+spine2.satisfyB()
+spine1.satisfyB()
+
+
+
 
 
 -- lower body control
 local pelvis = hv.bones["pelvis"]
 local pelvisMissing = pelvis.desired_torque - pelvis.applied_torque
-findJoint("pelvis", "l leg 1").setWorldTorque(pelvisMissing * 0.5)
-findJoint("pelvis", "r leg 1").satisfyA()
+lhip.setWorldTorque(pelvisMissing * 0.5)			-- evenly distribute the task between the two hip joints ... unless it's outside the first joint's torque limits
+rhip.satisfyA()
 
---findJoint("l leg 1", "l leg 2").satisfyA()
---findJoint("l leg 2", "l heel").satisfyA()
---findJoint("r leg 1", "r leg 2").satisfyA()
---findJoint("r leg 2", "r heel").satisfyA()
+lknee.setOrientedTorque(ba.createVector(lknee.min_torque.x, 0, 0))
+rknee.setOrientedTorque(ba.createVector(rknee.min_torque.x, 0, 0))
+
+lankle.setOrientedTorque(ba.createVector(lankle.min_torque.x * 0.05, 0, lankle.max_torque.z * 0.15))
+rankle.setOrientedTorque(ba.createVector(rankle.min_torque.x * 0.05, 0, rankle.max_torque.z * 0.15))
+
+lht.satisfyB()
+rht.satisfyB()
 
 
 

@@ -1656,6 +1656,9 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
 
+			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+				(*iter)->SetOrientedTorque(Vec3());
+
 			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
 				iter->SolverInit(dood_com, 0.0f);
 
