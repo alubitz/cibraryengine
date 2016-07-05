@@ -37,6 +37,8 @@ namespace Test
 			bool god_mode;
 			bool debug_draw;
 
+			float sim_speed;
+
 			bool quit;
 
 			BitmapFont* font;

@@ -384,6 +384,7 @@ namespace Test
 		nav_editor(false),
 		god_mode(false),
 		debug_draw(false),
+		sim_speed(1.0f),
 		quit(false),
 		hud(NULL),
 		player_controller(NULL),
@@ -724,6 +725,7 @@ namespace Test
 			float elapsed = 1.0f / 60.0f;
 #else
 			float elapsed = elapsed_game_time = min((float)time.elapsed, 1.0f / 60.0f);
+			elapsed *= sim_speed;
 #endif
 
 			total_game_time += elapsed;
@@ -1117,6 +1119,7 @@ namespace Test
 	int gs_setDebugDrawMode(lua_State* L);
 	int gs_newPathSearch(lua_State* L);
 	int gs_checkLineOfSight(lua_State* L);
+	int gs_setSimulationSpeed(lua_State* L);
 
 	void TestGame::SetupScripting(ScriptingState& state)
 	{
@@ -1179,6 +1182,10 @@ namespace Test
 		lua_pushlightuserdata(L, (void*)this);
 		lua_pushcclosure(L, gs_checkLineOfSight, 1);
 		lua_setfield(L, 1, "checkLineOfSight");
+
+		lua_pushlightuserdata(L, (void*)this);
+		lua_pushcclosure(L, gs_setSimulationSpeed, 1);
+		lua_setfield(L, 1, "setSimulationSpeed");
 	}
 
 
@@ -1655,6 +1662,23 @@ namespace Test
 		}
 
 		Debug("gs.newPathSearch takes exactly 2 arguments, nav points on the same graph; returning nil\n");
+		return 0;
+	}
+
+	int gs_setSimulationSpeed(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1)
+		{
+			TestGame* gs = (TestGame*)lua_touserdata(L, lua_upvalueindex(1));
+
+			gs->sim_speed = (float)lua_tonumber(L, 1);
+
+			lua_settop(L, 0);
+			return 0;
+		}
+
+		Debug("gs.setSimulationSpeed takes exactly one parameter, a number\n");
 		return 0;
 	}
 }

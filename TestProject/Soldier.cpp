@@ -1360,8 +1360,8 @@ namespace Test
 				rshoulder.ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
 
 				// compute applied joint torques to achieve the per-bone applied torques we just came up with
-				lwrist.SetWorldTorque(-lhand.desired_torque * 0.75f);
-				rwrist.SetWorldTorque(-lwrist.actual - rhand.desired_torque);
+				lwrist.SetWorldTorque(lhand.desired_torque * 0.75f);
+				rwrist.SetWorldTorque(rhand.desired_torque - lwrist.actual);
 				
 				lelbow.SetTorqueToSatisfyB();
 				lsjb  .SetTorqueToSatisfyB();
@@ -2525,6 +2525,8 @@ namespace Test
 		//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 		//	lb_oris[i] = yaw_ori * Quaternion::FromRVec(frame.desired_oris[i]);
 		//pos.y += subtest.initial_y;
+
+		pos.y -= 0.02f;
 
 		//pitch += subtest.initial_pitch;
 

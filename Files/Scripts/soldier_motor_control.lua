@@ -163,8 +163,11 @@ local lankle, rankle = findSymmetricJoints( "leg 2",    "heel"  )
 local lht,    rht    = findSymmetricJoints( "heel",     "toe"   )
 
 
+gs.setSimulationSpeed(1.0)		-- the simulation will run at this fraction of the normal speed
+
 if hv.age == 0 then
 	-- if you have any variables that you want to persist between simulation steps, but not after the Dood respawns, initialize them here
+	pelvis_initial_y = hv.bones["pelvis"].pos.y
 end
 
 
@@ -186,9 +189,9 @@ end
 -- upper body control (desired bone torques use the above formula)
 neck.satisfyB()
 
-local hng_desired_torque = hv.bones["l hand"].desired_torque		-- desired "hands and gun" torque; these bones are attached to one another with a fixed joint
+local hng_desired_torque = -hv.bones["l hand"].desired_torque		-- desired "hands and gun" torque; these bones are attached to one another with a fixed joint
 lwrist.setWorldTorque(hng_desired_torque * 0.75)					-- distribute the task of atching the desired gun+hands torque unevenly
-rwrist.setWorldTorque(-lwrist.world_torque - hng_desired_torque)
+rwrist.setWorldTorque(hng_desired_torque - lwrist.world_torque)
 
 lelbow.satisfyB()
 lsjb  .satisfyB()
@@ -211,14 +214,30 @@ local pelvisMissing = pelvis.desired_torque - pelvis.applied_torque
 lhip.setWorldTorque(pelvisMissing * 0.5)			-- evenly distribute the task between the two hip joints ... unless it's outside the first joint's torque limits
 rhip.satisfyA()
 
-lknee.setOrientedTorque(ba.createVector(lknee.min_torque.x, 0, 0))
-rknee.setOrientedTorque(ba.createVector(rknee.min_torque.x, 0, 0))
+local knee_frac = 1.0   --((pelvis_initial_y - pelvis.pos.y) * 360.0 - pelvis.vel.y) * 0.1
+if #hv.newcp == 0 then
+	knee_frac = 0.0
+end
+if knee_frac > 0.0 then
+	lknee.setOrientedTorque(ba.createVector(lknee.min_torque.x * knee_frac, 0, 0))
+	rknee.setOrientedTorque(ba.createVector(rknee.min_torque.x * knee_frac, 0, 0))
+end
 
-lankle.setOrientedTorque(ba.createVector(lankle.min_torque.x * 0.05, 0, lankle.max_torque.z * 0.15))
-rankle.setOrientedTorque(ba.createVector(rankle.min_torque.x * 0.05, 0, rankle.max_torque.z * 0.15))
+local sym_ankle_frac = ba.createVector(0.1, 0.1, 0)
 
-lht.satisfyB()
-rht.satisfyB()
+lankle.setOrientedTorque(ba.createVector(lankle.max_torque.x * sym_ankle_frac.x, lankle.max_torque.y * sym_ankle_frac.y, lankle.max_torque.z * sym_ankle_frac.z))
+rankle.setOrientedTorque(ba.createVector(rankle.max_torque.x * sym_ankle_frac.x, rankle.max_torque.y * sym_ankle_frac.y, rankle.max_torque.z * sym_ankle_frac.z))
+
+--lht.satisfyB()
+--rht.satisfyB()
+
+--lknee .setWorldTorque(lknee .world_torque + lhip.world_torque)
+--lankle.setWorldTorque(lankle.world_torque + lhip.world_torque)
+--lht   .setWorldTorque(lht   .world_torque + lhip.world_torque)
+
+--rknee .setWorldTorque(rknee .world_torque + rhip.world_torque)
+--rankle.setWorldTorque(rankle.world_torque + rhip.world_torque)
+--rht   .setWorldTorque(rht   .world_torque + rhip.world_torque)
 
 
 
@@ -274,4 +293,6 @@ if true then
 	for k,v in pairs(hv.newcp) do
 		ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal)
 	end
+
+	ba.println("pelvis.pos.y = " .. pelvis.pos.y .. "; pelvis.vel.y = " .. pelvis.vel.y .. "; knee_frac = " .. knee_frac)
 end
