@@ -66,12 +66,12 @@ namespace CibraryEngine
 		{
 			string key = lua_tostring(L, 2);
 
-			lua_settop(L, 0);
+			//lua_settop(L, 0);
 
-			if		(key == "x") { lua_pushnumber(L, vec->x); return 1; }
-			else if	(key == "y") { lua_pushnumber(L, vec->y); return 1; }
-			else if	(key == "z") { lua_pushnumber(L, vec->z); return 1; }
-			else if	(key == "length") { lua_settop(L, 0); lua_pushnumber(L, vec->ComputeMagnitude()); return 1; }
+			if		(key == "x")      { lua_pushnumber(L, vec->x); return 1; }
+			else if	(key == "y")      { lua_pushnumber(L, vec->y); return 1; }
+			else if	(key == "z")      { lua_pushnumber(L, vec->z); return 1; }
+			else if	(key == "length") { lua_pushnumber(L, vec->ComputeMagnitude()); return 1; }
 		}
 
 		return 0;
@@ -111,7 +111,7 @@ namespace CibraryEngine
 		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
 		Vec3 b = *(Vec3*)lua_touserdata(L, 2);
 
-		lua_settop(L, 0);
+		//lua_settop(L, 0);
 
 		PushLuaVector(L, a + b);
 		return 1;
@@ -129,8 +129,10 @@ namespace CibraryEngine
 
 	int ba_vector_sub(lua_State* L)
 	{
-		Vec3 a = *(Vec3*)lua_touserdata(L, 1);
-		Vec3 b = *(Vec3*)lua_touserdata(L, 2);
+		Vec3* aptr = (Vec3*)lua_touserdata(L, 1);
+		Vec3* bptr = (Vec3*)lua_touserdata(L, 2);
+		Vec3 a = *aptr;//*(Vec3*)lua_touserdata(L, 1);
+		Vec3 b = *bptr;//*(Vec3*)lua_touserdata(L, 2);
 
 		lua_settop(L, 0);
 

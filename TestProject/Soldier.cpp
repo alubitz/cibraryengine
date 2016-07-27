@@ -12,17 +12,15 @@
 #include "Particle.h"
 
 #define PROFILE_CPHFT					1
-#define PROFILE_QP_SOLVER				0
-#define PROFILE_SCORE_PROPOSED_F		0
-
-#define PROFILE_ANY_CPHFT				(PROFILE_CPHFT || PROFILE_QP_SOLVER || PROFILE_SCORE_PROPOSED_F)
+#define PROFILE_ANY_CPHFT				(PROFILE_CPHFT)
 
 #define DIE_AFTER_ONE_SECOND			0
 
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					1000
+#define MAX_TICK_AGE					60
+#define AIMMOVE_MAX_AGE					60
 
 
 #define NUM_LOWER_BODY_BONES			9
@@ -31,17 +29,19 @@
 #define NUM_LEG_JOINTS					8
 #define NUM_JOINT_AXES					(3 * NUM_LEG_JOINTS)
 
+#define NUM_PD_JOINTS					11
+
 #define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
 
-#define NUM_SUBTESTS					7
-#define TRIALS_PER_SUBTEST				3
+#define NUM_SUBTESTS					25
+#define TRIALS_PER_SUBTEST				1
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
-#define NUM_ELITES						32
+#define NUM_ELITES						20
 #define MUTANTS_PER_ELITE				0
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_SCALE					0.01f
+#define MUTATION_SCALE					0.002f
 #define MUTATION_COUNT					10000
 
 namespace Test
@@ -68,7 +68,6 @@ namespace Test
 	static float timer_massinfo				= 0.0f;
 	static float timer_ub_stuff				= 0.0f;
 
-	static float timer_lb_stuff				= 0.0f;
 	static float timer_scoring				= 0.0f;
 	static float timer_end_of_test			= 0.0f;
 	static float timer_cphft_total			= 0.0f;
@@ -76,45 +75,18 @@ namespace Test
 	static unsigned int counter_cphft		= 0;
 #endif
 
-#if PROFILE_QP_SOLVER
-	static float timer_jt_constraints		= 0.0f;
-	static float timer_constraint_mags		= 0.0f;
-	static float timer_gradient_descent     = 0.0f;
-	static float timer_qp_total				= 0.0f;
-
-	static unsigned int counter_qp			= 0;
-#endif
-
-#if PROFILE_SCORE_PROPOSED_F
-	static float timer_score_proposed_f		= 0.0f;
-	static unsigned int counter_score_f		= 0;
-#endif
-
 	static void DebugCPHFTProfilingData()
 	{
-#if PROFILE_QP_SOLVER
-			Debug(((stringstream&)(stringstream() << "total for " << counter_qp << " calls to Soldier::Imp::SolveForOptimalF = " << timer_qp_total << endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "jt_constraints =\t\t"		<< timer_jt_constraints		<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "constraint_mags =\t\t"	<< timer_constraint_mags	<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "gradient_descent =\t\t"	<< timer_gradient_descent	<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< timer_jt_constraints + timer_constraint_mags + timer_gradient_descent << endl)).str());
-#endif
-
-#if PROFILE_SCORE_PROPOSED_F
-			Debug(((stringstream&)(stringstream() << "total for " << counter_score_f << " calls to Soldier::Imp::ScoreProposedF = " << timer_score_proposed_f << endl)).str());
-#endif
-
 #if PROFILE_CPHFT
 			Debug(((stringstream&)(stringstream() << "total for " << counter_cphft << " calls to Soldier::Imp::Update = " << timer_cphft_total << endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "init =\t\t\t\t\t"			<< timer_init				<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "reset =\t\t\t\t\t"		<< timer_reset				<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "massinfo =\t\t\t\t"		<< timer_massinfo			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "ub_stuff =\t\t\t\t"		<< timer_ub_stuff			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "lb_stuff =\t\t\t\t"		<< timer_lb_stuff			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "scoring =\t\t\t\t"		<< timer_scoring			<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "end_of_test =\t\t\t"		<< timer_end_of_test		<< endl)).str());
 			Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<<
-				timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_lb_stuff + timer_scoring + timer_end_of_test << endl)).str());
+				timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_scoring + timer_end_of_test << endl)).str());
 #endif
 	}
 #endif
@@ -203,6 +175,8 @@ namespace Test
 		// don't add any members that aren't floats!
 		float first_member;
 
+		float pcoeffs[NUM_PD_JOINTS], dcoeffs[NUM_PD_JOINTS];
+
 		float&       operator[](unsigned int index)       { assert(index < num_params); return *(&first_member + index); }
 		const float& operator[](unsigned int index) const { assert(index < num_params); return *(&first_member + index); }
 
@@ -211,12 +185,24 @@ namespace Test
 			FrameParams k;
 			memset(&k, 0, sizeof(FrameParams));
 
+			for(unsigned int i = 0; i < NUM_PD_JOINTS; ++i)
+			{
+				k.pcoeffs[i] = 0.0f;
+				k.dcoeffs[i] = 0.0f;
+			}
+
 			return k;
 		}
 		static FrameParams InitMax()
 		{
 			FrameParams k;
-			memset(&k, 0, sizeof(FrameParams));
+			memset(&k, 0, sizeof(FrameParams));	
+
+			for(unsigned int i = 0; i < NUM_PD_JOINTS; ++i)
+			{
+				k.pcoeffs[i] = 1000.0f;
+				k.dcoeffs[i] = 2.0f;
+			}
 
 			return k;
 		}
@@ -241,24 +227,18 @@ namespace Test
 	{
 		static const unsigned int num_floats;
 
-		float bone_ori[NUM_LOWER_BODY_BONES];
-		float dummy1;
-		float bone_pos[NUM_LOWER_BODY_BONES];
-		float dummy2;
-		float head_ori;
-		float gun_aimvec;
-		float com;
+		float first_member;
 		float energy_cost;
-		float helper_force_penalty;
+		float perror, derror;
 
 		float total;
 
 		Scores() { memset(Begin(), 0, sizeof(float) * num_floats); }
 
-		float* Begin() { return bone_ori; }
-		float* End()   { return bone_ori + num_floats; }
-		const float* Begin() const { return bone_ori; }
-		const float* End()   const { return bone_ori + num_floats; }
+		float* Begin() { return &first_member; }
+		float* End()   { return &first_member + num_floats; }
+		const float* Begin() const { return &first_member; }
+		const float* End()   const { return &first_member + num_floats; }
 
 		void operator += (const Scores& other)
 		{
@@ -536,7 +516,7 @@ namespace Test
 			{
 				Subtest s;
 				s.initial_frame = 0;// i % 2;//walk_keyframes.size();
-				//s.initial_pitch = Random3D::Rand( -0.1f,   0.1f );
+				s.initial_pitch = ((((i / 5) % 5) / 4.0f) * 2.0f - 1.0f) * (float(M_PI) * 0.45f);
 				//s.initial_y     = Random3D::Rand( -0.015f, 0.0f );
 				//s.yaw_move      = Random3D::Rand( -1.0f,   1.0f );
 				//s.pitch_move    = Random3D::Rand( -1.0f,   1.0f );
@@ -544,14 +524,12 @@ namespace Test
 				//s.torso_rot     = Vec3(0, Random3D::Rand(-1.0f, 1.0f), 0);
 				//s.desired_accel = Vec3(0, 0, i * 0.25f / float(NUM_SUBTESTS - 1));
 
-				switch(i % 7)
+				switch(i % 5)
 				{
-					case 1: s.torso_vel.x--; break;
-					case 2: s.torso_vel.x++; break;
-					case 3: s.torso_vel.z--; break;
-					case 4: s.torso_vel.z++; break;
-					case 5: s.torso_vel.y--; break;
-					case 6: s.torso_vel.y++; break;
+					case 1: s.pitch_move = -1.0f; break;
+					case 2: s.pitch_move =  1.0f; break;
+					case 3: s.yaw_move   = -1.0f; break;
+					case 4: s.yaw_move   =  1.0f; break;
 				}
 
 				subtests.push_back(s);
@@ -600,7 +578,8 @@ namespace Test
 						{
 							ss << "\t\tframe " << f << ":" << endl;
 							const FrameParams& frame = b->frames[f];
-							// TODO: display FrameParams members here
+							for(unsigned int j = 0; j < NUM_PD_JOINTS; ++j)
+								ss << "\t\t\tjoint " << j << " p = " << frame.pcoeffs[j] << ", d = " << frame.dcoeffs[j] << endl;
 						}
 						Debug(ss.str());
 					}
@@ -619,7 +598,7 @@ namespace Test
 			debug_text = ((stringstream&)(stringstream() << "batch " << batch << "; genome " << (gen_size - candidates.size()) << " of " << gen_size << "; (id = " << test->id << " p = " << test->pa << ", " << test->pb << "); trial = " << trial << endl << saved_debug_text)).str();
 
 			++trial;
-			float quasi_score = test->scores.total + test->scores.helper_force_penalty * (float(NUM_TRIALS) / trial - 1.0f);
+			float quasi_score = test->scores.total;// + test->scores.helper_force_penalty * (float(NUM_TRIALS) / trial - 1.0f);
 			if(shouldFail || trial == NUM_TRIALS || elites.size() >= NUM_ELITES && quasi_score >= (**elites.rbegin()).scores.total * NUM_TRIALS)
 			{
 				test->scores /= float(trial);
@@ -705,7 +684,7 @@ namespace Test
 
 		void MakeFirstGeneration()
 		{
-			static const bool random_from_middle = true;
+			static const bool random_from_middle = false;
 
 			unsigned int first_gen_size = NUM_ELITES * NUM_ELITES;
 			for(unsigned int i = 0; i < first_gen_size; ++i)
@@ -727,7 +706,7 @@ namespace Test
 					}
 				}
 
-				//if(random_from_middle && i >= NUM_ELITES)
+				if(random_from_middle && i >= NUM_ELITES)
 					b->Randomize(MUTATION_SCALE, MUTATION_COUNT);
 
 				candidates.push_back(b);
@@ -845,7 +824,7 @@ namespace Test
 				net_impulse_angular = Mat3(rb->GetTransformedMassInfo().moi) * (rot - last_rot) * inv_timestep;
 				last_vel = vel;
 				last_rot = rot;
-				desired_torque = applied_torque = desired_force = Vec3(); 
+				desired_torque = applied_torque = desired_force = Vec3();
 			}
 
 			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
@@ -882,7 +861,11 @@ namespace Test
 
 			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
 
+			Mat3 last_desired;
+
 			Vec3 r1, r2;
+
+			Vec3 pd_result;
 
 			CJoint() : sjc(NULL), a(NULL), b(NULL) { }
 			CJoint(const Soldier* dood, CBone& bone_a, CBone& bone_b, float max_torque)
@@ -991,6 +974,7 @@ namespace Test
 		Scores cat_scores;
 
 		Vec3 initial_com, desired_com;
+		Quaternion pelvis_last_desired_ori;
 
 		float timestep, inv_timestep;
 
@@ -1240,7 +1224,7 @@ namespace Test
 				gun_initial_ori = gun_rb->GetOrientation();
 			}
 
-			//brain = experiment->GetBrain();
+			brain = experiment->GetBrain();
 			cat_scores = Scores();
 
 			frame_index = 0;
@@ -1300,7 +1284,7 @@ namespace Test
 			frame_index = 0;
 			frame_time = 0.0f;
 
-			//brain = experiment->GetBrain();
+			brain = experiment->GetBrain();
 			cat_scores = Scores();
 
 			//old_contact_points.clear();
@@ -1481,8 +1465,8 @@ namespace Test
 
 		void DoSubtestAimMove(Soldier* dood, const Subtest& subtest)
 		{
-			float aimfrac = sinf(min(1.0f, (float)tick_age / 120.0f) * float(M_PI));
-			float aimmove = aimfrac * aimfrac * timestep * 0.1f;
+			float aimfrac = sinf(min(1.0f, (float)tick_age / float(AIMMOVE_MAX_AGE)) * float(M_PI));
+			float aimmove = aimfrac * aimfrac * timestep * 1.0f;
 
 			dood->yaw   += subtest.yaw_move   * aimmove;
 			dood->pitch += subtest.pitch_move * aimmove;
@@ -1532,8 +1516,8 @@ namespace Test
 			else
 				gun_rb = NULL;
 
-			//const Subtest& subtest = experiment->GetSubtest();
-			//DoSubtestAimMove(dood, subtest);
+			const Subtest& subtest = experiment->GetSubtest();
+			DoSubtestAimMove(dood, subtest);
 			//if(tick_age == 0)
 			//	DoSubtestInitialVelocity(dood, subtest);
 
@@ -1575,7 +1559,15 @@ namespace Test
 			ComputeMomentumStuff(included_rbs, dood_mass, dood_com, com_vel, angular_momentum);
 
 			if(tick_age == 0)
+			{
 				desired_com = initial_com = dood_com;
+				for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+				{
+					CJoint& j = **iter;
+					j.last_desired = j.b->initial_ori.ToMat3() * j.a->initial_ori.ToMat3().Transpose();
+					//j.desired_ori = j.last_desired;
+				}
+			}
 
 #if PROFILE_CPHFT
 			timer_massinfo += timer.GetAndRestart();
@@ -1598,13 +1590,13 @@ namespace Test
 			unsigned int kf_index1 = ((unsigned int)kf_time) % num_walk_keyframes;
 			unsigned int kf_index2 = (kf_index1 + 1) % num_walk_keyframes;
 			WalkKeyframe use_pose = WalkKeyframe::Interpolate(*current_frame, *next_frame, kf_frac);
-			//FrameParams use_params = FrameParams::Interpolate(brain->frames[kf_index1], brain->frames[kf_index2], kf_frac);
+			FrameParams use_params = FrameParams::Interpolate(brain->frames[kf_index1], brain->frames[kf_index2], kf_frac);
 
 			// upper body stuff; mostly working
 			Quaternion p, t1, t2;
-			Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
-			Mat3 yawmat = yaw_ori.ToMat3();
-			Mat3 unyaw = yawmat.Transpose();
+			//Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
+			//Mat3 yawmat = yaw_ori.ToMat3();
+			//Mat3 unyaw = yawmat.Transpose();
 
 			/*{
 				Vec3 desired_vel = (tick_age * timestep) * subtest.desired_accel;
@@ -1615,54 +1607,125 @@ namespace Test
 				desired_com += desired_vel;
 			}*/
 
-			Vec3 momentum = com_vel * dood_mass;
-			Vec3 com_error = desired_com - dood_com;
-			Vec3 desired_momentum = com_error * (dood_mass * inv_timestep * 0.25f);
-			Vec3 desired_force = (desired_momentum - momentum) * (inv_timestep * 0.25f);
+			//Vec3 momentum = com_vel * dood_mass;
+			//Vec3 com_error = desired_com - dood_com;
+			//Vec3 desired_momentum = com_error * (dood_mass * inv_timestep * 0.25f);
+			//Vec3 desired_force = (desired_momentum - momentum) * (inv_timestep * 0.25f);
 
 //			for(unsigned int i = 0; i < 4; ++i)
 //				desired_force -= dood->feet[i]->net_force * use_params.ground_netf_subfrac[i];
 
-			Vec3 unyaw_df = unyaw * desired_force;
-			Vec3 unyaw_dc = unyaw * com_error * (dood_mass);
+			//Vec3 unyaw_df = unyaw * desired_force;
+			//Vec3 unyaw_dc = unyaw * com_error * (dood_mass);
 
-			Vec3 torso2_fudge;
-			Vec3 pelvis_fudge;
-			GetDesiredTorsoOris(dood, p, t1, t2, torso2_fudge, pelvis_fudge);
+			//Vec3 torso2_fudge;
+			//Vec3 pelvis_fudge;
+			GetDesiredTorsoOris(dood, p, t1, t2);//, torso2_fudge, pelvis_fudge);
 
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
 
-			torso2.ComputeDesiredTorqueWithDefaultMoI(t2, inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoI(t1, inv_timestep);
-
-			// compute desired net torques to get leg bones into their desired orientations
-			Quaternion lb_desired_oris[NUM_LOWER_BODY_BONES];
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				CBone& lbbi = *lower_body_bones[i];
-				if(i == 4)
-					lb_desired_oris[i] = p;
-				else
-					lb_desired_oris[i] = lbbi.initial_ori;
-
-				lbbi.ComputeDesiredTorqueWithDefaultMoI(lb_desired_oris[i], inv_timestep);
-
-				//Vec3 initial_pos = lbbi.initial_pos + lbbi.initial_ori * lbbi.local_com;
-				//Vec3 cur_pos = lbbi.rb->GetPosition() + lbbi.rb->GetOrientation() * lbbi.local_com;
-				//lower_body_bones[i]->desired_force = ((initial_pos - cur_pos) * inv_timestep - lbbi.rb->GetLinearVelocity()) * (inv_timestep * lbbi.rb->GetMass());
-			}
-
-			spine2.SetTorqueToSatisfyB();
-			spine1.SetTorqueToSatisfyB();
-
-			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
-				(*iter)->SetOrientedTorque(Vec3());
-
 			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
 				iter->SolverInit(dood_com, 0.0f);
 
-			DoScriptedMotorControl(dood);
+			//for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+			//	(*iter)->SetOrientedTorque(Vec3());
+			//DoScriptedMotorControl(dood);
+
+			pelvis.posey->ori = p;
+			torso1.posey->ori = t1 * Quaternion::Reverse(p);
+			torso2.posey->ori = t2 * Quaternion::Reverse(t1);
+
+			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+
+			static const Vec3 unit_vectors[3] = { Vec3(1, 0, 0), Vec3(0, 1, 0), Vec3(0, 0, 1) };
+
+			if(tick_age == 0)
+				pelvis_last_desired_ori = p;
+			Vec3 pelvis_rot = (p * Quaternion::Reverse(pelvis_last_desired_ori)).ToRVec() * inv_timestep;
+			pelvis_last_desired_ori = p;
+
+			float total_perrorsq = 0.0f, total_derrorsq = 0.0f;
+			for(unsigned int i = 0; i < all_joints.size(); ++i)
+			{
+				CJoint& j = *all_joints[i];
+				const RigidBody& rba = *j.a->rb;
+				const RigidBody& rbb = *j.b->rb;
+
+				bool b_only = &j == &lwrist || &j == &rwrist || &j == &neck;
+
+				Mat3 current_ori, desired_ori;
+				Vec3 current_rot, desired_rot;
+				if(b_only)
+				{
+					current_ori = rbb.GetOrientation().ToMat3();
+					desired_ori =
+						&j == &lwrist ? lhand.posey->GetTransformationMatrix().ExtractOrientation().ToMat3() :
+						&j == &rwrist ? rhand.posey->GetTransformationMatrix().ExtractOrientation().ToMat3() :
+						desired_head_ori.ToMat3();
+
+					current_rot = -rbb.GetAngularVelocity();
+				}
+				else
+				{
+					current_ori = rbb.GetOrientation().ToMat3() * rba.GetOrientation().ToMat3().Transpose();
+					desired_ori = (j.b->posey->GetTransformationMatrix().ExtractOrientation() * Quaternion::Reverse(j.a->posey->GetTransformationMatrix().ExtractOrientation())).ToMat3(); //j.desired_ori;
+
+					current_rot = (j.a == &pelvis ? pelvis_rot : rba.GetAngularVelocity()) - rbb.GetAngularVelocity();
+				}
+
+				// something like this...
+				desired_rot = (Quaternion::FromRotationMatrix(desired_ori) * Quaternion::Reverse(Quaternion::FromRotationMatrix(j.last_desired))).ToRVec() * inv_timestep;
+
+				j.last_desired = desired_ori;
+
+				unsigned int pdcoeff_index =
+					&j == &lwrist ? 0  : &j == &rwrist ? 1 :
+					&j == &lelbow ? 2  : &j == &relbow ? 3 :
+					&j == &lsjb   ? 4  : &j == &rsjb   ? 5 :
+					&j == &lsja   ? 6  : &j == &rsja   ? 7 :
+					&j == &spine2 ? 8  : &j == &spine1 ? 9 :
+					&j == &neck   ? 10 : 
+					NUM_PD_JOINTS;
+
+				Vec3 use_torque;
+				if(pdcoeff_index != NUM_PD_JOINTS)
+				{
+					for(unsigned int k = 0; k < 3; ++k)
+					{
+						Vec3 current_e = current_ori * unit_vectors[k];
+						use_torque += Vec3::Cross(current_e, desired_ori * unit_vectors[k] - current_e);
+					}
+					total_perrorsq += use_torque.ComputeMagnitudeSquared();
+					use_torque *= use_params.pcoeffs[pdcoeff_index];
+					Vec3 rot_error = desired_rot - current_rot;
+					total_derrorsq += rot_error.ComputeMagnitudeSquared();
+					use_torque += rot_error * use_params.dcoeffs[pdcoeff_index];
+				}
+
+				//j.SetWorldTorque(use_torque);
+				j.pd_result = use_torque;
+			}
+
+			lwrist.SetWorldTorque(lwrist.pd_result);			
+			lelbow.SetWorldTorque(lelbow.pd_result + lwrist.actual);
+			lsjb  .SetWorldTorque(lsjb  .pd_result + lelbow.actual);
+			lsja  .SetWorldTorque(lsja  .pd_result + lsjb  .actual);
+
+			rwrist.SetWorldTorque(rwrist.pd_result);
+			relbow.SetWorldTorque(relbow.pd_result + rwrist.actual);
+			rsjb  .SetWorldTorque(rsjb  .pd_result + relbow.actual);
+			rsja  .SetWorldTorque(rsja  .pd_result + rsjb  .actual);
+
+			neck  .SetWorldTorque(neck  .pd_result);
+			spine2.SetWorldTorque(spine2.pd_result + neck.actual + lsja.actual + rsja.actual);
+			spine1.SetWorldTorque(spine1.pd_result + spine2.actual);
+
+			// orient pelvis; maintain pelvis' CoM
+			Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
+			pelvis.rb->SetOrientation(p);
+			pelvis.rb->SetPosition(pelvis.rb->GetPosition() + pelvis_com - pelvis.rb->GetCenterOfMass());
+
 
 #if ENABLE_NEW_JETPACKING
 			if(jetpacking)
@@ -1682,69 +1745,20 @@ namespace Test
 			timer_ub_stuff += timer.GetAndRestart();
 #endif
 
-			float desired_values[NUM_LOWER_BODY_BONES * 12];
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				Vec3* vv = ((Vec3*)desired_values) + i * 4;
-
-				CBone& bone = *lower_body_bones[i];
-				RigidBody& rb = *bone.rb;
-
-				Vec3 desired_vel = Vec3();
-				Vec3 desired_rot = Vec3();
-
-				vv[0] = (bone.initial_pos + bone.initial_ori * bone.local_com) - (rb.GetPosition() + rb.GetOrientation() * bone.local_com);
-				vv[1] = desired_vel - rb.GetLinearVelocity();
-				vv[2] = (bone.initial_ori * Quaternion::Reverse(rb.GetOrientation())).ToRVec();
-				vv[3] = desired_rot - rb.GetAngularVelocity();
-			}
-
-#if PROFILE_CPHFT
-			timer_lb_stuff += timer.GetAndRestart();
-#endif
-
 			// scoring
 			Scores cat_weights;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				//cat_weights.bone_ori[i] = i == 4 ? 10.0f : 1.0f;
-				//cat_weights.bone_pos[i] = i == 1 || i == 7 ? 100.0f : 1.0f;//10.0f;
-
-				cat_weights.bone_ori[i] = i == 4 ? 50.0f : 1.0f;
-				cat_weights.bone_pos[i] = 100.0f;// i <= 1 || i >= 7 || i == 4 ? 100.0f : 0;// 10.0f;
-			}
-
-			//cat_weights.head_ori = 100.0f;
-			//cat_weights.gun_aimvec = 10.0f;
-			//cat_weights.com = 1000.0f;
-			cat_weights.energy_cost = 0.0005f;
-			cat_weights.helper_force_penalty = 100.0f / 60.0f;
+			//cat_weights.energy_cost = 0.00005f;
+			cat_weights.perror = 10.0f;
+			cat_weights.derror = 0.01f;
 
 			float energy_cost = 0.0f;
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-				energy_cost += leg_joints[i]->actual.ComputeMagnitudeSquared();
-			energy_cost += spine1.actual.ComputeMagnitudeSquared();
-			energy_cost += spine2.actual.ComputeMagnitudeSquared();
+			for(unsigned int i = 0; i < all_joints.size(); ++i)
+				energy_cost += all_joints[i]->actual.ComputeMagnitudeSquared();
 
 			Scores instant_scores;
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-			{
-				//CBone& bone = *lower_body_bones[i];
-				//RigidBody* rb = bone.rb;
-				//instant_scores.bone_ori[i] = (lb_desired_oris[i] * Quaternion::Reverse(rb->GetOrientation())).ToRVec().ComputeMagnitudeSquared();
-				//Vec3 actual_com = rb->GetPosition() + rb->GetOrientation() * rb->GetLocalCoM();
-				//instant_scores.bone_pos[i] = ((bone.initial_ori * bone.local_com + bone.initial_pos) - actual_com).ComputeMagnitudeSquared();
-				instant_scores.bone_ori[i] = ((Vec3*)&desired_values)[i * 4 + 2].ComputeMagnitudeSquared() + ((Vec3*)&desired_values)[i * 4 + 3].ComputeMagnitudeSquared();
-				instant_scores.bone_pos[i] = ((Vec3*)&desired_values)[i * 4    ].ComputeMagnitudeSquared() + ((Vec3*)&desired_values)[i * 4 + 1].ComputeMagnitudeSquared();
-			}
-
-			Quaternion head_desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-
-			instant_scores.head_ori = (head_desired_ori * Quaternion::Reverse(head.rb->GetOrientation())).ToRVec().ComputeMagnitudeSquared();
-			instant_scores.gun_aimvec = (Vec3::Normalize(gun_rb->GetOrientation() * Vec3(0, 0, 1)) - Vec3::Normalize(head_desired_ori * Vec3(0, 0, 1))).ComputeMagnitude();
-			instant_scores.com = (dood_com - desired_com).ComputeMagnitudeSquared();
 			instant_scores.energy_cost = energy_cost;
-			//instant_scores.helper_force_penalty = use_hmax;
+			instant_scores.derror = total_derrorsq;
+			instant_scores.perror = total_perrorsq;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;
@@ -1755,33 +1769,29 @@ namespace Test
 
 			// update the timer, and check for when the experiment is over
 			++tick_age;
-			//if(!experiment_done)
-			//{
-			//	bool early_fail = false;
+			if(!experiment_done)
+			{
+				bool early_fail = false;
 
-			//	if(experiment->elites.size() >= NUM_ELITES)
-			//	{
-			//		Scores quasi_scores;
-			//		if(experiment->trial != 0)
-			//			quasi_scores = experiment->test->scores;
-			//		quasi_scores += cat_scores;
-			//		quasi_scores.helper_force_penalty *= float(max_tick_age) * NUM_TRIALS / (float(max_tick_age) * experiment->trial + tick_age);
-			//		if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
-			//		{
-			//			cat_scores.helper_force_penalty *= float(max_tick_age) / tick_age;
-			//			early_fail = true;
-			//		}
-			//	}
+				if(experiment->elites.size() >= NUM_ELITES)
+				{
+					Scores quasi_scores;
+					if(experiment->trial != 0)
+						quasi_scores = experiment->test->scores;
+					quasi_scores += cat_scores;
+					if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
+						early_fail = true;
+				}
 
-			//	if(tick_age >= max_tick_age || early_fail)
-			//	{
-			//		// end-of-test stuff
-			//		cat_scores.ComputeTotal();
+				if(tick_age >= max_tick_age || early_fail)
+				{
+					// end-of-test stuff
+					cat_scores.ComputeTotal();
 
-			//		experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail);
-			//		experiment_done = true;
-			//	}
-			//}
+					experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail);
+					experiment_done = true;
+				}
+			}
 
 
 #if PROFILE_CPHFT
@@ -2517,7 +2527,7 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		//const Subtest& subtest = experiment->GetSubtest();
+		const Subtest& subtest = experiment->GetSubtest();
 
 		Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -yaw);
 		//Quaternion lb_oris[NUM_LOWER_BODY_BONES];
@@ -2526,9 +2536,9 @@ namespace Test
 		//	lb_oris[i] = yaw_ori * Quaternion::FromRVec(frame.desired_oris[i]);
 		//pos.y += subtest.initial_y;
 
-		pos.y -= 0.02f;
+		pos.y -= 0.01f;
 
-		//pitch += subtest.initial_pitch;
+		pitch += subtest.initial_pitch;
 
 		Dood::DoInitialPose();
 
@@ -2603,8 +2613,8 @@ namespace Test
 		posey->skeleton->InvalidateCachedBoneXforms();
 	}
 
-	void Soldier::PreCPHFT(float timestep) { }
-	void Soldier::PostCPHFT(float timestep) { imp->old_contact_points.clear(); imp->new_contact_points.clear(); }
+	void Soldier::PreCPHFT(float timestep) { Dood::PreCPHFT(timestep); }
+	void Soldier::PostCPHFT(float timestep) { Dood::PostCPHFT(timestep); imp->old_contact_points.clear(); imp->new_contact_points.clear(); }
 
 
 

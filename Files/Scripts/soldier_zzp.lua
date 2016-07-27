@@ -15,7 +15,8 @@ local N = M;
 local b = { }				-- bones
 local j = { }				-- joints
 
-Bone(b,     "pelvis",   M, { Sphere( 0.00, 1.08,  0.03, 0.18), Sphere( 0.14, 1.07, -0.07, 0.16), Sphere(-0.14, 1.07, -0.07, 0.16) } )
+
+Bone(b,     "pelvis",   0 * M, { Sphere( 0.00, 1.08,  0.03, 0.18), Sphere( 0.14, 1.07, -0.07, 0.16), Sphere(-0.14, 1.07, -0.07, 0.16) } )
 Bone(b,     "torso 1",  N, { Sphere( 0.09, 1.28,  0.06, 0.15), Sphere(-0.09, 1.28,  0.06, 0.15), Sphere( 0.00, 1.37, -0.04, 0.20), Sphere(0.00, 1.28, -0.01, 0.20) } )
 Bone(b,     "torso 2",  N, { Sphere( 0.00, 1.65, -0.20, 0.20), Sphere( 0.14, 1.50,  0.09, 0.16), Sphere(-0.14, 1.50,  0.09, 0.16) } )
 Bone(b,     "head",     n, { Sphere( 0.00, 1.80,  0.00, 0.15) } )

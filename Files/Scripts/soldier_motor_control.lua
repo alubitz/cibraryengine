@@ -163,13 +163,108 @@ local lankle, rankle = findSymmetricJoints( "leg 2",    "heel"  )
 local lht,    rht    = findSymmetricJoints( "heel",     "toe"   )
 
 
-gs.setSimulationSpeed(1.0)		-- the simulation will run at this fraction of the normal speed
+--gs.setSimulationSpeed(0.25)			-- the simulation will run at this fraction of the normal speed
+
+local inv_timestep = 60.0				-- in the c++ code inv_timestep is actually derived from timestep, but w/e
+local timestep = 1.0 / inv_timestep
+
+
+local function jointRelativeOriMat(joint)
+	local aori, bori = hv.bones[joint.a].ori, hv.bones[joint.b].ori
+	return bori * aori.transpose
+end
+
+local function jmKey(joint)
+	return joint.a .. ',' .. joint.b
+end
+
+local function createJm(pcoeff, dcoeff, joints)
+	for k,v in pairs(joints) do
+		joint_meta[jmKey(v)] = { initial_ori = jointRelativeOriMat(v), pcoeff = pcoeff, dcoeff = dcoeff }
+	end
+end
 
 if hv.age == 0 then
 	-- if you have any variables that you want to persist between simulation steps, but not after the Dood respawns, initialize them here
 	pelvis_initial_y = hv.bones["pelvis"].pos.y
+
+	-- initialize pd controllers for the various joints
+	joint_meta = {}
+	createJm(    0.0, 0.0, hv.joints)		-- default value
+
+	createJm(  250.0, 1.0, { lht,    rht    } )
+	createJm(  300.0, 1.0, { lankle, rankle } )
+	createJm(  300.0, 1.0, { lknee,  rknee  } )
+	createJm(  300.0, 1.0, { lhip,   rhip   } )
+
+	createJm(  500.0, 1.0, { spine1, spine2 } )
+	createJm(  100.0, 1.0, { neck } )
+
+	createJm(  500.0, 1.0, { lsja,   rsja   } )
+	createJm(   00.0, 0.0, { lsjb,   rsjb   } )
+	createJm(   00.0, 0.0, { lelbow, relbow } )
+
+	createJm(    0.0, 0.0, { lwrist } )
+	createJm(    0.0, 0.0, { rwrist } )
+
 end
 
+
+-- pd controllers, go!
+for k,v in pairs(hv.joints) do
+	local jm = joint_meta[jmKey(v)]
+
+	local current_ori = jointRelativeOriMat(v)
+	local desired_ori = jm.initial_ori
+
+	local current_rot = hv.bones[v.a].rot - hv.bones[v.b].rot
+	local desired_rot = ba.createVector()
+
+	local use_torque = ba.createVector()
+	for i,e in pairs({ ba.createVector(1, 0, 0), ba.createVector(0, 1, 0), ba.createVector(0, 0, 1) }) do
+		local current_e = current_ori * e
+		use_torque = use_torque + cross(current_e, (desired_ori * e - current_e)) * jm.pcoeff		-- proportional term
+	end
+	use_torque = use_torque + (desired_rot - current_rot) * jm.dcoeff								-- derivative term
+
+	v.setWorldTorque(use_torque)
+	local err = (v.world_torque - use_torque).length
+	if err > 0.001 then
+		local jointText = "joint"
+		if (v.a == "l leg 1" and v.b == "l leg 2" or v.a == "r leg 1" and v.b == "r leg 2") then
+			jointText = "knee"
+		end
+		ba.println(jointText .. " failed to satisfy pd! a = " .. v.a .. ", b = " .. v.b .. ", wanted = " .. use_torque .. ", got = " .. v.local_torque .. ", error = " .. err)
+	end
+end
+
+local function addWorldTorque(j1, j2)
+	local chain_coeff = 0.2
+	j1.setWorldTorque(j1.world_torque + j2.world_torque * chain_coeff)
+end
+
+addWorldTorque( lelbow, lwrist )
+addWorldTorque( lsjb,   lelbow )
+addWorldTorque( lsja,   lsjb   )
+
+addWorldTorque( relbow, rwrist )
+addWorldTorque( rsjb,   relbow )
+addWorldTorque( rsja,   rsjb   )
+
+addWorldTorque( spine2, lsja   )
+addWorldTorque( spine2, rsja   )
+addWorldTorque( spine2, neck   )
+addWorldTorque( spine1, spine2 )
+
+addWorldTorque( lhip,   spine1 )
+addWorldTorque( lknee,  lhip   )
+addWorldTorque( lankle, lknee  )
+addWorldTorque( lht,    lankle )
+
+addWorldTorque( rhip,   spine1 )
+addWorldTorque( rknee,  rhip   )
+addWorldTorque( rankle, rknee  )
+addWorldTorque( rht,    rankle )
 
 --[[
 
@@ -186,12 +281,16 @@ end
 
 ]]--
 
+
 -- upper body control (desired bone torques use the above formula)
+
+--[[
 neck.satisfyB()
 
 local hng_desired_torque = -hv.bones["l hand"].desired_torque		-- desired "hands and gun" torque; these bones are attached to one another with a fixed joint
 lwrist.setWorldTorque(hng_desired_torque * 0.75)					-- distribute the task of atching the desired gun+hands torque unevenly
 rwrist.setWorldTorque(hng_desired_torque - lwrist.world_torque)
+
 
 lelbow.satisfyB()
 lsjb  .satisfyB()
@@ -205,8 +304,8 @@ spine2.satisfyB()
 spine1.satisfyB()
 
 
-
-
+]]--
+--[[
 
 -- lower body control
 local pelvis = hv.bones["pelvis"]
@@ -215,7 +314,7 @@ lhip.setWorldTorque(pelvisMissing * 0.5)			-- evenly distribute the task between
 rhip.satisfyA()
 
 local knee_frac = 1.0   --((pelvis_initial_y - pelvis.pos.y) * 360.0 - pelvis.vel.y) * 0.1
-if #hv.newcp == 0 then
+if #hv.newcp == 0 and hv.age ~= 0 then
 	knee_frac = 0.0
 end
 if knee_frac > 0.0 then
@@ -238,6 +337,9 @@ rankle.setOrientedTorque(ba.createVector(rankle.max_torque.x * sym_ankle_frac.x,
 --rknee .setWorldTorque(rknee .world_torque + rhip.world_torque)
 --rankle.setWorldTorque(rankle.world_torque + rhip.world_torque)
 --rht   .setWorldTorque(rht   .world_torque + rhip.world_torque)
+]]--
+
+
 
 
 
@@ -271,7 +373,7 @@ if true then
 	ba.println("age = " .. hv.age)
 	ba.println("hv.joints:")
 	for k,v in pairs(hv.joints) do
-		ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
+		ba.println("\tjoint between '" .. v.a .. "' and '" .. v.b .. "': rvec = " .. v.rvec .. "; local torque = " .. v.local_torque .. "; measured impulse L = " .. v.impulse_linear .. ", A = " .. v.impulse_angular)
 	end
 
 	ba.println("hv.bones:")
@@ -294,5 +396,5 @@ if true then
 		ba.println("\tcp between '" .. v.a .. "' and '" .. v.b .. "': pos = " .. v.pos .. "; normal = " .. v.normal)
 	end
 
-	ba.println("pelvis.pos.y = " .. pelvis.pos.y .. "; pelvis.vel.y = " .. pelvis.vel.y .. "; knee_frac = " .. knee_frac)
+--	ba.println("pelvis.pos.y = " .. pelvis.pos.y .. "; pelvis.vel.y = " .. pelvis.vel.y .. "; knee_frac = " .. knee_frac)
 end

@@ -35,10 +35,10 @@
 
 #define CPHFT_THREAD_COUNT               1
 
-#define ENABLE_FPS_COUNTER               1
+#define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
 
-#define DO_RAPID_UPDATE_TESTING          0
+#define DO_RAPID_UPDATE_TESTING          1
 #define RAPID_UPDATE_COUNT               100
 #define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood? no good for >1 initial poses
 
@@ -574,7 +574,7 @@ namespace Test
 
 		hud = new HUD(this, content);
 
-		//Soldier::LoadExperimentData();
+		Soldier::LoadExperimentData();
 
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
@@ -1088,7 +1088,7 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
-		//Soldier::SaveExperimentData();
+		Soldier::SaveExperimentData();
 
 		load_status.Dispose();
 
