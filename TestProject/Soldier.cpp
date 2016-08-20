@@ -19,8 +19,8 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					60
-#define AIMMOVE_MAX_AGE					60
+#define MAX_TICK_AGE					300
+#define AIMMOVE_MAX_AGE					5
 
 
 #define NUM_LOWER_BODY_BONES			9
@@ -29,19 +29,20 @@
 #define NUM_LEG_JOINTS					8
 #define NUM_JOINT_AXES					(3 * NUM_LEG_JOINTS)
 
-#define NUM_PD_JOINTS					11
+#define NUM_PD_JOINTS					16
 
 #define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
 
-#define NUM_SUBTESTS					25
+#define NUM_SUBTESTS					5
 #define TRIALS_PER_SUBTEST				1
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
-#define NUM_ELITES						20
+#define NUM_ELITES						32
 #define MUTANTS_PER_ELITE				0
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_SCALE					0.002f
+#define MUTATION_SCALE					0.01f
+#define MIN_MUTATION_SCALE				0.01f
 #define MUTATION_COUNT					10000
 
 namespace Test
@@ -175,7 +176,7 @@ namespace Test
 		// don't add any members that aren't floats!
 		float first_member;
 
-		float pcoeffs[NUM_PD_JOINTS], dcoeffs[NUM_PD_JOINTS];
+		float pcoeffs[NUM_PD_JOINTS], dcoeffs[NUM_PD_JOINTS], chain_coeffs[NUM_PD_JOINTS];
 
 		float&       operator[](unsigned int index)       { assert(index < num_params); return *(&first_member + index); }
 		const float& operator[](unsigned int index) const { assert(index < num_params); return *(&first_member + index); }
@@ -189,6 +190,12 @@ namespace Test
 			{
 				k.pcoeffs[i] = 0.0f;
 				k.dcoeffs[i] = 0.0f;
+				if(i == 0 || i == 1 || i == 10)
+					k.chain_coeffs[i] = 0.0f;
+				else if(i == 11 || i == 12)
+					k.chain_coeffs[i] = 0.0f;
+				else
+					k.chain_coeffs[i] = 0.0f;
 			}
 
 			return k;
@@ -202,6 +209,13 @@ namespace Test
 			{
 				k.pcoeffs[i] = 1000.0f;
 				k.dcoeffs[i] = 2.0f;
+
+				if(i == 0 || i == 1 || i == 10)
+					k.chain_coeffs[i] = 0.0f;
+				else if(i == 11 || i == 12)
+					k.chain_coeffs[i] = 1.0f;
+				else 
+					k.chain_coeffs[i] = 1.0f;
 			}
 
 			return k;
@@ -230,6 +244,8 @@ namespace Test
 		float first_member;
 		float energy_cost;
 		float perror, derror;
+		float early_fail_head;
+		float early_fail_feet;
 
 		float total;
 
@@ -328,7 +344,7 @@ namespace Test
 			return result;
 		}
 
-		void Randomize(float scale, unsigned int count)
+		void Randomize(unsigned int count, const FrameParams& scales)
 		{
 			vector<unsigned int> nonequal;
 			for(unsigned int i = 0; i < FrameParams::num_params; ++i)
@@ -342,16 +358,16 @@ namespace Test
 			{
 				FrameParams& frame = frames[Random3D::RandInt() % frames.size()];
 
-				float *k, kmin, kmax;
+				float *k, kmin, kmax, kscale;
 				do
 				{
 					int index = nonequal[Random3D::RandInt() % nonequal.size()];
 					k = &frame[index];
 					kmin = FrameParams::kmin[index];
 					kmax = FrameParams::kmax[index];
+					kscale = scales[index];
 				} while(kmin == kmax);
 
-				float kscale = scale * (kmax - kmin);
 				*k = max(kmin, min(kmax, *k + Random3D::Rand() * kscale * 2.0f - kscale));
 			}
 		}
@@ -457,7 +473,6 @@ namespace Test
 						for(unsigned int j = 0; j < loadme->frames.size(); ++j)
 							for(unsigned int k = 0; k < FrameParams::num_params; ++k)
 								loadme->frames[j][k] = max(FrameParams::kmin[k], min(FrameParams::kmax[k], loadme->frames[j][k]));
-						//loadme->Randomize(0.3f, 10);
 						candidates.push_back(loadme);
 					}
 				}
@@ -516,7 +531,7 @@ namespace Test
 			{
 				Subtest s;
 				s.initial_frame = 0;// i % 2;//walk_keyframes.size();
-				s.initial_pitch = ((((i / 5) % 5) / 4.0f) * 2.0f - 1.0f) * (float(M_PI) * 0.45f);
+				//s.initial_pitch = Random3D::Rand(-1.0f, 1.0f) * (float(M_PI) * 0.45f);
 				//s.initial_y     = Random3D::Rand( -0.015f, 0.0f );
 				//s.yaw_move      = Random3D::Rand( -1.0f,   1.0f );
 				//s.pitch_move    = Random3D::Rand( -1.0f,   1.0f );
@@ -579,7 +594,7 @@ namespace Test
 							ss << "\t\tframe " << f << ":" << endl;
 							const FrameParams& frame = b->frames[f];
 							for(unsigned int j = 0; j < NUM_PD_JOINTS; ++j)
-								ss << "\t\t\tjoint " << j << " p = " << frame.pcoeffs[j] << ", d = " << frame.dcoeffs[j] << endl;
+								ss << "\t\t\tjoint " << j << " p = " << frame.pcoeffs[j] << ", d = " << frame.dcoeffs[j] << ", chain = " << frame.chain_coeffs[j] << endl;
 						}
 						Debug(ss.str());
 					}
@@ -687,6 +702,11 @@ namespace Test
 			static const bool random_from_middle = false;
 
 			unsigned int first_gen_size = NUM_ELITES * NUM_ELITES;
+
+			FrameParams scales;
+			for(unsigned int i = 0; i < FrameParams::num_params; ++i)
+				scales[i] = MUTATION_SCALE * (FrameParams::kmax[i] - FrameParams::kmin[i]);
+
 			for(unsigned int i = 0; i < first_gen_size; ++i)
 			{
 				GABrain* b = new GABrain(next_id++, 0, 0);
@@ -707,7 +727,7 @@ namespace Test
 				}
 
 				if(random_from_middle && i >= NUM_ELITES)
-					b->Randomize(MUTATION_SCALE, MUTATION_COUNT);
+					b->Randomize(MUTATION_COUNT, scales);
 
 				candidates.push_back(b);
 			}
@@ -716,6 +736,41 @@ namespace Test
 		void MakeNextGeneration()
 		{
 			candidates.clear();
+
+			// find parameter ranges
+			FrameParams least, greatest, tot;
+			unsigned int count = 0;
+			bool first = true;
+			for(list<GABrain*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
+				for(unsigned int i = 0; i < (*iter)->frames.size(); ++i)
+				{
+					for(unsigned int j = 0; j < FrameParams::num_params; ++j)
+					{
+						float val = (*iter)->frames[i][j];
+						if(first || val < least[j])
+							least[j] = val;
+						if(first || val > greatest[j])
+							greatest[j] = val;
+						if(first)
+							tot[j] = 0.0f;
+						else
+							tot[j] += val;
+					}
+					count++;
+					first = false;
+				}
+
+			// select mutation scales
+			Debug("Selecting parameter mutation scales:\n");
+			FrameParams scales;
+			for(unsigned int i = 0; i < FrameParams::num_params; ++i)
+			{
+				float current = greatest[i] - least[i];
+				float full = FrameParams::kmax[i] - FrameParams::kmin[i];
+				scales[i] = MUTATION_SCALE * max(current, full * MIN_MUTATION_SCALE);
+				Debug(((stringstream&)(stringstream() << "\tcomponent " << i << ": MIN = " << FrameParams::kmin[i] << "; min = " << least[i] << "; max = " << greatest[i] << "; MAX = " << FrameParams::kmax[i] << "; range = " << current << "; RANGE = " << full << "; avg = " << tot[i] / count << "; selected scale = " << scales[i] << endl)).str());
+			}
+
 
 			// push veterans
 			for(list<GABrain*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
@@ -729,7 +784,7 @@ namespace Test
 				for(unsigned int j = 0; j < MUTANTS_PER_ELITE; ++j)
 				{
 					GABrain* mutant = pa->CreateClone(next_id++);
-					mutant->Randomize(MUTATION_SCALE, MUTATION_COUNT);
+					mutant->Randomize(MUTATION_COUNT, scales);
 					candidates.push_back(mutant);
 				}
 
@@ -741,7 +796,7 @@ namespace Test
 						for(unsigned int k = 0; k < CROSSOVERS_PER_PAIR; ++k)
 						{
 							GABrain* crossover = pa->CreateCrossover(*pb, next_id++);
-							crossover->Randomize(MUTATION_SCALE, MUTATION_COUNT);
+							crossover->Randomize(MUTATION_COUNT, scales);
 							candidates.push_back(crossover);
 						}
 					}
@@ -866,6 +921,7 @@ namespace Test
 			Vec3 r1, r2;
 
 			Vec3 pd_result;
+			float chain_coeff;
 
 			CJoint() : sjc(NULL), a(NULL), b(NULL) { }
 			CJoint(const Soldier* dood, CBone& bone_a, CBone& bone_b, float max_torque)
@@ -974,7 +1030,6 @@ namespace Test
 		Scores cat_scores;
 
 		Vec3 initial_com, desired_com;
-		Quaternion pelvis_last_desired_ori;
 
 		float timestep, inv_timestep;
 
@@ -1074,6 +1129,8 @@ namespace Test
 
 		Vec3 gun_initial_pos;
 		Quaternion gun_initial_ori;
+
+		bool failed_head, failed_foot;
 
 		vector<float> a_data, j_data, zwork_data, z_data;
 
@@ -1232,6 +1289,8 @@ namespace Test
 
 			initial_pos = dood->pos;
 
+			failed_head = failed_foot = false;
+
 			//old_contact_points.clear();
 			//new_contact_points.clear();
 		}
@@ -1286,6 +1345,8 @@ namespace Test
 
 			brain = experiment->GetBrain();
 			cat_scores = Scores();
+
+			failed_head = failed_foot = false;
 
 			//old_contact_points.clear();
 			//new_contact_points.clear();
@@ -1468,8 +1529,8 @@ namespace Test
 			float aimfrac = sinf(min(1.0f, (float)tick_age / float(AIMMOVE_MAX_AGE)) * float(M_PI));
 			float aimmove = aimfrac * aimfrac * timestep * 1.0f;
 
-			dood->yaw   += subtest.yaw_move   * aimmove;
-			dood->pitch += subtest.pitch_move * aimmove;
+			dood->control_state->SetFloatControl("yaw",   dood->control_state->GetFloatControl("yaw"  ) + subtest.yaw_move   * aimmove);
+			dood->control_state->SetFloatControl("pitch", dood->control_state->GetFloatControl("pitch") + subtest.pitch_move * aimmove);
 		}
 		void DoSubtestInitialVelocity(Soldier* dood, const Subtest& subtest)
 		{
@@ -1512,6 +1573,18 @@ namespace Test
 			{
 				gun_rb = gun->rigid_body;
 				gun_rb->ComputeInvMoI();		// force recomputation of stuffs
+
+				//{
+				//	Vec3 lf = gun->l_grip->net_impulse_linear;
+				//	Vec3 lt = gun->l_grip->net_impulse_angular;
+				//	Vec3 rf = gun->r_grip->net_impulse_linear;
+				//	Vec3 rt = gun->r_grip->net_impulse_angular;
+				//	Vec3 sf = lf + rf, df = lf - rf;
+				//	Vec3 st = lt + rt, dt = lt - rt;
+				//	float fbad = Vec3::Dot(sf, df) / sf.ComputeMagnitudeSquared();
+				//	float tbad = Vec3::Dot(st, dt) / st.ComputeMagnitudeSquared();
+				//	Debug(((stringstream&)(stringstream() << "fbad = " << fbad << "; tbad = " << tbad << endl)).str());
+				//}
 			}
 			else
 				gun_rb = NULL;
@@ -1555,6 +1628,8 @@ namespace Test
 			//included_rbs.insert(head.rb);
 			//included_rbs.insert(lshoulder.rb);
 			//included_rbs.insert(rshoulder.rb);
+
+			
 
 			ComputeMomentumStuff(included_rbs, dood_mass, dood_com, com_vel, angular_momentum);
 
@@ -1625,6 +1700,8 @@ namespace Test
 			DoHeadOri      ( dood, time     );
 			DoArmsAimingGun( dood, time, t2 );
 
+			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+
 			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
 				iter->SolverInit(dood_com, 0.0f);
 
@@ -1635,15 +1712,10 @@ namespace Test
 			pelvis.posey->ori = p;
 			torso1.posey->ori = t1 * Quaternion::Reverse(p);
 			torso2.posey->ori = t2 * Quaternion::Reverse(t1);
-
-			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
+			head  .posey->ori = desired_head_ori * Quaternion::Reverse(t2);
+			
 
 			static const Vec3 unit_vectors[3] = { Vec3(1, 0, 0), Vec3(0, 1, 0), Vec3(0, 0, 1) };
-
-			if(tick_age == 0)
-				pelvis_last_desired_ori = p;
-			Vec3 pelvis_rot = (p * Quaternion::Reverse(pelvis_last_desired_ori)).ToRVec() * inv_timestep;
-			pelvis_last_desired_ori = p;
 
 			float total_perrorsq = 0.0f, total_derrorsq = 0.0f;
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
@@ -1652,40 +1724,79 @@ namespace Test
 				const RigidBody& rba = *j.a->rb;
 				const RigidBody& rbb = *j.b->rb;
 
-				bool b_only = &j == &lwrist || &j == &rwrist || &j == &neck;
-
 				Mat3 current_ori, desired_ori;
 				Vec3 current_rot, desired_rot;
-				if(b_only)
-				{
-					current_ori = rbb.GetOrientation().ToMat3();
-					desired_ori =
-						&j == &lwrist ? lhand.posey->GetTransformationMatrix().ExtractOrientation().ToMat3() :
-						&j == &rwrist ? rhand.posey->GetTransformationMatrix().ExtractOrientation().ToMat3() :
-						desired_head_ori.ToMat3();
+				bool negate_result = false;
 
-					current_rot = -rbb.GetAngularVelocity();
-				}
-				else
-				{
-					current_ori = rbb.GetOrientation().ToMat3() * rba.GetOrientation().ToMat3().Transpose();
-					desired_ori = (j.b->posey->GetTransformationMatrix().ExtractOrientation() * Quaternion::Reverse(j.a->posey->GetTransformationMatrix().ExtractOrientation())).ToMat3(); //j.desired_ori;
+				int mode;
+				if(    &j == &lwrist || &j == &rwrist || &j == &neck
+					|| &j == &lsjb   || &j == &rsjb   || &j == &lsja   || &j == &rsja   || &j == &neck
+					|| &j == &lelbow || &j == &relbow || &j == &spine2 || &j == &spine1 )
+					mode = 1;
+				else if(&j == &lhip || &j == &rhip || &j == &lankle || &j == &rankle || &j == &lht || &j == &rht)
+					mode = -1;
+				else			//&j == &lknee || &j == &rknee || 
+					mode = 0;
 
-					current_rot = (j.a == &pelvis ? pelvis_rot : rba.GetAngularVelocity()) - rbb.GetAngularVelocity();
+				switch(mode)
+				{
+					case 1:		// target b orientation
+
+						current_ori = rbb.GetOrientation().ToMat3();
+						desired_ori = j.b->posey->GetTransformationMatrix().ExtractOrientation().ToMat3();
+
+						current_rot = -rbb.GetAngularVelocity();
+
+						break;
+
+					case -1:	// target a orientation
+
+						current_ori = rba.GetOrientation().ToMat3();
+						desired_ori = j.a->posey->GetTransformationMatrix().ExtractOrientation().ToMat3();
+
+						current_rot = -rba.GetAngularVelocity();
+
+						negate_result = true;
+
+						break;
+
+					case 0:		// target relative orientation
+					default:
+
+						current_ori = rbb.GetOrientation().ToMat3() * rba.GetOrientation().ToMat3().Transpose();
+						desired_ori = (j.b->posey->GetTransformationMatrix().ExtractOrientation() * Quaternion::Reverse(j.a->posey->GetTransformationMatrix().ExtractOrientation())).ToMat3();
+
+						current_rot = rba.GetAngularVelocity() - rbb.GetAngularVelocity();
+
+						break;
 				}
+
+				if(tick_age == 0)
+					j.last_desired = desired_ori;
 
 				// something like this...
 				desired_rot = (Quaternion::FromRotationMatrix(desired_ori) * Quaternion::Reverse(Quaternion::FromRotationMatrix(j.last_desired))).ToRVec() * inv_timestep;
 
 				j.last_desired = desired_ori;
 
-				unsigned int pdcoeff_index =
-					&j == &lwrist ? 0  : &j == &rwrist ? 1 :
-					&j == &lelbow ? 2  : &j == &relbow ? 3 :
-					&j == &lsjb   ? 4  : &j == &rsjb   ? 5 :
-					&j == &lsja   ? 6  : &j == &rsja   ? 7 :
-					&j == &spine2 ? 8  : &j == &spine1 ? 9 :
-					&j == &neck   ? 10 : 
+				unsigned int pdcoeff_index = 
+					&j == &lwrist ? 0 :
+					&j == &rwrist ? 1 :
+					&j == &lelbow ? 2 :
+					&j == &relbow ? 3 :
+					&j == &lsjb   ? 4 :
+					&j == &rsjb   ? 5 :
+					&j == &lsja   ? 6 :
+					&j == &rsja   ? 7 :
+					&j == &spine1 ? 8 :
+					&j == &spine2 ? 9 :
+					&j == &neck   ? 10 :
+					&j == &lhip   ? 11 :
+					&j == &rhip   ? 12 :
+					&j == &lknee  || &j == &rknee  ? 13 :
+					&j == &lankle || &j == &rankle ? 14 :
+					&j == &lht    || &j == &rht    ? 15 :
+
 					NUM_PD_JOINTS;
 
 				Vec3 use_torque;
@@ -1703,28 +1814,38 @@ namespace Test
 					use_torque += rot_error * use_params.dcoeffs[pdcoeff_index];
 				}
 
-				//j.SetWorldTorque(use_torque);
-				j.pd_result = use_torque;
+				j.pd_result = negate_result ? -use_torque : use_torque;
+				j.chain_coeff = use_params.chain_coeffs[pdcoeff_index];
 			}
 
 			lwrist.SetWorldTorque(lwrist.pd_result);			
-			lelbow.SetWorldTorque(lelbow.pd_result + lwrist.actual);
-			lsjb  .SetWorldTorque(lsjb  .pd_result + lelbow.actual);
-			lsja  .SetWorldTorque(lsja  .pd_result + lsjb  .actual);
+			lelbow.SetWorldTorque(lelbow.pd_result + lwrist.actual * lelbow.chain_coeff);
+			lsjb  .SetWorldTorque(lsjb  .pd_result + lelbow.actual * lsjb  .chain_coeff);
+			lsja  .SetWorldTorque(lsja  .pd_result + lsjb  .actual * lsja  .chain_coeff);
 
 			rwrist.SetWorldTorque(rwrist.pd_result);
-			relbow.SetWorldTorque(relbow.pd_result + rwrist.actual);
-			rsjb  .SetWorldTorque(rsjb  .pd_result + relbow.actual);
-			rsja  .SetWorldTorque(rsja  .pd_result + rsjb  .actual);
+			relbow.SetWorldTorque(relbow.pd_result + rwrist.actual * relbow.chain_coeff);
+			rsjb  .SetWorldTorque(rsjb  .pd_result + relbow.actual * rsjb  .chain_coeff);
+			rsja  .SetWorldTorque(rsja  .pd_result + rsjb  .actual * rsja  .chain_coeff);
 
 			neck  .SetWorldTorque(neck  .pd_result);
-			spine2.SetWorldTorque(spine2.pd_result + neck.actual + lsja.actual + rsja.actual);
-			spine1.SetWorldTorque(spine1.pd_result + spine2.actual);
+			spine2.SetWorldTorque(spine2.pd_result + (neck.actual + lsja.actual + rsja.actual) * spine2.chain_coeff);
+			spine1.SetWorldTorque(spine1.pd_result + spine2.actual * spine1.chain_coeff);
+
+			lhip  .SetWorldTorque(lhip  .pd_result + spine1.actual * lhip  .chain_coeff);
+			lknee .SetWorldTorque(lknee .pd_result + lhip  .actual * lknee .chain_coeff);
+			lankle.SetWorldTorque(lankle.pd_result + lknee .actual * lankle.chain_coeff);
+			lht   .SetWorldTorque(lht   .pd_result + lankle.actual * lht   .chain_coeff);
+
+			rhip  .SetWorldTorque(rhip  .pd_result + spine1.actual * rhip  .chain_coeff);
+			rknee .SetWorldTorque(rknee .pd_result + rhip  .actual * rknee .chain_coeff);
+			rankle.SetWorldTorque(rankle.pd_result + rknee .actual * rankle.chain_coeff);
+			rht   .SetWorldTorque(rht   .pd_result + rankle.actual * rht   .chain_coeff);
 
 			// orient pelvis; maintain pelvis' CoM
-			Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
-			pelvis.rb->SetOrientation(p);
-			pelvis.rb->SetPosition(pelvis.rb->GetPosition() + pelvis_com - pelvis.rb->GetCenterOfMass());
+			//Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
+			//pelvis.rb->SetOrientation(p);
+			//pelvis.rb->SetPosition(pelvis.rb->GetPosition() + pelvis_com - pelvis.rb->GetCenterOfMass());
 
 
 #if ENABLE_NEW_JETPACKING
@@ -1749,16 +1870,38 @@ namespace Test
 			Scores cat_weights;
 			//cat_weights.energy_cost = 0.00005f;
 			cat_weights.perror = 10.0f;
-			cat_weights.derror = 0.01f;
+			cat_weights.derror = 0.05f;
+			cat_weights.early_fail_head = 1000.0f;
+			cat_weights.early_fail_feet = 1000.0f;
 
 			float energy_cost = 0.0f;
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				energy_cost += all_joints[i]->actual.ComputeMagnitudeSquared();
 
+			if(head.rb->GetCenterOfMass().y < 1.7f)
+				failed_head = true;
+
+
+			//if(!failed_foot)
+			//{
+			//	float footfail_tot = 0.0f;
+			//	footfail_tot += (ltoe.rb->GetPosition() - ltoe.initial_pos).ComputeMagnitudeSquared();
+			//	footfail_tot += (lheel.rb->GetPosition() - lheel.initial_pos).ComputeMagnitudeSquared();
+			//	footfail_tot += (rtoe.rb->GetPosition() - rtoe.initial_pos).ComputeMagnitudeSquared();
+			//	footfail_tot += (rheel.rb->GetPosition() - rheel.initial_pos).ComputeMagnitudeSquared();
+			//	if(footfail_tot > 1.0f)
+			//		failed_foot = true;
+			//}
+
 			Scores instant_scores;
+
 			instant_scores.energy_cost = energy_cost;
-			instant_scores.derror = total_derrorsq;
 			instant_scores.perror = total_perrorsq;
+			instant_scores.derror = total_derrorsq;
+			if(failed_head)
+				instant_scores.early_fail_head = 1.0f;
+			if(failed_foot)
+				instant_scores.early_fail_feet = 1.0f;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;
@@ -1771,7 +1914,7 @@ namespace Test
 			++tick_age;
 			if(!experiment_done)
 			{
-				bool early_fail = false;
+				bool early_fail_head = false;
 
 				if(experiment->elites.size() >= NUM_ELITES)
 				{
@@ -1780,15 +1923,15 @@ namespace Test
 						quasi_scores = experiment->test->scores;
 					quasi_scores += cat_scores;
 					if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
-						early_fail = true;
+						early_fail_head = true;
 				}
 
-				if(tick_age >= max_tick_age || early_fail)
+				if(tick_age >= max_tick_age || early_fail_head)
 				{
 					// end-of-test stuff
 					cat_scores.ComputeTotal();
 
-					experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail);
+					experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail_head);
 					experiment_done = true;
 				}
 			}

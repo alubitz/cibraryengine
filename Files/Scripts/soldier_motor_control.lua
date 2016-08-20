@@ -184,6 +184,7 @@ local function createJm(pcoeff, dcoeff, joints)
 	end
 end
 
+--[[
 if hv.age == 0 then
 	-- if you have any variables that you want to persist between simulation steps, but not after the Dood respawns, initialize them here
 	pelvis_initial_y = hv.bones["pelvis"].pos.y
@@ -265,6 +266,8 @@ addWorldTorque( rhip,   spine1 )
 addWorldTorque( rknee,  rhip   )
 addWorldTorque( rankle, rknee  )
 addWorldTorque( rht,    rankle )
+
+]]--
 
 --[[
 
@@ -368,7 +371,7 @@ end
 
 
 -- print some debug output ... this is actually surprisingly slow
-if true then
+if falses then
 	ba.println("")
 	ba.println("age = " .. hv.age)
 	ba.println("hv.joints:")
