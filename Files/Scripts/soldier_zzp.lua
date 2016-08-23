@@ -16,7 +16,7 @@ local b = { }				-- bones
 local j = { }				-- joints
 
 
-local Z = N
+local Z = 0.0 --N
 Bone(b,     "pelvis",   Z, { Sphere( 0.00, 1.08,  0.03, 0.18), Sphere( 0.14, 1.07, -0.07, 0.16), Sphere(-0.14, 1.07, -0.07, 0.16) } )
 Bone(b,     "torso 1",  N, { Sphere( 0.09, 1.28,  0.06, 0.15), Sphere(-0.09, 1.28,  0.06, 0.15), Sphere( 0.00, 1.37, -0.04, 0.20), Sphere(0.00, 1.28, -0.01, 0.20) } )
 Bone(b,     "torso 2",  N, { Sphere( 0.00, 1.65, -0.20, 0.20), Sphere( 0.14, 1.50,  0.09, 0.16), Sphere(-0.14, 1.50,  0.09, 0.16) } )
@@ -26,10 +26,11 @@ SymBones(b, "shoulder", N, { Sphere( 0.29, 1.52,  0.00, 0.16), Sphere( 0.36, 1.6
 SymBones(b, "arm 1",    n, { Sphere( 0.30, 1.51, -0.02, 0.14), Sphere( 0.53, 1.40, -0.05, 0.11) } )
 SymBones(b, "arm 2",    n, { Sphere( 0.53, 1.40, -0.05, 0.11), Sphere( 0.77, 1.27,  0.02, 0.10) } )
 SymBones(b, "hand",     n, { Sphere( 0.92, 1.20,  0.01, 0.08), Sphere( 0.90, 1.21,  0.10, 0.08), Sphere( 1.08, 1.08,  0.09, 0.07) } )
+local z = 0.0 --m
 SymBones(b, "leg 1",    m, { Sphere( 0.15, 1.04,  0.03, 0.15), Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.15, 1.04, -0.04, 0.13) } )
 SymBones(b, "leg 2",    m, { Sphere( 0.19, 0.63,  0.05, 0.13), Sphere( 0.23, 0.28,  0.04, 0.11), Sphere( 0.23, 0.30, -0.10, 0.11) } )
-SymBones(b, "heel",     m, { Sphere( 0.23, 0.09, -0.12, 0.09), Sphere( 0.23, 0.10, -0.03, 0.10) } )
-SymBones(b, "toe",      m, { Sphere( 0.24, 0.09,  0.13, 0.09), Sphere( 0.27, 0.07,  0.26, 0.07), Sphere( 0.21, 0.07,  0.26, 0.07) } )
+SymBones(b, "heel",     z, { Sphere( 0.23, 0.09, -0.12, 0.09), Sphere( 0.23, 0.10, -0.03, 0.10) } )
+SymBones(b, "toe",      z, { Sphere( 0.24, 0.09,  0.13, 0.09), Sphere( 0.27, 0.07,  0.26, 0.07), Sphere( 0.21, 0.07,  0.26, 0.07) } )
 
 local hand_axes = { Vec3(11.6, 22.0, 0.0), Vec3(0, 0, -1) }
 local knee_axes = { Vec3(28.2, 2.5,  0.0) }

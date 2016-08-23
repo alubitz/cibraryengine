@@ -122,17 +122,24 @@ namespace CibraryEngine
 		}
 	}
 
-	void RigidBody::ComputeXform()
+	void RigidBody::ComputeXformAsNeeded()
 	{
-		ori_rm = ori.ToMat3();
-		xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
-		inv_xform = Mat4::Invert(xform);
+		if(!xform_valid)
+		{
+			unique_lock<std::mutex> lock(mutex);
+			if(!xform_valid)
+			{
+				ori_rm = ori.ToMat3();
+				xform = Mat4::FromPositionAndOrientation(pos, ori_rm);
+				inv_xform = Mat4::Invert(xform);
 
-		cached_aabb = shape->ComputeCachedWorldAABB(xform, shape_cache);
+				cached_aabb = shape->ComputeCachedWorldAABB(xform, shape_cache);
 
-		cached_com = xform.TransformVec3_1(mass_info.com);
+				cached_com = xform.TransformVec3_1(mass_info.com);
 
-		xform_valid = true;
+				xform_valid = true;
+			}
+		}
 	}
 
 	Vec3 RigidBody::LocalForceToTorque(const Vec3& force, const Vec3& local_poi)

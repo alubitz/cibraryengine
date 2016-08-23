@@ -62,9 +62,9 @@ namespace CibraryEngine
 			ContactCallback* contact_callback;
 			CollisionCallback* collision_callback;
 
-			void ComputeXform();
+			mutex mutex;
 
-			void ComputeXformAsNeeded() { if(!xform_valid) { ComputeXform(); } }
+			void ComputeXformAsNeeded();
 
 			void ResetToApplied() { DynamicsObject::ResetToApplied(); torque = applied_torque; }
 

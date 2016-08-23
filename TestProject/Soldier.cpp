@@ -19,7 +19,7 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					300
+#define MAX_TICK_AGE					60
 #define AIMMOVE_MAX_AGE					5
 
 
@@ -29,7 +29,7 @@
 #define NUM_LEG_JOINTS					8
 #define NUM_JOINT_AXES					(3 * NUM_LEG_JOINTS)
 
-#define NUM_PD_JOINTS					16
+#define NUM_PD_JOINTS					11
 
 #define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
 
@@ -177,6 +177,7 @@ namespace Test
 		float first_member;
 
 		float pcoeffs[NUM_PD_JOINTS], dcoeffs[NUM_PD_JOINTS], chain_coeffs[NUM_PD_JOINTS];
+		float rhip_chain;
 
 		float&       operator[](unsigned int index)       { assert(index < num_params); return *(&first_member + index); }
 		const float& operator[](unsigned int index) const { assert(index < num_params); return *(&first_member + index); }
@@ -192,8 +193,8 @@ namespace Test
 				k.dcoeffs[i] = 0.0f;
 				if(i == 0 || i == 1 || i == 10)
 					k.chain_coeffs[i] = 0.0f;
-				else if(i == 11 || i == 12)
-					k.chain_coeffs[i] = 0.0f;
+				else if(i == 11)
+					k.rhip_chain = k.chain_coeffs[i] = 0.0f;
 				else
 					k.chain_coeffs[i] = 0.0f;
 			}
@@ -208,12 +209,12 @@ namespace Test
 			for(unsigned int i = 0; i < NUM_PD_JOINTS; ++i)
 			{
 				k.pcoeffs[i] = 1000.0f;
-				k.dcoeffs[i] = 2.0f;
+				k.dcoeffs[i] = 5.0f;
 
 				if(i == 0 || i == 1 || i == 10)
 					k.chain_coeffs[i] = 0.0f;
-				else if(i == 11 || i == 12)
-					k.chain_coeffs[i] = 1.0f;
+				else if(i == 11)
+					k.rhip_chain = k.chain_coeffs[i] = 1.0f;
 				else 
 					k.chain_coeffs[i] = 1.0f;
 			}
@@ -301,6 +302,8 @@ namespace Test
 	};
 	const unsigned int Scores::num_floats = sizeof(Scores) / sizeof(float);
 
+	struct Subtest;
+
 	struct GABrain
 	{
 		vector<FrameParams> frames;
@@ -308,6 +311,9 @@ namespace Test
 		Scores scores;
 
 		unsigned int id, pa, pb;			// my id, and my parents' ids
+
+		vector<Subtest> subtests;
+		unsigned int trial;
 
 		GABrain(unsigned int id, unsigned int pa, unsigned int pb) : scores(), id(id), pa(pa), pb(pb) { SetZero(); }
 		GABrain() : scores() { SetZero(); }
@@ -323,6 +329,8 @@ namespace Test
 				frames.push_back(f);
 			}
 		}
+
+		Subtest& GetSubtest() { return subtests[trial % subtests.size()]; }
 
 		string GetText() const
 		{
@@ -438,22 +446,22 @@ namespace Test
 
 	struct Experiment
 	{
+		mutex mutex;
+
 		vector<GABrain*> candidates;
+		unsigned int gen_done;
 		unsigned int gen_size;
 
 		list<GABrain*> elites;
 
-		GABrain* test;
-		unsigned int test_index;
-
-		unsigned int batch, trial;
+		unsigned int batch;
 		unsigned int next_id;
 
 		string saved_debug_text;
 
 		vector<Subtest> subtests;
 
-		Experiment() : candidates(), test(NULL), batch(0), trial(0), next_id(1)
+		Experiment() : mutex(), candidates(), batch(0), next_id(1)
 		{
 			// load the saved best brain if possible
 			ifstream file("Files/Brains/genepool", ios::in | ios::binary);
@@ -506,9 +514,6 @@ namespace Test
 
 			RecordGenSize();
 			GenerateSubtestList();
-
-			test = *candidates.rbegin();
-			candidates.pop_back();
 		}
 
 		~Experiment()
@@ -520,8 +525,6 @@ namespace Test
 			// delete all the brains
 			for(unsigned int i = 0; i < candidates.size(); ++i)
 				delete candidates[i];
-			
-			test = NULL;
 		}
 
 		void GenerateSubtestList()
@@ -550,8 +553,6 @@ namespace Test
 				subtests.push_back(s);
 			}
 		}
-
-		Subtest& GetSubtest() { return subtests[trial % subtests.size()]; }
 
 		void DebugMat3(stringstream& ss, const Mat3& m)
 		{
@@ -595,6 +596,7 @@ namespace Test
 							const FrameParams& frame = b->frames[f];
 							for(unsigned int j = 0; j < NUM_PD_JOINTS; ++j)
 								ss << "\t\t\tjoint " << j << " p = " << frame.pcoeffs[j] << ", d = " << frame.dcoeffs[j] << ", chain = " << frame.chain_coeffs[j] << endl;
+							ss << "\t\t\trhip chain = " << frame.rhip_chain << endl;
 						}
 						Debug(ss.str());
 					}
@@ -602,21 +604,39 @@ namespace Test
 			}
 		}
 
-		GABrain* GetBrain() { return test; } const
-
-		void ExperimentDone(const Scores& scores, string& debug_text, int numerator, int denominator, bool shouldFail)
+		GABrain* GetBrain()
 		{
-			if(trial == 0)
+			if(candidates.empty())
+				return NULL;
+
+			GABrain* brain = *candidates.rbegin();
+			candidates.pop_back();
+
+			brain->trial = 0;
+
+#if GENERATE_SUBTEST_LIST_EVERY == 3
+			GenerateSubtestList();
+#endif
+			brain->subtests = subtests;
+
+			return brain;
+		}
+
+		void ExperimentDone(GABrain*& test, const Scores& scores, string& debug_text, int numerator, int denominator, bool shouldFail)
+		{
+			unique_lock<std::mutex> lock(mutex);
+
+			if(test->trial == 0)
 				test->scores = Scores();
 			test->scores += scores;
 
-			debug_text = ((stringstream&)(stringstream() << "batch " << batch << "; genome " << (gen_size - candidates.size()) << " of " << gen_size << "; (id = " << test->id << " p = " << test->pa << ", " << test->pb << "); trial = " << trial << endl << saved_debug_text)).str();
+			debug_text = ((stringstream&)(stringstream() << "batch " << batch << "; genome " << gen_done << " of " << gen_size << "; (id = " << test->id << " p = " << test->pa << ", " << test->pb << "); trial = " << test->trial << endl << saved_debug_text)).str();
 
-			++trial;
+			++test->trial;
 			float quasi_score = test->scores.total;// + test->scores.helper_force_penalty * (float(NUM_TRIALS) / trial - 1.0f);
-			if(shouldFail || trial == NUM_TRIALS || elites.size() >= NUM_ELITES && quasi_score >= (**elites.rbegin()).scores.total * NUM_TRIALS)
+			if(shouldFail || test->trial == NUM_TRIALS || elites.size() >= NUM_ELITES && quasi_score >= (**elites.rbegin()).scores.total * NUM_TRIALS)
 			{
-				test->scores /= float(trial);
+				test->scores /= float(test->trial);
 
 				// find out where to put this score in the elites array; the elites list size may temporarily exceed NUM_ELITES
 				list<GABrain*>::iterator insert_where = elites.begin();
@@ -624,7 +644,7 @@ namespace Test
 					++insert_where;
 				elites.insert(insert_where, test);
 
-				string failstring = ((stringstream&)(stringstream() << " fail (" << numerator + (trial - 1) * denominator << " / " << denominator * NUM_TRIALS << ")")).str();
+				string failstring = ((stringstream&)(stringstream() << " fail (" << numerator + (test->trial - 1) * denominator << " / " << denominator * NUM_TRIALS << ")")).str();
 
 				// on-screen debug text (rankings list)
 				stringstream ss;
@@ -670,7 +690,8 @@ namespace Test
 				}
 
 				// generation finished? save elites and build the next generation
-				if(candidates.empty())
+				++gen_done;
+				if(gen_done == gen_size)
 				{
 					time_t raw_time;
 					time(&raw_time);
@@ -686,14 +707,7 @@ namespace Test
 					elites.clear();		// clear without deleting! they are still used (included in the next generation)
 				}
 
-#if GENERATE_SUBTEST_LIST_EVERY == 3
-				GenerateSubtestList();
-#endif
-
-				test = *candidates.rbegin();
-				candidates.pop_back();
-
-				trial = 0;
+				test = GetBrain();
 			}
 		}
 
@@ -768,7 +782,7 @@ namespace Test
 				float current = greatest[i] - least[i];
 				float full = FrameParams::kmax[i] - FrameParams::kmin[i];
 				scales[i] = MUTATION_SCALE * max(current, full * MIN_MUTATION_SCALE);
-				Debug(((stringstream&)(stringstream() << "\tcomponent " << i << ": MIN = " << FrameParams::kmin[i] << "; min = " << least[i] << "; max = " << greatest[i] << "; MAX = " << FrameParams::kmax[i] << "; range = " << current << "; RANGE = " << full << "; avg = " << tot[i] / count << "; selected scale = " << scales[i] << endl)).str());
+				Debug(((stringstream&)(stringstream() << "\tcomponent " << i << ": MIN = " << FrameParams::kmin[i] << "; min = " << least[i] << "; max = " << greatest[i] << "; MAX = " << FrameParams::kmax[i] << "; RANGE = " << full << "; range = " << current << "; avg = " << tot[i] / count << "; selected scale = " << scales[i] << endl)).str());
 			}
 
 
@@ -814,6 +828,7 @@ namespace Test
 		void RecordGenSize()
 		{
 			gen_size = candidates.size();
+			gen_done = 0;
 			Debug(((stringstream&)(stringstream() << "next generation will contain " << gen_size << " genomes" << endl)).str());
 
 			if(gen_size > 0)			// else right becomes uint -1, causing nonsense
@@ -1135,6 +1150,7 @@ namespace Test
 		vector<float> a_data, j_data, zwork_data, z_data;
 
 		GABrain* brain;
+
 		unsigned int frame_index;
 		float frame_time;
 
@@ -1153,7 +1169,8 @@ namespace Test
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
-			max_tick_age(MAX_TICK_AGE)
+			max_tick_age(MAX_TICK_AGE),
+			brain(NULL)
 		{
 		}
 
@@ -1247,6 +1264,7 @@ namespace Test
 
 		void Init(Soldier* dood)
 		{
+			initial_pos = dood->pos;
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
 			// init some component helpers
@@ -1281,18 +1299,7 @@ namespace Test
 				gun_initial_ori = gun_rb->GetOrientation();
 			}
 
-			brain = experiment->GetBrain();
-			cat_scores = Scores();
-
-			frame_index = 0;
-			frame_time = 0.0f;
-
-			initial_pos = dood->pos;
-
-			failed_head = failed_foot = false;
-
-			//old_contact_points.clear();
-			//new_contact_points.clear();
+			SharedInit(dood);
 		}
 
 		void ReInit(Soldier* dood)
@@ -1337,16 +1344,26 @@ namespace Test
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				all_joints[i]->last = Vec3();
 
+			SharedInit(dood);
+		}
+
+		void SharedInit(Soldier* dood)
+		{
 			experiment_done = false;
 			tick_age = 0;
 
 			frame_index = 0;
 			frame_time = 0.0f;
 
-			brain = experiment->GetBrain();
 			cat_scores = Scores();
 
 			failed_head = failed_foot = false;
+
+			if(brain == NULL)
+			{
+				unique_lock<std::mutex> lock(experiment->mutex);
+				brain = experiment->GetBrain();
+			}
 
 			//old_contact_points.clear();
 			//new_contact_points.clear();
@@ -1566,6 +1583,12 @@ namespace Test
 			else if(experiment_done)
 				ReInit(dood);
 
+			if(brain == NULL)
+			{
+				experiment_done = true;
+				return;
+			}
+
 			timestep     = time.elapsed;
 			inv_timestep = 1.0f / timestep;
 
@@ -1589,7 +1612,7 @@ namespace Test
 			else
 				gun_rb = NULL;
 
-			const Subtest& subtest = experiment->GetSubtest();
+			const Subtest& subtest = brain->GetSubtest();
 			DoSubtestAimMove(dood, subtest);
 			//if(tick_age == 0)
 			//	DoSubtestInitialVelocity(dood, subtest);
@@ -1791,11 +1814,10 @@ namespace Test
 					&j == &spine1 ? 8 :
 					&j == &spine2 ? 9 :
 					&j == &neck   ? 10 :
-					&j == &lhip   ? 11 :
-					&j == &rhip   ? 12 :
-					&j == &lknee  || &j == &rknee  ? 13 :
-					&j == &lankle || &j == &rankle ? 14 :
-					&j == &lht    || &j == &rht    ? 15 :
+					//&j == &lhip   || &j == &rhip   ? 11 :
+					//&j == &lknee  || &j == &rknee  ? 12 :
+					//&j == &lankle || &j == &rankle ? 13 :
+					//&j == &lht    || &j == &rht    ? 14 :
 
 					NUM_PD_JOINTS;
 
@@ -1815,7 +1837,7 @@ namespace Test
 				}
 
 				j.pd_result = negate_result ? -use_torque : use_torque;
-				j.chain_coeff = use_params.chain_coeffs[pdcoeff_index];
+				j.chain_coeff = &j == &rhip ? use_params.rhip_chain : use_params.chain_coeffs[pdcoeff_index];
 			}
 
 			lwrist.SetWorldTorque(lwrist.pd_result);			
@@ -1843,9 +1865,9 @@ namespace Test
 			rht   .SetWorldTorque(rht   .pd_result + rankle.actual * rht   .chain_coeff);
 
 			// orient pelvis; maintain pelvis' CoM
-			//Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
-			//pelvis.rb->SetOrientation(p);
-			//pelvis.rb->SetPosition(pelvis.rb->GetPosition() + pelvis_com - pelvis.rb->GetCenterOfMass());
+			Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
+			pelvis.rb->SetOrientation(p);
+			pelvis.rb->SetPosition(pelvis.rb->GetPosition() + pelvis_com - pelvis.rb->GetCenterOfMass());
 
 
 #if ENABLE_NEW_JETPACKING
@@ -1892,6 +1914,8 @@ namespace Test
 			//	if(footfail_tot > 1.0f)
 			//		failed_foot = true;
 			//}
+			if(dood->control_state->GetBoolControl("jump"))		// press spacebar to make candidates do badly (e.g. if stuck in a local minimum)
+				failed_foot = true;
 
 			Scores instant_scores;
 
@@ -1919,8 +1943,8 @@ namespace Test
 				if(experiment->elites.size() >= NUM_ELITES)
 				{
 					Scores quasi_scores;
-					if(experiment->trial != 0)
-						quasi_scores = experiment->test->scores;
+					if(brain->trial != 0)
+						quasi_scores = brain->scores;
 					quasi_scores += cat_scores;
 					if(quasi_scores.ComputeTotal() >= (**experiment->elites.rbegin()).scores.total * NUM_TRIALS)
 						early_fail_head = true;
@@ -1931,7 +1955,7 @@ namespace Test
 					// end-of-test stuff
 					cat_scores.ComputeTotal();
 
-					experiment->ExperimentDone(cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail_head);
+					experiment->ExperimentDone(brain, cat_scores, ((TestGame*)dood->game_state)->debug_text, tick_age, max_tick_age, early_fail_head);
 					experiment_done = true;
 				}
 			}
@@ -2670,7 +2694,7 @@ namespace Test
 
 	void Soldier::DoInitialPose()
 	{
-		const Subtest& subtest = experiment->GetSubtest();
+		Subtest subtest = imp != NULL && imp->brain != NULL ? imp->brain->GetSubtest() : Subtest();
 
 		Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -yaw);
 		//Quaternion lb_oris[NUM_LOWER_BODY_BONES];

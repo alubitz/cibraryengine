@@ -33,7 +33,7 @@
 #define ENABLE_ENVIRONMENT_MAPPING       0
 
 
-#define CPHFT_THREAD_COUNT               1
+#define CPHFT_THREAD_COUNT               4
 
 #define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
@@ -42,6 +42,7 @@
 #define RAPID_UPDATE_COUNT               100
 #define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood? no good for >1 initial poses
 
+#define DISALLOW_MULTIPLE_PLAYERS        0
 
 namespace Test
 {
@@ -589,10 +590,10 @@ namespace Test
 
 	Dood* TestGame::SpawnPlayer(const Vec3& pos)
 	{
-#if 1
 		if(player_controller != NULL)
 			player_controller->Exorcise();
 
+#if DISALLOW_MULTIPLE_PLAYERS
 		if(player_pawn != NULL)
 		{
 			player_pawn->is_valid = false;
