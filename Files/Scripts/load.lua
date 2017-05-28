@@ -1,5 +1,5 @@
 
-dofile("Files/Scripts/soldier_zzp.lua")
+--dofile("Files/Scripts/soldier_zzp.lua")
 --dofile("Files/Scripts/soldier_zzz.lua")
 --dofile("Files/Scripts/gun_zzp.lua")
 

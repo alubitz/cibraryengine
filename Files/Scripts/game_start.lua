@@ -14,11 +14,11 @@ if true then					-- true for spawning on flat grid world; false for terrain worl
 else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)
 end
---player = gs.spawnPlayer(player_pos)
 
-for x = 1, 5 do
-	for z = 1, 5 do
-		player = gs.spawnPlayer(ba.createVector(x * 10, 0, z * 10))
+--player = gs.spawnPlayer(player_pos)
+for x = 1, 4 do
+	for z = 1, 4 do
+		player = gs.spawnPlayer(ba.createVector(x * 15, 0, z * 15))
 	end
 end
 

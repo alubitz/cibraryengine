@@ -39,8 +39,8 @@
 #define USE_GUN_AS_RUBBISH               0
 
 #define DO_RAPID_UPDATE_TESTING          1
-#define RAPID_UPDATE_COUNT               100
-#define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood? no good for >1 initial poses
+#define RAPID_UPDATE_COUNT               20
+#define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood?
 
 #define DISALLOW_MULTIPLE_PLAYERS        0
 
@@ -420,7 +420,7 @@ namespace Test
 	{
 		srand((unsigned int)time(NULL));
 
-		sound_system->TryToEnable();
+		//sound_system->TryToEnable();
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
 
@@ -606,10 +606,10 @@ namespace Test
 		player_pawn->blood_material = imp->blood_red;
 		Spawn(player_pawn);
 
-		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
-		Spawn(player_weapon);
+		//WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
+		//Spawn(player_weapon);
 
-		player_weapon->Equip(player_pawn);
+		//player_weapon->Equip(player_pawn);
 
 		player_pawn->OnDeath += &imp->player_death_handler;
 		player_pawn->OnDamageTaken += &imp->player_damage_handler;

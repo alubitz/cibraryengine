@@ -95,6 +95,7 @@ namespace Test
 
 			// create a copy of the NN with a different number of middle neurons; only copies the coefficient matrices themselves!
 			NeuralNet* Resized(unsigned int new_num_middles) const;
+			NeuralNet* Clone() const { return Resized(num_middles); }		// TODO: implement this more efficiently
 
 
 			// constructor/destructor-ish

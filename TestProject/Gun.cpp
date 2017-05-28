@@ -7,8 +7,8 @@
 
 #define USE_GUN_XFORM_AS_SHOT_XFORM 1
 
-#define ENABLE_LEFT_GRIP            1
-#define ENABLE_RIGHT_GRIP           1
+#define ENABLE_LEFT_GRIP            0
+#define ENABLE_RIGHT_GRIP           0
 
 namespace Test
 {
