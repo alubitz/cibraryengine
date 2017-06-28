@@ -16,8 +16,8 @@ else
 end
 
 --player = gs.spawnPlayer(player_pos)
-for x = 1, 4 do
-	for z = 1, 4 do
+for x = -2, 2 do
+	for z = -2, 2 do
 		player = gs.spawnPlayer(ba.createVector(x * 15, 0, z * 15))
 	end
 end

@@ -19,13 +19,13 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					70
-#define START_COUNTING					60
+#define MAX_TICK_AGE					60
+#define START_COUNTING					50
 #define AIMMOVE_MAX_AGE					5
 
-#define NUM_STRICT_INPUTS				46
-#define MAX_DATA_INDEX					200//512
-#define NUM_NODE_COMMS					8
+#define NUM_STRICT_INPUTS				88
+#define MAX_DATA_INDEX					150//512
+#define NUM_NODE_COMMS					50
 #define NUM_OUTPUTS						(3 + NUM_NODE_COMMS)
 #define NUM_INITIAL_VALUES				1		// 0 would cause an error
 #define BATCH_ITERATIONS				5
@@ -42,8 +42,8 @@
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
 #define NUM_ELITES						10
-#define MUTANTS_PER_ELITE				2
-#define CROSSOVERS_PER_PAIR				4
+#define MUTANTS_PER_ELITE				0
+#define CROSSOVERS_PER_PAIR				2
 
 #define MUTATION_COUNT					20
 #define MUTATION_SCALE					0.05f
@@ -106,7 +106,7 @@ namespace Test
 		float hrot;
 		//float ori_error[19];
 		float energy_cost;
-		//float kinetic_energy;
+		float kinetic_energy;
 		//float feet_verror;
 		//float feet_rerror;
 		//float head_error, t2_error, t1_error, pelvis_error;
@@ -259,6 +259,7 @@ namespace Test
 
 			unsigned int num_nodes = ReadUInt32(nnss);
 			result = new SparseNet();
+			unsigned int expected_size = is_output_nn ? max_special_index : max_data_index;
 			for(unsigned int i = 0; i < num_nodes; ++i)
 			{
 				SparseNetNode node;
@@ -279,7 +280,7 @@ namespace Test
 						node.inputs.push_back(edge);
 				}
 
-				if(node.index >= (is_output_nn ? max_special_index : max_data_index))
+				if(node.index >= expected_size)
 					Debug("brain load warning: node index was out of bounds\n");
 				else
 					result->nodes.push_back(node);
@@ -287,6 +288,17 @@ namespace Test
 
 			if(nnss.bad())
 				return 2;
+
+			if(result->nodes.size() < expected_size)
+			{
+				Debug("padding brain with empty nodes\n");
+				while(result->nodes.size() < expected_size)
+				{
+					SparseNetNode node;
+					node.index = (unsigned short)result->nodes.size();
+					result->nodes.push_back(node);
+				}
+			}
 
 			return 0;
 		}
@@ -353,184 +365,127 @@ namespace Test
 
 				do
 				{
-					unsigned int choice = BigRand(total_coeffs);
-
-					for(unsigned int i = 0; i < nodes.size(); ++i)
-						if(choice < nodes[i].inputs.size())
-						{
-							nodes[i].inputs[choice].weight = min(NN_COEFFS_RANGE, max(-NN_COEFFS_RANGE, nodes[i].inputs[choice].weight + Random3D::Rand(-scale, scale) * NN_COEFFS_RANGE));
-							break;
-						}
-						else
-							choice -= nodes[i].inputs.size();
-				
+					TinyMutation(total_coeffs, scale);
 				} while(Random3D::RandInt() % count != 0);
 			}
 			else
 			{
 				do
 				{
-					int r = Random3D::RandInt() % 101;
+					int r = Random3D::RandInt() % 50;
 					if(r == 0)
 					{
-						if(nodes.empty())
+						if(total_coeffs == 0)
 							continue;
 
-						unsigned int pos = Random3D::RandInt() % nodes.size();
-						total_coeffs -= nodes[pos].inputs.size();
-						for(unsigned int i = pos; i + 1 < nodes.size(); ++i)
-							nodes[i] = nodes[i + 1];
-						nodes.pop_back();
+						unsigned int choice = BigRand(total_coeffs);
+						for(unsigned int i = 0; i < nodes.size(); ++i)
+						{
+							SparseNetNode& node = nodes[i];
+							unsigned int edge_count = node.inputs.size();
+							if(choice < edge_count)
+							{
+								swap(node.inputs[choice], node.inputs[edge_count - 1]);
+								node.inputs.pop_back();
+								--total_coeffs;
+								break;
+							}
+							else
+								choice -= edge_count;
+						}
 					}
 					else if(r == 1)
 					{
-						nodes.push_back(SparseNetNode());
-
-						unsigned int pos = Random3D::RandInt() % nodes.size();
-						for(unsigned int i = nodes.size() - 1; i > pos; --i)
-							nodes[i] = nodes[i - 1];
-
-						nodes[pos] = SparseNetNode();
-						nodes[pos].index = Random3D::RandInt() % (is_output_nn ? NUM_OUTPUTS : MAX_DATA_INDEX);
-					}
-					else if(r == 2)
-					{
-						if(nodes.empty())
-							continue;
-
-						nodes[Random3D::RandInt() % nodes.size()].index = Random3D::RandInt() % (is_output_nn ? NUM_OUTPUTS : MAX_DATA_INDEX);
+						if(AddRandomEdge(is_output_nn))
+							++total_coeffs;
 					}
 					else
-					{
-						if(nodes.empty())
-							continue;
-
-						if(r % 2 == 0)
-						{
-							unsigned int choice = BigRand(total_coeffs);
-							for(unsigned int i = 0; i < nodes.size(); ++i)
-							{
-								SparseNetNode& node = nodes[i];
-								unsigned int edge_count = node.inputs.size();
-								if(choice < edge_count)
-								{
-									swap(node.inputs[choice], node.inputs[edge_count - 1]);
-									node.inputs.pop_back();
-									--total_coeffs;
-									break;
-								}
-								else
-									choice -= edge_count;
-							}
-
-						}
-						else
-						{
-							SparseNetNode& node = nodes[Random3D::RandInt() % nodes.size()];
-
-							SparseNetEdge edge;
-							edge.special = is_output_nn ? false : Random3D::RandInt() % 2 == 0;
-							edge.index = Random3D::RandInt() % (edge.special ? NUM_STRICT_INPUTS : MAX_DATA_INDEX);
-							edge.weight = Random3D::Rand(-NN_COEFFS_RANGE, NN_COEFFS_RANGE);
-							node.inputs.push_back(edge);
-
-							++total_coeffs;
-						}
-					}
+						TinyMutation(total_coeffs, scale);
 
 				} while(Random3D::RandInt() % count != 0);
 			}
-
-			Prune(is_output_nn);
 		}
 
-		void Prune(bool is_output_nn)
+		bool AddRandomEdge(bool is_output_nn)
 		{
-			vector<SparseNetNode> updated_nodes;
-			for(unsigned int i = 0; i < nodes.size(); ++i)
-			{
-				SparseNetNode& node = nodes[i];
-				if(node.inputs.empty())// && Random3D::RandInt() % 2 == 0)
-					continue;
-				if(is_output_nn)
-				{
-					for(unsigned int j = i + 1; j < nodes.size();)
-						if(nodes[j].index == node.index)
-						{
-							for(unsigned int k = 0; k < nodes[j].inputs.size(); ++k)
-								nodes[i].inputs.push_back(nodes[j].inputs[k]);
-							swap(nodes[j], nodes[nodes.size() - 1]);
-							nodes.pop_back();
-						}
-						else
-							++j;
-				}
-				for(unsigned int j = 0; j < node.inputs.size();)
-					if(node.inputs[j].weight == 0.0f)// && Random3D::RandInt() % 2 == 0)
-					{
-						swap(node.inputs[j], node.inputs[node.inputs.size() - 1]);
-						node.inputs.pop_back();
-					}
-					else
-					{
-						for(unsigned int k = j + 1; k < node.inputs.size();)
-							if(node.inputs[j].index == node.inputs[k].index && node.inputs[j].special == node.inputs[k].special)
-							{
-								node.inputs[j].weight += node.inputs[k].weight;
-								swap(node.inputs[k], node.inputs[node.inputs.size() - 1]);
-								node.inputs.pop_back();
-							}
-							else
-								++k;
+			unsigned int node_index = Random3D::RandInt() % nodes.size();
+			SparseNetNode& node = nodes[node_index];
 
-						++j;
-					}
-				updated_nodes.push_back(node);
-			}
-			nodes = updated_nodes;
+			SparseNetEdge edge;
+			edge.special = is_output_nn ? false : Random3D::RandInt() % 2 == 0;
+			edge.index = Random3D::RandInt() % (edge.special ? NUM_STRICT_INPUTS : MAX_DATA_INDEX);
+
+			if(!is_output_nn && !edge.special && edge.index == node_index)		// don't let a node reference itself
+				return false;
+
+			edge.weight = Random3D::Rand(-NN_COEFFS_RANGE, NN_COEFFS_RANGE);
+			node.inputs.push_back(edge);
+
+			return true;
 		}
 
-		static SparseNet* CreateCrossover(const SparseNet& i1, const SparseNet& i2, bool is_output_nn)
+		void TinyMutation(unsigned int total_coeffs, float scale)
+		{
+			unsigned int choice = BigRand(total_coeffs);
+
+			for(unsigned int i = 0; i < nodes.size(); ++i)
+				if(choice < nodes[i].inputs.size())
+				{
+					nodes[i].inputs[choice].weight = min(NN_COEFFS_RANGE, max(-NN_COEFFS_RANGE, nodes[i].inputs[choice].weight + Random3D::Rand(-scale, scale) * NN_COEFFS_RANGE));
+					break;
+				}
+				else
+					choice -= nodes[i].inputs.size();
+		}
+
+		static SparseNet* CreateCrossover(const SparseNet& a, const SparseNet& b, bool is_output_nn)
 		{
 			SparseNet* result = new SparseNet();
-			const SparseNet* nets[] = { &i1, &i2 };
-			
-			if(Random3D::RandInt() % 2 == 0)
-				swap(nets[0], nets[1]);
 
-			const SparseNet& a = *nets[0];
-			const SparseNet& b = *nets[1];
-
-			// try N times, take the nn whose number of references comes closest to preferred_sum
-			// TODO: account for redundant/unused nodes/edges when computing sum? (might be expensive)
-			static const unsigned int tries = 2;
-			unsigned int preferred_sum = is_output_nn ? 50 : 200;
-			unsigned int besta, bestb;
-			unsigned int least_error;
-			for(unsigned int i = 0; i < tries; ++i)
+			unsigned int imax = is_output_nn ? NUM_OUTPUTS : MAX_DATA_INDEX;
+			for(unsigned int i = 0; i < imax; ++i)
 			{
-				unsigned int acount = a.nodes.size() == 0 ? 0 : Random3D::RandInt(0, a.nodes.size());
-				unsigned int bcount = b.nodes.size() == 0 ? 0 : Random3D::RandInt(0, b.nodes.size());
+				SparseNetNode node;
+				node.index = i;
 
-				unsigned int tot = 0;
-				for(unsigned int i = 0; i < acount; ++i)
-					tot += a.nodes[i].inputs.size();
-				for(unsigned int i = 0; i < bcount; ++i)
-					tot += b.nodes[b.nodes.size() - 1 - i].inputs.size();
+				const vector<SparseNetEdge>& a_edges = a.nodes[i].inputs;
+				const vector<SparseNetEdge>& b_edges = b.nodes[i].inputs;
+				set<int> references;
 
-				unsigned int error = tot > preferred_sum ? tot - preferred_sum : preferred_sum - tot;
-				if(i == 0 || error < least_error)
+				for(unsigned int j = 0; j < a_edges.size(); ++j)
+					references.insert(a_edges[j].special ? -a_edges[j].index - 1 : a_edges[j].index);
+				for(unsigned int j = 0; j < b_edges.size(); ++j)
+					references.insert(b_edges[j].special ? -b_edges[j].index - 1 : b_edges[j].index);
+
+				for(set<int>::iterator iter = references.begin(); iter != references.end(); ++iter)
 				{
-					besta = acount;
-					bestb = bcount;
-					least_error = error;
-				}
-			}
+					int index = *iter >= 0 ? *iter : -(*iter + 1);
+					bool special = *iter < 0;
+					float aweight = 0, bweight = 0;
+					for(unsigned int j = 0; j < a_edges.size(); ++j)
+						if(a_edges[j].special == special && a_edges[j].index == index)
+							aweight += a_edges[j].weight;
+					for(unsigned int j = 0; j < b_edges.size(); ++j)
+						if(b_edges[j].special == special && b_edges[j].index == index)
+							bweight += b_edges[j].weight;
 
-			for(unsigned int i = 0; i < besta; ++i)
-				result->nodes.push_back(a.nodes[i]);
-			for(unsigned int i = 0; i < bestb; ++i)
-				result->nodes.push_back(b.nodes[b.nodes.size() + i - bestb]);
+					SparseNetEdge edge;
+					edge.special = special;
+					edge.index = index;
+
+					switch(Random3D::RandInt() % 3)
+					{
+						case 0: edge.weight = aweight + (bweight - aweight) * Random3D::Rand(); break;
+						case 1: edge.weight = aweight; break;
+						case 2: edge.weight = bweight; break;
+					}
+
+					if(edge.weight != 0.0f)
+						node.inputs.push_back(edge);
+				}
+
+				result->nodes.push_back(node);
+			}
 
 			return result;
 		}
@@ -1129,6 +1084,12 @@ namespace Test
 					node.inputs.push_back(edge);
 					b->primary_nn->nodes.push_back(node);
 				}
+				for(unsigned int j = NUM_STRICT_INPUTS; j < MAX_DATA_INDEX; ++j)
+				{
+					SparseNetNode node;
+					node.index = j;
+					b->primary_nn->nodes.push_back(node);
+				}
 
 				b->output_nn = new SparseNet();
 				for(unsigned int j = 0; j < NUM_OUTPUTS; ++j)
@@ -1148,6 +1109,12 @@ namespace Test
 				if(i >= NUM_ELITES)
 					for(int j = 0; j < 10; ++j)
 						b->Randomize(MUTATION_COUNT, MUTATION_SCALE);
+
+				for(int j = 0; j < 10; ++j)
+				{
+					b->primary_nn->AddRandomEdge(false);
+					b->output_nn->AddRandomEdge(true);
+				}
 
 				candidates.push_back(b);
 			}
@@ -1543,7 +1510,7 @@ namespace Test
 
 		GABrain* brain;
 		vector<float> node_memory[20];
-		vector<float> node_comms[20];
+		vector<float> node_comms;
 		Subtest subtest;
 		unsigned int subtest_index;
 
@@ -1571,19 +1538,15 @@ namespace Test
 			brain(NULL)
 		{
 			for(unsigned int i = 0; i < 20; ++i)
-			{
 				node_memory[i] = vector<float>();
-				node_comms[i] = vector<float>();
-			}
+			node_comms = vector<float>();
 		}
 
 		~Imp() 
 		{
 			for(unsigned int i = 0; i < 20; ++i)
-			{
 				node_memory[i].clear();
-				node_comms[i].clear();
-			}
+			node_comms.clear();
 		}
 
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
@@ -1778,9 +1741,9 @@ namespace Test
 				{
 					node_memory[i].clear();
 					node_memory[i].resize(MAX_DATA_INDEX);
-					node_comms[i].clear();
-					node_comms[i].resize(NUM_NODE_COMMS);
 				}
+				node_comms.clear();
+				node_comms.resize(NUM_NODE_COMMS);
 			}
 
 			prev_com_vel = Vec3();
@@ -2304,9 +2267,7 @@ namespace Test
 			static const unsigned int batch_iterations = BATCH_ITERATIONS;
 			for(unsigned int batch_iteration = 0; batch_iteration < BATCH_ITERATIONS; ++batch_iteration)
 			{
-				vector<float> nu_node_comms[20];
-				for(unsigned int i = 0; i < 20; ++i)
-					nu_node_comms[i].resize(NUM_NODE_COMMS);
+				vector<float> nu_node_comms(NUM_NODE_COMMS);
 
 				for(unsigned int controller_index = 0; controller_index < 20; ++controller_index)
 				{
@@ -2348,7 +2309,7 @@ namespace Test
 					inputs.push_back(tanhf(cbone->applied_torque.ComputeMagnitude() * 0.01f));
 
 					for(unsigned int i = 0; i < NUM_NODE_COMMS; ++i)
-						inputs.push_back(node_comms[controller_index][i]);
+						inputs.push_back(node_comms[i]);
 
 					int num_inputs = inputs.size();
 					static bool printed_num_inputs = false;
@@ -2403,20 +2364,13 @@ namespace Test
 						//Debug(((stringstream&)(stringstream() << "posey->skeleton->GetNamedBone( \"" << j.b->name << "\" )->ori = Quaternion::FromRVec( " << r.x << "f, " << r.y << "f, " << r.z << "f );" << endl)).str());
 					}
 
-					for(unsigned int i = 0; i < all_joints.size(); ++i)
-					{
-						if(bone_adjacency_matrix[controller_index][i] == 'x')
-						{
-							float* optr2 = optr;
-							for(unsigned int j = 0; j < NUM_NODE_COMMS; ++j, ++optr2)
-								nu_node_comms[i][j] += *optr2;
-						}
-					}
+					float* optr2 = optr;
+					for(unsigned int i = 0; i < NUM_NODE_COMMS; ++i, ++optr2)
+						nu_node_comms[i] += *optr2;
 					optr += NUM_NODE_COMMS;
 				}
 
-				for(unsigned int i = 0; i < 20; ++i)
-					node_comms[i] = nu_node_comms[i];
+				node_comms = nu_node_comms;
 			}
 
 			// orient pelvis; maintain pelvis' CoM
@@ -2445,13 +2399,13 @@ namespace Test
 
 			// scoring
 			Scores cat_weights;
-			cat_weights.lowness = 1.0f;
+			//cat_weights.lowness = 1.0f;
 			cat_weights.hrot = 0.0002f;
 			//for(unsigned int i = 0; i < 19; ++i)
 			//	cat_weights.ori_error[i] = 1.0f;
 
-			cat_weights.energy_cost     = 0.00000001f;
-			//cat_weights.kinetic_energy  = 0.1f;
+			//cat_weights.energy_cost     = 0.0001f;//0.00000001f;
+			//cat_weights.kinetic_energy  = 1.0f;
 			//cat_weights.feet_verror        = 1.0f;
 			//cat_weights.feet_rerror        = 0.001f;
 			//cat_weights.head_error      = 10.0f;
@@ -2470,10 +2424,10 @@ namespace Test
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				energy_cost += all_joints[i]->actual.ComputeMagnitudeSquared();
 
-			//float kinetic_energy = 0.0f;
-			//for(unsigned int i = 0; i < rb_kinetic.size(); ++i)
+			float kinetic_energy = 0.0f;
+			for(unsigned int i = 0; i < rb_kinetic.size(); ++i)
 			//	if(all_bones[i] == &lheel || all_bones[i] == &rheel || all_bones[i] == &ltoe || all_bones[i] == &rtoe)
-			//		kinetic_energy += rb_kinetic[i];	// quantity has already been squared
+				kinetic_energy += rb_kinetic[i];	// quantity has already been squared
 
 			/*if(head.rb->GetCenterOfMass().y < 1.7f)
 				failed_head = true;*/
@@ -2513,7 +2467,7 @@ namespace Test
 			Scores instant_scores;
 
 			instant_scores.energy_cost = energy_cost;
-			//instant_scores.kinetic_energy = kinetic_energy;
+			instant_scores.kinetic_energy = kinetic_energy;
 			//instant_scores.feet_verror = feet_verror;
 			//instant_scores.feet_rerror = feet_rerror;
 			////instant_scores.head_error = head_ori_error.ToRVec().ComputeMagnitudeSquared();
@@ -2533,8 +2487,8 @@ namespace Test
 
 			//for(unsigned int i = 0; i < all_joints.size(); ++i)
 			//	instant_scores.ori_error[i] = (all_joints[i]->goal_rvec - all_joints[i]->GetRVec()).ComputeMagnitudeSquared();
-			instant_scores.lowness = tick_age > START_COUNTING ? max(0.0f, 1.75f - head.rb->GetCachedCoM().y) : 0.0f;
-			instant_scores.hrot = tick_age > START_COUNTING ? head.rb->GetAngularVelocity().ComputeMagnitudeSquared() : 0.0f;
+			instant_scores.lowness = tick_age >= START_COUNTING ? max(0.0f, 1.75f - head.rb->GetCachedCoM().y) : 0.0f;
+			instant_scores.hrot = tick_age >= START_COUNTING ? head.rb->GetAngularVelocity().ComputeMagnitudeSquared() : 0.0f;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;
