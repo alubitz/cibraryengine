@@ -19,16 +19,14 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					60
-#define START_COUNTING					50
+#define MAX_TICK_AGE					300
+#define START_COUNTING					0
 #define AIMMOVE_MAX_AGE					5
 
-#define NUM_STRICT_INPUTS				88
-#define MAX_DATA_INDEX					150//512
-#define NUM_NODE_COMMS					50
-#define NUM_OUTPUTS						(3 + NUM_NODE_COMMS)
+#define NUM_STRICT_INPUTS				421
+#define MAX_DATA_INDEX					512
+#define NUM_OUTPUTS						53
 #define NUM_INITIAL_VALUES				1		// 0 would cause an error
-#define BATCH_ITERATIONS				5
 
 #define NUM_LOWER_BODY_BONES			9
 #define NUM_LB_BONE_FLOATS				(NUM_LOWER_BODY_BONES * 6)
@@ -38,15 +36,15 @@
 #define GENERATE_SUBTEST_LIST_EVERY		1		// 1 = game state; 2 = generation; 3 = candidate
 
 #define NUM_SUBTESTS					1
-#define TRIALS_PER_SUBTEST				20
+#define TRIALS_PER_SUBTEST				50
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
 #define NUM_ELITES						10
 #define MUTANTS_PER_ELITE				0
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_COUNT					20
-#define MUTATION_SCALE					0.05f
+#define MUTATION_COUNT					100
+#define MUTATION_SCALE					0.005f
 #define NN_COEFFS_RANGE					1.0f
 
 namespace Test
@@ -104,6 +102,7 @@ namespace Test
 		float first_member;
 		float lowness;
 		float hrot;
+		float zvel;
 		//float ori_error[19];
 		float energy_cost;
 		float kinetic_energy;
@@ -1509,8 +1508,7 @@ namespace Test
 		bool failed_head, failed_foot;
 
 		GABrain* brain;
-		vector<float> node_memory[20];
-		vector<float> node_comms;
+		vector<float> node_memory;
 		Subtest subtest;
 		unsigned int subtest_index;
 
@@ -1537,16 +1535,12 @@ namespace Test
 			max_tick_age(MAX_TICK_AGE),
 			brain(NULL)
 		{
-			for(unsigned int i = 0; i < 20; ++i)
-				node_memory[i] = vector<float>();
-			node_comms = vector<float>();
+			node_memory = vector<float>();
 		}
 
 		~Imp() 
 		{
-			for(unsigned int i = 0; i < 20; ++i)
-				node_memory[i].clear();
-			node_comms.clear();
+			node_memory.clear();
 		}
 
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
@@ -1737,13 +1731,8 @@ namespace Test
 
 			if(brain != NULL)
 			{
-				for(unsigned int i = 0; i < 20; ++i)
-				{
-					node_memory[i].clear();
-					node_memory[i].resize(MAX_DATA_INDEX);
-				}
-				node_comms.clear();
-				node_comms.resize(NUM_NODE_COMMS);
+				node_memory.clear();
+				node_memory.resize(MAX_DATA_INDEX);
 			}
 
 			prev_com_vel = Vec3();
@@ -2214,163 +2203,95 @@ namespace Test
 			}
 
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
-				all_joints[i]->SetOrientedTorque(all_joints[i]->sjc->apply_torque);
+				all_joints[i]->SetOrientedTorque(Vec3());//all_joints[i]->sjc->apply_torque);
 
-			static const string bone_id_bits[20] =
+
+			// set inputs
+			vector<float> inputs;
+
+			inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
+
+			for(unsigned int i = 0; i < all_bones.size(); ++i)
 			{
-				"x    x   ",				//pelvis
-				"x     x  ",				//torso 1
-				"x      x ",				//torso 2
-				"x       x",				//head
-				" x x x   ",				//l shoulder
-				" x x  x  ",				//l arm 1
-				" x x   x ",				//l arm 2
-				" x x    x",				//l hand
-				"  xx x   ",				//r shoulder
-				"  xx  x  ",				//r arm 1
-				"  xx   x ",				//r arm 2
-				"  xx    x",				//r hand
-				" x  xx   ",				//l leg 1
-				" x  x x  ",				//l leg 2
-				" x  x  x ",				//l heel
-				" x  x   x",				//l toe
-				"  x xx   ",				//r leg 1
-				"  x x x  ",				//r leg 2
-				"  x x  x ",				//r heel
-				"  x x   x",				//r toe
-			};
+				const CBone* cbone = all_bones[i];
 
-			static const string bone_adjacency_matrix[20] =
-			{
-				" x          x   x   ",		//pelvis
-				"x x                 ",		//torso 1
-				" x xx   x           ",		//torso 2
-				"  x                 ",		//head
-				"  x  x              ",		//l shoulder
-				"    x x             ",		//l arm 1
-				"     x x            ",		//l arm 2
-				"      x             ",		//l hand
-				"  x      x          ",		//r shoulder
-				"        x x         ",		//r arm 1
-				"         x x        ",		//r arm 2
-				"          x         ",		//r hand
-				"x            x      ",		//l leg 1
-				"            x x     ",		//l leg 2
-				"             x x    ",		//l heel
-				"              x     ",		//l toe
-				"x                x  ",		//r leg 1
-				"                x x ",		//r leg 2
-				"                 x x",		//r heel
-				"                  x ",		//r toe
-			};
+				inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
 
-			static const unsigned int batch_iterations = BATCH_ITERATIONS;
-			for(unsigned int batch_iteration = 0; batch_iteration < BATCH_ITERATIONS; ++batch_iteration)
-			{
-				vector<float> nu_node_comms(NUM_NODE_COMMS);
-
-				for(unsigned int controller_index = 0; controller_index < 20; ++controller_index)
-				{
-					// set inputs
-					vector<float> inputs;
-
-					const CBone* cbone = all_bones[controller_index];
-
-					inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
-
-					for(unsigned int i = 0; i < 9; ++i)
-						inputs.push_back(bone_id_bits[controller_index][i] == 'x' ? 1.0f : 0.0f);
-
-					inputs.push_back(batch_iteration == 0 ? 1.0f : 0.0f);
-					inputs.push_back(batch_iteration + 1 == BATCH_ITERATIONS ? 1.0f : 0.0f);
-					inputs.push_back(float(batch_iteration) / float(BATCH_ITERATIONS));
-
-					RigidBody* rb = cbone->rb;
-					inputs.push_back(rb->GetCachedCoM().y);
-					Mat3 invmat = Quaternion::Reverse(cbone->rb->GetOrientation()).ToMat3();
-					PushVec3(inputs, invmat * Vec3(0, 1, 0));
-					PushVec3(inputs, invmat * rb->GetLinearVelocity() * 0.1f);
-					PushVec3(inputs, invmat * rb->GetAngularVelocity() * 0.1f);
-					// TODO: net force?
-					inputs.push_back(any_cps[controller_index]);
-					// TODO: contact points net force?
-					CJoint* etp = NULL;
-					for(unsigned int i = 0; i < all_joints.size(); ++i)
-						if(all_joints[i]->b == cbone)
-						{
-							etp = all_joints[i];
-							break;
-						}
-					PushVec3(inputs, etp != NULL ? etp->GetRVec() : Vec3());
-					PushVec3(inputs, etp != NULL ? etp->sjc->apply_torque / (etp->sjc->max_torque - etp->sjc->min_torque).ComputeMagnitude() : Vec3());
-					PushVec3(inputs, cbone->applied_torque * 0.001f);
-					PushVec3(inputs, cbone->applied_torque * 0.01f);
-					inputs.push_back(tanhf(cbone->applied_torque.ComputeMagnitude() * 0.001f));
-					inputs.push_back(tanhf(cbone->applied_torque.ComputeMagnitude() * 0.01f));
-
-					for(unsigned int i = 0; i < NUM_NODE_COMMS; ++i)
-						inputs.push_back(node_comms[i]);
-
-					int num_inputs = inputs.size();
-					static bool printed_num_inputs = false;
-					if(!printed_num_inputs)
+				RigidBody* rb = cbone->rb;
+				inputs.push_back(rb->GetCachedCoM().y);
+				Mat3 invmat = Quaternion::Reverse(cbone->rb->GetOrientation()).ToMat3();
+				PushVec3(inputs, invmat * Vec3(0, 1, 0));
+				PushVec3(inputs, invmat * rb->GetLinearVelocity() * 0.1f);
+				PushVec3(inputs, invmat * rb->GetAngularVelocity() * 0.1f);
+				// TODO: net force?
+				inputs.push_back(any_cps[i]);
+				// TODO: contact points net force?
+				CJoint* etp = NULL;
+				for(unsigned int j = 0; j < all_joints.size(); ++j)
+					if(all_joints[j]->b == cbone)
 					{
-						printed_num_inputs = true;
-						Debug(((stringstream&)(stringstream() << "num inputs = " << num_inputs << endl)).str());
-						//for(unsigned int i = 0; i < inputs.size(); ++i)
-							//Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << endl)).str());
+						etp = all_joints[j];
+						break;
 					}
+				PushVec3(inputs, etp != NULL ? etp->GetRVec() : Vec3());
+				PushVec3(inputs, (tick_age == 0 || etp == NULL) ? Vec3() : etp->sjc->net_impulse_linear * 0.1f);
+				PushVec3(inputs, (tick_age == 0 || etp == NULL) ? Vec3() : etp->sjc->net_impulse_angular * 0.1f);
+			}
+
+			int num_inputs = inputs.size();
+			static bool printed_num_inputs = false;
+			if(!printed_num_inputs)
+			{
+				printed_num_inputs = true;
+				Debug(((stringstream&)(stringstream() << "num inputs = " << num_inputs << endl)).str());
+				//for(unsigned int i = 0; i < inputs.size(); ++i)
+					//Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << endl)).str());
+			}
 
 #if 0
-					bool any = false;
-					for(unsigned int i = 0; i < inputs.size(); ++i)
-						if(abs(inputs[i]) > 0.98f)
-						{
-							Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << "; pre-tanh = " << atanhf(inputs[i]) << endl)).str());
-							any = true;
-						}
-					if(any)
-						Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
+			bool any = false;
+			for(unsigned int i = 0; i < inputs.size(); ++i)
+				if(abs(inputs[i]) > 0.98f)
+				{
+					Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << "; pre-tanh = " << atanhf(inputs[i]) << endl)).str());
+					any = true;
+				}
+			if(any)
+				Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
 #endif
 			
-					// evaluate
-					vector<float> outputs(NUM_OUTPUTS);
-					brain->primary_nn->EvaluateNormal(inputs, node_memory[controller_index]);
-					brain->output_nn->EvaluateOutputs(node_memory[controller_index], outputs);
+			// evaluate
+			vector<float> outputs(NUM_OUTPUTS);
+			brain->primary_nn->EvaluateNormal(inputs, node_memory);
+			brain->output_nn->EvaluateOutputs(node_memory, outputs);
 
-					//for(unsigned int i = num_inputs; i < data.size(); ++i)
-					//	Debug(((stringstream&)(stringstream() << "data[" << i << "] = " << data[i] << endl)).str());	
+			//for(unsigned int i = num_inputs; i < data.size(); ++i)
+			//	Debug(((stringstream&)(stringstream() << "data[" << i << "] = " << data[i] << endl)).str());	
 
-					// apply outputs
-					float* optr = outputs.data();
-					float* optr0 = optr;
+			// apply outputs
+			float* optr = outputs.data();
+			float* optr0 = optr;
 
-					if(etp != NULL)// && batch_iteration + 1 == BATCH_ITERATIONS)
+			for(unsigned int i = 0; i < all_joints.size(); ++i)
+			{
+				CJoint* etp = all_joints[i];
+
+				const float* mins = (float*)&etp->sjc->min_torque;
+				const float* maxs = (float*)&etp->sjc->max_torque;
+				Vec3 use_torque;
+				float* uts = (float*)&use_torque;
+				for(unsigned int k = 0; k < 3; ++k)
+					if(mins[k] != maxs[k])
 					{
-						const float* mins = (float*)&etp->sjc->min_torque;
-						const float* maxs = (float*)&etp->sjc->max_torque;
-						Vec3 use_torque;
-						float* uts = (float*)&use_torque;
-						for(unsigned int k = 0; k < 3; ++k)
-						{
-							//float ov = max(-1.0f, min(1.0f, 1.1f * *(optr++)));		// multiplication by 1.1 is to make it easier to hit the min/max
-							float ov = *(optr++);
-							uts[k] = ov >= 0 ? maxs[k] * ov : mins[k] * -ov;
-						}
-
-						etp->SetOrientedTorque(etp->sjc->apply_torque + use_torque * 0.1f);
-
-						//Vec3 r = (j.a->rb->GetOrientation() * Quaternion::Reverse(j.b->rb->GetOrientation())).ToRVec();
-						//Debug(((stringstream&)(stringstream() << "posey->skeleton->GetNamedBone( \"" << j.b->name << "\" )->ori = Quaternion::FromRVec( " << r.x << "f, " << r.y << "f, " << r.z << "f );" << endl)).str());
+						//float ov = max(-1.0f, min(1.0f, 1.1f * *(optr++)));		// multiplication by 1.1 is to make it easier to hit the min/max
+						float ov = *(optr++);
+						uts[k] = ov >= 0 ? maxs[k] * ov : mins[k] * -ov;
 					}
 
-					float* optr2 = optr;
-					for(unsigned int i = 0; i < NUM_NODE_COMMS; ++i, ++optr2)
-						nu_node_comms[i] += *optr2;
-					optr += NUM_NODE_COMMS;
-				}
+				etp->SetOrientedTorque(use_torque);
 
-				node_comms = nu_node_comms;
+				//Vec3 r = (j.a->rb->GetOrientation() * Quaternion::Reverse(j.b->rb->GetOrientation())).ToRVec();
+				//Debug(((stringstream&)(stringstream() << "posey->skeleton->GetNamedBone( \"" << j.b->name << "\" )->ori = Quaternion::FromRVec( " << r.x << "f, " << r.y << "f, " << r.z << "f );" << endl)).str());
 			}
 
 			// orient pelvis; maintain pelvis' CoM
@@ -2400,11 +2321,12 @@ namespace Test
 			// scoring
 			Scores cat_weights;
 			//cat_weights.lowness = 1.0f;
-			cat_weights.hrot = 0.0002f;
+			//cat_weights.hrot = 0.0002f;
+			cat_weights.zvel = 100.0f;
 			//for(unsigned int i = 0; i < 19; ++i)
 			//	cat_weights.ori_error[i] = 1.0f;
 
-			//cat_weights.energy_cost     = 0.0001f;//0.00000001f;
+			cat_weights.energy_cost     = 0.0000001f;//0.00000001f;
 			//cat_weights.kinetic_energy  = 1.0f;
 			//cat_weights.feet_verror        = 1.0f;
 			//cat_weights.feet_rerror        = 0.001f;
@@ -2489,6 +2411,8 @@ namespace Test
 			//	instant_scores.ori_error[i] = (all_joints[i]->goal_rvec - all_joints[i]->GetRVec()).ComputeMagnitudeSquared();
 			instant_scores.lowness = tick_age >= START_COUNTING ? max(0.0f, 1.75f - head.rb->GetCachedCoM().y) : 0.0f;
 			instant_scores.hrot = tick_age >= START_COUNTING ? head.rb->GetAngularVelocity().ComputeMagnitudeSquared() : 0.0f;
+
+			instant_scores.zvel = tick_age + 1 == MAX_TICK_AGE ? max(0.0f, 100.0f - (dood_com.z - initial_com.z)) : 0.0f;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;
@@ -3288,11 +3212,11 @@ namespace Test
 
 		pitch += subtest.initial_pitch;
 
-		pos.y = 0.548209f;
+		//pos.y = 0.548209f;
 
 		Dood::DoInitialPose();
 		
-		posey->skeleton->GetNamedBone( "pelvis" )->ori = Quaternion::FromRVec( 0.737025f, -1.70684f, 1.94749f );
+		/*posey->skeleton->GetNamedBone( "pelvis" )->ori = Quaternion::FromRVec( 0.737025f, -1.70684f, 1.94749f );
 		posey->skeleton->GetNamedBone( "torso 1" )->ori = Quaternion::FromRVec( -0.0951396f, -0.00468156f, 0.719183f );
 		posey->skeleton->GetNamedBone( "torso 2" )->ori = Quaternion::FromRVec( -0.305723f, -0.320675f, 0.740507f );
 		posey->skeleton->GetNamedBone( "head" )->ori = Quaternion::FromRVec( -0.0283016f, 1.12843f, -0.362935f );
@@ -3311,14 +3235,14 @@ namespace Test
 		posey->skeleton->GetNamedBone( "r leg 1" )->ori = Quaternion::FromRVec( -0.550917f, 0.103198f, 0.775355f );
 		posey->skeleton->GetNamedBone( "r leg 2" )->ori = Quaternion::FromRVec( 0.728848f, -0.12879f, -0.798952f );
 		posey->skeleton->GetNamedBone( "r heel" )->ori = Quaternion::FromRVec( 0.386118f, -0.00473954f, 0.0593444f );
-		posey->skeleton->GetNamedBone( "r toe" )->ori = Quaternion::FromRVec( -0.24557f, 0.151427f, 0.0580851f );
+		posey->skeleton->GetNamedBone( "r toe" )->ori = Quaternion::FromRVec( -0.24557f, 0.151427f, 0.0580851f );*/
 
-		//Quaternion p, t1, t2;
-		//imp->GetDesiredTorsoOris(this, p, t1, t2);
+		Quaternion p, t1, t2;
+		imp->GetDesiredTorsoOris(this, p, t1, t2);
 
-		//posey->skeleton->GetNamedBone( "pelvis"  )->ori = p;
-		//posey->skeleton->GetNamedBone( "torso 1" )->ori = t1 * Quaternion::Reverse(p);
-		//posey->skeleton->GetNamedBone( "torso 2" )->ori = t2 * Quaternion::Reverse(t1);
+		posey->skeleton->GetNamedBone( "pelvis"  )->ori = p;
+		posey->skeleton->GetNamedBone( "torso 1" )->ori = t1 * Quaternion::Reverse(p);
+		posey->skeleton->GetNamedBone( "torso 2" )->ori = t2 * Quaternion::Reverse(t1);
 
 #if 0
 		posey->skeleton->GetNamedBone( "l toe"   )->ori = Quaternion::Reverse(lb_oris[1]) * lb_oris[0];
@@ -3368,7 +3292,7 @@ namespace Test
 		posey->skeleton->GetNamedBone( "r heel"  )->ori = qlist[5];
 #endif
 
-		//PreparePAG(TimingInfo(), t2);
+		PreparePAG(TimingInfo(), t2);
 
 		//for(unsigned int i = 0; i < posey->skeleton->bones.size(); ++i)
 		//	posey->skeleton->bones[i]->ori = Quaternion::Identity();

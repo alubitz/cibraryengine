@@ -606,10 +606,10 @@ namespace Test
 		player_pawn->blood_material = imp->blood_red;
 		Spawn(player_pawn);
 
-		//WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
-		//Spawn(player_weapon);
+		WeaponEquip* player_weapon = new DefaultWeapon(this, player_pawn, imp->gun_model, imp->mflash_model, imp->mflash_material, imp->gun_physics, imp->shot_model, imp->shot_material, imp->fire_sound, imp->chamber_click_sound, imp->reload_sound);
+		Spawn(player_weapon);
 
-		//player_weapon->Equip(player_pawn);
+		player_weapon->Equip(player_pawn);
 
 		player_pawn->OnDeath += &imp->player_death_handler;
 		player_pawn->OnDamageTaken += &imp->player_damage_handler;
