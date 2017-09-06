@@ -111,4 +111,44 @@ namespace Test
 			imp = NULL;
 		}
 	}
+
+	void MainMenu::Draw(int width, int height)
+	{
+		MenuScreen::Draw(width, height);
+
+		//glViewport(0, 0, 200, 200);
+
+		//glMatrixMode(GL_MODELVIEW);
+		//glLoadIdentity();
+
+		//glMatrixMode(GL_PROJECTION);
+		//glLoadIdentity();
+		//glOrtho(0, 200, 0, 200, -1, 1);
+
+		//glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+		//glDisable(GL_TEXTURE_2D);
+		//glDisable(GL_LINE_SMOOTH);
+		//glDisable(GL_BLEND);
+		//glLineWidth(1.0f);
+
+		//glBegin(GL_QUADS);
+		//glColor3f(0.25f, 0.25f, 0.25f);
+		//glVertex2i(-100, -100);
+		//glVertex2i(-100,  300);
+		//glVertex2i( 300,  300);
+		//glVertex2i( 300, -100);
+		//glEnd();
+
+		//glBegin(GL_LINES);
+		//glColor3f(1, 0, 0);
+		//glVertex2i(0, 0);
+		//glVertex2i(200, 200);
+
+		//glColor3f(0, 1, 0);
+		//glVertex2i(200, 0);
+		//glVertex2i(0, 200);
+		//
+		//glEnd();
+	}
 }

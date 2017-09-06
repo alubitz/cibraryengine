@@ -19,13 +19,20 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					300
+#define MAX_TICK_AGE					30
 #define START_COUNTING					0
 #define AIMMOVE_MAX_AGE					5
 
-#define NUM_STRICT_INPUTS				421
-#define MAX_DATA_INDEX					512
-#define NUM_OUTPUTS						53
+#define NUM_STAGE_COMMS					0
+
+#define NUM_INPUTS_A					(409 + NUM_STAGE_COMMS)
+#define NUM_MIDDLES_A					50//128
+#define NUM_OUTPUTS_A					(18 + NUM_STAGE_COMMS)
+
+#define NUM_INPUTS_B					(NUM_INPUTS_A + NUM_OUTPUTS_A + 3)
+#define NUM_MIDDLES_B					50//512
+#define NUM_OUTPUTS_B					(20 + NUM_STAGE_COMMS)
+
 #define NUM_INITIAL_VALUES				1		// 0 would cause an error
 
 #define NUM_LOWER_BODY_BONES			9
@@ -35,17 +42,17 @@
 
 #define GENERATE_SUBTEST_LIST_EVERY		1		// 1 = game state; 2 = generation; 3 = candidate
 
-#define NUM_SUBTESTS					1
-#define TRIALS_PER_SUBTEST				50
+#define NUM_SUBTESTS					100
+#define TRIALS_PER_SUBTEST				1
 #define NUM_TRIALS						(NUM_SUBTESTS * TRIALS_PER_SUBTEST)
 
 #define NUM_ELITES						10
 #define MUTANTS_PER_ELITE				0
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_COUNT					100
-#define MUTATION_SCALE					0.005f
-#define NN_COEFFS_RANGE					1.0f
+#define MUTATION_COUNT					10
+#define MUTATION_SCALE					0.05f
+#define NN_COEFFS_RANGE					4.0f
 
 namespace Test
 {
@@ -100,12 +107,20 @@ namespace Test
 		static const unsigned int num_floats;
 
 		float first_member;
-		float lowness;
-		float hrot;
-		float zvel;
+		float hori;
+		float t2ori;
+		float t1ori;
+		float pori;
+		float gfwd;
+		float comf;
+		float lfo;
+		float rfo;
+		float lfv;
+		float rfv;
 		//float ori_error[19];
 		float energy_cost;
 		float kinetic_energy;
+		float bad_touch;
 		//float feet_verror;
 		//float feet_rerror;
 		//float head_error, t2_error, t1_error, pelvis_error;
@@ -349,7 +364,7 @@ namespace Test
 		}
 
 
-		void Randomize(unsigned int count, float scale, bool is_output_nn, bool tiny)
+		void Randomize(unsigned int count, float scale, bool is_output_nn, bool tiny, unsigned int num_inputs, unsigned int num_middles)
 		{
 			// TODO: add an operation that removes redundant/empty nodes/edges?
 
@@ -384,18 +399,22 @@ namespace Test
 							unsigned int edge_count = node.inputs.size();
 							if(choice < edge_count)
 							{
-								swap(node.inputs[choice], node.inputs[edge_count - 1]);
-								node.inputs.pop_back();
-								--total_coeffs;
+								node.inputs[choice].weight *= 0.75f;
+								if(fabs(node.inputs[choice].weight) < MUTATION_SCALE * NN_COEFFS_RANGE)
+								{
+									swap(node.inputs[choice], node.inputs[edge_count - 1]);
+									node.inputs.pop_back();
+									--total_coeffs;
+								}
 								break;
 							}
 							else
 								choice -= edge_count;
 						}
 					}
-					else if(r == 1)
+					else if(r <= 5)
 					{
-						if(AddRandomEdge(is_output_nn))
+						if(AddRandomEdge(is_output_nn, num_inputs, num_middles))
 							++total_coeffs;
 					}
 					else
@@ -405,19 +424,19 @@ namespace Test
 			}
 		}
 
-		bool AddRandomEdge(bool is_output_nn)
+		bool AddRandomEdge(bool is_output_nn, unsigned int num_inputs, unsigned int num_middles)
 		{
 			unsigned int node_index = Random3D::RandInt() % nodes.size();
 			SparseNetNode& node = nodes[node_index];
 
 			SparseNetEdge edge;
-			edge.special = is_output_nn ? false : Random3D::RandInt() % 2 == 0;
-			edge.index = Random3D::RandInt() % (edge.special ? NUM_STRICT_INPUTS : MAX_DATA_INDEX);
+			edge.special = is_output_nn ? false : node.index == 0 ? true : Random3D::RandInt() % 2 == 0;
+			edge.index = Random3D::RandInt() % (edge.special ? num_inputs : is_output_nn ? num_middles : node.index);
 
 			if(!is_output_nn && !edge.special && edge.index == node_index)		// don't let a node reference itself
 				return false;
 
-			edge.weight = Random3D::Rand(-NN_COEFFS_RANGE, NN_COEFFS_RANGE);
+			edge.weight = Random3D::Rand(-NN_COEFFS_RANGE, NN_COEFFS_RANGE) * MUTATION_SCALE;
 			node.inputs.push_back(edge);
 
 			return true;
@@ -437,11 +456,14 @@ namespace Test
 					choice -= nodes[i].inputs.size();
 		}
 
-		static SparseNet* CreateCrossover(const SparseNet& a, const SparseNet& b, bool is_output_nn)
+		static SparseNet CreateCrossover(const SparseNet& a, const SparseNet& b)
 		{
-			SparseNet* result = new SparseNet();
+			SparseNet result;
 
-			unsigned int imax = is_output_nn ? NUM_OUTPUTS : MAX_DATA_INDEX;
+			if(a.nodes.size() != b.nodes.size())
+				Debug("warning: a.nodes.size() != b.nodes.size()\n");
+
+			unsigned int imax = a.nodes.size();
 			for(unsigned int i = 0; i < imax; ++i)
 			{
 				SparseNetNode node;
@@ -483,7 +505,7 @@ namespace Test
 						node.inputs.push_back(edge);
 				}
 
-				result->nodes.push_back(node);
+				result.nodes.push_back(node);
 			}
 
 			return result;
@@ -498,10 +520,140 @@ namespace Test
 		}
 	};
 
+	struct SparseNets
+	{
+		unsigned int num_inputs, num_middles, num_outputs;
+
+		SparseNet primary;
+		SparseNet output;
+
+		SparseNets() : num_inputs(0), num_middles(0), num_outputs(0), primary(), output() { }
+
+		SparseNets(unsigned int num_inputs, unsigned int num_middles, unsigned int num_outputs, float in_diagonal, float out_diagonal) : num_inputs(num_inputs), num_middles(num_middles), num_outputs(num_outputs), primary(), output()
+		{
+			for(unsigned int i = 0; i < num_middles; ++i)
+			{
+				SparseNetNode node;
+				node.index = i;
+
+				primary.nodes.push_back(node);
+			}
+			for(unsigned int i = 0; i < num_middles &&  i < num_inputs; ++i)
+			{
+				SparseNetEdge edge;
+				edge.special = true;
+				edge.index = i;
+				edge.weight = in_diagonal;
+				primary.nodes[i].inputs.push_back(edge);
+			}
+
+			for(unsigned int i = 0; i < num_outputs; ++i)
+			{
+				SparseNetNode node;
+				node.index = i;
+				if(num_inputs + i < num_middles)
+				{
+					SparseNetEdge edge;
+					edge.special = false;
+					edge.index = num_inputs + i;
+					edge.weight = out_diagonal;
+					node.inputs.push_back(edge);
+				}
+				output.nodes.push_back(node);
+			}
+		}
+
+		SparseNets* CreateClone() const
+		{
+			SparseNets* result =  new SparseNets();
+			result->num_inputs = num_inputs;
+			result->num_middles = num_middles;
+			result->num_outputs = num_outputs;
+			result->primary = SparseNet(primary);
+			result->output = SparseNet(output);
+			return result;
+		}
+
+		void Randomize(unsigned int count, float scale, bool tiny = false)
+		{
+			primary.Randomize(count, scale, false, tiny, num_inputs, num_middles);
+			output.Randomize(count, scale, true, tiny, num_inputs, num_middles);
+		}
+
+		void AddRandomEdge()
+		{
+			primary.AddRandomEdge(false, num_inputs, num_middles);
+			output.AddRandomEdge(true, num_inputs, num_middles);
+		}
+
+		static SparseNets* CreateCrossover(SparseNets* a, SparseNets* b)
+		{
+			SparseNets* result = new SparseNets();
+			result->num_inputs = a->num_inputs;
+			result->num_middles = a->num_middles;
+			result->num_outputs = a->num_outputs;
+			result->primary = SparseNet::CreateCrossover(a->primary, b->primary);
+			result->output = SparseNet::CreateCrossover(a->output, b->output);
+			return result;
+		}
+
+		static unsigned int Read(istream& s, SparseNets*& result, unsigned int num_inputs, unsigned int num_middles, unsigned int num_outputs)
+		{
+			unsigned int actual_inputs = ReadUInt32(s);
+			unsigned int actual_middles = ReadUInt32(s);
+			unsigned int actual_outputs = ReadUInt32(s);
+
+			// TODO: validate the above
+
+			SparseNet* a;
+			unsigned int a_result = SparseNet::Read(s, a, false, num_middles, num_inputs);
+
+			SparseNet* b;
+			unsigned int b_result = SparseNet::Read(s, b, true, num_middles, num_outputs);
+
+			if(a_result != 0 || b_result != 0)
+				return 1;
+
+			result = new SparseNets();
+			result->num_inputs = num_inputs;
+			result->num_middles = num_middles;
+			result->num_outputs = num_outputs;
+			result->primary = *a;
+			result->output = *b;
+
+			delete a;
+			delete b;
+
+			return 0;
+		}
+
+		unsigned int Write(ostream& o)
+		{
+			WriteUInt32(num_inputs, o);
+			WriteUInt32(num_middles, o);
+			WriteUInt32(num_outputs, o);
+
+			unsigned int a = primary.Write(o);
+			unsigned int b = output.Write(o);
+			if(a != 0 ||  b != 0)
+				return 1;
+			return 0;
+		}
+
+		string GetText() { return (((stringstream&)(stringstream() << "primary: (" << primary.GetText() << "); output (" << output.GetText() << ")")).str()); }
+
+		void Evaluate(const vector<float>& inputs, vector<float>& data, vector<float>& outputs)
+		{
+			primary.EvaluateNormal(inputs, data);
+			output.EvaluateOutputs(data, outputs);
+		}
+	};
+
 	struct GABrain
 	{
-		SparseNet* primary_nn;
-		SparseNet* output_nn;
+		SparseNets* nn_a;
+		SparseNets* nn_b;
+
 		float initial_values[NUM_INITIAL_VALUES];
 
 		Scores scores;
@@ -523,16 +675,16 @@ namespace Test
 
 		void SetZero()
 		{
-			primary_nn = NULL;
-			output_nn = NULL;
+			nn_a = NULL;
+			nn_b = NULL;
 			for(unsigned int i = 0; i < NUM_INITIAL_VALUES; ++i)
 				initial_values[i] = 0.0f;
 		}
 
 		~GABrain()
 		{
-			if(primary_nn) { delete primary_nn; primary_nn = NULL; }
-			if(output_nn)  { delete output_nn; output_nn = NULL; }
+			if(nn_a) { delete nn_a; nn_a = NULL; }
+			if(nn_b)  { delete nn_b; nn_b = NULL; }
 		}
 
 		string GetText() const
@@ -549,70 +701,15 @@ namespace Test
 		GABrain* CreateClone(unsigned int newid)
 		{
 			GABrain* result = new GABrain(newid, id, id);
-			result->primary_nn = new SparseNet(*primary_nn);
-			result->output_nn = new SparseNet(*output_nn);
+			result->nn_a = nn_a->CreateClone();
+			result->nn_b = nn_b->CreateClone();
 			return result;
 		}
 
 		void Randomize(unsigned int count, float scale, bool tiny = false)
 		{
-			primary_nn->Randomize(count, scale, false, tiny);
-			output_nn->Randomize(count, scale, true, tiny);
-
-
-			//nn[NUM_LAYERS - 1]->min_input = NUM_STRICT_INPUTS;
-
-			//unsigned int total_coeffs = 0;
-			//unsigned int layer_sizes[NUM_LAYERS];
-			//total_coeffs += NUM_INITIAL_VALUES;
-			//for(unsigned int i = 0; i < NUM_LAYERS; ++i)
-			//{
-			//	layer_sizes[i] = nn[i]->nodes.size() * (nn[i]->max_input - nn[i]->min_input);
-			//	total_coeffs += layer_sizes[i];
-			//}
-
-			//static bool printed = false;
-			//if(!printed)
-			//{
-			//	Debug(((stringstream&)(stringstream() << "total coeffs = " << total_coeffs << "; rand max = " << RAND_MAX << endl)).str());
-			//	printed = true;
-			//}
-
-			//do
-			//{
-			//	unsigned int choice;
-			//	do
-			//	{
-			//		choice = Random3D::RandInt();
-			//		unsigned int max_possible = RAND_MAX;
-			//		while(max_possible < total_coeffs)
-			//		{
-			//			max_possible <<= 1;
-			//			choice <<= 1;
-			//			choice |= Random3D::RandInt() % 2;
-			//		}
-			//	} while(choice >= total_coeffs);
-
-			//	if(choice < NUM_INITIAL_VALUES)
-			//		SparseNet::Randomize(initial_values[choice], scale);
-			//	else
-			//	{
-			//		for(unsigned int i = 0; i < NUM_LAYERS; ++i)
-			//		{
-			//			if(choice >= layer_sizes[i])
-			//				choice -= layer_sizes[i];
-			//			else
-			//			{
-			//				unsigned int mod = nn[i]->max_input - nn[i]->min_input;
-			//				SparseNet::Randomize(nn[i]->nodes[choice / mod][choice % mod + nn[i]->min_input], scale);
-			//				break;
-			//			}
-			//		}
-			//	}
-
-			//	//int layer = Random3D::RandInt() % NUM_LAYERS;
-			//	//nn[layer]->Randomize(1, scale);
-			//} while(Random3D::RandInt() % count != 0);
+			nn_a->Randomize(count, scale, tiny);
+			nn_b->Randomize(count, scale, tiny);
 		}
 
 		GABrain* CreateCrossover(const GABrain& b, unsigned int nextid)
@@ -622,8 +719,8 @@ namespace Test
 			for(unsigned int i = 0; i < NUM_INITIAL_VALUES; ++i)
 				r->initial_values[i] = max(-NN_COEFFS_RANGE, min(NN_COEFFS_RANGE, CrossoverCoeff(initial_values[i], b.initial_values[i])));
 
-			r->primary_nn = SparseNet::CreateCrossover(*primary_nn, *b.primary_nn, false);
-			r->output_nn = SparseNet::CreateCrossover(*output_nn, *b.output_nn, true);
+			r->nn_a = SparseNets::CreateCrossover(nn_a, b.nn_a);
+			r->nn_b = SparseNets::CreateCrossover(nn_b, b.nn_b);
 
 			return r;
 		}
@@ -637,8 +734,9 @@ namespace Test
 			WriteUInt32(NUM_INITIAL_VALUES, o);
 			for(unsigned int i = 0; i < NUM_INITIAL_VALUES; ++i)
 				WriteSingle(initial_values[i], o);
-			primary_nn->Write(o);
-			output_nn->Write(o);
+
+			nn_a->Write(o);
+			nn_b->Write(o);
 		}
 
 		static unsigned int Read(istream& is, GABrain*& brain, unsigned int id)
@@ -653,14 +751,14 @@ namespace Test
 					brain->initial_values[i] = f;
 			}
 
-			if(int error = SparseNet::Read(is, brain->primary_nn, false, MAX_DATA_INDEX, NUM_STRICT_INPUTS))
+			if(int error = SparseNets::Read(is, brain->nn_a, NUM_INPUTS_A, NUM_MIDDLES_A, NUM_OUTPUTS_A))
 			{
-				Debug(((stringstream&)(stringstream() << "Error " << error << " occurred loading primary SparseNet from stream" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "Error " << error << " occurred loading primary SparseNets from stream" << endl)).str());
 				return error;
 			}
-			if(int error = SparseNet::Read(is, brain->output_nn, true, MAX_DATA_INDEX, NUM_OUTPUTS))
+			if(int error = SparseNets::Read(is, brain->nn_b, NUM_INPUTS_B, NUM_MIDDLES_B, NUM_OUTPUTS_B))
 			{
-				Debug(((stringstream&)(stringstream() << "Error " << error << " occurred loading output SparseNet from stream" << endl)).str());
+				Debug(((stringstream&)(stringstream() << "Error " << error << " occurred loading primary SparseNets from stream" << endl)).str());
 				return error;
 			}
 
@@ -807,9 +905,9 @@ namespace Test
 						mag += rmag * rmag * 0.25f;
 					}*/
 
-					//float ibt = Random3D::Rand(1.0f);
-					//s.initial_bone_torque = Random3D::RandomNormalizedVector(ibt);
-					//mag += ibt * ibt;
+					float ibt = Random3D::Rand(1.0f);
+					s.initial_bone_torque = Random3D::RandomNormalizedVector(ibt);
+					mag += ibt * ibt;
 				} while(mag > 1.0f);
 
 				s.goal_delay = Random3D::RandInt(MAX_TICK_AGE - 1);
@@ -885,7 +983,7 @@ namespace Test
 					{
 						GABrain* b = *iter;
 						stringstream ss;
-						ss << '\t' << b->GetText() << "; primary (" << b->primary_nn->GetText() << "); output (" << b->output_nn->GetText() << ")" << endl;
+						ss << '\t' << b->GetText() << "; nn a " << b->nn_a->GetText() << "; nn b " << b->nn_b->GetText() << endl;
 						// TODO: print additional info about the brain
 						Debug(ss.str());
 					}
@@ -1071,48 +1169,21 @@ namespace Test
 			{
 				GABrain* b = new GABrain(next_id++, 0, 0);
 
-				b->primary_nn = new SparseNet();
-				for(unsigned int j = 0; j < NUM_STRICT_INPUTS; ++j)
-				{
-					SparseNetNode node;
-					node.index = j;
-					SparseNetEdge edge;
-					edge.special = true;
-					edge.index = j;
-					edge.weight = NN_COEFFS_RANGE;
-					node.inputs.push_back(edge);
-					b->primary_nn->nodes.push_back(node);
-				}
-				for(unsigned int j = NUM_STRICT_INPUTS; j < MAX_DATA_INDEX; ++j)
-				{
-					SparseNetNode node;
-					node.index = j;
-					b->primary_nn->nodes.push_back(node);
-				}
-
-				b->output_nn = new SparseNet();
-				for(unsigned int j = 0; j < NUM_OUTPUTS; ++j)
-				{
-					SparseNetNode node;
-					node.index = j;
-					SparseNetEdge edge;
-					edge.special = false;
-					edge.index = NUM_STRICT_INPUTS + j;
-					edge.weight = NN_COEFFS_RANGE;
-					node.inputs.push_back(edge);
-					b->output_nn->nodes.push_back(node);
-				}
+				b->nn_a = new SparseNets(NUM_INPUTS_A, NUM_MIDDLES_A, NUM_OUTPUTS_A, 0.0f, 1.0f);
+				b->nn_b = new SparseNets(NUM_INPUTS_B, NUM_MIDDLES_B, NUM_OUTPUTS_B, 0.0f, 1.0f);				
 
 				b->Randomize(MUTATION_COUNT, MUTATION_SCALE);
 
 				if(i >= NUM_ELITES)
-					for(int j = 0; j < 10; ++j)
-						b->Randomize(MUTATION_COUNT, MUTATION_SCALE);
-
-				for(int j = 0; j < 10; ++j)
 				{
-					b->primary_nn->AddRandomEdge(false);
-					b->output_nn->AddRandomEdge(true);
+				//	for(int j = 0; j < 10; ++j)
+				//		b->Randomize(MUTATION_COUNT, MUTATION_SCALE);
+
+					for(int j = 0; j < 100; ++j)
+					{
+						b->nn_a->AddRandomEdge();
+						b->nn_b->AddRandomEdge();
+					}
 				}
 
 				candidates.push_back(b);
@@ -1404,9 +1475,7 @@ namespace Test
 
 		Scores cat_scores;
 
-		Vec3 initial_com, desired_com;
-		Vec3 desired_foot_vel[4];
-		Vec3 desired_foot_rot[4];
+		Vec3 initial_com;
 
 		float timestep, inv_timestep;
 
@@ -1508,14 +1577,17 @@ namespace Test
 		bool failed_head, failed_foot;
 
 		GABrain* brain;
-		vector<float> node_memory;
+		vector<float> node_memory_a;
+		vector<float> node_memory_b;
+		vector<float> stage_comms;
+		Quaternion desired_h, desired_t2, desired_t1, desired_p, desired_lfo, desired_rfo;
+		Vec3 desired_g, desired_f, desired_lfv, desired_rfv, desired_com;
+
 		Subtest subtest;
 		unsigned int subtest_index;
 
 		unsigned int frame_index;
 		float frame_time;
-
-		//unsigned int lchoice, rchoice;
 
 		struct MyContactPoint 
 		{
@@ -1535,12 +1607,16 @@ namespace Test
 			max_tick_age(MAX_TICK_AGE),
 			brain(NULL)
 		{
-			node_memory = vector<float>();
+			node_memory_a = vector<float>();
+			node_memory_b = vector<float>();
+			stage_comms = vector<float>();
 		}
 
 		~Imp() 
 		{
-			node_memory.clear();
+			node_memory_a.clear();
+			node_memory_b.clear();
+			stage_comms.clear();
 		}
 
 		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
@@ -1731,16 +1807,17 @@ namespace Test
 
 			if(brain != NULL)
 			{
-				node_memory.clear();
-				node_memory.resize(MAX_DATA_INDEX);
+				node_memory_a.clear();
+				node_memory_a.resize(NUM_MIDDLES_A);
+
+				node_memory_b.clear();
+				node_memory_b.resize(NUM_MIDDLES_B);
+
+				stage_comms.clear();
+				stage_comms.resize(NUM_STAGE_COMMS);
 			}
 
 			prev_com_vel = Vec3();
-
-			for(unsigned int i = 0; i < 4; ++i)
-				desired_foot_vel[i] = desired_foot_rot[i] = Vec3();
-
-			//lchoice = rchoice = 0;
 
 			//old_contact_points.clear();
 			//new_contact_points.clear();
@@ -2099,7 +2176,13 @@ namespace Test
 			ComputeMomentumStuff(included_rbs, dood_mass, dood_com, com_vel, angular_momentum);
 
 			if(tick_age == 0)
+			{
 				desired_com = initial_com = dood_com;
+				desired_p = pelvis.rb->GetOrientation();
+				desired_lfo = lheel.rb->GetOrientation();
+				desired_rfo = rheel.rb->GetOrientation();
+				desired_lfv = desired_rfv = Vec3();
+			}
 
 #if PROFILE_CPHFT
 			timer_massinfo += timer.GetAndRestart();
@@ -2159,18 +2242,18 @@ namespace Test
 			//	(*iter)->SetOrientedTorque(Vec3());
 			//DoScriptedMotorControl(dood);
 
-			pelvis.posey->ori = p;
-			torso1.posey->ori = t1 * Quaternion::Reverse(p);
-			torso2.posey->ori = t2 * Quaternion::Reverse(t1);
-			head  .posey->ori = desired_head_ori * Quaternion::Reverse(t2);
+			//pelvis.posey->ori = p;
+			//torso1.posey->ori = t1 * Quaternion::Reverse(p);
+			//torso2.posey->ori = t2 * Quaternion::Reverse(t1);
+			//head  .posey->ori = desired_head_ori * Quaternion::Reverse(t2);
 
-			torso2.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
-			pelvis.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			//torso2.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			//torso1.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			//pelvis.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
 
-			neck.SetTorqueToSatisfyB();
-			spine2.SetTorqueToSatisfyB();
-			spine1.SetTorqueToSatisfyB();
+			//neck.SetTorqueToSatisfyB();
+			//spine2.SetTorqueToSatisfyB();
+			//spine1.SetTorqueToSatisfyB();
 
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				all_joints[i]->SetWorldTorque(Vec3());
@@ -2190,6 +2273,7 @@ namespace Test
 			com_error.y = initial_com.y - dood_com.y;
 
 			float any_cps[20];
+			unsigned int bad_touch = 0;
 			for(unsigned int i = 0; i < all_bones.size(); ++i)
 			{
 				RigidBody* rb = all_bones[i]->rb;
@@ -2197,7 +2281,12 @@ namespace Test
 				for(unsigned int j = 0; j < new_contact_points.size(); ++j)
 					if(new_contact_points[j].cp.obj_a == rb || new_contact_points[j].cp.obj_b == rb)
 					{
-						any_cps[i] = 1.0f;
+						if(any_cps[i] == 0)
+						{
+							any_cps[i] = 1.0f;
+							if(rb != lheel.rb && rb != rheel.rb && rb != ltoe.rb && rb != rtoe.rb)
+								++bad_touch;
+						}
 						break;
 					}
 			}
@@ -2205,24 +2294,57 @@ namespace Test
 			for(unsigned int i = 0; i < all_joints.size(); ++i)
 				all_joints[i]->SetOrientedTorque(Vec3());//all_joints[i]->sjc->apply_torque);
 
+			// how well did we do at meeting the objectives that were set last tick?
+			Vec3 pori_error = (pelvis.rb->GetOrientation() * Quaternion::Reverse(desired_p)).ToRVec();
+			Vec3 comf_error = dood_com - desired_com;
+			Vec3 foot_errors[] =
+			{
+				(lheel.rb->GetOrientation() * Quaternion::Reverse(desired_lfo)).ToRVec(),
+				(rheel.rb->GetOrientation() * Quaternion::Reverse(desired_rfo)).ToRVec(),
+				lheel.rb->GetLinearVelocity() - desired_lfv,
+				lheel.rb->GetLinearVelocity() - desired_lfv
+			};
+
+			Scores instant_scores;
+			instant_scores.hori = (head.rb->GetOrientation() * Quaternion::Reverse(desired_h)).ToRVec().ComputeMagnitudeSquared();
+			instant_scores.t2ori = (torso2.rb->GetOrientation() * Quaternion::Reverse(desired_t2)).ToRVec().ComputeMagnitudeSquared();
+			instant_scores.t1ori = (torso1.rb->GetOrientation() * Quaternion::Reverse(desired_t1)).ToRVec().ComputeMagnitudeSquared();
+			instant_scores.pori = pori_error.ComputeMagnitudeSquared();
+			instant_scores.gfwd = tick_age == 0 ? 0.0f : (gun_rb->GetOrientation() * Vec3(0, 0, 1) - desired_h * Vec3(0, 0, 1)).ComputeMagnitudeSquared();
+			instant_scores.comf = comf_error.ComputeMagnitudeSquared();
+			instant_scores.lfo = foot_errors[0].ComputeMagnitudeSquared();
+			instant_scores.rfo = foot_errors[1].ComputeMagnitudeSquared();
+			instant_scores.lfv = foot_errors[2].ComputeMagnitudeSquared();
+			instant_scores.rfv = foot_errors[3].ComputeMagnitudeSquared();
+
 
 			// set inputs
 			vector<float> inputs;
 
+			inputs.push_back(1.0f);
 			inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
+
+			PushVec3(inputs, unyaw * (initial_com - dood_com));
+
+			PushVec3(inputs, unyaw * head.rb->GetOrientation().ToRVec());
+			PushVec3(inputs, unyaw * torso2.rb->GetOrientation().ToRVec());
+			PushVec3(inputs, unyaw * torso1.rb->GetOrientation().ToRVec());
+			PushVec3(inputs, unyaw * pelvis.rb->GetOrientation().ToRVec());
+			PushVec3(inputs, Quaternion::Reverse(gun_rb->GetOrientation()) * Vec3(0, 0, 1) - desired_g);
+
+			for(unsigned int i = 0; i < 4; ++i)
+				PushVec3(inputs, unyaw * foot_errors[i]);
+			PushVec3(inputs, comf_error);
+			PushVec3(inputs, pori_error);
 
 			for(unsigned int i = 0; i < all_bones.size(); ++i)
 			{
 				const CBone* cbone = all_bones[i];
 
-				inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
-
 				RigidBody* rb = cbone->rb;
-				inputs.push_back(rb->GetCachedCoM().y);
-				Mat3 invmat = Quaternion::Reverse(cbone->rb->GetOrientation()).ToMat3();
-				PushVec3(inputs, invmat * Vec3(0, 1, 0));
-				PushVec3(inputs, invmat * rb->GetLinearVelocity() * 0.1f);
-				PushVec3(inputs, invmat * rb->GetAngularVelocity() * 0.1f);
+				PushVec3(inputs, unyaw * rb->GetCachedCoM() - dood_com);
+				PushVec3(inputs, unyaw * rb->GetLinearVelocity() * 0.1f);
+				PushVec3(inputs, unyaw * rb->GetAngularVelocity() * 0.1f);
 				// TODO: net force?
 				inputs.push_back(any_cps[i]);
 				// TODO: contact points net force?
@@ -2233,9 +2355,12 @@ namespace Test
 						etp = all_joints[j];
 						break;
 					}
-				PushVec3(inputs, etp != NULL ? etp->GetRVec() : Vec3());
-				PushVec3(inputs, (tick_age == 0 || etp == NULL) ? Vec3() : etp->sjc->net_impulse_linear * 0.1f);
-				PushVec3(inputs, (tick_age == 0 || etp == NULL) ? Vec3() : etp->sjc->net_impulse_angular * 0.1f);
+				if(etp != NULL)
+				{
+					PushVec3(inputs, etp->GetRVec());
+					PushVec3(inputs, tick_age == 0 ? Vec3() : etp->sjc->net_impulse_linear * 0.1f);
+					PushVec3(inputs, tick_age == 0 ? Vec3() : etp->sjc->net_impulse_angular * 0.1f);
+				}
 			}
 
 			int num_inputs = inputs.size();
@@ -2243,10 +2368,12 @@ namespace Test
 			if(!printed_num_inputs)
 			{
 				printed_num_inputs = true;
-				Debug(((stringstream&)(stringstream() << "num inputs = " << num_inputs << endl)).str());
+				Debug(((stringstream&)(stringstream() << "num inputs a = " << num_inputs << endl)).str());
 				//for(unsigned int i = 0; i < inputs.size(); ++i)
 					//Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << endl)).str());
 			}
+
+			inputs.insert(inputs.end(), stage_comms.begin(), stage_comms.end());
 
 #if 0
 			bool any = false;
@@ -2260,10 +2387,62 @@ namespace Test
 				Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
 #endif
 			
-			// evaluate
-			vector<float> outputs(NUM_OUTPUTS);
-			brain->primary_nn->EvaluateNormal(inputs, node_memory);
-			brain->output_nn->EvaluateOutputs(node_memory, outputs);
+			// evaluate a
+			vector<float> outputs(NUM_OUTPUTS_A);
+			brain->nn_a->Evaluate(inputs, node_memory_a, outputs);
+
+			// specify objectives for next tick
+			Vec3* oaptr = (Vec3*)outputs.data();
+			Vec3 t2rel = *(oaptr++);
+			Vec3 t1rel = *(oaptr++);
+			//t2rel += Vec3(-0.00711f, -0.52833f, -0.00494f);
+			//t1rel += Vec3( 0.00052f,  0.09968f,  0.00689f);
+			t2rel += Vec3(0, -0.5f, 0);
+			t1rel += Vec3(0,  0.1f, 0);
+
+			//Debug(((stringstream&)(stringstream() << "age = " << tick_age << "; t2: (" << t2rel.x << ", " << t2rel.y << ", " << t2rel.z << "); t1: (" << t1rel.x << ", " << t1rel.y << ", " << t1rel.z << ")" << endl)).str());
+
+			desired_h = desired_head_ori;
+			desired_t2 = desired_head_ori * Quaternion::FromRVec(t2rel);		// TODO: check this
+			desired_t1 = desired_t2 * Quaternion::FromRVec(t1rel);
+			desired_p = desired_t1 * Quaternion::FromRVec(t1rel);
+			//desired_t2 = Quaternion::FromRVec(t2rel) * t2;
+			//desired_t1 = Quaternion::FromRVec(t1rel) * (t2 * Quaternion::Reverse(t1)) * desired_t2;
+			//desired_p = Quaternion::Reverse(Quaternion::Reverse(desired_t1) * desired_t2) * desired_t1;
+
+			
+
+			pelvis.posey->ori = desired_p;
+			torso1.posey->ori = desired_t1 * Quaternion::Reverse(desired_p);
+			torso2.posey->ori = desired_t2 * Quaternion::Reverse(desired_t1);
+			head  .posey->ori = desired_head_ori * Quaternion::Reverse(desired_t2);
+
+			DoHeadOri(dood, time);
+			DoArmsAimingGun(dood, time, desired_t2);
+
+			torso2.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			torso1.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			pelvis.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+
+			neck.SetTorqueToSatisfyB();
+			spine2.SetTorqueToSatisfyB();
+			spine1.SetTorqueToSatisfyB();
+
+			desired_lfv = *(oaptr++) * 50.0f;
+			desired_rfv = *(oaptr++) * 50.0f;
+			desired_lfo = lheel.rb->GetOrientation() * Quaternion::FromRVec(*(oaptr++)) * 0.2f;
+			desired_rfo = rheel.rb->GetOrientation() * Quaternion::FromRVec(*(oaptr++)) * 0.2f;
+
+			desired_com = initial_com;
+			desired_g = desired_head_ori * Vec3(0, 0, 1);
+
+			// push additional inputs for b
+			PushVec3(inputs, (pelvis.desired_torque - pelvis.applied_torque) * 0.005f);
+			inputs.insert(inputs.end(), outputs.begin(), outputs.end());
+
+			// evaluate b
+			outputs.resize(NUM_OUTPUTS_B);
+			brain->nn_b->Evaluate(inputs, node_memory_b, outputs);
 
 			//for(unsigned int i = num_inputs; i < data.size(); ++i)
 			//	Debug(((stringstream&)(stringstream() << "data[" << i << "] = " << data[i] << endl)).str());	
@@ -2276,6 +2455,10 @@ namespace Test
 			{
 				CJoint* etp = all_joints[i];
 
+				if(etp != &lht && etp != &rht && etp != &lankle && etp != &rankle && etp != &lknee && etp != &rknee && etp != &lhip && etp != &rhip)
+				//if(etp != &lhip && etp != &rhip)
+					continue;
+
 				const float* mins = (float*)&etp->sjc->min_torque;
 				const float* maxs = (float*)&etp->sjc->max_torque;
 				Vec3 use_torque;
@@ -2285,6 +2468,10 @@ namespace Test
 					{
 						//float ov = max(-1.0f, min(1.0f, 1.1f * *(optr++)));		// multiplication by 1.1 is to make it easier to hit the min/max
 						float ov = *(optr++);
+
+						//if(etp == &lknee || etp == &rknee)
+						//	ov = ov * 1.5f - 0.5f;
+
 						uts[k] = ov >= 0 ? maxs[k] * ov : mins[k] * -ov;
 					}
 
@@ -2293,6 +2480,10 @@ namespace Test
 				//Vec3 r = (j.a->rb->GetOrientation() * Quaternion::Reverse(j.b->rb->GetOrientation())).ToRVec();
 				//Debug(((stringstream&)(stringstream() << "posey->skeleton->GetNamedBone( \"" << j.b->name << "\" )->ori = Quaternion::FromRVec( " << r.x << "f, " << r.y << "f, " << r.z << "f );" << endl)).str());
 			}
+
+			stage_comms.clear();
+			for(unsigned int i = NUM_OUTPUTS_B - NUM_STAGE_COMMS; i < NUM_OUTPUTS_B; ++i)
+				stage_comms.push_back(outputs[i]);
 
 			// orient pelvis; maintain pelvis' CoM
 			//Vec3 pelvis_com = pelvis.rb->GetCenterOfMass();
@@ -2320,25 +2511,22 @@ namespace Test
 
 			// scoring
 			Scores cat_weights;
-			//cat_weights.lowness = 1.0f;
-			//cat_weights.hrot = 0.0002f;
-			cat_weights.zvel = 100.0f;
-			//for(unsigned int i = 0; i < 19; ++i)
-			//	cat_weights.ori_error[i] = 1.0f;
+			//cat_weights.comf = 1.0f;
+			cat_weights.hori = 1.0f;
+			cat_weights.t2ori = 1.0f;
+			cat_weights.t1ori = 1.0f;
+			cat_weights.pori = 1.0f;
+			cat_weights.gfwd = 0.1f;
+			cat_weights.comf = 10.0f;
+			cat_weights.lfo = 0.1f;
+			cat_weights.rfo = 0.1f;
+			cat_weights.lfv = 0.001f;
+			cat_weights.rfv = 0.001f;
 
-			cat_weights.energy_cost     = 0.0000001f;//0.00000001f;
-			//cat_weights.kinetic_energy  = 1.0f;
-			//cat_weights.feet_verror        = 1.0f;
-			//cat_weights.feet_rerror        = 0.001f;
-			//cat_weights.head_error      = 10.0f;
-			//cat_weights.t2_error        = 10.0f;
-			//cat_weights.t1_error        = 10.0f;
-			//cat_weights.pelvis_error    = 100.0f;
-			//cat_weights.gun_error       = min(1.0f, max(0.0f, float(tick_age) - 2) / 5.0f) * 10.0f;
-			//cat_weights.gun_yerror      = min(1.0f, max(0.0f, float(tick_age) - 2) / 5.0f) * 2.0f;
-			//cat_weights.com_errx        = 1.0f;
-			//cat_weights.com_erry        = 1000.0f;
-			//cat_weights.com_errz        = 1.0f;
+			//cat_weights.energy_cost     = 0.0000001f;//0.00000001f;
+			cat_weights.kinetic_energy  = 0.01f;
+			cat_weights.bad_touch = 0.1f;
+
 			//cat_weights.early_fail_head = 1000.0f;
 			//cat_weights.early_fail_feet = 1000.0f;
 
@@ -2386,21 +2574,11 @@ namespace Test
 				desired_foot_rot[i] = nu_dfootrot[i];
 			}*/
 
-			Scores instant_scores;
+			
 
 			instant_scores.energy_cost = energy_cost;
 			instant_scores.kinetic_energy = kinetic_energy;
-			//instant_scores.feet_verror = feet_verror;
-			//instant_scores.feet_rerror = feet_rerror;
-			////instant_scores.head_error = head_ori_error.ToRVec().ComputeMagnitudeSquared();
-			////instant_scores.t2_error = t2_ori_error.ToRVec().ComputeMagnitudeSquared();
-			////instant_scores.t1_error = t1_ori_error.ToRVec().ComputeMagnitudeSquared();
-			//instant_scores.pelvis_error = pelvis_ori_error.ToRVec().ComputeMagnitudeSquared();
-			////instant_scores.gun_error = gun_error.ComputeMagnitudeSquared();
-			////instant_scores.gun_yerror = gun_yerror.ComputeMagnitudeSquared();
-			//instant_scores.com_errx = com_error.x * com_error.x;
-			//instant_scores.com_erry = com_error.y * com_error.y;
-			//instant_scores.com_errz = com_error.z * com_error.z;
+			instant_scores.bad_touch = (float)bad_touch;
 
 			//if(failed_head)
 			//	instant_scores.early_fail_head = 1.0f;
@@ -2409,10 +2587,6 @@ namespace Test
 
 			//for(unsigned int i = 0; i < all_joints.size(); ++i)
 			//	instant_scores.ori_error[i] = (all_joints[i]->goal_rvec - all_joints[i]->GetRVec()).ComputeMagnitudeSquared();
-			instant_scores.lowness = tick_age >= START_COUNTING ? max(0.0f, 1.75f - head.rb->GetCachedCoM().y) : 0.0f;
-			instant_scores.hrot = tick_age >= START_COUNTING ? head.rb->GetAngularVelocity().ComputeMagnitudeSquared() : 0.0f;
-
-			instant_scores.zvel = tick_age + 1 == MAX_TICK_AGE ? max(0.0f, 100.0f - (dood_com.z - initial_com.z)) : 0.0f;
 
 			instant_scores.ApplyScaleAndClamp(cat_weights);
 			cat_scores += instant_scores;

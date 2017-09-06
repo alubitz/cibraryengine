@@ -9,6 +9,7 @@
 #define PROFILE_PROGRAM_RUN 0
 
 #include <winsock2.h>
+#include <ShellScalingApi.h>
 
 namespace CibraryEngine
 {
@@ -430,6 +431,12 @@ namespace CibraryEngine
 	 */
 	ProgramWindow* ProgramWindow::CreateProgramWindow(const string& title, int w, int h, int bpp, bool fullscreen)
 	{
+		HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+		if(hr != S_OK)
+		{
+			DEBUG();
+		}
+
 		GLuint		pixel_format;
 		WNDCLASS	window_class;
 		DWORD		window_style_ex;
