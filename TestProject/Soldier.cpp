@@ -19,16 +19,18 @@
 #define ENABLE_NEW_JETPACKING			1
 
 
-#define MAX_TICK_AGE					20
+#define MAX_TICK_AGE					60
 #define START_COUNTING					0
 #define AIMMOVE_MAX_AGE					5
 
-#define NUM_INPUTS_A					52
-#define NUM_MIDDLES_A					30
-#define NUM_OUTPUTS_A					6
+#define NUM_INPUTS_A					89
+#define NUM_MIDDLES_A					200
+#define NUM_OUTPUTS_A_SELF				5
+#define NUM_OUTPUTS_A_OTHER				5
+#define NUM_OUTPUTS_A					(NUM_OUTPUTS_A_SELF + NUM_OUTPUTS_A_OTHER)
 
-#define NUM_INPUTS_B					94
-#define NUM_MIDDLES_B					30
+#define NUM_INPUTS_B					12
+#define NUM_MIDDLES_B					50
 #define NUM_OUTPUTS_B					7
 
 #define DROP_FIRST_N_NODES				0
@@ -40,7 +42,7 @@
 
 #define NUM_LEG_JOINTS					8
 
-#define GENERATE_SUBTEST_LIST_EVERY		2		// 1 = game state; 2 = generation; 3 = candidate
+#define GENERATE_SUBTEST_LIST_EVERY		1		// 1 = game state; 2 = generation; 3 = candidate
 
 #define NUM_SUBTESTS					100
 #define TRIALS_PER_SUBTEST				1
@@ -51,7 +53,7 @@
 #define CROSSOVERS_PER_PAIR				2
 
 #define MUTATION_COUNT					5
-#define MUTATION_SCALE					0.0002f
+#define MUTATION_SCALE					0.0005f
 #define NN_COEFFS_RANGE					100.0f
 
 namespace Test
@@ -107,9 +109,10 @@ namespace Test
 		static const unsigned int num_floats;
 
 		float first_member;
-		//float ori_error[9];
+		Vec3 pos_error;
+		float ori_error[9];
 		//float spacer;
-		float rot_error[9];
+		//float rot_error[9];
 		float energy_cost;
 		float kinetic_energy;
 		float bad_touch;
@@ -385,8 +388,8 @@ namespace Test
 			unsigned int total_coeffs = 0;
 			for(unsigned int i = 0; i < nodes.size(); ++i)
 				total_coeffs += nodes[i].inputs.size();
-			if(is_output_nn)
-				total_coeffs += nodes.size();
+
+			bool allow_bias = !is_output_nn;
 
 			if(tiny)
 			{
@@ -395,7 +398,7 @@ namespace Test
 
 				do
 				{
-					TinyMutation(total_coeffs, scale, !is_output_nn);
+					TinyMutation(allow_bias ? total_coeffs + nodes.size() : total_coeffs, scale, allow_bias);
 				} while(Random3D::RandInt() % count != 0);
 			}
 			else
@@ -1221,9 +1224,9 @@ namespace Test
 
 				if(i >= NUM_ELITES)
 				{
-					for(int j = 0; j < 10; ++j)
+					for(int j = 0; j < 100; ++j)
 					{
-						b->nn_a->primary.AddRandomEdge(false, NUM_INPUTS_A, NUM_MIDDLES_A, 0.1f);
+						b->nn_a->primary.AddRandomEdge(false, NUM_INPUTS_A, NUM_MIDDLES_A, 2.0);
 						b->nn_b->primary.AddRandomEdge(false, NUM_INPUTS_B, NUM_MIDDLES_B, 0.1f);
 					}
 
@@ -1627,7 +1630,7 @@ namespace Test
 		bool failed_head, failed_foot;
 
 		GABrain* brain;
-		vector<float> node_memory_a, node_memory_bl, node_memory_br;
+		vector<float> node_memory_al, node_memory_ar, node_memory_bl, node_memory_br;
 		Vec3 desired_com, prev_comv;
 
 		Subtest subtest;
@@ -1654,14 +1657,16 @@ namespace Test
 			max_tick_age(MAX_TICK_AGE),
 			brain(NULL)
 		{
-			node_memory_a = vector<float>();
+			node_memory_al = vector<float>();
+			node_memory_ar = vector<float>();
 			node_memory_bl = vector<float>();
 			node_memory_br = vector<float>();
 		}
 
 		~Imp() 
 		{
-			node_memory_a.clear();
+			node_memory_al.clear();
+			node_memory_ar.clear();
 			node_memory_bl.clear();
 			node_memory_br.clear();
 		}
@@ -1854,8 +1859,11 @@ namespace Test
 
 			if(brain != NULL)
 			{
-				node_memory_a.clear();
-				node_memory_a.resize(NUM_MIDDLES_A);
+				node_memory_al.clear();
+				node_memory_al.resize(NUM_MIDDLES_A);
+
+				node_memory_ar.clear();
+				node_memory_ar.resize(NUM_MIDDLES_A);
 
 				node_memory_bl.clear();
 				node_memory_bl.resize(NUM_MIDDLES_B);
@@ -2126,7 +2134,7 @@ namespace Test
 				gun_rb = gun->rigid_body;
 				gun_rb->ComputeInvMoI();			// force recomputation of stuffs
 
-				static const float gunf = 20.0f;	// was 15
+				static const float gunf = 15.0f;
 				gun_rb->ApplyCentralImpulse(subtest.gun_force * timestep * gunf);
 				gun_rb->ApplyAngularImpulse(subtest.gun_torque * timestep * gunf);
 			}
@@ -2208,8 +2216,8 @@ namespace Test
 			//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 			//	included_rbs.insert(lower_body_bones[i]->rb);
 			included_rbs.insert(pelvis.rb);
-			included_rbs.insert(torso1.rb);
-			included_rbs.insert(torso2.rb);
+			//included_rbs.insert(torso1.rb);
+			//included_rbs.insert(torso2.rb);
 			//included_rbs.insert(head.rb);
 			//included_rbs.insert(lshoulder.rb);
 			//included_rbs.insert(rshoulder.rb);
@@ -2341,12 +2349,9 @@ namespace Test
 			//for(unsigned int i = 0; i < all_joints.size(); ++i)
 			//	all_joints[i]->SetOrientedTorque(Vec3());//all_joints[i]->sjc->apply_torque);
 
-			// set inputs for a
-			vector<float> inputs;
-			inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
-
 			Vec3 ori_error[NUM_LOWER_BODY_BONES];
 			Vec3 rot_error[NUM_LOWER_BODY_BONES];
+			Vec3 pos_error = unyaw * (desired_com - dood_com);
 
 			// how well did we do at meeting the objectives that were set last tick?
 			Scores instant_scores;
@@ -2354,139 +2359,37 @@ namespace Test
 			{
 				CBone* bone = lower_body_bones[i];
 				ori_error[i] = (bone->initial_ori * Quaternion::Reverse(bone->rb->GetOrientation())).ToRVec();
-				//instant_scores.ori_error[i] = ori_error[i].ComputeMagnitudeSquared();
+				instant_scores.ori_error[i] = ori_error[i].ComputeMagnitudeSquared();
 
 				Vec3 desired_rot = Vec3();
 				rot_error[i] = desired_rot - lower_body_bones[i]->rb->GetAngularVelocity();
-				instant_scores.rot_error[i] = rot_error[i].ComputeMagnitudeSquared();
-
-				if(bone == &luleg || bone == &ruleg || bone == &pelvis)
-					PushVec3(inputs, ori_error[i]);				
+				//instant_scores.rot_error[i] = rot_error[i].ComputeMagnitudeSquared();	
 			}
+			instant_scores.pos_error = Vec3(pos_error.x * pos_error.x, pos_error.y * pos_error.y, pos_error.z * pos_error.z);
 
-			PushVec3(inputs, rot_error[4]);
-
-			PushVec3(inputs, unyaw * (desired_com - dood_com));
-			PushVec3(inputs, unyaw * (com_vel - prev_comv));
-			PushVec3(inputs, unyaw * com_vel);
-			prev_comv = com_vel;
-
-			//PushVec3(inputs, unyaw * head.rb->GetOrientation().ToRVec());
-			//PushVec3(inputs, unyaw * torso2.rb->GetOrientation().ToRVec());
-			//PushVec3(inputs, unyaw * torso1.rb->GetOrientation().ToRVec());
-			PushVec3(inputs, unyaw * pelvis.rb->GetOrientation().ToRVec());
-
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
-			{
-				const CBone* cbone = all_bones[i];
-				//if(cbone != &ltoe && cbone != &rtoe && cbone != &lheel && cbone != &rheel && cbone != &llleg && cbone != &rlleg && cbone != &luleg && cbone != &ruleg && cbone != &pelvis && cbone != &torso1 && cbone != &torso2)
-				//	continue;
-
-				if(cbone != &luleg && cbone != &ruleg && cbone != &pelvis)
-					continue;
-
-				RigidBody* rb = cbone->rb;
-				//PushVec3(inputs, unyaw * rb->GetCachedCoM() - dood_com);
-				PushVec3(inputs, unyaw * rb->GetLinearVelocity() * 0.1f);
-				PushVec3(inputs, unyaw * rb->GetAngularVelocity() * 0.1f);
-				// TODO: net force?
-				//inputs.push_back(any_cps[i]);
-				// TODO: contact points net force?
-				CJoint* etp = NULL;
-				for(unsigned int j = 0; j < all_joints.size(); ++j)
-					if(all_joints[j]->b == cbone)
-					{
-						etp = all_joints[j];
-						break;
-					}
-				if(etp != NULL)
-				{
-					PushVec3(inputs, etp->GetRVec());
-					//PushVec3(inputs, tick_age == 0 ? Vec3() : etp->sjc->net_impulse_linear * 0.1f);
-					//PushVec3(inputs, tick_age == 0 ? Vec3() : etp->sjc->net_impulse_angular * 0.1f);
-				}
-			}
-
-			PushVec3(inputs, unyaw * (pelvis.desired_torque - pelvis.applied_torque) * 0.01f);
-
-#if 0
-			bool any = false;
-			for(unsigned int i = 0; i < inputs.size(); ++i)
-				if(abs(inputs[i]) > 0.98f)
-				{
-					Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << "; pre-tanh = " << atanhf(inputs[i]) << endl)).str());
-					any = true;
-				}
-			if(any)
-				Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
-#endif
-			
-			// evaluate a
-			vector<float> outputs(NUM_OUTPUTS_A);
-			brain->nn_a->Evaluate(inputs, node_memory_a, outputs);
-
-#if 1
-			// apply outputs of a
-			float* optr = outputs.data();
-			float* optr0 = optr;
-
-			Vec3 hips_need = (pelvis.desired_torque - pelvis.applied_torque) * 0.5f;
-
-			for(unsigned int i = 0; i < all_joints.size(); ++i)
-			{
-				CJoint* etp = all_joints[i];
-
-				//if(etp != &lht && etp != &rht && etp != &lankle && etp != &rankle && etp != &lknee && etp != &rknee && etp != &lhip && etp != &rhip)
-				if(etp != &lhip && etp != &rhip)
-					continue;
-
-				const float* mins = (float*)&etp->sjc->min_torque;
-				const float* maxs = (float*)&etp->sjc->max_torque;
-				Vec3 use_torque;
-				float* uts = (float*)&use_torque;
-				for(unsigned int k = 0; k < 3; ++k)
-					if(mins[k] != maxs[k])
-					{
-						//float ov = max(-1.0f, min(1.0f, 1.1f * *(optr++)));		// multiplication by 1.1 is to make it easier to hit the min/max
-						float ov = *(optr++);
-
-						//if(etp == &lknee || etp == &rknee)
-						//	ov = ov * 1.5f - 0.5f;
-
-						uts[k] = ov >= 0 ? maxs[k] * ov : mins[k] * -ov;
-					}
-
-				etp->SetOrientedTorque(use_torque + hips_need);
-
-				//Vec3 r = (j.a->rb->GetOrientation() * Quaternion::Reverse(j.b->rb->GetOrientation())).ToRVec();
-				//Debug(((stringstream&)(stringstream() << "posey->skeleton->GetNamedBone( \"" << j.b->name << "\" )->ori = Quaternion::FromRVec( " << r.x << "f, " << r.y << "f, " << r.z << "f );" << endl)).str());
-			}
-#endif
-
-			// set inputs for b
+			// set inputs for a
 			vector<float> inputs_l, inputs_r;
-			for(int i = 0; i < 2; ++i)
+			for(unsigned int side = 0; side < 2; ++side)
 			{
-				vector<float>& inputs_i = *(i == 0 ? &inputs_l : &inputs_r);
+				vector<float>& inputs_i = *(side == 0 ? &inputs_l : &inputs_r);
+				inputs_i.push_back(1.0f);
 				inputs_i.push_back(tick_age == 0 ? 1.0f : 0.0f);
 
-				PushVec3SymmetricYZ(inputs_i, unyaw * (pelvis.desired_torque - pelvis.applied_torque), i);
-
-				PushVec3Symmetric(inputs_i, unyaw * (desired_com - dood_com), i);
-				PushVec3Symmetric(inputs_i, unyaw * (com_vel - prev_comv), i);
-				PushVec3Symmetric(inputs_i, unyaw * com_vel, i);
+				PushVec3Symmetric(inputs_i, pos_error, side);
+				PushVec3Symmetric(inputs_i, unyaw * (com_vel - prev_comv), side);
+				PushVec3Symmetric(inputs_i, unyaw * com_vel, side);
 
 				for(unsigned int j = 0; j <= 4; ++j)
 				{
-					unsigned int lbindex = i == 0 ? j : 8 - j;
+					unsigned int lbindex = side == 0 ? j : 8 - j;
 					CBone* cbone = lower_body_bones[lbindex];
 					RigidBody* rb = cbone->rb;
 
-					PushVec3SymmetricYZ(inputs_i, ori_error[lbindex], i);
+					PushVec3SymmetricYZ(inputs_i, ori_error[lbindex], side);
 
-					PushVec3SymmetricYZ(inputs_i, unyaw * rot_error[lbindex], i);
-					PushVec3Symmetric  (inputs_i, unyaw * rb->GetLinearVelocity() * 0.1f, i);
-					PushVec3SymmetricYZ(inputs_i, unyaw * rb->GetAngularVelocity() * 0.1f, i);
+					PushVec3SymmetricYZ(inputs_i, unyaw * rot_error[lbindex], side);
+					PushVec3Symmetric  (inputs_i, unyaw * rb->GetLinearVelocity() * 0.1f, side);
+					PushVec3SymmetricYZ(inputs_i, unyaw * rb->GetAngularVelocity() * 0.1f, side);
 					// TODO: net force?
 					bool any_cp = false;
 					for(unsigned int k = 0; k < all_bones.size(); ++k)
@@ -2514,11 +2417,49 @@ namespace Test
 					}
 				}
 
-				PushVec3Symmetric(inputs_i, tick_age == 0 ? Vec3() : (i == 0 ? &lknee : &rknee)->sjc->net_impulse_linear * 0.02f, i);
-				PushVec3SymmetricYZ(inputs_i, i == 0 ? lhip.sjc->apply_torque * 0.01f : rhip.sjc->apply_torque * 0.01f, i);
+				PushVec3Symmetric(inputs_i, tick_age == 0 ? Vec3() : (side == 0 ? &lknee : &rknee)->sjc->net_impulse_linear * 0.02f, side);
 			}
 
-			int num_inputs_a = inputs.size();
+#if 0
+			bool any = false;
+			for(unsigned int i = 0; i < inputs.size(); ++i)
+				if(abs(inputs[i]) > 0.98f)
+				{
+					Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << "; pre-tanh = " << atanhf(inputs[i]) << endl)).str());
+					any = true;
+				}
+			if(any)
+				Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
+#endif
+			
+			// evaluate a
+			vector<float> outputs_l(NUM_OUTPUTS_A), outputs_r(NUM_OUTPUTS_A);
+			brain->nn_a->Evaluate(inputs_l, node_memory_al, outputs_l);
+			brain->nn_a->Evaluate(inputs_r, node_memory_ar, outputs_r);
+
+			int num_inputs_a = inputs_l.size();
+
+			// forward outputs of a to inputs of b
+			Vec3 hips_need = (pelvis.desired_torque - pelvis.applied_torque) * 0.5f;
+
+			inputs_l.clear();
+			inputs_r.clear();
+			inputs_l.push_back(1.0f);
+			inputs_r.push_back(1.0f);
+			inputs_l.push_back( 1.0f);
+			inputs_r.push_back(-1.0f);
+
+			for(unsigned int i = 0; i < NUM_OUTPUTS_A_SELF; ++i)
+			{
+				inputs_l.push_back(outputs_l[i]);
+				inputs_r.push_back(outputs_r[i]);
+			}
+			for(unsigned int i = NUM_OUTPUTS_A_SELF; i < NUM_OUTPUTS_A; ++i)
+			{
+				inputs_l.push_back(outputs_r[i]);
+				inputs_r.push_back(outputs_l[i]);
+			}
+
 			int num_inputs_b = inputs_l.size();
 			static bool printed_num_inputs = false;
 			if(!printed_num_inputs)
@@ -2530,16 +2471,16 @@ namespace Test
 			}
 
 			// evaluate b
-			vector<float> outputs_l(NUM_OUTPUTS_B), outputs_r(NUM_OUTPUTS_B);
+			outputs_l.resize(NUM_OUTPUTS_B);
+			outputs_r.resize(NUM_OUTPUTS_B);
 			brain->nn_b->Evaluate(inputs_l, node_memory_bl, outputs_l);
 			brain->nn_b->Evaluate(inputs_r, node_memory_br, outputs_r);
 
-#if 1
 			// apply outputs of b
 			for(unsigned int side = 0; side < 2; ++side)
 			{
 				const float* ioptr = side == 0 ? outputs_l.data() : outputs_r.data();
-				for(unsigned int i = 0; i < 3; ++i)
+				for(unsigned int i = 0; i < 4; ++i)
 				{
 					CBone* bone = lower_body_bones[side == 0 ? i : 8 - i];
 					CJoint* etp = NULL;
@@ -2549,6 +2490,9 @@ namespace Test
 							etp = all_joints[j];
 							break;
 						}
+
+					if(etp == &lht || etp == &rht)
+						continue;
 
 					const float* mins = (float*)&etp->sjc->min_torque;
 					const float* maxs = (float*)&etp->sjc->max_torque;
@@ -2566,9 +2510,10 @@ namespace Test
 						}
 
 					etp->SetOrientedTorque(use_torque);
+					if(i == 3)
+						etp->SetWorldTorque(etp->actual + hips_need * 1.0f);
 				}
 			}
-#endif
 
 
 
@@ -2592,12 +2537,14 @@ namespace Test
 
 			// scoring
 			Scores cat_weights;
+			cat_weights.pos_error = Vec3(1, 1, 1) * 100.0f;
 			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
 			{
-				//if(i == 4 || i == 3 ||  i == 5)
+				if(i == 1 || i == 4 || i == 7)
+				//if(i == 4)
 				{
-					//cat_weights.ori_error[i] = 10.0f;
-					cat_weights.rot_error[i] = 0.1f;
+					cat_weights.ori_error[i] = 10.0f;
+					//cat_weights.rot_error[i] = 0.1f;
 				}
 			}
 
