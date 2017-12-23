@@ -7,8 +7,8 @@ local function get_key_bool(i)  local k = key_states[string.byte(i)]    if k the
 
 local control_state = hv.control_state
 
-control_state.forward      = get_key_float("W") - get_key_float("S")
-control_state.sidestep     = get_key_float("D") - get_key_float("A")
+--control_state.forward      = get_key_float("W") - get_key_float("S")
+--control_state.sidestep     = get_key_float("D") - get_key_float("A")
 
 control_state.jump         = get_key_bool(" ")
 control_state.reload       = get_key_bool("R")control_state.primary_fire = force_bool(mb_states[0])

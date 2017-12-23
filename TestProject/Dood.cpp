@@ -139,9 +139,12 @@ namespace Test
 		Vec2 control_vec = Vec2(control_state->GetFloatControl("sidestep"), control_state->GetFloatControl("forward"));
 		if(float magsq = control_vec.ComputeMagnitudeSquared())
 		{
-			float inv = 1.0f / sqrtf(magsq);
-			control_vec.x *= inv * top_speed_sideways;
-			control_vec.y *= inv * top_speed_forward;
+			if(magsq > 1.0f)
+			{
+				float inv = 1.0f / sqrtf(magsq);
+				control_vec.x *= inv * top_speed_sideways;
+				control_vec.y *= inv * top_speed_forward;
+			}
 		}
 
 		Vec3 desired_vel = desired_vel_2d = forward * control_vec.y + rightward * control_vec.x;

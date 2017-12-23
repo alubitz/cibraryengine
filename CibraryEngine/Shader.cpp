@@ -60,7 +60,9 @@ namespace CibraryEngine
 		int location = glGetUniformLocation(program_id, name.c_str());
 
 		if(location == -1)
-			Debug(((stringstream&)(stringstream() << "Uniform variable \"" << name << "\" not present or not used in shader!" << endl)).str());
+		{
+			//Debug(((stringstream&)(stringstream() << "Uniform variable \"" << name << "\" not present or not used in shader!" << endl)).str());
+		}
 
 		ApplyValue(location);			// should this be an "else" ?
 	}
