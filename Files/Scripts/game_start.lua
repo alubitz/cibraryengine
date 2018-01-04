@@ -15,12 +15,12 @@ else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)
 end
 
---player = gs.spawnPlayer(player_pos)
-for x = -2, 2 do
-	for z = -2, 2 do
-		player = gs.spawnPlayer(ba.createVector(x * 15, 0, z * 15))
-	end
-end
+player = gs.spawnPlayer(player_pos)
+--for x = -2, 2 do
+--	for z = -2, 2 do
+--		player = gs.spawnPlayer(ba.createVector(x * 15, 0, z * 15))
+--	end
+--end
 
 player.death_callback = player_death
 

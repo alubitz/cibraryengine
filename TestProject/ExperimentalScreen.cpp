@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "ExperimentalScreen.h"
 
-#include "NeuralNet.h"
+#include "MultiLayerBrain.h"
 
 namespace Test
 {
@@ -24,105 +24,6 @@ namespace Test
 
 		ProfilingTimer my_timer;
 		float time_spent;
-
-		struct DBDemoSimulation
-		{
-			float x, y, angle;
-			float vx, vy, spin;
-
-			float tx, ty;
-
-			float ldx, ldy;
-
-			float motors[2];
-			float sensors[5];
-			float old_sensors[5];
-
-			float score;
-
-			DBDemoSimulation() : x(0), y(0), angle(0), vx(0), vy(0), spin(0)
-			{
-				motors[0] = motors[1] = 0.0f;
-
-				Randomize();
-
-				ComputeInputs();
-				for(unsigned int i = 0; i < 4; ++i)
-					old_sensors[i] = sensors[i];
-			}
-
-			void Randomize()
-			{
-				tx = Random3D::Rand(-10, 10);
-				ty = Random3D::Rand(-10, 10);
-			}
-
-			void Simulate()
-			{
-				static const float timestep = 1.0f / 60.0f;
-
-				float hx = cosf(angle);
-				float hy = sinf(angle);
-
-
-				//float vdamp = expf(-10.0f * timestep);
-				float vdamp = 0.0f;
-				vx *= vdamp;
-				vy *= vdamp;
-
-				float dv = (motors[0] + motors[1]) * 60.0f * timestep;
-				vx += hx * dv;
-				vy += hy * dv;
-
-				//spin *= expf(-10.0f * timestep);
-				spin = 0.0f;
-				spin += (motors[0] - motors[1]) * 60.0f * timestep;
-
-				x += vx * timestep;
-				y += vy * timestep;
-				angle += spin * timestep;
-			}
-
-			void ComputeInputs()
-			{
-				float hx = cosf(angle);
-				float hy = sinf(angle);
-				float rx = -hy;
-				float ry = hx;
-
-				float dx = tx - x;
-				float dy = ty - y;
-
-				ldx = dx * rx + dy * ry;
-				ldy = dx * hx + dy * hy;
-
-				float dmagsq = Vec2::MagnitudeSquared(dx, dy); 
-				score = expf(-dmagsq * 0.01f) * 0.95f + 0.05f * powf(ldy / sqrtf(dmagsq) * 0.5f + 0.5f, 2.0f);
-
-				float sr[4] = { -0.1f, 0.1f, -0.1f,  0.1f };
-				float sh[4] = {  0.1f, 0.1f, -0.1f, -0.1f };
-
-				for(unsigned int i = 0; i < 5; ++i)
-					old_sensors[i] = sensors[i];
-
-				sensors[4] = 0.0f;
-				for(unsigned int i = 0; i < 4; ++i)
-				{
-					float sx = sr[i] * rx + sh[i] * hx - dx;
-					float sy = sr[i] * ry + sh[i] * hy - dy;
-
-					float dsq = Vec2::MagnitudeSquared(sx, sy);
-					sensors[i] = expf(-dsq * 0.05f) * 2.0f - 1.0f;
-					sensors[4] += sensors[i];
-				}
-				sensors[4] /= 4.0f;
-				for(unsigned int i = 0; i < 4; ++i)
-				{
-					sensors[i] -= sensors[4];
-					sensors[i] *= 10.0f;
-				}
-			}
-		};
 
 		struct BackButton : public AutoMenuItem
 		{
@@ -185,114 +86,118 @@ namespace Test
 
 		void ThreadAction()
 		{
+			static const unsigned int num_inputs = 3;
+			static const unsigned int num_outputs = 1;
+			static const unsigned int num_hidden_layers = 5;
+			static const unsigned int hidden_layer_size = 5;
+
+			static const unsigned int batch_size = 100;
+
+			static const float initial_randomness = 1.0f;
+			static const float learning_rate = 0.05f / batch_size;
+
 			srand((unsigned int)time(NULL));
 
 			my_timer.Start();
-			
-			static const unsigned int num_inputs    = 14;
-			static const unsigned int num_outputs   = 3;
-			static const unsigned int num_middles   = 50;
-			
-			NeuralNet* nn = NeuralNet::New(num_inputs, num_outputs, num_middles);
-			nn->Randomize(0.1f);
 
-			DBDemoSimulation sim;
+			vector<unsigned int> layer_sizes;
+			layer_sizes.push_back(num_inputs);
+			for(unsigned int i = 0; i < num_hidden_layers; ++i)
+				layer_sizes.push_back(hidden_layer_size);
+			layer_sizes.push_back(num_outputs);
 
-			static const unsigned int mavg_over_n = 60;
-			float mavg_win[mavg_over_n];
-			memset(mavg_win, 0, mavg_over_n * sizeof(float));
-			float mavg_tot = 0.0f;
+			MultiLayerBrain* nn = new MultiLayerBrain(layer_sizes);
+			MultiLayerBrain* gradient = new MultiLayerBrain(layer_sizes);
 
-			list<vector<float>> records;
+			nn->Randomize(initial_randomness);
 
-			float nns = 0;
-			unsigned int iteration = 0;
+			vector<float> inputs(num_inputs);
+			vector<float> outputs(num_outputs);
+			vector<float> scratch;
+			vector<float> correct_outputs(num_outputs);
+
+			unsigned int batch = 0;
+			unsigned int item = 0;
+			float batch_tot = 0.0f;
+			float prev_batch_tot = 0.0f;
+
+			float grad_mag = 0.0f;
+			float grad_magsq = 0.0f;
+
 			while(!CheckAbort())
 			{
-				unsigned int use_iteration = iteration % 360;
-				if(iteration % 360 == 0)
-				{
-					sim.x = sim.y = 0.0f;
-					sim.Randomize();
-				}
+				Vec3 test_point = GenerateTestPoint(item, batch_size);
+				inputs[0] = test_point.x;
+				inputs[1] = test_point.y;
+				inputs[2] = 1.0f;
+				correct_outputs[0] = test_point.z;
 
-				sim.ComputeInputs();
+				float errorsq = nn->AddGradient(inputs, outputs, scratch, correct_outputs, *gradient);
+				batch_tot += errorsq;
 
-				float score = sim.score;
-				mavg_tot -= mavg_win[iteration % mavg_over_n];
-				mavg_tot += mavg_win[iteration % mavg_over_n] = score;
+				float nntot, nnsqtot;
+				nn->GetCoeffTotals(nntot, nnsqtot);
 
-				for(unsigned int i = 0; i < 5; ++i)
-				{
-					nn->inputs[i]     = tanhf(sim.sensors[i]);
-					nn->inputs[i + 5] = tanhf((sim.sensors[i] - sim.old_sensors[i]) * 5.0f);
-				}
-				nn->inputs[10] = tanhf(sim.motors[0]);
-				nn->inputs[11] = tanhf(sim.motors[1]);
-				nn->inputs[12] = tanhf((1.0f - sim.score) * 0.25f);
-				nn->inputs[13] = tanhf(sim.score);
-				
+				ThreadsafeSetText( 0, ((stringstream&)(stringstream() << "batch " << batch)).str());
+				ThreadsafeSetText( 1, ((stringstream&)(stringstream() << "item  " << item)).str());
+				ThreadsafeSetText( 2, ((stringstream&)(stringstream() << "batch average  = " << batch_tot / (item + 1))).str());
+				ThreadsafeSetText( 3, ((stringstream&)(stringstream() << "prev batch avg = " << prev_batch_tot / batch_size)).str());
+				ThreadsafeSetText( 4, ((stringstream&)(stringstream() << "expected = " << correct_outputs[0])).str());
+				ThreadsafeSetText( 5, ((stringstream&)(stringstream() << "actual   = " << outputs[0])).str());
+				ThreadsafeSetText( 7, ((stringstream&)(stringstream() << "nn tot   = " << nntot)).str());
+				ThreadsafeSetText( 8, ((stringstream&)(stringstream() << "nn^2 tot = " << nnsqtot)).str());
 
-				nn->Evaluate();
-
-				static const float exploration_scale = 0.1f;
-				sim.motors[0] = min(1.0f, max(-1.0f, nn->outputs[0] + Random3D::Rand(-exploration_scale, exploration_scale)));
-				sim.motors[1] = min(1.0f, max(-1.0f, nn->outputs[1] + Random3D::Rand(-exploration_scale, exploration_scale)));
-
-				vector<float> nrecord(15);
-				for(unsigned int i = 0; i < 12; ++i)
-					nrecord[i] = nn->inputs[i];
-				nrecord[12] = sim.motors[0];
-				nrecord[13] = sim.motors[1];
-				nrecord[14] = sim.score;
-				records.push_back(nrecord);
-
-				sim.Simulate();
-
-				if(records.size() == 5)
-				{
-					vector<float> rec = *records.begin();
-					records.pop_front();
-
-					for(unsigned int i = 0; i < 12; ++i)
-						nn->inputs[i] = rec[i];
-					nn->inputs[12] = tanhf(sim.score - rec[14]);
-					nn->inputs[13] = tanhf(rec[14]);
-
-					nn->correct_outputs[0] = rec[12];
-					nn->correct_outputs[1] = rec[13];
-					nn->correct_outputs[2] = sim.score * 2.0f - 1.0f;
-
-					nn->MultiTrainBegin();
-					nns = nn->MultiTrainNext();
-					nn->MultiTrainApply(0.2f);
-				}
-
-				ThreadsafeSetText(0, ((stringstream&)(stringstream() << "i = " << use_iteration << "; score = " << score << "; moving average of score over past " << mavg_over_n << " = " << mavg_tot / min(iteration + 1, mavg_over_n))).str());
-				ThreadsafeSetText(1, ((stringstream&)(stringstream() << "nn score = " << nns)).str());
-				ThreadsafeSetText(2, ((stringstream&)(stringstream() << "ldx = " << sim.ldx)).str());
-				ThreadsafeSetText(3, ((stringstream&)(stringstream() << "ldy = " << sim.ldy)).str());
-				ThreadsafeSetText(4, ((stringstream&)(stringstream() << "lf = " << sim.sensors[0])).str());
-				ThreadsafeSetText(5, ((stringstream&)(stringstream() << "rf = " << sim.sensors[1])).str());
-				ThreadsafeSetText(6, ((stringstream&)(stringstream() << "lr = " << sim.sensors[2])).str());
-				ThreadsafeSetText(7, ((stringstream&)(stringstream() << "rr = " << sim.sensors[3])).str());
-				ThreadsafeSetText(8, ((stringstream&)(stringstream() << "c  = " << sim.sensors[4])).str());
-				ThreadsafeSetText(9, ((stringstream&)(stringstream() << "lmotor = " << sim.motors[0])).str());
-				ThreadsafeSetText(10, ((stringstream&)(stringstream() << "rmotor = " << sim.motors[1])).str());
+				ThreadsafeSetText(10, ((stringstream&)(stringstream() << "grad tot   = " << grad_mag)).str());
+				ThreadsafeSetText(11, ((stringstream&)(stringstream() << "grad^2 tot = " << grad_magsq)).str());
 
 				time_spent += my_timer.GetAndRestart();
 
-				++iteration;
+				++item;
 
-				Sleep(16);
+				if(item == batch_size)
+				{
+					gradient->GetCoeffTotals(grad_mag, grad_magsq);
+
+					item = 0;
+					++batch;
+
+					prev_batch_tot = batch_tot;
+					batch_tot = 0.0f;
+
+					nn->Train(*gradient, learning_rate);
+					gradient->SetZero();
+
+					//if(batch % 50 == 0)
+					//	nn->RandomizeOne(0.1f);
+				}
+
+				Sleep(0);
 			}
 
-			NeuralNet::Delete(nn);
-			nn = NULL;
+			delete nn;
+			delete gradient;
 
 			my_timer.Stop();
 
 			SetAborted();
+		}
+
+		Vec3 GenerateTestPoint(unsigned int i, unsigned int of) const
+		{
+#if 0
+			float theta = Random3D::Rand(float(M_PI) * 2.0f);
+			bool big = Random3D::RandInt() % 2 == 0;
+#else
+			unsigned int half = of / 2;
+			float theta = float(i % half) * float(M_PI) * 2.0f / half;
+			bool big = i < half;
+#endif
+
+			float r = big ? 1.0f : 0.5f;
+
+			float correct_mag = 0.5f;
+
+			return Vec3(r * cosf(theta), r * sinf(theta), big ? correct_mag : -correct_mag);
 		}
 
 		struct ThreadHelper
