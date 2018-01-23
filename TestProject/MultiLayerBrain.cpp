@@ -67,12 +67,13 @@ namespace Test
 		memcpy(outputs.data(), scratch.data() + (scratch.size() - num_outputs), num_outputs * sizeof(float));
 	}
 
-	float MultiLayerBrain::AddGradient(const vector<float>& inputs, vector<float>& outputs, vector<float>& scratch, const vector<float>& correct_outputs, MultiLayerBrain& gradient) const
+	float MultiLayerBrain::AddGradient(unsigned int num_target_outputs, const vector<float>& inputs, vector<float>& outputs, vector<float>& derrdin, vector<float>& scratch, const vector<float>& derrdout, MultiLayerBrain& gradient) const
 	{
 		unsigned int num_outputs = layer_sizes[layer_sizes.size() - 1];
 
 		assert(layer_sizes.size() == gradient.layer_sizes.size());
-		assert(correct_outputs.size() == num_outputs);
+		assert(derrdout.size() == num_outputs);
+		assert(num_target_outputs <= num_outputs);
 
 		unsigned int needed_size = 0;
 		for(unsigned int i = 0; i < layer_sizes.size(); ++i)
@@ -127,19 +128,8 @@ namespace Test
 			// last matrix (first one processed in backprop) uses special computation for d(error^2)/d(value)
 			if(i + 1 == matrices.size())
 			{
-				float* optr = values + outputs_begin;
-				float* oend = values + outputs_end;
-
-				const float* cptr = correct_outputs.data();
-				for(float *dptr = derrorsq + outputs_begin; optr != oend; ++dptr, ++cptr, ++optr)
-				{
-					assert(dptr < scratch_end);
-
-					float error = *optr - *cptr;
-					*dptr = 2.0f * error;
-
-					errortot += error * error;
-				}
+				errortot += ComputeDerrorDoutputs(num_target_outputs, values + outputs_begin, derrdout.data(), derrorsq + outputs_begin, scratch_end);
+				memcpy(derrorsq + outputs_begin + num_target_outputs, derrdout.data(), (num_outputs - num_target_outputs) * sizeof(float));
 			}
 			
 			// compute gradient for this matrix
@@ -176,6 +166,9 @@ namespace Test
 			assert(gptr == gradient.matrices[i].data() + gradient.matrices[i].size());
 		}
 
+		derrdin.resize(layer_sizes[0]);
+		memcpy(derrdin.data(), derrorsq, derrdin.size() * sizeof(float));
+
 		return errortot;
 	}
 
@@ -197,11 +190,12 @@ namespace Test
 
 	void MultiLayerBrain::Randomize(float scale)
 	{
+		float range = scale * 2.0f;
 		for(unsigned int i = 0; i < matrices.size(); ++i)
 		{
 			vector<float>& matrix = matrices[i];
 			for(unsigned int j = 0; j < matrix.size(); ++j)
-				matrix[j] += Random3D::Rand(-scale, scale);
+				matrix[j] += Random3D::Rand() * range - scale;
 		}
 	}
 
@@ -235,5 +229,27 @@ namespace Test
 				sqtot += v * v;
 			}
 		}
+	}
+
+
+	float MultiLayerBrain::ComputeDerrorDoutputs(unsigned int count, const float* outputs, const float* correct_outputs, float* derrdout, const float* scratch_end) const
+	{
+		float errortot = 0.0f;
+
+		const float* optr = outputs;
+		const float* oend = optr + count;
+
+		const float* cptr = correct_outputs;
+		for(float *dptr = derrdout; optr != oend; ++dptr, ++cptr, ++optr)
+		{
+			assert(dptr < scratch_end);
+
+			float error = *optr - *cptr;
+			*dptr = 2.0f * error;
+
+			errortot += error * error;
+		}
+
+		return errortot;
 	}
 }

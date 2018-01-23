@@ -282,18 +282,20 @@ addWorldTorque( rht,    rankle )
 
 	this is not a particularly great scheme, but it seemed to work well enough for the upper body
 
+
+
+	for the wrists the calculation is more complicated, because it requires computing the angular momentum and MoI of the combined (gun, l hand, r hand) system
+
+	once i compute the desired delta-angular-momentum of that system (call it "gun_undo"), the computation for the wrist torques is basically:
+
+		lwrist.setWorldTorque(gun_undo * 0.25)
+		rwrist.setWorldTorque(gun_undo - lwrist.world_torque)
+		lwrist.setWorldTorque(gun_undo - rwrist.world_torque)
+
 ]]--
 
 
--- upper body control (desired bone torques use the above formula)
-
---[[
-neck.satisfyB()
-
-local hng_desired_torque = -hv.bones["l hand"].desired_torque		-- desired "hands and gun" torque; these bones are attached to one another with a fixed joint
-lwrist.setWorldTorque(hng_desired_torque * 0.75)					-- distribute the task of atching the desired gun+hands torque unevenly
-rwrist.setWorldTorque(hng_desired_torque - lwrist.world_torque)
-
+-- upper body control (for info on how the desired bone torques are computed, see above)
 
 lelbow.satisfyB()
 lsjb  .satisfyB()
@@ -303,11 +305,13 @@ relbow.satisfyB()
 rsjb  .satisfyB()
 rsja  .satisfyB()
 
+neck.satisfyB()
+
 spine2.satisfyB()
 spine1.satisfyB()
 
 
-]]--
+
 --[[
 
 -- lower body control
@@ -371,7 +375,7 @@ end
 
 
 -- print some debug output ... this is actually surprisingly slow
-if falses then
+if false then
 	ba.println("")
 	ba.println("age = " .. hv.age)
 	ba.println("hv.joints:")

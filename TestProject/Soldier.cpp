@@ -806,9 +806,7 @@ namespace Test
 
 		void DoHeadOri(Soldier* dood, const TimingInfo& time)
 		{
-			float yaw_fudge = sinf(tick_age * 0.05f) * 0.5f;
-			float pitch_fudge = sinf(tick_age * 0.07235215190f) * 0.5f;
-			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw + yaw_fudge, 0) * Quaternion::FromRVec(dood->pitch + pitch_fudge, 0, 0);
+			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 
 			head.ComputeDesiredTorqueWithDefaultMoI(desired_ori, inv_timestep);
 			neck.SetTorqueToSatisfyB();
@@ -1089,6 +1087,12 @@ namespace Test
 				ke *= 0.5f;
 				rb_kinetic[i] = ke;
 			}
+
+			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				iter->SolverInit(dood_com, 0.0f);
+
+			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+				(*iter)->SetOrientedTorque(Vec3());
 			
 			GetDesiredTorsoOris(dood, p, t1, t2);
 
@@ -1096,13 +1100,6 @@ namespace Test
 			DoArmsAimingGun( dood, time, t2 );
 
 			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-
-			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-				iter->SolverInit(dood_com, 0.0f);
-
-			//for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
-			//	(*iter)->SetOrientedTorque(Vec3());
-			//DoScriptedMotorControl(dood);
 
 			pelvis.posey->ori = Quaternion::FromRVec(0, -dood->yaw, 0) * p;
 			torso1.posey->ori = t1 * Quaternion::Reverse(p);
@@ -1117,7 +1114,11 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
 
-			pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
+			//pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
+
+			DoScriptedMotorControl(dood);
+
+#if 0
 
 			//for(unsigned int i = 0; i < all_joints.size(); ++i)
 			//	all_joints[i]->SetWorldTorque(Vec3());
@@ -1228,10 +1229,11 @@ namespace Test
 			if(tick_age != 0)			// score nn2 based on how well it maps the *previous* tick's (inputs, action) to the *current* tick's score
 			{
 				vector<float> correct_outputs;
+				vector<float> junk;
 				correct_outputs.push_back(clamped_error);
-				nn2_score = experiment->nn2->AddGradient(nn2_inputs, nn2_guess, scratch, correct_outputs, *experiment->gradient2);
-				float junk;
-				experiment->gradient2->GetCoeffTotals(junk, grad_mag);
+				nn2_score = experiment->nn2->AddGradient(correct_outputs.size(), nn2_inputs, nn2_guess, junk, scratch, correct_outputs, *experiment->gradient2);
+				float junk2;
+				experiment->gradient2->GetCoeffTotals(junk2, grad_mag);
 				grad_mag = sqrtf(grad_mag);
 			}
 			else
@@ -1300,7 +1302,7 @@ namespace Test
 				//Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << endl)).str());
 			}
 
-
+#endif
 #if ENABLE_NEW_JETPACKING
 			if(jetpacking)
 			{
@@ -1319,6 +1321,7 @@ namespace Test
 			timer_ub_stuff += timer.GetAndRestart();
 #endif
 
+#if 0
 			// scoring
 			Scores cat_weights;
 			cat_weights.head_error = 1.0f;
@@ -1346,6 +1349,8 @@ namespace Test
 				prev_gradient = grad_mag;
 				Debug(((stringstream&)(stringstream() << "final score = " << prev_score << "; final gradient mag = " << prev_gradient << endl)).str());
 			}
+
+#endif
 
 #if PROFILE_CPHFT
 			timer_end_of_test += timer.GetAndRestart();

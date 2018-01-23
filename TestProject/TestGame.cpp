@@ -420,7 +420,7 @@ namespace Test
 	{
 		srand((unsigned int)time(NULL));
 
-		//sound_system->TryToEnable();
+		sound_system->TryToEnable();
 
 		font = content->GetCache<BitmapFont>()->Load("../Font");
 
