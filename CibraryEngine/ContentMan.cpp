@@ -16,6 +16,7 @@
 #include "SoundBuffer.h"
 #include "UberModel.h"
 #include "ModelPhysics.h"
+#include "Material.h"
 #include "MaterialLoader.h"
 
 namespace CibraryEngine

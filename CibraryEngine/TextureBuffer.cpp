@@ -1,4 +1,6 @@
 #include "StdAfx.h"
+
+#include "DebugLog.h"
 #include "TextureBuffer.h"
 
 #include "VertexBuffer.h"
