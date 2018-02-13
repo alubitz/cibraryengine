@@ -167,7 +167,7 @@ namespace Test
 			virtual Vec3 GetDesiredJetpackAccel() { return Vec3(); }
 			virtual int GetTickAge() { return 0; }
 
-			void DoScriptedMotorControl();
+			void DoScriptedMotorControl(const string& filename);
 
 			virtual void PreCPHFT(float timestep);
 			virtual void PostCPHFT(float timestep);

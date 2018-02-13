@@ -495,7 +495,7 @@ namespace Test
 
 			pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
 
-			dood->DoScriptedMotorControl();
+			dood->DoScriptedMotorControl("Files/Scripts/soldier_motor_control.lua");
 
 #if ENABLE_NEW_JETPACKING
 			if(jetpacking)

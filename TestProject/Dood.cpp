@@ -1159,10 +1159,8 @@ namespace Test
 	static int jnozzle_set_force(lua_State* L);
 	static int cp_index(lua_State* L);
 
-	void Dood::DoScriptedMotorControl()
+	void Dood::DoScriptedMotorControl(const string& filename)
 	{
-		string filename = ((stringstream&)(stringstream() << "Files/Scripts/soldier_motor_control.lua")).str();
-
 		ScriptingState script = ScriptSystem::GetGlobalState();
 		lua_State* L = script.GetLuaState();
 
