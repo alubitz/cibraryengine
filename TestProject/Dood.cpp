@@ -2,6 +2,9 @@
 #include "Dood.h"
 #include "TestGame.h"
 
+#include "CBone.h"
+#include "CJoint.h"
+
 #include "WeaponEquip.h"
 #include "WeaponIntrinsic.h"
 #include "Shot.h"
@@ -545,6 +548,15 @@ namespace Test
 				(*iter)->ori = ori;
 				(*iter)->pos = pos;
 			}
+	}
+
+	void Dood::RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
+	void Dood::RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
+
+	void Dood::RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force)
+	{
+		jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
+		jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
 	}
 
 	void Dood::Spawned()
@@ -1125,5 +1137,498 @@ namespace Test
 
 		lua_settop(L, 0);
 		return false;
+	}
+
+
+
+
+
+
+
+	/*
+	 * Scripted Motor Control methods
+	 */
+	static int cbone_index(lua_State* L);
+	static int cbone_newindex(lua_State* L);
+	static int cjoint_index(lua_State* L);
+	static int cjoint_setworld(lua_State* L);
+	static int cjoint_satisfy_a(lua_State* L);
+	static int cjoint_satisfy_b(lua_State* L);
+	static int cjoint_setoriented(lua_State* L);
+	static int jnozzle_index(lua_State* L);
+	static int jnozzle_set_force(lua_State* L);
+	static int cp_index(lua_State* L);
+
+	void Dood::DoScriptedMotorControl()
+	{
+		string filename = ((stringstream&)(stringstream() << "Files/Scripts/soldier_motor_control.lua")).str();
+
+		ScriptingState script = ScriptSystem::GetGlobalState();
+		lua_State* L = script.GetLuaState();
+
+		// hook variables (hv)
+		lua_newtable(L);
+
+		// hv.bones
+		lua_newtable(L);
+		for(unsigned int i = 0; i < all_bones.size(); ++i)
+			AddBoneToTable(all_bones[i], L);
+		lua_setfield(L, -2, "bones");
+
+		// hv.joints
+		lua_newtable(L);
+		for(unsigned int i = 0; i < all_joints.size(); ++i)
+			AddJointToTable(all_joints[i], i + 1, L);
+		lua_setfield(L, -2, "joints");
+
+
+		// hv.nozzles
+		lua_newtable(L);
+		for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
+			AddNozzleToTable(i, L);
+		lua_setfield(L, -2, "nozzles");
+
+		// hv.controls
+		lua_newtable(L);
+		PushLuaMat3(L, Mat3::FromRVec(0, -yaw, 0));
+		lua_setfield(L, -2, "yaw_mat");
+		lua_pushnumber(L, pitch);
+		lua_setfield(L, -2, "pitch");
+		PushLuaVector(L, desired_vel_2d);
+		lua_setfield(L, -2, "walkvel");
+		PushLuaVector(L, GetDesiredJetpackAccel());
+		lua_setfield(L, -2, "jpaccel");
+		lua_pushboolean(L, control_state->GetBoolControl("jump"));
+		lua_setfield(L, -2, "jump");
+		lua_setfield(L, -2, "controls");
+
+		// hv.newcp
+		lua_newtable(L);
+		for(unsigned int i = 0; i < new_contact_points.size(); ++i)
+			AddContactPointToTable(new_contact_points[i], i, L);
+		lua_setfield(L, -2, "newcp");
+
+		// hv.oldcp
+		lua_newtable(L);
+		for(unsigned int i = 0; i < old_contact_points.size(); ++i)
+			AddContactPointToTable(old_contact_points[i], i, L);
+		lua_setfield(L, -2, "oldcp");
+
+		lua_pushnumber(L, GetTickAge());
+		lua_setfield(L, -2, "age");
+
+		lua_setglobal(L, "hv");
+
+		script.DoFile(filename);
+
+		lua_pushnil(L);
+		lua_setglobal(L, "hv");
+	}
+
+	void Dood::AddBoneToTable(CBone* bone, lua_State* L)
+	{
+		CBone** bptr = (CBone**)lua_newuserdata(L, sizeof(CBone*));
+		*bptr = bone;
+
+		lua_getglobal(L, "CBoneMeta");
+		if(lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);
+			// must create metatable for globals
+			lua_newtable(L);									// push; top = 2
+
+			lua_pushcclosure(L, cbone_index, 0);				// push; top = 3
+			lua_setfield(L, -2, "__index");						// pop; top = 2
+
+			lua_pushcclosure(L, cbone_newindex, 0);
+			lua_setfield(L, -2, "__newindex");
+
+			lua_setglobal(L, "CBoneMeta");
+			lua_getglobal(L, "CBoneMeta");
+		}
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+		lua_setfield(L, -2, bone->name.c_str());
+	}
+
+	void Dood::AddJointToTable(CJoint* joint, int i, lua_State* L)
+	{
+		lua_pushinteger(L, i);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the joints list)
+
+		CJoint** jptr = (CJoint**)lua_newuserdata(L, sizeof(CJoint*));
+		*jptr = joint;
+
+		lua_getglobal(L, "CJointMeta");
+		if(lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);
+			// must create metatable for globals
+			lua_newtable(L);									// push; top = 2
+
+			lua_pushcclosure(L, cjoint_index, 0);				// push; top = 3
+			lua_setfield(L, -2, "__index");						// pop; top = 2
+
+			lua_setglobal(L, "CJointMeta");
+			lua_getglobal(L, "CJointMeta");
+		}
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+		lua_settable(L, -3);
+	}
+
+	void Dood::AddNozzleToTable(int i, lua_State* L)
+	{
+		lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
+
+		JetpackNozzle** jptr = (JetpackNozzle**)lua_newuserdata(L, sizeof(JetpackNozzle*));
+		*jptr = jetpack_nozzles.data() + i;
+
+		lua_getglobal(L, "JNozzleMeta");
+		if(lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);
+			// must create metatable for globals
+			lua_newtable(L);									// push; top = 2
+
+			lua_pushcclosure(L, jnozzle_index, 0);
+			lua_setfield(L, -2, "__index");
+
+			lua_setglobal(L, "JNozzleMeta");
+			lua_getglobal(L, "JNozzleMeta");
+		}
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+		lua_settable(L, -3);
+	}
+
+
+
+	void Dood::AddContactPointToTable(MyContactPoint& cp, int i, lua_State* L)
+	{
+		lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
+
+		MyContactPoint** cpptr = (MyContactPoint**)lua_newuserdata(L, sizeof(MyContactPoint*));
+		*cpptr = &cp;
+
+		lua_getglobal(L, "ContactPointMeta");
+		if(lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);
+			// must create metatable for globals
+			lua_newtable(L);									// push; top = 2
+
+			lua_pushcclosure(L, cp_index, 0);
+			lua_setfield(L, -2, "__index");
+
+			lua_setglobal(L, "ContactPointMeta");
+			lua_getglobal(L, "ContactPointMeta");
+		}
+		lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
+
+		lua_settable(L, -3);
+	}
+
+
+
+
+	static int cbone_index(lua_State* L)
+	{
+		CBone* bone = *((CBone**)lua_touserdata(L, 1));
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			lua_settop(L, 0);
+
+			if		(key == "pos")				{ PushLuaVector(	L, bone->rb->GetCenterOfMass());									return 1; }
+			else if	(key == "vel")				{ PushLuaVector(	L, bone->rb->GetLinearVelocity());									return 1; }
+			else if	(key == "ori")				{ PushLuaMat3(		L, bone->rb->GetOrientation().ToMat3());							return 1; }
+			else if	(key == "rot")				{ PushLuaVector(	L, bone->rb->GetAngularVelocity());									return 1; }
+			else if	(key == "mass")				{ lua_pushnumber(	L, bone->rb->GetMass());											return 1; }
+			else if (key == "moi")				{ PushLuaMat3(		L, Mat3(bone->rb->GetTransformedMassInfo().moi));					return 1; }
+			else if (key == "impulse_linear")	{ PushLuaVector(	L, bone->net_impulse_linear);										return 1; }
+			else if (key == "impulse_angular")	{ PushLuaVector(	L, bone->net_impulse_angular);										return 1; }
+			else if (key == "desired_torque")	{ PushLuaVector(	L, bone->desired_torque);											return 1; }
+			else if (key == "applied_torque")	{ PushLuaVector(	L, bone->applied_torque);											return 1; }
+			else
+				Debug("unrecognized key for CBone:index: " + key + "\n");
+		}
+		return 0;
+	}
+
+	static int cbone_newindex(lua_State* L)
+	{
+		CBone* bone = *((CBone**)lua_touserdata(L, 1));
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+			if(key == "desired_torque")
+			{
+				if(lua_isuserdata(L, 3))
+				{
+					Vec3* vec = (Vec3*)lua_touserdata(L, 3);
+					bone->desired_torque = *vec;
+
+					lua_settop(L, 0);
+					return 0;
+				}
+			}
+			else
+				Debug("unrecognized key for CBone:newindex: " + key + "\n");
+		}
+
+		return 0;
+	}
+
+
+
+	static int cjoint_index(lua_State* L)
+	{
+		CJoint* joint = *((CJoint**)lua_touserdata(L, 1));
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			lua_settop(L, 0);
+
+			if		(key == "pos")				{ PushLuaVector(	L, joint->sjc->ComputeAveragePosition());							return 1; }
+			else if	(key == "axes")				{ PushLuaMat3(		L, joint->oriented_axes);											return 1; }
+			else if	(key == "min_extents")		{ PushLuaVector(	L, joint->sjc->min_extents);										return 1; }
+			else if	(key == "max_extents")		{ PushLuaVector(	L, joint->sjc->max_extents);										return 1; }
+			else if	(key == "min_torque")		{ PushLuaVector(	L, joint->sjc->min_torque);											return 1; }
+			else if	(key == "max_torque")		{ PushLuaVector(	L, joint->sjc->max_torque);											return 1; }
+			else if (key == "rvec")
+			{
+				PushLuaVector(L, joint->oriented_axes * -(joint->a->rb->GetOrientation() * Quaternion::Reverse(joint->b->rb->GetOrientation())).ToRVec());
+				return 1;
+			}
+			else if (key == "local_torque")		{ PushLuaVector(	L, joint->sjc->apply_torque);										return 1; }
+			else if (key == "world_torque")		{ PushLuaVector(	L, joint->actual);													return 1; }
+			else if (key == "impulse_linear")	{ PushLuaVector(	L, joint->sjc->net_impulse_linear);									return 1; }
+			else if (key == "impulse_angular")	{ PushLuaVector(	L, joint->sjc->net_impulse_angular);								return 1; }
+			else if (key == "a")				{ lua_pushstring(	L, joint->a->name.c_str());											return 1; }
+			else if (key == "b")				{ lua_pushstring(	L, joint->b->name.c_str());											return 1; }
+			else if (key == "setWorldTorque")
+			{
+				lua_pushlightuserdata(L, joint);
+				lua_pushcclosure(L, cjoint_setworld, 1);
+				return 1;
+			}
+			else if (key == "setOrientedTorque")
+			{
+				lua_pushlightuserdata(L, joint);
+				lua_pushcclosure(L, cjoint_setoriented, 1);
+				return 1;
+			}
+			else if (key == "satisfyA")
+			{
+				lua_pushlightuserdata(L, joint);
+				lua_pushcclosure(L, cjoint_satisfy_a, 1);
+				return 1;
+			}
+			else if (key == "satisfyB")
+			{
+				lua_pushlightuserdata(L, joint);
+				lua_pushcclosure(L, cjoint_satisfy_b, 1);
+				return 1;
+			}
+			else
+				Debug("unrecognized key for CJoint:index: " + key + "\n");
+		}
+		return 0;
+	}
+
+	static int cjoint_setworld(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isuserdata(L, 1))
+		{
+			void* ptr = lua_touserdata(L, 1);
+			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+			lua_settop(L, 0);
+
+			if(vec != NULL)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+				lua_pop(L, 1);
+
+				joint->SetWorldTorque(*vec);
+
+				return 0;
+			}
+		}
+
+		Debug("cjoint.setWorldTorque takes exactly 1 argument, a world-coords torque vector\n");
+		return 0;
+	}
+
+	static int cjoint_satisfy_a(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 0)
+		{
+			lua_pushvalue(L, lua_upvalueindex(1));
+			CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+			lua_pop(L, 1);
+
+			joint->SetTorqueToSatisfyA();
+
+			return 0;
+		}
+
+		Debug("cjoint.satisfyA does not take any arguments\n");
+		return 0;
+	}
+
+	static int cjoint_satisfy_b(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 0)
+		{
+			lua_pushvalue(L, lua_upvalueindex(1));
+			CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+			lua_pop(L, 1);
+
+			joint->SetTorqueToSatisfyB();
+
+			return 0;
+		}
+
+		Debug("cjoint.satisfyB does not take any arguments\n");
+		return 0;
+	}
+
+	static int cjoint_setoriented(lua_State* L)
+	{
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isuserdata(L, 1))
+		{
+			void* ptr = lua_touserdata(L, 1);
+			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+			lua_settop(L, 0);
+
+			if(vec != NULL)
+			{
+				lua_pushvalue(L, lua_upvalueindex(1));
+				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
+				lua_pop(L, 1);
+
+				joint->SetOrientedTorque(*vec);
+
+				return 0;
+			}
+		}
+
+		Debug("cjoint.setOrientedTorque takes exactly 1 argument, a joint-coords torque vector\n");
+		return 0;
+	}
+
+
+
+	static int jnozzle_index(lua_State* L)
+	{
+		JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, 1);
+		JetpackNozzle& nozzle = **jptr;
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			lua_settop(L, 0);
+
+			if		(key == "bone")			{ lua_pushstring	(L, nozzle.bone->name.c_str());					return 1; }
+			else if (key == "pos")			{ PushLuaVector		(L, nozzle.apply_pos);							return 1; }
+			else if (key == "center")		{ PushLuaVector		(L, nozzle.world_center);						return 1; }
+			else if (key == "cone_cossq")	{ lua_pushnumber	(L, nozzle.cone_cossq);							return 1; }
+			else if (key == "max_force")	{ lua_pushnumber	(L, nozzle.max_force);							return 1; }
+			else if (key == "force")		{ PushLuaVector		(L, nozzle.world_force);						return 1; }
+			else if (key == "torque")		{ PushLuaVector		(L, nozzle.world_torque);						return 1; }
+			else if (key == "ftt")			{ PushLuaMat3		(L, nozzle.force_to_torque);					return 1; }
+			else if (key == "setForce")
+			{
+				lua_pushlightuserdata(L, jptr);
+				lua_pushcclosure(L, jnozzle_set_force, 1);
+				return 1;
+			}
+			else
+				Debug("unrecognized key for JetpackNozzle:index: " + key + "\n");
+		}
+		return 0;
+	}
+
+	static int jnozzle_set_force(lua_State* L)
+	{
+		lua_pushvalue(L, lua_upvalueindex(1));
+		JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, -1);
+		lua_pop(L, 1);
+
+		JetpackNozzle& nozzle = **jptr;
+
+		int n = lua_gettop(L);
+		if(n == 1 && lua_isuserdata(L, 1))
+		{
+			void* ptr = lua_touserdata(L, 1);
+			Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
+
+			lua_settop(L, 0);
+
+			if(vec != NULL)
+			{
+				nozzle.world_force = *vec;
+				nozzle.GetNudgeEffects(Vec3(), nozzle.world_force, nozzle.world_torque);
+
+				return 0;
+			}
+		}
+
+		Debug("jnozzle.setForce takes exactly 1 argument, a world-coords forcej vector\n");
+		return 0;
+	}
+
+
+	static int cp_index(lua_State* L)
+	{
+		Dood::MyContactPoint** cpptr = (Dood::MyContactPoint**)lua_touserdata(L, 1);
+		Dood::MyContactPoint& mcp = **cpptr;
+		ContactPoint& cp = mcp.cp;
+		Dood* dood = mcp.dood;
+
+		if(lua_isstring(L, 2))
+		{
+			string key = lua_tostring(L, 2);
+
+			lua_settop(L, 0);
+
+			if(key == "a" || key == "b")
+			{
+				string rbname = "<external>";
+
+				RigidBody* ab = key == "a" ? cp.obj_a : cp.obj_b;
+				if(!dood->GetRBScriptingName(ab, rbname))
+				{
+					for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
+						if(dood->all_bones[i]->rb == ab)
+							rbname = dood->all_bones[i]->name;
+				}
+
+				lua_pushstring(L, rbname.c_str());
+				return 1; 
+			}
+			else if (key == "pos")				{ PushLuaVector	(L, cp.pos);									return 1; }
+			else if (key == "normal")			{ PushLuaVector	(L, cp.normal);									return 1; }
+			else if (key == "restitution")		{ lua_pushnumber(L, cp.restitution_coeff);						return 1; }
+			else if (key == "friction")			{ lua_pushnumber(L, cp.fric_coeff);								return 1; }
+			else if (key == "bounce_threshold")	{ lua_pushnumber(L, cp.bounce_threshold);						return 1; }
+			else if (key == "impulse_linear")	{ PushLuaVector	(L, cp.net_impulse_linear);						return 1; }
+			else if (key == "impulse_angular")	{ PushLuaVector	(L, cp.net_impulse_angular);					return 1; }
+			else
+				Debug("unrecognized key for ContactPoint:index: " + key + "\n");
+		}
+		return 0;
 	}
 }

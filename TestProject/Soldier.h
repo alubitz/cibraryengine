@@ -28,6 +28,10 @@ namespace Test
 
 			void DoInitialPose();
 
+			virtual void InitBoneHelpers();
+			virtual void InitJointHelpers();
+			virtual void InitJetpackNozzles();
+
 		public:
 
 			Bone* gun_hand_bone;
@@ -62,7 +66,9 @@ namespace Test
 			virtual void PreCPHFT(float timestep);
 			virtual void PostCPHFT(float timestep);
 
-
+			virtual bool GetRBScriptingName(RigidBody* rb, string& name);	// for scripted motor control, allows rigid bodies that are not bones to be given special names
+			virtual Vec3 GetDesiredJetpackAccel();
+			virtual int GetTickAge();
 
 			bool IsExperimentDone() const;			// for if we're trying to do some rapid-update experimentation
 

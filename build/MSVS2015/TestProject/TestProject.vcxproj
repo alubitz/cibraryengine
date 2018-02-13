@@ -121,6 +121,8 @@
     <ClCompile Include="..\..\..\TestProject\ArtilleryWeapon.cpp" />
     <ClCompile Include="..\..\..\TestProject\BetterBrain.cpp" />
     <ClCompile Include="..\..\..\TestProject\Brambles.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CBone.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CJoint.cpp" />
     <ClCompile Include="..\..\..\TestProject\ConverterWhiz.cpp" />
     <ClCompile Include="..\..\..\TestProject\CrabBug.cpp" />
     <ClCompile Include="..\..\..\TestProject\CrabWeapon.cpp" />
@@ -132,6 +134,7 @@
     <ClCompile Include="..\..\..\TestProject\Gun.cpp" />
     <ClCompile Include="..\..\..\TestProject\HUD.cpp" />
     <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\JetpackNozzle.cpp" />
     <ClCompile Include="..\..\..\TestProject\LevelLoad.cpp" />
     <ClCompile Include="..\..\..\TestProject\LoadingScreen.cpp" />
     <ClCompile Include="..\..\..\TestProject\Main.cpp" />
@@ -165,6 +168,8 @@
     <ClInclude Include="..\..\..\TestProject\ArtilleryWeapon.h" />
     <ClInclude Include="..\..\..\TestProject\BetterBrain.h" />
     <ClInclude Include="..\..\..\TestProject\Brambles.h" />
+    <ClInclude Include="..\..\..\TestProject\CBone.h" />
+    <ClInclude Include="..\..\..\TestProject\CJoint.h" />
     <ClInclude Include="..\..\..\TestProject\ConverterWhiz.h" />
     <ClInclude Include="..\..\..\TestProject\CrabBug.h" />
     <ClInclude Include="..\..\..\TestProject\CrabWeapon.h" />
@@ -176,6 +181,7 @@
     <ClInclude Include="..\..\..\TestProject\Gun.h" />
     <ClInclude Include="..\..\..\TestProject\HUD.h" />
     <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\JetpackNozzle.h" />
     <ClInclude Include="..\..\..\TestProject\LevelLoad.h" />
     <ClInclude Include="..\..\..\TestProject\LoadingScreen.h" />
     <ClInclude Include="..\..\..\TestProject\MainMenu.h" />

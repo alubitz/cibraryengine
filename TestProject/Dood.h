@@ -5,6 +5,8 @@
 #include "Shootable.h"
 #include "Damage.h"
 
+#include "JetpackNozzle.h"
+
 #include "Team.h"
 
 namespace Test
@@ -16,6 +18,9 @@ namespace Test
 	class WeaponIntrinsic;
 
 	struct Damage;
+
+	struct CBone;
+	struct CJoint;
 
 	class Dood : public Pawn
 	{
@@ -59,6 +64,10 @@ namespace Test
 			virtual void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi) { }
 
 			virtual void DoInitialPose();			// called by ::Spawned; use this to set orientations of the posey bones
+
+			virtual void InitBoneHelpers()    { all_bones.clear(); }
+			virtual void InitJointHelpers()   { all_joints.clear(); }
+			virtual void InitJetpackNozzles() { jetpack_nozzles.clear(); }
 
 		public:
 
@@ -105,6 +114,19 @@ namespace Test
 			WeaponEquip*     equipped_weapon;
 			WeaponIntrinsic* intrinsic_weapon;
 
+			vector<CBone*> all_bones;
+			vector<CJoint*> all_joints;
+			vector<JetpackNozzle> jetpack_nozzles;
+
+			struct MyContactPoint 
+			{
+				ContactPoint cp;
+				Dood* dood;
+				MyContactPoint(const ContactPoint& cp, Dood* dood) : cp(cp), dood(dood) { }
+			};
+			vector<MyContactPoint> old_contact_points;
+			vector<MyContactPoint> new_contact_points;
+
 			Dood(GameState* gs, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
 			Vec3 GetPosition();
@@ -137,6 +159,15 @@ namespace Test
 			bool GetAmmoCount(int& result);
 
 			virtual void RegisterFeet() { }					// use this to create (custom?) FootState instances and add them to feet
+			void RegisterBone(CBone& bone);
+			void RegisterJoint(CJoint& joint);
+			void RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force);
+
+			virtual bool GetRBScriptingName(RigidBody* rb, string& name) { return false; }
+			virtual Vec3 GetDesiredJetpackAccel() { return Vec3(); }
+			virtual int GetTickAge() { return 0; }
+
+			void DoScriptedMotorControl();
 
 			virtual void PreCPHFT(float timestep);
 			virtual void PostCPHFT(float timestep);
@@ -215,6 +246,13 @@ namespace Test
 				DeathEvent(Dood* dood, const Damage& cause) : dood(dood), cause(cause) { }
 			};
 			EventDispatcher OnDeath;
+
+		protected:
+
+			void AddBoneToTable(CBone* bone, lua_State* L);
+			void AddJointToTable(CJoint* joint, int i, lua_State* L);
+			void AddNozzleToTable(int i, lua_State* L);
+			void AddContactPointToTable(MyContactPoint& cp, int i, lua_State* L);
 	};
 
 	void PushDoodHandle(lua_State* L, Dood* dood);

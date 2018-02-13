@@ -6,12 +6,14 @@
 
 #include "TestGame.h"
 
+#include "CBone.h"
+#include "CJoint.h"
+#include "JetpackNozzle.h"
+
 #include "PoseAimingGun.h"
 #include "WalkPose.h"
 
 #include "Particle.h"
-
-#include "MultiLayerBrain.h"
 
 #define PROFILE_CPHFT					1
 #define PROFILE_ANY_CPHFT				(PROFILE_CPHFT)
@@ -20,24 +22,7 @@
 
 #define ENABLE_NEW_JETPACKING			1
 
-
 #define MAX_TICK_AGE					300
-
-#define NUM_INPUTS						28
-#define NUM_MIDDLES						5
-#define NUM_OUTPUTS						3
-
-#define NUM_INPUTS_TWO					(NUM_INPUTS + NUM_OUTPUTS)
-#define NUM_MIDDLE_LAYERS_TWO			8
-#define NUM_MIDDLES_TWO					35
-#define NUM_OUTPUTS_TWO					1
-#define INITIAL_RANDOMNESS_TWO			0.1f
-#define LEARNING_RATE_TWO				0.005f
-
-#define NUM_LOWER_BODY_BONES			9
-#define NUM_LB_BONE_FLOATS				(NUM_LOWER_BODY_BONES * 6)
-
-#define NUM_LEG_JOINTS					8
 
 
 namespace Test
@@ -87,124 +72,19 @@ namespace Test
 	}
 #endif
 
-
-	struct Scores
-	{
-		static const unsigned int num_floats;
-
-		float first_member;
-		float head_error;
-
-		float total;
-
-		Scores() { memset(Begin(), 0, sizeof(float) * num_floats); }
-
-		float* Begin() { return &first_member; }
-		float* End()   { return &first_member + num_floats; }
-		const float* Begin() const { return &first_member; }
-		const float* End()   const { return &first_member + num_floats; }
-
-		void operator += (const Scores& other)
-		{
-			const float *bptr = other.Begin(), *bend = other.End();
-			for(float* aptr = Begin(); bptr != bend; ++aptr, ++bptr)
-				*aptr += *bptr;
-		}
-		Scores operator + (const Scores& other) { Scores result = *this; result += other; return result; }
-
-		void operator *= (float f)
-		{
-			for(float *aptr = Begin(), *aend = End(); aptr != aend; ++aptr)
-				*aptr *= f;
-		}
-		Scores operator * (float f) { Scores result = *this; result *= f; return result; }
-
-		void operator /= (float f)
-		{
-			for(float *aptr = Begin(), *aend = End(); aptr != aend; ++aptr)
-				*aptr /= f;
-		}
-		Scores operator / (float f) { Scores result = *this; result /= f; return result; }
-
-		// compute the total, assign it to the variable named total, and return its value
-		float ComputeTotal()
-		{
-			total = 0.0f;
-			for(float *aptr = Begin(); aptr != &total; ++aptr)
-				total += *aptr;
-			return total;
-		}
-
-		void ApplyScaleAndClamp(const Scores& scale)
-		{
-			const float *bptr = scale.Begin();
-			for(float* aptr = Begin(); aptr != &total; ++aptr, ++bptr)
-			{
-				//float s = (1.0f - expf(-*aptr * *bptr));
-				//if(_isnan(s))
-				//	s = 1.0f;
-				*aptr = *aptr * *bptr;//s;
-			}
-		}
-	};
-	const unsigned int Scores::num_floats = sizeof(Scores) / sizeof(float);
-
 	struct Experiment
 	{
 		mutex mutex;
 
-		MultiLayerBrain* nn;
-		MultiLayerBrain* nn2;
-		MultiLayerBrain* gradient2;
-
 		string saved_debug_text;
 
-		Experiment() : mutex(), nn(NULL), nn2(NULL), gradient2(NULL)
-		{
-			// load the saved best brain if possible
-			ifstream file("Files/Brains/genepool", ios::in | ios::binary);
-			if(!!file)
-			{
-				/*if(unsigned int error = NeuralNet::Read(file, nn))
-					Debug(((stringstream&)(stringstream() << "Error " << error << " loading NeuralNet" << endl)).str());
-				if(unsigned int error = NeuralNet::Read(file, nn2))
-					Debug(((stringstream&)(stringstream() << "Error " << error << " loading NeuralNet" << endl)).str());*/
-
-				file.close();
-			}
-
-			if(nn == NULL)
-			{
-				vector<unsigned int> layer_sizes;
-				layer_sizes.push_back(NUM_INPUTS);
-				layer_sizes.push_back(NUM_MIDDLES);
-				layer_sizes.push_back(NUM_OUTPUTS);
-				nn = new MultiLayerBrain(layer_sizes);
-				nn->Randomize(0.01f);
-			}
-
-			if(nn2 == NULL)
-			{
-				vector<unsigned int> layer_sizes;
-				layer_sizes.push_back(NUM_INPUTS_TWO);
-				for(unsigned int i = 0; i < NUM_MIDDLE_LAYERS_TWO; ++i)
-					layer_sizes.push_back(NUM_MIDDLES_TWO);
-				layer_sizes.push_back(NUM_OUTPUTS_TWO);
-				nn2 = new MultiLayerBrain(layer_sizes);
-				nn2->Randomize(INITIAL_RANDOMNESS_TWO);
-
-				gradient2 = new MultiLayerBrain(layer_sizes);
-			}
-		}
+		Experiment() : mutex() { }
 
 		~Experiment()
 		{
 #if PROFILE_ANY_CPHFT
 			DebugCPHFTProfilingData();
 #endif
-			if(nn) { delete nn; nn = NULL; }
-			if(nn2) { delete nn2; nn2 = NULL; }
-			if(gradient2) { delete gradient2; gradient2 = NULL; }
 		}
 
 		void DebugMat3(stringstream& ss, const Mat3& m)
@@ -216,23 +96,6 @@ namespace Test
 				else
 					ss << m[i];
 			ss << " }";
-		}
-
-		void SaveGenepool(const string& filename, bool verbose = false)
-		{
-			ofstream file(filename, ios::out | ios::binary);
-			if(!file)
-				Debug("Failed to save brain!\n");
-			else
-			{
-				//nn->Write(file);
-				//nn2->Write(file);
-
-				file.close();
-
-				if(verbose)
-					Debug(((stringstream&)(stringstream() << "Genepool saved to \"" << filename << "\"" << endl)).str());
-			}
 		}
 	};
 	static Experiment* experiment = NULL;
@@ -264,55 +127,6 @@ namespace Test
 		bool clean_init;
 		bool experiment_done;
 
-		struct CBone
-		{
-			string name;
-			RigidBody* rb;
-			Bone* posey;
-
-			Vec3 local_com;
-
-			Vec3 desired_torque;
-			Vec3 applied_torque;
-
-			Vec3 desired_force;
-
-			Vec3 initial_pos;
-			Quaternion initial_ori;
-
-			Vec3 last_vel, last_rot;
-			Vec3 net_impulse_linear, net_impulse_angular;
-
-			CBone() { }
-			CBone(const Soldier* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()), last_vel(rb->GetLinearVelocity()), last_rot(rb->GetAngularVelocity()), net_impulse_linear(), net_impulse_angular() { }
-
-			void Reset(float inv_timestep)
-			{
-				Vec3 vel = rb->GetLinearVelocity();
-				Vec3 rot = rb->GetAngularVelocity();
-				net_impulse_linear = (vel - last_vel) * (inv_timestep * rb->GetMass());
-				net_impulse_angular = Mat3(rb->GetTransformedMassInfo().moi) * (rot - last_rot) * inv_timestep;
-				last_vel = vel;
-				last_rot = rot;
-				desired_torque = applied_torque = desired_force = Vec3();
-			}
-
-			void ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)
-			{
-				Quaternion ori      = rb->GetOrientation();
-				Vec3 rot            = rb->GetAngularVelocity();
-
-				Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;
-				Vec3 desired_aaccel = (desired_rot - rot) * inv_timestep;
-
-				desired_torque = use_moi * desired_aaccel;
-			}
-
-			void ComputeDesiredTorqueWithDefaultMoI(const Quaternion& desired_ori, float inv_timestep) { ComputeDesiredTorque(desired_ori, Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
-			void ComputeDesiredTorqueWithPosey(const Mat3& use_moi, float inv_timestep)                { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), use_moi, inv_timestep); }
-			void ComputeDesiredTorqueWithDefaultMoIAndPosey(float inv_timestep)                        { ComputeDesiredTorque(posey->GetTransformationMatrix().ExtractOrientation(), Mat3(rb->GetTransformedMassInfo().moi), inv_timestep); }
-		};
-
 		CBone pelvis,    torso1, torso2, head;
 		CBone lshoulder, luarm,  llarm,  lhand;
 		CBone rshoulder, ruarm,  rlarm,  rhand;
@@ -321,259 +135,20 @@ namespace Test
 
 		RigidBody* gun_rb;
 
-		struct CJoint
-		{
-			SkeletalJointConstraint* sjc;
-			CBone *a, *b;
-
-			Vec3 actual;				// world-coords torque to be applied by this joint
-			Vec3 last;
-
-			Mat3 oriented_axes;			// gets recomputed every time Reset() is called
-
-			Mat3 last_desired;
-
-			Vec3 r1, r2;
-
-			Vec3 initial_rvec;
-			Vec3 goal_rvec;
-			Vec3 prev_goal;
-			Vec3 integral;
-
-			int mode;
-			Vec3 pd_result;
-			float chain_coeff;
-
-			CJoint() : sjc(NULL), a(NULL), b(NULL), mode(0) { }
-			CJoint(const Soldier* dood, CBone& bone_a, CBone& bone_b, float max_torque, int mode = 0) : mode(mode)
-			{
-				RigidBody *arb = bone_a.rb, *brb = bone_b.rb;
-				for(unsigned int i = 0; i < dood->constraints.size(); ++i)
-				{
-					SkeletalJointConstraint* j = (SkeletalJointConstraint*)dood->constraints[i];
-					if(j->obj_a == arb && j->obj_b == brb)
-					{
-						a   = &bone_a;
-						b   = &bone_b;
-						sjc = j;
-
-						sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
-						sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
-
-						r1 = sjc->pos - a->local_com;
-						r2 = sjc->pos - b->local_com;
-
-						return;
-					}
-				}
-
-				// joint not found?
-				a = b = NULL;
-				sjc = NULL;
-			}
-
-			void Reset()
-			{
-				last = sjc->apply_torque;
-
-				//sjc->apply_torque = actual = Vec3();
-				oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
-			}
-
-			Vec3 GetRVec() const
-			{
-				Quaternion a_to_b = sjc->obj_a->GetOrientation() * Quaternion::Reverse(sjc->obj_b->GetOrientation());
-				return oriented_axes * a_to_b.ToRVec();
-			}
-
-			// returns true if UNABLE to match the requested value
-			bool SetWorldTorque(const Vec3& torque)
-			{
-				Vec3 local_torque = oriented_axes * torque;
-
-				const Vec3 &mint = sjc->min_torque, &maxt = sjc->max_torque;
-
-				Vec3 old = oriented_axes.TransposedMultiply(sjc->apply_torque);
-
-				sjc->apply_torque.x = max(mint.x, min(maxt.x, local_torque.x));
-				sjc->apply_torque.y = max(mint.y, min(maxt.y, local_torque.y));
-				sjc->apply_torque.z = max(mint.z, min(maxt.z, local_torque.z));
-
-				Vec3 dif = sjc->apply_torque - local_torque;
-				bool result = (dif.x != 0 || dif.y != 0 || dif.z != 0);
-
-				if(result)
-					actual = oriented_axes.TransposedMultiply(sjc->apply_torque);
-				else
-					actual = torque;
-
-				Vec3 delta = actual - old;
-
-				b->applied_torque -= delta;
-				a->applied_torque += delta;
-
-				return result;
-			}
-
-			bool SetTorqueToSatisfyA() { return SetWorldTorque(a->desired_torque - (a->applied_torque - actual)); }
-			bool SetTorqueToSatisfyB() { return SetWorldTorque((b->applied_torque + actual) - b->desired_torque); }
-
-			bool SetOrientedTorque(const Vec3& local_torque)
-			{
-				Vec3 old = oriented_axes.TransposedMultiply(sjc->apply_torque);
-
-				const Vec3 &mint = sjc->min_torque, &maxt = sjc->max_torque;
-
-				sjc->apply_torque.x = max(mint.x, min(maxt.x, local_torque.x));
-				sjc->apply_torque.y = max(mint.y, min(maxt.y, local_torque.y));
-				sjc->apply_torque.z = max(mint.z, min(maxt.z, local_torque.z));
-
-				Vec3 dif = sjc->apply_torque - local_torque;
-				bool result = (dif.x != 0 || dif.y != 0 || dif.z != 0);
-
-				actual = oriented_axes.TransposedMultiply(sjc->apply_torque);
-
-				Vec3 delta = actual - old;
-
-				b->applied_torque -= delta;
-				a->applied_torque += delta;
-
-				return result;
-			}
-		};
-
 		CJoint spine1, spine2, neck;
 		CJoint lsja,   lsjb,   lelbow, lwrist;
 		CJoint rsja,   rsjb,   relbow, rwrist;
 		CJoint lhip,   lknee,  lankle, lht;
 		CJoint rhip,   rknee,  rankle, rht;
 
-		vector<CBone*>  all_bones;
-		vector<CJoint*> all_joints;
-
-		CJoint* leg_joints[NUM_LEG_JOINTS];
-		CBone* lower_body_bones[NUM_LOWER_BODY_BONES];
-
-		Scores cat_scores;
-
-		Vec3 initial_com;
-
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
-		float prev_score, prev_gradient;
-
-		vector<float> scratch;
-		vector<float> nn2_inputs;
-
-		struct JetpackNozzle
-		{
-			CBone* bone;
-
-			Vec3 pos;
-			Vec3 cone_center;
-			float cone_cossq;
-			float max_force, max_forcesq;
-
-			Vec3 world_force, world_torque;
-			Vec3 try_force, try_torque;
-
-			Vec3 world_center;
-			Vec3 apply_pos;
-			Mat3 force_to_torque;
-
-			JetpackNozzle(CBone& bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force) : bone(&bone), pos(pos), cone_center(cone_center), cone_cossq(cosf(cone_angle)), max_force(max_force), max_forcesq(max_force * max_force) { cone_cossq *= cone_cossq; }
-
-			void Reset() { world_force = Vec3(); }
-
-			void SolverInit(const Vec3& dood_com, float prop_frac)
-			{
-				const RigidBody& rb = *bone->rb;
-				Mat3 rm = rb.GetOrientation().ToMat3();
-				world_center = rm * cone_center;
-				apply_pos    = rm * pos + rb.GetPosition();
-
-				// compute force-to-torque Mat3
-				Vec3 bone_com = rb.GetCenterOfMass();
-				Vec3 r1 = apply_pos - bone_com;
-				Mat3 xr1 = Mat3(        0,   r1.z,  -r1.y,
-									-r1.z,      0,   r1.x,
-									 r1.y,  -r1.x,      0	);
-				Vec3 r2 = bone_com - dood_com;
-				Mat3 xr2 = Mat3(        0,   r2.z,  -r2.y,
-									-r2.z,      0,   r2.x,
-									 r2.y,  -r2.x,      0	);
-				force_to_torque = xr1 + xr2;			// is this right?
-
-
-				world_force  = world_center * max_force * prop_frac;
-				world_torque = force_to_torque * world_force;
-
-				try_force  = world_force;
-				try_torque = world_torque;
-			}
-
-			void GetNudgeEffects(const Vec3& nudge, Vec3& nu_force, Vec3& nu_torque)
-			{
-				nu_force = world_force + nudge;
-
-				
-				float dot = Vec3::Dot(nu_force, world_center);
-				if(dot <= 0.0f)
-					nu_force = nu_torque = Vec3();
-				else
-				{
-					Vec3 axial = world_center * dot;
-					Vec3 ortho = nu_force - axial;
-					float axialsq = axial.ComputeMagnitudeSquared();
-					float orthosq = ortho.ComputeMagnitudeSquared();
-					if(orthosq > axialsq * cone_cossq)
-					{
-						ortho *= sqrtf(axialsq * cone_cossq / orthosq);
-						nu_force = axial + ortho;
-					}
-
-					float magsq = nu_force.ComputeMagnitudeSquared();
-					if(magsq > max_forcesq)
-						nu_force *= sqrtf(max_forcesq / magsq);
-
-					nu_torque = force_to_torque * nu_force;
-				}
-			}
-
-			void ApplySelectedForce(float timestep)
-			{
-				GetNudgeEffects(Vec3(), world_force, world_torque);
-
-				//bone->rb->ApplyWorldForce(world_force, apply_pos);				// TODO: make this work?
-				bone->rb->ApplyWorldImpulse(world_force * timestep, apply_pos);
-			}
-		};
 
 		Vec3 initial_pos;
 
-		vector<JetpackNozzle> jetpack_nozzles;
 		bool jetpacking;
 		Vec3 desired_jp_accel;
-
-		Vec3 desired_aim;
-		Vec3 prev_com_vel;
-
-		bool failed_head, failed_foot;
-
-		Vec3 desired_com, prev_comv;
-
-		unsigned int frame_index;
-		float frame_time;
-
-		struct MyContactPoint 
-		{
-			ContactPoint cp;
-			Imp* imp;
-			MyContactPoint(const ContactPoint& cp, Imp* imp) : cp(cp), imp(imp) { }
-		};
-		vector<MyContactPoint> old_contact_points;
-		vector<MyContactPoint> new_contact_points;
 
 		Imp() :
 			init(false),
@@ -581,102 +156,11 @@ namespace Test
 			timestep(0),
 			inv_timestep(0),
 			tick_age(0),
-			max_tick_age(MAX_TICK_AGE),
-			prev_score(0),
-			prev_gradient(0)
+			max_tick_age(MAX_TICK_AGE)
 		{
 		}
 
-		~Imp() 
-		{
-		}
-
-		void RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
-		void RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
-
-		void RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force)
-		{
-			jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
-			jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
-		}
-
-		// helper functions, called by Soldier::Imp::Init
-		void InitBoneHelpers(Soldier* dood)
-		{
-			RegisterBone( pelvis    = CBone( dood, "pelvis"     ));
-			RegisterBone( torso1    = CBone( dood, "torso 1"    ));
-			RegisterBone( torso2    = CBone( dood, "torso 2"    ));
-			RegisterBone( head      = CBone( dood, "head"       ));
-			RegisterBone( lshoulder = CBone( dood, "l shoulder" ));
-			RegisterBone( luarm     = CBone( dood, "l arm 1"    ));
-			RegisterBone( llarm     = CBone( dood, "l arm 2"    ));
-			RegisterBone( lhand     = CBone( dood, "l hand"     ));
-			RegisterBone( rshoulder = CBone( dood, "r shoulder" ));
-			RegisterBone( ruarm     = CBone( dood, "r arm 1"    ));
-			RegisterBone( rlarm     = CBone( dood, "r arm 2"    ));
-			RegisterBone( rhand     = CBone( dood, "r hand"     ));
-			RegisterBone( luleg     = CBone( dood, "l leg 1"    ));
-			RegisterBone( llleg     = CBone( dood, "l leg 2"    ));
-			RegisterBone( lheel     = CBone( dood, "l heel"     ));
-			RegisterBone( ltoe      = CBone( dood, "l toe"      ));
-			RegisterBone( ruleg     = CBone( dood, "r leg 1"    ));
-			RegisterBone( rlleg     = CBone( dood, "r leg 2"    ));
-			RegisterBone( rheel     = CBone( dood, "r heel"     ));
-			RegisterBone( rtoe      = CBone( dood, "r toe"      ));
-		}
-
-		void InitJointHelpers(Soldier* dood)
-		{
-			float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
-
-			RegisterJoint( spine1 = CJoint( dood, pelvis,    torso1,    SP,  0 ));
-			RegisterJoint( spine2 = CJoint( dood, torso1,    torso2,    SP,  0 ));
-			RegisterJoint( neck   = CJoint( dood, torso2,    head,      N,   0 ));
-			RegisterJoint( lsja   = CJoint( dood, torso2,    lshoulder, SA,  0 ));
-			RegisterJoint( lsjb   = CJoint( dood, lshoulder, luarm,     SB,  0 ));
-			RegisterJoint( lelbow = CJoint( dood, luarm,     llarm,     E,   0 ));
-			RegisterJoint( lwrist = CJoint( dood, llarm,     lhand,     W,   0 ));
-			RegisterJoint( rsja   = CJoint( dood, torso2,    rshoulder, SA,  0 ));
-			RegisterJoint( rsjb   = CJoint( dood, rshoulder, ruarm,     SB,  0 ));
-			RegisterJoint( relbow = CJoint( dood, ruarm,     rlarm,     E,   0 ));
-			RegisterJoint( rwrist = CJoint( dood, rlarm,     rhand,     W,   0 ));
-			RegisterJoint( lhip   = CJoint( dood, pelvis,    luleg,     H,  -0 ));
-			RegisterJoint( lknee  = CJoint( dood, luleg,     llleg,     K,  -0 ));
-			RegisterJoint( lankle = CJoint( dood, llleg,     lheel,     A,  -0 ));
-			RegisterJoint( lht    = CJoint( dood, lheel,     ltoe,      HT, -0 ));
-			RegisterJoint( rhip   = CJoint( dood, pelvis,    ruleg,     H,  -0 ));
-			RegisterJoint( rknee  = CJoint( dood, ruleg,     rlleg,     K,  -0 ));
-			RegisterJoint( rankle = CJoint( dood, rlleg,     rheel,     A,  -0 ));
-			RegisterJoint( rht    = CJoint( dood, rheel,     rtoe,      HT, -0 ));
-
-			CJoint* temp_leg_joints[NUM_LEG_JOINTS] = { &lht, &lankle, &lknee, &lhip, &rht, &rankle, &rknee, &rhip };
-			for(unsigned int i = 0; i < NUM_LEG_JOINTS; ++i)
-				leg_joints[i] = temp_leg_joints[i];
-
-			// knees have special torque limits (smaller on the second and third axes)
-			float KS = 0;//K * 0.25f;
-			lknee.sjc->min_torque.y = -KS;
-			lknee.sjc->min_torque.z = -KS;
-			lknee.sjc->max_torque.y =  KS;
-			lknee.sjc->max_torque.z =  KS;
-			rknee.sjc->min_torque.y = -KS;
-			rknee.sjc->min_torque.z = -KS;
-			rknee.sjc->max_torque.y =  KS;
-			rknee.sjc->max_torque.z =  KS;
-		}
-
-		void InitJetpackNozzles()
-		{
-			Vec3 upward(0, 1, 0);
-			float jp_angle = 1.0f;
-			float jp_force = 200.0f;//150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
-
-			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jp_angle, jp_force );
-			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jp_angle, jp_force );
-			RegisterSymmetricJetpackNozzles( lshoulder, rshoulder, Vec3( 0.277547f, 1.480827f, -0.385142f ), upward, jp_angle, jp_force );
-			RegisterSymmetricJetpackNozzles( ltoe,      rtoe,      Vec3( 0.237806f, 0.061778f,  0.038247f ), upward, jp_angle, jp_force );
-			RegisterSymmetricJetpackNozzles( lheel,     rheel,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jp_angle, jp_force );
-		}
+		~Imp() { }
 
 		void Init(Soldier* dood)
 		{
@@ -684,25 +168,17 @@ namespace Test
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
 			// init some component helpers
-			all_bones.clear();
-			all_joints.clear();
-			jetpack_nozzles.clear();
-
-			InitBoneHelpers(dood);
-			InitJointHelpers(dood);												// this method also responsible for setting joint torque limits!
-			InitJetpackNozzles();
-
-			CBone* temp_lb_bones[NUM_LOWER_BODY_BONES] = { &ltoe, &lheel, &llleg, &luleg, &pelvis, &ruleg, &rlleg, &rheel, &rtoe };
-			for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-				lower_body_bones[i] = temp_lb_bones[i];
+			dood->InitBoneHelpers();
+			dood->InitJointHelpers();											// this method also responsible for setting joint torque limits!
+			dood->InitJetpackNozzles();
 
 			// some misc. initialization
-			no_touchy.imp = this;
+			no_touchy.dood = dood;
 			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
 				if(*iter != lheel.rb && *iter != rheel.rb && *iter != ltoe.rb && *iter != rtoe.rb)
 					(*iter)->SetContactCallback(&no_touchy);
 
-			foot_touchy.imp = this;
+			foot_touchy.dood = dood;
 			foot_touchy.standing_callback = &dood->standing_callback;
 			for(vector<FootState*>::iterator iter = dood->feet.begin(); iter != dood->feet.end(); ++iter)
 				(*iter)->body->SetContactCallback(&foot_touchy);
@@ -724,9 +200,9 @@ namespace Test
 			dood->DoInitialPose();
 			dood->posey->skeleton->InvalidateCachedBoneXforms();
 
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
+			for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
 			{
-				CBone& cb = *all_bones[i];
+				CBone& cb = *dood->all_bones[i];
 				RigidBody& rb = *cb.rb;
 
 				Bone* posey = cb.posey;
@@ -753,8 +229,8 @@ namespace Test
 				gun_rb->SetAngularVelocity(Vec3());
 			}
 
-			for(unsigned int i = 0; i < all_joints.size(); ++i)
-				all_joints[i]->last = Vec3();
+			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+				dood->all_joints[i]->last = Vec3();
 
 			SharedInit(dood);
 		}
@@ -764,17 +240,6 @@ namespace Test
 			clean_init = false;
 			experiment_done = false;
 			tick_age = 0;
-
-			frame_index = 0;
-			frame_time = 0.0f;
-
-			cat_scores = Scores();
-
-			failed_head = failed_foot = false;
-
-			
-
-			prev_com_vel = Vec3();
 
 			//old_contact_points.clear();
 			//new_contact_points.clear();
@@ -896,77 +361,6 @@ namespace Test
 			}
 		}
 
-		void ResolveJetpackOutput(Soldier* dood, const TimingInfo& time, float dood_mass, const Vec3& dood_com, const Vec3& desired_jp_accel, const Vec3& desired_jp_torque)
-		{
-			unsigned int num_nozzles = jetpack_nozzles.size();
-
-			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-				iter->SolverInit(dood_com, 0.0f);
-
-#if ENABLE_NEW_JETPACKING
-			Vec3 desired_jp_force = desired_jp_accel * dood_mass;
-
-			float torque_coeff = 50.0f;
-
-			// search for nozzle forces to match the requested accel & torque
-			Vec3 force_error, torque_error;
-			float errsq, error;
-			for(unsigned int i = 0; i < 500; ++i)
-			{
-				if(i == 0)
-				{
-					force_error  = -desired_jp_force;
-					torque_error = -desired_jp_torque;
-					for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-					{
-						force_error  += iter->world_force;
-						torque_error += iter->world_torque;
-					}
-					
-					errsq = force_error.ComputeMagnitudeSquared() + torque_error.ComputeMagnitudeSquared() * torque_coeff;
-				}
-				else
-				{
-					float mutation_scale = error * 0.25f;
-					Vec3 mutant_force  = force_error;
-					Vec3 mutant_torque = torque_error;
-					for(unsigned char j = 0; j < 3; ++j)
-					{
-						JetpackNozzle& jpn = jetpack_nozzles[Random3D::RandInt() % num_nozzles];
-
-						jpn.GetNudgeEffects(Random3D::RandomNormalizedVector(Random3D::Rand(mutation_scale)), jpn.try_force, jpn.try_torque);
-
-						mutant_force  += jpn.try_force  - jpn.world_force;
-						mutant_torque += jpn.try_torque - jpn.world_torque;
-					}
-
-					float mutant_errsq = mutant_force.ComputeMagnitudeSquared() + mutant_torque.ComputeMagnitudeSquared() * torque_coeff;
-					if(mutant_errsq < errsq)
-					{
-						for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-						{
-							iter->world_force  = iter->try_force;
-							iter->world_torque = iter->try_torque;
-						}
-						force_error  = mutant_force;
-						torque_error = mutant_torque;
-
-						errsq = mutant_errsq;
-					}
-				}
-
-				error = sqrtf(errsq);
-				Debug(((stringstream&)(stringstream() << "i = " << i << "; error squared = " << errsq << "; error = " << error << endl)).str());
-				if(error < 1.0f)
-					break;
-			}
-#endif
-			
-			// apply the nozzle forces we computed
-			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
-				iter->ApplySelectedForce(timestep);
-		}
-
 		void Update(Soldier* dood, const TimingInfo& time)
 		{
 #if PROFILE_CPHFT
@@ -1018,9 +412,9 @@ namespace Test
 
 			// reset all the joints and bones
 			int ji = 0;
-			for(unsigned int i = 0; i < all_joints.size(); ++i)
+			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
 			{
-				CJoint& joint = *all_joints[i];
+				CJoint& joint = *dood->all_joints[i];
 				joint.Reset();
 				if(tick_age == 0)
 				{
@@ -1032,7 +426,7 @@ namespace Test
 				}
 				joint.SetOrientedTorque(Vec3());
 			}
-			for (vector<CBone*>::iterator iter = all_bones.begin(); iter != all_bones.end(); ++iter)
+			for (vector<CBone*>::iterator iter = dood->all_bones.begin(); iter != dood->all_bones.end(); ++iter)
 			{
 				(*iter)->Reset(inv_timestep);
 				(*iter)->rb->ComputeInvMoI();		// force recomputation of stuffs
@@ -1047,7 +441,7 @@ namespace Test
 
 			set<RigidBody*> included_rbs;
 			//included_rbs.insert(dood->velocity_change_bodies.begin(), dood->velocity_change_bodies.end());
-			//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
+			//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)		// these no longer exist!
 			//	included_rbs.insert(lower_body_bones[i]->rb);
 			included_rbs.insert(pelvis.rb);
 			//included_rbs.insert(torso1.rb);
@@ -1077,21 +471,10 @@ namespace Test
 			Mat3 yawmat = yaw_ori.ToMat3();
 			Mat3 unyaw = yawmat.Transpose();
 
-			vector<float> rb_kinetic(all_bones.size());
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
-			{
-				const RigidBody& rb = *all_bones[i]->rb;
-				float ke = rb.GetMass() * rb.GetLinearVelocity().ComputeMagnitudeSquared();
-				Vec3 av = rb.GetAngularVelocity();
-				ke += Vec3::Dot(av, Mat3(rb.GetTransformedMassInfo().moi) * av);
-				ke *= 0.5f;
-				rb_kinetic[i] = ke;
-			}
-
-			for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+			for(vector<JetpackNozzle>::iterator iter = dood->jetpack_nozzles.begin(); iter != dood->jetpack_nozzles.end(); ++iter)
 				iter->SolverInit(dood_com, 0.0f);
 
-			for(vector<CJoint*>::iterator iter = all_joints.begin(); iter != all_joints.end(); ++iter)
+			for(vector<CJoint*>::iterator iter = dood->all_joints.begin(); iter != dood->all_joints.end(); ++iter)
 				(*iter)->SetOrientedTorque(Vec3());
 			
 			GetDesiredTorsoOris(dood, p, t1, t2);
@@ -1114,204 +497,19 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
 
-			//pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
+			pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
 
-			DoScriptedMotorControl(dood);
+			dood->DoScriptedMotorControl();
 
-#if 0
-
-			//for(unsigned int i = 0; i < all_joints.size(); ++i)
-			//	all_joints[i]->SetWorldTorque(Vec3());
-
-			float helper_force_magsq = 0.0f;
-
-			if(tick_age == 0)
-			{
-				desired_com = initial_com = dood_com;
-				prev_comv = Vec3();
-			}
-
-			//pelvis.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);		// recompute to keep hips from fubar'ing stuff
-
-			//if(tick_age != 0)
-			//{
-			//	Vec3 expected_vel = goal_vel[0];
-			//	expected_vel -= dood->desired_vel_2d;
-			//	expected_vel *= expf(-20.0f * timestep);	// ground_traction = 20.0f
-			//	expected_vel += dood->desired_vel_2d;
-			//	goal_vel[0] = expected_vel;
-			//}
-
-			float any_cps[20];
-			bool foot_cps[4] = { false, false, false, false };
-			unsigned int bad_touch = 0;
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
-			{
-				RigidBody* rb = all_bones[i]->rb;
-				any_cps[i] = 0.0f;
-				for(unsigned int j = 0; j < new_contact_points.size(); ++j)
-					if(new_contact_points[j].cp.obj_a == rb || new_contact_points[j].cp.obj_b == rb)
-					{
-						if(any_cps[i] == 0)
-						{
-							any_cps[i] = 1.0f;
-							if(rb != lheel.rb && rb != rheel.rb && rb != ltoe.rb && rb != rtoe.rb)
-								++bad_touch;
-							for(unsigned int k = 0; k < 4; ++k)
-								if(dood->feet[k]->body == rb)
-									foot_cps[k] = true;
-						}
-						break;
-					}
-			}
-
-			//for(unsigned int i = 0; i < all_joints.size(); ++i)
-			//	all_joints[i]->SetOrientedTorque(Vec3());//all_joints[i]->sjc->apply_torque);
-
-			Vec3 pos_error = unyaw * (desired_com - dood_com);
-
-			// how well did we do at meeting the objectives that were set last tick?
-			Scores instant_scores;
-
-			Quaternion head_ori = head.rb->GetOrientation(); 
-			desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
-			Vec3 head_error = (head_ori * Quaternion::Reverse(desired_head_ori)).ToRVec();
-
-			// set inputs
-			vector<float> inputs;
-			inputs.push_back(1.0f);
-			PushVec3(inputs, head_error);
-			PushVec3(inputs, head.rb->GetLinearVelocity());
-			PushVec3(inputs, head.rb->GetAngularVelocity());
-			PushVec3(inputs, (torso2.rb->GetOrientation() * Quaternion::Reverse(head_ori)).ToRVec());
-			PushVec3(inputs, torso2.rb->GetLinearVelocity());
-			PushVec3(inputs, torso2.rb->GetAngularVelocity());
-			PushVec3(inputs, Quaternion::Reverse(head_ori) * Vec3(0, 1, 0));
-			PushVec3(inputs, Quaternion::Reverse(torso2.rb->GetOrientation()) * Vec3(0, 1, 0));
-			PushVec3(inputs, Quaternion::Reverse(head_ori) * neck.sjc->net_impulse_linear * (tick_age != 0 ? 0.02f : 0.0f));
-
-#if 0
-			bool any = false;
-			for(unsigned int i = 0; i < inputs.size(); ++i)
-				if(abs(inputs[i]) > 0.98f)
-				{
-					Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << "; pre-tanh = " << atanhf(inputs[i]) << endl)).str());
-					any = true;
-				}
-			if(any)
-				Debug(((stringstream&)(stringstream() << "tick_age = " << tick_age << endl)).str());
-#endif
-			
-			// evaluate nn
-			vector<float> outputs;
-			experiment->nn->Evaluate(inputs, outputs, scratch);
-
-			float rawerror = head_error.ComputeMagnitudeSquared();
-			float clamped_error = tanhf(rawerror) * 0.8f;
-			/*float score = 1.0f - rawerror;
-			for(unsigned int i = 0; i < NUM_OUTPUTS; ++i)
-				experiment->nn->correct_outputs[i] = experiment->nn->outputs[i] * score;
-
-			experiment->nn->MultiTrainBegin();
-			float nn_score = experiment->nn->MultiTrainNext();
-			experiment->nn->MultiTrainApply(0.05f);*/
-
-			outputs[0] = neck.sjc->apply_torque.x / neck.sjc->max_torque.x;		// assuming min_torque = negative of max_torque
-			outputs[1] = neck.sjc->apply_torque.y / neck.sjc->max_torque.y;
-			outputs[2] = neck.sjc->apply_torque.z / neck.sjc->max_torque.z;
-
-			//for(int i = 0; i < 3; ++i)
-			//	outputs[i] += 0.1f * sinf(tick_age * 0.05f);
-
-			float nn2_score;
-			float grad_mag;
-			vector<float> nn2_guess;
-			if(tick_age != 0)			// score nn2 based on how well it maps the *previous* tick's (inputs, action) to the *current* tick's score
-			{
-				vector<float> correct_outputs;
-				vector<float> junk;
-				correct_outputs.push_back(clamped_error);
-				nn2_score = experiment->nn2->AddGradient(correct_outputs.size(), nn2_inputs, nn2_guess, junk, scratch, correct_outputs, *experiment->gradient2);
-				float junk2;
-				experiment->gradient2->GetCoeffTotals(junk2, grad_mag);
-				grad_mag = sqrtf(grad_mag);
-			}
-			else
-			{
-				nn2_guess.push_back(0.0f);
-				nn2_score = 0.0f;
-				grad_mag = 0.0f;
-			}
-
-			nn2_inputs.resize(NUM_INPUTS_TWO);
-			memcpy(nn2_inputs.data(), inputs.data(), min((unsigned int)NUM_INPUTS, inputs.size()));
-			memcpy(nn2_inputs.data() + NUM_INPUTS, outputs.data(), NUM_INPUTS_TWO - NUM_INPUTS);
-
-
-
-			float nntot, nnsqtot;
-			experiment->nn->GetCoeffTotals(nntot, nnsqtot);
-
-			float nn2tot = 0.0f;
-			float nn2sqtot = 0.0f;
-			experiment->nn2->GetCoeffTotals(nn2tot, nn2sqtot);
-
-			stringstream ss;
-			ss << "prev total = " << prev_score << endl;
-			ss << "prev gradient = " << prev_gradient << endl;
-			ss << endl;
-			ss << "age = " << tick_age << endl;
-			ss << "raw error = " << rawerror << endl;
-			ss << "clamped error = " << clamped_error << endl;
-			//ss << endl;
-			//ss << "nn score = " << nn_score << endl;
-			//ss << "nn tot = " << nntot << endl;
-			//ss << "nnsq tot = " << nnsqtot << endl;
-			//ss << endl;
-			ss << "error guess = " << nn2_guess[0] << endl;
-			ss << "error error = " << nn2_score << endl;
-			ss << "nn2 tot = " << nn2tot << endl;
-			ss << "nn2sq tot = " << nn2sqtot << endl;
-			ss << "gradient mag = " << grad_mag << endl;
-			((TestGame*)dood->game_state)->debug_text = ss.str();
-			Debug(((stringstream&)(stringstream() << "raw error = " << rawerror << "; clamped error = " << clamped_error << "; error guess = " << nn2_guess[0] << "; error error = " << nn2_score << "; nntot = " << nn2tot << "; nnsqtot = " << nn2sqtot << "; gradient mag = " << grad_mag << endl)).str());
-
-			// apply outputs
-			CJoint* etp = &neck;
-
-			const float* ioptr = outputs.data();
-			const float* mins = (float*)&etp->sjc->min_torque;
-			const float* maxs = (float*)&etp->sjc->max_torque;
-			Vec3 use_torque;
-			float* uts = (float*)&use_torque;
-			for(unsigned int k = 0; k < 3; ++k)
-				if(mins[k] != maxs[k])
-				{
-					float ov = *(ioptr++);
-					uts[k] = ov >= 0 ? maxs[k] * ov : mins[k] * -ov;
-				}
-
-			etp->SetOrientedTorque(use_torque);
-
-			static bool printed_num_inputs = false;
-			if(!printed_num_inputs)
-			{
-				printed_num_inputs = true;
-				Debug(((stringstream&)(stringstream() << "num inputs = " << inputs.size() << endl)).str());
-				//for(unsigned int i = 0; i < inputs.size(); ++i)
-				//Debug(((stringstream&)(stringstream() << "\tinputs[" << i << "] = " << inputs[i] << endl)).str());
-			}
-
-#endif
 #if ENABLE_NEW_JETPACKING
 			if(jetpacking)
 			{
-				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				for(vector<JetpackNozzle>::iterator iter = dood->jetpack_nozzles.begin(); iter != dood->jetpack_nozzles.end(); ++iter)
 					iter->ApplySelectedForce(timestep);
 			}
 			else
 			{
-				for(vector<JetpackNozzle>::iterator iter = jetpack_nozzles.begin(); iter != jetpack_nozzles.end(); ++iter)
+				for(vector<JetpackNozzle>::iterator iter = dood->jetpack_nozzles.begin(); iter != dood->jetpack_nozzles.end(); ++iter)
 					iter->Reset();
 			}
 
@@ -1322,33 +520,11 @@ namespace Test
 #endif
 
 #if 0
-			// scoring
-			Scores cat_weights;
-			cat_weights.head_error = 1.0f;
-			
-			instant_scores.head_error = nn2_score;
-
-			instant_scores.ApplyScaleAndClamp(cat_weights);
-			cat_scores += instant_scores;
-
-#if PROFILE_CPHFT
-			timer_scoring += timer.GetAndRestart();
-#endif
-
 			// update the timer, and check for when the experiment is over
 			++tick_age;
 
 			if(tick_age >= MAX_TICK_AGE)
-			{
 				experiment_done = true;
-
-				experiment->nn2->Train(*experiment->gradient2, LEARNING_RATE_TWO);
-				experiment->gradient2->SetZero();
-
-				prev_score = cat_scores.ComputeTotal();
-				prev_gradient = grad_mag;
-				Debug(((stringstream&)(stringstream() << "final score = " << prev_score << "; final gradient mag = " << prev_gradient << endl)).str());
-			}
 
 #endif
 
@@ -1360,502 +536,19 @@ namespace Test
 #endif
 		}
 
-		static void PushVec3(vector<float>& inputs, const Vec3& v)
-		{
-			inputs.push_back(tanhf(v.x));
-			inputs.push_back(tanhf(v.y));
-			inputs.push_back(tanhf(v.z));
-		}
-
-		void DoScriptedMotorControl(Soldier* dood)
-		{
-			string filename = ((stringstream&)(stringstream() << "Files/Scripts/soldier_motor_control.lua")).str();
-
-			ScriptingState script = ScriptSystem::GetGlobalState();
-			lua_State* L = script.GetLuaState();
-
-			// hook variables (hv)
-			lua_newtable(L);
-
-			// hv.bones
-			lua_newtable(L);
-			for(unsigned int i = 0; i < all_bones.size(); ++i)
-				AddBoneToTable(all_bones[i], L);
-			lua_setfield(L, -2, "bones");
-
-			// hv.joints
-			lua_newtable(L);
-			for(unsigned int i = 0; i < all_joints.size(); ++i)
-				AddJointToTable(all_joints[i], i + 1, L);
-			lua_setfield(L, -2, "joints");
-
-
-			// hv.nozzles
-			lua_newtable(L);
-			for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
-				AddNozzleToTable(i, L);
-			lua_setfield(L, -2, "nozzles");
-
-			// hv.controls
-			lua_newtable(L);
-			PushLuaMat3(L, Mat3::FromRVec(0, -dood->yaw, 0));
-			lua_setfield(L, -2, "yaw_mat");
-			lua_pushnumber(L, dood->pitch);
-			lua_setfield(L, -2, "pitch");
-			PushLuaVector(L, dood->desired_vel_2d);
-			lua_setfield(L, -2, "walkvel");
-			PushLuaVector(L, desired_jp_accel);
-			lua_setfield(L, -2, "jpaccel");
-			lua_pushboolean(L, dood->control_state->GetBoolControl("jump"));
-			lua_setfield(L, -2, "jump");
-			lua_setfield(L, -2, "controls");
-
-			// hv.newcp
-			lua_newtable(L);
-			for(unsigned int i = 0; i < new_contact_points.size(); ++i)
-				AddContactPointToTable(new_contact_points[i], i, L);
-			lua_setfield(L, -2, "newcp");
-
-			// hv.oldcp
-			lua_newtable(L);
-			for(unsigned int i = 0; i < old_contact_points.size(); ++i)
-				AddContactPointToTable(old_contact_points[i], i, L);
-			lua_setfield(L, -2, "oldcp");
-
-			lua_pushnumber(L, tick_age);
-			lua_setfield(L, -2, "age");
-			
-			lua_setglobal(L, "hv");
-
-			script.DoFile(filename);
-
-			lua_pushnil(L);
-			lua_setglobal(L, "hv");
-		}
-
-		void AddBoneToTable(CBone* bone, lua_State* L)
-		{
-			CBone** bptr = (CBone**)lua_newuserdata(L, sizeof(CBone*));
-			*bptr = bone;
-
-			lua_getglobal(L, "CBoneMeta");
-			if(lua_isnil(L, -1))
-			{
-				lua_pop(L, 1);
-				// must create metatable for globals
-				lua_newtable(L);									// push; top = 2
-
-				lua_pushcclosure(L, cbone_index, 0);				// push; top = 3
-				lua_setfield(L, -2, "__index");						// pop; top = 2
-
-				lua_pushcclosure(L, cbone_newindex, 0);
-				lua_setfield(L, -2, "__newindex");
-
-				lua_setglobal(L, "CBoneMeta");
-				lua_getglobal(L, "CBoneMeta");
-			}
-			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
-
-			lua_setfield(L, -2, bone->name.c_str());
-		}
-
-		void AddJointToTable(CJoint* joint, int i, lua_State* L)
-		{
-			lua_pushinteger(L, i);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the joints list)
-
-			CJoint** jptr = (CJoint**)lua_newuserdata(L, sizeof(CJoint*));
-			*jptr = joint;
-
-			lua_getglobal(L, "CJointMeta");
-			if(lua_isnil(L, -1))
-			{
-				lua_pop(L, 1);
-				// must create metatable for globals
-				lua_newtable(L);									// push; top = 2
-
-				lua_pushcclosure(L, cjoint_index, 0);				// push; top = 3
-				lua_setfield(L, -2, "__index");						// pop; top = 2
-
-				lua_setglobal(L, "CJointMeta");
-				lua_getglobal(L, "CJointMeta");
-			}
-			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
-
-			lua_settable(L, -3);
-		}
-
-		void AddNozzleToTable(int i, lua_State* L)
-		{
-			lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
-
-			JetpackNozzle** jptr = (JetpackNozzle**)lua_newuserdata(L, sizeof(JetpackNozzle*));
-			*jptr = jetpack_nozzles.data() + i;
-
-			lua_getglobal(L, "JNozzleMeta");
-			if(lua_isnil(L, -1))
-			{
-				lua_pop(L, 1);
-				// must create metatable for globals
-				lua_newtable(L);									// push; top = 2
-
-				lua_pushcclosure(L, jnozzle_index, 0);
-				lua_setfield(L, -2, "__index");
-
-				lua_setglobal(L, "JNozzleMeta");
-				lua_getglobal(L, "JNozzleMeta");
-			}
-			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
-
-			lua_settable(L, -3);
-		}
-
-		
-
-		void AddContactPointToTable(MyContactPoint& cp, int i, lua_State* L)
-		{
-			lua_pushinteger(L, i + 1);			// the table (created below) will be assigned to index i of whatever was on the top of the stack (i.e. the nozzles list)
-
-			MyContactPoint** cpptr = (MyContactPoint**)lua_newuserdata(L, sizeof(MyContactPoint*));
-			*cpptr = &cp;
-
-			lua_getglobal(L, "ContactPointMeta");
-			if(lua_isnil(L, -1))
-			{
-				lua_pop(L, 1);
-				// must create metatable for globals
-				lua_newtable(L);									// push; top = 2
-
-				lua_pushcclosure(L, cp_index, 0);
-				lua_setfield(L, -2, "__index");
-
-				lua_setglobal(L, "ContactPointMeta");
-				lua_getglobal(L, "ContactPointMeta");
-			}
-			lua_setmetatable(L, -2);								// set field of 1; pop; top = 1
-
-			lua_settable(L, -3);
-		}
-
-
-
-
-		static int cbone_index(lua_State* L)
-		{
-			CBone* bone = *((CBone**)lua_touserdata(L, 1));
-
-			if(lua_isstring(L, 2))
-			{
-				string key = lua_tostring(L, 2);
-
-				lua_settop(L, 0);
-
-				if		(key == "pos")				{ PushLuaVector(	L, bone->rb->GetCenterOfMass());									return 1; }
-				else if	(key == "vel")				{ PushLuaVector(	L, bone->rb->GetLinearVelocity());									return 1; }
-				else if	(key == "ori")				{ PushLuaMat3(		L, bone->rb->GetOrientation().ToMat3());							return 1; }
-				else if	(key == "rot")				{ PushLuaVector(	L, bone->rb->GetAngularVelocity());									return 1; }
-				else if	(key == "mass")				{ lua_pushnumber(	L, bone->rb->GetMass());											return 1; }
-				else if (key == "moi")				{ PushLuaMat3(		L, Mat3(bone->rb->GetTransformedMassInfo().moi));					return 1; }
-				else if (key == "impulse_linear")	{ PushLuaVector(	L, bone->net_impulse_linear);										return 1; }
-				else if (key == "impulse_angular")	{ PushLuaVector(	L, bone->net_impulse_angular);										return 1; }
-				else if (key == "desired_torque")	{ PushLuaVector(	L, bone->desired_torque);											return 1; }
-				else if (key == "applied_torque")	{ PushLuaVector(	L, bone->applied_torque);											return 1; }
-				else
-					Debug("unrecognized key for CBone:index: " + key + "\n");
-			}
-			return 0;
-		}
-
-		static int cbone_newindex(lua_State* L)
-		{
-			CBone* bone = *((CBone**)lua_touserdata(L, 1));
-			if(lua_isstring(L, 2))
-			{
-				string key = lua_tostring(L, 2);
-				if(key == "desired_torque")
-				{
-					if(lua_isuserdata(L, 3))
-					{
-						Vec3* vec = (Vec3*)lua_touserdata(L, 3);
-						bone->desired_torque = *vec;
-
-						lua_settop(L, 0);
-						return 0;
-					}
-				}
-				else
-					Debug("unrecognized key for CBone:newindex: " + key + "\n");
-			}
-
-			return 0;
-		}
-
-
-
-		static int cjoint_index(lua_State* L)
-		{
-			CJoint* joint = *((CJoint**)lua_touserdata(L, 1));
-
-			if(lua_isstring(L, 2))
-			{
-				string key = lua_tostring(L, 2);
-
-				lua_settop(L, 0);
-
-				if		(key == "pos")				{ PushLuaVector(	L, joint->sjc->ComputeAveragePosition());							return 1; }
-				else if	(key == "axes")				{ PushLuaMat3(		L, joint->oriented_axes);											return 1; }
-				else if	(key == "min_extents")		{ PushLuaVector(	L, joint->sjc->min_extents);										return 1; }
-				else if	(key == "max_extents")		{ PushLuaVector(	L, joint->sjc->max_extents);										return 1; }
-				else if	(key == "min_torque")		{ PushLuaVector(	L, joint->sjc->min_torque);											return 1; }
-				else if	(key == "max_torque")		{ PushLuaVector(	L, joint->sjc->max_torque);											return 1; }
-				else if (key == "rvec")
-				{
-					PushLuaVector(L, joint->oriented_axes * -(joint->a->rb->GetOrientation() * Quaternion::Reverse(joint->b->rb->GetOrientation())).ToRVec());
-					return 1;
-				}
-				else if (key == "local_torque")		{ PushLuaVector(	L, joint->sjc->apply_torque);										return 1; }
-				else if (key == "world_torque")		{ PushLuaVector(	L, joint->actual);													return 1; }
-				else if (key == "impulse_linear")	{ PushLuaVector(	L, joint->sjc->net_impulse_linear);									return 1; }
-				else if (key == "impulse_angular")	{ PushLuaVector(	L, joint->sjc->net_impulse_angular);								return 1; }
-				else if (key == "a")				{ lua_pushstring(	L, joint->a->name.c_str());											return 1; }
-				else if (key == "b")				{ lua_pushstring(	L, joint->b->name.c_str());											return 1; }
-				else if (key == "setWorldTorque")
-				{
-					lua_pushlightuserdata(L, joint);
-					lua_pushcclosure(L, cjoint_setworld, 1);
-					return 1;
-				}
-				else if (key == "setOrientedTorque")
-				{
-					lua_pushlightuserdata(L, joint);
-					lua_pushcclosure(L, cjoint_setoriented, 1);
-					return 1;
-				}
-				else if (key == "satisfyA")
-				{
-					lua_pushlightuserdata(L, joint);
-					lua_pushcclosure(L, cjoint_satisfy_a, 1);
-					return 1;
-				}
-				else if (key == "satisfyB")
-				{
-					lua_pushlightuserdata(L, joint);
-					lua_pushcclosure(L, cjoint_satisfy_b, 1);
-					return 1;
-				}
-				else
-					Debug("unrecognized key for CJoint:index: " + key + "\n");
-			}
-			return 0;
-		}
-
-		static int cjoint_setworld(lua_State* L)
-		{
-			int n = lua_gettop(L);
-			if(n == 1 && lua_isuserdata(L, 1))
-			{
-				void* ptr = lua_touserdata(L, 1);
-				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
-
-				lua_settop(L, 0);
-
-				if(vec != NULL)
-				{
-					lua_pushvalue(L, lua_upvalueindex(1));
-					CJoint* joint = (CJoint*)lua_touserdata(L, 1);
-					lua_pop(L, 1);
-
-					joint->SetWorldTorque(*vec);
-
-					return 0;
-				}
-			}
-
-			Debug("cjoint.setWorldTorque takes exactly 1 argument, a world-coords torque vector\n");
-			return 0;
-		}
-
-		static int cjoint_satisfy_a(lua_State* L)
-		{
-			int n = lua_gettop(L);
-			if(n == 0)
-			{
-				lua_pushvalue(L, lua_upvalueindex(1));
-				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
-				lua_pop(L, 1);
-
-				joint->SetTorqueToSatisfyA();
-
-				return 0;
-			}
-
-			Debug("cjoint.satisfyA does not take any arguments\n");
-			return 0;
-		}
-
-		static int cjoint_satisfy_b(lua_State* L)
-		{
-			int n = lua_gettop(L);
-			if(n == 0)
-			{
-				lua_pushvalue(L, lua_upvalueindex(1));
-				CJoint* joint = (CJoint*)lua_touserdata(L, 1);
-				lua_pop(L, 1);
-
-				joint->SetTorqueToSatisfyB();
-
-				return 0;
-			}
-
-			Debug("cjoint.satisfyB does not take any arguments\n");
-			return 0;
-		}
-
-		static int cjoint_setoriented(lua_State* L)
-		{
-			int n = lua_gettop(L);
-			if(n == 1 && lua_isuserdata(L, 1))
-			{
-				void* ptr = lua_touserdata(L, 1);
-				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
-
-				lua_settop(L, 0);
-
-				if(vec != NULL)
-				{
-					lua_pushvalue(L, lua_upvalueindex(1));
-					CJoint* joint = (CJoint*)lua_touserdata(L, 1);
-					lua_pop(L, 1);
-
-					joint->SetOrientedTorque(*vec);
-
-					return 0;
-				}
-			}
-
-			Debug("cjoint.setOrientedTorque takes exactly 1 argument, a joint-coords torque vector\n");
-			return 0;
-		}
-
-
-
-		static int jnozzle_index(lua_State* L)
-		{
-			JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, 1);
-			JetpackNozzle& nozzle = **jptr;
-
-			if(lua_isstring(L, 2))
-			{
-				string key = lua_tostring(L, 2);
-
-				lua_settop(L, 0);
-
-				if		(key == "bone")			{ lua_pushstring	(L, nozzle.bone->name.c_str());					return 1; }
-				else if (key == "pos")			{ PushLuaVector		(L, nozzle.apply_pos);							return 1; }
-				else if (key == "center")		{ PushLuaVector		(L, nozzle.world_center);						return 1; }
-				else if (key == "cone_cossq")	{ lua_pushnumber	(L, nozzle.cone_cossq);							return 1; }
-				else if (key == "max_force")	{ lua_pushnumber	(L, nozzle.max_force);							return 1; }
-				else if (key == "force")		{ PushLuaVector		(L, nozzle.world_force);						return 1; }
-				else if (key == "torque")		{ PushLuaVector		(L, nozzle.world_torque);						return 1; }
-				else if (key == "ftt")			{ PushLuaMat3		(L, nozzle.force_to_torque);					return 1; }
-				else if (key == "setForce")
-				{
-					lua_pushlightuserdata(L, jptr);
-					lua_pushcclosure(L, jnozzle_set_force, 1);
-					return 1;
-				}
-				else
-					Debug("unrecognized key for JetpackNozzle:index: " + key + "\n");
-			}
-			return 0;
-		}
-
-		static int jnozzle_set_force(lua_State* L)
-		{
-			lua_pushvalue(L, lua_upvalueindex(1));
-			JetpackNozzle** jptr = (JetpackNozzle**)lua_touserdata(L, -1);
-			lua_pop(L, 1);
-
-			JetpackNozzle& nozzle = **jptr;
-
-			int n = lua_gettop(L);
-			if(n == 1 && lua_isuserdata(L, 1))
-			{
-				void* ptr = lua_touserdata(L, 1);
-				Vec3* vec = dynamic_cast<Vec3*>((Vec3*)ptr);
-
-				lua_settop(L, 0);
-
-				if(vec != NULL)
-				{
-					nozzle.world_force = *vec;
-					nozzle.GetNudgeEffects(Vec3(), nozzle.world_force, nozzle.world_torque);
-
-					return 0;
-				}
-			}
-
-			Debug("jnozzle.setForce takes exactly 1 argument, a world-coords forcej vector\n");
-			return 0;
-		}
-
-
-		static int cp_index(lua_State* L)
-		{
-			MyContactPoint** cpptr = (MyContactPoint**)lua_touserdata(L, 1);
-			MyContactPoint& mcp = **cpptr;
-			ContactPoint& cp = mcp.cp;
-			Imp* imp = mcp.imp;
-
-			if(lua_isstring(L, 2))
-			{
-				string key = lua_tostring(L, 2);
-
-				lua_settop(L, 0);
-
-				if(key == "a" || key == "b")
-				{
-					string rbname = "<external>";
-
-					RigidBody* ab = key == "a" ? cp.obj_a : cp.obj_b;
-					if(ab == imp->gun_rb)
-						rbname = "gun";
-					else
-					{
-						for(unsigned int i = 0; i < imp->all_bones.size(); ++i)
-							if(imp->all_bones[i]->rb == ab)
-								rbname = imp->all_bones[i]->name;
-					}
-							
-					lua_pushstring(L, rbname.c_str());
-					return 1; 
-				}
-				else if (key == "pos")				{ PushLuaVector	(L, cp.pos);									return 1; }
-				else if (key == "normal")			{ PushLuaVector	(L, cp.normal);									return 1; }
-				else if (key == "restitution")		{ lua_pushnumber(L, cp.restitution_coeff);						return 1; }
-				else if (key == "friction")			{ lua_pushnumber(L, cp.fric_coeff);								return 1; }
-				else if (key == "bounce_threshold")	{ lua_pushnumber(L, cp.bounce_threshold);						return 1; }
-				else if (key == "impulse_linear")	{ PushLuaVector	(L, cp.net_impulse_linear);						return 1; }
-				else if (key == "impulse_angular")	{ PushLuaVector	(L, cp.net_impulse_angular);					return 1; }
-				else
-					Debug("unrecognized key for ContactPoint:index: " + key + "\n");
-			}
-			return 0;
-		}
-
-
-
 		struct NoTouchy : public ContactCallback
 		{
-			Imp* imp;
-			void OnContact(const ContactPoint& contact) { imp->new_contact_points.push_back(MyContactPoint(contact, imp)); }
-			void AfterResolution(const ContactPoint& cp) { imp->old_contact_points.push_back(MyContactPoint(cp, imp)); }
+			Dood* dood;
+			void OnContact(const ContactPoint& contact) { dood->new_contact_points.push_back(MyContactPoint(contact, dood)); }
+			void AfterResolution(const ContactPoint& cp) { dood->old_contact_points.push_back(MyContactPoint(cp, dood)); }
 		} no_touchy;
+
 		struct FootTouchy : public ContactCallback
 		{
 			Dood::StandingCallback* standing_callback;
-			Imp* imp;
-			void OnContact(const ContactPoint& contact) { standing_callback->OnContact(contact); imp->new_contact_points.push_back(MyContactPoint(contact, imp)); }
-			void AfterResolution(const ContactPoint& cp) { standing_callback->AfterResolution(cp); imp->old_contact_points.push_back(MyContactPoint(cp, imp)); }
+			Dood* dood;
+			void OnContact(const ContactPoint& contact) { standing_callback->OnContact(contact); dood->new_contact_points.push_back(MyContactPoint(contact, dood)); }
+			void AfterResolution(const ContactPoint& cp) { standing_callback->AfterResolution(cp); dood->old_contact_points.push_back(MyContactPoint(cp, dood)); }
 		} foot_touchy;
 	};
 
@@ -1947,16 +640,7 @@ namespace Test
 
 						imp->desired_jp_accel = fly_accel_vec;
 
-#if !ENABLE_NEW_JETPACKING
-						// TODO: remove this once similar functionality is moved to Soldier::Imp::ResolveJetpackOutput
-						float total_mass = 0.0f;
-						for(vector<RigidBody*>::iterator iter = rigid_bodies.begin(); iter != rigid_bodies.end(); ++iter)
-							total_mass += (*iter)->GetMassInfo().mass;
-						Vec3 apply_force = fly_accel_vec * total_mass;
-
-						for(vector<RigidBody*>::iterator iter = jet_bones.begin(); iter != jet_bones.end(); ++iter)
-							(*iter)->ApplyCentralForce(apply_force / float(jet_bones.size()));
-#endif
+						// TODO: move jetpack control logic here?  (if it doesn't stay in lua script)
 					}
 				}
 				else
@@ -2035,9 +719,9 @@ namespace Test
 
 		BillboardMaterial* jetpack_trail = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("jetpack");
 
-		for(unsigned int i = 0; i < imp->jetpack_nozzles.size(); ++i)
+		for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
 		{
-			const Imp::JetpackNozzle& jn = imp->jetpack_nozzles[i];
+			const JetpackNozzle& jn = jetpack_nozzles[i];
 			if(float magsq = jn.world_force.ComputeMagnitudeSquared())
 			{
 				static const float max_len = 0.8f;
@@ -2093,10 +777,6 @@ namespace Test
 	void Soldier::DoInitialPose()
 	{
 		Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -yaw);
-		//Quaternion lb_oris[NUM_LOWER_BODY_BONES];
-		//const WalkKeyframe& frame = walk_keyframes[subtest.initial_frame];
-		//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)
-		//	lb_oris[i] = yaw_ori * Quaternion::FromRVec(frame.desired_oris[i]);
 
 		//pos.y += subtest.initial_y - 0.01f;
 
@@ -2175,6 +855,87 @@ namespace Test
 		//	posey->skeleton->bones[i]->ori = Quaternion::Identity();
 	}
 
+	void Soldier::InitBoneHelpers()
+	{
+		Dood::InitBoneHelpers();
+
+		RegisterBone( imp->pelvis    = CBone( this, "pelvis"     ));
+		RegisterBone( imp->torso1    = CBone( this, "torso 1"    ));
+		RegisterBone( imp->torso2    = CBone( this, "torso 2"    ));
+		RegisterBone( imp->head      = CBone( this, "head"       ));
+		RegisterBone( imp->lshoulder = CBone( this, "l shoulder" ));
+		RegisterBone( imp->luarm     = CBone( this, "l arm 1"    ));
+		RegisterBone( imp->llarm     = CBone( this, "l arm 2"    ));
+		RegisterBone( imp->lhand     = CBone( this, "l hand"     ));
+		RegisterBone( imp->rshoulder = CBone( this, "r shoulder" ));
+		RegisterBone( imp->ruarm     = CBone( this, "r arm 1"    ));
+		RegisterBone( imp->rlarm     = CBone( this, "r arm 2"    ));
+		RegisterBone( imp->rhand     = CBone( this, "r hand"     ));
+		RegisterBone( imp->luleg     = CBone( this, "l leg 1"    ));
+		RegisterBone( imp->llleg     = CBone( this, "l leg 2"    ));
+		RegisterBone( imp->lheel     = CBone( this, "l heel"     ));
+		RegisterBone( imp->ltoe      = CBone( this, "l toe"      ));
+		RegisterBone( imp->ruleg     = CBone( this, "r leg 1"    ));
+		RegisterBone( imp->rlleg     = CBone( this, "r leg 2"    ));
+		RegisterBone( imp->rheel     = CBone( this, "r heel"     ));
+		RegisterBone( imp->rtoe      = CBone( this, "r toe"      ));
+	}
+
+	void Soldier::InitJointHelpers()
+	{
+		Dood::InitJointHelpers();
+
+		float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
+
+		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP,  0 ));
+		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP,  0 ));
+		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N,   0 ));
+		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA,  0 ));
+		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB,  0 ));
+		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E,   0 ));
+		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W,   0 ));
+		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA,  0 ));
+		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB,  0 ));
+		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E,   0 ));
+		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W,   0 ));
+		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H,  -0 ));
+		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K,  -0 ));
+		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A,  -0 ));
+		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT, -0 ));
+		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H,  -0 ));
+		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K,  -0 ));
+		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A,  -0 ));
+		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT, -0 ));
+
+		// knees have special torque limits (smaller on the second and third axes)
+		SkeletalJointConstraint* lknee = imp->lknee.sjc;
+		SkeletalJointConstraint* rknee = imp->rknee.sjc;
+		float KS = 0;//K * 0.25f;
+		lknee->min_torque.y = -KS;
+		lknee->min_torque.z = -KS;
+		lknee->max_torque.y =  KS;
+		lknee->max_torque.z =  KS;
+		rknee->min_torque.y = -KS;
+		rknee->min_torque.z = -KS;
+		rknee->max_torque.y =  KS;
+		rknee->max_torque.z =  KS;
+	}
+
+	void Soldier::InitJetpackNozzles()
+	{
+		Dood::InitJetpackNozzles();
+
+		Vec3 upward(0, 1, 0);
+		float jp_angle = 1.0f;
+		float jp_force = 200.0f;//150.0f;		// 98kg * 15m/s^2 accel / 10 nozzles ~= 150N per nozzle
+
+		RegisterSymmetricJetpackNozzles( imp->lshoulder, imp->rshoulder, Vec3( 0.442619f, 1.576419f, -0.349652f ), upward, jp_angle, jp_force );
+		RegisterSymmetricJetpackNozzles( imp->lshoulder, imp->rshoulder, Vec3( 0.359399f, 1.523561f, -0.366495f ), upward, jp_angle, jp_force );
+		RegisterSymmetricJetpackNozzles( imp->lshoulder, imp->rshoulder, Vec3( 0.277547f, 1.480827f, -0.385142f ), upward, jp_angle, jp_force );
+		RegisterSymmetricJetpackNozzles( imp->ltoe,      imp->rtoe,      Vec3( 0.237806f, 0.061778f,  0.038247f ), upward, jp_angle, jp_force );
+		RegisterSymmetricJetpackNozzles( imp->lheel,     imp->rheel,     Vec3( 0.238084f, 0.063522f, -0.06296f  ), upward, jp_angle, jp_force );
+	}
+
 	void Soldier::PreparePAG(const TimingInfo& time, const Quaternion& t2ori)
 	{
 		p_ag->yaw   = yaw;
@@ -2188,8 +949,22 @@ namespace Test
 		posey->skeleton->InvalidateCachedBoneXforms();
 	}
 
+	bool Soldier::GetRBScriptingName(RigidBody* rb, string& name)
+	{
+		if(rb != NULL && rb == imp->gun_rb)
+		{
+			name = "gun";
+			return true;
+		}
+
+		return false;
+	}
+
+	Vec3 Soldier::GetDesiredJetpackAccel() { return imp->desired_jp_accel; }
+	int Soldier::GetTickAge() { return imp->tick_age; }
+
 	void Soldier::PreCPHFT(float timestep) { Dood::PreCPHFT(timestep); }
-	void Soldier::PostCPHFT(float timestep) { Dood::PostCPHFT(timestep); imp->old_contact_points.clear(); imp->new_contact_points.clear(); }
+	void Soldier::PostCPHFT(float timestep) { Dood::PostCPHFT(timestep); old_contact_points.clear(); new_contact_points.clear(); }
 
 
 
