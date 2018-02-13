@@ -402,10 +402,6 @@ namespace Test
 				gun_rb = NULL;
 
 
-			//RigidBody& t2rb = *torso2.rb;
-			//t2rb.SetLinearVelocity(t2rb.GetLinearVelocity() + subtest.torso_vel * (10.0f * timestep / t2rb.GetMass()));
-			//t2rb.SetAngularVelocity(t2rb.GetAngularVelocity() + t2rb.GetInvMoI() * subtest.torso_rot * (1.0f * timestep));
-
 #if PROFILE_CPHFT
 			timer_init += timer.GetAndRestart();
 #endif
@@ -717,22 +713,10 @@ namespace Test
 	{
 		Dood::Vis(renderer);
 
+		Vec3 forward = renderer->camera->GetForward();
 		BillboardMaterial* jetpack_trail = (BillboardMaterial*)((TestGame*)game_state)->mat_cache->Load("jetpack");
-
 		for(unsigned int i = 0; i < jetpack_nozzles.size(); ++i)
-		{
-			const JetpackNozzle& jn = jetpack_nozzles[i];
-			if(float magsq = jn.world_force.ComputeMagnitudeSquared())
-			{
-				static const float max_len = 0.8f;
-				Vec3 lenvec = jn.world_force * (max_len / jn.max_force);
-				Vec3 front = jn.apply_pos;// + lenvec / 8.0f;	// the "orb" at the front of the flame effect is centered at x=16 in the image, out of 128 total width
-				Vec3 back = front - lenvec;
-
-				BillboardMaterial::NodeData* nd = jetpack_trail->NewNodeData(front, back, 0.15f);
-				renderer->objects.push_back(RenderNode(jetpack_trail, nd, Vec3::Dot(renderer->camera->GetForward(), front)));
-			}
-		}
+			jetpack_nozzles[i].Vis(renderer, forward, jetpack_trail);
 	}
 
 	void Soldier::Die(const Damage& cause)
@@ -778,18 +762,6 @@ namespace Test
 	{
 		Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -yaw);
 
-		//pos.y += subtest.initial_y - 0.01f;
-
-		//pitch += subtest.initial_pitch;
-
-		//pos.y = 0.548209f;
-
-		//switch(subtest.initial_frame)
-		//{
-			//case 0: pos.y = -0.00459f; break;
-			//case 1: pos.y = -0.03716f; break;
-			//case 2: pos.y = -0.03716f; break;
-		//}
 		pos.y -= 0.01f;
 
 		Dood::DoInitialPose();

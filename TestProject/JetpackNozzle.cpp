@@ -74,4 +74,18 @@ namespace Test
 		//bone->rb->ApplyWorldForce(world_force, apply_pos);				// TODO: make this work?
 		bone->rb->ApplyWorldImpulse(world_force * timestep, apply_pos);
 	}
+
+	void JetpackNozzle::Vis(SceneRenderer* renderer, const Vec3& forward, BillboardMaterial* jetpack_trail) const
+	{
+		if(float magsq = world_force.ComputeMagnitudeSquared())
+		{
+			static const float max_len = 0.8f;
+			Vec3 lenvec = world_force * (max_len / max_force);
+			Vec3 front = apply_pos;// + lenvec / 8.0f;	// the "orb" at the front of the flame effect is centered at x=16 in the image, out of 128 total width
+			Vec3 back = front - lenvec;
+
+			BillboardMaterial::NodeData* nd = jetpack_trail->NewNodeData(front, back, 0.15f);
+			renderer->objects.push_back(RenderNode(jetpack_trail, nd, Vec3::Dot(forward, front)));
+		}
+	}
 }

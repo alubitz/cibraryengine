@@ -33,5 +33,9 @@ namespace Test
 		void GetNudgeEffects(const Vec3& nudge, Vec3& nu_force, Vec3& nu_torque);
 
 		void ApplySelectedForce(float timestep);
+
+
+
+		void Vis(SceneRenderer* renderer, const Vec3& forward, BillboardMaterial* jetpack_trail) const;
 	};
 }
