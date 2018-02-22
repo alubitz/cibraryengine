@@ -1584,7 +1584,7 @@ namespace Test
 			}
 		}
 
-		Debug("jnozzle.setForce takes exactly 1 argument, a world-coords forcej vector\n");
+		Debug("jnozzle.setForce takes exactly 1 argument, a world-coords force vector\n");
 		return 0;
 	}
 

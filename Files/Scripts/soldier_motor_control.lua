@@ -41,7 +41,7 @@
 			max_force					max magnitude of a force this nozzle can apply
 			force						world-coords force to be applied
 			torque						whole-dood torque that will result from applying the specified force
-			fft							matrix that maps nozzle forces to dood torques
+			ftt							matrix that maps nozzle forces to dood torques
 		methods:
 			setForce(Vec3)				attempt to set the world force to the given value, or as close as possible within the cone
 
@@ -353,24 +353,31 @@ rankle.setOrientedTorque(ba.createVector(rankle.max_torque.x * sym_ankle_frac.x,
 -- jetpack control
 -- tries to achieve the requested amount of thrust by splitting it evenly across all nozzles
 -- then if that didn't match the requested amount, splits the remainder ... tries up to 3 times
-local desiredThrust = hv.controls.jpaccel * 98.0			-- 98 kg Dood
+
 local actualThrust = ba.createVector()
-for i = 1, 3 do
-	local missing = desiredThrust - actualThrust
-	if missing.length > 0 then
+local desiredThrust = hv.controls.jpaccel * 98.0			-- 98 kg Dood
+local netTorque = ba.createVector()
+
+if hv.controls.jump then
+	for i = 1, 3 do
+		local missing = desiredThrust - actualThrust
+		if missing.length > 0 then
+			for k,v in pairs(hv.nozzles) do
+				v.setForce(v.force + missing / #hv.nozzles)		-- currently there are 10 nozzles
+			end
+		end
+		actualThrust = ba.createVector()
 		for k,v in pairs(hv.nozzles) do
-			v.setForce(v.force + missing / #hv.nozzles)		-- currently there are 10 nozzles
+			actualThrust = actualThrust + v.force
 		end
 	end
-	actualThrust = ba.createVector()
-	for k,v in pairs(hv.nozzles) do
-		actualThrust = actualThrust + v.force
-	end
-end
 
-local netTorque = ba.createVector()
-for k,v in pairs(hv.nozzles) do
-	netTorque = netTorque + v.torque
+	for k,v in pairs(hv.nozzles) do
+		netTorque = netTorque + v.torque
+	end
+
+	ba.println("net torque = " .. netTorque .. "; net force = " .. actualThrust)
+
 end
 
 

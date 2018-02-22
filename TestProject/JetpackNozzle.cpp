@@ -22,13 +22,13 @@ namespace Test
 		// compute force-to-torque Mat3
 		Vec3 bone_com = rb.GetCenterOfMass();
 		Vec3 r1 = apply_pos - bone_com;
-		Mat3 xr1 = Mat3(        0,   r1.z,  -r1.y,
-			-r1.z,      0,   r1.x,
-			r1.y,  -r1.x,      0	);
+		Mat3 xr1 = Mat3(	0,   r1.z,  -r1.y,
+						-r1.z,      0,   r1.x,
+						 r1.y,  -r1.x,      0	);
 		Vec3 r2 = bone_com - dood_com;
-		Mat3 xr2 = Mat3(        0,   r2.z,  -r2.y,
-			-r2.z,      0,   r2.x,
-			r2.y,  -r2.x,      0	);
+		Mat3 xr2 = Mat3(    0,   r2.z,  -r2.y,
+						-r2.z,      0,   r2.x,
+						 r2.y,  -r2.x,      0	);
 		force_to_torque = xr1 + xr2;			// is this right?
 
 

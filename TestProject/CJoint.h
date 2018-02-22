@@ -28,12 +28,11 @@ namespace Test
 		Vec3 prev_goal;
 		Vec3 integral;
 
-		int mode;
 		Vec3 pd_result;
 		float chain_coeff;
 
-		CJoint() : sjc(NULL), a(NULL), b(NULL), mode(0) { }
-		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque, int mode = 0);
+		CJoint() : sjc(NULL), a(NULL), b(NULL) { }
+		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque);
 
 		void Reset();
 

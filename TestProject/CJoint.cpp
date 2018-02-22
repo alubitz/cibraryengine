@@ -9,7 +9,7 @@ namespace Test
 	/*
 	 * CJoint methods
 	 */
-	CJoint::CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque, int mode) : mode(mode)
+	CJoint::CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque)
 	{
 		RigidBody *arb = bone_a.rb, *brb = bone_b.rb;
 		for(unsigned int i = 0; i < dood->constraints.size(); ++i)

@@ -35,7 +35,7 @@ namespace Test
 	static const float fly_accel_up       = 15.0f;
 	static const float fly_accel_lateral  = 8.0f;
 
-	static const float fuel_spend_rate    = 0.5f;
+	static const float fuel_spend_rate    = 0;//0.5f;
 	static const float fuel_refill_rate   = 0.4f;
 	static const float jump_to_fly_delay  = 0;//0.3f;
 
@@ -49,7 +49,6 @@ namespace Test
 	static float timer_massinfo				= 0.0f;
 	static float timer_ub_stuff				= 0.0f;
 
-	static float timer_scoring				= 0.0f;
 	static float timer_end_of_test			= 0.0f;
 	static float timer_cphft_total			= 0.0f;
 
@@ -59,15 +58,15 @@ namespace Test
 	static void DebugCPHFTProfilingData()
 	{
 #if PROFILE_CPHFT
-			Debug(((stringstream&)(stringstream() << "total for " << counter_cphft << " calls to Soldier::Imp::Update = " << timer_cphft_total << endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "init =\t\t\t\t\t"			<< timer_init				<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "reset =\t\t\t\t\t"		<< timer_reset				<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "massinfo =\t\t\t\t"		<< timer_massinfo			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "ub_stuff =\t\t\t\t"		<< timer_ub_stuff			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "scoring =\t\t\t\t"		<< timer_scoring			<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "end_of_test =\t\t\t"		<< timer_end_of_test		<< endl)).str());
-			Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<<
-				timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_scoring + timer_end_of_test << endl)).str());
+		float sum = timer_init + timer_reset + timer_massinfo + timer_ub_stuff + timer_end_of_test;
+
+		Debug(((stringstream&)(stringstream() << "total for " << counter_cphft << " calls to Soldier::Imp::Update = " << timer_cphft_total << endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "init =\t\t\t\t\t"			<< timer_init				<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "reset =\t\t\t\t\t"		<< timer_reset				<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "massinfo =\t\t\t\t"		<< timer_massinfo			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "ub_stuff =\t\t\t\t"		<< timer_ub_stuff			<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "end_of_test =\t\t\t"		<< timer_end_of_test		<< endl)).str());
+		Debug(((stringstream&)(stringstream() << '\t' << "total of above =\t\t"		<< sum						<< endl)).str());
 #endif
 	}
 #endif
@@ -384,10 +383,12 @@ namespace Test
 			if(!clean_init)
 			{
 				ReInit(dood);
-				if(Random3D::RandInt() % 2 == 0)
-					clean_init = true;
-				else
-					return;
+				//if(Random3D::RandInt() % 2 == 0)
+				//	clean_init = true;
+				//else
+				//	return;
+
+				clean_init = true;
 			}
 
 			timestep     = time.elapsed;
@@ -434,28 +435,7 @@ namespace Test
 
 			float dood_mass;
 			Vec3 dood_com, com_vel, angular_momentum;
-
-			set<RigidBody*> included_rbs;
-			//included_rbs.insert(dood->velocity_change_bodies.begin(), dood->velocity_change_bodies.end());
-			//for(unsigned int i = 0; i < NUM_LOWER_BODY_BONES; ++i)		// these no longer exist!
-			//	included_rbs.insert(lower_body_bones[i]->rb);
-			included_rbs.insert(pelvis.rb);
-			//included_rbs.insert(torso1.rb);
-			//included_rbs.insert(torso2.rb);
-			//included_rbs.insert(head.rb);
-			//included_rbs.insert(lshoulder.rb);
-			//included_rbs.insert(rshoulder.rb);
-
-			//if(tick_age == 1)
-			//{
-			//	for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
-			//	{
-			//		(*iter)->SetLinearVelocity(Vec3());
-			//		(*iter)->SetAngularVelocity(Vec3());
-			//	}
-			//}
-
-			ComputeMomentumStuff(included_rbs, dood_mass, dood_com, com_vel, angular_momentum);
+			ComputeMomentumStuff(dood->velocity_change_bodies, dood_mass, dood_com, com_vel, angular_momentum);
 
 #if PROFILE_CPHFT
 			timer_massinfo += timer.GetAndRestart();
@@ -493,12 +473,12 @@ namespace Test
 			spine2.SetTorqueToSatisfyB();
 			spine1.SetTorqueToSatisfyB();
 
-			pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
+			//pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
 
 			dood->DoScriptedMotorControl("Files/Scripts/soldier_motor_control.lua");
 
 #if ENABLE_NEW_JETPACKING
-			if(jetpacking)
+			if(true)	//if(jetpacking)		// TODO: change this back (?)
 			{
 				for(vector<JetpackNozzle>::iterator iter = dood->jetpack_nozzles.begin(); iter != dood->jetpack_nozzles.end(); ++iter)
 					iter->ApplySelectedForce(timestep);
@@ -515,13 +495,12 @@ namespace Test
 			timer_ub_stuff += timer.GetAndRestart();
 #endif
 
-#if 0
 			// update the timer, and check for when the experiment is over
 			++tick_age;
 
+#if 0
 			if(tick_age >= MAX_TICK_AGE)
 				experiment_done = true;
-
 #endif
 
 #if PROFILE_CPHFT
@@ -598,6 +577,7 @@ namespace Test
 
 		bool can_recharge = true;
 		bool jetted = false;
+		imp->desired_jp_accel = Vec3();
 		if(control_state->GetBoolControl("jump"))
 		{
 			if(standing_callback.IsStanding() && time.total > jump_start_timer && jump_to_fly_delay > 0)							// jump off the ground
@@ -859,25 +839,25 @@ namespace Test
 
 		float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
 
-		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP,  0 ));
-		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP,  0 ));
-		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N,   0 ));
-		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA,  0 ));
-		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB,  0 ));
-		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E,   0 ));
-		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W,   0 ));
-		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA,  0 ));
-		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB,  0 ));
-		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E,   0 ));
-		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W,   0 ));
-		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H,  -0 ));
-		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K,  -0 ));
-		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A,  -0 ));
-		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT, -0 ));
-		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H,  -0 ));
-		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K,  -0 ));
-		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A,  -0 ));
-		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT, -0 ));
+		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP ));
+		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP ));
+		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N  ));
+		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA ));
+		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB ));
+		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E  ));
+		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W  ));
+		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA ));
+		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB ));
+		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E  ));
+		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W  ));
+		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H  ));
+		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K  ));
+		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A  ));
+		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT ));
+		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H  ));
+		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K  ));
+		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A  ));
+		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT ));
 
 		// knees have special torque limits (smaller on the second and third axes)
 		SkeletalJointConstraint* lknee = imp->lknee.sjc;
