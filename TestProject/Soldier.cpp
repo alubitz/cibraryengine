@@ -538,7 +538,6 @@ namespace Test
 		gun_hand_bone(NULL),
 		p_ag(NULL),
 		walk_pose(NULL),
-		jet_bones(),
 		jet_fuel(1.0f),
 		jet_start_sound(NULL),
 		jet_loop_sound(NULL),
@@ -719,11 +718,6 @@ namespace Test
 			return;		
 
 		p_ag->torso2_ori = Quaternion::FromRVec(0, -(yaw + torso2_yaw_offset), 0);
-
-		unsigned int lshoulder_name = Bone::string_table["l shoulder"], rshoulder_name = Bone::string_table["r shoulder"];
-		for(unsigned int i = 0; i < character->skeleton->bones.size(); ++i)
-			if(character->skeleton->bones[i]->name == lshoulder_name || character->skeleton->bones[i]->name == rshoulder_name)
-				jet_bones.push_back(bone_to_rbody[i]);
 	}
 
 	void Soldier::DeSpawned()

@@ -41,8 +41,6 @@ namespace Test
 
 			float jet_fuel;
 
-			vector<RigidBody*> jet_bones;			// bones to which the jetpack applies force
-
 			SoundBuffer* jet_start_sound;
 			SoundBuffer* jet_loop_sound;
 			SoundSource* jet_loop;
