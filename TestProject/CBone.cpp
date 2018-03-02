@@ -8,7 +8,7 @@ namespace Test
 	/*
 	 * CBone methods
 	 */
-	CBone::CBone(const Dood* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), local_com(rb->GetLocalCoM()), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()), last_vel(rb->GetLinearVelocity()), last_rot(rb->GetAngularVelocity()), net_impulse_linear(), net_impulse_angular() { }
+	CBone::CBone(const Dood* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()), last_vel(rb->GetLinearVelocity()), last_rot(rb->GetAngularVelocity()), net_impulse_linear(), net_impulse_angular() { }
 
 	void CBone::Reset(float inv_timestep)
 	{
@@ -18,7 +18,7 @@ namespace Test
 		net_impulse_angular = Mat3(rb->GetTransformedMassInfo().moi) * (rot - last_rot) * inv_timestep;
 		last_vel = vel;
 		last_rot = rot;
-		desired_torque = applied_torque = desired_force = Vec3();
+		desired_torque = applied_torque = Vec3();
 	}
 
 	void CBone::ComputeDesiredTorque(const Quaternion& desired_ori, const Mat3& use_moi, float inv_timestep)

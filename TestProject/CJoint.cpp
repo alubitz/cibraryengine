@@ -24,9 +24,6 @@ namespace Test
 				sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
 				sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
 
-				r1 = sjc->pos - a->local_com;
-				r2 = sjc->pos - b->local_com;
-
 				return;
 			}
 		}
@@ -38,8 +35,6 @@ namespace Test
 
 	void CJoint::Reset()
 	{
-		last = sjc->apply_torque;
-
 		//sjc->apply_torque = actual = Vec3();
 		oriented_axes = sjc->axes * Quaternion::Reverse(sjc->obj_a->GetOrientation()).ToMat3();
 	}

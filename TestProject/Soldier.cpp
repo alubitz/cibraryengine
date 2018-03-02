@@ -228,9 +228,6 @@ namespace Test
 				gun_rb->SetAngularVelocity(Vec3());
 			}
 
-			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
-				dood->all_joints[i]->last = Vec3();
-
 			SharedInit(dood);
 		}
 
@@ -397,7 +394,7 @@ namespace Test
 			if (Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 			{
 				gun_rb = gun->rigid_body;
-				gun_rb->ComputeInvMoI();			// force recomputation of stuffs
+				gun_rb->ComputeInvMoI();			// force recomputation of a few cached fields, including ori_rm 
 			}
 			else
 				gun_rb = NULL;
@@ -417,16 +414,13 @@ namespace Test
 				{
 					joint.sjc->apply_torque = Vec3();
 					joint.actual = Vec3();
-					joint.last = Vec3();
-					joint.prev_goal = joint.goal_rvec = joint.initial_rvec = joint.GetRVec();
-					joint.integral = Vec3();
 				}
 				joint.SetOrientedTorque(Vec3());
 			}
 			for (vector<CBone*>::iterator iter = dood->all_bones.begin(); iter != dood->all_bones.end(); ++iter)
 			{
 				(*iter)->Reset(inv_timestep);
-				(*iter)->rb->ComputeInvMoI();		// force recomputation of stuffs
+				(*iter)->rb->ComputeInvMoI();			// force recomputation of a few cached fields, including ori_rm 
 			}
 
 #if PROFILE_CPHFT
@@ -615,7 +609,7 @@ namespace Test
 
 						imp->desired_jp_accel = fly_accel_vec;
 
-						// TODO: move jetpack control logic here?  (if it doesn't stay in lua script)
+						// TODO: move jetpack nozzle control logic here?  (if it doesn't stay in lua script)
 					}
 				}
 				else
