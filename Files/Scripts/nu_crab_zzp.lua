@@ -42,19 +42,19 @@ local T = 0.0
 local a_hinge_axes = { Vec3( 0.2068, -0.0443, -0.0094 ) }
 local b_hinge_axes = { Vec3( 0.0336,  0.0,    -0.1125 ) }local c_hinge_axes = { Vec3( 0.2552, -0.0232,  0.1112 ) }
 
-Joint(j, b,     "head",    "carapace", Vec3( 0.0,   1.11,   0.38  ), nil, nil,          Vec3(-0.1, -0.1, -0.1), Vec3(0.1, 0.1, 0.1))
-Joint(j, b,     "tail",    "carapace", Vec3( 0.0,   1.04,  -0.83  ), nil, nil,          Vec3(-0.3, -0.3, -0.3), Vec3(0.3, 0.3, 0.3))
+Joint(j, b,     "carapace", "head",    Vec3( 0.0,   1.11,   0.38  ), nil, nil,          Vec3(-0.1, -0.1, -0.1), Vec3(0.1, 0.1, 0.1))
+Joint(j, b,     "carapace", "tail",    Vec3( 0.0,   1.04,  -0.83  ), nil, nil,          Vec3(-0.3, -0.3, -0.3), Vec3(0.3, 0.3, 0.3))
 
-SymJoints(j, b, "leg a 1", "carapace", Vec3( 0.365, 1.015,  0.328 ))
-SymJoints(j, b, "leg a 2", "leg a 1",  Vec3( 0.437, 0.574,  0.539 ), nil, a_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
-SymJoints(j, b, "leg a 3", "leg a 2",  Vec3( 0.470, 0.694,  0.993 ), nil, a_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
+SymJoints(j, b, "carapace", "leg a 1", Vec3( 0.365, 1.015,  0.328 ))
+SymJoints(j, b, "leg a 1",  "leg a 2", Vec3( 0.437, 0.574,  0.539 ), nil, a_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
+SymJoints(j, b, "leg a 2",  "leg a 3", Vec3( 0.470, 0.694,  0.993 ), nil, a_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
 
-SymJoints(j, b, "leg b 1", "carapace", Vec3( 0.701, 0.906,  0.062 ))
-SymJoints(j, b, "leg b 2", "leg b 1",  Vec3( 1.043, 0.742,  0.164 ), nil, b_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
-SymJoints(j, b, "leg b 3", "leg b 2",  Vec3( 1.631, 1.050,  0.339 ), nil, b_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
+SymJoints(j, b, "carapace", "leg b 1", Vec3( 0.701, 0.906,  0.062 ))
+SymJoints(j, b, "leg b 1",  "leg b 2", Vec3( 1.043, 0.742,  0.164 ), nil, b_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
+SymJoints(j, b, "leg b 2",  "leg b 3", Vec3( 1.631, 1.050,  0.339 ), nil, b_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
 
-SymJoints(j, b, "leg c 1", "carapace", Vec3( 0.452, 0.891, -0.421 ))
-SymJoints(j, b, "leg c 2", "leg c 1",  Vec3( 0.544, 0.676, -0.693 ), nil, c_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
-SymJoints(j, b, "leg c 3", "leg c 2",  Vec3( 0.707, 0.786, -1.076 ), nil, c_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
+SymJoints(j, b, "carapace", "leg c 1", Vec3( 0.452, 0.891, -0.421 ))
+SymJoints(j, b, "leg c 1",  "leg c 2", Vec3( 0.544, 0.676, -0.693 ), nil, c_hinge_axes, Vec3(-1.4, -T, -T), Vec3(1.0, T, T))
+SymJoints(j, b, "leg c 2",  "leg c 3", Vec3( 0.707, 0.786, -1.076 ), nil, c_hinge_axes, Vec3(-1.0, -T, -T), Vec3(1.3, T, T))
 
 ba.saveModelPhysics(b, j, "crab_bug")

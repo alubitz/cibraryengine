@@ -10,6 +10,11 @@ namespace Test
 	{
 		private:
 
+			struct Imp;
+			Imp* imp;
+
+			friend struct Imp;
+
 			class CrabHeading: public Pose
 			{
 				public:
@@ -24,11 +29,16 @@ namespace Test
 
 		protected:
 
+			void InnerDispose();
+
 			void DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward);
 
 			void PreUpdatePoses(const TimingInfo& time);
 
 			void MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi);
+
+			virtual void InitBoneHelpers();
+			virtual void InitJointHelpers();
 
 		public:
 

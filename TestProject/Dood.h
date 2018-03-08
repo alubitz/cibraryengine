@@ -66,7 +66,7 @@ namespace Test
 			virtual void DoInitialPose();			// called by ::Spawned; use this to set orientations of the posey bones
 
 			virtual void InitBoneHelpers()    { all_bones.clear(); }
-			virtual void InitJointHelpers()   { all_joints.clear(); }
+			virtual void InitJointHelpers()   { all_joints.clear(); }			// also responsible for setting joint torque limits!
 			virtual void InitJetpackNozzles() { jetpack_nozzles.clear(); }
 
 		public:

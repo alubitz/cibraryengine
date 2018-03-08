@@ -672,6 +672,12 @@ namespace Test
 			Debug("Dood has no rigid bodies; this Dood will be removed!\n");
 			is_valid = false;
 		}
+		else
+		{
+			InitBoneHelpers();
+			InitJointHelpers();
+			InitJetpackNozzles();
+		}
 	}
 
 	void Dood::DeSpawned()

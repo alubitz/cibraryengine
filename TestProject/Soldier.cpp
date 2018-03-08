@@ -166,11 +166,6 @@ namespace Test
 			initial_pos = dood->pos;
 			//dood->collision_group->SetInternalCollisionsEnabled(true);		// TODO: resolve problems arising from torso2-arm1 collisions
 
-			// init some component helpers
-			dood->InitBoneHelpers();
-			dood->InitJointHelpers();											// this method also responsible for setting joint torque limits!
-			dood->InitJetpackNozzles();
-
 			// some misc. initialization
 			no_touchy.dood = dood;
 			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
@@ -520,6 +515,7 @@ namespace Test
 			void AfterResolution(const ContactPoint& cp) { standing_callback->AfterResolution(cp); dood->old_contact_points.push_back(MyContactPoint(cp, dood)); }
 		} foot_touchy;
 	};
+
 
 
 
