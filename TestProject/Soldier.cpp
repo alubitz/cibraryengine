@@ -823,38 +823,25 @@ namespace Test
 
 		float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
 
-		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP ));
-		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP ));
-		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N  ));
-		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA ));
-		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB ));
-		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E  ));
-		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W  ));
-		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA ));
-		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB ));
-		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E  ));
-		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W  ));
-		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H  ));
-		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K  ));
-		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A  ));
-		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT ));
-		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H  ));
-		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K  ));
-		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A  ));
-		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT ));
-
-		// knees have special torque limits (smaller on the second and third axes)
-		SkeletalJointConstraint* lknee = imp->lknee.sjc;
-		SkeletalJointConstraint* rknee = imp->rknee.sjc;
-		float KS = 0;//K * 0.25f;
-		lknee->min_torque.y = -KS;
-		lknee->min_torque.z = -KS;
-		lknee->max_torque.y =  KS;
-		lknee->max_torque.z =  KS;
-		rknee->min_torque.y = -KS;
-		rknee->min_torque.z = -KS;
-		rknee->max_torque.y =  KS;
-		rknee->max_torque.z =  KS;
+		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP      ));
+		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP      ));
+		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N       ));
+		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA      ));
+		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB      ));
+		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E       ));
+		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W       ));
+		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA      ));
+		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB      ));
+		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E       ));
+		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W       ));
+		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H       ));
+		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K, 0, 0 ));		// knees only torque on one axis
+		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A       ));
+		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT      ));
+		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H       ));
+		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K, 0, 0 ));
+		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A       ));
+		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT      ));
 	}
 
 	void Soldier::InitJetpackNozzles()

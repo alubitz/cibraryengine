@@ -9,7 +9,7 @@ namespace Test
 	/*
 	 * CJoint methods
 	 */
-	CJoint::CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque)
+	CJoint::CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float x, float y, float z)
 	{
 		RigidBody *arb = bone_a.rb, *brb = bone_b.rb;
 		for(unsigned int i = 0; i < dood->constraints.size(); ++i)
@@ -21,8 +21,8 @@ namespace Test
 				b   = &bone_b;
 				sjc = j;
 
-				sjc->min_torque = Vec3(-max_torque, -max_torque, -max_torque);
-				sjc->max_torque = Vec3( max_torque,  max_torque,  max_torque);
+				sjc->min_torque = Vec3(-x, -y, -z);
+				sjc->max_torque = Vec3( x,  y,  z);
 
 				return;
 			}

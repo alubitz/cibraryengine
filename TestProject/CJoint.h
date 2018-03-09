@@ -20,7 +20,8 @@ namespace Test
 		Mat3 oriented_axes;				// cache the custom coordinate system of this joint (e.g. knee joint rotates on only one axis, which is not quite the X axis); gets recomputed every time Reset() is called
 
 		CJoint() : sjc(NULL), a(NULL), b(NULL) { }
-		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque);
+		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque) : CJoint(dood, bone_a, bone_b, max_torque, max_torque, max_torque) { }
+		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float x, float y, float z);
 
 		void Reset();					// called in preparation for the physics step callback
 
