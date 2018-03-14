@@ -105,6 +105,12 @@ namespace Test
 	}
 #endif
 
+	struct CrabLeg
+	{
+		CBone bones[3];
+		CJoint joints[3];
+	};
+
 
 
 
@@ -116,20 +122,10 @@ namespace Test
 		bool init;
 
 		CBone carapace, head, tail;
-		CBone llega1, llega2, llega3;
-		CBone llegb1, llegb2, llegb3;
-		CBone llegc1, llegc2, llegc3;
-		CBone rlega1, rlega2, rlega3;
-		CBone rlegb1, rlegb2, rlegb3;
-		CBone rlegc1, rlegc2, rlegc3;
-
 		CJoint neck, tailj;
-		CJoint llja1, llja2, llja3;
-		CJoint lljb1, lljb2, lljb3;
-		CJoint lljc1, lljc2, lljc3;
-		CJoint rlja1, rlja2, rlja3;
-		CJoint rljb1, rljb2, rljb3;
-		CJoint rljc1, rljc2, rljc3;
+
+		CrabLeg llegs[3];
+		CrabLeg rlegs[3];
 
 		float timestep, inv_timestep;
 
@@ -280,55 +276,46 @@ namespace Test
 	{
 		Dood::InitBoneHelpers();
 
-		RegisterBone( imp->carapace = CBone(this, "carapace"  ));
-		RegisterBone( imp->head     = CBone(this, "head"      ));
-		RegisterBone( imp->tail     = CBone(this, "tail"      ));
-		RegisterBone( imp->llega1   = CBone(this, "l leg a 1" ));
-		RegisterBone( imp->llega2   = CBone(this, "l leg a 2" ));
-		RegisterBone( imp->llega3   = CBone(this, "l leg a 3" ));
-		RegisterBone( imp->llegb1   = CBone(this, "l leg b 1" ));
-		RegisterBone( imp->llegb2   = CBone(this, "l leg b 2" ));
-		RegisterBone( imp->llegb3   = CBone(this, "l leg b 3" ));
-		RegisterBone( imp->llegc1   = CBone(this, "l leg c 1" ));
-		RegisterBone( imp->llegc2   = CBone(this, "l leg c 2" ));
-		RegisterBone( imp->llegc3   = CBone(this, "l leg c 3" ));
-		RegisterBone( imp->rlega1   = CBone(this, "r leg a 1" ));
-		RegisterBone( imp->rlega2   = CBone(this, "r leg a 2" ));
-		RegisterBone( imp->rlega3   = CBone(this, "r leg a 3" ));
-		RegisterBone( imp->rlegb1   = CBone(this, "r leg b 1" ));
-		RegisterBone( imp->rlegb2   = CBone(this, "r leg b 2" ));
-		RegisterBone( imp->rlegb3   = CBone(this, "r leg b 3" ));
-		RegisterBone( imp->rlegc1   = CBone(this, "r leg c 1" ));
-		RegisterBone( imp->rlegc2   = CBone(this, "r leg c 2" ));
-		RegisterBone( imp->rlegc3   = CBone(this, "r leg c 3" ));
+		RegisterBone( imp->carapace = CBone(this, "carapace") );
+		RegisterBone( imp->head     = CBone(this, "head"    ) );
+		RegisterBone( imp->tail     = CBone(this, "tail"    ) );
+
+		static const string sides[2] = { "l", "r" };
+		static const string legs [3] = { "a", "b", "c" };
+		static const string bones[3] = { "1", "2", "3" };
+
+		for(int i = 0; i < 2; ++i)
+		{
+			CrabLeg* legs_array = i == 0 ? imp->llegs : imp->rlegs;
+			for(int j = 0; j < 3; ++j)
+				for(int k = 0; k < 3; ++k)
+					RegisterBone( legs_array[j].bones[k] = CBone(this, ((stringstream&)(stringstream() << sides[i] << " leg " << legs[j] << " " << bones[k])).str()) );
+		}
 	}
 
 	void CrabBug::InitJointHelpers()
 	{
 		Dood::InitJointHelpers();
 
-		float N = 200, T = 150, J1 = 900, J2 = 700, J3 = 600;
-		float A = 0.9f, B = 1.0f, C = 0.9f;
+		float N = 200, T = 150;
 
-		RegisterJoint( imp->neck  = CJoint( this, imp->carapace, imp->head,   N            ));
-		RegisterJoint( imp->tailj = CJoint( this, imp->carapace, imp->tail,   T            ));
-		RegisterJoint( imp->llja1 = CJoint( this, imp->carapace, imp->llega1, J1 * A       ));
-		RegisterJoint( imp->llja2 = CJoint( this, imp->llega1,   imp->llega2, J2 * A, 0, 0 ));		// the 'knees' and 'ankes' can only rotate and torque on one axis
-		RegisterJoint( imp->llja3 = CJoint( this, imp->llega2,   imp->llega3, J3 * A, 0, 0 ));
-		RegisterJoint( imp->lljb1 = CJoint( this, imp->carapace, imp->llegb1, J1 * B       ));
-		RegisterJoint( imp->lljb2 = CJoint( this, imp->llegb1,   imp->llegb2, J2 * B, 0, 0 ));
-		RegisterJoint( imp->lljb3 = CJoint( this, imp->llegb2,   imp->llegb3, J3 * B, 0, 0 ));
-		RegisterJoint( imp->lljc1 = CJoint( this, imp->carapace, imp->llegc1, J1 * C       ));
-		RegisterJoint( imp->lljc2 = CJoint( this, imp->llegc1,   imp->llegc2, J2 * C, 0, 0 ));
-		RegisterJoint( imp->lljc3 = CJoint( this, imp->llegc2,   imp->llegc3, J3 * C, 0, 0 ));
-		RegisterJoint( imp->rlja1 = CJoint( this, imp->carapace, imp->rlega1, J1 * A       ));
-		RegisterJoint( imp->rlja2 = CJoint( this, imp->rlega1,   imp->rlega2, J2 * A, 0, 0 ));
-		RegisterJoint( imp->rlja3 = CJoint( this, imp->rlega2,   imp->rlega3, J3 * A, 0, 0 ));
-		RegisterJoint( imp->rljb1 = CJoint( this, imp->carapace, imp->rlegb1, J1 * B       ));
-		RegisterJoint( imp->rljb2 = CJoint( this, imp->rlegb1,   imp->rlegb2, J2 * B, 0, 0 ));
-		RegisterJoint( imp->rljb3 = CJoint( this, imp->rlegb2,   imp->rlegb3, J3 * B, 0, 0 ));
-		RegisterJoint( imp->rljc1 = CJoint( this, imp->carapace, imp->rlegc1, J1 * C       ));
-		RegisterJoint( imp->rljc2 = CJoint( this, imp->rlegc1,   imp->rlegc2, J2 * C, 0, 0 ));
-		RegisterJoint( imp->rljc3 = CJoint( this, imp->rlegc2,   imp->rlegc3, J3 * C, 0, 0 ));
+		float joint_strengths[3] = { 900, 700, 600 };
+		float leg_multipliers[3] = { 0.9f, 1.0f, 0.9f };
+
+		RegisterJoint( imp->neck  = CJoint( this, imp->carapace, imp->head, N ));
+		RegisterJoint( imp->tailj = CJoint( this, imp->carapace, imp->tail, T ));
+
+		for(int i = 0; i < 2; ++i)
+		{
+			CrabLeg* legs_array = i == 0 ? imp->llegs : imp->rlegs;
+			for(int j = 0; j < 3; ++j)
+				for(int k = 0; k < 3; ++k)
+				{
+					float x = leg_multipliers[j] * joint_strengths[k];
+					float yz = j == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
+
+					RegisterJoint( legs_array[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : legs_array[j].bones[k - 1], legs_array[j].bones[k], x, yz, yz) ); 
+				}
+		}
 	}
 }
