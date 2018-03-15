@@ -33,7 +33,7 @@ namespace CibraryEngine
 
 		void* user_pointer;
 
-		Imp(ContentMan* content) : content(content), font(NULL), x1(-1), y1(-1), x2(-2), y2(-2), text(), selectable(true), hover(false), hover_phase(0), user_pointer(NULL) { }			// initial dimensions are impossible to click (on purpose)
+		Imp(ContentMan* content) : content(content), font(nullptr), x1(-1), y1(-1), x2(-2), y2(-2), text(), selectable(true), hover(false), hover_phase(0), user_pointer(nullptr) { }			// initial dimensions are impossible to click (on purpose)
 	};
 
 
@@ -44,12 +44,13 @@ namespace CibraryEngine
 	 */
 	MenuItem::MenuItem(ContentMan* content) : Disposable(), imp(new Imp(content)), Selected() { }
 
-	void MenuItem::InnerDispose() { if(imp) { delete imp; imp = NULL; } }
+	void MenuItem::InnerDispose() { if(imp) { delete imp; imp = nullptr; } }
 
 	void MenuItem::Draw(int screen_w, int screen_h)
 	{
-		if(imp->font == NULL)											// By overriding this function you can prevent this font from being loaded
+		if(imp->font == nullptr)											// By overriding this function you can prevent this font from being loaded
 			imp->font = imp->content->GetCache<BitmapFont>()->Load("../Font");
+		assert(imp->font != nullptr);
 
 		float br = imp->selectable ? imp->hover_phase : 1.0f;
 		glColor3f(0.5f + 0.5f * br, 0.5f + 0.5f * br, 1.0f);
@@ -72,16 +73,16 @@ namespace CibraryEngine
 
 	void MenuItem::GetRect(int* x1, int* y1, int* x2, int* y2)
 	{
-		if(x1 != NULL) { *x1 = imp->x1; }
-		if(y1 != NULL) { *y1 = imp->y1; }
-		if(x2 != NULL) { *x2 = imp->x2; }
-		if(y2 != NULL) { *y2 = imp->y2; }
+		if(x1 != nullptr) { *x1 = imp->x1; }
+		if(y1 != nullptr) { *y1 = imp->y1; }
+		if(x2 != nullptr) { *x2 = imp->x2; }
+		if(y2 != nullptr) { *y2 = imp->y2; }
 	}
 
 	void MenuItem::GetSize(int* w, int* h)
 	{
-		if(w != NULL) { *w = imp->x2 - imp->x1; }			// not +1?
-		if(h != NULL) { *h = imp->y2 - imp->y1; }			// not +1?
+		if(w != nullptr) { *w = imp->x2 - imp->x1; }			// not +1?
+		if(h != nullptr) { *h = imp->y2 - imp->y1; }			// not +1?
 	}
 
 	bool MenuItem::IsSelectable()				{ return imp->selectable; }
@@ -94,16 +95,16 @@ namespace CibraryEngine
 
 	void MenuItem::SetRect(int* x1, int* y1, int* x2, int* y2)
 	{
-		if(x1 != NULL) { imp->x1 = *x1; }
-		if(y1 != NULL) { imp->y1 = *y1; }
-		if(x2 != NULL) { imp->x2 = *x2; }
-		if(y2 != NULL) { imp->y2 = *y2; }
+		if(x1 != nullptr) { imp->x1 = *x1; }
+		if(y1 != nullptr) { imp->y1 = *y1; }
+		if(x2 != nullptr) { imp->x2 = *x2; }
+		if(y2 != nullptr) { imp->y2 = *y2; }
 	}
 
 	void MenuItem::SetSize(int* w, int* h)
 	{
-		if(w != NULL) { imp->x2 = imp->x1 + *w; }			// not -1?
-		if(h != NULL) { imp->y2 = imp->y1 + *h; }			// not -1?
+		if(w != nullptr) { imp->x2 = imp->x1 + *w; }			// not -1?
+		if(h != nullptr) { imp->y2 = imp->y1 + *h; }			// not -1?
 	}
 
 	void MenuItem::SetSelectable(bool s)		{ imp->selectable = s; }
