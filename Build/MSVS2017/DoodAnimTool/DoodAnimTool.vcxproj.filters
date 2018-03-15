@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\DoodAnimTool\CAlignedAxis.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CFixedJoint.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CFlatFoot.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CSkeletalJoint.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATBone.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATKeyframe.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATMain.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATScreen.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\FileSelection.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GCanvas.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GCheckbox.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GColumnList.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GLabel.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\JointOrientations.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\PoseyDood.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\SolverInstance.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\StdAfx.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\DoodAnimTool\CAlignedAxis.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CFixedJoint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CFlatFoot.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\Constraint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CSkeletalJoint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATBone.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATKeyframe.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATScreen.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\FileSelection.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\FixedJointPoseOp.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GCanvas.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GCheckbox.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GColumnList.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GLabel.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GUIComponent.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\JointOrientations.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseChainNode.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseDelta.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseyDood.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\SolverInstance.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\StdAfx.h" />
+  </ItemGroup>
+</Project>

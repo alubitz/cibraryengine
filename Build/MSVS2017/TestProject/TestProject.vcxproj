@@ -1,0 +1,219 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>Test</ProjectName>
+    <ProjectGuid>{872B6BAD-850E-4058-A567-8BFD8B074A7E}</ProjectGuid>
+    <RootNamespace>MSVCCibraryEngine</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(SolutionDir)\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(SolutionDir)\Include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>$(BOOST_ROOT);$(SOIL_ROOT)\src;$(LUA_DEV)\include;C:\Program Files\Microsoft SDKs\Windows\v7.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DisableSpecificWarnings>4351</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Shcore.lib;SOIL.lib;glu32.lib;opengl32.lib;lua51.lib;lua5.1.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(SolutionDir)\LibrariesD;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <LinkTimeCodeGeneration>
+      </LinkTimeCodeGeneration>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AllowIsolation>true</AllowIsolation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>$(BOOST_ROOT);$(SOIL_ROOT)\src;$(LUA_DEV)\include;C:\Program Files\Microsoft SDKs\Windows\v7.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAsManaged>false</CompileAsManaged>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DisableSpecificWarnings>4351</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>_DEBUG</UndefinePreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <OpenMPSupport>
+      </OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Shcore.lib;SOIL.lib;glu32.lib;opengl32.lib;lua51.lib;lua5.1.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(SolutionDir)\LibrariesR;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\TestProject\ArtilleryBug.cpp" />
+    <ClCompile Include="..\..\..\TestProject\ArtilleryWeapon.cpp" />
+    <ClCompile Include="..\..\..\TestProject\BetterBrain.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Brambles.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CBone.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CJoint.cpp" />
+    <ClCompile Include="..\..\..\TestProject\ConverterWhiz.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CrabBug.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CrabWeapon.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Credits.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Damage.cpp" />
+    <ClCompile Include="..\..\..\TestProject\DefaultWeapon.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Dood.cpp" />
+    <ClCompile Include="..\..\..\TestProject\ExperimentalScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Gun.cpp" />
+    <ClCompile Include="..\..\..\TestProject\HUD.cpp" />
+    <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\JetpackNozzle.cpp" />
+    <ClCompile Include="..\..\..\TestProject\LevelLoad.cpp" />
+    <ClCompile Include="..\..\..\TestProject\LoadingScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Main.cpp" />
+    <ClCompile Include="..\..\..\TestProject\MainMenu.cpp" />
+    <ClCompile Include="..\..\..\TestProject\MultiLayerBrain.cpp" />
+    <ClCompile Include="..\..\..\TestProject\NeuralNet.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Particle.cpp" />
+    <ClCompile Include="..\..\..\TestProject\PoseAimingGun.cpp" />
+    <ClCompile Include="..\..\..\TestProject\RocketBug.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Rubbish.cpp" />
+    <ClCompile Include="..\..\..\TestProject\ScaledIOBrain.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Shot.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Soldier.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Spark.cpp" />
+    <ClCompile Include="..\..\..\TestProject\StaticLevelGeometry.cpp" />
+    <ClCompile Include="..\..\..\TestProject\StdAfx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Sun.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Team.cpp" />
+    <ClCompile Include="..\..\..\TestProject\TestGame.cpp" />
+    <ClCompile Include="..\..\..\TestProject\TestScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\WalkPose.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Weapon.cpp" />
+    <ClCompile Include="..\..\..\TestProject\WeaponEquip.cpp" />
+    <ClCompile Include="..\..\..\TestProject\WeaponIntrinsic.cpp" />
+    <ClCompile Include="..\..\..\TestProject\WorldBoundary.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\TestProject\ArtilleryBug.h" />
+    <ClInclude Include="..\..\..\TestProject\ArtilleryWeapon.h" />
+    <ClInclude Include="..\..\..\TestProject\BetterBrain.h" />
+    <ClInclude Include="..\..\..\TestProject\Brambles.h" />
+    <ClInclude Include="..\..\..\TestProject\CBone.h" />
+    <ClInclude Include="..\..\..\TestProject\CJoint.h" />
+    <ClInclude Include="..\..\..\TestProject\ConverterWhiz.h" />
+    <ClInclude Include="..\..\..\TestProject\CrabBug.h" />
+    <ClInclude Include="..\..\..\TestProject\CrabWeapon.h" />
+    <ClInclude Include="..\..\..\TestProject\Credits.h" />
+    <ClInclude Include="..\..\..\TestProject\Damage.h" />
+    <ClInclude Include="..\..\..\TestProject\DefaultWeapon.h" />
+    <ClInclude Include="..\..\..\TestProject\Dood.h" />
+    <ClInclude Include="..\..\..\TestProject\ExperimentalScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\Gun.h" />
+    <ClInclude Include="..\..\..\TestProject\HUD.h" />
+    <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\JetpackNozzle.h" />
+    <ClInclude Include="..\..\..\TestProject\LevelLoad.h" />
+    <ClInclude Include="..\..\..\TestProject\LoadingScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\MainMenu.h" />
+    <ClInclude Include="..\..\..\TestProject\MultiLayerBrain.h" />
+    <ClInclude Include="..\..\..\TestProject\NeuralNet.h" />
+    <ClInclude Include="..\..\..\TestProject\Particle.h" />
+    <ClInclude Include="..\..\..\TestProject\PoseAimingGun.h" />
+    <ClInclude Include="..\..\..\TestProject\RocketBug.h" />
+    <ClInclude Include="..\..\..\TestProject\Rubbish.h" />
+    <ClInclude Include="..\..\..\TestProject\ScaledIOBrain.h" />
+    <ClInclude Include="..\..\..\TestProject\Shootable.h" />
+    <ClInclude Include="..\..\..\TestProject\Shot.h" />
+    <ClInclude Include="..\..\..\TestProject\Soldier.h" />
+    <ClInclude Include="..\..\..\TestProject\Spark.h" />
+    <ClInclude Include="..\..\..\TestProject\StaticLevelGeometry.h" />
+    <ClInclude Include="..\..\..\TestProject\StdAfx.h" />
+    <ClInclude Include="..\..\..\TestProject\Sun.h" />
+    <ClInclude Include="..\..\..\TestProject\Team.h" />
+    <ClInclude Include="..\..\..\TestProject\TestGame.h" />
+    <ClInclude Include="..\..\..\TestProject\TestScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\WalkPose.h" />
+    <ClInclude Include="..\..\..\TestProject\Weapon.h" />
+    <ClInclude Include="..\..\..\TestProject\WeaponEquip.h" />
+    <ClInclude Include="..\..\..\TestProject\WeaponIntrinsic.h" />
+    <ClInclude Include="..\..\..\TestProject\WorldBoundary.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CibraryEngine\CibraryEngine.vcxproj">
+      <Project>{53093cd3-bf6e-4946-a890-f7293e16ce18}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
