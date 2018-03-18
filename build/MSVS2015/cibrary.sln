@@ -1,0 +1,56 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 14 for Windows Desktop
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CibraryEngine", "CibraryEngine\CibraryEngine.vcxproj", "{53093CD3-BF6E-4946-A890-F7293E16CE18}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DestructibleTerrain", "DestructibleTerrain\DestructibleTerrain.vcxproj", "{9DE2B167-F024-45ED-BE33-D0B81904BC60}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DoodAnimTool", "DoodAnimTool\DoodAnimTool.vcxproj", "{C368D328-72D9-47FF-8537-ADD8E8C4397E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{53093CD3-BF6E-4946-A890-F7293E16CE18} = {53093CD3-BF6E-4946-A890-F7293E16CE18}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "TestProject\TestProject.vcxproj", "{872B6BAD-850E-4058-A567-8BFD8B074A7E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{53093CD3-BF6E-4946-A890-F7293E16CE18} = {53093CD3-BF6E-4946-A890-F7293E16CE18}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Debug|Win32.ActiveCfg = Debug|Win32
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Debug|Win32.Build.0 = Debug|Win32
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Debug|x64.ActiveCfg = Debug|Win32
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Release|Win32.ActiveCfg = Release|Win32
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Release|Win32.Build.0 = Release|Win32
+		{53093CD3-BF6E-4946-A890-F7293E16CE18}.Release|x64.ActiveCfg = Release|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Debug|Win32.Build.0 = Debug|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Debug|x64.ActiveCfg = Debug|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Release|Win32.ActiveCfg = Release|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Release|Win32.Build.0 = Release|Win32
+		{9DE2B167-F024-45ED-BE33-D0B81904BC60}.Release|x64.ActiveCfg = Release|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Debug|Win32.Build.0 = Debug|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Debug|x64.ActiveCfg = Debug|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Release|Win32.ActiveCfg = Release|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Release|Win32.Build.0 = Release|Win32
+		{C368D328-72D9-47FF-8537-ADD8E8C4397E}.Release|x64.ActiveCfg = Release|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Debug|Win32.Build.0 = Debug|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Debug|x64.ActiveCfg = Debug|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Release|Win32.ActiveCfg = Release|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Release|Win32.Build.0 = Release|Win32
+		{872B6BAD-850E-4058-A567-8BFD8B074A7E}.Release|x64.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
