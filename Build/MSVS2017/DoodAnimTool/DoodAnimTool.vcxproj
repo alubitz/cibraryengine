@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\DoodAnimTool\CAlignedAxis.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CFixedJoint.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CFlatFoot.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\CSkeletalJoint.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATBone.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATKeyframe.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATMain.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\DATScreen.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\FileSelection.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GCanvas.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GCheckbox.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GColumnList.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GLabel.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\JointOrientations.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\PoseyDood.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\SolverInstance.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\StdAfx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\DoodAnimTool\CAlignedAxis.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CFixedJoint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CFlatFoot.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\Constraint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\CSkeletalJoint.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATBone.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATKeyframe.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\DATScreen.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\FileSelection.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\FixedJointPoseOp.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GCanvas.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GCheckbox.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GColumnList.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GLabel.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GUIComponent.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\JointOrientations.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseChainNode.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseDelta.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\PoseyDood.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\SolverInstance.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\StdAfx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CibraryEngine\CibraryEngine.vcxproj">
+      <Project>{53093cd3-bf6e-4946-a890-f7293e16ce18}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C368D328-72D9-47FF-8537-ADD8E8C4397E}</ProjectGuid>
+    <RootNamespace>InverseKinematicss</RootNamespace>
+    <ProjectName>DoodAnimTool</ProjectName>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(SolutionDir)\Include;$(IncludePath)</IncludePath>
+    <LinkIncremental />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(SolutionDir)\Include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <DisableSpecificWarnings>4351</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(BOOST_ROOT);$(SOIL_ROOT)\src;$(LUA_DEV)\include;C:\Program Files\Microsoft SDKs\Windows\v7.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(BOOST_ROOT)\lib;$(SolutionDir);$(SolutionDir)\LibrariesD;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Shcore.lib;SOIL.lib;glu32.lib;opengl32.lib;lua51.lib;lua5.1.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Full</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>$(BOOST_ROOT);$(SOIL_ROOT)\src;$(LUA_DEV)\include;C:\Program Files\Microsoft SDKs\Windows\v7.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <CompileAsManaged>false</CompileAsManaged>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>_DEBUG</UndefinePreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <DisableSpecificWarnings>4351</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(BOOST_ROOT)\lib;$(SolutionDir);$(SolutionDir)\LibrariesR;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Shcore.lib;SOIL.lib;glu32.lib;opengl32.lib;lua51.lib;lua5.1.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

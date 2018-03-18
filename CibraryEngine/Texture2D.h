@@ -1,6 +1,8 @@
 #pragma once
 
 #include "StdAfx.h"
+
+#include "Content.h"
 #include "Texture.h"
 
 namespace CibraryEngine

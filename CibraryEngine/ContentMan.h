@@ -28,6 +28,7 @@ namespace CibraryEngine
 #include "ContentHandle.h"
 #include "ContentMetadata.h"
 #include "Cache.h"
+#include "Texture2D.h"
 
 namespace CibraryEngine
 {
