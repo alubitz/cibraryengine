@@ -26,6 +26,8 @@
 #include "StaticLevelGeometry.h"
 #include "Rubbish.h"
 
+#include "GAExperiment.h"
+
 #define ENABLE_SHADOWS                   1
 #define SHADOW_MAP_SIZE                  1024
 #define N_SHADOW_MAPS                    3
@@ -39,7 +41,7 @@
 #define USE_GUN_AS_RUBBISH               0
 #define PLAY_AS_CRAB_BUG                 1
 
-#define DO_RAPID_UPDATE_TESTING          0
+#define DO_RAPID_UPDATE_TESTING          1
 #define RAPID_UPDATE_COUNT               20
 #define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood?
 
@@ -239,6 +241,8 @@ namespace Test
 
 		bool physics_content_init;
 
+		GAExperiment* experiment;
+
 		Imp() :
 			bot_death_handler(),
 			player_death_handler(),
@@ -252,7 +256,8 @@ namespace Test
 			shadow_render_targets(),
 			deferred_ambient(NULL),
 			deferred_lighting(NULL),
-			physics_content_init(false)
+			physics_content_init(false),
+			experiment(NULL)
 		{
 			for(unsigned int i = 0; i < CPHFT_THREAD_COUNT; ++i)
 				threads[i] = new TaskThread();
@@ -279,6 +284,8 @@ namespace Test
 				delete threads[i];
 				threads[i] = NULL;
 			}
+
+			if(experiment)				{ delete experiment; experiment = NULL; }
 		}
 
 		void DrawBackground(Mat4& view_matrix)
@@ -576,7 +583,7 @@ namespace Test
 
 		hud = new HUD(this, content);
 
-		Soldier::LoadExperimentData();
+		imp->experiment = new GAExperiment("Files/brains/genepool");
 
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
@@ -604,7 +611,7 @@ namespace Test
 #endif
 
 #if PLAY_AS_CRAB_BUG
-		player_pawn = new CrabBug(this, imp->crab_bug_model, imp->crab_bug_physics, pos, human_team);
+		player_pawn = new CrabBug(this, imp->experiment, imp->crab_bug_model, imp->crab_bug_physics, pos, human_team);
 #else
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 #endif
@@ -638,7 +645,7 @@ namespace Test
 
 	Dood* TestGame::SpawnBot(const Vec3& pos)
 	{
-		Dood* dood = new CrabBug(this, imp->crab_bug_model, imp->crab_bug_physics, pos, bug_team);
+		Dood* dood = new CrabBug(this, imp->experiment, imp->crab_bug_model, imp->crab_bug_physics, pos, bug_team);
 		Spawn(dood);
 
 		dood->blood_material = imp->blood_blue;
@@ -756,6 +763,9 @@ namespace Test
 			ScriptSystem::GetGlobalState().DoString(script_string);
 
 			GameState::Update(clamped_time);
+
+			if(imp->experiment != nullptr)
+				debug_text = imp->experiment->GetDebugText();
 
 			NGDEBUG();
 
@@ -1096,8 +1106,6 @@ namespace Test
 
 	void TestGame::InnerDispose()
 	{
-		Soldier::SaveExperimentData();
-
 		load_status.Dispose();
 
 		if(imp) { delete imp; imp = NULL; }

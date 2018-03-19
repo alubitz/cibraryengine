@@ -131,6 +131,7 @@
     <ClCompile Include="..\..\..\TestProject\DefaultWeapon.cpp" />
     <ClCompile Include="..\..\..\TestProject\Dood.cpp" />
     <ClCompile Include="..\..\..\TestProject\ExperimentalScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\GAExperiment.cpp" />
     <ClCompile Include="..\..\..\TestProject\Gun.cpp" />
     <ClCompile Include="..\..\..\TestProject\HUD.cpp" />
     <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="..\..\..\TestProject\DefaultWeapon.h" />
     <ClInclude Include="..\..\..\TestProject\Dood.h" />
     <ClInclude Include="..\..\..\TestProject\ExperimentalScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\GAExperiment.h" />
     <ClInclude Include="..\..\..\TestProject\Gun.h" />
     <ClInclude Include="..\..\..\TestProject\HUD.h" />
     <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h" />

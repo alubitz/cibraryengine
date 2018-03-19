@@ -71,34 +71,6 @@ namespace Test
 	}
 #endif
 
-	struct Experiment
-	{
-		mutex mutex;
-
-		string saved_debug_text;
-
-		Experiment() : mutex() { }
-
-		~Experiment()
-		{
-#if PROFILE_ANY_CPHFT
-			DebugCPHFTProfilingData();
-#endif
-		}
-
-		void DebugMat3(stringstream& ss, const Mat3& m)
-		{
-			ss << "{ ";
-			for(unsigned int i = 0; i < 9; ++i)
-				if(i != 0)
-					ss << ", " << m[i];
-				else
-					ss << m[i];
-			ss << " }";
-		}
-	};
-	static Experiment* experiment = NULL;
-
 
 
 
@@ -888,14 +860,6 @@ namespace Test
 
 	void Soldier::PreCPHFT(float timestep) { Dood::PreCPHFT(timestep); }
 	void Soldier::PostCPHFT(float timestep) { Dood::PostCPHFT(timestep); old_contact_points.clear(); new_contact_points.clear(); }
-
-
-
-	bool Soldier::IsExperimentDone() const { return imp->init && imp->experiment_done; }
-
-	void Soldier::LoadExperimentData()     { experiment = new Experiment(); }
-
-	void Soldier::SaveExperimentData()     { if(experiment) { delete experiment; experiment = NULL; } }
 
 
 

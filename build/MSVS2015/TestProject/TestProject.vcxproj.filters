@@ -44,6 +44,7 @@
     <ClCompile Include="..\..\..\TestProject\CBone.cpp" />
     <ClCompile Include="..\..\..\TestProject\CJoint.cpp" />
     <ClCompile Include="..\..\..\TestProject\JetpackNozzle.cpp" />
+    <ClCompile Include="..\..\..\TestProject\GAExperiment.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\TestProject\ArtilleryBug.h" />
@@ -89,5 +90,6 @@
     <ClInclude Include="..\..\..\TestProject\CBone.h" />
     <ClInclude Include="..\..\..\TestProject\CJoint.h" />
     <ClInclude Include="..\..\..\TestProject\JetpackNozzle.h" />
+    <ClInclude Include="..\..\..\TestProject\GAExperiment.h" />
   </ItemGroup>
 </Project>

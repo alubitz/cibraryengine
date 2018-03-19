@@ -6,6 +6,8 @@
 #include "CBone.h"
 #include "CJoint.h"
 
+#include "GAExperiment.h"
+
 #define DIE_AFTER_ONE_SECOND   0
 
 #define ENABLE_WALK_ANIMATIONS 0
@@ -120,6 +122,15 @@ namespace Test
 	struct CrabBug::Imp
 	{
 		bool init;
+		bool clean_init;
+		bool experiment_done;
+
+		float score;
+
+		GATrialToken ga_token;
+		GAExperiment* experiment;
+
+		Vec3 initial_pos;
 
 		CBone carapace, head, tail;
 		CJoint neck, tailj;
@@ -127,18 +138,63 @@ namespace Test
 		CrabLeg llegs[3];
 		CrabLeg rlegs[3];
 
+		float pd_target[36];
+		float pd_previous[36];
+		float pd_integral[36];
+
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
 
-		Imp() : init(false), timestep(0), inv_timestep(0), tick_age(0), max_tick_age(300) { }
+		Imp() : init(false), experiment_done(false), experiment(nullptr), timestep(0), inv_timestep(0), tick_age(0), max_tick_age(30) { }
 		~Imp() { }
 
 		void Init(CrabBug* dood)
 		{
 			dood->collision_group->SetInternalCollisionsEnabled(true);
 
-			init = true;
+			initial_pos = dood->pos;
+
+			SharedInit(dood);
+		}
+
+		void ReInit(CrabBug* dood)
+		{
+			dood->yaw = dood->pitch = 0.0f;
+			dood->pos = initial_pos;
+
+			dood->DoInitialPose();
+			dood->posey->skeleton->InvalidateCachedBoneXforms();
+
+			for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
+			{
+				CBone& cb = *dood->all_bones[i];
+				RigidBody& rb = *cb.rb;
+
+				Bone* posey = cb.posey;
+				posey->GetTransformationMatrix().Decompose(cb.initial_pos, cb.initial_ori);		// re-computes bones' initial states
+
+				rb.SetPosition   (cb.initial_pos);
+				rb.SetOrientation(cb.initial_ori);
+				rb.SetLinearVelocity (Vec3());
+				rb.SetAngularVelocity(Vec3());
+			}
+
+			SharedInit(dood);
+		}
+
+		void SharedInit(CrabBug* dood)
+		{
+			clean_init = false;
+			experiment_done = false;
+			tick_age = 0;
+
+			score = 0.0f;
+
+			memset(pd_previous, 0, sizeof(pd_previous));
+
+			if(experiment != nullptr && ga_token.candidate == nullptr)
+				ga_token = experiment->GetNextTrial();
 		}
 
 		void Update(CrabBug* dood, const TimingInfo& time)
@@ -146,7 +202,25 @@ namespace Test
 			if(!init)
 			{
 				Init(dood);
+				init = true;
 				return;
+			}
+			else if(experiment_done || experiment != nullptr && ga_token.candidate == nullptr)
+			{
+				ReInit(dood);
+				return;
+			}
+
+			if(!clean_init)
+			{
+				ReInit(dood);
+
+				//if(Random3D::RandInt() % 2 == 0)
+				//	clean_init = true;
+				//else
+				//	return;
+
+				clean_init = true;
 			}
 
 			timestep     = time.elapsed;
@@ -171,17 +245,106 @@ namespace Test
 				(*iter)->rb->ComputeInvMoI();			// force recomputation of a few cached fields, including ori_rm 
 			}
 
-
-
-			Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
+			float total_mass = 0.0f;
 			for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
-				dood->all_bones[i]->ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
-
-			dood->DoScriptedMotorControl("Files/Scripts/crab_motor_control.lua");
+				total_mass += dood->all_bones[i]->rb->GetMass();
 
 
+
+			//Quaternion yaw_ori = Quaternion::FromAxisAngle(0, 1, 0, -dood->yaw);
+			//for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
+			//	dood->all_bones[i]->ComputeDesiredTorqueWithDefaultMoI(yaw_ori, inv_timestep);
+
+			//dood->DoScriptedMotorControl("Files/Scripts/crab_motor_control.lua");
+
+			//stringstream ss;
+			//ss << "age = " << tick_age << endl;
+			//for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+			//{
+			//	const CJoint& j = *dood->all_joints[i];
+			//	const Vec3& f = j.sjc->net_impulse_linear;
+			//	const Vec3& t = j.sjc->net_impulse_angular;
+			//	ss << "\t" << j.b->name << ": F = (" << f.x << ", " << f.y << ", " << f.z << "); T = (" << t.x << ", " << t.y << ", " << t.z << ")" << endl;
+			//}
+			//Debug(ss.str());
+
+			if(experiment != nullptr && ga_token.candidate != nullptr && !ga_token.candidate->aborting)
+			{
+				//float total_errsq = 0.0f;
+
+				// apply controls
+				unsigned int pd_index = 0;
+				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+				{
+					Vec3 use_torque;
+
+					CJoint& joint = *dood->all_joints[i];
+					SkeletalJointConstraint& sjc = *joint.sjc;
+					float* mint = (float*)&sjc.min_torque;
+					float* maxt = (float*)&sjc.max_torque;
+
+					Vec3 rvec = joint.GetRVec();
+					float* rptr = (float*)&rvec;
+					float* tptr = (float*)&use_torque;
+
+					for(unsigned int j = 0; j < 3; ++j, ++mint, ++maxt, ++rptr, ++tptr)
+					{
+						if(*maxt > *mint)
+						{
+							unsigned int ref_index = pd_index < 21 ? pd_index : pd_index - 15;
+
+							if(tick_age == 0)
+							{
+								pd_target[pd_index] = *rptr;
+								pd_integral[pd_index] = ga_token.candidate->initial[ref_index];
+							}
+
+							float current_error = *rptr - pd_target[pd_index];
+							float derror_dt = (current_error - pd_previous[pd_index]) * inv_timestep;
+
+							pd_integral[pd_index] += current_error * timestep;
+
+							float ppart = current_error * ga_token.candidate->kp[ref_index];
+							float ipart = pd_integral[pd_index] * ga_token.candidate->ki[ref_index];
+							float dpart = derror_dt * ga_token.candidate->kd[ref_index];
+							*tptr = total_mass * (ppart + ipart + dpart);
+
+							pd_previous[pd_index] = current_error;
+
+							++pd_index;
+						}
+					}
+
+					joint.SetOrientedTorque(use_torque);
+				}
+
+				// compute score
+				for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
+					score += (Quaternion::Reverse(dood->all_bones[i]->initial_ori) * dood->all_bones[i]->rb->GetOrientation()).ToRVec().ComputeMagnitudeSquared();
+
+				//score += total_errsq;
+				//score += (carapace.initial_pos - carapace.rb->GetPosition()).ComputeMagnitudeSquared() * 10.0f;
+			}
 
 			++tick_age;
+
+			if(experiment != nullptr && ga_token.candidate != nullptr)
+			{
+				float fail_threshold = experiment->GetEarlyFailThreshold();
+				if(fail_threshold >= 0.0f && score + ga_token.candidate->score >= fail_threshold)
+					ga_token.candidate->aborting = true;
+
+				if(tick_age >= max_tick_age || ga_token.candidate->aborting)
+				{
+					if(!experiment_done)
+					{
+						experiment->TrialFinished(ga_token, score);
+						experiment_done = true;
+
+						ga_token = experiment->GetNextTrial();
+					}
+				}
+			}
 		}
 	};
 
@@ -191,14 +354,14 @@ namespace Test
 	/*
 	 * CrabBug methods
 	 */
-	CrabBug::CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
+	CrabBug::CrabBug(GameState* game_state, GAExperiment* experiment, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
 		imp(NULL),
 		crab_heading(new CrabHeading())
 	{
 		hp *= 0.5f;
 
-		yaw = Random3D::Rand(float(M_PI) * 2.0f);
+		//yaw = Random3D::Rand(float(M_PI) * 2.0f);
 
 		ragdoll_timer = 10.0f;
 
@@ -216,6 +379,7 @@ namespace Test
 		standing_callback.angular_coeff = 0.0f;
 
 		imp = new Imp();
+		imp->experiment = experiment;
 	}
 
 	void CrabBug::InnerDispose()
@@ -299,7 +463,7 @@ namespace Test
 
 		float N = 200, T = 150;
 
-		float joint_strengths[3] = { 900, 700, 600 };
+		float joint_strengths[3] = { 1400, 1200, 900 };
 		float leg_multipliers[3] = { 0.9f, 1.0f, 0.9f };
 
 		RegisterJoint( imp->neck  = CJoint( this, imp->carapace, imp->head, N ));
@@ -317,5 +481,8 @@ namespace Test
 					RegisterJoint( legs_array[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : legs_array[j].bones[k - 1], legs_array[j].bones[k], x, yz, yz) ); 
 				}
 		}
+
+		//for(unsigned int i = 0; i < all_joints.size(); ++i)
+		//	all_joints[i]->sjc->enable_motor = true;
 	}
 }

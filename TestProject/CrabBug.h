@@ -6,6 +6,8 @@
 
 namespace Test
 {
+	class GAExperiment;
+
 	class CrabBug : public Dood
 	{
 		private:
@@ -42,7 +44,7 @@ namespace Test
 
 		public:
 
-			CrabBug(GameState* game_state, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
+			CrabBug(GameState* game_state, GAExperiment* experiment, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
 
 			void Update(const TimingInfo& time);
 
