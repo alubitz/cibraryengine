@@ -1,6 +1,8 @@
 #include "StdAfx.h"
 #include "TaskThread.h"
 
+#include <condition_variable>
+
 namespace CibraryEngine
 {
 	/*

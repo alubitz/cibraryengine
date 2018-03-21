@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "DSNMaterial.h"
 
+#include "Texture1D.h"
 #include "Texture2D.h"
 #include "VertexBuffer.h"
 #include "Shader.h"

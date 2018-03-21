@@ -6,6 +6,7 @@
 #include "Shader.h"
 #include "RenderNode.h"
 #include "UniformVariables.h"
+#include "Texture2D.h"
 
 #define DEBUG_N_CHUNKS_VBOS_TRIANGLES 0
 

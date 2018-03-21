@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 
-#include "Content.h"
+#include "Disposable.h"
 
 namespace CibraryEngine
 {
@@ -14,7 +14,7 @@ namespace CibraryEngine
 			unsigned int gl_name;
 		public:
 
-			Texture() : gl_name(0) { }
+			Texture() : gl_name(0) { };
 
 			virtual unsigned int GetGLName() = 0;
 	};
