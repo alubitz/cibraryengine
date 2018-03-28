@@ -164,9 +164,27 @@ namespace Test
 
 			if(!candidates.empty())
 			{
-				Debug(((stringstream&)(stringstream() << "Successfully loaded " << candidates.size() << " brains from genepool" << endl)).str());
+				stringstream ss;
+				ss << "Successfully loaded " << candidates.size() << " brains from genepool" << endl;
 
-				// TODO: display stats?
+				for(unsigned int i = 0; i < 111; ++i)
+				{
+					float tot = 0.0f;
+					float min, max;
+					for(unsigned int j = 0; j < candidates.size(); ++j)
+					{
+						float value = ((float*)&candidates[j]->kp)[i];
+						tot += value;
+						if(j == 0 || value < min)
+							min = value;
+						if(j == 0 || value > max)
+							max = value;
+					}
+
+					ss << "\tcomponent " << i << ": min = " << min << "; max = " << max << "; avg = " << tot / candidates.size() << endl;
+				}
+
+				Debug(ss.str());
 			}
 
 			file.close();
@@ -357,11 +375,6 @@ namespace Test
 
 		if(tokens_busy.empty() & tokens_not_started.empty())
 		{
-			stringstream ss;
-			ss << "batch " << batch << " elites:" << endl;
-			
-			Debug(ss.str());
-
 			time_t raw_time;
 			time(&raw_time);
 			tm now = *localtime(&raw_time);
@@ -416,8 +429,6 @@ namespace Test
 				Debug(ss.str());
 			}
 		}
-
-		// TODO: save to file(s)
 	}
 
 	string GAExperiment::GetDebugText()
