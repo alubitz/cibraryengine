@@ -1,10 +1,12 @@
 #include "StdAfx.h"
 #include "GAExperiment.h"
 
-#define NUM_ELITES			10
+#define NUM_ELITES			20
 
-#define MUTATION_COUNT		20
-#define MUTATION_SCALE		0.01f
+#define CROSSOVERS_PER_PAIR	1
+
+#define MUTATION_COUNT		4
+#define MUTATION_SCALE		0.001f
 
 #define TRIALS_PER_SUBTEST	10
 
@@ -16,72 +18,75 @@ namespace Test
 	/*
 	 * GACandidate methods
 	 */
-	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), ops(), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		memset(kp, 0, sizeof(kp));
-		memset(ki, 0, sizeof(ki));
-		memset(kd, 0, sizeof(kd));
-		memset(initial, 0, sizeof(initial));
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), ops(other.ops), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		memcpy(kp, other.kp, sizeof(kp));
-		memcpy(ki, other.ki, sizeof(ki));
-		memcpy(kd, other.kd, sizeof(kd));
-		memcpy(initial, other.initial, sizeof(initial));
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), ops(), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		for(unsigned int i = 0; i < 21; ++i)
-		{
-			kp[i] = Crossover(p1.kp[i], p2.kp[i]);
-			ki[i] = Crossover(p1.ki[i], p2.ki[i]);
-			kd[i] = Crossover(p1.kd[i], p2.kd[i]);
-			initial[i] = Crossover(p1.initial[i], p2.initial[i]);
-		}
+		const GACandidate* a = &p1;
+		const GACandidate* b = &p2;
+
+		if(Random3D::RandInt() % 2 == 0)
+			swap(a, b);
+
+		unsigned int an = a->ops.empty() ? 0 : Random3D::RandInt(a->ops.size());
+		unsigned int bn = b->ops.empty() ? 0 : Random3D::RandInt(b->ops.size());
+
+		ops = a->ops.substr(0, an) + b->ops.substr(b->ops.size() - bn);
 
 		Randomize(MUTATION_COUNT, MUTATION_SCALE);
 	}
 
 	void GACandidate::Randomize(unsigned int count, float scale)
 	{
+		bool ok;
 		do
 		{
-			float* ptr;
-			float minx;
-			float maxx;
-
-			unsigned int index = Random3D::RandInt() % 21;
-			switch(Random3D::RandInt() % 4)
+			if(ops.empty())
 			{
-				case 0:
-					ptr = kp + index;
-					minx = 0;
-					maxx = 100;
-					break;
-				case 1:
-					ptr = ki + index;
-					minx = 0;
-					maxx = 100;
-					break;
-				case 2:
-					ptr = kd + index;
-					minx = 0;
-					maxx = 20;
-					break;
-				case 3:
-					ptr = initial + index;
-					minx = -20;
-					maxx =  20;
-					break;
+				ops += (char)Random3D::RandInt(256);
+				ok = true;
+			}
+			else
+			{
+				unsigned int pos = Random3D::RandInt() % ops.size();
+				switch(Random3D::RandInt() % 2)
+				{
+					case 0:		// insert
+					{
+						string after = ops.substr(pos);
+						ops = ops.substr(0, pos);
+
+						unsigned int len = Random3D::RandInt(1, 10);
+						for(unsigned int i = 0; i < len; ++i)
+							ops += (char)Random3D::RandInt(256);
+						ops += after;
+
+						ok = true;
+
+						break;
+					}
+
+					case 1:		// mutate
+					{
+						ops = ops.substr(0, pos - 1) + (char)Random3D::RandInt(256) + ops.substr(pos);
+						ok = true;
+						break;
+					}
+
+					case 2:		// remove
+						ops = ops.substr(0, pos - 1) + ops.substr(pos + 1);
+						ok = true;
+						break;
+				}
 			}
 
-			float rscale = (maxx - minx) * scale;
-			*ptr = max(minx, min(maxx, *ptr + Random3D::Rand(-rscale, rscale)));
-
-		} while(Random3D::RandInt() % count == 0);
+		} while(!ok || Random3D::RandInt() % count == 0);
 	}
 
 	float GACandidate::Crossover(float a, float b) { return a + Random3D::Rand() * (b - a); }
@@ -89,15 +94,10 @@ namespace Test
 	unsigned int GACandidate::Write(ostream& s)
 	{
 		stringstream ss;
-		for(unsigned int i = 0; i < 21; ++i)
-		{
-			WriteSingle(kp[i], ss);
-			WriteSingle(ki[i], ss);
-			WriteSingle(kd[i], ss);
-			WriteSingle(initial[i], ss);
-		}
+		for(unsigned int i = 0; i < 3; ++i)
+			WriteString4(ops, ss);
 		
-		BinaryChunk chunk("IDKPID01");
+		BinaryChunk chunk("IDKOPS01");
 		chunk.data = ss.str();
 		chunk.Write(s);
 
@@ -111,19 +111,14 @@ namespace Test
 		BinaryChunk chunk;
 		chunk.Read(s);
 
-		if(chunk.GetName() != "IDKPID01")
+		if(chunk.GetName() != "IDKOPS01")
 			return 1;
 
 		istringstream ss(chunk.data);
 
 		GACandidate* candidate = new GACandidate(id);
-		for(unsigned int i = 0; i < 21; ++i)
-		{
-			candidate->kp[i] = ReadSingle(ss);
-			candidate->ki[i] = ReadSingle(ss);
-			candidate->kd[i] = ReadSingle(ss);
-			candidate->initial[i] = ReadSingle(ss);
-		}
+		for(unsigned int i = 0; i < 3; ++i)
+			candidate->ops = ReadString4(ss);
 
 		if(s.bad())
 		{
@@ -167,13 +162,13 @@ namespace Test
 				stringstream ss;
 				ss << "Successfully loaded " << candidates.size() << " brains from genepool" << endl;
 
-				for(unsigned int i = 0; i < 111; ++i)
+				/*for(unsigned int i = 0; i < 3; ++i)
 				{
 					float tot = 0.0f;
 					float min, max;
 					for(unsigned int j = 0; j < candidates.size(); ++j)
 					{
-						float value = ((float*)&candidates[j]->kp)[i];
+						float value = ((float*)&candidates[j]->foot_fudge)[i];
 						tot += value;
 						if(j == 0 || value < min)
 							min = value;
@@ -184,7 +179,7 @@ namespace Test
 					ss << "\tcomponent " << i << ": min = " << min << "; max = " << max << "; avg = " << tot / candidates.size() << endl;
 				}
 
-				Debug(ss.str());
+				Debug(ss.str());*/
 			}
 
 			file.close();
@@ -253,8 +248,10 @@ namespace Test
 		for(unsigned int i = 0; i < NUM_ELITES * NUM_ELITES; ++i)
 		{
 			GACandidate* candidate = new GACandidate(next_id++);
-			if(i >= NUM_ELITES)
-				candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
+			//if(i >= NUM_ELITES)
+			//	candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
+			for(unsigned int j = 0; j < 500; ++j)
+				candidate->ops += (char)Random3D::RandInt(256);
 			candidates.push_back(candidate);
 		}
 	}
@@ -283,7 +280,7 @@ namespace Test
 			for(list<GACandidate*>::iterator jter = iter; jter != elites.end(); ++jter)
 				if(iter != jter)
 				{
-					for(unsigned int n = 0; n < 2; ++n)
+					for(unsigned int n = 0; n < CROSSOVERS_PER_PAIR; ++n)
 					{
 						GACandidate* candidate = new GACandidate(next_id++, **iter, **jter);
 						candidates.push_back(candidate);
@@ -423,7 +420,7 @@ namespace Test
 				for(list<GACandidate*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
 				{
 					const GACandidate& c = **iter;
-					ss << "\t(" << c.id << ", p " << c.p1 << ", " << c.p2 << ") score = " << c.score << endl;
+					ss << "\t(" << c.id << ", p " << c.p1 << ", " << c.p2 << ") score = " << c.score << "; genome length = " << c.ops.size() << endl;
 				}
 
 				Debug(ss.str());

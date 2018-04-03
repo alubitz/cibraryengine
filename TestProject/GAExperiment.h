@@ -31,11 +31,7 @@ namespace Test
 	{
 		unsigned int id, p1, p2;
 
-		float kp[21];
-		float ki[21];
-		float kd[21];
-
-		float initial[21];
+		string ops;
 
 		float score;
 		bool aborting;
