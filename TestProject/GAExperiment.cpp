@@ -1,14 +1,14 @@
 #include "StdAfx.h"
 #include "GAExperiment.h"
 
-#define NUM_ELITES			20
+#define NUM_ELITES			10
 
-#define CROSSOVERS_PER_PAIR	1
+#define CROSSOVERS_PER_PAIR	2
 
-#define MUTATION_COUNT		4
-#define MUTATION_SCALE		0.001f
+#define MUTATION_COUNT		5
+#define MUTATION_SCALE		0.1f
 
-#define TRIALS_PER_SUBTEST	10
+#define TRIALS_PER_SUBTEST	20
 
 
 namespace Test
@@ -18,72 +18,87 @@ namespace Test
 	/*
 	 * GACandidate methods
 	 */
-	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), ops(), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	const GACandidate GACandidate::min_values = GACandidate::InitMin();
+	const GACandidate GACandidate::max_values = GACandidate::InitMax();
+
+	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
+		memset(&params_prefix, 0, (unsigned char*)&params_suffix - (unsigned char*)&params_prefix);
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), ops(other.ops), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
+		memcpy(&params_prefix, &other.params_prefix, (unsigned char*)&params_suffix - (unsigned char*)&params_prefix);
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), ops(), score(0.0f), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		const GACandidate* a = &p1;
-		const GACandidate* b = &p2;
-
-		if(Random3D::RandInt() % 2 == 0)
-			swap(a, b);
-
-		unsigned int an = a->ops.empty() ? 0 : Random3D::RandInt(a->ops.size());
-		unsigned int bn = b->ops.empty() ? 0 : Random3D::RandInt(b->ops.size());
-
-		ops = a->ops.substr(0, an) + b->ops.substr(b->ops.size() - bn);
+		const float* aptr = &p1.params_prefix;
+		const float* bptr = &p2.params_prefix;
+		for(float *optr = &params_prefix, *oend = &params_suffix; optr != oend; ++optr, ++aptr, ++bptr)
+			*optr = Crossover(*aptr, *bptr);
 
 		Randomize(MUTATION_COUNT, MUTATION_SCALE);
 	}
+
+	GACandidate GACandidate::InitMin()
+	{
+		GACandidate result(0);
+
+		result.bone_t_weights[0] = 1.0f;		// carapace weight is always 1
+
+		for(unsigned int i = 1; i < 12; ++i)
+			result.bone_t_weights[i] = 0.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_absorbed[i] = 0.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_matching[i] = 0.0f;
+		for(unsigned int i = 0; i < 6; ++i)
+			result.leg_fixed_xfrac[i] = 0.0f;
+
+		return result;
+	}
+
+	GACandidate GACandidate::InitMax()
+	{
+		GACandidate result(0);
+
+		result.bone_t_weights[0] = 1.0f;		// carapace weight is always 1
+
+		result.bone_t_weights[1] = result.bone_t_weights[2] = result.bone_t_weights[3] = result.bone_t_weights[6] = result.bone_t_weights[9] = 2.0f;
+
+		//for(unsigned int i = 1; i < 12; ++i)
+		//	result.bone_t_weights[i] = 2.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_absorbed[i] = 2.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_matching[i] = 1.0f;
+		//for(unsigned int i = 0; i < 6; ++i)
+		//	result.leg_fixed_xfrac[i] = 1.0f;
+
+		return result;
+	}
+
+	unsigned int GACandidate::NumIndexedParams() { return (&min_values.params_suffix - &min_values.params_prefix) - 1; }
+	float& GACandidate::GetIndexedParam(unsigned int n)				{ return (&params_prefix)[n + 1]; }
+	const float& GACandidate::GetIndexedParam(unsigned int n) const	{ return (&params_prefix)[n + 1]; }
 
 	void GACandidate::Randomize(unsigned int count, float scale)
 	{
 		bool ok;
 		do
 		{
-			if(ops.empty())
+			unsigned int offset = Random3D::RandInt() % NumIndexedParams();
+			float* ptr = &GetIndexedParam(offset);
+			float minx = min_values.GetIndexedParam(offset);
+			float maxx = max_values.GetIndexedParam(offset);
+
+			if(minx != maxx)
 			{
-				ops += (char)Random3D::RandInt(256);
+				float rscale = scale * (maxx - minx);
+				*ptr = min(maxx, max(minx, *ptr + Random3D::Rand(-rscale, rscale)));
+
 				ok = true;
-			}
-			else
-			{
-				unsigned int pos = Random3D::RandInt() % ops.size();
-				switch(Random3D::RandInt() % 2)
-				{
-					case 0:		// insert
-					{
-						string after = ops.substr(pos);
-						ops = ops.substr(0, pos);
-
-						unsigned int len = Random3D::RandInt(1, 10);
-						for(unsigned int i = 0; i < len; ++i)
-							ops += (char)Random3D::RandInt(256);
-						ops += after;
-
-						ok = true;
-
-						break;
-					}
-
-					case 1:		// mutate
-					{
-						ops = ops.substr(0, pos - 1) + (char)Random3D::RandInt(256) + ops.substr(pos);
-						ok = true;
-						break;
-					}
-
-					case 2:		// remove
-						ops = ops.substr(0, pos - 1) + ops.substr(pos + 1);
-						ok = true;
-						break;
-				}
 			}
 
 		} while(!ok || Random3D::RandInt() % count == 0);
@@ -94,8 +109,10 @@ namespace Test
 	unsigned int GACandidate::Write(ostream& s)
 	{
 		stringstream ss;
-		for(unsigned int i = 0; i < 3; ++i)
-			WriteString4(ops, ss);
+		unsigned int count = NumIndexedParams();
+		WriteUInt32(count, ss);
+		for(unsigned int i = 0; i < count; ++i)
+			WriteSingle(GetIndexedParam(i), ss);
 		
 		BinaryChunk chunk("IDKOPS01");
 		chunk.data = ss.str();
@@ -117,8 +134,14 @@ namespace Test
 		istringstream ss(chunk.data);
 
 		GACandidate* candidate = new GACandidate(id);
-		for(unsigned int i = 0; i < 3; ++i)
-			candidate->ops = ReadString4(ss);
+		unsigned int count = ReadUInt32(ss);
+		unsigned int mycount = NumIndexedParams();
+		for(unsigned int i = 0; i < count; ++i)
+		{
+			float f = ReadSingle(ss);
+			if(i < mycount)
+				candidate->GetIndexedParam(i) = f;
+		}
 
 		if(s.bad())
 		{
@@ -159,27 +182,8 @@ namespace Test
 
 			if(!candidates.empty())
 			{
-				stringstream ss;
-				ss << "Successfully loaded " << candidates.size() << " brains from genepool" << endl;
-
-				/*for(unsigned int i = 0; i < 3; ++i)
-				{
-					float tot = 0.0f;
-					float min, max;
-					for(unsigned int j = 0; j < candidates.size(); ++j)
-					{
-						float value = ((float*)&candidates[j]->foot_fudge)[i];
-						tot += value;
-						if(j == 0 || value < min)
-							min = value;
-						if(j == 0 || value > max)
-							max = value;
-					}
-
-					ss << "\tcomponent " << i << ": min = " << min << "; max = " << max << "; avg = " << tot / candidates.size() << endl;
-				}
-
-				Debug(ss.str());*/
+				Debug(((stringstream&)(stringstream() << "Successfully loaded " << candidates.size() << " brains from genepool" << endl)).str());
+				DebugGenerationStats();
 			}
 
 			file.close();
@@ -227,6 +231,7 @@ namespace Test
 			assert(candidate->tokens_busy.empty());
 
 			candidate->score = 0.0f;
+			candidate->time_spent = 0;
 			candidate->aborting = false;
 
 			for(unsigned int j = 0; j < subtests.size(); ++j)
@@ -248,10 +253,20 @@ namespace Test
 		for(unsigned int i = 0; i < NUM_ELITES * NUM_ELITES; ++i)
 		{
 			GACandidate* candidate = new GACandidate(next_id++);
-			//if(i >= NUM_ELITES)
-			//	candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
-			for(unsigned int j = 0; j < 500; ++j)
-				candidate->ops += (char)Random3D::RandInt(256);
+#if 0
+			candidate->bone_t_weights[0] = 1.0f;
+			for(unsigned int j = 1; j < 12; ++j)
+				candidate->bone_t_weights[j] = 0.0f;
+			for(unsigned int j = 0; j < 9; ++j)
+				candidate->foot_t_absorbed[j] = 1.0f;
+			//for(unsigned int j = 0; j < 6; ++j)
+			//	candidate->leg_fixed_xfrac[j] = 0.0f;
+			if(i >= NUM_ELITES)
+				candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
+#else
+			for(unsigned int i = 0; i < GACandidate::NumIndexedParams(); ++i)
+				candidate->GetIndexedParam(i) = Random3D::Rand(GACandidate::min_values.GetIndexedParam(i), GACandidate::max_values.GetIndexedParam(i));
+#endif
 			candidates.push_back(candidate);
 		}
 	}
@@ -308,12 +323,13 @@ namespace Test
 		return result;
 	}
 
-	void GAExperiment::TrialFinished(GATrialToken token, float score)
+	void GAExperiment::TrialFinished(GATrialToken token, float score, unsigned int time_spent)
 	{
 		unique_lock<std::mutex> lock(mutex);
 
 		GACandidate& candidate = *token.candidate;
 		candidate.score += score;
+		candidate.time_spent += time_spent;
 
 		candidate.tokens_busy.erase(token);
 		candidate.tokens_not_finished.erase(token);
@@ -341,7 +357,7 @@ namespace Test
 			if(*elites.begin() == token.candidate)
 				ss << "; new best!";
 			else if(*elites.rbegin() == token.candidate && elites.size() > NUM_ELITES)
-				ss << "; fail";		// TODO: log early-abort savings
+				ss << "; fail (" << candidate.time_spent << " / x)";		// log early-abort savings
 
 			ss << endl;
 			Debug(ss.str());
@@ -379,6 +395,8 @@ namespace Test
 
 			SaveElites(filename, true);
 			SaveElites("Files/Brains/genepool");
+
+			DebugGenerationStats();
 			
 			MakeNextGeneration();
 			GenerateTrialTokens();
@@ -420,12 +438,46 @@ namespace Test
 				for(list<GACandidate*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
 				{
 					const GACandidate& c = **iter;
-					ss << "\t(" << c.id << ", p " << c.p1 << ", " << c.p2 << ") score = " << c.score << "; genome length = " << c.ops.size() << endl;
+					ss << "\t(" << c.id << ", p " << c.p1 << ", " << c.p2 << ") score = " << c.score << endl;
 				}
 
 				Debug(ss.str());
 			}
 		}
+	}
+
+	void GAExperiment::DebugGenerationStats() const
+	{
+		vector<GACandidate*> analyze_these;
+		if(!elites.empty())
+			analyze_these.assign(elites.begin(), elites.end());
+		else if(!candidates.empty())
+			analyze_these.assign(candidates.begin(), candidates.end());
+		else
+			return;
+
+		stringstream ss;
+
+		unsigned int count = GACandidate::NumIndexedParams();
+		for(unsigned int i = 0; i < count; ++i)
+		{
+			float tot = 0.0f;
+			float min, max;
+			for(unsigned int j = 0; j < analyze_these.size(); ++j)
+			{
+				float value = ((float*)&analyze_these[j]->params_prefix)[i + 1];
+				tot += value;
+				if(j == 0 || value < min)
+					min = value;
+				if(j == 0 || value > max)
+					max = value;
+			}
+
+			float avg = tot / analyze_these.size();
+			ss << "\tcomponent " << i << ": MIN = " << GACandidate::min_values.GetIndexedParam(i) << ", min = " << min << ", avg = " << avg << ", max = " << max << ", MAX = " << GACandidate::max_values.GetIndexedParam(i) << endl;
+		}
+
+		Debug(ss.str());
 	}
 
 	string GAExperiment::GetDebugText()

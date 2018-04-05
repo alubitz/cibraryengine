@@ -8,11 +8,13 @@
 
 #include "GAExperiment.h"
 
-#define DIE_AFTER_ONE_SECOND	0
+#define DIE_AFTER_ONE_SECOND			0
 
-#define ENABLE_WALK_ANIMATIONS	0
+#define ENABLE_WALK_ANIMATIONS			0
 
-#define MAX_TICK_AGE			10
+#define DEBUG_GRADIENT_SEARCH_PROGRESS	0
+
+#define MAX_TICK_AGE					15
 
 namespace Test
 {
@@ -133,17 +135,12 @@ namespace Test
 		GAExperiment* experiment;
 
 		Vec3 initial_pos;
-		Vec3 initial_com;
 
 		CBone carapace, head, tail;
 		CJoint neck, tailj;
 
 		CrabLeg llegs[3];
 		CrabLeg rlegs[3];
-
-		float pd_target[36];
-		float pd_previous[36];
-		float pd_integral[36];
 
 		float timestep, inv_timestep;
 
@@ -193,8 +190,6 @@ namespace Test
 			tick_age = 0;
 
 			score = 0.0f;
-
-			memset(pd_previous, 0, sizeof(pd_previous));
 
 			if(experiment != nullptr && ga_token.candidate == nullptr)
 				ga_token = experiment->GetNextTrial();
@@ -273,8 +268,233 @@ namespace Test
 
 			if(experiment != nullptr && ga_token.candidate != nullptr && !ga_token.candidate->aborting)
 			{
-				// compute output torques
-				EvaluateOpString(dood, ga_token.candidate->ops);
+				Vec3 carapace_com = carapace.rb->GetPosition() + carapace.rb->GetOrientation() * carapace.rb->GetLocalCoM();
+
+				// organize the articulated axes a bit more conveniently
+				struct ArticulatedAxis
+				{
+					CJoint* j;
+					unsigned char axis;
+
+					ArticulatedAxis(CJoint* j, unsigned char axis) : j(j), axis(axis) { }
+				};
+				vector<ArticulatedAxis> articulated_axes;
+				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+				{
+					CJoint* joint = dood->all_joints[i];
+					SkeletalJointConstraint* sjc = joint->sjc;
+					const float* mint = (float*)&sjc->min_torque;
+					const float* maxt = (float*)&sjc->max_torque;
+					for(unsigned int j = 0; j < 3; ++j, ++mint, ++maxt)
+						if(*mint != *maxt)
+						{
+							articulated_axes.push_back(ArticulatedAxis(joint, j));
+						//	Debug(((stringstream&)(stringstream() << "axis " << articulated_axes.size() - 1 << ": \"" << joint->b->name << "\" axis " << (char)(j + 'x') << endl)).str());
+						}
+				}
+
+				// fudge desired foot torques
+				for(unsigned int i = 0; i < 2; ++i)
+				{
+					CrabLeg* side = i == 0 ? llegs : rlegs;
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						CrabLeg& leg = side[j];
+						Vec3& desired_torque = leg.bones[2].desired_torque;
+						if(tick_age != 0)
+						{
+							Dood::FootState* fs = dood->feet[j * 2 + i];
+							const float* foot_matches = ga_token.candidate->foot_t_matching + j * 3;
+							desired_torque.x -= fs->net_force.x * foot_matches[0];
+							desired_torque.y -= fs->net_force.y * foot_matches[1];
+							desired_torque.z -= fs->net_force.z * foot_matches[2];
+						}
+						const float* foot_absorbs = ga_token.candidate->foot_t_absorbed + j * 3;
+						desired_torque.x *= foot_absorbs[0];
+						desired_torque.y *= foot_absorbs[1];
+						desired_torque.z *= foot_absorbs[2];
+
+						leg.joints[2].SetTorqueToSatisfyB();
+						leg.bones[1].desired_torque += leg.bones[2].desired_torque - leg.bones[2].applied_torque;
+						leg.bones[2].desired_torque = leg.bones[2].applied_torque;
+						leg.joints[1].SetTorqueToSatisfyB();
+						leg.bones[0].desired_torque += leg.bones[1].desired_torque - leg.bones[1].applied_torque;
+						leg.bones[1].applied_torque = leg.bones[1].applied_torque;
+					}
+				}
+
+				// compute jacobian matrix
+				static const unsigned int num_rows = 36;					// equal to the number of articulated axes
+				static const unsigned int num_bone_torques = 21 * 3;
+				static const unsigned int num_cols = num_bone_torques;// + 3;	// we care about the torque on every bone, and also the net force on the carapace
+
+				assert(articulated_axes.size() == num_rows);
+
+				vector<float> jdata(num_rows * num_cols);
+				GenericMatrix J(num_cols, num_rows, jdata.data());
+
+				vector<float> min_torques(num_rows);
+				vector<float> max_torques(num_rows);
+
+				for(unsigned int i = 0; i < num_rows; ++i)
+				{
+					float* row = J[i];
+
+					ArticulatedAxis aa = articulated_axes[i];
+					const CJoint& joint = *aa.j;
+					Vec3 axis;
+					memcpy(&axis, joint.oriented_axes.values + aa.axis * 3, 3 * sizeof(float));
+
+					// compute direct effects of a torque on this axis on the adjacent bones
+					for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
+						if(dood->all_bones[j] == joint.a)
+						{
+							memcpy(row + j * 3, &axis,  3 * sizeof(float));
+							break;
+						}
+
+					Vec3 naxis = -axis;
+					if(joint.a == &carapace && &joint != &neck && &joint != &tailj)		// is it a hip joint?  if so we also affect the other leg bones
+					{
+						CrabLeg* side_legs = joint.b->name[0] == 'l' ? llegs : rlegs;
+						CrabLeg* leg = nullptr;
+						float* fixed_xfrac = nullptr;
+						for(unsigned int j = 0; j < 3; ++j)
+							if(&side_legs[j].bones[0] == joint.b)
+							{
+								leg = &side_legs[j];
+								fixed_xfrac = ga_token.candidate->leg_fixed_xfrac + j * 2;
+								break;
+							}
+						assert(leg != nullptr);
+
+						unsigned int bone_indices[3];
+						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
+							for(unsigned int k = 0; k < 3; ++k)
+								if(dood->all_bones[j] == &leg->bones[k])
+									bone_indices[k] = j;
+						assert(bone_indices[0] != 0 && bone_indices[1] != 0 && bone_indices[2] != 0);
+
+						Vec3 leg_axis = Vec3::Normalize((leg->joints[1].oriented_axes + leg->joints[2].oriented_axes) * Vec3(1, 0, 0));
+						Vec3 unsupported = naxis - leg_axis * Vec3::Dot(leg_axis, naxis);
+						Vec3 uaxis = unsupported * fixed_xfrac[0];
+						Vec3 vaxis = unsupported * fixed_xfrac[1];
+						naxis -= uaxis;
+						naxis -= vaxis;
+
+						//// feet get special treatment
+						//unsigned int leg_index = joint.b->name[6] - 'a';
+						//vaxis.x *= ga_token.candidate->foot_t_absorbed[leg_index * 3];
+						//vaxis.y *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 1];
+						//vaxis.z *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 2];
+
+						memcpy(row + bone_indices[0] * 3, &naxis, 3 * sizeof(float));
+						memcpy(row + bone_indices[1] * 3, &uaxis, 3 * sizeof(float));
+						memcpy(row + bone_indices[2] * 3, &vaxis, 3 * sizeof(float));
+					}
+					else
+					{
+						if(joint.b->name.size() == 9 && joint.b->name[8] == '3')	// feet get special treatment
+						{
+							unsigned int leg_index = joint.b->name[6] - 'a';
+							naxis.x *= ga_token.candidate->foot_t_absorbed[leg_index * 3];
+							naxis.y *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 1];
+							naxis.z *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 2];
+						}
+
+						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
+							if(dood->all_bones[j] == joint.b)
+							{
+								memcpy(row + j * 3, &naxis, 3 * sizeof(float));
+								break;
+							}
+					}
+
+					// compute linear (force) effects of each joint on the carapace
+					//Vec3 carapace_offset = carapace_com - joint.sjc->ComputeAveragePosition();
+					//Vec3 carapace_force = Vec3::Cross(axis, carapace_offset);
+					//memcpy(row + num_bone_torques, &carapace_force, 3 * sizeof(float));
+
+
+
+					min_torques[i] = ((float*)&joint.sjc->min_torque)[aa.axis];
+					max_torques[i] = ((float*)&joint.sjc->max_torque)[aa.axis];
+
+					assert(min_torques[i] != max_torques[i]);
+				}
+
+#if 0			// debug A matrix
+				stringstream ss2;
+				for(unsigned int i = 0; i < J.h; ++i)
+				{
+					ss2 << '\t';
+					if(i == 0)
+						ss2 << "[[";
+					else
+						ss2 << " [";
+					for(unsigned int j = 0; j < J.w; ++j)
+					{
+						if(j != 0)
+							ss2 << ", ";
+						ss2 << J[i][j];
+					}
+					ss2 << " ]";
+					if(i + 1 == J.h)
+						ss2 << ']';
+					ss2 << endl;
+				}
+				Debug(ss2.str());
+#endif
+
+				// prep for gradient descent
+				vector<float> goal_values(num_cols);
+				vector<float> weights(num_cols);
+
+				Vec3* goal_ptr = (Vec3*)goal_values.data();
+				Vec3* weight_ptr = (Vec3*)weights.data();
+				for(unsigned int i = 0; i < dood->all_bones.size(); ++i, ++goal_ptr, ++weight_ptr)
+				{
+					CBone& bone = *dood->all_bones[i];
+					*goal_ptr = bone.desired_torque;
+
+					unsigned int weight_index = i < 12 ? i : i - 9;
+					assert(weight_index == i || bone.name[0] == 'r' && bone.name[1] == ' ');	// non-symmetric bones in first three indices, then all L bones, then R
+
+					float weight = ga_token.candidate->bone_t_weights[weight_index];
+					*weight_ptr = Vec3(weight, weight, weight);
+				}
+				//*goal_ptr = Vec3();//Vec3(0, 9.8f * total_mass, 0);
+				//*weight_ptr = Vec3();//Vec3(1, 1, 1);					// solver weight for matching target carapace force is always 1
+
+
+				// gradient descent
+				vector<float> action(num_rows);
+				for(unsigned int i = 0; i < articulated_axes.size(); ++i)
+				{
+					ArticulatedAxis aa = articulated_axes[i];
+					Vec3 v = aa.j->sjc->apply_torque;
+					action[i] = ((float*)&v)[aa.axis];
+				}
+				GradientSearch(100, action, min_torques, max_torques, J, goal_values, weights);
+
+
+
+				// apply selected action
+				//stringstream ss;
+				//ss << "selected action: { ";
+				for(unsigned int i = 0; i < articulated_axes.size(); ++i)
+				{
+					ArticulatedAxis aa = articulated_axes[i];
+					Vec3 v = aa.j->sjc->apply_torque;
+					((float*)&v)[aa.axis] = action[i];
+					aa.j->SetOrientedTorque(v);
+					//if(i != 0)
+					//	ss << ", ";
+					//ss << action[i];
+				}
+				//ss << " }" << endl;
+				//Debug(ss.str());
+
 
 				// scoring
 				float ori_error = 0.0f;
@@ -304,18 +524,6 @@ namespace Test
 				score += pos_error * 1.0f;
 				score += vel_error * 1.0f;
 				score += rot_error * 0.1f;
-
-				/*Vec3 carapace_com = carapace.rb->GetPosition() + carapace.rb->GetOrientation() * carapace.rb->GetLocalCoM();
-				if(tick_age == 0)
-					initial_com = carapace_com;
-				else if(tick_age + 1 == max_tick_age)
-				{
-					Vec3 delta = carapace_com - initial_com;
-					score += Vec2::MagnitudeSquared(delta.x, delta.y) * 1000.0f;
-					score += 1000.0f / max(0.1f, delta.z);
-				}*/
-
-				score += max(0, (signed)ga_token.candidate->ops.size() - 500) * 0.001f;
 			}
 
 			++tick_age;
@@ -330,7 +538,7 @@ namespace Test
 				{
 					if(!experiment_done)
 					{
-						experiment->TrialFinished(ga_token, score);
+						experiment->TrialFinished(ga_token, score, tick_age);
 						experiment_done = true;
 
 						ga_token = experiment->GetNextTrial();
@@ -339,257 +547,148 @@ namespace Test
 			}
 		}
 
-		void PushVec3(vector<float>& a, const Vec3& value)
+		void GradientSearch(unsigned int iterations, vector<float>& f, vector<float>& iv_mins, vector<float>& iv_maxs, const GenericMatrix& A, const vector<float>& b, const vector<float>& W)
 		{
-			a.push_back(value.x);
-			a.push_back(value.y);
-			a.push_back(value.z);
-		}
+			assert(f.size() == A.h);
+			assert(f.size() == iv_mins.size());
+			assert(f.size() == iv_maxs.size());
+			assert(W.size() == A.w);
 
-		void PushBone(vector<float>& a, const CBone& bone, const Vec3& com)
-		{
-			const RigidBody& rb = *bone.rb;
+			vector<float> h(W.size());
+			vector<float> gradient(A.h);
 
-			Mat3 rm = rb.GetOrientation().ToMat3();
-			PushVec3(a, rb.GetPosition() - com);
-			PushVec3(a, rm * Vec3(1, 0, 0));
-			PushVec3(a, rm * Vec3(0, 1, 0));
-			PushVec3(a, rm * Vec3(0, 0, 1));
-			PushVec3(a, rb.GetLinearVelocity());
-			PushVec3(a, rb.GetAngularVelocity());
-		}
+#if DEBUG_GRADIENT_SEARCH_PROGRESS
+			Debug(((stringstream&)(stringstream() << "age = " << tick_age << "; starting gradient search, max iterations = " << iterations << endl)).str());
+#endif
 
-		void PushJoint(vector<float>& a, const CJoint& joint, const Vec3& com)
-		{
-			const SkeletalJointConstraint& sjc = *joint.sjc;
-
-			PushVec3(a, joint.GetRVec());
-			PushVec3(a, sjc.ComputeAveragePosition() - com);
-			PushVec3(a, sjc.net_impulse_angular);
-			PushVec3(a, sjc.net_impulse_linear);
-			PushVec3(a, sjc.min_extents);
-			PushVec3(a, sjc.max_extents);
-			PushVec3(a, sjc.min_torque);
-			PushVec3(a, sjc.max_torque);
-		}
-
-		struct EvalScope
-		{
-			vector<float> strict_inputs;
-			float locals[256];
-			vector<float> strict_outputs;
-
-			EvalScope() : strict_inputs(), strict_outputs() { memset(locals, 0, sizeof(locals)); }
-		};
-
-		void EvaluateOpString(CrabBug* dood, const string& ops)
-		{
-			static const unsigned int num_central_outputs = 6;
-			static const unsigned int num_leg_outputs = 5;
-
-			// some useful reference points
-			Vec3 com = carapace.rb->GetPosition() + carapace.rb->GetOrientation() * carapace.rb->GetLocalCoM();
-
-			// init strict inputs and declare number of strict outputs
-			EvalScope leg_scopes[6];
-			for(unsigned int i = 0; i < 6; ++i)
+			float old_y1;
+			for(unsigned int i = 0; i < iterations; ++i)
 			{
-				EvalScope& scope = leg_scopes[i];
-				const CrabLeg& leg = (i % 2 == 0 ? llegs : rlegs)[i / 2];
+				float y1 = ScoreProposedF(A, b, f, W, h);
 
-				scope.strict_inputs.push_back(i % 2 == 0 ? 1.0f : -1.0f);
-				scope.strict_inputs.push_back(i / 2 == 0 ? 1.0f : 0);
-				scope.strict_inputs.push_back(i / 2 == 1 ? 1.0f : 0);
-				scope.strict_inputs.push_back(i / 2 == 2 ? 1.0f : 0);
-
-				for(unsigned int j = 0; j < 3; ++j)
+				if(i != 0 && old_y1 - y1 < 0.0001f)
 				{
-					PushBone(scope.strict_inputs, leg.bones[j], com);
-					PushJoint(scope.strict_inputs, leg.joints[j], com);					
+#if DEBUG_GRADIENT_SEARCH_PROGRESS
+					Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; early return 1" << endl)).str());
+#endif
+					return;
 				}
 
-				const Dood::FootState* fs = dood->feet[i];
-				PushVec3(scope.strict_inputs, fs->net_force);
-				PushVec3(scope.strict_inputs, fs->net_torque);
-				//scope.strict_inputs.push_back((float)fs->contact_points.size());
-				//Vec3 avg_n;
-				//for(unsigned int j = 0; j < fs->contact_points.size(); ++j)
-				//	avg_n += fs->contact_points[j].normal;
-				//PushVec3(scope.strict_inputs, fs->contact_points.empty() ? Vec3() : avg_n / (float)fs->contact_points.size());
-
-				scope.strict_outputs.resize(num_leg_outputs);
-			}
-
-			EvalScope central_scope;
-			central_scope.strict_inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
-			PushBone(central_scope.strict_inputs, head, com);
-			PushBone(central_scope.strict_inputs, carapace, com);
-			PushBone(central_scope.strict_inputs, tail, com);
-			PushJoint(central_scope.strict_inputs, neck, com);
-			PushJoint(central_scope.strict_inputs, tailj, com);
-			central_scope.strict_inputs.push_back(com.y);
-
-			central_scope.strict_outputs.resize(num_central_outputs);
-
-
-			// evaluate
-			for(unsigned int cindex = 0; cindex < ops.size(); ++cindex)
-			{
-				unsigned char c = ops[cindex++];
-				if(cindex >= ops.size())
-					break;
-				if((c & 0x80) != 0)// && (c & 0x40) != 0)
+				// compute gradient
+				float* gend = gradient.data() + A.h;
+				const float* aptr = A.data;
+				for(const float *uptr = h.data(), *uend = uptr + h.size()/*, *aptr = A.data*/, *wptr = W.data(); uptr != uend; ++uptr, ++wptr)
 				{
-					bool write_central = (c & 0x20) != 0;
-					bool write_output = (c & 0x10) != 0;
-					unsigned char opcode = (unsigned char)(c & 0x3F) % 8;
-
-					unsigned char write_index = ops[cindex++];
-					if(cindex >= ops.size())
-						break;
-					if(write_output)
-					{
-						write_index %= 6;
-						if(write_index >= (write_central ? num_central_outputs : num_leg_outputs))
-							continue;
-					}
-
-					if(write_central)
-					{
-						float* outptr = write_output ? &central_scope.strict_outputs[write_index] : &central_scope.locals[write_index];
-						*outptr = EvalOneOp(opcode, ops, cindex, central_scope, central_scope, leg_scopes);
-					}
-					else
-					{
-						unsigned int pindex = cindex;
-						float newval[6];
-						for(unsigned int i = 0; i < 6; ++i)
-						{
-							cindex = pindex;
-							newval[i] = EvalOneOp(opcode, ops, cindex, leg_scopes[i], central_scope, leg_scopes);
-						}
-						for(unsigned int i = 0; i < 6; ++i)
-						{
-							EvalScope& scope = leg_scopes[i];
-							float* outptr = write_output ? &scope.strict_outputs[write_index] : &scope.locals[write_index];
-							*outptr = newval[i];
-						}
-					}
+					float two_w_u = 2.0f * *wptr * *uptr;
+					for(float* gptr = gradient.data(); gptr != gend; ++gptr, ++aptr)
+						*gptr += two_w_u * *aptr;
 				}
-			}
 
+				float gr_magsq = 0.0f;
+				for(unsigned int j = 0; j < A.h; ++j)
+				{
+					float& gj = gradient[j];
+					gr_magsq += gj * gj;
+				}
 
-			// apply selected outputs
-			for(unsigned int i = 0; i < 6; ++i)
-			{
-				const EvalScope& scope = leg_scopes[i];
-				CrabLeg& leg = (i % 2 == 0 ? llegs : rlegs)[i / 2];
+				float original_grmag = sqrtf(gr_magsq);
 
-				leg.joints[0].SetOrientedTorque(Vec3(scope.strict_outputs[0], scope.strict_outputs[1], scope.strict_outputs[2]));
-				leg.joints[1].SetOrientedTorque(Vec3(scope.strict_outputs[3], 0, 0));
-				leg.joints[2].SetOrientedTorque(Vec3(scope.strict_outputs[4], 0, 0));
-			}
+				// prevent gradients from exceeding the limits of the independent variables
+				// TODO: make gradients satisfy null space constraints
+				for(unsigned int j = 0; j < A.h; ++j)
+				{
+					if(f[j] >= iv_maxs[j] && gradient[j] < 0)
+						gradient[j] = 0.0f;
+					else if(f[j] <= iv_mins[j] && gradient[j] > 0)
+						gradient[j] = 0.0f;
+				}
 
-			neck .SetOrientedTorque(Vec3(central_scope.strict_outputs[0], central_scope.strict_outputs[1], central_scope.strict_outputs[2]));
-			tailj.SetOrientedTorque(Vec3(central_scope.strict_outputs[3], central_scope.strict_outputs[4], central_scope.strict_outputs[5]));
+				gr_magsq = 0.0f;
+				for(unsigned int j = 0; j < A.h; ++j)
+				{
+					float& gj = gradient[j];
+					gr_magsq += gj * gj;
+				}
 
-			//for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
-			//	if(dood->all_joints[i]->actual.ComputeMagnitudeSquared() != 0.0f)
-			//		Debug(((stringstream&)(stringstream() << "id = " << dood->imp->ga_token.candidate->id << ": " << dood->all_joints[i]->b->name << "; magsq = " << dood->all_joints[i]->actual.ComputeMagnitudeSquared() << endl)).str());
-		}
+				if(gr_magsq < 0.000001f)
+				{
+#if DEBUG_GRADIENT_SEARCH_PROGRESS
+					Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; gr mag = " << original_grmag << "; gr' mag = " << sqrtf(gr_magsq) << "; early return 2" << endl)).str());
+#endif
+					return;
+				}
 
-		
+				// find the minimum of the quadratic along this ray
+				vector<float> best_f = f;
+				float* fend = f.data() + f.size();
+				for(float *fptr = f.data(), *gptr = gradient.data(); fptr != fend; ++fptr, ++gptr)
+					*fptr -= *gptr;
+				float y2 = ScoreProposedF(A, b, f, W, h);
+				for(float *fptr = f.data(), *gptr = gradient.data(); fptr != fend; ++fptr, ++gptr)
+					*fptr -= *gptr;
+				float y3 = ScoreProposedF(A, b, f, W, h);
 
-		float EvalOneOp(unsigned char opcode, const string& ops, unsigned int& cindex, const EvalScope& local_scope, const EvalScope& central, const EvalScope legs[6])
-		{
-			if(opcode == 0)		// constant
-			{
-				unsigned short numerator = (unsigned short)ops[cindex++];
-				numerator <<= 8;
-				numerator |= (unsigned short)ops[cindex++];
+				// solve for the coefficients in ax^2 + bx + c... except we don't actually care about c
+				float qa = 0.5f * (y1 + y3) - y2;
+				float qb = -1.5f * y1 + 2.0f * y2 - 0.5f * y3;	
 
-				unsigned short denominator = (unsigned short)ops[cindex++];
-				denominator <<= 8;
-				denominator |= (unsigned short)ops[cindex++];
+				if(qa <= 0.0f)				// if the quadratic is concave down, we have a problem
+				{
+#ifndef NDEBUG
+					//__debugbreak();
+#endif
+					return;
+				}
 
-				if(cindex > ops.size())
-					return 0.0f;
-				
-				return (float)(signed)numerator / ((float)denominator + 1);
-			}
+				// d(ax^2 + bx + c) / dx = 2ax + b; find where this = 0 to find the vertex of the parabola
+				float extremum_x = -0.5f * qb / qa;
 
-			float a = GetOneReference(ops, cindex, local_scope, central, legs);
+				for(float *fptr = f.data(), *bptr = best_f.data(), *gptr = gradient.data(); fptr != fend; ++fptr, ++bptr, ++gptr)
+					*fptr = *bptr - *gptr * extremum_x;
 
-			switch(opcode)
-			{
-				case 1:			// sum
-					return a + GetOneReference(ops, cindex, local_scope, central, legs);
-				case 2:			// difference
-					return a - GetOneReference(ops, cindex, local_scope, central, legs);
-				case 3:			// product
-					return a * GetOneReference(ops, cindex, local_scope, central, legs);
-				case 4:			// quotient
-					return a / GetOneReference(ops, cindex, local_scope, central, legs);
+				// make sure we stay within constraints
+				// TODO: do this better?	(see https://github.com/alubitz/cibraryengine/blob/b054e52d69edccd50b140306e8f70c9565554754/TestProject/Soldier.cpp )
+				for(unsigned int j = 0; j < f.size(); ++j)
+					f[j] = min(iv_maxs[j], max(iv_mins[j], f[j]));
 
-				case 5:			// unary negate
-					return -a;
-				case 6:			// unary invert
-					return 1.0f / a;
+				old_y1 = y1;
 
-				case 7:			// sigmoid (and NaN-removal)
-					if(a * a >= 0.0f)
-						return tanhf(a);
-					else
-						return 0.0f;
-
-				default:
-					return 0.0f;
+#if DEBUG_GRADIENT_SEARCH_PROGRESS
+				Debug(((stringstream&)(stringstream() << "\ti = " << i << "; y1 = " << y1 << "; gr mag = " << original_grmag << "; gr' mag = " << sqrtf(gr_magsq) << endl)).str());
+#endif
 			}
 		}
 
-		float GetOneReference(const string& ops, unsigned int& cindex, const EvalScope& local_scope, const EvalScope& central, const EvalScope legs[6])
+		float ScoreProposedF(const GenericMatrix& A, const vector<float>& b, const vector<float>& f, const vector<float>& W, vector<float>& h) const
 		{
-			unsigned char reftype = ops[cindex++];
+			FToErrors(A, f, b, h);
+			return ScoreErrors(h, W);
+		}
 
-			if(cindex >= ops.size())
-				return 0.0f;
+		void FToErrors(const GenericMatrix& A, const vector<float>& f, const vector<float>& b, vector<float>& h) const
+		{
+			assert(h.size() == b.size() && h.size());
 
-			bool ref_central = (reftype & 0x80) != 0;
-			bool ref_input = (reftype & 0x40) != 0;
+			const float* fend = f.data() + f.size();
+			const float* aptr = A.data;
+			const float* bptr = b.data();
 
-			unsigned char ref_index = ops[cindex++];
-			if(cindex >= ops.size())
-				return 0.0f;
-
-			if(ref_central)
-				if(ref_input)
-					return ref_index < central.strict_inputs.size() ? central.strict_inputs[ref_index] : 0.0f;
-				else
-					return central.locals[ref_index];
-			else	
+			for(float *hptr = h.data(), *hend = hptr + h.size(); hptr != hend; ++hptr, ++bptr)
 			{
-				if(ref_input && ref_index >= legs[0].strict_inputs.size())
-					return 0.0f;
-
-				if(&local_scope == &central)		// when a central op references a leg variable, take the sum of all legs' values
-				{
-					float tot = 0.0f;
-					if(ref_input)
-						for(unsigned int i = 0; i < 6; ++i)
-							tot += legs[i].strict_inputs[ref_index];
-					else
-						for(unsigned int i = 0; i < 6; ++i)
-							tot += legs[i].locals[ref_index];
-					return tot;
-				}
-				else								// but when a leg op references a leg variable, just use the local leg
-				{
-					if(ref_input)
-						return local_scope.strict_inputs[ref_index];
-					else
-						return local_scope.locals[ref_index];
-				}
+				*hptr = -*bptr;
+				for(const float *fptr = f.data(); fptr != fend; ++fptr, ++aptr)
+					*hptr += *fptr * *aptr;
 			}
+		}
+
+		float ScoreErrors(const vector<float>& h, const vector<float> W) const
+		{
+			assert(h.size() == W.size());
+
+			float tot = 0.0f;
+			for(const float *hptr = h.data(), *hend = hptr + h.size(), *wptr = W.data(); hptr != hend; ++hptr, ++wptr)
+				tot += *hptr * *hptr * *wptr;
+			return tot;
 		}
 	};
 
@@ -721,7 +820,7 @@ namespace Test
 				for(int k = 0; k < 3; ++k)
 				{
 					float x = leg_multipliers[j] * joint_strengths[k];
-					float yz = j == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
+					float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
 
 					RegisterJoint( legs_array[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : legs_array[j].bones[k - 1], legs_array[j].bones[k], x, yz, yz) ); 
 				}

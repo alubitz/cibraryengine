@@ -29,11 +29,20 @@ namespace Test
 
 	struct GACandidate
 	{
+		static const GACandidate min_values;
+		static const GACandidate max_values;
+
 		unsigned int id, p1, p2;
 
-		string ops;
+		float params_prefix;
+		float bone_t_weights[12];
+		float foot_t_absorbed[9];
+		float foot_t_matching[9];
+		float leg_fixed_xfrac[6];
+		float params_suffix;
 
 		float score;
+		unsigned int time_spent;
 		bool aborting;
 
 		set<GATrialToken> tokens_busy;
@@ -49,6 +58,14 @@ namespace Test
 
 		unsigned int Write(ostream& s);
 		static unsigned int Read(istream& s, GACandidate*& result, unsigned int id);
+
+		static GACandidate InitMin();
+		static GACandidate InitMax();
+
+		float& GetIndexedParam(unsigned int n);
+		const float& GetIndexedParam(unsigned int n) const;
+
+		static unsigned int NumIndexedParams();
 	};
 
 	class GAExperiment
@@ -77,6 +94,7 @@ namespace Test
 			void MakeNextGeneration();
 
 			void SaveElites(const string& filename, bool verbose = false);
+			void DebugGenerationStats() const;
 
 		public:
 
@@ -85,7 +103,7 @@ namespace Test
 
 			GATrialToken GetNextTrial();
 
-			void TrialFinished(GATrialToken token, float score);
+			void TrialFinished(GATrialToken token, float score, unsigned int time_spent);
 
 			float GetEarlyFailThreshold();
 
