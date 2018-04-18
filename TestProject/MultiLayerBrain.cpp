@@ -252,4 +252,62 @@ namespace Test
 
 		return errortot;
 	}
+
+	unsigned int MultiLayerBrain::Write(ostream& s)
+	{
+		stringstream ss;
+
+		WriteUInt32(layer_sizes.size(), ss);
+		for(unsigned int i = 0; i < layer_sizes.size(); ++i)
+			WriteUInt32(layer_sizes[i], ss);
+		for(unsigned int i = 0; i < matrices.size(); ++i)
+		{
+			WriteUInt32(matrices[i].size(), ss);					// redundant (included for sanity checking)
+			for(unsigned int j = 0; j < matrices[i].size(); ++j)
+				WriteSingle(matrices[i][j], ss);
+		}
+
+		BinaryChunk chunk("MLBRAIN_");
+		chunk.data = ss.str();
+		chunk.Write(s);
+
+		return 0;
+	}
+
+	unsigned int MultiLayerBrain::Read(istream& s, MultiLayerBrain*& result, unsigned int id)
+	{
+		vector<unsigned int> layer_sizes;
+		vector<vector<float>> matrices;
+
+		BinaryChunk chunk;
+		chunk.Read(s);
+
+		if(chunk.GetName() != "MLBRAIN_")
+			return 1;
+
+		istringstream ss(chunk.data);
+		unsigned int num_layers = ReadUInt32(ss);
+		for(unsigned int i = 0; i < num_layers; ++i)
+			layer_sizes.push_back(ReadUInt32(ss));
+		for(unsigned int i = 1; i < num_layers; ++i)
+		{
+			unsigned int expected = layer_sizes[i - 1] * layer_sizes[i];
+			unsigned int got = ReadUInt32(ss);
+			if(expected != got)
+				return 2;
+
+			vector<float> matrix(got);
+			for(float *mptr = matrix.data(), *mend = mptr + got; mptr != mend; ++mptr)
+				*mptr = ReadSingle(ss);
+			matrices.push_back(matrix);
+		}
+
+		if(s.bad())
+			return 3;
+		if(ss.bad())
+			return 4;
+
+		result = new MultiLayerBrain(layer_sizes, matrices);
+		return 0;
+	}
 }

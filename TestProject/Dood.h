@@ -189,7 +189,7 @@ namespace Test
 
 					bool standing;
 
-					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(NULL), contact_points(), no_contact_timer(0.0f), standing(false) { }
+					FootState(unsigned int posey_id, const Vec3& ee_pos) : posey_id(posey_id), ee_pos(ee_pos), body(nullptr), contact_points(), no_contact_timer(0.0f), standing(false) { }
 			};
 			vector<FootState*> feet;
 

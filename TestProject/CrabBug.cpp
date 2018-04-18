@@ -8,6 +8,8 @@
 
 #include "GAExperiment.h"
 
+#include "MultiLayerBrain.h"
+
 #define DIE_AFTER_ONE_SECOND			0
 
 #define ENABLE_WALK_ANIMATIONS			0
@@ -117,7 +119,8 @@ namespace Test
 		CJoint joints[3];
 	};
 
-
+	//static vector<vector<float>> input_vals(800);
+	//static mutex derp_mutex;
 
 
 	/*
@@ -130,6 +133,7 @@ namespace Test
 		bool experiment_done;
 
 		float score;
+		vector<float> score_parts;
 
 		GATrialToken ga_token;
 		GAExperiment* experiment;
@@ -141,6 +145,8 @@ namespace Test
 
 		CrabLeg llegs[3];
 		CrabLeg rlegs[3];
+
+		vector<Vec3> initial_ee;
 
 		float timestep, inv_timestep;
 
@@ -190,12 +196,15 @@ namespace Test
 			tick_age = 0;
 
 			score = 0.0f;
+			score_parts.clear();
 
 			if(experiment != nullptr && ga_token.candidate == nullptr)
 				ga_token = experiment->GetNextTrial();
 
 			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
 				dood->all_joints[i]->SetOrientedTorque(Vec3());
+
+			initial_ee.clear();
 		}
 
 		void Update(CrabBug* dood, const TimingInfo& time)
@@ -293,6 +302,7 @@ namespace Test
 						}
 				}
 
+#if 0
 				// fudge desired foot torques
 				for(unsigned int i = 0; i < 2; ++i)
 				{
@@ -476,8 +486,138 @@ namespace Test
 					action[i] = ((float*)&v)[aa.axis];
 				}
 				GradientSearch(100, action, min_torques, max_torques, J, goal_values, weights);
+#endif
+
+				Mat3 unrotate = Mat3::Identity();
+
+				vector<float> shared_inputs;
+				shared_inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
+				shared_inputs.push_back(tanhf(carapace_com.y));
+
+				vector<float> inputs;
+				vector<float> outputs;
+				vector<float> scratch;
+
+				static const unsigned int signal_up = 30;
+
+				vector<float> signal_selfs[6];
+
+				vector<float> action(36);
+
+				unsigned int inputs_a, inputs_b, inputs_c;
+
+				// compute leg summaries
+				vector<float> summed;
+				for(unsigned int i = 0; i < 2; ++i)
+				{
+					const CrabLeg* side = i == 0 ? llegs : rlegs;
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						const CrabLeg& leg = side[j];
+						const Dood::FootState& fs = *dood->feet[j * 2 + i];
+
+						inputs = shared_inputs;
+						for(unsigned int k = 0; k < 3; ++k)
+						{
+							PushBone(inputs, leg.bones[k], unrotate, carapace_com);
+							PushJoint(inputs, leg.joints[k], unrotate, carapace_com);
+						}
+						inputs.push_back(tick_age != 0 && !fs.contact_points.empty() ? 1.0f : 0.0f);
+						PushVec3(inputs, tick_age == 0 ? Vec3() : fs.net_force * 0.05f);
+						PushVec3(inputs, tick_age == 0 ? Vec3() : fs.net_torque * 0.02f);
+
+						ga_token.candidate->brains[0]->Evaluate(inputs, outputs, scratch);
+						inputs_a = inputs.size();
+
+						summed.resize(signal_up);
+						for(unsigned int k = 0; k < signal_up; ++k)
+							summed[k] += outputs[k];
+
+						vector<float>& signal_self = signal_selfs[i * 3 + j];
+						signal_self.resize(outputs.size() - signal_up);
+						memcpy(signal_self.data(), outputs.data() + signal_up, signal_self.size() * sizeof(float));
+					}
+				}
 
 
+				// evaluate center
+				inputs = shared_inputs;
+				PushBone(inputs, head, unrotate, carapace_com);
+				PushBone(inputs, carapace, unrotate, carapace_com);
+				PushBone(inputs, tail, unrotate, carapace_com);
+				PushJoint(inputs, neck, unrotate, carapace_com);
+				PushJoint(inputs, tailj, unrotate, carapace_com);
+				for(unsigned int i = 0; i < summed.size(); ++i)
+					inputs.push_back(summed[i]);
+
+				inputs_b = inputs.size();
+				ga_token.candidate->brains[1]->Evaluate(inputs, outputs, scratch);
+				
+				memcpy(action.data(), outputs.data(), 6 * sizeof(float));
+				
+
+				// control legs
+				inputs = shared_inputs;
+				inputs.resize(ga_token.candidate->brains[2]->layer_sizes[0]);
+				memcpy(inputs.data() + 6, outputs.data() + 6, (inputs.size() - 6) * sizeof(float));
+
+				float* optr = action.data() + 6;
+				for(unsigned int i = 0; i < 2; ++i)
+				{
+					CrabLeg* side = i == 0 ? llegs : rlegs;
+					inputs[2] = i == 0 ? 1.0f : -1.0f;
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						CrabLeg& leg = side[j];
+						for(unsigned int k = 0; k < 3; ++k)
+							inputs[2 + k] = k == j ? 1.0f : 0.0f;
+
+						memcpy(inputs.data() + 6 + 10, signal_selfs[i * 3 + j].data(), signal_selfs[i * 3 + j].size() * sizeof(float));
+
+						inputs_c = inputs.size();
+						ga_token.candidate->brains[2]->Evaluate(inputs, outputs, scratch);
+
+						memcpy(optr, outputs.data(), 5 * sizeof(float));
+						optr += 5;
+					}
+				}
+
+
+				static bool printed_size = false;
+				if(!printed_size)
+				{
+					Debug(((stringstream&)(stringstream() << "number of inputs = " << inputs_a << ", " << inputs_b << ", " << inputs_c << endl)).str());
+					printed_size = true;
+				}
+
+				//{
+				//	unique_lock<std::mutex> lock(derp_mutex);
+				//
+				//	for(unsigned int i = 0; i < 800; ++i)
+				//		input_vals[i].push_back(inputs[i]);
+				//
+				//	if(input_vals[0].size() % 1000 == 0)
+				//	{
+				//		stringstream ss;
+				//		for(unsigned int i = 0; i < 800; ++i)
+				//		{
+				//			vector<float>& record = input_vals[i];
+				//			sort(record.begin(), record.end());
+				//		
+				//			float tot = 0.0f;
+				//			for(unsigned int j = 0; j < record.size(); ++j)
+				//				tot += record[j];
+				//
+				//			ss << "\tinput #" << i << ": avg = " << tot / record.size() << "; min = " << record[0] << "; max = " << record[record.size() - 1] << "; median = " << record[record.size() / 2] << "; lq = " << record[record.size() / 4] << "; uq = " << record[record.size() * 3 / 4] << endl;
+				//
+				//			if(input_vals[i].size() >= 10000)
+				//				input_vals[i].clear();
+				//		}
+				//		Debug(ss.str());
+				//	}
+				//}
+				//
+				//ga_token.candidate->brain->Evaluate(inputs, action, scratch);
 
 				// apply selected action
 				//stringstream ss;
@@ -486,7 +626,10 @@ namespace Test
 				{
 					ArticulatedAxis aa = articulated_axes[i];
 					Vec3 v = aa.j->sjc->apply_torque;
-					((float*)&v)[aa.axis] = action[i];
+					Vec3 mint = aa.j->sjc->min_torque;
+					Vec3 maxt = aa.j->sjc->max_torque;
+
+					((float*)&v)[aa.axis] = action[i] >= 0 ? action[i] * ((float*)&maxt)[aa.axis] : -action[i] * ((float*)&mint)[aa.axis];
 					aa.j->SetOrientedTorque(v);
 					//if(i != 0)
 					//	ss << ", ";
@@ -502,28 +645,74 @@ namespace Test
 				float vel_error = 0.0f;
 				float rot_error = 0.0f;
 
+				float energy_cost = 0.0f;
+				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+					energy_cost += dood->all_joints[i]->actual.ComputeMagnitudeSquared();
+
 				for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
 				{
 					const CBone& bone = *dood->all_bones[i];
+
+					float bone_weight = 1.0f;
+					if(bone.name == "carapace")
+						bone_weight = 1.0f;
+					else if(bone.name == "tail")
+						bone_weight = 0.01f;
+					else if(bone.name == "head")
+						bone_weight = 0.1f;
+					else if(bone.name[1] == ' ' && bone.name[8] == '2')
+						bone_weight = 0.1f;
+					else
+						bone_weight = 0.0f;
+
 					const RigidBody& rb = *bone.rb;
 
 					Quaternion ori = rb.GetOrientation();
 					
-					ori_error += (Quaternion::Reverse(bone.initial_ori) * ori).ToRVec().ComputeMagnitudeSquared();
+					ori_error += bone_weight * (Quaternion::Reverse(bone.initial_ori) * ori).ToRVec().ComputeMagnitudeSquared();
 
 					Vec3 local_com = rb.GetLocalCoM();
 					Vec3 initial_pos = bone.initial_pos + bone.initial_ori * local_com;
 					Vec3 current_pos = rb.GetPosition() + ori * local_com;
-					pos_error += (initial_pos - current_pos).ComputeMagnitudeSquared();
+					pos_error += bone_weight * (initial_pos - current_pos).ComputeMagnitudeSquared();
 
-					vel_error += rb.GetLinearVelocity().ComputeMagnitudeSquared();
-					rot_error += rb.GetAngularVelocity().ComputeMagnitudeSquared();
+					vel_error += bone_weight * rb.GetLinearVelocity().ComputeMagnitudeSquared();
+					rot_error += bone_weight * rb.GetAngularVelocity().ComputeMagnitudeSquared();
 				}
 
-				score += ori_error * 0.1f;
-				score += pos_error * 1.0f;
-				score += vel_error * 1.0f;
-				score += rot_error * 0.1f;
+				//energy_cost = max(0.0f, energy_cost - 500.0f);
+
+				float ee_error = 0.0f;
+				for(unsigned int i = 0; i < dood->feet.size(); ++i)
+				{
+					const Dood::FootState& fs = *dood->feet[i];
+					const RigidBody& rb = *fs.body;
+					Vec3 ee_pos = rb.GetPosition() + rb.GetOrientation() * fs.ee_pos;
+
+					if(tick_age == 0)
+						initial_ee.push_back(ee_pos);
+					else
+						ee_error += (ee_pos - initial_ee[i]).ComputeMagnitudeSquared();
+				}
+
+				vector<float> inst_scores;
+				//inst_scores.push_back(pos_error * 1.0f);
+				inst_scores.push_back(vel_error * 1.0f);
+				//inst_scores.push_back(ori_error * 1.0f);
+				//inst_scores.push_back(rot_error * 1.0f);
+				//inst_scores.push_back(energy_cost * 0.00001f);
+				inst_scores.push_back(ee_error * 1.0f);
+				
+				if(score_parts.empty())
+					score_parts.resize(inst_scores.size());
+				else
+					assert(score_parts.size() == inst_scores.size());
+
+				for(unsigned int i = 0; i < score_parts.size(); ++i)
+				{
+					score_parts[i] += inst_scores[i];
+					score += inst_scores[i];
+				}
 			}
 
 			++tick_age;
@@ -538,13 +727,44 @@ namespace Test
 				{
 					if(!experiment_done)
 					{
-						experiment->TrialFinished(ga_token, score, tick_age);
+						experiment->TrialFinished(ga_token, score, score_parts, tick_age);
 						experiment_done = true;
 
 						ga_token = experiment->GetNextTrial();
 					}
 				}
 			}
+		}
+
+		void PushVec3(vector<float>& a, const Vec3& v)
+		{
+			a.push_back(tanhf(v.x));
+			a.push_back(tanhf(v.y));
+			a.push_back(tanhf(v.z));
+		}
+
+		void PushBone(vector<float>& a, const CBone& bone, const Mat3& unrotate, const Vec3& com)
+		{
+			const RigidBody& rb = *bone.rb;
+			if(&bone != &carapace)
+				PushVec3(a, unrotate * (rb.GetPosition() + rb.GetOrientation() * rb.GetLocalCoM() - com));
+			Mat3 rm = unrotate * rb.GetOrientation().ToMat3();
+			for(unsigned int i = 0; i < 9; ++i)
+				a.push_back(rm[i]);
+			PushVec3(a, unrotate * rb.GetLinearVelocity() * 0.2f);
+			PushVec3(a, unrotate * rb.GetAngularVelocity() * 0.1f);
+		}
+
+		void PushJoint(vector<float>& a, const CJoint& joint, const Mat3& unrotate, const Vec3& com)
+		{
+			const SkeletalJointConstraint& sjc = *joint.sjc;
+			PushVec3(a, unrotate * (sjc.ComputeAveragePosition() - com));
+			Mat3 rm = unrotate * joint.oriented_axes;
+			for(unsigned int i = 0; i < 9; ++i)
+				a.push_back(rm[i]);
+			PushVec3(a, unrotate * joint.GetRVec());
+			PushVec3(a, unrotate * sjc.net_impulse_linear * 0.05f);
+			PushVec3(a, unrotate * sjc.net_impulse_angular * 0.01f);
 		}
 
 		void GradientSearch(unsigned int iterations, vector<float>& f, vector<float>& iv_mins, vector<float>& iv_maxs, const GenericMatrix& A, const vector<float>& b, const vector<float>& W)
@@ -700,7 +920,7 @@ namespace Test
 	 */
 	CrabBug::CrabBug(GameState* game_state, GAExperiment* experiment, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team) :
 		Dood(game_state, model, mphys, pos, team),
-		imp(NULL),
+		imp(nullptr),
 		crab_heading(new CrabHeading())
 	{
 		hp *= 0.5f;
@@ -717,7 +937,7 @@ namespace Test
 		GenerateHardCodedWalkAnimation(&kw);
 		GenerateRestPose(&kr);
 
-		posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, NULL, NULL));
+		posey->active_poses.push_back(new WalkPose(this, &kr, &kw, &kw, &kw, &kw, nullptr, nullptr));
 #endif
 
 		standing_callback.angular_coeff = 0.0f;
@@ -730,7 +950,7 @@ namespace Test
 	{
 		Dood::InnerDispose();
 
-		if(imp) { delete imp; imp = NULL; }
+		if(imp) { delete imp; imp = nullptr; }
 	}
 
 	void CrabBug::DoJumpControls(const TimingInfo& time, const Vec3& forward, const Vec3& rightward)
@@ -807,7 +1027,7 @@ namespace Test
 
 		float N = 200, T = 150;
 
-		float joint_strengths[3] = { 1400, 1200, 900 };
+		float joint_strengths[3] = { 1400, 1100, 900 };
 		float leg_multipliers[3] = { 0.9f, 1.0f, 0.9f };
 
 		RegisterJoint( imp->neck  = CJoint( this, imp->carapace, imp->head, N ));

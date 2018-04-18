@@ -17,6 +17,7 @@ namespace Test
 			vector<vector<float>> matrices;
 
 			MultiLayerBrain(const vector<unsigned int>& layer_sizes);
+			MultiLayerBrain(const MultiLayerBrain& other) : layer_sizes(other.layer_sizes), matrices(other.matrices) { }
 			~MultiLayerBrain();
 
 			void SetZero();
@@ -31,8 +32,13 @@ namespace Test
 
 			void GetCoeffTotals(float& tot, float& sqtot) const;
 
+			unsigned int Write(ostream& s);
+			static unsigned int Read(istream& s, MultiLayerBrain*& result, unsigned int id);
+
 		private:
 
 			float ComputeDerrorDoutputs(unsigned int count, const float* outputs, const float* correct_outputs, float* derrdout, const float* scratch_end) const;
+
+			MultiLayerBrain(const vector<unsigned int>& layer_sizes, const vector<vector<float>>& matrices) : layer_sizes(layer_sizes), matrices(matrices) { }
 	};
 }

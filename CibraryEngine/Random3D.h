@@ -25,6 +25,9 @@ namespace CibraryEngine
 		/** Returns a random integer on the range [min, max_plus_one) */
 		static int RandInt(int max_plus_one);
 
+		/** Like RandInt but doesn't stop working as quickly */
+		static unsigned int BigRand(unsigned int max_plus_one);
+
 		/** Returns a random 3-component vector with the specified magnitude */
 		static Vec3 RandomNormalizedVector(float len);
 		/** Returns a random 2-component vector with the specified magnitude */

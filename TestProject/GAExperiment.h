@@ -8,10 +8,12 @@ namespace Test
 
 	struct GASubtest
 	{
-		// TODO: add fields here?
+		unsigned int id;
 
-		bool operator ==(const GASubtest& other) const { return true; } 
-		bool operator < (const GASubtest& other) const { return false; }
+		GASubtest() : id(0) { }
+
+		bool operator ==(const GASubtest& other) const { return id == other.id; } 
+		bool operator < (const GASubtest& other) const { return id <  other.id; }
 	};
 
 	struct GACandidate;
@@ -27,45 +29,34 @@ namespace Test
 		bool operator <(const GATrialToken& other) const { return candidate < other.candidate || candidate == other.candidate && (subtest < other.subtest || subtest == other.subtest && trial < other.trial); }
 	};
 
+	struct MultiLayerBrain;
+
 	struct GACandidate
 	{
-		static const GACandidate min_values;
-		static const GACandidate max_values;
-
 		unsigned int id, p1, p2;
 
-		float params_prefix;
-		float bone_t_weights[12];
-		float foot_t_absorbed[9];
-		float foot_t_matching[9];
-		float leg_fixed_xfrac[6];
-		float params_suffix;
+		vector<MultiLayerBrain*> brains;
 
 		float score;
+		vector<float> score_parts;
+
 		unsigned int time_spent;
 		bool aborting;
-
 		set<GATrialToken> tokens_busy;
 		set<GATrialToken> tokens_not_finished;
 
 		GACandidate(unsigned int id);
-		GACandidate(unsigned int id, const GACandidate& other);
-		GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2);
+		GACandidate(unsigned int id, const GACandidate& other);							// clone
+		GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2);		// crossover
+		~GACandidate();
 
 		void Randomize(unsigned int count, float scale);
-
 		static float Crossover(float a, float b);
+
+		string GetText() const;
 
 		unsigned int Write(ostream& s);
 		static unsigned int Read(istream& s, GACandidate*& result, unsigned int id);
-
-		static GACandidate InitMin();
-		static GACandidate InitMax();
-
-		float& GetIndexedParam(unsigned int n);
-		const float& GetIndexedParam(unsigned int n) const;
-
-		static unsigned int NumIndexedParams();
 	};
 
 	class GAExperiment
@@ -103,7 +94,7 @@ namespace Test
 
 			GATrialToken GetNextTrial();
 
-			void TrialFinished(GATrialToken token, float score, unsigned int time_spent);
+			void TrialFinished(GATrialToken token, float score, const vector<float>& score_parts, unsigned int time_spent);
 
 			float GetEarlyFailThreshold();
 

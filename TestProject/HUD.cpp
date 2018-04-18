@@ -216,6 +216,10 @@ namespace Test
 
 	void HUD::DrawJumpGauge(float w, float h)
 	{
+		Soldier* soldier = dynamic_cast<Soldier*>(player);
+		if(soldier == nullptr)
+			return;
+
 		glPushMatrix();
 
 		glTranslatef(50, 114, 0);
@@ -226,7 +230,7 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, jumpbar_tex->GetGLName());
 
-		float jump_frac = ((Soldier*)player)->jet_fuel;
+		float jump_frac = soldier->jet_fuel;
 		float unjump = 1.0f - jump_frac;
 
 		float red = min(2.0f - 2.0f * jump_frac, 1.0f);
@@ -605,7 +609,8 @@ namespace Test
 			else
 				low_ammo_dim = false;
 
-			if(((Soldier*)player)->jet_fuel < 0.25f)
+			Soldier* soldier = dynamic_cast<Soldier*>(player);
+			if(soldier != nullptr && soldier->jet_fuel < 0.25f)
 				low_jump_dim = !low_jump_dim;
 			else
 				low_jump_dim = false;
