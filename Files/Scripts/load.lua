@@ -4,6 +4,9 @@
 --dofile("Files/Scripts/soldier_zzz.lua")
 --dofile("Files/Scripts/gun_zzp.lua")
 
+dofile("Files/Scripts/tripod_zzp.lua")
+--dofile("Files/Scripts/tripod_zzz.lua")
+
 -- tell the game what models (zzz & zzp) we need loaded
 ba.loadModel("soldier")
 ba.loadModel("gun")

@@ -15,7 +15,7 @@ else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)
 end
 
-if false then
+if true then
 	player = gs.spawnPlayer(player_pos)
 else
 	for x = -2, 2 do

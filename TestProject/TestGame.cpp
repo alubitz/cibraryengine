@@ -7,6 +7,7 @@
 #include "Soldier.h"
 #include "CrabBug.h"
 #include "ArtilleryBug.h"
+#include "Tripod.h"
 #include "Sun.h"
 #include "Weapon.h"
 
@@ -41,7 +42,7 @@
 #define USE_GUN_AS_RUBBISH               0
 #define PLAY_AS_CRAB_BUG                 1
 
-#define DO_RAPID_UPDATE_TESTING          1
+#define DO_RAPID_UPDATE_TESTING          0
 #define RAPID_UPDATE_COUNT               20
 #define SPAWN_PLAYER_REPEATEDLY          0		// use newly spawned doods, or just re-init the existing dood?
 
@@ -202,11 +203,13 @@ namespace Test
 		UberModel* crab_bug_model;
 		UberModel* artillery_bug_model;
 		UberModel* rubbish_model;
+		UberModel* tripod_model;
 
 		ModelPhysics* soldier_physics;
 		ModelPhysics* crab_bug_physics;
 		ModelPhysics* artillery_bug_physics;
 		ModelPhysics* rubbish_physics;
+		ModelPhysics* tripod_physics;
 
 		UberModel* gun_model;
 		ModelPhysics* gun_physics;
@@ -552,6 +555,9 @@ namespace Test
 		imp->crab_bug_model        = ubermodel_cache->Load("crab_bug");
 		imp->crab_bug_physics      = mphys_cache->Load("crab_bug");
 
+		imp->tripod_model          = ubermodel_cache->Load("tripod");
+		imp->tripod_physics        = mphys_cache->Load("tripod");
+
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("artillery bug"); }
 
 		imp->artillery_bug_model   = ubermodel_cache->Load("flea");
@@ -611,7 +617,8 @@ namespace Test
 #endif
 
 #if PLAY_AS_CRAB_BUG
-		player_pawn = new CrabBug(this, imp->experiment, imp->crab_bug_model, imp->crab_bug_physics, pos, human_team);
+		//player_pawn = new CrabBug(this, imp->experiment, imp->crab_bug_model, imp->crab_bug_physics, pos, human_team);
+		player_pawn = new Tripod(this, imp->experiment, imp->tripod_model, imp->tripod_physics, pos, human_team);
 #else
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 #endif

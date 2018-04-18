@@ -111,15 +111,14 @@ namespace Test
 	}
 #endif
 
+
+
+
 	struct CrabLeg
 	{
 		CBone bones[3];
 		CJoint joints[3];
 	};
-
-	//static vector<vector<float>> input_vals(800);
-	//static mutex derp_mutex;
-
 
 	/*
 	* CrabBug private implementation struct
