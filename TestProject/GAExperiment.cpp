@@ -1,8 +1,6 @@
 #include "StdAfx.h"
 #include "GAExperiment.h"
 
-#include "MultiLayerBrain.h"
-
 #define NUM_ELITES			10
 
 #define CROSSOVERS_PER_PAIR	2
@@ -20,143 +18,85 @@ namespace Test
 	/*
 	 * GACandidate methods
 	 */
-	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), brains(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished() { }
-
-	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), brains(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	const GACandidate GACandidate::min_values = GACandidate::InitMin();
+	const GACandidate GACandidate::max_values = GACandidate::InitMax();
+	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		for(unsigned int i = 0; i < other.brains.size(); ++i)
-			brains.push_back(new MultiLayerBrain(*other.brains[i]));
+		memset(&params_prefix, 0, (unsigned char*)&params_suffix - (unsigned char*)&params_prefix);
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), brains(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		unsigned int num_brains = min(p1.brains.size(), p2.brains.size());
-		for(unsigned int bindex = 0; bindex < num_brains; ++bindex)
-		{
-			const MultiLayerBrain& b1 = *p1.brains[bindex];
-			const MultiLayerBrain& b2 = *p2.brains[bindex];
+		memcpy(&params_prefix, &other.params_prefix, (unsigned char*)&params_suffix - (unsigned char*)&params_prefix);
+	}
 
-			unsigned int num_layers = min(b1.layer_sizes.size(), b2.layer_sizes.size());
-			vector<unsigned int> layer_sizes(num_layers);
-			for(unsigned int i = 0; i < num_layers; ++i)
-				layer_sizes[i] = min(b1.layer_sizes[i], b2.layer_sizes[i]);
-
-			MultiLayerBrain* brain = new MultiLayerBrain(layer_sizes);
-		
-			for(unsigned int i = 1; i < num_layers; ++i)
-			{
-				for(unsigned int j = 0; j < layer_sizes[i]; ++j)
-					for(unsigned int k = 0; k < layer_sizes[i - 1]; ++k)
-						brain->matrices[i - 1][j * layer_sizes[i - 1] + k] = Crossover(b1.matrices[i - 1][j * b1.layer_sizes[i - 1] + k], b2.matrices[i - 1][j * b2.layer_sizes[i - 1] + k]);
-			}
-
-			brains.push_back(brain);
-		}
+	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	{
+		const float* aptr = &p1.params_prefix;
+		const float* bptr = &p2.params_prefix;
+		for(float *optr = &params_prefix, *oend = &params_suffix; optr != oend; ++optr, ++aptr, ++bptr)
+			*optr = Crossover(*aptr, *bptr);
 
 		Randomize(MUTATION_COUNT, MUTATION_SCALE);
 	}
 
-	GACandidate::~GACandidate()
+	GACandidate::~GACandidate() { }
+
+	GACandidate GACandidate::InitMin()
 	{
-		for(unsigned int i = 0; i < brains.size(); ++i)
-			delete brains[i];
-		brains.clear();
+		GACandidate result(0);
+		result.bone_t_weights[0] = 1.0f;		// carapace weight is always 1
+		for(unsigned int i = 1; i < 12; ++i)
+			result.bone_t_weights[i] = 0.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_absorbed[i] = 0.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_matching[i] = 0.0f;
+		for(unsigned int i = 0; i < 6; ++i)
+			result.leg_fixed_xfrac[i] = 0.0f;
+		return result;
 	}
+
+	GACandidate GACandidate::InitMax()
+	{
+		GACandidate result(0);
+		
+		result.bone_t_weights[0] = 1.0f;		// carapace weight is always 1
+		
+		result.bone_t_weights[1] = result.bone_t_weights[2] = result.bone_t_weights[3] = result.bone_t_weights[6] = result.bone_t_weights[9] = 2.0f;
+		
+		//for(unsigned int i = 1; i < 12; ++i)
+		//	result.bone_t_weights[i] = 2.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_absorbed[i] = 2.0f;
+		for(unsigned int i = 0; i < 9; ++i)
+			result.foot_t_matching[i] = 1.0f;
+		//for(unsigned int i = 0; i < 6; ++i)
+		//	result.leg_fixed_xfrac[i] = 1.0f;
+		
+		return result;
+	}
+
+	unsigned int GACandidate::NumIndexedParams() { return (&min_values.params_suffix - &min_values.params_prefix) - 1; }
+	float& GACandidate::GetIndexedParam(unsigned int n)				{ return (&params_prefix)[n + 1]; }
+	const float& GACandidate::GetIndexedParam(unsigned int n) const	{ return (&params_prefix)[n + 1]; }
 
 	void GACandidate::Randomize(unsigned int count, float scale)
 	{
-		//unsigned int total_coeffs = 0;
-		//for(unsigned int i = 0; i < brain->matrices.size(); ++i)
-		//	total_coeffs += brain->matrices[i].size();
-
-		set<float*> nonzeroes;
-		for(unsigned int bindex = 0; bindex < brains.size(); ++bindex)
-		{
-			MultiLayerBrain* brain = brains[bindex];
-			for(unsigned int mindex = 0; mindex < brain->matrices.size(); ++mindex)
-			{
-				//if(bindex == 2 ||  bindex == 1 && mindex == 2)
-					for(unsigned int j = 0; j < brain->matrices[mindex].size(); ++j)
-						if(brain->matrices[mindex][j] != 0)
-							nonzeroes.insert(brain->matrices[mindex].data() + j);
-			}
-		}
-
 		bool ok;
 		do
 		{
-			//// equal distribution to each coefficient (so smaller matrices don't get disporportionately many mutations)
-			//unsigned int r = Random3D::BigRand(total_coeffs);
-			//for(unsigned int i = 0; i < brain->matrices.size(); ++i)
-			//{
-			//	vector<float>& matrix = brain->matrices[i];
-			//	if(r < matrix.size())
-			//	{
-			//		matrix[r] += Random3D::Rand(-scale, scale);
-			//
-			//		ok = true;
-			//		break;
-			//	}
-			//	else
-			//		r -= matrix.size();
-			//}
-			ok = false;
-
-			unsigned int action = Random3D::RandInt(10);
-			if(action == 0 || nonzeroes.size() < 50)
+			unsigned int offset = Random3D::RandInt() % NumIndexedParams();
+			float* ptr = &GetIndexedParam(offset);
+			float minx = min_values.GetIndexedParam(offset);
+			float maxx = max_values.GetIndexedParam(offset);
+			
+			if(minx != maxx)
 			{
-				unsigned int bindex = Random3D::RandInt(brains.size());
-				MultiLayerBrain& brain = *brains[bindex];
-				unsigned int mindex = Random3D::RandInt(brain.matrices.size());
-				//if(bindex == 2 ||  bindex == 1 && mindex == 2)
-				{
-					vector<float>& matrix = brain.matrices[mindex];
-					unsigned int eindex = Random3D::RandInt(matrix.size());
+				float rscale = scale * (maxx - minx);
+				*ptr = min(maxx, max(minx, *ptr + Random3D::Rand(-rscale, rscale)));
 
-					//if(mindex == 1)
-					//{
-					//	unsigned int square = bindex == 0 ? 30 : bindex == 1 ? 40 : 15;
-					//	unsigned int x = eindex % square, y = eindex / square;
-					//	if(x < square / 2 && y >= square / 2 || x >= square / 2 && y < square / 2)
-					//		continue;
-					//}
-
-					float* ptr = matrix.data() + eindex;
-					*ptr += Random3D::Rand(-scale, scale);
-					nonzeroes.insert(ptr);
-					ok = true;
-				}
-			}
-			else
-			{
-				unsigned int r = Random3D::BigRand(nonzeroes.size());
-				for(set<float*>::iterator iter = nonzeroes.begin(); iter != nonzeroes.end(); ++iter)
-				{
-					if(r == 0)
-					{
-						switch(action)
-						{
-							case 1:
-								**iter = 0.0f;
-								nonzeroes.erase(*iter);
-								break;
-
-							case 2:
-								**iter *= 0.5f;
-								break;
-
-							default:
-								**iter += Random3D::Rand(-scale, scale);
-								break;
-						}
-
-						ok = true;
-						break;
-					}
-					else
-						--r;
-				}
-
+				ok = true;
 			}
 
 		} while(!ok || Random3D::RandInt() % count != 0);
@@ -183,13 +123,10 @@ namespace Test
 	{
 		stringstream ss;
 
-		WriteUInt32(brains.size(), ss);
-		for(unsigned int i = 0; i < brains.size(); ++i)
-			if(unsigned int error = brains[i]->Write(ss))
-			{
-				Debug(((stringstream&)(stringstream() << "MultiLayerBrain::Write[" << i << "] returned error " << error << endl)).str());
-				return error;
-			}
+		unsigned int count = NumIndexedParams();
+		WriteUInt32(count, ss);
+		for(unsigned int i = 0; i < count; ++i)
+			WriteSingle(GetIndexedParam(i), ss);
 		
 		BinaryChunk chunk("IDKOPS01");
 		chunk.data = ss.str();
@@ -211,17 +148,13 @@ namespace Test
 		istringstream ss(chunk.data);
 
 		GACandidate* candidate = new GACandidate(id);
-		unsigned int num_brains = ReadUInt32(ss);
-		for(unsigned int i = 0; i < num_brains; ++i)
+		unsigned int count = ReadUInt32(ss);
+		unsigned int mycount = NumIndexedParams();
+		for(unsigned int i = 0; i < count; ++i)
 		{
-			MultiLayerBrain* brain;
-			if(unsigned int error = MultiLayerBrain::Read(ss, brain, id))
-			{
-				Debug(((stringstream&)(stringstream() << "MultiLayerBrain::Read[" << i << "] returned error " << error << endl)).str());
-				return 2 + error;
-			}
-			else
-				candidate->brains.push_back(brain);
+			float f = ReadSingle(ss);
+			if(i < mycount)
+				candidate->GetIndexedParam(i) = f;
 		}
 
 		if(s.bad())
@@ -302,7 +235,7 @@ namespace Test
 		assert(tokens_busy.empty());
 
 		for(unsigned int left = 0, right = candidates.size() - 1; left < right; left++, right--)
-			swap(candidates[left], candidates[right]);	
+			swap(candidates[left], candidates[right]);
 
 		for(unsigned int i = 0; i < candidates.size(); ++i)
 		{
@@ -332,51 +265,24 @@ namespace Test
 
 	void GAExperiment::MakeFirstGeneration()
 	{
-		static const unsigned int signal_up		= 30;//20;
-		static const unsigned int signal_down	= 10;//20;
-		static const unsigned int signal_self	= 20;
-
-		vector<unsigned int> sizes_a;
-		sizes_a.push_back(126);
-		sizes_a.push_back(30);		//20
-		sizes_a.push_back(30);		//20
-		sizes_a.push_back(signal_up + signal_self);
-
-		vector<unsigned int> sizes_b;
-		sizes_b.push_back(95 + signal_up);
-		sizes_b.push_back(40);
-		sizes_b.push_back(40);
-		sizes_b.push_back(6 + signal_down);
-
-		vector<unsigned int> sizes_c;
-		sizes_c.push_back(6 + signal_down + signal_self);
-		sizes_c.push_back(15);
-		sizes_c.push_back(15);
-		sizes_c.push_back(5);
-
 		for(unsigned int i = 0; i < NUM_ELITES * NUM_ELITES; ++i)
 		{
 			GACandidate* candidate = new GACandidate(next_id++);
 			
-			candidate->brains.push_back(new MultiLayerBrain(sizes_a));
-			candidate->brains.push_back(new MultiLayerBrain(sizes_b));
-			candidate->brains.push_back(new MultiLayerBrain(sizes_c));
-
-			//if(i >= NUM_ELITES)
-			//	candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
-			//if(i >= NUM_ELITES)
-			{
-				for(unsigned int j = 0; j < candidate->brains.size(); ++j)
-				{
-					MultiLayerBrain& brain = *candidate->brains[j];
-					for(unsigned int k = 0; k < brain.matrices.size(); ++k)
-					{
-						vector<float>& matrix = brain.matrices[k];
-						for(unsigned int m = 0; m < brain.layer_sizes[k] + brain.layer_sizes[k + 1]; ++m)
-							matrix[Random3D::RandInt(matrix.size())] = Random3D::Rand(-0.01f, 0.01f);
-					}
-				}
-			}
+#if 0
+			candidate->bone_t_weights[0] = 1.0f;
+			for(unsigned int j = 1; j < 12; ++j)
+				candidate->bone_t_weights[j] = 0.0f;
+			for(unsigned int j = 0; j < 9; ++j)
+				candidate->foot_t_absorbed[j] = 1.0f;
+			//for(unsigned int j = 0; j < 6; ++j)
+			//	candidate->leg_fixed_xfrac[j] = 0.0f;
+			if(i >= NUM_ELITES)
+				candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE);
+#else
+			for(unsigned int i = 0; i < GACandidate::NumIndexedParams(); ++i)
+				candidate->GetIndexedParam(i) = Random3D::Rand(GACandidate::min_values.GetIndexedParam(i), GACandidate::max_values.GetIndexedParam(i));
+#endif
 
 			candidates.push_back(candidate);
 		}
@@ -556,31 +462,7 @@ namespace Test
 				ss << "batch " << batch << " elites:" << endl;
 
 				for(list<GACandidate*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
-				{
-					const GACandidate& c = **iter;
-					ss << '\t' << c.GetText() << "; nonzeros { ";// << endl;
-					for(unsigned int bindex = 0; bindex < c.brains.size(); ++bindex)
-					{
-						if(bindex != 0)
-							ss << "; ";
-						ss << "brain[" << bindex << "]: ";
-
-						const MultiLayerBrain& brain = *c.brains[bindex];
-						const vector<vector<float>>& matrices = brain.matrices;
-						for(unsigned int i = 0; i < matrices.size(); ++i)
-						{
-							const vector<float>& matrix = matrices[i];
-							unsigned int nonzero = 0;
-							for(unsigned int j = 0; j < matrix.size(); ++j)
-								if(matrix[j] != 0)
-									++nonzero;
-							if(i != 0)
-								ss << ", ";
-							ss << nonzero << " / " << matrix.size();
-						}
-					}
-					ss << " }" << endl;
-				}
+					ss << '\t' << (*iter)->GetText() << endl;
 
 				Debug(ss.str());
 			}
@@ -597,7 +479,7 @@ namespace Test
 		else
 			return;
 
-		/*stringstream ss;
+		stringstream ss;
 
 		unsigned int count = GACandidate::NumIndexedParams();
 		for(unsigned int i = 0; i < count; ++i)
@@ -618,7 +500,7 @@ namespace Test
 			ss << "\tcomponent " << i << ": MIN = " << GACandidate::min_values.GetIndexedParam(i) << ", min = " << min << ", avg = " << avg << ", max = " << max << ", MAX = " << GACandidate::max_values.GetIndexedParam(i) << endl;
 		}
 
-		Debug(ss.str());*/
+		Debug(ss.str());
 	}
 
 	string GAExperiment::GetDebugText()

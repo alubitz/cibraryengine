@@ -8,8 +8,6 @@
 
 #include "GAExperiment.h"
 
-#include "MultiLayerBrain.h"
-
 #define DIE_AFTER_ONE_SECOND			0
 
 #define ENABLE_WALK_ANIMATIONS			0
@@ -302,7 +300,6 @@ namespace Test
 						}
 				}
 
-#if 0
 				// fudge desired foot torques
 				for(unsigned int i = 0; i < 2; ++i)
 				{
@@ -486,138 +483,6 @@ namespace Test
 					action[i] = ((float*)&v)[aa.axis];
 				}
 				GradientSearch(100, action, min_torques, max_torques, J, goal_values, weights);
-#endif
-
-				Mat3 unrotate = Mat3::Identity();
-
-				vector<float> shared_inputs;
-				shared_inputs.push_back(tick_age == 0 ? 1.0f : 0.0f);
-				shared_inputs.push_back(tanhf(carapace_com.y));
-
-				vector<float> inputs;
-				vector<float> outputs;
-				vector<float> scratch;
-
-				static const unsigned int signal_up = 30;
-
-				vector<float> signal_selfs[6];
-
-				vector<float> action(36);
-
-				unsigned int inputs_a, inputs_b, inputs_c;
-
-				// compute leg summaries
-				vector<float> summed;
-				for(unsigned int i = 0; i < 2; ++i)
-				{
-					const CrabLeg* side = i == 0 ? llegs : rlegs;
-					for(unsigned int j = 0; j < 3; ++j)
-					{
-						const CrabLeg& leg = side[j];
-						const Dood::FootState& fs = *dood->feet[j * 2 + i];
-
-						inputs = shared_inputs;
-						for(unsigned int k = 0; k < 3; ++k)
-						{
-							PushBone(inputs, leg.bones[k], unrotate, carapace_com);
-							PushJoint(inputs, leg.joints[k], unrotate, carapace_com);
-						}
-						inputs.push_back(tick_age != 0 && !fs.contact_points.empty() ? 1.0f : 0.0f);
-						PushVec3(inputs, tick_age == 0 ? Vec3() : fs.net_force * 0.05f);
-						PushVec3(inputs, tick_age == 0 ? Vec3() : fs.net_torque * 0.02f);
-
-						ga_token.candidate->brains[0]->Evaluate(inputs, outputs, scratch);
-						inputs_a = inputs.size();
-
-						summed.resize(signal_up);
-						for(unsigned int k = 0; k < signal_up; ++k)
-							summed[k] += outputs[k];
-
-						vector<float>& signal_self = signal_selfs[i * 3 + j];
-						signal_self.resize(outputs.size() - signal_up);
-						memcpy(signal_self.data(), outputs.data() + signal_up, signal_self.size() * sizeof(float));
-					}
-				}
-
-
-				// evaluate center
-				inputs = shared_inputs;
-				PushBone(inputs, head, unrotate, carapace_com);
-				PushBone(inputs, carapace, unrotate, carapace_com);
-				PushBone(inputs, tail, unrotate, carapace_com);
-				PushJoint(inputs, neck, unrotate, carapace_com);
-				PushJoint(inputs, tailj, unrotate, carapace_com);
-				for(unsigned int i = 0; i < summed.size(); ++i)
-					inputs.push_back(summed[i]);
-
-				inputs_b = inputs.size();
-				ga_token.candidate->brains[1]->Evaluate(inputs, outputs, scratch);
-				
-				memcpy(action.data(), outputs.data(), 6 * sizeof(float));
-				
-
-				// control legs
-				inputs = shared_inputs;
-				inputs.resize(ga_token.candidate->brains[2]->layer_sizes[0]);
-				memcpy(inputs.data() + 6, outputs.data() + 6, (inputs.size() - 6) * sizeof(float));
-
-				float* optr = action.data() + 6;
-				for(unsigned int i = 0; i < 2; ++i)
-				{
-					CrabLeg* side = i == 0 ? llegs : rlegs;
-					inputs[2] = i == 0 ? 1.0f : -1.0f;
-					for(unsigned int j = 0; j < 3; ++j)
-					{
-						CrabLeg& leg = side[j];
-						for(unsigned int k = 0; k < 3; ++k)
-							inputs[2 + k] = k == j ? 1.0f : 0.0f;
-
-						memcpy(inputs.data() + 6 + 10, signal_selfs[i * 3 + j].data(), signal_selfs[i * 3 + j].size() * sizeof(float));
-
-						inputs_c = inputs.size();
-						ga_token.candidate->brains[2]->Evaluate(inputs, outputs, scratch);
-
-						memcpy(optr, outputs.data(), 5 * sizeof(float));
-						optr += 5;
-					}
-				}
-
-
-				static bool printed_size = false;
-				if(!printed_size)
-				{
-					Debug(((stringstream&)(stringstream() << "number of inputs = " << inputs_a << ", " << inputs_b << ", " << inputs_c << endl)).str());
-					printed_size = true;
-				}
-
-				//{
-				//	unique_lock<std::mutex> lock(derp_mutex);
-				//
-				//	for(unsigned int i = 0; i < 800; ++i)
-				//		input_vals[i].push_back(inputs[i]);
-				//
-				//	if(input_vals[0].size() % 1000 == 0)
-				//	{
-				//		stringstream ss;
-				//		for(unsigned int i = 0; i < 800; ++i)
-				//		{
-				//			vector<float>& record = input_vals[i];
-				//			sort(record.begin(), record.end());
-				//		
-				//			float tot = 0.0f;
-				//			for(unsigned int j = 0; j < record.size(); ++j)
-				//				tot += record[j];
-				//
-				//			ss << "\tinput #" << i << ": avg = " << tot / record.size() << "; min = " << record[0] << "; max = " << record[record.size() - 1] << "; median = " << record[record.size() / 2] << "; lq = " << record[record.size() / 4] << "; uq = " << record[record.size() * 3 / 4] << endl;
-				//
-				//			if(input_vals[i].size() >= 10000)
-				//				input_vals[i].clear();
-				//		}
-				//		Debug(ss.str());
-				//	}
-				//}
-				//
-				//ga_token.candidate->brain->Evaluate(inputs, action, scratch);
 
 				// apply selected action
 				//stringstream ss;
@@ -626,10 +491,7 @@ namespace Test
 				{
 					ArticulatedAxis aa = articulated_axes[i];
 					Vec3 v = aa.j->sjc->apply_torque;
-					Vec3 mint = aa.j->sjc->min_torque;
-					Vec3 maxt = aa.j->sjc->max_torque;
-
-					((float*)&v)[aa.axis] = action[i] >= 0 ? action[i] * ((float*)&maxt)[aa.axis] : -action[i] * ((float*)&mint)[aa.axis];
+					((float*)&v)[aa.axis] = action[i];
 					aa.j->SetOrientedTorque(v);
 					//if(i != 0)
 					//	ss << ", ";
@@ -734,37 +596,6 @@ namespace Test
 					}
 				}
 			}
-		}
-
-		void PushVec3(vector<float>& a, const Vec3& v)
-		{
-			a.push_back(tanhf(v.x));
-			a.push_back(tanhf(v.y));
-			a.push_back(tanhf(v.z));
-		}
-
-		void PushBone(vector<float>& a, const CBone& bone, const Mat3& unrotate, const Vec3& com)
-		{
-			const RigidBody& rb = *bone.rb;
-			if(&bone != &carapace)
-				PushVec3(a, unrotate * (rb.GetPosition() + rb.GetOrientation() * rb.GetLocalCoM() - com));
-			Mat3 rm = unrotate * rb.GetOrientation().ToMat3();
-			for(unsigned int i = 0; i < 9; ++i)
-				a.push_back(rm[i]);
-			PushVec3(a, unrotate * rb.GetLinearVelocity() * 0.2f);
-			PushVec3(a, unrotate * rb.GetAngularVelocity() * 0.1f);
-		}
-
-		void PushJoint(vector<float>& a, const CJoint& joint, const Mat3& unrotate, const Vec3& com)
-		{
-			const SkeletalJointConstraint& sjc = *joint.sjc;
-			PushVec3(a, unrotate * (sjc.ComputeAveragePosition() - com));
-			Mat3 rm = unrotate * joint.oriented_axes;
-			for(unsigned int i = 0; i < 9; ++i)
-				a.push_back(rm[i]);
-			PushVec3(a, unrotate * joint.GetRVec());
-			PushVec3(a, unrotate * sjc.net_impulse_linear * 0.05f);
-			PushVec3(a, unrotate * sjc.net_impulse_angular * 0.01f);
 		}
 
 		void GradientSearch(unsigned int iterations, vector<float>& f, vector<float>& iv_mins, vector<float>& iv_maxs, const GenericMatrix& A, const vector<float>& b, const vector<float>& W)

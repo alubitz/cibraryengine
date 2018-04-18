@@ -29,13 +29,19 @@ namespace Test
 		bool operator <(const GATrialToken& other) const { return candidate < other.candidate || candidate == other.candidate && (subtest < other.subtest || subtest == other.subtest && trial < other.trial); }
 	};
 
-	struct MultiLayerBrain;
-
 	struct GACandidate
 	{
+		static const GACandidate min_values;
+		static const GACandidate max_values;
+
 		unsigned int id, p1, p2;
 
-		vector<MultiLayerBrain*> brains;
+		float params_prefix;
+		float bone_t_weights[12];
+		float foot_t_absorbed[9];
+		float foot_t_matching[9];
+		float leg_fixed_xfrac[6];
+		float params_suffix;
 
 		float score;
 		vector<float> score_parts;
@@ -57,6 +63,14 @@ namespace Test
 
 		unsigned int Write(ostream& s);
 		static unsigned int Read(istream& s, GACandidate*& result, unsigned int id);
+
+		static GACandidate InitMin();
+		static GACandidate InitMax();
+		
+		float& GetIndexedParam(unsigned int n);
+		const float& GetIndexedParam(unsigned int n) const;
+		
+		static unsigned int NumIndexedParams();
 	};
 
 	class GAExperiment
