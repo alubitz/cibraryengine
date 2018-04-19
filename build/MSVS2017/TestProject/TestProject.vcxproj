@@ -157,6 +157,7 @@
     <ClCompile Include="..\..\..\TestProject\Team.cpp" />
     <ClCompile Include="..\..\..\TestProject\TestGame.cpp" />
     <ClCompile Include="..\..\..\TestProject\TestScreen.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Tripod.cpp" />
     <ClCompile Include="..\..\..\TestProject\WalkPose.cpp" />
     <ClCompile Include="..\..\..\TestProject\Weapon.cpp" />
     <ClCompile Include="..\..\..\TestProject\WeaponEquip.cpp" />
@@ -202,6 +203,7 @@
     <ClInclude Include="..\..\..\TestProject\Team.h" />
     <ClInclude Include="..\..\..\TestProject\TestGame.h" />
     <ClInclude Include="..\..\..\TestProject\TestScreen.h" />
+    <ClInclude Include="..\..\..\TestProject\Tripod.h" />
     <ClInclude Include="..\..\..\TestProject\WalkPose.h" />
     <ClInclude Include="..\..\..\TestProject\Weapon.h" />
     <ClInclude Include="..\..\..\TestProject\WeaponEquip.h" />
