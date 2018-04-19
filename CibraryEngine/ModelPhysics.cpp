@@ -250,6 +250,22 @@ namespace CibraryEngine
 	/*
 	 * ModelPhysics scripting stuff
 	 */
+	static void DebugMassInfo(const MassInfo& minfo)
+	{
+		stringstream ss;
+		ss << "mass = " << minfo.mass << endl;
+		ss << "com = (" << minfo.com.x << ", " << minfo.com.y << ", " << minfo.com.z << ")" << endl;
+		ss << "moi = { ";
+		for(unsigned int i = 0; i < 9; ++i)
+		{
+			if(i != 0)
+				ss << ", ";
+			ss << minfo.moi[i];
+		}
+		ss << " }" << endl;
+		Debug(ss.str());
+	}
+
 	int ba_saveModelPhysics(lua_State* L)
 	{
 		int n = lua_gettop(L);
@@ -372,6 +388,7 @@ namespace CibraryEngine
 							{
 								bone.mass_info = bone.collision_shape->ComputeMassInfo();
 								bone.mass_info *= mass / bone.mass_info.mass;
+								//DebugMassInfo(bone.mass_info);
 							}
 							else
 								bone.mass_info.mass = mass;

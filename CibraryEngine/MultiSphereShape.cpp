@@ -783,21 +783,65 @@ namespace CibraryEngine
 				return MassInfo();
 			else
 			{
-				// approximate the MultiSphereShape as a box (same as how Bullet handles them)
-				MassInfo temp;
+#if 1
+				static const unsigned int resolution = 200;
 
 				Vec3 dim = aabb.max - aabb.min;
 
-				temp.mass = dim.x * dim.y * dim.z;							// assumes density = 1
-				temp.com = (aabb.min + aabb.max) * 0.5f;
+				float fres = float(resolution);
+				float xstep = dim.x / fres;
+				float ystep = dim.y / fres;
+				float hxstep = xstep * 0.5f;
+				float hystep = ystep * 0.5f;
 
-				float coeff = temp.mass / 12.0f;
-				temp.moi[0] = coeff * (dim.y * dim.y + dim.z * dim.z);
-				temp.moi[4] = coeff * (dim.x * dim.x + dim.z * dim.z);
-				temp.moi[8] = coeff * (dim.x * dim.x + dim.y * dim.y);
+				vector<MassInfo> planes;
+				for(unsigned int i = 0; i < resolution; ++i)
+				{
+					vector<MassInfo> lines;
+					float px = aabb.min.x + (float(i) + 0.5f) * xstep;
+					for(unsigned int j = 0; j < resolution; ++j)
+					{
+						float py = aabb.min.y + (float(j) + 0.5f) * ystep;
 
-				return temp;
+						RayResult rr1, rr2;
+						rr1.t = rr2.t = 1.0f;
+						if(CollideRay(Ray(Vec3(px, py, aabb.min.z), Vec3(0, 0, dim.z)), rr1, nullptr, nullptr))
+							if(CollideRay(Ray(Vec3(px, py, aabb.max.z), Vec3(0, 0, -dim.z)), rr2, nullptr, nullptr))
+								if(rr2.pos.z > rr1.pos.z)
+									lines.push_back(MassInfoFromAABB(AABB(Vec3(px - hxstep, py - hystep, rr1.pos.z), Vec3(px + hxstep, py + hystep, rr2.pos.z))));
+					}
+
+					if(!lines.empty())
+						planes.push_back(MassInfo::Sum(lines.data(), lines.size()));
+				}
+
+				if(planes.empty())
+					return MassInfo();
+				else
+					return MassInfo::Sum(planes.data(), planes.size());
+
+#else
+				// approximate the MultiSphereShape as a box (same as how Bullet handles them)
+				return MassInfoFromAABB(aabb);
+#endif
 			}
+		}
+
+		MassInfo MassInfoFromAABB(const AABB& aabb)
+		{
+			MassInfo temp;
+
+			Vec3 dim = aabb.max - aabb.min;
+
+			temp.mass = dim.x * dim.y * dim.z;							// assumes density = 1
+			temp.com = (aabb.min + aabb.max) * 0.5f;
+
+			float coeff = temp.mass / 12.0f;
+			temp.moi[0] = coeff * (dim.y * dim.y + dim.z * dim.z);
+			temp.moi[4] = coeff * (dim.x * dim.x + dim.z * dim.z);
+			temp.moi[8] = coeff * (dim.x * dim.x + dim.y * dim.y);
+
+			return temp;
 		}
 
 

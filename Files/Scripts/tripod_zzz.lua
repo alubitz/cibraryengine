@@ -16,6 +16,6 @@ for i = 1, 3 do
 	U.add_single_bone(bones, bname, "carapace", ba.createVector( rx * 0.15, 0.8, rz * 0.15))
 end
 
-U.add_single_bone(bones, "eye", "carapace", ba.createVector(0, 1.0, 0.2))
+U.add_single_bone(bones, "eye", "carapace", ba.createVector(0, 1.2, 0))
 
 ba.saveUberModel(models, bones, "tripod")

@@ -68,6 +68,8 @@ namespace Test
 
 		void ReInit(Tripod* dood)
 		{
+			float old_yaw = dood->yaw;
+			float old_pitch = dood->pitch;
 			dood->yaw = dood->pitch = 0.0f;
 			dood->pos = initial_pos;
 
@@ -89,6 +91,9 @@ namespace Test
 			}
 
 			SharedInit(dood);
+
+			dood->yaw = old_yaw;
+			dood->pitch = old_pitch;
 		}
 
 		void SharedInit(Tripod* dood)
@@ -166,16 +171,16 @@ namespace Test
 
 			//dood->DoScriptedMotorControl("Files/Scripts/crab_motor_control.lua");
 
-			stringstream ss;
-			ss << "age = " << tick_age << endl;
-			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
-			{
-				const CJoint& j = *dood->all_joints[i];
-				Vec3 f = j.sjc->net_impulse_linear * inv_timestep;
-				Vec3 t = j.sjc->net_impulse_angular * inv_timestep;
-				ss << "\t" << j.b->name << ": F = (" << f.x << ", " << f.y << ", " << f.z << "); T = (" << t.x << ", " << t.y << ", " << t.z << ")" << endl;
-			}
-			Debug(ss.str());
+			//stringstream ss;
+			//ss << "age = " << tick_age << endl;
+			//for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+			//{
+			//	const CJoint& j = *dood->all_joints[i];
+			//	Vec3 f = j.sjc->net_impulse_linear * inv_timestep;
+			//	Vec3 t = j.sjc->net_impulse_angular * inv_timestep;
+			//	ss << "\t" << j.b->name << ": F = (" << f.x << ", " << f.y << ", " << f.z << "); T = (" << t.x << ", " << t.y << ", " << t.z << ")" << endl;
+			//}
+			//Debug(ss.str());
 
 			if(experiment != nullptr && ga_token.candidate != nullptr && !ga_token.candidate->aborting)
 			{
@@ -187,6 +192,7 @@ namespace Test
 				float pos_error = 0.0f;
 				float vel_error = 0.0f;
 				float rot_error = 0.0f;
+				float xyz_error[3] = { 0.0f, 0.0f, 0.0f };
 
 				float energy_cost = 0.0f;
 				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
@@ -199,10 +205,8 @@ namespace Test
 					float bone_weight = 1.0f;
 					if(bone.name == "carapace")
 						bone_weight = 1.0f;
-					else if(bone.name[1] == ' ' && bone.name[8] == '2')
-						bone_weight = 0.1f;
 					else
-						bone_weight = 0.0f;
+						bone_weight = 0.1f;
 
 					const RigidBody& rb = *bone.rb;
 
@@ -217,6 +221,14 @@ namespace Test
 
 					vel_error += bone_weight * rb.GetLinearVelocity().ComputeMagnitudeSquared();
 					rot_error += bone_weight * rb.GetAngularVelocity().ComputeMagnitudeSquared();
+
+					if(bone.name == "carapace")
+					{
+						Vec3 offset = initial_pos - current_pos;
+						xyz_error[0] = offset.x * offset.x;
+						xyz_error[1] = offset.y * offset.y;
+						xyz_error[2] = offset.z * offset.z;
+					}
 				}
 
 				//energy_cost = max(0.0f, energy_cost - 500.0f);
@@ -237,8 +249,10 @@ namespace Test
 				vector<float> inst_scores;
 				//inst_scores.push_back(pos_error * 1.0f);
 				inst_scores.push_back(vel_error * 1.0f);
+				for(unsigned int i = 0; i < 3; ++i)
+					inst_scores.push_back(xyz_error[i] * 1.0f);
 				//inst_scores.push_back(ori_error * 1.0f);
-				//inst_scores.push_back(rot_error * 1.0f);
+				inst_scores.push_back(rot_error * 1.0f);
 				//inst_scores.push_back(energy_cost * 0.00001f);
 				inst_scores.push_back(ee_error * 1.0f);
 				
@@ -318,13 +332,60 @@ namespace Test
 	void Tripod::RegisterFeet()
 	{
 		// TODO: update this whenever you update tripod_zzp.lua
+		static const float radius = 1.0f;
+
 		string legs[3] = { "a", "b", "c" };
 		for(unsigned int i = 0; i < 3; ++i)
 		{
 			float theta = float(i) * float(M_PI) * 2.0f / 3.0f;
 			string bname = ((stringstream&)(stringstream() << "leg " << legs[i] << " 1")).str();
-			feet.push_back(new FootState(Bone::string_table[bname], Vec3(0.5f * sinf(theta), 0.0f, 0.5f * cosf(theta))));
+			feet.push_back(new FootState(Bone::string_table[bname], Vec3(radius * sinf(theta), 0.0f, radius * cosf(theta))));
 		}
+
+		//static bool printed = false;
+		//if(!printed)
+		//{
+		//	printed = true;
+		//
+		//	static const unsigned int steps = 20;
+		//
+		//	for(unsigned int j = 0; j < 3; ++j)
+		//	{
+		//		float theta = float(j) * float(M_PI) * 2.0f / 3.0f;
+		//
+		//		MassInfo arr[steps];
+		//		float r1 = 0.05f, r2 = 0.01f;
+		//		float x1 = 0.15f, x2 = radius;
+		//		float y1 = 0.8f, y2 = r2;
+		//		for(unsigned int i = 0; i < steps; ++i)
+		//		{
+		//			float frac = float(i) / float(steps - 1);
+		//			float radius = frac * (r2 - r1) + r1;
+		//			float x = frac * (x2 - x1) + x1;
+		//			float y = frac * (y2 - y1) + y1;
+		//			arr[i] = MassInfo(Vec3(x * sinf(theta), y, x * cosf(theta)), radius * radius * radius);
+		//		}
+		//
+		//		MassInfo minfo = MassInfo::Sum(arr, steps);
+		//		minfo *= 12.0f / minfo.mass;
+		//
+		//		stringstream ss;
+		//		ss << "mass = " << minfo.mass << endl;
+		//		ss << "com = (" << minfo.com.x << ", " << minfo.com.y << ", " << minfo.com.z << ")" << endl;
+		//		ss << "moi = { ";
+		//		for(unsigned int i = 0; i < 9; ++i)
+		//		{
+		//			if(i != 0)
+		//				ss << ", ";
+		//			ss << minfo.moi[i];
+		//		}
+		//		ss << " }" << endl;
+		//
+		//		Debug(ss.str());
+		//	}
+		//}
+
+
 	}
 
 	void Tripod::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
@@ -362,7 +423,7 @@ namespace Test
 				RegisterJoint( imp->legs[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : imp->legs[j].bones[k - 1], imp->legs[j].bones[k], x, yz, yz) ); 
 			}
 
-		for(unsigned int i = 0; i < all_joints.size(); ++i)
-			all_joints[i]->sjc->enable_motor = true;
+		//for(unsigned int i = 0; i < all_joints.size(); ++i)
+		//	all_joints[i]->sjc->enable_motor = true;
 	}
 }

@@ -12,6 +12,7 @@ ba.loadModel("soldier")
 ba.loadModel("gun")
 ba.loadModel("crab_bug")
 --ba.loadModel("flea")
+ba.loadModel("tripod")
 
 
 --[[
