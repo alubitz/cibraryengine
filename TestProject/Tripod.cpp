@@ -8,11 +8,6 @@
 
 #include "GAExperiment.h"
 
-#define DIE_AFTER_ONE_SECOND			0
-
-#define ENABLE_WALK_ANIMATIONS			0
-
-#define DEBUG_GRADIENT_SEARCH_PROGRESS	0
 
 #define MAX_TICK_AGE					60
 
@@ -24,8 +19,8 @@ namespace Test
 
 	struct TripodLeg
 	{
-		CBone bones[1];
-		CJoint joints[1];
+		CBone bones[2];
+		CJoint joints[2];
 	};
 
 	/*
@@ -319,15 +314,7 @@ namespace Test
 
 	void Tripod::PreUpdatePoses(const TimingInfo& time) { imp->Update(this, time); }
 
-	void Tripod::Update(const TimingInfo& time)
-	{
-#if DIE_AFTER_ONE_SECOND
-		if(time.total > 1.0f)
-			Die(Damage());
-#endif
-
-		Dood::Update(time);
-	}
+	void Tripod::Update(const TimingInfo& time) { Dood::Update(time); }
 
 	void Tripod::RegisterFeet()
 	{
@@ -338,54 +325,9 @@ namespace Test
 		for(unsigned int i = 0; i < 3; ++i)
 		{
 			float theta = float(i) * float(M_PI) * 2.0f / 3.0f;
-			string bname = ((stringstream&)(stringstream() << "leg " << legs[i] << " 1")).str();
+			string bname = ((stringstream&)(stringstream() << "leg " << legs[i] << " 2")).str();
 			feet.push_back(new FootState(Bone::string_table[bname], Vec3(radius * sinf(theta), 0.0f, radius * cosf(theta))));
 		}
-
-		//static bool printed = false;
-		//if(!printed)
-		//{
-		//	printed = true;
-		//
-		//	static const unsigned int steps = 20;
-		//
-		//	for(unsigned int j = 0; j < 3; ++j)
-		//	{
-		//		float theta = float(j) * float(M_PI) * 2.0f / 3.0f;
-		//
-		//		MassInfo arr[steps];
-		//		float r1 = 0.05f, r2 = 0.01f;
-		//		float x1 = 0.15f, x2 = radius;
-		//		float y1 = 0.8f, y2 = r2;
-		//		for(unsigned int i = 0; i < steps; ++i)
-		//		{
-		//			float frac = float(i) / float(steps - 1);
-		//			float radius = frac * (r2 - r1) + r1;
-		//			float x = frac * (x2 - x1) + x1;
-		//			float y = frac * (y2 - y1) + y1;
-		//			arr[i] = MassInfo(Vec3(x * sinf(theta), y, x * cosf(theta)), radius * radius * radius);
-		//		}
-		//
-		//		MassInfo minfo = MassInfo::Sum(arr, steps);
-		//		minfo *= 12.0f / minfo.mass;
-		//
-		//		stringstream ss;
-		//		ss << "mass = " << minfo.mass << endl;
-		//		ss << "com = (" << minfo.com.x << ", " << minfo.com.y << ", " << minfo.com.z << ")" << endl;
-		//		ss << "moi = { ";
-		//		for(unsigned int i = 0; i < 9; ++i)
-		//		{
-		//			if(i != 0)
-		//				ss << ", ";
-		//			ss << minfo.moi[i];
-		//		}
-		//		ss << " }" << endl;
-		//
-		//		Debug(ss.str());
-		//	}
-		//}
-
-
 	}
 
 	void Tripod::MaybeSinkCheatyVelocity(float timestep, Vec3& cheaty_vel, Vec3& cheaty_rot, float net_mass, const Mat3& net_moi)
@@ -404,7 +346,7 @@ namespace Test
 		static const string bones[3] = { "1", "2", "3" };
 
 		for(int j = 0; j < 3; ++j)
-			for(int k = 0; k < 1; ++k)
+			for(int k = 0; k < 2; ++k)
 				RegisterBone( imp->legs[j].bones[k] = CBone(this, ((stringstream&)(stringstream() << "leg " << legs[j] << ' ' << bones[k])).str()) );
 	}
 
@@ -415,13 +357,16 @@ namespace Test
 		float joint_strengths[3] = { 1400, 1100, 900 };
 
 		for(int j = 0; j < 3; ++j)
-			for(int k = 0; k < 1; ++k)
+			for(int k = 0; k < 2; ++k)
 			{
 				float x = joint_strengths[k];
 				float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
 
 				RegisterJoint( imp->legs[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : imp->legs[j].bones[k - 1], imp->legs[j].bones[k], x, yz, yz) ); 
 			}
+
+		imp->legs[1].joints[1].sjc->enable_motor = true;
+		imp->legs[2].joints[1].sjc->enable_motor = true;
 
 		//for(unsigned int i = 0; i < all_joints.size(); ++i)
 		//	all_joints[i]->sjc->enable_motor = true;

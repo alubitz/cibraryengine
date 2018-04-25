@@ -601,7 +601,7 @@ namespace Test
 				posey_bone->GetTransformationMatrix().Decompose(bone_pos, bone_ori);
 				RigidBody* rigid_body = new RigidBody(NULL, shape, phys.mass_info, bone_pos, bone_ori);
 				rigid_body->SetDamp(0.05f);					// default damp is 0.1f (as of whenever this comment was written)
-				rigid_body->SetFriction(0.0f);				// TODO: remove this hack
+				//rigid_body->SetFriction(0.0f);				// TODO: remove this hack
 
 				collision_group->AddChild(rigid_body);
 				rigid_bodies.push_back(rigid_body);
