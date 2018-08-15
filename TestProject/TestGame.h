@@ -102,6 +102,8 @@ namespace Test
 			Dood* SpawnArtilleryBug(const Vec3& pos);
 			unsigned int GetNumberOfBugs();
 
+			Pawn* SpawnGhostCamera(const Vec3& pos);
+
 			Rubbish* SpawnRubbish(const Vec3& pos);
 
 			void Update(const TimingInfo& time);

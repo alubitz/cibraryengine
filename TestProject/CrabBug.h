@@ -42,6 +42,8 @@ namespace Test
 			virtual void InitBoneHelpers();
 			virtual void InitJointHelpers();
 
+			void DoInitialPose();
+
 		public:
 
 			CrabBug(GameState* game_state, GAExperiment* experiment, UberModel* model, ModelPhysics* mphys, const Vec3& pos, Team& team);
@@ -49,5 +51,7 @@ namespace Test
 			void Update(const TimingInfo& time);
 
 			void RegisterFeet();
+
+			void PostCPHFT(float timestep);
 	};
 }

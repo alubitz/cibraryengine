@@ -450,7 +450,7 @@ namespace Test
 
 	void HUD::Draw(float w, float h)
 	{
-		if(disable_all)
+		if(disable_all || player == nullptr)
 			return;
 
 		glColor4f(1.0, 1.0, 1.0, 1.0);
@@ -581,6 +581,9 @@ namespace Test
 
 	void HUD::UpdateHUDGauges(const TimingInfo& time)
 	{
+		if(player == nullptr)
+			return;
+
 		float timestep = time.elapsed;
 		hud_flash_timer -= timestep;
 		if(hud_flash_timer < 0)

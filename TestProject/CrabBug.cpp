@@ -14,7 +14,7 @@
 
 #define DEBUG_GRADIENT_SEARCH_PROGRESS	0
 
-#define MAX_TICK_AGE					15
+#define MAX_TICK_AGE					30
 
 namespace Test
 {
@@ -144,10 +144,114 @@ namespace Test
 		CrabLeg rlegs[3];
 
 		vector<Vec3> initial_ee;
+		vector<Vec3> prev_ee;
 
 		float timestep, inv_timestep;
 
 		unsigned int tick_age, max_tick_age;
+
+		struct NodeProcessor
+		{
+			float strict_inputs[91];
+			float scratch_memory[256];
+			float old_persistent[16];		// may use different limits for "brain" vs typical node
+			float new_persistent[16];
+			float strict_outputs[5];
+
+			CBone* bone;
+			CJoint* joint;
+			NodeProcessor* parent;
+			vector<NodeProcessor*> children;
+			NodeProcessor* brain_connection;
+
+			NodeProcessor() : bone(nullptr), joint(nullptr), parent(nullptr), children(), brain_connection(nullptr)
+			{
+				memset(strict_inputs, 0, sizeof(strict_inputs));
+				memset(scratch_memory, 0, sizeof(scratch_memory));
+				memset(old_persistent, 0, sizeof(old_persistent));
+				memset(new_persistent, 0, sizeof(new_persistent));
+				memset(strict_outputs, 0, sizeof(strict_outputs));
+			}
+
+			void Execute(const GPOp& op, const float* constants_table)
+			{
+				float arg1 = GetOperand(op.arg1, constants_table);
+				float arg2 = GPOp::IsUnary(op.opcode) ? 0.0f : GetOperand(op.arg2, constants_table);
+
+				float value;
+				switch(op.opcode)
+				{
+					case 0: value = arg1 + arg2; break;
+					case 1: value = arg1 - arg2; break;
+					case 2: value = arg1 * arg2; break;
+					case 3: value = arg1 / arg2; break;
+
+					case 4: value = isnan(arg1) ? 0.0f : tanhf(arg1); break;
+
+					case 5: value = (arg1 + arg2) * 0.5f; break;
+					case 6: value = arg1 > arg2 ? 1.0f : 0.0f;//arg1 > arg2 ? 1.0f : arg1 < arg2 ? -1.0f : 0.0f; break;		// fixes nan
+
+					case 7: value = sqrtf(arg1); if(!isfinite(value)) { value = 0.0f; } break;
+					case 8: value = arg1 * arg1; break;
+					case 9: value = powf(arg1, arg2); if(!isfinite(value)) { value = 0.0f; } break;
+
+					default: value = 0.0f; break;
+				}
+
+				switch(op.dst_class)
+				{
+					case 0: scratch_memory[op.dst_index] = value; break;
+					case 1: new_persistent[op.dst_index] = value; break;
+					case 2: strict_outputs[op.dst_index] = value; break;
+				}
+			}
+
+			float GetOperand(const GPOperand& op, const float* constants_table) const
+			{
+				switch(op.src)
+				{
+					case 0:		// integer constant
+						return (float)((signed)op.index);
+
+					case 1:		// strict inputs
+						return strict_inputs[op.index];
+						
+					case 2:		// scatch memory
+						return scratch_memory[op.index];
+
+					case 3:		// persistent memory
+						return old_persistent[op.index];
+
+					case 4:		// parent's scratch memory
+						if(parent == nullptr)
+							return 0.0f;
+						return parent->scratch_memory[op.index];
+
+					case 5:		// sum of children's scratch memory			// NOTE: order of execution is arbitrary
+					{
+						float tot = 0.0f;
+						for(unsigned int i = 0; i < children.size(); ++i)
+							tot += children[i]->scratch_memory[op.index];
+						return tot;
+					}
+
+					case 6:		// brain connection
+					{
+						if(brain_connection == nullptr)
+							return 0.0f;
+						return brain_connection->scratch_memory[op.index];
+					}
+
+					case 7:		// constants table
+						return constants_table[op.index];
+
+					default:
+						return 0.0f;
+				}
+			}
+		};
+
+		vector<NodeProcessor> node_processors;
 
 		Imp() : init(false), experiment_done(false), experiment(nullptr), timestep(0), inv_timestep(0), tick_age(0), max_tick_age(MAX_TICK_AGE) { }
 		~Imp() { }
@@ -158,11 +262,29 @@ namespace Test
 
 			initial_pos = dood->pos;
 
+			no_touchy.dood = dood;
+			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
+			{
+				bool any = false;
+				for(unsigned int i = 0; i < dood->feet.size(); ++i)
+					if(dood->feet[i]->body == *iter)
+					{
+						any = true;
+						break;
+					}
+
+				if(!any)
+					(*iter)->SetContactCallback(&no_touchy);
+			}
+
 			SharedInit(dood);
 		}
 
 		void ReInit(CrabBug* dood)
 		{
+			float saved_yaw = dood->yaw;
+			float saved_pitch = dood->pitch;
+
 			dood->yaw = dood->pitch = 0.0f;
 			dood->pos = initial_pos;
 
@@ -184,6 +306,9 @@ namespace Test
 			}
 
 			SharedInit(dood);
+
+			dood->yaw = saved_yaw;
+			dood->pitch = saved_pitch;
 		}
 
 		void SharedInit(CrabBug* dood)
@@ -202,6 +327,32 @@ namespace Test
 				dood->all_joints[i]->SetOrientedTorque(Vec3());
 
 			initial_ee.clear();
+
+			node_processors.clear();
+			node_processors.resize(dood->all_bones.size() + 1);
+			node_processors[0].brain_connection = &node_processors[1];
+			node_processors[1].brain_connection = &node_processors[0];
+
+			map<CBone*, NodeProcessor*> bone_node_mapping;
+			for(unsigned int i = 1; i < node_processors.size(); ++i)
+			{
+				CBone* bone = dood->all_bones[i - 1];
+				bone_node_mapping[bone] = &node_processors[i];
+				node_processors[i].bone = bone;
+			}
+
+			for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+			{
+				CJoint* joint = dood->all_joints[i];
+				NodeProcessor* a = bone_node_mapping[joint->a];
+				NodeProcessor* b = bone_node_mapping[joint->b];
+				a->children.push_back(b);
+				b->parent = a;
+				b->joint = joint;
+			}
+
+			//for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
+			//	dood->all_bones[i]->rb->SetLinearVelocity(Vec3(0, 0, 7));
 		}
 
 		void Update(CrabBug* dood, const TimingInfo& time)
@@ -222,12 +373,10 @@ namespace Test
 			{
 				ReInit(dood);
 
-				//if(Random3D::RandInt() % 2 == 0)
-				//	clean_init = true;
-				//else
-				//	return;
-
-				clean_init = true;
+				if(Random3D::RandInt() % 2 == 0)		// try to prevent everything from running exactly in sync
+					return;
+				else
+					clean_init = true;
 			}
 
 			timestep     = time.elapsed;
@@ -276,6 +425,43 @@ namespace Test
 			{
 				Vec3 carapace_com = carapace.rb->GetPosition() + carapace.rb->GetOrientation() * carapace.rb->GetLocalCoM();
 
+				vector<Vec3> ee_goals;
+				vector<Vec3> ee_delta;
+				vector<float> ee_error;
+				Vec3 ee_goal_offset = tick_age + 16 <= MAX_TICK_AGE ? ga_token.subtest.x1 : ga_token.subtest.x2;
+
+				if(tick_age == 0)
+				{
+					prev_ee.clear();
+					prev_ee.resize(dood->feet.size());
+				}
+
+				for(unsigned int i = 0; i < dood->feet.size(); ++i)
+				{
+					const Dood::FootState& fs = *dood->feet[i];
+					const RigidBody& rb = *fs.body;
+					Vec3 ee_pos = rb.GetPosition() + rb.GetOrientation() * fs.ee_pos;
+
+					Vec3 origin = (i % 2 == 0 ? llegs : rlegs)[i / 2].joints[0].sjc->ComputeAveragePosition();
+
+					if(tick_age == 0)
+						initial_ee.push_back(ee_pos - origin);
+					
+					ee_goals.push_back(origin + initial_ee[i] + (i == 2 ? ee_goal_offset : Vec3()));
+					Vec3 ee_error_vec = ee_pos - ee_goals[i];
+					for(unsigned int j = 0; j < 3; ++j)
+					{
+						float x = i == 2 ? ((float*)&ee_error_vec)[j] : 0.0f;
+						ee_error.push_back(x * x);
+					}
+
+					ee_delta.push_back(tick_age == 0 ? Vec3() : ee_error_vec - prev_ee[i]);
+
+					prev_ee[i] = ee_error_vec;
+				}
+
+				
+
 				// organize the articulated axes a bit more conveniently
 				struct ArticulatedAxis
 				{
@@ -299,205 +485,212 @@ namespace Test
 						}
 				}
 
-				// fudge desired foot torques
-				for(unsigned int i = 0; i < 2; ++i)
+				// set strict inputs
+				Mat3 unrotate = Mat3::Identity();
+				for(unsigned int i = 0; i < node_processors.size(); ++i)
 				{
-					CrabLeg* side = i == 0 ? llegs : rlegs;
-					for(unsigned int j = 0; j < 3; ++j)
-					{
-						CrabLeg& leg = side[j];
-						Vec3& desired_torque = leg.bones[2].desired_torque;
-						if(tick_age != 0)
-						{
-							Dood::FootState* fs = dood->feet[j * 2 + i];
-							const float* foot_matches = ga_token.candidate->foot_t_matching + j * 3;
-							desired_torque.x -= fs->net_force.x * foot_matches[0];
-							desired_torque.y -= fs->net_force.y * foot_matches[1];
-							desired_torque.z -= fs->net_force.z * foot_matches[2];
-						}
-						const float* foot_absorbs = ga_token.candidate->foot_t_absorbed + j * 3;
-						desired_torque.x *= foot_absorbs[0];
-						desired_torque.y *= foot_absorbs[1];
-						desired_torque.z *= foot_absorbs[2];
+					NodeProcessor& processor = node_processors[i];
 
-						leg.joints[2].SetTorqueToSatisfyB();
-						leg.bones[1].desired_torque += leg.bones[2].desired_torque - leg.bones[2].applied_torque;
-						leg.bones[2].desired_torque = leg.bones[2].applied_torque;
-						leg.joints[1].SetTorqueToSatisfyB();
-						leg.bones[0].desired_torque += leg.bones[1].desired_torque - leg.bones[1].applied_torque;
-						leg.bones[1].applied_torque = leg.bones[1].applied_torque;
+					if(tick_age != 0)
+					{
+						memcpy(processor.old_persistent, processor.new_persistent, sizeof(processor.old_persistent));
+						memset(processor.scratch_memory, 0, sizeof(processor.scratch_memory));
 					}
-				}
 
-				// compute jacobian matrix
-				static const unsigned int num_rows = 36;					// equal to the number of articulated axes
-				static const unsigned int num_bone_torques = 21 * 3;
-				static const unsigned int num_cols = num_bone_torques;// + 3;	// we care about the torque on every bone, and also the net force on the carapace
-
-				assert(articulated_axes.size() == num_rows);
-
-				vector<float> jdata(num_rows * num_cols);
-				GenericMatrix J(num_cols, num_rows, jdata.data());
-
-				vector<float> min_torques(num_rows);
-				vector<float> max_torques(num_rows);
-
-				for(unsigned int i = 0; i < num_rows; ++i)
-				{
-					float* row = J[i];
-
-					ArticulatedAxis aa = articulated_axes[i];
-					const CJoint& joint = *aa.j;
-					Vec3 axis;
-					memcpy(&axis, joint.oriented_axes.values + aa.axis * 3, 3 * sizeof(float));
-
-					// compute direct effects of a torque on this axis on the adjacent bones
-					for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
-						if(dood->all_bones[j] == joint.a)
-						{
-							memcpy(row + j * 3, &axis,  3 * sizeof(float));
-							break;
-						}
-
-					Vec3 naxis = -axis;
-					if(joint.a == &carapace && &joint != &neck && &joint != &tailj)		// is it a hip joint?  if so we also affect the other leg bones
+					float* iptr = processor.strict_inputs;
+					if(processor.bone == nullptr)
 					{
-						CrabLeg* side_legs = joint.b->name[0] == 'l' ? llegs : rlegs;
-						CrabLeg* leg = nullptr;
-						float* fixed_xfrac = nullptr;
-						for(unsigned int j = 0; j < 3; ++j)
-							if(&side_legs[j].bones[0] == joint.b)
-							{
-								leg = &side_legs[j];
-								fixed_xfrac = ga_token.candidate->leg_fixed_xfrac + j * 2;
-								break;
-							}
-						assert(leg != nullptr);
+						// set inputs for brain
+						if(i != 0)
+							DEBUG();
 
-						unsigned int bone_indices[3];
-						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
-							for(unsigned int k = 0; k < 3; ++k)
-								if(dood->all_bones[j] == &leg->bones[k])
-									bone_indices[k] = j;
-						assert(bone_indices[0] != 0 && bone_indices[1] != 0 && bone_indices[2] != 0);
-
-						Vec3 leg_axis = Vec3::Normalize((leg->joints[1].oriented_axes + leg->joints[2].oriented_axes) * Vec3(1, 0, 0));
-						Vec3 unsupported = naxis - leg_axis * Vec3::Dot(leg_axis, naxis);
-						Vec3 uaxis = unsupported * fixed_xfrac[0];
-						Vec3 vaxis = unsupported * fixed_xfrac[1];
-						naxis -= uaxis;
-						naxis -= vaxis;
-
-						//// feet get special treatment
-						//unsigned int leg_index = joint.b->name[6] - 'a';
-						//vaxis.x *= ga_token.candidate->foot_t_absorbed[leg_index * 3];
-						//vaxis.y *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 1];
-						//vaxis.z *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 2];
-
-						memcpy(row + bone_indices[0] * 3, &naxis, 3 * sizeof(float));
-						memcpy(row + bone_indices[1] * 3, &uaxis, 3 * sizeof(float));
-						memcpy(row + bone_indices[2] * 3, &vaxis, 3 * sizeof(float));
+						*(iptr++) = carapace_com.y;
+						*(iptr++) = (float)tick_age;
+						*(iptr++) = timestep;
+						*(iptr++) = inv_timestep;
 					}
 					else
 					{
-						if(joint.b->name.size() == 9 && joint.b->name[8] == '3')	// feet get special treatment
-						{
-							unsigned int leg_index = joint.b->name[6] - 'a';
-							naxis.x *= ga_token.candidate->foot_t_absorbed[leg_index * 3];
-							naxis.y *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 1];
-							naxis.z *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 2];
-						}
+						const CBone* bone = processor.bone;
 
-						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
-							if(dood->all_bones[j] == joint.b)
-							{
-								memcpy(row + j * 3, &naxis, 3 * sizeof(float));
-								break;
-							}
-					}
-
-					// compute linear (force) effects of each joint on the carapace
-					//Vec3 carapace_offset = carapace_com - joint.sjc->ComputeAveragePosition();
-					//Vec3 carapace_force = Vec3::Cross(axis, carapace_offset);
-					//memcpy(row + num_bone_torques, &carapace_force, 3 * sizeof(float));
-
-
-
-					min_torques[i] = ((float*)&joint.sjc->min_torque)[aa.axis];
-					max_torques[i] = ((float*)&joint.sjc->max_torque)[aa.axis];
-
-					assert(min_torques[i] != max_torques[i]);
-				}
-
-#if 0			// debug A matrix
-				stringstream ss2;
-				for(unsigned int i = 0; i < J.h; ++i)
-				{
-					ss2 << '\t';
-					if(i == 0)
-						ss2 << "[[";
-					else
-						ss2 << " [";
-					for(unsigned int j = 0; j < J.w; ++j)
-					{
-						if(j != 0)
-							ss2 << ", ";
-						ss2 << J[i][j];
-					}
-					ss2 << " ]";
-					if(i + 1 == J.h)
-						ss2 << ']';
-					ss2 << endl;
-				}
-				Debug(ss2.str());
+						*(iptr++) = carapace_com.y;
+						*(iptr++) = (float)tick_age;
+#if 1
+						*(iptr++) = timestep;
+						*(iptr++) = inv_timestep;
 #endif
 
-				// prep for gradient descent
-				vector<float> goal_values(num_cols);
-				vector<float> weights(num_cols);
+						// set rb inputs
+#if 1
+						const string& name = bone->name;
+						*(iptr++) = (bone == &head) ? 1.0f : 0.0f;
+						*(iptr++) = (bone == &carapace) ? 1.0f : 0.0f;
+						*(iptr++) = (bone == &tail) ? 1.0f : 0.0f;
+						*(iptr++) = (name[0] == 'l' ? 1.0f : name[0] == 'r') ? -1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[6] == 'a') ? 1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[6] == 'b') ? 1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[6] == 'c') ? 1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[8] == '1') ? 1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[8] == '2') ? 1.0f : 0.0f;
+						*(iptr++) = (name.size() == 9 && name[8] == '3') ? 1.0f : 0.0f;
+#endif
 
-				Vec3* goal_ptr = (Vec3*)goal_values.data();
-				Vec3* weight_ptr = (Vec3*)weights.data();
-				for(unsigned int i = 0; i < dood->all_bones.size(); ++i, ++goal_ptr, ++weight_ptr)
-				{
-					CBone& bone = *dood->all_bones[i];
-					*goal_ptr = bone.desired_torque;
+						const RigidBody& rb = *bone->rb;
+						Mat3 rm = rb.GetOrientation().ToMat3();
+						Mat3 urm = unrotate * rm;
+						//Mat3 goalrm = unrotate * (rb.GetOrientation() * Quaternion::Reverse(bone->initial_ori)).ToMat3();
+						//Mat3 goalrm = unrotate * (rb.GetOrientation() * Quaternion::Reverse(bone == &carapace ? tick_age + 16 < MAX_TICK_AGE ? ga_token.subtest.ori1 : ga_token.subtest.ori2 : bone->initial_ori)).ToMat3();
+						PushVec3(iptr, rb.GetLocalCoM());
+						PushVec3(iptr, unrotate * (rb.GetPosition() - carapace_com + rm * rb.GetLocalCoM()));
+						PushMat3(iptr, urm);
+#if 1
+						//Vec3 goal_error_rvec = (rb.GetOrientation() * Quaternion::Reverse(bone == &carapace ? tick_age + 16 < MAX_TICK_AGE ? ga_token.subtest.ori1 : ga_token.subtest.ori2 : bone->initial_ori)).ToRVec();
+						//PushVec3(iptr, goal_error_rvec);
+						//PushMat3(iptr, goalrm);
+#endif
+						PushVec3(iptr, unrotate * rb.GetLinearVelocity());
+						PushVec3(iptr, unrotate * rb.GetAngularVelocity());
+						*(iptr++) = rb.GetMass();
 
-					unsigned int weight_index = i < 12 ? i : i - 9;
-					assert(weight_index == i || bone.name[0] == 'r' && bone.name[1] == ' ');	// non-symmetric bones in first three indices, then all L bones, then R
+						if(processor.joint != nullptr)
+						{
+							// set joint inputs
+							const SkeletalJointConstraint& sjc = *processor.joint->sjc;
+							PushVec3(iptr, processor.joint->GetRVec());
+							PushVec3(iptr, unrotate * (sjc.ComputeAveragePosition() - carapace_com));
+							PushVec3(iptr, tick_age == 0 ? Vec3() : unrotate * sjc.net_impulse_linear);
+							PushVec3(iptr, tick_age == 0 ? Vec3() : unrotate * sjc.net_impulse_angular);
+							if(sjc.enable_motor)
+								iptr += 12;
+							else
+							{
+								PushVec3(iptr, sjc.min_extents);
+								PushVec3(iptr, sjc.max_extents);
+								PushVec3(iptr, sjc.min_torque);
+								PushVec3(iptr, sjc.max_torque);
+							}
 
-					float weight = ga_token.candidate->bone_t_weights[weight_index];
-					*weight_ptr = Vec3(weight, weight, weight);
+#if 1
+							Mat3 oa = unrotate * processor.joint->oriented_axes;
+							PushMat3(iptr, oa);
+#endif
+
+							if(bone->name.size() == 9)
+							{
+								unsigned int fs_index = (bone->name[0] == 'l' ? 0 : 1) + (bone->name[7] == 'b' ? 2 : bone->name[7] == 'c' ? 4 : 0);
+								Dood::FootState* fs = dood->feet[fs_index];
+
+								Vec3 current_ee_pos = rb.GetPosition() + rm * fs->ee_pos;
+
+								PushVec3(iptr, unrotate * (ee_goals[fs_index] - current_ee_pos));
+								PushVec3(iptr, unrotate * ee_delta[fs_index]);
+							}
+							else
+							{
+								PushVec3(iptr, Vec3());
+								PushVec3(iptr, Vec3());
+							}
+
+							if(bone->name.size() == 9 && bone->name[8] == '3')
+							{
+								for(unsigned int j = 0; j < dood->feet.size(); ++j)
+								{
+									if(dood->feet[j]->body == bone->rb)
+									{
+										// set foot inputs
+										Dood::FootState* fs = dood->feet[j];
+
+										*(iptr++) = tick_age == 0 ? 0.0f : fs->contact_points.size();
+
+										Vec3 current_ee_pos = rb.GetPosition() + rm * fs->ee_pos;
+										PushVec3(iptr, unrotate * (current_ee_pos - carapace_com));
+										PushVec3(iptr, tick_age == 0 ? Vec3() : unrotate * fs->net_force);
+										PushVec3(iptr, tick_age == 0 ? Vec3() : unrotate * fs->net_torque);
+							
+										Vec3 avg_pos, normal;
+										if(!fs->contact_points.empty() && tick_age != 0)
+										{
+											for(unsigned int k = 0; k < fs->contact_points.size(); ++k)
+											{
+												avg_pos += fs->contact_points[k].pos;
+												normal += fs->contact_points[k].normal;
+											}
+											avg_pos /= (float)fs->contact_points.size();
+											normal /= (float)fs->contact_points.size();		// not actually normalizing
+										}
+										PushVec3(iptr, unrotate * (avg_pos - carapace_com));
+										PushVec3(iptr, unrotate * (normal));
+							
+										static bool printed_inputs = false;
+										if(!printed_inputs)
+										{
+											printed_inputs = true;
+											Debug(((stringstream&)(stringstream() << "num inputs = " << (iptr - processor.strict_inputs) << endl)).str());
+										}
+							
+										break;
+									}
+								}
+							}
+
+							//static bool printed_inputs = false;
+							//if(!printed_inputs)
+							//{
+							//	printed_inputs = true;
+							//	Debug(((stringstream&)(stringstream() << "num inputs = " << (iptr - processor.strict_inputs) << endl)).str());
+							//}
+						}
+						else if(i != 1)
+							DEBUG();
+					}
+
+					if(iptr > processor.strict_inputs + (sizeof(processor.strict_inputs) / sizeof(float)))
+						DEBUG();
 				}
-				//*goal_ptr = Vec3();//Vec3(0, 9.8f * total_mass, 0);
-				//*weight_ptr = Vec3();//Vec3(1, 1, 1);					// solver weight for matching target carapace force is always 1
 
-
-				// gradient descent
-				vector<float> action(num_rows);
-				for(unsigned int i = 0; i < articulated_axes.size(); ++i)
+				// evaluate
+				for(unsigned int i = 0; i < ga_token.candidate->compiled.size(); ++i)
 				{
-					ArticulatedAxis aa = articulated_axes[i];
-					Vec3 v = aa.j->sjc->apply_torque;
-					action[i] = ((float*)&v)[aa.axis];
+					const GPOp& op = ga_token.candidate->compiled[i];
+					if(op.brain)
+						node_processors[0].Execute(op, ga_token.candidate->constants);
+					else
+						for(unsigned int i = 1; i < node_processors.size(); ++i)			// no guarantee is made of synchronous (buffered) execution
+							node_processors[i].Execute(op, ga_token.candidate->constants);
 				}
-				GradientSearch(100, action, min_torques, max_torques, J, goal_values, weights);
 
-				// apply selected action
-				//stringstream ss;
-				//ss << "selected action: { ";
-				for(unsigned int i = 0; i < articulated_axes.size(); ++i)
+				// apply outputs
+				for(unsigned int i = 0; i < node_processors.size(); ++i)
 				{
-					ArticulatedAxis aa = articulated_axes[i];
-					Vec3 v = aa.j->sjc->apply_torque;
-					((float*)&v)[aa.axis] = action[i];
-					aa.j->SetOrientedTorque(v);
-					//if(i != 0)
-					//	ss << ", ";
-					//ss << action[i];
+					NodeProcessor& processor = node_processors[i];
+					if(processor.joint != nullptr)
+					{
+#if 0
+						if(!processor.joint->sjc->enable_motor)
+						{
+							//if     (processor.bone == &llegs[0].bones[0] || processor.bone == &rlegs[0].bones[0])
+							processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[0], processor.strict_outputs[1], processor.strict_outputs[2]));
+							//else if(processor.bone == &llegs[1].bones[0] || processor.bone == &rlegs[1].bones[0])
+							//	processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[3], processor.strict_outputs[4], processor.strict_outputs[5]));
+							//else if(processor.bone == &llegs[2].bones[0] || processor.bone == &rlegs[2].bones[0])
+							//	processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[6], processor.strict_outputs[7], processor.strict_outputs[8]));
+						}
+#else
+
+						if(processor.joint == &neck)
+						{}
+						else if(processor.joint == &tailj)
+						{}
+						else if(processor.parent->bone == &carapace)
+							processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[0], processor.strict_outputs[1], processor.strict_outputs[2]));
+						else if(processor.children.empty())
+							processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[3], 0.0f, 0.0f));
+						else
+							processor.joint->SetOrientedTorque(Vec3(processor.strict_outputs[4], 0.0f, 0.0f));
+#endif
+					}
 				}
-				//ss << " }" << endl;
-				//Debug(ss.str());
+
 
 
 				// scoring
@@ -505,6 +698,7 @@ namespace Test
 				float pos_error = 0.0f;
 				float vel_error = 0.0f;
 				float rot_error = 0.0f;
+				float rvec_error = 0.0f;
 
 				float energy_cost = 0.0f;
 				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
@@ -514,55 +708,140 @@ namespace Test
 				{
 					const CBone& bone = *dood->all_bones[i];
 
-					float bone_weight = 1.0f;
-					if(bone.name == "carapace")
-						bone_weight = 1.0f;
-					else if(bone.name == "tail")
-						bone_weight = 0.01f;
-					else if(bone.name == "head")
-						bone_weight = 0.1f;
-					else if(bone.name[1] == ' ' && bone.name[8] == '2')
-						bone_weight = 0.1f;
-					else
-						bone_weight = 0.0f;
+					float bone_weight = 1.0f;//tick_age < 10 ? 0.0f : 1.0f;
+					//if(bone.name == "carapace")
+					//	bone_weight = 1.0f;
+					//else if(bone.name == "tail")
+					//	bone_weight = 0.01f;
+					//else if(bone.name == "head")
+					//	bone_weight = 0.1f;
+					//else if(bone.name[1] == ' ' && bone.name[8] == '2')
+					//	bone_weight = 0.1f;
+					//else
+					//	bone_weight = 0.0f;
 
 					const RigidBody& rb = *bone.rb;
 
 					Quaternion ori = rb.GetOrientation();
 					
-					ori_error += bone_weight * (Quaternion::Reverse(bone.initial_ori) * ori).ToRVec().ComputeMagnitudeSquared();
+					//if(bone.name != "tail")
+					if(&bone == &carapace)// || (bone.name.size() > 4 && bone.name[bone.name.size() - 1] == '1'))
+					{
+						float oe_part = (Quaternion::Reverse(bone.initial_ori) * ori).ToRVec().ComputeMagnitudeSquared();
+						oe_part = max(0.0f, oe_part - 0.04f);
+						ori_error += bone_weight * oe_part;
+					}
 
 					Vec3 local_com = rb.GetLocalCoM();
 					Vec3 initial_pos = bone.initial_pos + bone.initial_ori * local_com;
 					Vec3 current_pos = rb.GetPosition() + ori * local_com;
-					pos_error += bone_weight * (initial_pos - current_pos).ComputeMagnitudeSquared();
+					if(bone.name == "carapace")
+						pos_error += bone_weight * (initial_pos - current_pos).ComputeMagnitudeSquared();
 
-					vel_error += bone_weight * rb.GetLinearVelocity().ComputeMagnitudeSquared();
+					if(bone.name == "carapace")
+						vel_error += bone_weight * rb.GetLinearVelocity().ComputeMagnitudeSquared();
 					rot_error += bone_weight * rb.GetAngularVelocity().ComputeMagnitudeSquared();
+				}
+
+				for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
+				{
+					CJoint& joint = *dood->all_joints[i];
+					Vec3 rvec = joint.GetRVec();
+					//if(joint.b != &tail)
+					{
+						if(tick_age >= 1)
+							rvec_error += (rvec - joint.prev_rvec).ComputeMagnitudeSquared();
+					}
+					joint.prev_rvec = rvec;
 				}
 
 				//energy_cost = max(0.0f, energy_cost - 500.0f);
 
-				float ee_error = 0.0f;
-				for(unsigned int i = 0; i < dood->feet.size(); ++i)
-				{
-					const Dood::FootState& fs = *dood->feet[i];
-					const RigidBody& rb = *fs.body;
-					Vec3 ee_pos = rb.GetPosition() + rb.GetOrientation() * fs.ee_pos;
+				
 
-					if(tick_age == 0)
-						initial_ee.push_back(ee_pos);
-					else
-						ee_error += (ee_pos - initial_ee[i]).ComputeMagnitudeSquared();
+				float bad_touch = 0.0f;
+				if(tick_age != 0)
+				{
+					bad_touch = float(dood->new_contact_points.size());
+					for(unsigned int i = 0; i < dood->feet.size(); ++i)
+						bad_touch += dood->feet[i]->contact_points.size();
+				}
+
+
+				float input_coverage = 0.0f;
+				if(tick_age == 0)
+					input_coverage = float(88 - GACandidate::GetInputCoverage(ga_token.candidate->compiled));
+
+				float stay_sideways = 0.0f;
+				float move_forward = 0.0f;
+				if(tick_age + 1 == MAX_TICK_AGE || tick_age + 16 == MAX_TICK_AGE)
+				{
+					Vec3 lcom = carapace.rb->GetLocalCoM();
+					Vec3 cpos = (carapace.rb->GetPosition() + carapace.rb->GetOrientation() * lcom) - (carapace.initial_pos + carapace.initial_ori * lcom);
+					stay_sideways = cpos.x * cpos.x;
+					move_forward = expf(-cpos.z * 0.1f);
+					//carapace_ori = (carapace.rb->GetOrientation() * Quaternion::Reverse(tick_age + 16 == MAX_TICK_AGE ? ga_token.subtest.ori1 : ga_token.subtest.ori2)).ToRVec();
 				}
 
 				vector<float> inst_scores;
-				//inst_scores.push_back(pos_error * 1.0f);
-				inst_scores.push_back(vel_error * 1.0f);
+
+				//float cxyz[3] = { carapace_ori.x, carapace_ori.y, carapace_ori.z };
+
+				//inst_scores.push_back(stay_sideways *  10.0f);
+				//inst_scores.push_back(move_forward  * 100.0f);
+				//for(unsigned int i = 0; i < 3; ++i)
+				//{
+				//	float x = cxyz[i];
+				//	x *= x;
+				//	x *= 1000.0f;
+				//	inst_scores.push_back(x);
+				//}
+
+
+
 				//inst_scores.push_back(ori_error * 1.0f);
-				//inst_scores.push_back(rot_error * 1.0f);
-				//inst_scores.push_back(energy_cost * 0.00001f);
-				inst_scores.push_back(ee_error * 1.0f);
+
+
+				//inst_scores.push_back(bad_touch * 1.0f);
+				//inst_scores.push_back(pos_error * 100.0f);
+				//inst_scores.push_back(vel_error * 1.0f);
+				//inst_scores.push_back(tick_age + 1 == MAX_TICK_AGE ? ori_error * 5.0f : 0.0f);
+				//inst_scores.push_back(rot_error * 0.1f);
+				//inst_scores.push_back(energy_cost * 0.0000001f);
+
+				float ee_xyz[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+				if(tick_age + 16 == MAX_TICK_AGE)
+					for(unsigned int i = 0; i < ee_error.size(); ++i)
+						ee_xyz[i % 3] += ee_error[i];
+				else if(tick_age + 1 == MAX_TICK_AGE)
+					for(unsigned int i = 0; i < ee_error.size(); ++i)
+						ee_xyz[i % 3 + 3] += ee_error[i];
+
+				//inst_scores.push_back(ee_xyz[0] * 100.0f);
+				inst_scores.push_back(ee_xyz[1] * 100.0f);
+				//inst_scores.push_back(ee_xyz[2] * 100.0f);
+
+				//inst_scores.push_back(ee_xyz[3] * 100.0f);
+				inst_scores.push_back(ee_xyz[4] * 100.0f);
+				//inst_scores.push_back(ee_xyz[5] * 100.0f);
+
+				//inst_scores.push_back(rvec_error * 1.0f);
+				//for(unsigned int i = 0; i < 19; ++i)
+				//	inst_scores.push_back(ga_token.subtest.id == i ? rvec_error : 0.0f);
+				//for(unsigned int i = 0; i < 19; ++i)
+				//	inst_scores.push_back(ga_token.subtest.id == i ? ori_error * 500.0f : 0.0f);
+
+				rvec_error *= 500.0f;
+				//inst_scores.push_back(tick_age + 4 == MAX_TICK_AGE ? rvec_error     : 0.0f);
+				//inst_scores.push_back(tick_age + 3 == MAX_TICK_AGE ? rvec_error * 2 : 0.0f);
+				//inst_scores.push_back(tick_age + 2 == MAX_TICK_AGE ? rvec_error * 4 : 0.0f);
+				//inst_scores.push_back(tick_age + 1 == MAX_TICK_AGE ? rvec_error * 8 : 0.0f);
+
+				//inst_scores.push_back(tick_age + 1 == MAX_TICK_AGE ? rvec_error : 0.0f);
+
+				//inst_scores.push_back(input_coverage * 0.01f);
+
+				//inst_scores.push_back(tick_age == 0 && ga_token.candidate->compiled.size() < 10 ? (10 - ga_token.candidate->compiled.size()) * 200.0f : 0.0f);
 				
 				if(score_parts.empty())
 					score_parts.resize(inst_scores.size());
@@ -595,6 +874,18 @@ namespace Test
 					}
 				}
 			}
+		}
+
+		static void PushVec3(float*& ptr, const Vec3& value)
+		{
+			memcpy(ptr, &value, 3 * sizeof(float));
+			ptr += 3;
+		}
+
+		static void PushMat3(float*& ptr, const Mat3& value)
+		{
+			memcpy(ptr, value.values, 9 * sizeof(float));
+			ptr += 9;
 		}
 
 		void GradientSearch(unsigned int iterations, vector<float>& f, vector<float>& iv_mins, vector<float>& iv_maxs, const GenericMatrix& A, const vector<float>& b, const vector<float>& W)
@@ -740,6 +1031,15 @@ namespace Test
 				tot += *hptr * *hptr * *wptr;
 			return tot;
 		}
+
+
+
+		struct NoTouchy : public ContactCallback
+		{
+			Dood* dood;
+			void OnContact(const ContactPoint& contact) { dood->new_contact_points.push_back(MyContactPoint(contact, dood)); }
+			void AfterResolution(const ContactPoint& cp) { dood->old_contact_points.push_back(MyContactPoint(cp, dood)); }
+		} no_touchy;
 	};
 
 
@@ -876,7 +1176,65 @@ namespace Test
 				}
 		}
 
-		//for(unsigned int i = 0; i < all_joints.size(); ++i)
-		//	all_joints[i]->sjc->enable_motor = true;
+		for(unsigned int i = 0; i < all_joints.size(); ++i)
+			//if(all_joints[i]->a != &imp->carapace || all_joints[i]->b == &imp->head || all_joints[i]->b == &imp->tail)
+			if(all_joints[i]->b == &imp->head || all_joints[i]->b == &imp->tail || all_joints[i]->b->name[0] == 'r' || all_joints[i]->b->name[6] != 'b')
+				all_joints[i]->sjc->enable_motor = true;
+	}
+
+	void CrabBug::DoInitialPose()
+	{
+		pos.y += 20.0f;
+
+		Dood::DoInitialPose();
+
+		//if(imp->ga_token.candidate != nullptr)
+		//{
+		//	if(imp->ga_token.subtest.id >= 13)
+		//	{
+		//		unsigned int id = imp->ga_token.subtest.id - 13;
+		//
+		//		float scalar = imp->ga_token.subtest.scalar;
+		//
+		//		CrabLeg* leg = nullptr;
+		//		Vec3 axes[3] = {
+		//			Vec3( 0.2068f, -0.0443f, -0.0094f ),
+		//			Vec3( 0.0336f,  0.0f,    -0.1125f ),
+		//			Vec3(-0.2552f,  0.0232f, -0.1112f )
+		//		};
+		//		Vec3 axis;
+		//		bool flip = false;
+		//		switch(id)
+		//		{
+		//			case 0: leg = &imp->llegs[0]; axis = axes[0]; break;
+		//			case 1: leg = &imp->llegs[1]; axis = axes[1]; break;
+		//			case 2: leg = &imp->llegs[2]; axis = axes[2]; break;
+		//			case 3: leg = &imp->rlegs[0]; axis = axes[0]; flip = true; break;
+		//			case 4: leg = &imp->rlegs[1]; axis = axes[1]; flip = true; break;
+		//			case 5: leg = &imp->rlegs[2]; axis = axes[2]; flip = true; break;
+		//		}
+		//		if(flip)
+		//		{
+		//			axis.y = -axis.y;
+		//			axis.z = -axis.z;
+		//		}
+		//
+		//		for(unsigned int i = 0; i < 2; ++i)
+		//		{
+		//			CrabLeg* side = i == 0 ? imp->llegs : imp->rlegs;
+		//			for(unsigned int j = 0; j < 3; ++j)
+		//				side[j].bones[0].posey->ori = Quaternion::Identity();
+		//		}
+		//
+		//		leg->bones[0].posey->ori = Quaternion::FromRVec(Vec3::Normalize(axis) * (-0.5f * scalar));
+		//	}
+		//}
+	}
+
+	void CrabBug::PostCPHFT(float timestep)
+	{
+		Dood::PostCPHFT(timestep);
+		old_contact_points.clear();
+		new_contact_points.clear();
 	}
 }

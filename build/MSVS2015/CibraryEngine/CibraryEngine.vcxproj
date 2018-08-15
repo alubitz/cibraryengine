@@ -102,7 +102,7 @@
     <ClCompile Include="..\..\..\CibraryEngine\Sphere.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\SphereShape.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\StdAfx.cpp">
-        <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\..\CibraryEngine\StringTable.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\TableParse.cpp" />
@@ -338,6 +338,7 @@
       </OpenMPSupport>
       <UndefinePreprocessorDefinitions>_DEBUG</UndefinePreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
     </ClCompile>
     <Lib>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>

@@ -8,6 +8,7 @@ local function get_key_bool(i)  local k = key_states[string.byte(i)]    if k the
 local control_state = hv.control_state
 
 control_state.forward      = get_key_float("W") - get_key_float("S")
+control_state.elevate      = get_key_float(" ") - get_key_float("C")			-- only used by ghost camera
 control_state.sidestep     = get_key_float("D") - get_key_float("A")
 
 control_state.jump         = get_key_bool(" ")
