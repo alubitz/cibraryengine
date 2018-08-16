@@ -12,8 +12,8 @@ namespace Test
 
 		GASubtest() : id(0) { }
 
-		bool operator ==(const GASubtest& other) const { return id == other.id; } 
-		bool operator < (const GASubtest& other) const { return id <  other.id; }
+		bool operator ==(const GASubtest& other) const { return memcmp(this, &other, sizeof(GASubtest)) == 0; }
+		bool operator < (const GASubtest& other) const { return memcmp(this, &other, sizeof(GASubtest)) < 0; }
 	};
 
 	struct GACandidate;

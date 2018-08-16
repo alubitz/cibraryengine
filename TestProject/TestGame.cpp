@@ -10,6 +10,7 @@
 #include "Tripod.h"
 #include "Sun.h"
 #include "Weapon.h"
+#include "GhostCamera.h"
 
 #include "CrabWeapon.h"
 #include "DefaultWeapon.h"
@@ -597,6 +598,8 @@ namespace Test
 		// if your game_start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 
+		SpawnGhostCamera(Vec3(0, 5, 0));
+
 		thread_script.Dispose();
 
 		load_status.Stop();
@@ -695,6 +698,28 @@ namespace Test
 
 		return bugs.Count();
 	}
+
+	Pawn* TestGame::SpawnGhostCamera(const Vec3& pos)
+	{
+		player_pawn = nullptr;
+		if(player_controller != NULL)
+			player_controller->Exorcise();
+		GhostCamera* camera = new GhostCamera(this);
+		camera->pos = pos;
+		Spawn(camera);
+		if(player_controller == NULL)
+		{
+			player_controller = new ScriptedController(this, "player_ai");
+			player_controller->Possess(camera);
+			player_controller->ctrl_update_interval = 0;
+			Spawn(player_controller);
+		}
+		else
+			player_controller->Possess(camera);
+		hud->SetPlayer(nullptr);
+		return camera;
+	}
+
 
 	Rubbish* TestGame::SpawnRubbish(const Vec3& pos)
 	{
@@ -833,7 +858,12 @@ namespace Test
 
 		static CameraView camera(Mat4::Identity(), 1.0f, 1.0f);
 		if(imp->alive)
-			camera = CameraView(((Dood*)player_controller->GetControlledPawn())->GetViewMatrix(), zoom, aspect_ratio);
+		{
+			Pawn* controlled_pawn = player_controller->GetControlledPawn();
+			GhostCamera* player_cam = dynamic_cast<GhostCamera*>(controlled_pawn);
+			Mat4 view_matrix = player_cam != nullptr ? player_cam->GetViewMatrix() : ((Dood*)controlled_pawn)->GetViewMatrix();
+			camera = CameraView(view_matrix, zoom, aspect_ratio);
+		}
 
 		Mat4 camera_proj   = camera.GetProjectionMatrix();
 		Mat4 camera_view   = camera.GetViewMatrix();

@@ -40,7 +40,7 @@ SymBones(b, "leg c 3",  0.72,  { Sphere( 0.714, 0.781, -1.091,  0.09 ), Sphere( 
 -- rotation limit for things that aren't supposed to rotate much
 local T = 0.0
 local a_hinge_axes = { Vec3( 0.2068, -0.0443, -0.0094 ) }
-local b_hinge_axes = { Vec3( 0.0336,  0.0,    -0.1125 ) }local c_hinge_axes = { Vec3( 0.2552, -0.0232,  0.1112 ) }
+local b_hinge_axes = { Vec3( 0.0336,  0.0,    -0.1125 ) }local c_hinge_axes = { Vec3(-0.2552,  0.0232, -0.1112 ) }
 
 Joint(j, b,     "carapace", "head",    Vec3( 0.0,   1.11,   0.38  ), nil, nil,          Vec3(-0.1, -0.1, -0.1), Vec3(0.1, 0.1, 0.1))
 Joint(j, b,     "carapace", "tail",    Vec3( 0.0,   1.04,  -0.83  ), nil, nil,          Vec3(-0.3, -0.3, -0.3), Vec3(0.3, 0.3, 0.3))

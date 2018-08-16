@@ -465,7 +465,7 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 
 		// Drawing the reticle
-		if(player->alive)
+		if(player != nullptr && player->alive)
 		{
 			glBindTexture(GL_TEXTURE_2D, reticle_tex->GetGLName());
 			glBegin(GL_QUADS);
@@ -581,6 +581,9 @@ namespace Test
 
 	void HUD::UpdateHUDGauges(const TimingInfo& time)
 	{
+		if(player == nullptr)
+			return;
+
 		float timestep = time.elapsed;
 		hud_flash_timer -= timestep;
 		if(hud_flash_timer < 0)

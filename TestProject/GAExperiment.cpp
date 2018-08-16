@@ -1,14 +1,16 @@
 #include "StdAfx.h"
 #include "GAExperiment.h"
 
-#define NUM_ELITES			10
+#define NUM_ELITES						10
 
-#define CROSSOVERS_PER_PAIR	2
+#define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_COUNT		10
-#define MUTATION_SCALE		0.5f
+#define MUTATION_COUNT					10
+#define MUTATION_SCALE					0.5f
 
-#define TRIALS_PER_SUBTEST	20
+#define TRIALS_PER_SUBTEST				20
+
+#define FORCE_FIRST_GEN_MODIFICATION	0
 
 
 namespace Test
@@ -349,8 +351,17 @@ namespace Test
 
 		if(candidate.score_parts.empty())
 			candidate.score_parts.resize(score_parts.size());
-		else
-			assert(candidate.score_parts.size() == score_parts.size());
+		else if(score_parts.empty())
+			assert(candidate.score_parts.size() == score_parts.size() || score_parts.empty());
+#if FORCE_FIRST_GEN_MODIFICATION
+		if(candidate.p1 == 0 && candidate.p2 == 0)
+		{
+			score += 10000;
+			candidate.score += 10000;
+			if(!candidate.score_parts.empty())
+				candidate.score_parts[0] += 10000;
+		}
+#endif
 
 		for(unsigned int i = 0; i < score_parts.size(); ++i)
 			candidate.score_parts[i] += score_parts[i];
