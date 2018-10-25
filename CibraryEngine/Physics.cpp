@@ -530,6 +530,9 @@ namespace CibraryEngine
 		for(unordered_set<CollisionObject*>::iterator iter = all_objects.begin(), objects_end = all_objects.end(); iter != objects_end; ++iter)
 			(*iter)->DebugDraw(renderer);
 
+		for(unordered_set<PhysicsConstraint*>::iterator iter = all_constraints.begin(), constraints_end = all_constraints.end(); iter != constraints_end; ++iter)
+			(*iter)->DebugDraw(renderer);
+
 		renderer->Render();
 		renderer->Cleanup();
 	}

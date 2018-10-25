@@ -3,6 +3,10 @@
 
 #include "RigidBody.h"
 
+#include "DebugDrawMaterial.h"
+#include "SceneRenderer.h"
+#include "RenderNode.h"
+
 #define ENFORCE_JOINT_ROTATION_LIMITS   1
 
 #define DEFAULT_TORQUE_LIMIT            150
@@ -196,5 +200,29 @@ namespace CibraryEngine
 		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
 		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
 		return (a_pos + b_pos) * 0.5f;
+	}
+
+	void SkeletalJointConstraint::DebugDraw(SceneRenderer* renderer) const
+	{
+		static const float r         = 0.1f;			// tickmark draw radius
+
+		DebugDrawMaterial* ddm = DebugDrawMaterial::GetDebugDrawMaterial();
+
+		Vec3 a_pos = obj_a->GetTransformationMatrix().TransformVec3_1(pos);
+		Vec3 b_pos = obj_b->GetTransformationMatrix().TransformVec3_1(pos);
+
+		// TODO: is member variable "oriented_axes" reliably up-to-date? if not, compute it here
+		Vec3 dx = oriented_axes.TransposedMultiply(Vec3(r, 0, 0));
+		Vec3 dy = oriented_axes.TransposedMultiply(Vec3(0, r, 0));
+		Vec3 dz = oriented_axes.TransposedMultiply(Vec3(0, 0, r));
+
+		Vec3 center = (a_pos + b_pos) * 0.5f;
+
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(center - dx, center + dx, Vec3(1, 0, 0)), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(center - dy, center + dy, Vec3(0, 1, 0)), 1.0f));
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(center - dz, center + dz, Vec3(0, 0, 1)), 1.0f));
+
+		// draw a line between the two centers (if centers are equal, this won't be visible)
+		renderer->objects.push_back(RenderNode(ddm, ddm->New(a_pos, b_pos), 1.0f));
 	}
 }

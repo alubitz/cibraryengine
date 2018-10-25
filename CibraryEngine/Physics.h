@@ -135,6 +135,8 @@ namespace CibraryEngine
 
 			virtual void OnObjectRemoved(RigidBody* object)	{ }		// one of our objects has been removed from the world, so this constraint must be removed as well
 
+			virtual void DebugDraw(SceneRenderer* renderer) const { }
+
 			RigidBody* obj_a;
 			RigidBody* obj_b;
 
