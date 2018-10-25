@@ -93,7 +93,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4351</DisableSpecificWarnings>
       <UndefinePreprocessorDefinitions>_DEBUG</UndefinePreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>

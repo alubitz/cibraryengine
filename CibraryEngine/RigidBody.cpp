@@ -48,6 +48,7 @@ namespace CibraryEngine
 		shape_cache(NULL),
 		angular_damp(0.1f),
 		can_rotate(false),
+		mutex(),
 		contact_callback(NULL),
 		collision_callback(NULL)
 	{
@@ -64,7 +65,7 @@ namespace CibraryEngine
 		inv_moi = ComputeInvMoI();
 	}
 
-	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = NULL; } }
+	void RigidBody::InnerDispose() { if(shape_cache) { delete shape_cache; shape_cache = nullptr; } }
 
 	void RigidBody::UpdateVel(float timestep)
 	{

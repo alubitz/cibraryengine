@@ -5,22 +5,16 @@
 
 #define CROSSOVERS_PER_PAIR				2
 
-#define MUTATION_COUNT					20
-#define MUTATION_SCALE					0.05f
+#define MUTATION_COUNT					50
+#define MUTATION_SCALE					0.001f
 
-#define TRIALS_PER_SUBTEST				1
+#define TRIALS_PER_SUBTEST				20
 
-#define TARGET_PROGRAM_SIZE				250
+#define TARGET_PROGRAM_SIZE				40
 
-#define NUM_CONSTANTS					64
-#define NUM_BONE_INPUTS					91
-#define NUM_BRAIN_INPUTS				4
-#define NUM_SCRATCH						256		// was 64
+#define NUM_BONE_INPUTS					70
 #define NUM_BONE_MEM					0		// was 1
-#define NUM_BRAIN_MEM					0		// was 4
 #define NUM_BONE_OUTPUTS				5		// was 3
-
-#define NUM_OPCODES						10
 
 #define FLOAT_CONSTANT_RANGE			2.0f
 
@@ -30,417 +24,86 @@
 namespace Test
 {
 	using namespace CibraryEngine;
-
-	static unsigned char RandomOpCode()
+	/*
+	 * GPOp methods
+	 */
+	unsigned int GPOp::Write(ostream& s)
 	{
-		// return Random3D::RandInt(NUM_OPCODES);			// TODO: change it back?
+		WriteUInt32(input_weights.size(), s);
+		for(unsigned int i = 0; i < input_weights.size(); ++i)
+			WriteSingle(input_weights[i], s);
 
-		unsigned int x = Random3D::RandInt(100);
-		if(x < 10)
-			return 4;
-		else if(x < 55)
-			return 2;
-		else if(x < 80)
-			return 0;
-		else
-			return 1;
+		WriteUInt32(mem_weights.size(), s);
+		for(unsigned int i = 0; i < mem_weights.size(); ++i)
+			WriteSingle(mem_weights[i], s);
+
+		WriteUInt32(scratch_weights.size(), s);
+		for(unsigned int i = 0; i < scratch_weights.size(); ++i)
+			WriteSingle(scratch_weights[i], s);
+
+		WriteUInt32(parent_weights.size(), s);
+		for(unsigned int i = 0; i < parent_weights.size(); ++i)
+			WriteSingle(parent_weights[i], s);
+
+		WriteUInt32(child_weights.size(), s);
+		for(unsigned int i = 0; i < child_weights.size(); ++i)
+			WriteSingle(child_weights[i], s);
+
+		return 0;
 	}
 
-
-	void GPOperand::Randomize(bool brain, unsigned int my_index, const vector<GPOp>& ops)
+	unsigned int GPOp::Read(istream& s)
 	{
-		if(brain)
-		{
-			unsigned int r = Random3D::RandInt(100);
-			if(r < 5)
-				src = 1;
-			else if(r < 15)
-				src = 0;
-			else if(r < 25)
-				src = 7;
-#if NUM_BRAIN_MEM > 0
-			else if(r < 40)
-				src = 3;
-#endif
-			else if(r < 70)
-				src = 6;
-			else
-				src = 2;
+		input_weights.resize(ReadUInt32(s));
+		for(unsigned int i = 0; i < input_weights.size(); ++i)
+			input_weights[i] = ReadSingle(s);
 
-			unsigned int maxi;
-			switch(src)
-			{
-				case 0: maxi = 255;              break;
-				case 1: maxi = NUM_BRAIN_INPUTS; break;
-				case 2: maxi = NUM_SCRATCH;      break;
-				case 3: maxi = NUM_BRAIN_MEM;    break;
-				case 4: maxi = NUM_SCRATCH;      break;
-				case 7: maxi = NUM_CONSTANTS;    break;
-			}
+		mem_weights.resize(ReadUInt32(s));
+		for(unsigned int i = 0; i < mem_weights.size(); ++i)
+			mem_weights[i] = ReadSingle(s);
 
-			set<unsigned char> scratches;
-			if(src == 2 || src == 6)
-			{
-				bool need_brain = src == 6 ? false : true;
-				for(unsigned int i = 0; i < my_index && i < ops.size(); ++i)
-					if(ops[i].dst_class == 0 && (ops[i].brain == need_brain))
-						scratches.insert(ops[i].dst_index);
-			}
+		scratch_weights.resize(ReadUInt32(s));
+		for(unsigned int i = 0; i < scratch_weights.size(); ++i)
+			scratch_weights[i] = ReadSingle(s);
 
-			if(scratches.empty())
-			{
-				if(src == 2 || src == 6)
-				{
-					src = 1;
-					maxi = NUM_BRAIN_INPUTS;
-				}
+		parent_weights.resize(ReadUInt32(s));
+		for(unsigned int i = 0; i < parent_weights.size(); ++i)
+			parent_weights[i] = ReadSingle(s);
 
-				index = Random3D::RandInt(maxi);
-			}
-			else
-			{
-				unsigned int r = Random3D::RandInt(scratches.size());
-				for(set<unsigned char>::iterator iter = scratches.begin(); iter != scratches.end(); ++iter, --r)
-					if(r == 0)
-					{
-						index = *iter;
-						break;
-					}
-			}
-		}
-		else
-		{
-			if(Random3D::RandInt(5) == 0)
-				src = my_index * 2 < ops.size() ? 5 : 4;
-			else if(Random3D::RandInt(3) == 0)
-			{
-				src = Random3D::RandInt(1, 3);
-				if(src == 3)
-					src = 7;
-			}
-			else
-				src = Random3D::RandInt(8);
-#if NUM_BONE_MEM == 0
-			if(src == 3)
-				src = 0;
-#endif
+		child_weights.resize(ReadUInt32(s));
+		for(unsigned int i = 0; i < child_weights.size(); ++i)
+			child_weights[i] = ReadSingle(s);
 
-			unsigned int maxi;
-			switch(src)
-			{
-				case 0: maxi = 255;             break;
-				case 1: maxi = NUM_BONE_INPUTS; break;
-				case 2: maxi = NUM_SCRATCH;     break;
-				case 3: maxi = NUM_BONE_MEM;    break;
-				case 4:	maxi = NUM_SCRATCH;     break;
-				case 5:	maxi = NUM_SCRATCH;     break;
-				case 6: maxi = NUM_SCRATCH;		break;
-				case 7: maxi = NUM_CONSTANTS;   break;
-			}
-
-			set<unsigned char> scratches;
-			if(SourceIsScratch())
-			{
-				bool need_brain = src == 6 ? true : false;
-				for(unsigned int i = 0; i < my_index && i < ops.size(); ++i)
-					if(ops[i].dst_class == 0 && (ops[i].brain == need_brain))
-						scratches.insert(ops[i].dst_index);
-			}
-
-			if(scratches.empty())
-			{
-				if(SourceIsScratch())
-				{
-					src = 1;
-					maxi = NUM_BONE_INPUTS;
-				}
-				index = Random3D::RandInt(maxi);
-			}
-			else
-			{
-				unsigned int r = Random3D::RandInt(scratches.size());
-				for(set<unsigned char>::iterator iter = scratches.begin(); iter != scratches.end(); ++iter, --r)
-					if(r == 0)
-					{
-						index = *iter;
-						break;
-					}
-			}
-		}
+		return s.bad() ? 1 : 0;
 	}
-
-	string GPOperand::SourceToString() const
-	{
-		switch(src)
-		{
-			case 0: return "int ";
-			case 1: return "input";
-			case 2: return "scratch";
-			case 3: return "persist";
-			case 4: return "parent";
-			case 5: return "child";
-			case 6: return "brain";
-			case 7: return "const";
-			default: return "?????";
-		}
-	}
-
-	void GPOp::Randomize(unsigned int my_index, const vector<GPOp>& ops)
-	{
-		opcode = RandomOpCode();
-
-		if(Random3D::RandInt(3) == 0 && my_index * 8 < ops.size() * 7)
-		{
-			brain = true;
-#if NUM_BRAIN_MEM == 0
-			dst_class = 0;
-#else
-			dst_class = Random3D::RandInt(5) == 0 ? 1 : 0;
-#endif
-			dst_index = Random3D::RandInt(dst_class == 0 ? NUM_SCRATCH : NUM_BRAIN_MEM);
-			arg1.Randomize(true, my_index, ops);
-			if(!GPOp::IsUnary(opcode))
-				arg2.Randomize(true, my_index, ops);
-		}
-		else
-		{
-			brain = false;
-
-			if(Random3D::RandInt(5) == 0)
-				if(my_index * 8 < ops.size() * 7)
-					dst_class = Random3D::RandInt(2);
-				else
-					dst_class = Random3D::RandInt(3);
-			else
-				dst_class = 0;
-
-#if NUM_BONE_MEM == 0
-			if(dst_class == 1)
-				dst_class = 0;
-#endif
-
-			dst_index = Random3D::RandInt(dst_class == 0 ? NUM_SCRATCH : dst_class == 1 ? NUM_BONE_MEM : NUM_BONE_OUTPUTS);
-			arg1.Randomize(false, my_index, ops);
-			if(!GPOp::IsUnary(opcode))
-				arg2.Randomize(false, my_index, ops);
-		}
-	}
-
-	string GPOp::ToString() const
-	{
-		stringstream ss;
-
-		ss << (brain ? "*\t" : "\t");
-		ss << (dst_class == 0 ? "scratch" : dst_class == 1 ? "persist" : "outputs");
-		ss << '\t' << (int)dst_index << '\t';
-		switch(opcode)
-		{
-			case 0: ss << "add\t";	break;
-			case 1: ss << "sub\t";	break;
-			case 2: ss << "mul\t";	break;
-			case 3: ss << "div\t";	break;
-			case 4: ss << "tanh";	break;
-			case 5: ss << "avg\t";	break;
-			case 6: ss << "comp";	break;
-			case 7: ss << "sqrt";	break;
-			case 8: ss << "square";	break;
-			case 9: ss << "pow\t";	break;
-		}
-		ss << '\t' << arg1.SourceToString() << '\t' << (int)arg1.index;
-		if(!GPOp::IsUnary(opcode))
-			ss << '\t' << arg2.SourceToString() << '\t' << (int)arg2.index;
-		//ss << endl;
-
-		return ss.str();
-	}
-
-
 
 
 	/*
 	 * GACandidate methods
 	 */
-	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), ops(), compiled_flag(false), compiled(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id) : id(id), p1(0), p2(0), scratch_ops(), output_ops(), mem_ops(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		memset(constants, 0, sizeof(constants));
 		memset(mutations, 0, sizeof(mutations));
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), ops(other.ops), compiled_flag(false), compiled(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& other) : id(id), p1(other.id), p2(other.id), scratch_ops(), output_ops(), mem_ops(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		memcpy(constants, other.constants, sizeof(constants));
 		memcpy(mutations, other.mutations, sizeof(mutations));		// or should it memset(0)?
 	}
 
-	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), ops(), compiled_flag(false), compiled(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
+	GACandidate::GACandidate(unsigned int id, const GACandidate& p1, const GACandidate& p2) : id(id), p1(p1.id), p2(p2.id), scratch_ops(), output_ops(), mem_ops(), score(0.0f), time_spent(0), aborting(false), tokens_busy(), tokens_not_finished()
 	{
-		for(unsigned int i = 0; i < NUM_CONSTANTS; ++i)
-			constants[i] = Crossover(p1.constants[i], p2.constants[i]);
+		scratch_ops = Crossover(p1.scratch_ops, p2.scratch_ops);
+		output_ops = Crossover(p1.output_ops, p2.output_ops);
+		mem_ops = Crossover(p1.mem_ops, p2.mem_ops);
 
 		memset(mutations, 0, sizeof(mutations));
-
-#if 0
-		const vector<GPOp>* a = &p1.ops;
-		const vector<GPOp>* b = &p2.ops;
-#else
-		const vector<GPOp>* a = &p1.compiled;
-		const vector<GPOp>* b = &p2.compiled;
-#endif
-		if(Random3D::RandInt(2) == 0 && !b->empty())
-			swap(a, b);
-
-		unsigned int insert_at = Random3D::RandInt(a->size() + 1);
-		for(unsigned int i = 0; i < insert_at; ++i)
-			ops.push_back(a->at(i));
-
-		if(!b->empty())
-		{
-			unsigned int insert_count = Random3D::RandInt(1, b->size());
-			unsigned int insert_from = insert_count == b->size() ? 0 : Random3D::RandInt(0, b->size() - insert_count);
-			unsigned int insert_to = insert_from + insert_count;
-
-			for(unsigned int i = insert_from; i < insert_to; ++i)
-				ops.push_back(b->at(i));
-		}
-
-		for(unsigned int i = insert_at; i < a->size(); ++i)
-			ops.push_back(a->at(i));
-
-		// if the result is too long, remove elements at random until it's just the right length
-		if(ops.size() > TARGET_PROGRAM_SIZE)
-		{
-			unsigned int remove_n = ops.size() - TARGET_PROGRAM_SIZE;
-
-			unordered_set<unsigned int> remaining;
-			vector<unsigned int> remaining_indices;
-			for(unsigned int i = 0; i < ops.size(); ++i)
-			{
-				remaining.insert(i);
-				remaining_indices.push_back(i);
-			}
-
-			for(unsigned int i = 0; i < remove_n; ++i)
-			{
-				unsigned int j = Random3D::RandInt(remaining.size());
-				remaining.erase(remaining_indices[j]);
-				swap(remaining_indices[j], remaining_indices[remaining_indices.size() - 1]);
-				remaining_indices.pop_back();
-			}
-
-			vector<GPOp> temp;
-			for(unsigned int i = 0; i < ops.size(); ++i)
-				if(remaining.find(i) != remaining.end())
-					temp.push_back(ops[i]);
-			ops = temp;
-		}
-
-#if 1
-		// find broken references and replace them with something randomly
-		set<unsigned char> brain_scratch;
-		set<unsigned char> bone_scratch;
-
-		for(unsigned int i = 0; i < ops.size(); ++i)
-		{
-			GPOp& op = ops[i];
-
-			if(op.arg1.SourceIsScratch())
-			{
-				set<unsigned char>* used_scratch = ((op.arg1.src == 6) == op.brain) ? &bone_scratch : &brain_scratch;
-				if(used_scratch->find(op.arg1.index) == used_scratch->end())
-				{
-					op.arg1.Randomize(op.brain, i, ops);
-					++mutations[0];
-				}
-			}
-
-			if(!GPOp::IsUnary(op.opcode) && op.arg2.SourceIsScratch())
-			{
-				set<unsigned char>* used_scratch = ((op.arg2.src == 6) == op.brain) ? &bone_scratch : &brain_scratch;
-				if(used_scratch->find(op.arg2.index) == used_scratch->end())
-				{
-					op.arg2.Randomize(op.brain, i, ops);
-					++mutations[0];
-				}
-			}
-
-			if(op.dst_class == 0)
-				if(op.brain)
-					brain_scratch.insert(op.dst_index);
-				else
-					bone_scratch.insert(op.dst_index);
-		}
-#endif
-
-		// if any of the outputs aren't assigned to, make something up for each of them
-		vector<unsigned int> last_outputs;
-		unsigned int num_ops = ops.size();
-		GetLastOutputs(ops, last_outputs);
-
-		for(unsigned int i = 0; i < NUM_BONE_OUTPUTS; ++i)
-			if(last_outputs[i] == num_ops)
-			{
-				GPOp op;
-				op.brain = false;
-				op.dst_class = 2;
-				op.dst_index = i;
-				op.opcode = RandomOpCode();
-				op.arg1.Randomize(false, ops.size(), ops);
-				if(!GPOp::IsUnary(op.opcode))
-					op.arg2.Randomize(false, ops.size(), ops);
-				ops.push_back(op);
-			}
-			else
-			{
-				GPOp op = ops[last_outputs[i]];
-				if(op.opcode >= 4 && (op.opcode != 8 || op.arg1.src != 0 || op.arg1.index != 0))
-				{
-					if(Random3D::RandInt(5) == 0)
-					{
-						op.opcode = 0;
-						op.arg1 = GPOperand(0, 0);
-						op.arg2 = GPOperand(0, 0);
-						ops[last_outputs[i]] = op;
-					}
-					else
-					{
-						unsigned char index = Random3D::RandInt(NUM_SCRATCH);		// if this scratch happens to be assigned to between now and the end of the program, oops
-						ops[last_outputs[i]].dst_class = 0;
-						ops[last_outputs[i]].dst_index = index;
-
-						GPOp nop;
-						nop.brain = false;
-						nop.dst_class = 2;
-						nop.dst_index = i;
-						nop.opcode = Random3D::RandInt(3);
-						nop.arg1 = GPOperand(2, index);					
-						nop.arg2.Randomize(false, ops.size(), ops);
-						if(Random3D::RandInt(2) == 0)
-							swap(nop.arg1, nop.arg2);
-						ops.push_back(nop);
-					}
-				}
-			}
 
 		Randomize(MUTATION_COUNT, MUTATION_SCALE);
 
 #if FORCE_FIRST_GEN_MODIFICATION
 		if(p1.p1 == 0 && p1.p2 == 0 || p2.p1 == 0 && p2.p2 == 0)
 		{
-			for(unsigned int i = 0; i < NUM_BONE_OUTPUTS; ++i)
-			{
-				//if(i % 3 == 0)
-				//{
-				//	GPOp oop;
-				//	oop.brain = false;
-				//	oop.dst_class = 2;
-				//	oop.dst_index = i;
-				//	oop.opcode = Random3D::RandInt(NUM_OPCODES);
-				//	oop.arg1.Randomize(false, ops.size(), ops);
-				//	if(!GPOp::IsUnary(oop.opcode))
-				//		oop.arg2.Randomize(false, ops.size(), ops);
-				//	ops.push_back(oop);
-				//}
-			}
 		}
 #endif
 	}
@@ -453,725 +116,151 @@ namespace Test
 		float maxx =  FLOAT_CONSTANT_RANGE;
 		float rscale = scale * (maxx - minx);
 
-		//Compile();
-		//ops = compiled;
-
 		bool ok;
 		do
 		{
 			ok = false;
 
-			unsigned int mutation_type = Random3D::RandInt(11);
-			if(ops.size() <= NUM_BONE_OUTPUTS * 2)
+			unsigned int tot = scratch_ops.size() + output_ops.size() + mem_ops.size();
+			unsigned int r = Random3D::BigRand(tot);
+
+			GPOp* target = nullptr;
+
+			if(r < scratch_ops.size())
+				target = &scratch_ops[r];
+			else
 			{
-				if(Random3D::RandInt(8) != 0)
-				{
-					mutation_type = Random3D::RandInt(4, 7);
-					if(mutation_type == 4)
-						mutation_type = 3;
-					else if(mutation_type == 7)
-						mutation_type = 9;
-				}
-			}
-			else if(Random3D::RandInt(5) == 0)
-				if(ops.size() * 2 < TARGET_PROGRAM_SIZE)
-					mutation_type = Random3D::RandInt(3, 4);
+				r -= scratch_ops.size();
+				if(r < output_ops.size())
+					target = &output_ops[r];
 				else
-					mutation_type = Random3D::RandInt(2) == 0 ? 4 : 9;
-
-			switch(mutation_type)
-			{
-				case 0:		// insert a new op
 				{
-					if(ops.size() > TARGET_PROGRAM_SIZE && Random3D::RandInt(2) == 0)
-						break;
-
-					unsigned int index = ops.empty() ? 0 : Random3D::RandInt(ops.size());
-					GPOp nuop;
-					nuop.Randomize(index, ops);
-
-					if(ops.empty())
-						ops.push_back(nuop);
-					else
-					{
-						ops.push_back(GPOp());
-						for(unsigned int i = ops.size() - 1; i > index; --i)
-							ops[i] = ops[i - 1];
-						ops[index] = nuop;
-					}
-
-					++mutations[1];
-					ok = true;
-					break;
-				}
-
-				case 1:		// replace an existing op
-				{
-					unsigned int index = ops.empty() ? 0 : Random3D::RandInt(ops.size());
-					GPOp nuop;
-					nuop.Randomize(index, ops);
-
-					if(ops.empty())
-						ops.push_back(nuop);
-					else
-						ops[index] = nuop;
-
-					++mutations[2];
-					ok = true;
-					break;
-				}
-
-				case 2:		// delete an existing op
-				{
-					//if(ops.size() < TARGET_PROGRAM_SIZE && Random3D::RandInt(2) == 0)
-					//	break;
-					//
-					//if(!ops.empty())
-					//{
-					//	unsigned int index = Random3D::RandInt(ops.size());
-					//	for(unsigned int i = index + 1; i < ops.size(); ++i)
-					//		ops[i - 1] = ops[i];
-					//	ops.pop_back();
-					//
-					//	++mutations[3];
-					//	ok = true;
-					//}
-					break;
-				}
-
-				case 3:		// replace an operand with some function of that operand
-				{
-					if(!ops.empty())
-					{
-						if(ops.size() > TARGET_PROGRAM_SIZE && Random3D::RandInt(2) == 0)
-							break;
-
-						unsigned int index = Random3D::RandInt(ops.size());
-						GPOp op = ops[index];
-						GPOperand* operand;
-						if(GPOp::IsUnary(op.opcode) || Random3D::RandInt(2) == 0)
-							operand = &op.arg1;
-						else
-							operand = &op.arg2;
-
-						unsigned int scratch = Random3D::RandInt(NUM_SCRATCH);
-						GPOp nuop;
-						nuop.opcode = RandomOpCode();
-						nuop.brain = op.brain;
-						nuop.dst_class = 0;
-						nuop.dst_index = scratch;
-						nuop.arg1 = *operand;
-						nuop.arg2.Randomize(op.brain, index, ops);
-
-						operand->src = 2;
-						operand->index = scratch;
-
-						ops.push_back(GPOp());
-						for(unsigned int i = ops.size() - 1; i > index; --i)
-							ops[i] = ops[i - 1];
-						ops[index] = nuop;
-
-						++mutations[4];
-						ok = true;
-					}
-					break;
-				}
-
-				case 4:		// swap indices of 2 scratch computations (doesn't affect this genome, but will affect its future generations)
-				{
-					unsigned int sa = Random3D::RandInt(NUM_SCRATCH);
-					unsigned int sb = Random3D::RandInt(NUM_SCRATCH);
-					if(sb == sa)
-						sb = (sa + 1) % NUM_SCRATCH;
-
-					bool any = false;
-					for(unsigned int i = 0; i < ops.size(); ++i)
-					{
-						GPOp& op = ops[i];
-						if(op.dst_class == 0)
-						{
-							if(op.dst_index == sa)
-							{
-								op.dst_index = sb;
-								any = true;
-							}
-							else if(op.dst_index == sb)
-							{
-								op.dst_index = sa;
-								any = true;
-							}
-						}
-
-						if(op.arg1.SourceIsScratch())
-						{
-							if(op.arg1.index == sa)
-							{
-								op.arg1.index = sb;
-								any = true;
-							}
-							else if(op.arg1.index == sb)
-							{
-								op.arg1.index = sa;
-								any = true;
-							}
-						}
-
-						if(!GPOp::IsUnary(op.opcode) && op.arg2.SourceIsScratch())
-						{
-							if(op.arg2.index == sa)
-							{
-								op.arg2.index = sb;
-								any = true;
-							}
-							else if(op.arg2.index == sb)
-							{
-								op.arg2.index = sa;
-								any = true;
-							}
-						}
-					}
-
-					if(any)
-					{
-						++mutations[5];
-						ok = true;
-					}
-
-					break;
-				}
-
-				case 5:		// mutate an operand of an existing op
-				{
-					if(!ops.empty())
-					{
-						unsigned int index = Random3D::RandInt(ops.size());
-						GPOp& op = ops[index];
-						if(Random3D::RandInt(2) == 1 && !GPOp::IsUnary(op.opcode))
-							op.arg2.Randomize(op.brain, index, ops);
-						else
-							op.arg1.Randomize(op.brain, index, ops);
-					
-						++mutations[6];
-						ok = true;
-					}
-					break;
-				}
-
-				case 6:		// change the opcode of an existing op (and/or reorder its operands)
-				{
-					if(!ops.empty())
-					{
-						unsigned int index = Random3D::RandInt(ops.size());
-						GPOp& op = ops[index];
-						unsigned int nucode = RandomOpCode();
-						if(nucode == op.opcode)
-						{
-							if(GPOp::IsUnary(nucode))
-								break;
-
-							swap(op.arg1, op.arg2);	
-						}
-						else
-						{
-							if(GPOp::IsUnary(op.opcode))
-								op.arg2.Randomize(op.brain, index, ops);
-							op.opcode = nucode;
-						}							
-
-						++mutations[7];
-						ok = true;
-					}
-					break;
-				}
-
-				case 7:		// move an op
-				{
-					if(ops.size() >= 2)
-					{
-						unsigned int a = Random3D::RandInt(ops.size());	// from
-						unsigned int b = Random3D::RandInt(ops.size());	// to
-						if(b == a)
-							b = (a + 1) % ops.size();
-
-						if(a > b)		// move left
-						{
-							for(unsigned int i = a; i > b; --i)
-								swap(ops[i], ops[i - 1]);
-						}
-						else			// move right
-						{
-							for(unsigned int i = a; i < b; ++i)
-								swap(ops[i], ops[i + 1]);
-						}
-
-						++mutations[8];
-						ok = true;
-					}
-					break;
-				}
-
-				case 8:		// swap indices of two memory values (doesn't affect this genome, but will affect its future generations)
-				{
-#if NUM_BRAIN_MEM > 1 || NUM_BONE_MEM > 1
-#if NUM_BRAIN_MEM <= 1
-					bool brain = false;
-#elif NUM_BONE_MEM <= 1
-					bool brain = true;
-#else
-					bool brain = Random3D::RandInt(2) == 0;
-#endif
-
-					unsigned int max_cell = brain ? NUM_BRAIN_MEM : NUM_BONE_MEM;
-
-					unsigned int ma = Random3D::RandInt(max_cell);
-					unsigned int mb = Random3D::RandInt(max_cell);
-					if(ma == mb)
-						mb = (mb + 1) % max_cell;
-
-					bool any = false;
-
-					for(unsigned int i = 0; i < ops.size(); ++i)
-					{
-						GPOp& op = ops[i];
-						if(op.brain == brain)
-						{
-							if(op.dst_class == 1)
-							{
-								if(op.dst_index == ma)
-								{
-									op.dst_index = mb;
-									any = true;
-								}
-								else if(op.dst_index == mb)
-								{
-									op.dst_index = ma;
-									any = true;
-								}
-							}
-
-							if(op.arg1.src == 3)
-							{
-								if(op.arg1.index == ma)
-								{
-									op.arg1.index = mb;
-									any = true;
-								}
-								else if(op.arg1.index == mb)
-								{
-									op.arg1.index = ma;
-									any = true;
-								}
-							}
-
-							if(!GPOp::IsUnary(op.opcode) && op.arg2.src == 3)
-							{
-								if(op.arg2.index == ma)
-								{
-									op.arg2.index = mb;
-									any = true;
-								}
-								else if(op.arg2.index == mb)
-								{
-									op.arg2.index = ma;
-									any = true;
-								}
-							}
-						}
-					}
-
-					if(any)
-					{
-						ok = true;
-						++mutations[9];
-					}
-#endif
-					break;
-				}
-
-				case 9:					// replace an op (not an operand) with some function of its result
-				{
-					if(!ops.empty())
-					{
-						if(ops.size() > TARGET_PROGRAM_SIZE && Random3D::RandInt(2) == 0)
-							break;
-
-						unsigned int index = Random3D::RandInt(ops.size());
-						ops.push_back(GPOp());
-						for(unsigned int i = ops.size() - 1; i > index; --i)
-							ops[i] = ops[i - 1];
-						// now the op at index also appears at index+1
-						ops[index].dst_class = 0;
-						ops[index].dst_index = Random3D::RandInt(NUM_SCRATCH);
-
-						ops[index + 1].opcode = RandomOpCode();
-						ops[index + 1].arg1.src = 2;
-						ops[index + 1].arg1.index = ops[index].dst_index;
-						if(!GPOp::IsUnary(ops[index + 1].opcode))
-						{
-							ops[index + 1].arg2.Randomize(ops[index + 1].brain, index + 1, ops);
-							if(Random3D::RandInt(2) == 0)
-								swap(ops[index + 1].arg1, ops[index + 1].arg2);
-						}
-
-						ok = true;
-						++mutations[10];
-						
-					}
-					break;
-				}
-
-				case 10:				// mutate the constants table
-				{
-					set<unsigned char> indices;
-					for(unsigned int i = 0; i < ops.size(); ++i)
-					{
-						const GPOp& op = ops[i];
-						if(op.arg1.src == 7)
-							indices.insert(op.arg1.index);
-						if(!GPOp::IsUnary(op.opcode) && op.arg2.src == 7)
-							indices.insert(op.arg2.index);
-					}
-
-					if(indices.empty())
-						break;
-
-					unsigned int index_index = Random3D::RandInt(indices.size());
-					unsigned int index = indices.size();
-					for(set<unsigned char>::iterator iter = indices.begin(); iter != indices.end(); ++iter, --index_index)
-					{
-						if(index_index == 0)
-						{
-							index = *iter;
-							break;
-						}
-					}
-
-					if(index != indices.size())
-					{
-						float* ptr = constants + Random3D::RandInt(NUM_CONSTANTS);
-						*ptr = min(maxx, max(minx, *ptr + Random3D::Rand(-rscale, rscale)));
-					
-						ok = true;
-						++mutations[11];
-					}
-					break;
+					r -= output_ops.size();
+					target = &mem_ops[r];
 				}
 			}
 
-			if(ok)
+			tot = target->input_weights.size() + target->mem_weights.size() + target->scratch_weights.size() + target->parent_weights.size() + target->child_weights.size();
+			r = Random3D::BigRand(tot);
+
+			float* fptr = nullptr;
+			if(r < target->input_weights.size())
+				fptr = &target->input_weights[r];
+			else
 			{
-				//Compile();
-				//ops = compiled;
+				r -= target->input_weights.size();
+				if(r < target->mem_weights.size())
+					fptr = &target->mem_weights[r];
+				else
+				{
+					r -= target->mem_weights.size();
+					if(r < target->scratch_weights.size())
+						fptr = &target->scratch_weights[r];
+					else
+					{
+						r -= target->scratch_weights.size();
+						if(r < target->parent_weights.size())
+							fptr = &target->parent_weights[r];
+						else
+						{
+							r -= target->parent_weights.size();
+							fptr = &target->child_weights[r];
+						}
+					}
+				}
 			}
+
+			*fptr = max(minx, min(maxx, *fptr + Random3D::Rand(-rscale, rscale)));
+			++mutations[0];
+			ok = true;
 
 		} while(!ok || Random3D::RandInt() % count != 0);
+	}
 
-		//Compile();
-		//ops = compiled;
+	vector<GPOp> GACandidate::Crossover(const vector<GPOp>& a, const vector<GPOp>& b)
+	{
+		vector<GPOp> results(max(a.size(), b.size()));
+
+		vector<float> dummy;
+
+		for(unsigned int i = 0; i < results.size(); ++i)
+		{
+			if(i < a.size() && i < b.size())
+			{
+				results[i].input_weights   = Crossover(a[i].input_weights  , b[i].input_weights  );
+				results[i].mem_weights     = Crossover(a[i].mem_weights    , b[i].mem_weights    );
+				results[i].scratch_weights = Crossover(a[i].scratch_weights, b[i].scratch_weights);
+				results[i].parent_weights  = Crossover(a[i].parent_weights , b[i].parent_weights );
+				results[i].child_weights   = Crossover(a[i].child_weights  , b[i].child_weights  );
+			}
+			else if(i < a.size())
+			{
+				results[i].input_weights   = Crossover(a[i].input_weights  , dummy);
+				results[i].mem_weights     = Crossover(a[i].mem_weights    , dummy);
+				results[i].scratch_weights = Crossover(a[i].scratch_weights, dummy);
+				results[i].parent_weights  = Crossover(a[i].parent_weights , dummy);
+				results[i].child_weights   = Crossover(a[i].child_weights  , dummy);
+			}
+			else
+			{
+				results[i].input_weights   = Crossover(dummy, b[i].input_weights  );
+				results[i].mem_weights     = Crossover(dummy, b[i].mem_weights    );
+				results[i].scratch_weights = Crossover(dummy, b[i].scratch_weights);
+				results[i].parent_weights  = Crossover(dummy, b[i].parent_weights );
+				results[i].child_weights   = Crossover(dummy, b[i].child_weights  );
+			}
+		}
+
+		return results;
+	}
+
+	vector<float> GACandidate::Crossover(const vector<float>& a, const vector<float>& b)
+	{
+		vector<float> results(max(a.size(), b.size()));
+
+		for(unsigned int i = 0; i < results.size(); ++i)
+			results[i] = Crossover(i < a.size() ? a[i] : 0.0f, i < b.size() ? b[i] : 0.0f);
+
+		return results;
 	}
 
 	float GACandidate::Crossover(float a, float b) { return a + Random3D::Rand() * (b - a); }
 
-	void GACandidate::Compile()
+	void GACandidate::Resize()
 	{
-		// remove anything that assigns to an output which is later overwritten; also remove any ops that happen after the last assignment to an output		
-		vector<unsigned int> last_outputs;
-		GetLastOutputs(ops, last_outputs);
-		RemoveUnreferencedScratchSteps(ops, compiled, last_outputs);
+		scratch_ops.resize(TARGET_PROGRAM_SIZE);
+		output_ops.resize(NUM_BONE_OUTPUTS);
+		mem_ops.resize(NUM_BONE_MEM);
 
-		// if anything reads from an unassigned variable or out-of-bounds input, replace it with the constant 0
-		set<unsigned char> brain_scratch;
-		set<unsigned char> bone_scratch;
-		for(unsigned int i = 0; i < compiled.size(); ++i)
+		for(unsigned int i = 0; i < scratch_ops.size(); ++i)
 		{
-			GPOp& op = compiled[i];					
-
-			if(op.arg1.SourceIsScratch())
-			{
-				set<unsigned char>* used_scratch = ((op.arg1.src == 6) == op.brain) ? &bone_scratch : &brain_scratch;
-				if(used_scratch->find(op.arg1.index) == used_scratch->end())
-				{
-					op.arg1.src = 0;
-					op.arg1.index = 0;
-				}
-			}
-			else if(op.arg1.src == 1 && op.arg1.index >= (op.brain ? NUM_BRAIN_INPUTS : NUM_BONE_INPUTS))
-			{
-				op.arg1.src = 0;
-				op.arg1.index = 0;
-			}
-			else if(op.arg1.src == 3 && op.arg1.index >= (op.brain ? NUM_BRAIN_MEM : NUM_BONE_MEM))
-			{
-				op.arg1.src = 0;
-				op.arg1.index = 0;
-			}
-
-			if(!GPOp::IsUnary(op.opcode))
-			{
-				if(op.arg2.SourceIsScratch())
-				{
-					set<unsigned char>* used_scratch = ((op.arg2.src == 6) == op.brain) ? &bone_scratch : &brain_scratch;
-					if(used_scratch->find(op.arg2.index) == used_scratch->end())
-					{
-						op.arg2.src = 0;
-						op.arg2.index = 0;
-					}
-				}
-				else if(op.arg2.src == 1 && op.arg2.index >= (op.brain ? NUM_BRAIN_INPUTS : NUM_BONE_INPUTS))
-				{
-					op.arg2.src = 0;
-					op.arg2.index = 0;
-				}
-				else if(op.arg2.src == 3 && op.arg2.index >= (op.brain ? NUM_BRAIN_MEM : NUM_BONE_MEM))
-				{
-					op.arg2.src = 0;
-					op.arg2.index = 0;
-				}
-			}
-
-			if(op.dst_class == 0)
-				if(op.brain)
-					brain_scratch.insert(op.dst_index);
-				else
-					bone_scratch.insert(op.dst_index);
+			GPOp& op = scratch_ops[i];
+			op.input_weights.resize(NUM_BONE_INPUTS);
+			op.mem_weights.resize(NUM_BONE_MEM);
+			op.scratch_weights.resize(i);
+			op.parent_weights.resize(i);
+			op.child_weights.resize(i);
 		}
 
-		// optimize! remove mutiplications by zero, additions/subtractions by zero, multiplications/divisions by one, etc.
-		// note that some optimizations may ignore the fact that an operation can return nan/inf, e.g. 0*nan should be nan but will be optimized away as always 0
-		unsigned int counter = 0;
-		bool any;
-		vector<GPOp> temp;
-		do
+		for(unsigned int i = 0; i < mem_ops.size(); ++i)
 		{
-			//Debug(((stringstream&)(stringstream() << "id = " << id << ", raw size = " << ops.size() << ", compiled size = " << compiled.size() << ", counter = " << counter << endl)).str());
-
-			any = false;
-			temp.clear();
-
-			for(unsigned int i = 0; i < compiled.size(); ++i)
-			{
-				bool push = true;
-				bool cant_remove = false;
-
-				GPOp& op = compiled[i];
-				if(op.dst_class == 0)
-				{
-					GPOperand replace_with;
-
-					if(false)
-					{
-					}
-					if(op.opcode == 0 && op.arg1.src == 0 && op.arg1.index == 0)							// 0 + y = y
-					{
-						push = false;
-						replace_with = op.arg2;
-					}
-					else if((op.opcode == 0 || op.opcode == 1) && op.arg2.src == 0 && op.arg2.index == 0)	// x + 0 = x; x - 0 = x
-					{
-						push = false;
-						replace_with = op.arg1;
-					}
-					else if(op.opcode == 2 && (op.arg1.src == 0 && op.arg1.index == 0 || op.arg2.src == 0 && op.arg2.index == 0))	// x * 0 = 0; 0 * y = 0
-						push = false;
-					else if(op.opcode == 3 && op.arg1.src == 0 && op.arg1.index == 0)						// 0 / y = 0
-						push = false;
-					else if(op.opcode == 3 && op.arg2.src == 0 && op.arg2.index == 0)						// x / 0 = nan		(replaced with 0)
-						push = false;
-					else if(op.opcode == 2 && op.arg1.src == 0 && op.arg1.index == 1)						// 1 * y = y
-					{
-						push = false;
-						replace_with = op.arg2;
-					}
-					else if((op.opcode == 2 || op.opcode == 3) && op.arg2.src == 0 && op.arg2.index == 1)	// x * 1 = x; x / 1 = x
-					{
-						push = false;
-						replace_with = op.arg1;
-					}
-					else if((op.opcode == 4 || op.opcode == 7 || op.opcode == 8) && op.arg1.src == 0 && op.arg1.index == 0)	// tanh(0) = 0; sqrt(0) = 0; square(0) = 0
-						push = false;
-					else if((op.opcode == 7 || op.opcode == 8) && op.arg1.src == 0 && op.arg1.index == 1)					// sqrt(1) = 1; square(1) = 1
-					{
-						push = false;
-						replace_with = op.arg1;
-					}
-					else if(op.opcode == 9 && op.arg1.src == 0 && (op.arg1.index == 0 || op.arg1.index == 1))				// 0^y = 0; 1^y = 1
-					{
-						push = false;
-						replace_with = op.arg1;
-					}
-					else if(op.opcode == 9 && op.arg2.src == 0 && (op.arg2.index == 0 || op.arg2.index == 1))				// x^0 = 1; x^1 = x
-					{
-						push = false;
-						if(op.arg2.index == 0)
-							replace_with = GPOperand(0, 1);
-						else
-							replace_with = op.arg1;
-					}
-					else if((op.arg1.src == 0 || op.arg1.src == 7) && (GPOp::IsUnary(op.opcode) || (op.arg2.src == 0 || op.arg2.src == 7)))		// function of constant(s) returns a constant
-					{
-						float a = op.arg1.src == 0 ? float((signed)op.arg1.index) : constants[op.arg1.index];
-						float b = GPOp::IsUnary(op.opcode) ? 0.0f : op.arg2.src == 0 ? float((signed)op.arg2.index) : constants[op.arg2.index];
-						float temp;
-						switch(op.opcode)
-						{
-							case 0: temp = a + b;				break;
-							case 1: temp = a - b;				break;
-							case 2: temp = a * b;				break;
-							case 3: temp = a / b;				break;
-							case 4: temp = tanhf(a);			break;
-							case 5: temp = (a + b) * 0.5f;		break;
-							case 6: temp = a > b ? 1.0f : 0.0f;	break;
-							case 7: temp = sqrtf(a);			break;
-							case 8: temp = a * a;				break;
-							case 9: temp = powf(a, b);			break;
-							default: temp = 0.0f;				break;
-						}
-						if(!isfinite(temp))
-							temp = 0.0f;
-						if(floor(temp) == temp && temp >= -128.0f && temp < 127.0f)
-						{
-							push = false;
-							replace_with = GPOperand(0, (unsigned char)((char)temp));
-						}
-					}
-					
-					if(!push)
-					{
-						//Debug(((stringstream&)(stringstream() << "Dropping instruction at index " << i << " (" << op.ToString() << "); replacing references to it with " << replace_with.SourceToString() << " " << (unsigned int)replace_with.index << endl)).str());
-						for(unsigned int j = i + 1; j < compiled.size(); ++j)
-						{
-							GPOp& jop = compiled[j];
-							
-							if(jop.arg1.SourceIsScratch() && jop.arg1.index == op.dst_index)
-								if((jop.arg1.src == 6) != (jop.brain == op.brain))
-								{
-									if((replace_with.src == 1 || replace_with.src == 3 || replace_with.src == 4 || replace_with.src == 5) && jop.arg1.src != 2)
-										cant_remove = true;
-									else
-									{
-										jop.arg1 = replace_with;
-										any = true;
-									}
-								}
-
-							if(!GPOp::IsUnary(jop.opcode) && jop.arg2.SourceIsScratch() && jop.arg2.index == op.dst_index)
-								if((jop.arg2.src == 6) != (jop.brain == op.brain))
-								{
-									if((replace_with.src == 1 || replace_with.src == 3 || replace_with.src == 4 || replace_with.src == 5) && jop.arg2.src != 2)
-										cant_remove = true;
-									else
-									{
-										jop.arg2 = replace_with;
-										any = true;
-									}
-								}
-
-							if(jop.dst_class == 0 && jop.dst_index == op.dst_index)
-								break;
-						}
-					}
-				}
-		
-				if(push || cant_remove)
-					temp.push_back(op);
-				else
-					any = true;
-			}
-
-			if(any)
-				compiled = temp;
-
-			GetLastOutputs(compiled, last_outputs);
-			if(RemoveUnreferencedScratchSteps(compiled, compiled, last_outputs))
-				any = true;
-		
-			if(any)
-				++counter;
-		
-		} while(any);
-
-		compiled_flag = true;
-	}
-
-	void GACandidate::GetLastOutputs(const vector<GPOp>& ops, vector<unsigned int>& last_outputs) const
-	{
-		last_outputs.resize(NUM_BONE_OUTPUTS + NUM_BONE_MEM + NUM_BRAIN_MEM);
-		for(unsigned int i = 0; i < last_outputs.size(); ++i)
-			last_outputs[i] = ops.size();
-
-		unsigned int remaining = last_outputs.size();
-		for(unsigned int i = ops.size() - 1; i < ops.size(); --i)	// deliberately inverted for loop
-		{
-			const GPOp& op = ops[i];
-			if(op.dst_class == 1 || op.dst_class == 2)
-			{
-				unsigned int index =
-					op.dst_class == 2 ? op.dst_index < NUM_BONE_OUTPUTS ? op.dst_index : last_outputs.size()
-					: op.brain ? op.dst_index < NUM_BRAIN_MEM ? NUM_BONE_OUTPUTS + op.dst_index : last_outputs.size()
-					: op.dst_index < NUM_BONE_MEM ? NUM_BONE_OUTPUTS + NUM_BRAIN_MEM + op.dst_index : last_outputs.size();
-				if(index < last_outputs.size())
-				{
-					if(last_outputs[index] == ops.size())
-					{
-						last_outputs[index] = i;
-						--remaining;
-						if(remaining == 0)
-							break;
-					}
-				}
-			}
+			GPOp& op = mem_ops[i];
+			op.input_weights.resize(NUM_BONE_INPUTS);		// can assign directly from input to mem
+			op.mem_weights.resize(NUM_BONE_MEM);			// can assign directly from mem to mem
+			op.scratch_weights.resize(scratch_ops.size());
+			op.parent_weights.resize(scratch_ops.size());
+			op.child_weights.resize(scratch_ops.size());
 		}
-	}
 
-	bool GACandidate::RemoveUnreferencedScratchSteps(const vector<GPOp>& ops_in, vector<GPOp>& ops_out, const vector<unsigned int>& last_outputs) const
-	{
-		vector<bool> dependencies(ops_in.size());
-		for(unsigned int i = 0; i < last_outputs.size(); ++i)
-			if(last_outputs[i] != ops_in.size())
-				dependencies[last_outputs[i]] = true;
-
-		for(unsigned int i = ops_in.size() - 1; i < ops_in.size(); --i)		// deliberately inverted for loop
-			if(dependencies[i])
-			{
-				const GPOp& op = ops_in[i];
-
-				if(op.arg1.SourceIsScratch())
-				{
-					for(unsigned int j = i - 1; j < i; --j)				// deliberately inverted for loop
-					{
-						if(ops_in[j].dst_class == 0 && ops_in[j].dst_index == op.arg1.index)
-							if((op.arg1.src == 6) != (op.brain == ops_in[j].brain))
-							{
-								dependencies[j] = true;
-								break;
-							}
-					}
-				}
-
-				if(!GPOp::IsUnary(op.opcode) && op.arg2.SourceIsScratch())
-				{
-					for(unsigned int j = i - 1; j < i; --j)				// deliberately inverted for loop
-					{
-						if(ops_in[j].dst_class == 0 && ops_in[j].dst_index == op.arg2.index)
-							if((op.arg2.src == 6) != (op.brain == ops_in[j].brain))
-							{
-								dependencies[j] = true;
-								break;
-							}
-					}
-				}
-			}
-
-		bool skipped_any = false;
-		vector<GPOp> temp;
-		for(unsigned int i = 0; i < ops_in.size(); ++i)
-			if(dependencies[i])
-				temp.push_back(ops_in[i]);
-			else
-				skipped_any = true;
-		
-		ops_out = temp;
-		return skipped_any;
+		for(unsigned int i = 0; i < output_ops.size(); ++i)
+		{
+			GPOp& op = output_ops[i];
+			op.input_weights.resize(0);						// can NOT assign directly from input to output
+			op.mem_weights.resize(0);						// can NOT assign directly from mem to output
+			op.scratch_weights.resize(scratch_ops.size());
+			op.parent_weights.resize(scratch_ops.size());
+			op.child_weights.resize(scratch_ops.size());
+		}
 	}
 
 	string GACandidate::GetText() const
@@ -1193,31 +282,19 @@ namespace Test
 	{
 		stringstream ss;
 
-		WriteUInt32(NUM_CONSTANTS, ss);
-		for(unsigned int i = 0; i < NUM_CONSTANTS; ++i)
-			WriteSingle(constants[i], ss);
-		
-		WriteUInt32(ops.size(), ss);
-		for(unsigned int i = 0; i < ops.size(); ++i)
-		{
-			const GPOp& op = ops[i];
-			WriteBool(op.brain, ss);
-			WriteByte(op.opcode, ss);
-			WriteByte(op.dst_class, ss);
-			WriteByte(op.dst_index, ss);
-			WriteByte(op.arg1.src, ss);
-			WriteByte(op.arg1.index, ss);
-			if(!GPOp::IsUnary(op.opcode))
-			{
-				WriteByte(op.arg2.src, ss);
-				WriteByte(op.arg2.index, ss);
-			}
-		}
+		WriteUInt32(scratch_ops.size(), ss);
+		for(unsigned int i = 0; i < scratch_ops.size(); ++i)
+			scratch_ops[i].Write(ss);
 
-		WriteByte(0x5A, ss);
+		WriteUInt32(output_ops.size(), ss);
+		for(unsigned int i = 0; i < output_ops.size(); ++i)
+			output_ops[i].Write(ss);
 
+		WriteUInt32(mem_ops.size(), ss);
+		for(unsigned int i = 0; i < mem_ops.size(); ++i)
+			mem_ops[i].Write(ss);
 		
-		BinaryChunk chunk("IDKOPS02");
+		BinaryChunk chunk("BONENNS_");
 		chunk.data = ss.str();
 		chunk.Write(s);
 
@@ -1231,44 +308,36 @@ namespace Test
 		BinaryChunk chunk;
 		chunk.Read(s);
 
-		if(chunk.GetName() != "IDKOPS02")
+		if(chunk.GetName() != "BONENNS_")
 			return 1;
 
 		istringstream ss(chunk.data);
 
 		GACandidate* candidate = new GACandidate(id);
-		unsigned int constants = ReadUInt32(ss);
-		for(unsigned int i = 0; i < constants; ++i)
-		{
-			float f = ReadSingle(ss);
-			if(i < NUM_CONSTANTS)
-				candidate->constants[i] = f;
-		}
-
-		unsigned int ops = ReadUInt32(ss);
-		for(unsigned int i = 0; i < ops; ++i)
-		{
-			GPOp op;
-			op.brain = ReadBool(ss);
-			op.opcode = ReadByte(ss);
-			op.dst_class = ReadByte(ss);
-			op.dst_index = ReadByte(ss);
-			op.arg1.src = ReadByte(ss);
-			op.arg1.index = ReadByte(ss);
-			if(!GPOp::IsUnary(op.opcode))
+		
+		candidate->scratch_ops.resize(ReadUInt32(ss));
+		for(unsigned int i = 0; i < candidate->scratch_ops.size(); ++i)
+			if(unsigned int error = candidate->scratch_ops[i].Read(ss))
 			{
-				op.arg2.src = ReadByte(ss);
-				op.arg2.index = ReadByte(ss);
+				delete candidate;
+				return 1;
 			}
-			candidate->ops.push_back(op);
-		}
+		
+		candidate->output_ops.resize(ReadUInt32(ss));
+		for(unsigned int i = 0; i < candidate->output_ops.size(); ++i)
+			if(unsigned int error = candidate->output_ops[i].Read(ss))
+			{
+				delete candidate;
+				return 1;
+			}
 
-		unsigned char trailer = ReadByte(ss);
-		if(trailer != 0x5A)
-		{
-			delete candidate;
-			return 3;
-		}
+		candidate->mem_ops.resize(ReadUInt32(ss));
+		for(unsigned int i = 0; i < candidate->mem_ops.size(); ++i)
+			if(unsigned int error = candidate->mem_ops[i].Read(ss))
+			{
+				delete candidate;
+				return 1;
+			}
 
 		if(s.bad())
 		{
@@ -1280,32 +349,6 @@ namespace Test
 			result = candidate;
 			return 0;
 		}
-	}
-
-	string GACandidate::CompiledToString(unsigned int id, const vector<GPOp>& ops)
-	{
-		stringstream ss;
-		ss << "id = " << id << "; length = " << ops.size() << endl;
-
-		for(unsigned int j = 0; j < ops.size(); ++j)
-			ss << ops[j].ToString() << endl;
-
-		return ss.str();
-	}
-
-	unsigned int GACandidate::GetInputCoverage(const vector<GPOp>& ops)
-	{
-		set<unsigned char> used;
-		for(unsigned int i = 0; i < ops.size(); ++i)
-		{
-			const GPOp& op = ops[i];
-			if(op.arg1.src == 1)
-				used.insert(op.arg1.index);
-			if(!GPOp::IsUnary(op.opcode) && op.arg2.src == 1)
-				used.insert(op.arg2.index);
-		}
-
-		return used.size();
 	}
 
 
@@ -1330,7 +373,10 @@ namespace Test
 					break;
 				}
 				else
+				{
+					loadme->Resize();
 					candidates.push_back(loadme);
+				}
 			}
 
 			if(!candidates.empty())
@@ -1338,14 +384,7 @@ namespace Test
 				Debug(((stringstream&)(stringstream() << "Successfully loaded " << candidates.size() << " brains from genepool" << endl)).str());
 				DebugGenerationStats();
 
-				stringstream ss;
-				for(unsigned int i = 0; i < candidates.size(); ++i)
-				{
-					GACandidate& c = *candidates[i];
-					c.Compile();
-					ss << c.CompiledToString(c.id, c.compiled);
-				}
-				Debug(ss.str());
+				// make sure sizes match
 			}
 
 			file.close();
@@ -1375,8 +414,8 @@ namespace Test
 
 	void GAExperiment::GenerateSubtestList()
 	{
-		static const unsigned int num_subtests = 100;
-		static const float scalar = 0.1f;
+		static const unsigned int num_subtests = 4;
+		static const float scalar = 0.05f;
 
 		vector<float> floats;
 		for(unsigned int j = 0; j < num_subtests / 2; ++j)
@@ -1420,8 +459,6 @@ namespace Test
 		for(unsigned int i = 0; i < candidates.size(); ++i)
 		{
 			GACandidate* candidate = candidates[i];
-			if(!candidate->compiled_flag)
-				candidate->Compile();
 
 			assert(candidate->tokens_not_finished.empty());
 			assert(candidate->tokens_busy.empty());
@@ -1452,82 +489,10 @@ namespace Test
 		{
 			GACandidate* candidate = new GACandidate(next_id++);
 
-			for(unsigned int j = 0; j < NUM_CONSTANTS; ++j)
-				candidate->constants[j] = (float)(j + 1) * (FLOAT_CONSTANT_RANGE / NUM_CONSTANTS);
+			candidate->Resize();
 			
 			if(i != 0)
-			{
-#if 1
-				for(unsigned int j = 0; j < NUM_BONE_OUTPUTS; ++j)// + NUM_BONE_MEM + NUM_BRAIN_MEM; ++j)
-				{
-					GPOp op;
-					op.brain = j < NUM_BONE_OUTPUTS + NUM_BONE_MEM ? false : true;
-					op.dst_class = j < NUM_BONE_OUTPUTS ? 2 : 1;
-					op.dst_index = j < NUM_BONE_OUTPUTS ? j : j < NUM_BONE_OUTPUTS + NUM_BONE_MEM ? j - NUM_BONE_OUTPUTS : j - NUM_BONE_OUTPUTS - NUM_BONE_MEM;
-					op.opcode = 0;
-					op.arg1.src = op.arg1.index = op.arg2.src = op.arg2.index = 0;
-					candidate->ops.push_back(op);
-				}
-
 				candidate->Randomize(MUTATION_COUNT * 2, MUTATION_SCALE * 2);
-#else
-				unsigned int target = TARGET_PROGRAM_SIZE / 5 + 10;
-
-				candidate->ops.resize(target + NUM_BONE_OUTPUTS + NUM_BONE_MEM + NUM_BRAIN_MEM);
-
-				set<unsigned char> scratch_set;
-
-				for(unsigned int j = 0; j < target; ++j)
-				{
-					GPOp op;
-					op.brain = false;
-					op.dst_class = 0;
-					op.dst_index = Random3D::RandInt(NUM_SCRATCH);
-					op.opcode = RandomOpCode();
-					op.arg1.Randomize(false, j, candidate->ops);
-					if(!GPOp::IsUnary(op.opcode))
-						op.arg2.Randomize(false, j, candidate->ops);
-					candidate->ops[j] = op;
-
-					scratch_set.insert(op.dst_index);
-				}
-
-				vector<unsigned char> scratch;
-				for(set<unsigned char>::iterator iter = scratch_set.begin(); iter != scratch_set.end(); ++iter)
-					scratch.push_back(*iter);
-
-				for(unsigned int j = 0; j < NUM_BONE_OUTPUTS; ++j)// + NUM_BONE_MEM + NUM_BRAIN_MEM; ++j)
-				{
-					GPOp op;
-					op.brain = j < NUM_BONE_OUTPUTS + NUM_BONE_MEM ? false : true;
-					op.dst_class = j < NUM_BONE_OUTPUTS ? 2 : 1;
-					op.dst_index = j < NUM_BONE_OUTPUTS ? j : j < NUM_BONE_OUTPUTS + NUM_BONE_MEM ? j - NUM_BONE_OUTPUTS : j - NUM_BONE_OUTPUTS - NUM_BONE_MEM;
-
-					op.opcode = 0;
-					op.arg1.src = 2;
-					op.arg1.index = scratch[Random3D::RandInt(scratch.size())];
-					op.arg2.src = 2;
-					op.arg2.index = scratch[Random3D::RandInt(scratch.size())];
-
-					candidate->ops[j + target] = op;
-				}
-#endif
-			}
-
-			for(unsigned int i = 0; i < candidate->ops.size(); ++i)
-			{
-				GPOp& op = candidate->ops[i];
-				if(op.dst_class != 2)
-				{
-					if(op.arg1.src == 1)
-						if(Random3D::RandInt(3) == 0)
-							op.arg1.index = Random3D::RandInt(2) * 3 + 70;
-			
-					if(!GPOp::IsUnary(op.opcode) && op.arg2.src == 1)
-						if(Random3D::RandInt(3) == 0)
-							op.arg2.index = Random3D::RandInt(2) * 3 + 70;
-				}
-			}
 
 			candidates.push_back(candidate);
 		}
@@ -1720,7 +685,7 @@ namespace Test
 				for(list<GACandidate*>::iterator iter = elites.begin(); iter != elites.end(); ++iter)
 				{
 					const GACandidate& c = **iter;
-					ss << '\t' << c.GetText() << "; " << c.ops.size() << " ops (" << c.compiled.size() << "); mutations: [";
+					ss << '\t' << c.GetText() << "; mutations: [";
 					for(unsigned int i = 0; i < sizeof(c.mutations) / sizeof(unsigned short); ++i)
 					{
 						if(i != 0)

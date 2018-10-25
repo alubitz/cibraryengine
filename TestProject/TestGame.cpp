@@ -41,7 +41,7 @@
 
 #define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
-#define PLAY_AS_CRAB_BUG                 1
+#define PLAY_AS_CRAB_BUG                 0
 
 #define DO_RAPID_UPDATE_TESTING          0
 #define RAPID_UPDATE_COUNT               20
@@ -590,7 +590,7 @@ namespace Test
 
 		hud = new HUD(this, content);
 
-		imp->experiment = new GAExperiment("Files/brains/genepool");
+		//imp->experiment = new GAExperiment("Files/brains/genepool");
 
 		// dofile caused so much trouble D:<
 		thread_script.DoFile("Files/Scripts/goals.lua");
@@ -598,7 +598,7 @@ namespace Test
 		// if your game_start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 
-		SpawnGhostCamera(Vec3(0, 45, 0));
+		//SpawnGhostCamera(Vec3(0, 45, 0));
 
 		thread_script.Dispose();
 

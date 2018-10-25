@@ -337,7 +337,7 @@
       <OpenMPSupport>
       </OpenMPSupport>
       <UndefinePreprocessorDefinitions>_DEBUG</UndefinePreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
     </ClCompile>
     <Lib>

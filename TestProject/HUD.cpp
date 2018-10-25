@@ -450,7 +450,7 @@ namespace Test
 
 	void HUD::Draw(float w, float h)
 	{
-		if(disable_all || player == nullptr)
+		if(disable_all)
 			return;
 
 		glColor4f(1.0, 1.0, 1.0, 1.0);
@@ -465,7 +465,7 @@ namespace Test
 		glEnable(GL_TEXTURE_2D);
 
 		// Drawing the reticle
-		if(player->alive)
+		if(player != nullptr && player->alive)
 		{
 			glBindTexture(GL_TEXTURE_2D, reticle_tex->GetGLName());
 			glBegin(GL_QUADS);

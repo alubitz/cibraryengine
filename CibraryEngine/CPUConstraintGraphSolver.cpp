@@ -22,12 +22,12 @@ namespace CibraryEngine
 	 */
 	void CPUConstraintGraphSolver::Solve(float timestep, unsigned int iterations, vector<PhysicsConstraint*>& constraints)
 	{
-		// TODO: remove this hack!
-		for(unsigned int i = 0; i < iterations; ++i)
-			for(unsigned int j = 0; j < constraints.size(); ++j)
-				constraints[j]->DoConstraintAction();
-
-		return;
+		//// TODO: remove this hack!
+		//for(unsigned int i = 0; i < iterations; ++i)
+		//	for(unsigned int j = 0; j < constraints.size(); ++j)
+		//		constraints[j]->DoConstraintAction();
+		//
+		//return;
 
 
 		// collect batches containing no adjacent edges

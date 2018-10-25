@@ -32,52 +32,30 @@ namespace Test
 		bool operator <(const GATrialToken& other) const { return candidate < other.candidate || candidate == other.candidate && (subtest < other.subtest || subtest == other.subtest && trial < other.trial); }
 	};
 
-	struct GPOp;
-
-	struct GPOperand
-	{
-		unsigned char src;			// 0 integer constant, 1 node strict inputs, 2 node scratch memory, 3 node old persistent memory, 4 parent scratch memory, 5 sum of children's scratch memory, 6 brain connection, 7 float constants table
-		unsigned char index;
-
-		GPOperand() : src(0), index(0) { }
-		GPOperand(unsigned char src, unsigned char index) : src(src), index(index) { }
-
-		void Randomize(bool brain, unsigned int my_index, const vector<GPOp>& ops);
-
-		bool SourceIsScratch() const { return src == 2 || src == 4 || src ==  5 || src == 6; }
-
-		string SourceToString() const;
-	};
-
 	struct GPOp
 	{
-		bool brain;					// if true, applies to brain node; else applies to all rigid body nodes
-		unsigned char opcode;		// +, -, *, /, tanh (fixes nan/inf), average, compare (fixes nan/inf), sqrt, square, pow
-		unsigned char dst_class;	// 0 scratch memory, 1 persistent memory, 2 strict output
-		unsigned char dst_index;
-		GPOperand arg1;
-		GPOperand arg2;				// depending on the opcode, may be unused
+		vector<float> input_weights;
+		vector<float> mem_weights;
+		vector<float> scratch_weights;
+		vector<float> parent_weights;
+		vector<float> child_weights;
 
-		GPOp() : brain(false), opcode(0), dst_class(0), dst_index(0), arg1(), arg2() { }
+		GPOp() : input_weights(), scratch_weights(), parent_weights(), child_weights() { }
 
-		void Randomize(unsigned int my_index, const vector<GPOp>& ops);
+		unsigned int Write(ostream& s);
+		unsigned int Read(istream& s);
 
-		static bool IsUnary(unsigned char opcode) { return opcode == 4 || opcode  == 7 || opcode == 8; }
-
-		string ToString() const;
 	};
 
 	struct GACandidate
 	{
 		unsigned int id, p1, p2;
 
-		unsigned short mutations[12];
+		unsigned short mutations[1];
 
-		float constants[64];
-		vector<GPOp> ops;
-
-		bool compiled_flag;
-		vector<GPOp> compiled;
+		vector<GPOp> scratch_ops;
+		vector<GPOp> output_ops;
+		vector<GPOp> mem_ops;
 
 		float score;
 		vector<float> score_parts;
@@ -93,19 +71,16 @@ namespace Test
 		~GACandidate();
 
 		void Randomize(unsigned int count, float scale);
+		static vector<GPOp> Crossover(const vector<GPOp>& a, const vector<GPOp>& b);
+		static vector<float> Crossover(const vector<float>& a, const vector<float>& b);
 		static float Crossover(float a, float b);
-		void Compile();
-		void GetLastOutputs(const vector<GPOp>& ops, vector<unsigned int>& last_outputs) const;
-		bool RemoveUnreferencedScratchSteps(const vector<GPOp>& ops_in, vector<GPOp>& ops_out, const vector<unsigned int>& last_outputs) const;
+
+		void Resize();
 
 		string GetText() const;
 
 		unsigned int Write(ostream& s);
 		static unsigned int Read(istream& s, GACandidate*& result, unsigned int id);
-
-		static string CompiledToString(unsigned int id, const vector<GPOp>& ops);
-
-		static unsigned int GetInputCoverage(const vector<GPOp>& ops);
 	};
 
 	class GAExperiment
