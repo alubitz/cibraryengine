@@ -431,18 +431,9 @@ namespace CibraryEngine
 	 */
 	ProgramWindow* ProgramWindow::CreateProgramWindow(const string& title, int w, int h, int bpp, bool fullscreen)
 	{
-		try
-		{
-			HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-			if(hr != S_OK)
-			{
-				DEBUG();
-			}
-		}
-		catch (...)
-		{
-			DEBUG();
-		}
+		//HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+		//if(hr != S_OK)
+		//	DEBUG();
 
 		GLuint		pixel_format;
 		WNDCLASS	window_class;
