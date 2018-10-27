@@ -65,8 +65,8 @@ namespace Test
 
 			virtual void DoInitialPose();			// called by ::Spawned; use this to set orientations of the posey bones
 
-			virtual void InitBoneHelpers()    { all_bones.clear(); }
-			virtual void InitJointHelpers()   { all_joints.clear(); }			// also responsible for setting joint torque limits!
+			virtual void InitBoneHelpers()    { }
+			virtual void InitJointHelpers()   { }	// also responsible for setting joint torque limits!
 			virtual void InitJetpackNozzles() { jetpack_nozzles.clear(); }
 
 		public:
@@ -159,9 +159,11 @@ namespace Test
 			bool GetAmmoCount(int& result);
 
 			virtual void RegisterFeet() { }					// use this to create (custom?) FootState instances and add them to feet
-			void RegisterBone(CBone& bone);
-			void RegisterJoint(CJoint& joint);
-			void RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force);
+			CBone* GetBone(const string& name) const;
+			CJoint* GetJoint(const string& child_name) const;
+			CJoint* GetJointOverrideTorques(const string& child_name, float torque) const { return GetJointOverrideTorques(child_name, torque, torque, torque); }
+			CJoint* GetJointOverrideTorques(const string& child_name, float tx, float ty, float tz) const;
+			void RegisterSymmetricJetpackNozzles(CBone* lbone, CBone* rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force);
 
 			virtual bool GetRBScriptingName(RigidBody* rb, string& name) { return false; }
 			virtual Vec3 GetDesiredJetpackAccel() { return Vec3(); }

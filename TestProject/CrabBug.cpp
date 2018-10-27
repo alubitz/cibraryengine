@@ -116,8 +116,8 @@ namespace Test
 
 	struct CrabLeg
 	{
-		CBone bones[3];
-		CJoint joints[3];
+		CBone* bones[3];
+		CJoint* joints[3];
 	};
 
 	/*
@@ -137,8 +137,8 @@ namespace Test
 
 		Vec3 initial_pos;
 
-		CBone carapace, head, tail;
-		CJoint neck, tailj;
+		CBone *carapace, *head, *tail;
+		CJoint *neck, *tailj;
 
 		CrabLeg llegs[3];
 		CrabLeg rlegs[3];
@@ -274,7 +274,7 @@ namespace Test
 
 			if(experiment != nullptr && ga_token.candidate != nullptr && !ga_token.candidate->aborting)
 			{
-				Vec3 carapace_com = carapace.rb->GetPosition() + carapace.rb->GetOrientation() * carapace.rb->GetLocalCoM();
+				Vec3 carapace_com = carapace->rb->GetPosition() + carapace->rb->GetOrientation() * carapace->rb->GetLocalCoM();
 
 				// organize the articulated axes a bit more conveniently
 				struct ArticulatedAxis
@@ -306,7 +306,7 @@ namespace Test
 					for(unsigned int j = 0; j < 3; ++j)
 					{
 						CrabLeg& leg = side[j];
-						Vec3& desired_torque = leg.bones[2].desired_torque;
+						Vec3& desired_torque = leg.bones[2]->desired_torque;
 						if(tick_age != 0)
 						{
 							Dood::FootState* fs = dood->feet[j * 2 + i];
@@ -320,12 +320,12 @@ namespace Test
 						desired_torque.y *= foot_absorbs[1];
 						desired_torque.z *= foot_absorbs[2];
 
-						leg.joints[2].SetTorqueToSatisfyB();
-						leg.bones[1].desired_torque += leg.bones[2].desired_torque - leg.bones[2].applied_torque;
-						leg.bones[2].desired_torque = leg.bones[2].applied_torque;
-						leg.joints[1].SetTorqueToSatisfyB();
-						leg.bones[0].desired_torque += leg.bones[1].desired_torque - leg.bones[1].applied_torque;
-						leg.bones[1].applied_torque = leg.bones[1].applied_torque;
+						leg.joints[2]->SetTorqueToSatisfyB();
+						leg.bones[1]->desired_torque += leg.bones[2]->desired_torque - leg.bones[2]->applied_torque;
+						leg.bones[2]->desired_torque = leg.bones[2]->applied_torque;
+						leg.joints[1]->SetTorqueToSatisfyB();
+						leg.bones[0]->desired_torque += leg.bones[1]->desired_torque - leg.bones[1]->applied_torque;
+						leg.bones[1]->applied_torque = leg.bones[1]->applied_torque;
 					}
 				}
 
@@ -347,26 +347,26 @@ namespace Test
 					float* row = J[i];
 
 					ArticulatedAxis aa = articulated_axes[i];
-					const CJoint& joint = *aa.j;
+					const CJoint* joint = aa.j;
 					Vec3 axis;
-					memcpy(&axis, joint.oriented_axes.values + aa.axis * 3, 3 * sizeof(float));
+					memcpy(&axis, joint->oriented_axes.values + aa.axis * 3, 3 * sizeof(float));
 
 					// compute direct effects of a torque on this axis on the adjacent bones
 					for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
-						if(dood->all_bones[j] == joint.a)
+						if(dood->all_bones[j] == joint->a)
 						{
 							memcpy(row + j * 3, &axis,  3 * sizeof(float));
 							break;
 						}
 
 					Vec3 naxis = -axis;
-					if(joint.a == &carapace && &joint != &neck && &joint != &tailj)		// is it a hip joint?  if so we also affect the other leg bones
+					if(joint->a == carapace && joint != neck && joint != tailj)		// is it a hip joint?  if so we also affect the other leg bones
 					{
-						CrabLeg* side_legs = joint.b->name[0] == 'l' ? llegs : rlegs;
+						CrabLeg* side_legs = joint->b->name[0] == 'l' ? llegs : rlegs;
 						CrabLeg* leg = nullptr;
 						float* fixed_xfrac = nullptr;
 						for(unsigned int j = 0; j < 3; ++j)
-							if(&side_legs[j].bones[0] == joint.b)
+							if(side_legs[j].bones[0] == joint->b)
 							{
 								leg = &side_legs[j];
 								fixed_xfrac = ga_token.candidate->leg_fixed_xfrac + j * 2;
@@ -377,11 +377,11 @@ namespace Test
 						unsigned int bone_indices[3];
 						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
 							for(unsigned int k = 0; k < 3; ++k)
-								if(dood->all_bones[j] == &leg->bones[k])
+								if(dood->all_bones[j] == leg->bones[k])
 									bone_indices[k] = j;
 						assert(bone_indices[0] != 0 && bone_indices[1] != 0 && bone_indices[2] != 0);
 
-						Vec3 leg_axis = Vec3::Normalize((leg->joints[1].oriented_axes + leg->joints[2].oriented_axes) * Vec3(1, 0, 0));
+						Vec3 leg_axis = Vec3::Normalize((leg->joints[1]->oriented_axes + leg->joints[2]->oriented_axes) * Vec3(1, 0, 0));
 						Vec3 unsupported = naxis - leg_axis * Vec3::Dot(leg_axis, naxis);
 						Vec3 uaxis = unsupported * fixed_xfrac[0];
 						Vec3 vaxis = unsupported * fixed_xfrac[1];
@@ -400,16 +400,16 @@ namespace Test
 					}
 					else
 					{
-						if(joint.b->name.size() == 9 && joint.b->name[8] == '3')	// feet get special treatment
+						if(joint->b->name.size() == 9 && joint->b->name[8] == '3')	// feet get special treatment
 						{
-							unsigned int leg_index = joint.b->name[6] - 'a';
+							unsigned int leg_index = joint->b->name[6] - 'a';
 							naxis.x *= ga_token.candidate->foot_t_absorbed[leg_index * 3];
 							naxis.y *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 1];
 							naxis.z *= ga_token.candidate->foot_t_absorbed[leg_index * 3 + 2];
 						}
 
 						for(unsigned int j = 0; j < dood->all_bones.size(); ++j)
-							if(dood->all_bones[j] == joint.b)
+							if(dood->all_bones[j] == joint->b)
 							{
 								memcpy(row + j * 3, &naxis, 3 * sizeof(float));
 								break;
@@ -423,8 +423,8 @@ namespace Test
 
 
 
-					min_torques[i] = ((float*)&joint.sjc->min_torque)[aa.axis];
-					max_torques[i] = ((float*)&joint.sjc->max_torque)[aa.axis];
+					min_torques[i] = ((float*)&joint->sjc->min_torque)[aa.axis];
+					max_torques[i] = ((float*)&joint->sjc->max_torque)[aa.axis];
 
 					assert(min_torques[i] != max_torques[i]);
 				}
@@ -832,11 +832,9 @@ namespace Test
 
 	void CrabBug::InitBoneHelpers()
 	{
-		Dood::InitBoneHelpers();
-
-		RegisterBone( imp->carapace = CBone(this, "carapace") );
-		RegisterBone( imp->head     = CBone(this, "head"    ) );
-		RegisterBone( imp->tail     = CBone(this, "tail"    ) );
+		imp->carapace = GetBone("carapace");
+		imp->head     = GetBone("head");
+		imp->tail     = GetBone("tail");
 
 		static const string sides[2] = { "l", "r" };
 		static const string legs [3] = { "a", "b", "c" };
@@ -847,21 +845,19 @@ namespace Test
 			CrabLeg* legs_array = i == 0 ? imp->llegs : imp->rlegs;
 			for(int j = 0; j < 3; ++j)
 				for(int k = 0; k < 3; ++k)
-					RegisterBone( legs_array[j].bones[k] = CBone(this, ((stringstream&)(stringstream() << sides[i] << " leg " << legs[j] << " " << bones[k])).str()) );
+					legs_array[j].bones[k] = GetBone(((stringstream&)(stringstream() << sides[i] << " leg " << legs[j] << " " << bones[k])).str());
 		}
 	}
 
 	void CrabBug::InitJointHelpers()
 	{
-		Dood::InitJointHelpers();
-
 		float N = 200, T = 150;
 
 		float joint_strengths[3] = { 1400, 1100, 900 };
 		float leg_multipliers[3] = { 0.9f, 1.0f, 0.9f };
 
-		RegisterJoint( imp->neck  = CJoint( this, imp->carapace, imp->head, N ));
-		RegisterJoint( imp->tailj = CJoint( this, imp->carapace, imp->tail, T ));
+		GetJointOverrideTorques("head", N);
+		GetJointOverrideTorques("tail", T);
 
 		for(int i = 0; i < 2; ++i)
 		{
@@ -872,7 +868,7 @@ namespace Test
 					float x = leg_multipliers[j] * joint_strengths[k];
 					float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
 
-					RegisterJoint( legs_array[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : legs_array[j].bones[k - 1], legs_array[j].bones[k], x, yz, yz) ); 
+					GetJointOverrideTorques(legs_array[j].bones[k]->name, x, yz, yz); 
 				}
 		}
 

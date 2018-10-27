@@ -22,8 +22,6 @@ namespace Test
 		Vec3 prev_rvec;
 
 		CJoint() : sjc(NULL), a(NULL), b(NULL) { }
-		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float max_torque) : CJoint(dood, bone_a, bone_b, max_torque, max_torque, max_torque) { }
-		CJoint(const Dood* dood, CBone& bone_a, CBone& bone_b, float x, float y, float z);
 
 		void Reset();					// called in preparation for the physics step callback
 

@@ -24,8 +24,7 @@ namespace Test
 		Vec3 last_vel, last_rot;			// records the most recent vel/rot of this bone, so that when it updates we can compute the force/torque
 		Vec3 net_impulse_linear, net_impulse_angular;	// measurement of the net force/torque this bone experienced during the most recent simulation step
 
-		CBone() { }
-		CBone(const Dood* dood, const string& name);
+		CBone() : rb(nullptr), posey(nullptr) { }
 
 		void Reset(float inv_timestep);		// roll over last_vel and last_rot; compute net impulses; reset desired and applied torques
 

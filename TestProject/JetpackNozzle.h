@@ -24,7 +24,7 @@ namespace Test
 		Vec3 apply_pos;
 		Mat3 force_to_torque;
 
-		JetpackNozzle(CBone& bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force);
+		JetpackNozzle(CBone* bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force);
 
 		void Reset();
 

@@ -8,8 +8,6 @@ namespace Test
 	/*
 	 * CBone methods
 	 */
-	CBone::CBone(const Dood* dood, const string& name) : name(name), rb(dood->RigidBodyForNamedBone(name)), posey(dood->posey->skeleton->GetNamedBone(name)), initial_pos(rb->GetPosition()), initial_ori(rb->GetOrientation()), last_vel(rb->GetLinearVelocity()), last_rot(rb->GetAngularVelocity()), net_impulse_linear(), net_impulse_angular() { }
-
 	void CBone::Reset(float inv_timestep)
 	{
 		Vec3 vel = rb->GetLinearVelocity();

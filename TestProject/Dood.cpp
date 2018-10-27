@@ -550,10 +550,35 @@ namespace Test
 			}
 	}
 
-	void Dood::RegisterBone (CBone& bone)   { all_bones.push_back(&bone); }
-	void Dood::RegisterJoint(CJoint& joint) { all_joints.push_back(&joint); }
+	CBone* Dood::GetBone(const string& name) const
+	{
+		for(unsigned int i = 0; i < all_bones.size(); ++i)
+			if(all_bones[i]->name == name)
+				return all_bones[i];
+		return nullptr;
+	}
 
-	void Dood::RegisterSymmetricJetpackNozzles(CBone& lbone, CBone& rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force)
+	CJoint* Dood::GetJoint(const string& child_name) const
+	{
+		for(unsigned int i = 0; i < all_joints.size(); ++i)
+			if(all_joints[i]->b->name == child_name)
+				return all_joints[i];
+		return nullptr;
+	}
+
+	CJoint* Dood::GetJointOverrideTorques(const string& child_name, float tx, float ty, float tz) const
+	{
+		if(CJoint* result = GetJoint(child_name))
+		{
+			Vec3 torque(tx, ty, tz);
+			result->sjc->min_torque = -torque;
+			result->sjc->max_torque =  torque;
+			return result;
+		}
+		return nullptr;
+	}
+
+	void Dood::RegisterSymmetricJetpackNozzles(CBone* lbone, CBone* rbone, const Vec3& lpos, const Vec3& lnorm, float angle, float force)
 	{
 		jetpack_nozzles.push_back(JetpackNozzle(lbone, lpos,                          lnorm,                            angle, force));
 		jetpack_nozzles.push_back(JetpackNozzle(rbone, Vec3(-lpos.x, lpos.y, lpos.z), Vec3(-lnorm.x, lnorm.y, lnorm.z), angle, force));
@@ -623,6 +648,14 @@ namespace Test
 
 				if(bone_name == Bone::string_table["carapace"] || bone_name == Bone::string_table["pelvis"])
 					root_rigid_body = rigid_body;
+
+				CBone* cbone = new CBone();
+				cbone->name = phys.bone_name;
+				cbone->rb = rigid_body;
+				cbone->posey = posey_bone;
+				cbone->initial_pos = bone_pos;
+				cbone->initial_ori = bone_ori;
+				all_bones.push_back(cbone);
 			}
 		}
 
@@ -650,6 +683,15 @@ namespace Test
 
 				constraints.push_back(c);
 				physics->AddConstraint(c);
+
+				CJoint* cjoint = new CJoint();
+				cjoint->sjc = c;
+				for(unsigned int i = 0; i < all_bones.size(); ++i)
+					if(all_bones[i]->rb == bone_a)
+						cjoint->b = all_bones[i];		// yeah it's backwards
+					else if(all_bones[i]->rb == bone_b)
+						cjoint->a = all_bones[i];
+				all_joints.push_back(cjoint);
 			}
 		}
 
@@ -691,6 +733,15 @@ namespace Test
 			equipped_weapon->UnEquip(this);
 		if(intrinsic_weapon)
 			intrinsic_weapon->is_valid = false;
+
+		// clear CBones and CJoints
+		for(unsigned int i = 0; i < all_joints.size(); ++i)
+			delete all_joints[i];
+		all_joints.clear();
+
+		for(unsigned int i = 0; i < all_bones.size(); ++i)
+			delete all_bones[i];
+		all_bones.clear();
 
 		// clear constraints
 		for(unsigned int i = 0; i < constraints.size(); ++i)

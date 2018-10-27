@@ -98,19 +98,19 @@ namespace Test
 		bool clean_init;
 		bool experiment_done;
 
-		CBone pelvis,    torso1, torso2, head;
-		CBone lshoulder, luarm,  llarm,  lhand;
-		CBone rshoulder, ruarm,  rlarm,  rhand;
-		CBone luleg,     llleg,  lheel,  ltoe;
-		CBone ruleg,     rlleg,  rheel,  rtoe;
+		CBone *pelvis,    *torso1, *torso2, *head;
+		CBone *lshoulder, *luarm,  *llarm,  *lhand;
+		CBone *rshoulder, *ruarm,  *rlarm,  *rhand;
+		CBone *luleg,     *llleg,  *lheel,  *ltoe;
+		CBone *ruleg,     *rlleg,  *rheel,  *rtoe;
 
 		RigidBody* gun_rb;
 
-		CJoint spine1, spine2, neck;
-		CJoint lsja,   lsjb,   lelbow, lwrist;
-		CJoint rsja,   rsjb,   relbow, rwrist;
-		CJoint lhip,   lknee,  lankle, lht;
-		CJoint rhip,   rknee,  rankle, rht;
+		CJoint *spine1, *spine2, *neck;
+		CJoint *lsja,   *lsjb,   *lelbow, *lwrist;
+		CJoint *rsja,   *rsjb,   *relbow, *rwrist;
+		CJoint *lhip,   *lknee,  *lankle, *lht;
+		CJoint *rhip,   *rknee,  *rankle, *rht;
 
 		float timestep, inv_timestep;
 
@@ -141,7 +141,7 @@ namespace Test
 			// some misc. initialization
 			no_touchy.dood = dood;
 			for(set<RigidBody*>::iterator iter = dood->velocity_change_bodies.begin(); iter != dood->velocity_change_bodies.end(); ++iter)
-				if(*iter != lheel.rb && *iter != rheel.rb && *iter != ltoe.rb && *iter != rtoe.rb)
+				if(*iter != lheel->rb && *iter != rheel->rb && *iter != ltoe->rb && *iter != rtoe->rb)
 					(*iter)->SetContactCallback(&no_touchy);
 
 			foot_touchy.dood = dood;
@@ -236,8 +236,8 @@ namespace Test
 		{
 			Quaternion desired_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 
-			head.ComputeDesiredTorqueWithDefaultMoI(desired_ori, inv_timestep);
-			neck.SetTorqueToSatisfyB();
+			head->ComputeDesiredTorqueWithDefaultMoI(desired_ori, inv_timestep);
+			neck->SetTorqueToSatisfyB();
 		}
 
 		void DoArmsAimingGun(Soldier* dood, const TimingInfo& time, const Quaternion& t2ori)
@@ -245,24 +245,24 @@ namespace Test
 			if(Gun* gun = dynamic_cast<Gun*>(dood->equipped_weapon))
 			{
 				// compute desired per-bone net torques
-				MassInfo hng_mass_infos[] = { lhand.rb->GetTransformedMassInfo(), rhand.rb->GetTransformedMassInfo(), gun->rigid_body->GetTransformedMassInfo() };
+				MassInfo hng_mass_infos[] = { lhand->rb->GetTransformedMassInfo(), rhand->rb->GetTransformedMassInfo(), gun->rigid_body->GetTransformedMassInfo() };
 				Mat3 hng_moi = Mat3(MassInfo::Sum(hng_mass_infos, 3).moi);
 
 				//dood->PreparePAG(time, t2ori);
 
-				//lhand    .ComputeDesiredTorqueWithPosey( hng_moi,     inv_timestep );
-				llarm    .ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
-				luarm    .ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
-				lshoulder.ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				//lhand    ->ComputeDesiredTorqueWithPosey( hng_moi,     inv_timestep );
+				llarm    ->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				luarm    ->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				lshoulder->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
 
-				//rhand    .ComputeDesiredTorqueWithPosey( hng_moi,     inv_timestep );
-				rlarm    .ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
-				ruarm    .ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
-				rshoulder.ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				//rhand    ->ComputeDesiredTorqueWithPosey( hng_moi,     inv_timestep );
+				rlarm    ->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				ruarm    ->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
+				rshoulder->ComputeDesiredTorqueWithDefaultMoIAndPosey( inv_timestep );
 
 				set<RigidBody*> hng_set;
-				hng_set.insert(lhand.rb);
-				hng_set.insert(rhand.rb);
+				hng_set.insert(lhand->rb);
+				hng_set.insert(rhand->rb);
 				hng_set.insert(gun->rigid_body);
 				float hng_mass;
 				Vec3 hng_com;
@@ -276,17 +276,17 @@ namespace Test
 				Vec3 gun_undo = hng_moi * -desired_gun_aaccel;
 
 				// compute applied joint torques to achieve the per-bone applied torques we just came up with
-				lwrist.SetWorldTorque(gun_undo * 0.25f);
-				rwrist.SetWorldTorque(gun_undo - lwrist.actual);
-				lwrist.SetWorldTorque(gun_undo - rwrist.actual);
+				lwrist->SetWorldTorque(gun_undo * 0.25f);
+				rwrist->SetWorldTorque(gun_undo - lwrist->actual);
+				lwrist->SetWorldTorque(gun_undo - rwrist->actual);
 				
-				lelbow.SetTorqueToSatisfyB();
-				lsjb  .SetTorqueToSatisfyB();
-				lsja  .SetTorqueToSatisfyB();
+				lelbow->SetTorqueToSatisfyB();
+				lsjb  ->SetTorqueToSatisfyB();
+				lsja  ->SetTorqueToSatisfyB();
 
-				relbow.SetTorqueToSatisfyB();
-				rsjb  .SetTorqueToSatisfyB();
-				rsja  .SetTorqueToSatisfyB();
+				relbow->SetTorqueToSatisfyB();
+				rsjb  ->SetTorqueToSatisfyB();
+				rsja  ->SetTorqueToSatisfyB();
 			}
 		}
 
@@ -421,20 +421,20 @@ namespace Test
 
 			Quaternion desired_head_ori = Quaternion::FromRVec(0, -dood->yaw, 0) * Quaternion::FromRVec(dood->pitch, 0, 0);
 
-			pelvis.posey->ori = Quaternion::FromRVec(0, -dood->yaw, 0) * p;
-			torso1.posey->ori = t1 * Quaternion::Reverse(p);
-			torso2.posey->ori = t2 * Quaternion::Reverse(t1);
-			head  .posey->ori = desired_head_ori * Quaternion::Reverse(t2);
+			pelvis->posey->ori = Quaternion::FromRVec(0, -dood->yaw, 0) * p;
+			torso1->posey->ori = t1 * Quaternion::Reverse(p);
+			torso2->posey->ori = t2 * Quaternion::Reverse(t1);
+			head  ->posey->ori = desired_head_ori * Quaternion::Reverse(t2);
 
-			torso2.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
-			torso1.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
-			pelvis.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			torso2->ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			torso1->ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
+			pelvis->ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
 
-			neck.SetTorqueToSatisfyB();
-			spine2.SetTorqueToSatisfyB();
-			spine1.SetTorqueToSatisfyB();
+			neck  ->SetTorqueToSatisfyB();
+			spine2->SetTorqueToSatisfyB();
+			spine1->SetTorqueToSatisfyB();
 
-			//pelvis.rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
+			//pelvis->rb->SetOrientation(Quaternion::FromRVec(0, -dood->yaw, 0) * p);			// cheat
 
 			dood->DoScriptedMotorControl("Files/Scripts/soldier_motor_control.lua");
 
@@ -765,55 +765,51 @@ namespace Test
 
 	void Soldier::InitBoneHelpers()
 	{
-		Dood::InitBoneHelpers();
-
-		RegisterBone( imp->pelvis    = CBone( this, "pelvis"     ));
-		RegisterBone( imp->torso1    = CBone( this, "torso 1"    ));
-		RegisterBone( imp->torso2    = CBone( this, "torso 2"    ));
-		RegisterBone( imp->head      = CBone( this, "head"       ));
-		RegisterBone( imp->lshoulder = CBone( this, "l shoulder" ));
-		RegisterBone( imp->luarm     = CBone( this, "l arm 1"    ));
-		RegisterBone( imp->llarm     = CBone( this, "l arm 2"    ));
-		RegisterBone( imp->lhand     = CBone( this, "l hand"     ));
-		RegisterBone( imp->rshoulder = CBone( this, "r shoulder" ));
-		RegisterBone( imp->ruarm     = CBone( this, "r arm 1"    ));
-		RegisterBone( imp->rlarm     = CBone( this, "r arm 2"    ));
-		RegisterBone( imp->rhand     = CBone( this, "r hand"     ));
-		RegisterBone( imp->luleg     = CBone( this, "l leg 1"    ));
-		RegisterBone( imp->llleg     = CBone( this, "l leg 2"    ));
-		RegisterBone( imp->lheel     = CBone( this, "l heel"     ));
-		RegisterBone( imp->ltoe      = CBone( this, "l toe"      ));
-		RegisterBone( imp->ruleg     = CBone( this, "r leg 1"    ));
-		RegisterBone( imp->rlleg     = CBone( this, "r leg 2"    ));
-		RegisterBone( imp->rheel     = CBone( this, "r heel"     ));
-		RegisterBone( imp->rtoe      = CBone( this, "r toe"      ));
+		imp->pelvis    = GetBone(  "pelvis"     );
+		imp->torso1    = GetBone(  "torso 1"    );
+		imp->torso2    = GetBone(  "torso 2"    );
+		imp->head      = GetBone(  "head"       );
+		imp->lshoulder = GetBone(  "l shoulder" );
+		imp->luarm     = GetBone(  "l arm 1"    );
+		imp->llarm     = GetBone(  "l arm 2"    );
+		imp->lhand     = GetBone(  "l hand"     );
+		imp->rshoulder = GetBone(  "r shoulder" );
+		imp->ruarm     = GetBone(  "r arm 1"    );
+		imp->rlarm     = GetBone(  "r arm 2"    );
+		imp->rhand     = GetBone(  "r hand"     );
+		imp->luleg     = GetBone(  "l leg 1"    );
+		imp->llleg     = GetBone(  "l leg 2"    );
+		imp->lheel     = GetBone(  "l heel"     );
+		imp->ltoe      = GetBone(  "l toe"      );
+		imp->ruleg     = GetBone(  "r leg 1"    );
+		imp->rlleg     = GetBone(  "r leg 2"    );
+		imp->rheel     = GetBone(  "r heel"     );
+		imp->rtoe      = GetBone(  "r toe"      );
 	}
 
 	void Soldier::InitJointHelpers()
 	{
-		Dood::InitJointHelpers();
-
 		float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
 
-		RegisterJoint( imp->spine1 = CJoint( this, imp->pelvis,    imp->torso1,    SP      ));
-		RegisterJoint( imp->spine2 = CJoint( this, imp->torso1,    imp->torso2,    SP      ));
-		RegisterJoint( imp->neck   = CJoint( this, imp->torso2,    imp->head,      N       ));
-		RegisterJoint( imp->lsja   = CJoint( this, imp->torso2,    imp->lshoulder, SA      ));
-		RegisterJoint( imp->lsjb   = CJoint( this, imp->lshoulder, imp->luarm,     SB      ));
-		RegisterJoint( imp->lelbow = CJoint( this, imp->luarm,     imp->llarm,     E       ));
-		RegisterJoint( imp->lwrist = CJoint( this, imp->llarm,     imp->lhand,     W       ));
-		RegisterJoint( imp->rsja   = CJoint( this, imp->torso2,    imp->rshoulder, SA      ));
-		RegisterJoint( imp->rsjb   = CJoint( this, imp->rshoulder, imp->ruarm,     SB      ));
-		RegisterJoint( imp->relbow = CJoint( this, imp->ruarm,     imp->rlarm,     E       ));
-		RegisterJoint( imp->rwrist = CJoint( this, imp->rlarm,     imp->rhand,     W       ));
-		RegisterJoint( imp->lhip   = CJoint( this, imp->pelvis,    imp->luleg,     H       ));
-		RegisterJoint( imp->lknee  = CJoint( this, imp->luleg,     imp->llleg,     K, 0, 0 ));		// knees only torque on one axis
-		RegisterJoint( imp->lankle = CJoint( this, imp->llleg,     imp->lheel,     A       ));
-		RegisterJoint( imp->lht    = CJoint( this, imp->lheel,     imp->ltoe,      HT      ));
-		RegisterJoint( imp->rhip   = CJoint( this, imp->pelvis,    imp->ruleg,     H       ));
-		RegisterJoint( imp->rknee  = CJoint( this, imp->ruleg,     imp->rlleg,     K, 0, 0 ));
-		RegisterJoint( imp->rankle = CJoint( this, imp->rlleg,     imp->rheel,     A       ));
-		RegisterJoint( imp->rht    = CJoint( this, imp->rheel,     imp->rtoe,      HT      ));
+		imp->spine1 = GetJointOverrideTorques( imp->torso1   ->name, SP      );
+		imp->spine2 = GetJointOverrideTorques( imp->torso2   ->name, SP      );
+		imp->neck   = GetJointOverrideTorques( imp->head     ->name, N       );
+		imp->lsja   = GetJointOverrideTorques( imp->lshoulder->name, SA      );
+		imp->lsjb   = GetJointOverrideTorques( imp->luarm    ->name, SB      );
+		imp->lelbow = GetJointOverrideTorques( imp->llarm    ->name, E       );
+		imp->lwrist = GetJointOverrideTorques( imp->lhand    ->name, W       );
+		imp->rsja   = GetJointOverrideTorques( imp->rshoulder->name, SA      );
+		imp->rsjb   = GetJointOverrideTorques( imp->ruarm    ->name, SB      );
+		imp->relbow = GetJointOverrideTorques( imp->rlarm    ->name, E       );
+		imp->rwrist = GetJointOverrideTorques( imp->rhand    ->name, W       );
+		imp->lhip   = GetJointOverrideTorques( imp->luleg    ->name, H       );
+		imp->lknee  = GetJointOverrideTorques( imp->llleg    ->name, K, 0, 0 );		// knees only torque on one axis
+		imp->lankle = GetJointOverrideTorques( imp->lheel    ->name, A       );
+		imp->lht    = GetJointOverrideTorques( imp->ltoe     ->name, HT      );
+		imp->rhip   = GetJointOverrideTorques( imp->ruleg    ->name, H       );
+		imp->rknee  = GetJointOverrideTorques( imp->rlleg    ->name, K, 0, 0 );
+		imp->rankle = GetJointOverrideTorques( imp->rheel    ->name, A       );
+		imp->rht    = GetJointOverrideTorques( imp->rtoe     ->name, HT      );
 	}
 
 	void Soldier::InitJetpackNozzles()

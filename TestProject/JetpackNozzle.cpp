@@ -8,7 +8,7 @@ namespace Test
 	/*
 	 * JetpackNozzle methods
 	 */
-	JetpackNozzle::JetpackNozzle(CBone& bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force) : bone(&bone), pos(pos), cone_center(cone_center), cone_cossq(cosf(cone_angle)), max_force(max_force), max_forcesq(max_force * max_force) { cone_cossq *= cone_cossq; }
+	JetpackNozzle::JetpackNozzle(CBone* bone, const Vec3& pos, const Vec3& cone_center, float cone_angle, float max_force) : bone(bone), pos(pos), cone_center(cone_center), cone_cossq(cosf(cone_angle)), max_force(max_force), max_forcesq(max_force * max_force) { cone_cossq *= cone_cossq; }
 
 	void JetpackNozzle::Reset() { world_force = Vec3(); }
 

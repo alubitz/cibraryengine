@@ -19,8 +19,8 @@ namespace Test
 
 	struct TripodLeg
 	{
-		CBone bones[2];
-		CJoint joints[2];
+		CBone* bones[2];
+		CJoint* joints[2];
 	};
 
 	/*
@@ -40,7 +40,7 @@ namespace Test
 
 		Vec3 initial_pos;
 
-		CBone carapace;
+		CBone* carapace;
 		TripodLeg legs[3];
 
 		vector<Vec3> initial_ee;
@@ -338,22 +338,18 @@ namespace Test
 
 	void Tripod::InitBoneHelpers()
 	{
-		Dood::InitBoneHelpers();
-
-		RegisterBone( imp->carapace = CBone(this, "carapace") );
+		imp->carapace = GetBone("carapace");
 
 		static const string legs [3] = { "a", "b", "c" };
 		static const string bones[3] = { "1", "2", "3" };
 
 		for(int j = 0; j < 3; ++j)
 			for(int k = 0; k < 2; ++k)
-				RegisterBone( imp->legs[j].bones[k] = CBone(this, ((stringstream&)(stringstream() << "leg " << legs[j] << ' ' << bones[k])).str()) );
+				imp->legs[j].bones[k] = GetBone(((stringstream&)(stringstream() << "leg " << legs[j] << ' ' << bones[k])).str());
 	}
 
 	void Tripod::InitJointHelpers()
 	{
-		Dood::InitJointHelpers();
-
 		float joint_strengths[3] = { 1400, 1100, 900 };
 
 		for(int j = 0; j < 3; ++j)
@@ -362,11 +358,11 @@ namespace Test
 				float x = joint_strengths[k];
 				float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
 
-				RegisterJoint( imp->legs[j].joints[k] = CJoint( this, k == 0 ? imp->carapace : imp->legs[j].bones[k - 1], imp->legs[j].bones[k], x, yz, yz) ); 
+				imp->legs[j].joints[k] = GetJointOverrideTorques(imp->legs[j].bones[k]->name, x, yz, yz);
 			}
 
-		imp->legs[1].joints[1].sjc->enable_motor = true;
-		imp->legs[2].joints[1].sjc->enable_motor = true;
+		imp->legs[1].joints[1]->sjc->enable_motor = true;
+		imp->legs[2].joints[1]->sjc->enable_motor = true;
 
 		//for(unsigned int i = 0; i < all_joints.size(); ++i)
 		//	all_joints[i]->sjc->enable_motor = true;
