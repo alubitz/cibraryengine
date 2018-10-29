@@ -30,7 +30,7 @@ namespace CibraryEngine
 
 
 	/*
-	 * ModelPhysics::JointPhysics method
+	 * ModelPhysics::JointPhysics methods
 	 */
 	void ModelPhysics::JointPhysics::ClampAngles(Vec3& ori) const
 	{
@@ -152,6 +152,7 @@ namespace CibraryEngine
 		indexer.SetHandler("BONE____", &bonechunk);
 		indexer.SetHandler("SKEL____", &skelchunk);
 		indexer.SetHandler("JOINT___", &jointchunk);
+		indexer.SetHandler("JOINT2__", &jointchunk);
 
 		indexer.HandleChunk(whole);
 		file.close();
@@ -171,6 +172,11 @@ namespace CibraryEngine
 			joint.axes = ReadMat3(ss);
 			joint.min_extents = ReadVec3(ss);
 			joint.max_extents = ReadVec3(ss);
+			if(joint_chunk.GetName() == "JOINT2__")
+			{
+				joint.min_torque = ReadVec3(ss);
+				joint.max_torque = ReadVec3(ss);
+			}
 			joint.angular_damp = ReadVec3(ss);
 
 			temp->joints.push_back(joint);
@@ -214,7 +220,7 @@ namespace CibraryEngine
 		{
 			for(vector<ModelPhysics::JointPhysics>::iterator iter = phys->joints.begin(); iter != phys->joints.end(); ++iter)
 			{
-				BinaryChunk joint_chunk("JOINT___");
+				BinaryChunk joint_chunk("JOINT2__");
 				stringstream joint_ss;
 
 				ModelPhysics::JointPhysics& joint = *iter;
@@ -226,6 +232,8 @@ namespace CibraryEngine
 				WriteMat3(joint.axes, joint_ss);
 				WriteVec3(joint.min_extents, joint_ss);
 				WriteVec3(joint.max_extents, joint_ss);
+				WriteVec3(joint.min_torque, joint_ss);
+				WriteVec3(joint.max_torque, joint_ss);
 				WriteVec3(joint.angular_damp, joint_ss);
 
 				joint_chunk.data = joint_ss.str();
@@ -504,6 +512,24 @@ namespace CibraryEngine
 					{
 						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
 						joint.max_extents = *vec;
+					}
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "min_torque");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+						joint.min_torque = *vec;
+					}
+					lua_pop(L, 1);
+
+					lua_pushstring(L, "max_torque");
+					lua_gettable(L, -2);
+					if(lua_isuserdata(L, -1))
+					{
+						Vec3* vec = (Vec3*)lua_touserdata(L, -1);
+						joint.max_torque = *vec;
 					}
 					lua_pop(L, 1);
 

@@ -680,6 +680,8 @@ namespace Test
 				bone_a->SetCollisionEnabled(bone_b, false);			// disable collisions between these two bones
 
 				SkeletalJointConstraint* c = new SkeletalJointConstraint(bone_b, bone_a, phys.pos, phys.axes, phys.min_extents, phys.max_extents);
+				c->min_torque = phys.min_torque;
+				c->max_torque = phys.max_torque;
 
 				constraints.push_back(c);
 				physics->AddConstraint(c);

@@ -26,8 +26,8 @@ P.add_symmetric_bones = function(add_to, name, mass, left_shape)
 	return left_result, right_result
 end
 
-P.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes, min_extents, max_extents)
-	local joint = { name = name, pos = pos, axes = axes, min_extents = min_extents, max_extents = max_extents }
+P.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes, min_extents, max_extents, min_torque, max_torque)
+	local joint = { name = name, pos = pos, axes = axes, min_extents = min_extents, max_extents = max_extents, min_torque = min_torque, max_torque = max_torque }
 	for i, bone in ipairs(bones_list) do
 		if bone.name == parent then
 			joint.bone_b = i
@@ -40,10 +40,10 @@ P.add_single_joint = function(add_to, bones_list, parent, child, pos, name, axes
 	return joint
 end
 
-P.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, name, left_axes, min_extents, max_extents)
+P.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, name, left_axes, min_extents, max_extents, min_torque, max_torque)
 
-	local left_joint = { pos = left_pos, min_extents = min_extents, max_extents = max_extents }
-	local right_joint = { pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z), min_extents = min_extents, max_extents = max_extents }
+	local left_joint = { pos = left_pos, min_extents = min_extents, max_extents = max_extents, min_torque = min_torque, max_torque = max_torque }
+	local right_joint = { pos = ba.createVector(-left_pos.x, left_pos.y, left_pos.z), min_extents = min_extents, max_extents = max_extents, min_torque = min_torque, max_torque = max_torque }
 
 	if left_axes ~= nil then
 		left_joint.axes = left_axes
@@ -89,6 +89,16 @@ P.add_symmetric_joints = function(add_to, bones_list, parent, child, left_pos, n
 	add_to[#add_to + 1] = right_joint
 
 	return left_joint, right_joint
+end
+
+P.torque_limits = function(x, y, z)
+	if y == nil then
+		y = x
+	end
+	if z == nil then
+		z = x
+	end
+	return ba.createVector(-x, -y, -z), ba.createVector(x, y, z)
 end
 
 return P

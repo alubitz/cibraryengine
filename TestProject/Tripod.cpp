@@ -350,16 +350,9 @@ namespace Test
 
 	void Tripod::InitJointHelpers()
 	{
-		float joint_strengths[3] = { 1400, 1100, 900 };
-
 		for(int j = 0; j < 3; ++j)
 			for(int k = 0; k < 2; ++k)
-			{
-				float x = joint_strengths[k];
-				float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
-
-				imp->legs[j].joints[k] = GetJointOverrideTorques(imp->legs[j].bones[k]->name, x, yz, yz);
-			}
+				imp->legs[j].joints[k] = GetJoint(imp->legs[j].bones[k]->name);
 
 		imp->legs[1].joints[1]->sjc->enable_motor = true;
 		imp->legs[2].joints[1]->sjc->enable_motor = true;

@@ -1,11 +1,12 @@
 
 local P = dofile("Files/Scripts/modelphysics_util.lua")
-local Vec3      = ba.createVector
-local Sphere    = P.sphere
-local Bone      = P.add_single_bone
-local SymBones  = P.add_symmetric_bones
-local Joint     = P.add_single_joint
-local SymJoints = P.add_symmetric_joints
+local Vec3         = ba.createVector
+local Sphere       = P.sphere
+local Bone         = P.add_single_bone
+local SymBones     = P.add_symmetric_bones
+local Joint        = P.add_single_joint
+local SymJoints    = P.add_symmetric_joints
+local TorqueLimits = P.torque_limits
 
 
 local b = { }
@@ -35,7 +36,7 @@ for i = 1, 3 do
 	}
 
 	Bone(b, bname1, 8.0, spheres)
-	Joint(j, b, "carapace", bname1, rm * Vec3(hip_distance, 0.8, 0), nil, axes, Vec3(-3, 0, 0), Vec3(3, 0, 0) )
+	Joint(j, b, "carapace", bname1, rm * Vec3(hip_distance, 0.8, 0), nil, axes, Vec3(-3, 0, 0), Vec3(3, 0, 0), TorqueLimits(1400))
 
 	local bname2 = "leg " .. leg_names[i] .. " 2"
 	spheres = {
@@ -44,7 +45,7 @@ for i = 1, 3 do
 	}
 
 	Bone(b, bname2, 6.0, spheres)
-	Joint(j, b, bname1, bname2, rm * Vec3(knee_distance, 0.405, 0), nil, axes, Vec3(-2, 0, 0), Vec3(2, 0, 0) )
+	Joint(j, b, bname1, bname2, rm * Vec3(knee_distance, 0.405, 0), nil, axes, Vec3(-2, 0, 0), Vec3(2, 0, 0), TorqueLimits(1100, 0, 0))
 
 end
 

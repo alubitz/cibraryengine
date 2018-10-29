@@ -851,25 +851,15 @@ namespace Test
 
 	void CrabBug::InitJointHelpers()
 	{
-		float N = 200, T = 150;
-
-		float joint_strengths[3] = { 1400, 1100, 900 };
-		float leg_multipliers[3] = { 0.9f, 1.0f, 0.9f };
-
-		GetJointOverrideTorques("head", N);
-		GetJointOverrideTorques("tail", T);
+		imp->neck  = GetJoint("head");
+		imp->tailj = GetJoint("tail");
 
 		for(int i = 0; i < 2; ++i)
 		{
 			CrabLeg* legs_array = i == 0 ? imp->llegs : imp->rlegs;
 			for(int j = 0; j < 3; ++j)
 				for(int k = 0; k < 3; ++k)
-				{
-					float x = leg_multipliers[j] * joint_strengths[k];
-					float yz = k == 0 ? x : 0.0f;							// the 'knees' and 'ankes' can only rotate and torque on one axis
-
-					GetJointOverrideTorques(legs_array[j].bones[k]->name, x, yz, yz); 
-				}
+					legs_array[j].joints[k] = GetJoint(legs_array[j].bones[k]->name); 
 		}
 
 		//for(unsigned int i = 0; i < all_joints.size(); ++i)

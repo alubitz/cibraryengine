@@ -42,6 +42,7 @@ namespace CibraryEngine
 				Mat3 axes;
 
 				Vec3 min_extents, max_extents;
+				Vec3 min_torque, max_torque;
 				Vec3 angular_damp;
 
 				void ClampAngles(Vec3& ori) const;

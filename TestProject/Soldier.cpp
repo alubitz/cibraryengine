@@ -765,51 +765,49 @@ namespace Test
 
 	void Soldier::InitBoneHelpers()
 	{
-		imp->pelvis    = GetBone(  "pelvis"     );
-		imp->torso1    = GetBone(  "torso 1"    );
-		imp->torso2    = GetBone(  "torso 2"    );
-		imp->head      = GetBone(  "head"       );
-		imp->lshoulder = GetBone(  "l shoulder" );
-		imp->luarm     = GetBone(  "l arm 1"    );
-		imp->llarm     = GetBone(  "l arm 2"    );
-		imp->lhand     = GetBone(  "l hand"     );
-		imp->rshoulder = GetBone(  "r shoulder" );
-		imp->ruarm     = GetBone(  "r arm 1"    );
-		imp->rlarm     = GetBone(  "r arm 2"    );
-		imp->rhand     = GetBone(  "r hand"     );
-		imp->luleg     = GetBone(  "l leg 1"    );
-		imp->llleg     = GetBone(  "l leg 2"    );
-		imp->lheel     = GetBone(  "l heel"     );
-		imp->ltoe      = GetBone(  "l toe"      );
-		imp->ruleg     = GetBone(  "r leg 1"    );
-		imp->rlleg     = GetBone(  "r leg 2"    );
-		imp->rheel     = GetBone(  "r heel"     );
-		imp->rtoe      = GetBone(  "r toe"      );
+		imp->pelvis    = GetBone( "pelvis"     );
+		imp->torso1    = GetBone( "torso 1"    );
+		imp->torso2    = GetBone( "torso 2"    );
+		imp->head      = GetBone( "head"       );
+		imp->lshoulder = GetBone( "l shoulder" );
+		imp->luarm     = GetBone( "l arm 1"    );
+		imp->llarm     = GetBone( "l arm 2"    );
+		imp->lhand     = GetBone( "l hand"     );
+		imp->rshoulder = GetBone( "r shoulder" );
+		imp->ruarm     = GetBone( "r arm 1"    );
+		imp->rlarm     = GetBone( "r arm 2"    );
+		imp->rhand     = GetBone( "r hand"     );
+		imp->luleg     = GetBone( "l leg 1"    );
+		imp->llleg     = GetBone( "l leg 2"    );
+		imp->lheel     = GetBone( "l heel"     );
+		imp->ltoe      = GetBone( "l toe"      );
+		imp->ruleg     = GetBone( "r leg 1"    );
+		imp->rlleg     = GetBone( "r leg 2"    );
+		imp->rheel     = GetBone( "r heel"     );
+		imp->rtoe      = GetBone( "r toe"      );
 	}
 
 	void Soldier::InitJointHelpers()
 	{
-		float SP = 1200, N = 150, W = 200, E = 350, SB = 600, SA = 700, H = 1400, K = 1000, A = 600, HT = 600;
-
-		imp->spine1 = GetJointOverrideTorques( imp->torso1   ->name, SP      );
-		imp->spine2 = GetJointOverrideTorques( imp->torso2   ->name, SP      );
-		imp->neck   = GetJointOverrideTorques( imp->head     ->name, N       );
-		imp->lsja   = GetJointOverrideTorques( imp->lshoulder->name, SA      );
-		imp->lsjb   = GetJointOverrideTorques( imp->luarm    ->name, SB      );
-		imp->lelbow = GetJointOverrideTorques( imp->llarm    ->name, E       );
-		imp->lwrist = GetJointOverrideTorques( imp->lhand    ->name, W       );
-		imp->rsja   = GetJointOverrideTorques( imp->rshoulder->name, SA      );
-		imp->rsjb   = GetJointOverrideTorques( imp->ruarm    ->name, SB      );
-		imp->relbow = GetJointOverrideTorques( imp->rlarm    ->name, E       );
-		imp->rwrist = GetJointOverrideTorques( imp->rhand    ->name, W       );
-		imp->lhip   = GetJointOverrideTorques( imp->luleg    ->name, H       );
-		imp->lknee  = GetJointOverrideTorques( imp->llleg    ->name, K, 0, 0 );		// knees only torque on one axis
-		imp->lankle = GetJointOverrideTorques( imp->lheel    ->name, A       );
-		imp->lht    = GetJointOverrideTorques( imp->ltoe     ->name, HT      );
-		imp->rhip   = GetJointOverrideTorques( imp->ruleg    ->name, H       );
-		imp->rknee  = GetJointOverrideTorques( imp->rlleg    ->name, K, 0, 0 );
-		imp->rankle = GetJointOverrideTorques( imp->rheel    ->name, A       );
-		imp->rht    = GetJointOverrideTorques( imp->rtoe     ->name, HT      );
+		imp->spine2 = GetJoint( "torso 2"    );
+		imp->spine1 = GetJoint( "torso 1"    );
+		imp->neck   = GetJoint( "head"       );
+		imp->lsja   = GetJoint( "l shoulder" );
+		imp->lsjb   = GetJoint( "l arm 1"    );
+		imp->lelbow = GetJoint( "l arm 2"    );
+		imp->lwrist = GetJoint( "l hand"     );
+		imp->rsja   = GetJoint( "r shoulder" );
+		imp->rsjb   = GetJoint( "r arm 1"    );
+		imp->relbow = GetJoint( "r arm 2"    );
+		imp->rwrist = GetJoint( "r hand"     );
+		imp->lhip   = GetJoint( "l leg 1"    );
+		imp->lknee  = GetJoint( "l leg 2"    );
+		imp->lankle = GetJoint( "l heel"     );
+		imp->lht    = GetJoint( "l toe"      );
+		imp->rhip   = GetJoint( "r leg 1"    );
+		imp->rknee  = GetJoint( "r leg 2"    );
+		imp->rankle = GetJoint( "r heel"     );
+		imp->rht    = GetJoint( "r toe"      );
 	}
 
 	void Soldier::InitJetpackNozzles()
