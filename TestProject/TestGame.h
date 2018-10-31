@@ -112,6 +112,7 @@ namespace Test
 			void Draw(int width, int height);
 
 			void ShowChapterText(const string& title, const string& subtitle, float duration);
+			void DrawCompass(const Mat4& view_matrix) const;
 
 			float GetTerrainHeight(float x, float z);
 

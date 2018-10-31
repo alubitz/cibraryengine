@@ -1055,7 +1055,43 @@ namespace Test
 
 		hud->Draw((float)width, (float)height);
 
+		if(debug_draw)
+			DrawCompass(camera.GetViewMatrix());
+
 		GLDEBUG();
+	}
+
+	void TestGame::DrawCompass(const Mat4& view_matrix) const
+	{
+		// draw world coordinate axes
+		Vec3 x_axis = view_matrix.TransformVec3_0(40, 0, 0);
+		Vec3 y_axis = view_matrix.TransformVec3_0(0, 40, 0);
+		Vec3 z_axis = view_matrix.TransformVec3_0(0, 0, 40);
+
+		int compass_x = width - 50;
+		int compass_y = height - 50;
+
+		glDisable(GL_LIGHTING);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_BLEND);
+		glDisable(GL_TEXTURE_2D);
+
+		glBegin(GL_LINES);
+
+		glColor3f(1, 0, 0);
+		glVertex2i(compass_x, compass_y);
+		glVertex2i(compass_x + (int)x_axis.x, compass_y - (int)x_axis.y);
+
+		glColor3f(0, 1, 0);
+		glVertex2i(compass_x, compass_y);
+		glVertex2i(compass_x + (int)y_axis.x, compass_y - (int)y_axis.y);
+
+		glColor3f(0, 0, 1);
+		glVertex2i(compass_x, compass_y);
+		glVertex2i(compass_x + (int)z_axis.x, compass_y - (int)z_axis.y);
+
+		glEnd();
 	}
 
 	void ClearDepthAndColor()
