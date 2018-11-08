@@ -1222,6 +1222,7 @@ namespace Test
 	void Dood::DoScriptedMotorControl(const string& filename)
 	{
 		ScriptingState script = ScriptSystem::GetGlobalState();
+		unique_lock<std::mutex> lock(script.GetLock());
 		lua_State* L = script.GetLuaState();
 
 		// hook variables (hv)

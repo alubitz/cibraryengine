@@ -20,12 +20,14 @@ namespace CibraryEngine
 	 */
 	struct ScriptingState::Imp
 	{
+		mutex mutex;
+
 		lua_State* state;
 		bool is_thread;
 
-		Imp() : state(lua_open()), is_thread(false) { LoadDefaultLibs(); }
-		Imp(lua_State* L) : state(L), is_thread(false) { if(L != NULL) { LoadDefaultLibs(); } }
-		Imp(lua_State* L, bool is_thread) : state(L), is_thread(is_thread) { if(L != NULL) { LoadDefaultLibs(); } }
+		Imp() : mutex(), state(lua_open()), is_thread(false) { LoadDefaultLibs(); }
+		Imp(lua_State* L) : mutex(), state(L), is_thread(false) { if(L != NULL) { LoadDefaultLibs(); } }
+		Imp(lua_State* L, bool is_thread) : mutex(), state(L), is_thread(is_thread) { if(L != NULL) { LoadDefaultLibs(); } }
 
 		void LoadDefaultLibs()
 		{
@@ -105,6 +107,8 @@ namespace CibraryEngine
 	int ScriptingState::DoFile(const string& filename)			{ return imp->DoFile(filename); }
 
 	bool ScriptingState::IsValid()								{ return imp != NULL && imp->state != NULL; }
+
+	unique_lock<std::mutex> ScriptingState::GetLock()			{ return unique_lock<std::mutex>(imp->mutex); }
 
 
 

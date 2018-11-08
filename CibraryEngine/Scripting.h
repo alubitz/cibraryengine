@@ -37,6 +37,8 @@ namespace CibraryEngine
 			int DoFile(const string& filename);
 
 			bool IsValid();
+
+			unique_lock<std::mutex> GetLock();
 	};
 
 	struct ScriptSystem

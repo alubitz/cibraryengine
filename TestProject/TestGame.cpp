@@ -41,7 +41,7 @@
 
 #define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
-#define PLAY_AS_CRAB_BUG                 1
+#define PLAY_AS_CRAB_BUG                 0
 
 #define DO_RAPID_UPDATE_TESTING          0
 #define RAPID_UPDATE_COUNT               20
