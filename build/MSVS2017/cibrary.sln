@@ -19,6 +19,36 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "TestProject\TestPro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SOIL", "..\..\..\soil\projects\VC9\SOIL.vcxproj", "{C32FB2B4-500C-43CD-A099-EECCE079D3F1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Files", "Files", "{8FED2263-BD2E-48DD-8F39-F8B845385523}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{57ACB55F-DCC5-489E-84ED-228E86CEDDC2}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\Files\Scripts\crab_bug_ai.lua = ..\..\Files\Scripts\crab_bug_ai.lua
+		..\..\Files\Scripts\crab_motor_control.lua = ..\..\Files\Scripts\crab_motor_control.lua
+		..\..\Files\Scripts\dummycube_zzp.lua = ..\..\Files\Scripts\dummycube_zzp.lua
+		..\..\Files\Scripts\flea_zzp.lua = ..\..\Files\Scripts\flea_zzp.lua
+		..\..\Files\Scripts\flea_zzz.lua = ..\..\Files\Scripts\flea_zzz.lua
+		..\..\Files\Scripts\game_start.lua = ..\..\Files\Scripts\game_start.lua
+		..\..\Files\Scripts\globals.lua = ..\..\Files\Scripts\globals.lua
+		..\..\Files\Scripts\goals.lua = ..\..\Files\Scripts\goals.lua
+		..\..\Files\Scripts\gun_zzp.lua = ..\..\Files\Scripts\gun_zzp.lua
+		..\..\Files\Scripts\load.lua = ..\..\Files\Scripts\load.lua
+		..\..\Files\Scripts\modelphysics_util.lua = ..\..\Files\Scripts\modelphysics_util.lua
+		..\..\Files\Scripts\motor_control_util.lua = ..\..\Files\Scripts\motor_control_util.lua
+		..\..\Files\Scripts\nu_crab_zzp.lua = ..\..\Files\Scripts\nu_crab_zzp.lua
+		..\..\Files\Scripts\nu_crab_zzz.lua = ..\..\Files\Scripts\nu_crab_zzz.lua
+		..\..\Files\Scripts\pendulum_zzu.lua = ..\..\Files\Scripts\pendulum_zzu.lua
+		..\..\Files\Scripts\player_ai.lua = ..\..\Files\Scripts\player_ai.lua
+		..\..\Files\Scripts\pose_aiming_gun.lua = ..\..\Files\Scripts\pose_aiming_gun.lua
+		..\..\Files\Scripts\soldier_motor_control.lua = ..\..\Files\Scripts\soldier_motor_control.lua
+		..\..\Files\Scripts\soldier_zzp.lua = ..\..\Files\Scripts\soldier_zzp.lua
+		..\..\Files\Scripts\soldier_zzz.lua = ..\..\Files\Scripts\soldier_zzz.lua
+		..\..\Files\Scripts\tripod_zzp.lua = ..\..\Files\Scripts\tripod_zzp.lua
+		..\..\Files\Scripts\tripod_zzz.lua = ..\..\Files\Scripts\tripod_zzz.lua
+		..\..\Files\Scripts\ubermodel_util.lua = ..\..\Files\Scripts\ubermodel_util.lua
+		..\..\Files\Scripts\update.lua = ..\..\Files\Scripts\update.lua
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -62,6 +92,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{57ACB55F-DCC5-489E-84ED-228E86CEDDC2} = {8FED2263-BD2E-48DD-8F39-F8B845385523}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {9D7FBDDC-8975-44CD-A877-71C3FD9CAC4F}

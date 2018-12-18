@@ -6,6 +6,9 @@
 
 namespace DoodAnimTool
 {
+	/**
+	 * @brief Describes a box sizer (specifically a column sizer). Attempts to align and lay out child widgets.
+	 */
 	class GColumnList : public GUIComponent
 	{
 		public:

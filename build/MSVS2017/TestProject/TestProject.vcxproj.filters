@@ -1,97 +1,292 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\..\TestProject\ArtilleryBug.cpp" />
-    <ClCompile Include="..\..\..\TestProject\ArtilleryWeapon.cpp" />
-    <ClCompile Include="..\..\..\TestProject\BetterBrain.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Brambles.cpp" />
     <ClCompile Include="..\..\..\TestProject\ConverterWhiz.cpp" />
-    <ClCompile Include="..\..\..\TestProject\CrabBug.cpp" />
-    <ClCompile Include="..\..\..\TestProject\CrabWeapon.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Credits.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Damage.cpp" />
-    <ClCompile Include="..\..\..\TestProject\DefaultWeapon.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Dood.cpp" />
-    <ClCompile Include="..\..\..\TestProject\ExperimentalScreen.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Gun.cpp" />
-    <ClCompile Include="..\..\..\TestProject\HUD.cpp" />
-    <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp" />
-    <ClCompile Include="..\..\..\TestProject\LevelLoad.cpp" />
-    <ClCompile Include="..\..\..\TestProject\LoadingScreen.cpp" />
     <ClCompile Include="..\..\..\TestProject\Main.cpp" />
-    <ClCompile Include="..\..\..\TestProject\MainMenu.cpp" />
-    <ClCompile Include="..\..\..\TestProject\MultiLayerBrain.cpp" />
-    <ClCompile Include="..\..\..\TestProject\NeuralNet.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Particle.cpp" />
-    <ClCompile Include="..\..\..\TestProject\PoseAimingGun.cpp" />
-    <ClCompile Include="..\..\..\TestProject\RocketBug.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Rubbish.cpp" />
-    <ClCompile Include="..\..\..\TestProject\ScaledIOBrain.cpp" />
     <ClCompile Include="..\..\..\TestProject\Shot.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Soldier.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Spark.cpp" />
-    <ClCompile Include="..\..\..\TestProject\StaticLevelGeometry.cpp" />
     <ClCompile Include="..\..\..\TestProject\StdAfx.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Sun.cpp" />
     <ClCompile Include="..\..\..\TestProject\Team.cpp" />
     <ClCompile Include="..\..\..\TestProject\TestGame.cpp" />
-    <ClCompile Include="..\..\..\TestProject\TestScreen.cpp" />
-    <ClCompile Include="..\..\..\TestProject\WalkPose.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Weapon.cpp" />
-    <ClCompile Include="..\..\..\TestProject\WeaponEquip.cpp" />
-    <ClCompile Include="..\..\..\TestProject\WeaponIntrinsic.cpp" />
-    <ClCompile Include="..\..\..\TestProject\WorldBoundary.cpp" />
-    <ClCompile Include="..\..\..\TestProject\CBone.cpp" />
-    <ClCompile Include="..\..\..\TestProject\CJoint.cpp" />
     <ClCompile Include="..\..\..\TestProject\JetpackNozzle.cpp" />
-    <ClCompile Include="..\..\..\TestProject\GAExperiment.cpp" />
-    <ClCompile Include="..\..\..\TestProject\Tripod.cpp" />
+    <ClCompile Include="..\..\..\TestProject\CBone.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\CJoint.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\BetterBrain.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\ArtilleryBug.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Soldier.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\RocketBug.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Brambles.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\CrabBug.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\NeuralNet.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\HUD.cpp">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\ArtilleryWeapon.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Gun.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\GAExperiment.cpp">
+      <Filter>Control Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\CrabWeapon.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\DefaultWeapon.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Damage.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Dood.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Credits.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\LevelLoad.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\ExperimentalScreen.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\MainMenu.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\MultiLayerBrain.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\TestScreen.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\ScaledIOBrain.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\WalkPose.cpp">
+      <Filter>Kinematics\Poses</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\PoseAimingGun.cpp">
+      <Filter>Kinematics\Poses</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Weapon.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\WeaponEquip.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\WeaponIntrinsic.cpp">
+      <Filter>Weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Tripod.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Pendulum.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\LoadingScreen.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\WorldBoundary.cpp">
+      <Filter>Level</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Sun.cpp">
+      <Filter>Level</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Spark.cpp">
+      <Filter>Particles</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Particle.cpp">
+      <Filter>Particles</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\Rubbish.cpp">
+      <Filter>Level</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\StaticLevelGeometry.cpp">
+      <Filter>Level</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\TestProject\GhostCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\TestProject\ArtilleryBug.h" />
-    <ClInclude Include="..\..\..\TestProject\ArtilleryWeapon.h" />
-    <ClInclude Include="..\..\..\TestProject\BetterBrain.h" />
-    <ClInclude Include="..\..\..\TestProject\Brambles.h" />
     <ClInclude Include="..\..\..\TestProject\ConverterWhiz.h" />
-    <ClInclude Include="..\..\..\TestProject\CrabBug.h" />
-    <ClInclude Include="..\..\..\TestProject\CrabWeapon.h" />
-    <ClInclude Include="..\..\..\TestProject\Credits.h" />
-    <ClInclude Include="..\..\..\TestProject\Damage.h" />
-    <ClInclude Include="..\..\..\TestProject\DefaultWeapon.h" />
-    <ClInclude Include="..\..\..\TestProject\Dood.h" />
-    <ClInclude Include="..\..\..\TestProject\ExperimentalScreen.h" />
-    <ClInclude Include="..\..\..\TestProject\Gun.h" />
-    <ClInclude Include="..\..\..\TestProject\HUD.h" />
-    <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h" />
-    <ClInclude Include="..\..\..\TestProject\LevelLoad.h" />
-    <ClInclude Include="..\..\..\TestProject\LoadingScreen.h" />
-    <ClInclude Include="..\..\..\TestProject\MainMenu.h" />
-    <ClInclude Include="..\..\..\TestProject\MultiLayerBrain.h" />
-    <ClInclude Include="..\..\..\TestProject\NeuralNet.h" />
-    <ClInclude Include="..\..\..\TestProject\Particle.h" />
-    <ClInclude Include="..\..\..\TestProject\PoseAimingGun.h" />
-    <ClInclude Include="..\..\..\TestProject\RocketBug.h" />
-    <ClInclude Include="..\..\..\TestProject\Rubbish.h" />
-    <ClInclude Include="..\..\..\TestProject\ScaledIOBrain.h" />
     <ClInclude Include="..\..\..\TestProject\Shootable.h" />
     <ClInclude Include="..\..\..\TestProject\Shot.h" />
-    <ClInclude Include="..\..\..\TestProject\Soldier.h" />
-    <ClInclude Include="..\..\..\TestProject\Spark.h" />
-    <ClInclude Include="..\..\..\TestProject\StaticLevelGeometry.h" />
     <ClInclude Include="..\..\..\TestProject\StdAfx.h" />
-    <ClInclude Include="..\..\..\TestProject\Sun.h" />
     <ClInclude Include="..\..\..\TestProject\Team.h" />
     <ClInclude Include="..\..\..\TestProject\TestGame.h" />
-    <ClInclude Include="..\..\..\TestProject\TestScreen.h" />
-    <ClInclude Include="..\..\..\TestProject\WalkPose.h" />
-    <ClInclude Include="..\..\..\TestProject\Weapon.h" />
-    <ClInclude Include="..\..\..\TestProject\WeaponEquip.h" />
-    <ClInclude Include="..\..\..\TestProject\WeaponIntrinsic.h" />
-    <ClInclude Include="..\..\..\TestProject\WorldBoundary.h" />
-    <ClInclude Include="..\..\..\TestProject\CBone.h" />
-    <ClInclude Include="..\..\..\TestProject\CJoint.h" />
     <ClInclude Include="..\..\..\TestProject\JetpackNozzle.h" />
-    <ClInclude Include="..\..\..\TestProject\GAExperiment.h" />
-    <ClInclude Include="..\..\..\TestProject\Tripod.h" />
+    <ClInclude Include="..\..\..\TestProject\CBone.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\CJoint.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\BetterBrain.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\ArtilleryBug.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Soldier.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\RocketBug.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Brambles.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\CrabBug.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\NeuralNet.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\HUD.h">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\ArtilleryWeapon.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Gun.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\GAExperiment.h">
+      <Filter>Control Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\CrabWeapon.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\DefaultWeapon.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Damage.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Dood.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Credits.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\LevelLoad.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\ExperimentalScreen.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\MainMenu.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\MultiLayerBrain.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\TestScreen.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\ScaledIOBrain.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\WalkPose.h">
+      <Filter>Kinematics\Poses</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\PoseAimingGun.h">
+      <Filter>Kinematics\Poses</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Weapon.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\WeaponEquip.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\WeaponIntrinsic.h">
+      <Filter>Weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Tripod.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Pendulum.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\LoadingScreen.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\WorldBoundary.h">
+      <Filter>Level</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Sun.h">
+      <Filter>Level</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Spark.h">
+      <Filter>Particles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Particle.h">
+      <Filter>Particles</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\Rubbish.h">
+      <Filter>Level</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\StaticLevelGeometry.h">
+      <Filter>Level</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\TestProject\GhostCamera.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Kinematics">
+      <UniqueIdentifier>{da5758a6-eb40-4787-9607-7fe71b85726f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI">
+      <UniqueIdentifier>{9b3c5003-582d-456e-94fb-359c122f918e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Actors">
+      <UniqueIdentifier>{c16c3875-5526-4044-b4db-63f8e03acca1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{7c1c512a-f9fd-437c-890f-4394343927a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Graphics2D">
+      <UniqueIdentifier>{d30c2706-d827-4243-bd15-5709ed927d91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Weapons">
+      <UniqueIdentifier>{1745670d-9838-41ed-bf5a-3e60b1a2673c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Control Systems">
+      <UniqueIdentifier>{88a9d730-b3b5-4ce7-a968-107cfcb30d89}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI">
+      <UniqueIdentifier>{bc7eed8c-d397-4f4c-b07c-467fb1d6a0a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Kinematics\Poses">
+      <UniqueIdentifier>{9a66bbbe-e5f3-4844-9930-a990b3dea985}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Level">
+      <UniqueIdentifier>{6ea9d304-5648-472c-8f26-285b203ee637}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Particles">
+      <UniqueIdentifier>{3931af1e-175e-48f2-ac33-44aba21f4969}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

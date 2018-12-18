@@ -83,9 +83,9 @@ namespace CibraryEngine
 
 				float dxsq = dx.ComputeMagnitudeSquared(), dysq = dy.ComputeMagnitudeSquared(), dzsq = dz.ComputeMagnitudeSquared();
 
-				if(dxsq > dysq && dxsq > dzsq)
+				if(dxsq >= dysq && dxsq >= dzsq)
 					return GetQFRMGivenBiggestPoint(mat, axis, dx, dxsq);
-				else if(dysq > dxsq && dysq > dzsq)
+				else if(dysq >= dxsq && dysq >= dzsq)
 					return GetQFRMGivenBiggestPoint(mat, axis, dy, dysq);
 				else
 					return GetQFRMGivenBiggestPoint(mat, axis, dz, dzsq);

@@ -1,250 +1,629 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\..\CibraryEngine\AABB.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\AutoMenuItem.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\BillboardMaterial.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\BillboardTrail.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\BinaryChunk.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\BitmapFont.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\CameraView.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Client.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\CmdArgs.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\CollisionGroup.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\CollisionObject.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\CollisionShape.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Connection.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ContactDataCollector.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ContactPoint.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ContentMan.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ContentReqList.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Control.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ConvexMeshShape.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\CPUConstraintGraphSolver.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\CubeTriangles.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Cursor.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\DebugDrawMaterial.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\DebugLog.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Disposable.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\DSNLoader.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\DSNMaterial.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\DynamicsObject.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Entity.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\EntityList.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Events.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\FixedJointConstraint.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\GameState.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\GLee.c" />
-    <ClCompile Include="..\..\..\CibraryEngine\GlowyModelMaterial.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\GridRegionManager.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\HardwareAcceleratedComputation.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ImageIO.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Inbox.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\InfinitePlaneShape.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\InputState.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\KeyframeAnimation.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Line.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\MarchingCubes.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\MassInfo.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\MaterialLoader.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Matrix.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\MenuItem.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\MenuScreen.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Model.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ModelLoader.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ModelPhysics.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\MultiMaterial.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\MultiSphereShape.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\NavGraph.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Network.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\NeuralNet.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Outbox.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Packet.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\ParticleMaterial.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Pathfinding.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\PerlinNoise.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Physics.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\PhysicsRegion.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Plane.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\ProfilingTimer.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\ProgramScreen.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\ProgramWindow.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Quaternion.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Random3D.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\RayCollider.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ReceivedPacket.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\RenderTarget.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\RigidBody.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\SceneRenderer.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\ScreenshotGrabber.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Scripting.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Serialize.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Server.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\ServerConnection.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Shader.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SkeletalAnimation.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SkeletalJointConstraint.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SoundBuffer.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SoundSource.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SoundSystem.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Sphere.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\SphereShape.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\StdAfx.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\StringTable.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\TableParse.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\TaskThread.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\TerrainChunk.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\TerrainNode.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\TerrainVertex.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Texture1D.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Texture2D.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Texture3D.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\TextureBuffer.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\TextureCube.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\TimingInfo.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\TriangleMeshShape.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\UberModel.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\UnclampedVertexBoneWeightInfo.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\UniformVariables.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\Util.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\Vector.cpp" />
     <ClCompile Include="..\..\..\CibraryEngine\VertexBuffer.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\VisionBlocker.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\VoxelMaterial.cpp" />
-    <ClCompile Include="..\..\..\CibraryEngine\VoxelTerrain.cpp" />
+    <ClCompile Include="..\..\..\CibraryEngine\BillboardTrail.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\BillboardMaterial.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\BitmapFont.cpp">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\CmdArgs.cpp">
+      <Filter>System</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\CollisionShape.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\CollisionObject.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\CollisionGroup.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\AABB.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Connection.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Client.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ContactPoint.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ContactDataCollector.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ContentMan.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ContentReqList.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Control.cpp">
+      <Filter>User Controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\CubeTriangles.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ConvexMeshShape.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Cursor.cpp">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\DebugDrawMaterial.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\DynamicsObject.cpp">
+      <Filter>Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\GLee.c">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\DebugLog.cpp">
+      <Filter>Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Packet.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Line.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Model.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ModelLoader.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ModelPhysics.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\MassInfo.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ImageIO.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Matrix.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\MaterialLoader.cpp">
+      <Filter>Materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\GlowyModelMaterial.cpp">
+      <Filter>Materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Entity.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\EntityList.cpp">
+      <Filter>Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\MenuItem.cpp">
+      <Filter>MenuUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\MenuScreen.cpp">
+      <Filter>MenuUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\AutoMenuItem.cpp">
+      <Filter>MenuUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\PerlinNoise.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Network.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Physics.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\PhysicsRegion.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Plane.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\RigidBody.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Pathfinding.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Quaternion.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Random3D.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Shader.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Server.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ServerConnection.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\MultiMaterial.cpp">
+      <Filter>Materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\ReceivedPacket.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SkeletalJointConstraint.cpp">
+      <Filter>Physics\Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SkeletalAnimation.cpp">
+      <Filter>Physics\Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Texture1D.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Texture2D.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Texture3D.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\TextureBuffer.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\TextureCube.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\TerrainChunk.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\TerrainNode.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\TerrainVertex.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\UberModel.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SoundSystem.cpp">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SoundSource.cpp">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SoundBuffer.cpp">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\VoxelTerrain.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\VoxelMaterial.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\VisionBlocker.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\SphereShape.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Sphere.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\NeuralNet.cpp">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\Vector.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\UniformVariables.cpp">
+      <Filter>Maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\CibraryEngine\InfinitePlaneShape.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\CibraryEngine\AABB.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\AutoMenuItem.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\BillboardMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\BillboardTrail.h" />
     <ClInclude Include="..\..\..\CibraryEngine\BinaryChunk.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\BitmapFont.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Cache.h" />
     <ClInclude Include="..\..\..\CibraryEngine\CameraView.h" />
     <ClInclude Include="..\..\..\CibraryEngine\CibraryEngine.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Client.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\CmdArgs.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\CollisionGroup.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\CollisionObject.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\CollisionShape.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Component.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Connection.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ConstraintGraphSolver.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContactDataCollector.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContactPoint.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContactRegion.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Content.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContentHandle.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContentMan.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContentMetadata.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContentReqList.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ContentTypeHandler.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Control.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ConvexMeshShape.h" />
     <ClInclude Include="..\..\..\CibraryEngine\CPUConstraintGraphSolver.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\CubeTriangles.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Cursor.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\DebugDrawMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\DebugLog.h" />
     <ClInclude Include="..\..\..\CibraryEngine\DestructibleTerrain.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Disposable.h" />
     <ClInclude Include="..\..\..\CibraryEngine\DSNLoader.h" />
     <ClInclude Include="..\..\..\CibraryEngine\DSNMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\DynamicsObject.h" />
     <ClInclude Include="..\..\..\CibraryEngine\EngineTypes.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Entity.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\EntityList.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Events.h" />
     <ClInclude Include="..\..\..\CibraryEngine\FixedJointConstraint.h" />
     <ClInclude Include="..\..\..\CibraryEngine\FrameworkTypes.h" />
     <ClInclude Include="..\..\..\CibraryEngine\GameState.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\GLee.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\GlowyModelMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\GraphicsTypes.h" />
     <ClInclude Include="..\..\..\CibraryEngine\GridRegionManager.h" />
     <ClInclude Include="..\..\..\CibraryEngine\HardwareAcceleratedComputation.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ImageIO.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Inbox.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\InfinitePlaneShape.h" />
     <ClInclude Include="..\..\..\CibraryEngine\InputState.h" />
     <ClInclude Include="..\..\..\CibraryEngine\KeyframeAnimation.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Line.h" />
     <ClInclude Include="..\..\..\CibraryEngine\MarchingCubes.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MassInfo.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Material.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MaterialLoader.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MathTypes.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Matrix.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MenuItem.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MenuScreen.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Model.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ModelLoader.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ModelPhysics.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\MultiMaterial.h" />
     <ClInclude Include="..\..\..\CibraryEngine\MultiSphereShape.h" />
     <ClInclude Include="..\..\..\CibraryEngine\NavGraph.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\NetTypes.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Network.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\NeuralNet.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Octree.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Outbox.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Packet.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ParticleMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Pathfinding.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\PerlinNoise.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Physics.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\PhysicsRegion.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Plane.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ProfilingTimer.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ProgramScreen.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ProgramWindow.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Quaternion.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Random3D.h" />
     <ClInclude Include="..\..\..\CibraryEngine\RayCollider.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ReceivedPacket.h" />
     <ClInclude Include="..\..\..\CibraryEngine\RenderNode.h" />
     <ClInclude Include="..\..\..\CibraryEngine\RenderTarget.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\RigidBody.h" />
     <ClInclude Include="..\..\..\CibraryEngine\SceneRenderer.h" />
     <ClInclude Include="..\..\..\CibraryEngine\ScreenshotGrabber.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Scripting.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Serialize.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Server.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\ServerConnection.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Shader.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SkeletalAnimation.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SkeletalJointConstraint.h" />
     <ClInclude Include="..\..\..\CibraryEngine\SmartHashSet.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SoundBuffer.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SoundSource.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SoundSystem.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SoundTypes.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Sphere.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\SphereShape.h" />
     <ClInclude Include="..\..\..\CibraryEngine\StdAfx.h" />
     <ClInclude Include="..\..\..\CibraryEngine\StringTable.h" />
     <ClInclude Include="..\..\..\CibraryEngine\TableParse.h" />
     <ClInclude Include="..\..\..\CibraryEngine\TaskThread.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\TerrainChunk.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\TerrainNode.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\TerrainVertex.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Texture.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Texture1D.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Texture2D.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Texture3D.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\TextureBuffer.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\TextureCube.h" />
     <ClInclude Include="..\..\..\CibraryEngine\TimingInfo.h" />
     <ClInclude Include="..\..\..\CibraryEngine\TriangleMeshShape.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\UberModel.h" />
     <ClInclude Include="..\..\..\CibraryEngine\UnclampedVertexBoneWeightInfo.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\UniformVariables.h" />
     <ClInclude Include="..\..\..\CibraryEngine\Util.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\Vector.h" />
     <ClInclude Include="..\..\..\CibraryEngine\VertexBuffer.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\VisionBlocker.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\VoxelMaterial.h" />
-    <ClInclude Include="..\..\..\CibraryEngine\VoxelTerrain.h" />
+    <ClInclude Include="..\..\..\CibraryEngine\BillboardTrail.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\BillboardMaterial.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\BitmapFont.h">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\CmdArgs.h">
+      <Filter>System</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\CollisionShape.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\CollisionObject.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\CollisionGroup.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\AABB.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Connection.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Client.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContactRegion.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContactPoint.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContactDataCollector.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Content.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContentHandle.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContentMan.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContentMetadata.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContentReqList.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ContentTypeHandler.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Control.h">
+      <Filter>User Controls</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\CubeTriangles.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ConvexMeshShape.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Cursor.h">
+      <Filter>Graphics\Graphics2D</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\DebugDrawMaterial.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\DynamicsObject.h">
+      <Filter>Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\GLee.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\DebugLog.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Packet.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Line.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Model.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ModelLoader.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ModelPhysics.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MassInfo.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ImageIO.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\GraphicsTypes.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Matrix.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MathTypes.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MaterialLoader.h">
+      <Filter>Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Material.h">
+      <Filter>Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\GlowyModelMaterial.h">
+      <Filter>Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Entity.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\EntityList.h">
+      <Filter>Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MenuItem.h">
+      <Filter>MenuUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MenuScreen.h">
+      <Filter>MenuUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\AutoMenuItem.h">
+      <Filter>MenuUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\PerlinNoise.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\NetTypes.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Network.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Physics.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\PhysicsRegion.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Plane.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Octree.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\RigidBody.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Pathfinding.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Quaternion.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Random3D.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Shader.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Server.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ServerConnection.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\MultiMaterial.h">
+      <Filter>Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\ReceivedPacket.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SkeletalJointConstraint.h">
+      <Filter>Physics\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SkeletalAnimation.h">
+      <Filter>Physics\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Texture.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Texture1D.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Texture2D.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Texture3D.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\TextureBuffer.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\TextureCube.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\TerrainChunk.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\TerrainNode.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\TerrainVertex.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\UberModel.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SoundTypes.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SoundSystem.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SoundSource.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SoundBuffer.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\VoxelTerrain.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\VoxelMaterial.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\VisionBlocker.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\SphereShape.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Sphere.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\NeuralNet.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\Vector.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\UniformVariables.h">
+      <Filter>Maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\CibraryEngine\InfinitePlaneShape.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{63558b65-4622-4487-9c84-fd9f08f20076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sound">
+      <UniqueIdentifier>{ef0e5d00-47db-4fc9-a7a2-e25ea94268f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Graphics2D">
+      <UniqueIdentifier>{4f4bb6a8-9b29-4e3c-8c50-667cc6339f4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MenuUI">
+      <UniqueIdentifier>{c8eef022-e309-4640-aee0-4d45b8e41333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="System">
+      <UniqueIdentifier>{dc9c2806-7f91-41f2-9055-970df24a2b6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Collision">
+      <UniqueIdentifier>{abe1dc97-d797-431b-a5f4-2784b708f673}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Networking">
+      <UniqueIdentifier>{f963fad6-a65d-4f96-bb4a-f14fb8ad9112}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Content">
+      <UniqueIdentifier>{1f6584bf-c955-40a5-835c-350f7f9f3abd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="User Controls">
+      <UniqueIdentifier>{c69b0824-2ee0-4757-8e11-14d4207b6bf4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Geometry">
+      <UniqueIdentifier>{f85e578f-516d-4842-a82e-0d6cb3874897}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Debug">
+      <UniqueIdentifier>{e20d75bb-f385-41a6-aa94-38bdddb0b1fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Maths">
+      <UniqueIdentifier>{92a7fccf-4d70-4503-8d67-c4cc2750dc8a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Model">
+      <UniqueIdentifier>{fb3f5389-fded-4144-80e8-e0ebd7920cb9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{4ea89d74-90a2-4e86-93b9-b29a9dd9a291}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Materials">
+      <UniqueIdentifier>{73869a64-e474-4fb3-9aac-319038718104}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entity">
+      <UniqueIdentifier>{80758a97-b4d5-43fe-856c-ad2e1e94f5b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AI">
+      <UniqueIdentifier>{8ab5d5a7-21e9-43d9-9cc7-ce202274db14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics\Kinematics">
+      <UniqueIdentifier>{6c5449fe-2de1-479f-9d94-ef7d7abe6c13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Terrain">
+      <UniqueIdentifier>{e6f94418-a0a2-43ae-b6cd-c46859724e4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

@@ -132,6 +132,7 @@
     <ClCompile Include="..\..\..\TestProject\Dood.cpp" />
     <ClCompile Include="..\..\..\TestProject\ExperimentalScreen.cpp" />
     <ClCompile Include="..\..\..\TestProject\GAExperiment.cpp" />
+    <ClCompile Include="..\..\..\TestProject\GhostCamera.cpp" />
     <ClCompile Include="..\..\..\TestProject\Gun.cpp" />
     <ClCompile Include="..\..\..\TestProject\HUD.cpp" />
     <ClCompile Include="..\..\..\TestProject\InstructionsScreen.cpp" />
@@ -143,6 +144,7 @@
     <ClCompile Include="..\..\..\TestProject\MultiLayerBrain.cpp" />
     <ClCompile Include="..\..\..\TestProject\NeuralNet.cpp" />
     <ClCompile Include="..\..\..\TestProject\Particle.cpp" />
+    <ClCompile Include="..\..\..\TestProject\Pendulum.cpp" />
     <ClCompile Include="..\..\..\TestProject\PoseAimingGun.cpp" />
     <ClCompile Include="..\..\..\TestProject\RocketBug.cpp" />
     <ClCompile Include="..\..\..\TestProject\Rubbish.cpp" />
@@ -181,6 +183,7 @@
     <ClInclude Include="..\..\..\TestProject\Dood.h" />
     <ClInclude Include="..\..\..\TestProject\ExperimentalScreen.h" />
     <ClInclude Include="..\..\..\TestProject\GAExperiment.h" />
+    <ClInclude Include="..\..\..\TestProject\GhostCamera.h" />
     <ClInclude Include="..\..\..\TestProject\Gun.h" />
     <ClInclude Include="..\..\..\TestProject\HUD.h" />
     <ClInclude Include="..\..\..\TestProject\InstructionsScreen.h" />
@@ -191,6 +194,7 @@
     <ClInclude Include="..\..\..\TestProject\MultiLayerBrain.h" />
     <ClInclude Include="..\..\..\TestProject\NeuralNet.h" />
     <ClInclude Include="..\..\..\TestProject\Particle.h" />
+    <ClInclude Include="..\..\..\TestProject\Pendulum.h" />
     <ClInclude Include="..\..\..\TestProject\PoseAimingGun.h" />
     <ClInclude Include="..\..\..\TestProject\RocketBug.h" />
     <ClInclude Include="..\..\..\TestProject\Rubbish.h" />

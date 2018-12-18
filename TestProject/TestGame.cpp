@@ -7,7 +7,7 @@
 #include "Soldier.h"
 #include "CrabBug.h"
 #include "ArtilleryBug.h"
-#include "Tripod.h"
+#include "Pendulum.h"
 #include "Sun.h"
 #include "Weapon.h"
 #include "GhostCamera.h"
@@ -41,7 +41,7 @@
 
 #define ENABLE_FPS_COUNTER               0
 #define USE_GUN_AS_RUBBISH               0
-#define PLAY_AS_CRAB_BUG                 0
+#define PLAY_AS_CRAB_BUG                 1
 
 #define DO_RAPID_UPDATE_TESTING          0
 #define RAPID_UPDATE_COUNT               20
@@ -204,13 +204,13 @@ namespace Test
 		UberModel* crab_bug_model;
 		UberModel* artillery_bug_model;
 		UberModel* rubbish_model;
-		UberModel* tripod_model;
+		UberModel* pendulum_model;
 
 		ModelPhysics* soldier_physics;
 		ModelPhysics* crab_bug_physics;
 		ModelPhysics* artillery_bug_physics;
 		ModelPhysics* rubbish_physics;
-		ModelPhysics* tripod_physics;
+		ModelPhysics* pendulum_physics;
 
 		UberModel* gun_model;
 		ModelPhysics* gun_physics;
@@ -556,8 +556,8 @@ namespace Test
 		imp->crab_bug_model        = ubermodel_cache->Load("crab_bug");
 		imp->crab_bug_physics      = mphys_cache->Load("crab_bug");
 
-		imp->tripod_model          = ubermodel_cache->Load("tripod");
-		imp->tripod_physics        = mphys_cache->Load("tripod");
+		imp->pendulum_model          = ubermodel_cache->Load("pendulum");
+		imp->pendulum_physics        = mphys_cache->Load("pendulum");
 
 		if(load_status.HasAborted()) { load_status.Stop(); return; } else { load_status.SetTask("artillery bug"); }
 
@@ -621,7 +621,7 @@ namespace Test
 
 #if PLAY_AS_CRAB_BUG
 		//player_pawn = new CrabBug(this, imp->experiment, imp->crab_bug_model, imp->crab_bug_physics, pos, human_team);
-		player_pawn = new Tripod(this, imp->experiment, imp->tripod_model, imp->tripod_physics, pos, human_team);
+		player_pawn = new Pendulum(this, imp->experiment, imp->pendulum_model, imp->pendulum_physics, pos, human_team);
 #else
 		player_pawn = new Soldier(this, imp->soldier_model, imp->soldier_physics, pos, human_team);
 #endif

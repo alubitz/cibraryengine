@@ -6,12 +6,14 @@
 
 namespace DoodAnimTool
 {
+	/**
+	 * @brief Describes a label widget. Generally static text, but often (ab)used for dynamic text in readouts
+	 */
 	class GLabel : public GUIComponent
 	{
 		public:
-
-			BitmapFont* font;
-			string text;
+			BitmapFont* font;	//!< What font to use
+			string text;		//!< Text value to display
 
 			bool hover_glows;
 

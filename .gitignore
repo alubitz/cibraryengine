@@ -261,3 +261,6 @@ __pycache__/
 *.pyc
 /Build/Cibrary
 /debug.txt
+/Files/Models/pendulum.zzz
+/Files/Physics/pendulum.zzp
+/doxy

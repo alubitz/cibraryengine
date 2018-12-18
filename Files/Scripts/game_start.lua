@@ -9,13 +9,15 @@ end
 -- figure out which dood is the player, and remember that
 
 local player_pos
-if true then					-- true for spawning on flat grid world; false for terrain world
+local flat_world = true         -- true for spawning on flat grid world; false for terrain world
+if flat_world then
 	player_pos = ba.createVector(0, 0, 0)
 else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)
 end
 
-if false then
+local only_one_dood = false      -- true for having only one player soldier/bug/etc. in the game.
+if only_one_dood then
 	player = gs.spawnPlayer(player_pos)
 else
 	for x = -2, 2 do

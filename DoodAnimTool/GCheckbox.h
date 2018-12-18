@@ -8,10 +8,12 @@ namespace DoodAnimTool
 {
 	using namespace CibraryEngine;
 
+	/**
+	 * @brief Describes a checkbox widget.
+	 */
 	class GCheckbox : public GLabel
 	{
 		public:
-
 			bool selected;
 
 			GCheckbox(BitmapFont* font);

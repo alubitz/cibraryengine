@@ -10,14 +10,22 @@
     <ClCompile Include="..\..\..\DoodAnimTool\DATMain.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\DATScreen.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\FileSelection.cpp" />
-    <ClCompile Include="..\..\..\DoodAnimTool\GCanvas.cpp" />
-    <ClCompile Include="..\..\..\DoodAnimTool\GCheckbox.cpp" />
-    <ClCompile Include="..\..\..\DoodAnimTool\GColumnList.cpp" />
-    <ClCompile Include="..\..\..\DoodAnimTool\GLabel.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\JointOrientations.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\PoseyDood.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\SolverInstance.cpp" />
     <ClCompile Include="..\..\..\DoodAnimTool\StdAfx.cpp" />
+    <ClCompile Include="..\..\..\DoodAnimTool\GCanvas.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DoodAnimTool\GCheckbox.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DoodAnimTool\GColumnList.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DoodAnimTool\GLabel.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\DoodAnimTool\CAlignedAxis.h" />
@@ -30,16 +38,31 @@
     <ClInclude Include="..\..\..\DoodAnimTool\DATScreen.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\FileSelection.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\FixedJointPoseOp.h" />
-    <ClInclude Include="..\..\..\DoodAnimTool\GCanvas.h" />
-    <ClInclude Include="..\..\..\DoodAnimTool\GCheckbox.h" />
-    <ClInclude Include="..\..\..\DoodAnimTool\GColumnList.h" />
-    <ClInclude Include="..\..\..\DoodAnimTool\GLabel.h" />
-    <ClInclude Include="..\..\..\DoodAnimTool\GUIComponent.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\JointOrientations.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\PoseChainNode.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\PoseDelta.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\PoseyDood.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\SolverInstance.h" />
     <ClInclude Include="..\..\..\DoodAnimTool\StdAfx.h" />
+    <ClInclude Include="..\..\..\DoodAnimTool\GCanvas.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DoodAnimTool\GCheckbox.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DoodAnimTool\GColumnList.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DoodAnimTool\GLabel.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DoodAnimTool\GUIComponent.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="UI">
+      <UniqueIdentifier>{73791c16-aed2-41c2-b90b-3a2acae583eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

@@ -6,6 +6,9 @@
 
 namespace DoodAnimTool
 {
+	/**
+	 * @brief Describes a panel widget, on which all other widgets are drawn on. Supports some alignment.
+	 */
 	class GCanvas : public GUIComponent
 	{
 		public:
