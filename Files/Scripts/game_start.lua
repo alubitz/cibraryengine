@@ -16,7 +16,7 @@ else
 	player_pos = ba.createVector(8.3, 149.2, 69.5)
 end
 
-local only_one_dood = false      -- true for having only one player soldier/bug/etc. in the game.
+local only_one_dood = true      -- true for having only one player soldier/bug/etc. in the game.
 if only_one_dood then
 	player = gs.spawnPlayer(player_pos)
 else

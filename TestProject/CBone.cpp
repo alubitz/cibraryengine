@@ -27,6 +27,17 @@ namespace Test
 		Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;
 		Vec3 desired_aaccel = (desired_rot - rot) * inv_timestep;
 
+#if 1
 		desired_torque = use_moi * desired_aaccel;
+#else
+		Vec3 full_torque = use_moi * desired_aaccel;
+		float torque_approx = 1400.0f;							// TODO: make this less of a hack
+
+		float frac = full_torque.ComputeMagnitude() / torque_approx;
+		if(frac <= 1.0f)
+			desired_torque = full_torque;
+		else
+			desired_torque = full_torque * (0.5f / frac);		// expect to spend half the time accelerating to the desired speed, and the remaining half decelerating
+#endif
 	}
 }

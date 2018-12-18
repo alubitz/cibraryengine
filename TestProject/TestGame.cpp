@@ -598,7 +598,7 @@ namespace Test
 		// if your game_start script doesn't init the player, there will be trouble
 		thread_script.DoFile("Files/Scripts/game_start.lua");
 
-		SpawnGhostCamera(Vec3(0, 5, 0));
+		SpawnGhostCamera(Vec3(0, 1.75f, -5.0f));
 
 		thread_script.Dispose();
 
