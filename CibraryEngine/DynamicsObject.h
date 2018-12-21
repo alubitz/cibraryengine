@@ -51,6 +51,8 @@ namespace CibraryEngine
 			void SetGravity(const Vec3& grav);			// overrides method in CollisionObject
 			void SetDamp(float damp);
 
+			Vec3 GetGravity() const;
+
 			MassInfo GetMassInfo() const;
 			float GetMass() const;
 

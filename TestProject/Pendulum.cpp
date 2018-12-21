@@ -348,17 +348,17 @@ void Pendulum::Imp::AddForceCorrection(const Vec3& origin, CJoint& joint, CJoint
 		Vec3 desired_v = (desired_x - current_x) * inv_timestep;
 		Vec3 current_v = rb.GetLinearVelocity();
 
-
 		Vec3 desired_f = (desired_v - current_v) * (inv_timestep * mass);
-		desired_f.y += 9.8f * mass;
+		desired_f += rb.GetGravity() * mass;
 		desired_f *= fraction;
 
 		Vec3 radius = current_x - j2.sjc->ComputeAveragePosition();
 
-#if 0
-		b.desired_torque += Vec3::Cross(desired_f, radius);
-#else
 		Vec3 full_torque = Vec3::Cross(desired_f, radius);
+#if 0
+		b.desired_torque += full_torque;
+#else
+		
 		float torque_approx = (j2.sjc->max_torque - j2.sjc->min_torque).ComputeMagnitude() * 0.28867513459481288225457439025098f;//* 0.5f;
 		
 		float frac = full_torque.ComputeMagnitude() / torque_approx;
@@ -475,7 +475,7 @@ void Pendulum::DoInitialPose()
 #if 1
 	float amount = 0.25f * float(M_PI);
 
-#if 0
+#if 1
 	string bone_names[3] = { "leg a 2", "leg a 3", "foot" };
 #else
 	string bone_names[3] = { "leg a 1", "leg a 2", "leg a 3" };

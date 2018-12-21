@@ -69,6 +69,8 @@ namespace CibraryEngine
 	void DynamicsObject::SetGravity(const Vec3& grav)						{ gravity = grav; }
 	void DynamicsObject::SetDamp(float damp)								{ linear_damp = damp; }
 
+	Vec3 DynamicsObject::GetGravity() const									{ return gravity; }
+
 	MassInfo DynamicsObject::GetMassInfo() const							{ return mass_info; }
 	float DynamicsObject::GetMass() const									{ return mass_info.mass; }
 }
