@@ -57,6 +57,7 @@ namespace CibraryEngine
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
 	{
+		// TODO: why does this matrix not work: Quaternion::FromRVec(0.25f * float(M_PI), 0, 0.25f * float(M_PI)).ToMat3() ???
 		const float* arr = mat.values;
 
 		float t = arr[0] + arr[4] + arr[8] + 1.0f;

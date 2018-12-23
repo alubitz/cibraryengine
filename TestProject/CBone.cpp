@@ -25,6 +25,11 @@ namespace Test
 		Vec3 rot            = rb->GetAngularVelocity();
 
 		Vec3 desired_rot    = (desired_ori * Quaternion::Reverse(ori)).ToRVec() * -inv_timestep;
+
+		//float drmagsq = desired_rot.ComputeMagnitudeSquared() * 16.0f;
+		//if(drmagsq > 1.0f)
+		//	desired_rot /= sqrtf(drmagsq);
+
 		Vec3 desired_aaccel = (desired_rot - rot) * inv_timestep;
 
 #if 1
