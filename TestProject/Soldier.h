@@ -61,6 +61,7 @@ namespace Test
 
 			void PreparePAG(const TimingInfo& time, const Quaternion& t2ori);
 
+			virtual void PrePhysicsStep(float timestep);
 			virtual void PreCPHFT(float timestep);
 			virtual void PostCPHFT(float timestep);
 

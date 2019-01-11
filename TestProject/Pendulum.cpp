@@ -29,7 +29,6 @@ struct KChain {
 class Pendulum::Imp {
 public:
 	bool init;
-	bool clean_init;
 
 	bool experiment_done;
 
@@ -63,6 +62,7 @@ public:
 
 	void ReInit(Pendulum* dood);
 
+	void PrePhysicsStep(Pendulum* dood, float timestep);
 	void Update(Pendulum* dood, const TimingInfo& time);
 
 	Vec3 GetForceCorrection(CJoint& joint, CJoint& j2, float inv_timestep, float fraction);
@@ -115,7 +115,6 @@ void Pendulum::Imp::ReInit(Pendulum* dood)
 
 void Pendulum::Imp::SharedInit(Pendulum* dood)
 {
-	clean_init = false;
 	experiment_done = false;
 	tick_age = 0;
 
@@ -135,31 +134,21 @@ void Pendulum::Imp::SharedInit(Pendulum* dood)
 #endif
 }
 
-void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
+void Pendulum::Imp::PrePhysicsStep(Pendulum* dood, float timestep)
 {
 	if (!init)
 	{
 		Init(dood);
 		init = true;
-		return;
 	}
 	else if (experiment_done || experiment != nullptr && ga_token.candidate == nullptr)
-	{
 		ReInit(dood);
+}
+
+void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
+{
+	if(experiment_done || experiment != nullptr && ga_token.candidate == nullptr)
 		return;
-	}
-
-	if (!clean_init)
-	{
-		ReInit(dood);
-
-		//if(Random3D::RandInt() % 2 == 0)
-		//	clean_init = true;
-		//else
-		//	return;
-
-		clean_init = true;
-	}
 
 	timestep = time.elapsed;
 	inv_timestep = 1.0f / timestep;
@@ -501,10 +490,7 @@ Pendulum::Pendulum(GameState* game_state, GAExperiment* experiment, UberModel* m
 	imp->experiment = experiment;
 }
 
-void Pendulum::PreUpdatePoses(const TimingInfo& time)
-{
-	imp->Update(this, time);
-}
+void Pendulum::PreUpdatePoses(const TimingInfo& time) { imp->Update(this, time); }
 
 void Pendulum::RegisterFeet()
 {
@@ -513,10 +499,9 @@ void Pendulum::RegisterFeet()
 	feet.push_back(new FootState(Bone::string_table[bname], Vec3(0.0f, 0.0f, 0.0f)));
 }
 
-void Pendulum::Update(const TimingInfo& time)
-{
-	Dood::Update(time);
-}
+void Pendulum::Update(const TimingInfo& time) { Dood::Update(time); }
+
+void Pendulum::PrePhysicsStep(float timestep) { imp->PrePhysicsStep(this, timestep); }
 
 void Pendulum::DoInitialPose()
 {

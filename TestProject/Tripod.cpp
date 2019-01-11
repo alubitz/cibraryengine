@@ -29,7 +29,6 @@ namespace Test
 	struct Tripod::Imp
 	{
 		bool init;
-		bool clean_init;
 		bool experiment_done;
 
 		float score;
@@ -93,7 +92,6 @@ namespace Test
 
 		void SharedInit(Tripod* dood)
 		{
-			clean_init = false;
 			experiment_done = false;
 			tick_age = 0;
 
@@ -109,31 +107,21 @@ namespace Test
 			initial_ee.clear();
 		}
 
-		void Update(Tripod* dood, const TimingInfo& time)
+		void PrePhysicsStep(Tripod* dood, float timestep)
 		{
 			if(!init)
 			{
 				Init(dood);
 				init = true;
-				return;
 			}
 			else if(experiment_done || experiment != nullptr && ga_token.candidate == nullptr)
-			{
 				ReInit(dood);
+		}
+
+		void Update(Tripod* dood, const TimingInfo& time)
+		{
+			if(experiment_done || experiment != nullptr && ga_token.candidate == nullptr)
 				return;
-			}
-
-			if(!clean_init)
-			{
-				ReInit(dood);
-
-				//if(Random3D::RandInt() % 2 == 0)
-				//	clean_init = true;
-				//else
-				//	return;
-
-				clean_init = true;
-			}
 
 			timestep     = time.elapsed;
 			inv_timestep = 1.0f / timestep;
@@ -315,6 +303,8 @@ namespace Test
 	void Tripod::PreUpdatePoses(const TimingInfo& time) { imp->Update(this, time); }
 
 	void Tripod::Update(const TimingInfo& time) { Dood::Update(time); }
+
+	void Tripod::PrePhysicsStep(float timestep) { imp->PrePhysicsStep(this, timestep); }
 
 	void Tripod::RegisterFeet()
 	{

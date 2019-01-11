@@ -171,6 +171,7 @@ namespace Test
 
 			void DoScriptedMotorControl(const string& filename);
 
+			virtual void PrePhysicsStep(float timestep) { }
 			virtual void PreCPHFT(float timestep);
 			virtual void PostCPHFT(float timestep);
 

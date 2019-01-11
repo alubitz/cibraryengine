@@ -193,6 +193,9 @@ namespace CibraryEngine
 		public:
 			
 			/** The PhysicsWorld is calling DoFixedStep */
-			virtual void OnPhysicsStep(PhysicsWorld* physics, float timestep) = 0;
+			virtual void PrePhysicsStep(PhysicsWorld* physics, float timestep) = 0;
+
+			/** The PhysicsWorld is calling DoFixedStep; collision detection has been done */
+			virtual void PreConstraintResolution(PhysicsWorld* physics, float timestep) = 0;
 	};
 }

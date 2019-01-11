@@ -166,7 +166,22 @@ namespace Test
 
 				TaskThread** threads;
 
-				void OnPhysicsStep(PhysicsWorld* physics, float timestep)
+				void PrePhysicsStep(PhysicsWorld* physics, float timestep)
+				{
+					struct DoodGetter : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } dood_getter;
+					EntityList doods_elist = game->GetQualifyingEntities(dood_getter);
+
+					unsigned int count = doods_elist.Count();
+					vector<Dood*> doods;
+					doods.reserve(count);
+					for(unsigned int i = 0; i < count; ++i)
+						doods.push_back((Dood*)doods_elist[i]);
+
+					for(Dood **iter = doods.data(), **doods_end = iter + doods.size(); iter != doods_end; ++iter)
+						(*iter)->PrePhysicsStep(timestep);
+				}
+
+				void PreConstraintResolution(PhysicsWorld* physics, float timestep)
 				{
 					struct DoodGetter : public EntityQualifier { bool Accept(Entity* ent) { return dynamic_cast<Dood*>(ent) != NULL; } } dood_getter;
 					EntityList doods_elist = game->GetQualifyingEntities(dood_getter);

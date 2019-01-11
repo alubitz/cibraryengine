@@ -48,6 +48,8 @@ namespace Test
 
 			void Update(const TimingInfo& time);
 
+			virtual void PrePhysicsStep(float timestep);
+
 			void RegisterFeet();
 	};
 }
