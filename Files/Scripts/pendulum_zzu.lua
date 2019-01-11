@@ -11,11 +11,11 @@ local bone_r1 = 0.05            -- "head" bone radius
 local bone_r2 = 0.01            -- "tail" bone radius
 local bone_offset = 0           -- Offset between origins of the tail of an upper bone and head of a lower bone.
 
-local min_extents = Vec3(-3, -3, -3)
-local max_extents = Vec3( 3,  3,  3)
-local torquey = 1400
-local min_torque = Vec3(-torquey, -torquey, -torquey)
-local max_torque = Vec3( torquey,  torquey,  torquey)
+local min_extents = Vec3(-4, -4, -4)
+local max_extents = Vec3( 4,  4,  4)
+local TL = 7400
+local min_torque = Vec3(-TL, -TL, -TL)
+local max_torque = Vec3( TL,  TL,  TL)
 
 local Actor_offset = Vec3(0, bone_r1, 0)    -- Offset applied to everything else. Used to make the foot sit just on top of the ground plane
 

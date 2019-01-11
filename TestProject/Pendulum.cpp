@@ -8,11 +8,7 @@
 
 #include "GAExperiment.h"
 
-#define DIE_AFTER_ONE_SECOND			0
-
-#define ENABLE_WALK_ANIMATIONS			0
-
-#define DEBUG_GRADIENT_SEARCH_PROGRESS	0
+#define INITIAL_PUSH_TEST				0
 
 #define MAX_TICK_AGE					300
 
@@ -69,7 +65,7 @@ public:
 
 	void Update(Pendulum* dood, const TimingInfo& time);
 
-	void AddForceCorrection(const Vec3& origin, CJoint& joint, CJoint& j2, float inv_timestep, float fraction);
+	Vec3 GetForceCorrection(CJoint& joint, CJoint& j2, float inv_timestep, float fraction);
 
 protected:
 	// Init process shared by Init() and ReInit()
@@ -80,7 +76,7 @@ protected:
 
 void Pendulum::Imp::Init(Pendulum* dood)
 {
-	dood->collision_group->SetInternalCollisionsEnabled(true);
+	dood->collision_group->SetInternalCollisionsEnabled(false);
 
 	initial_pos = dood->pos;
 
@@ -134,7 +130,7 @@ void Pendulum::Imp::SharedInit(Pendulum* dood)
 
 	initial_ee.clear();
 
-#if 0
+#if INITIAL_PUSH_TEST
 	dood->all_bones[0]->rb->SetLinearVelocity(Vec3(5.0, 0.0, 0.0));    // Nudge the carapace in one direction
 #endif
 }
@@ -220,12 +216,15 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 			{
 				bone.ComputeDesiredTorqueWithDefaultMoIAndPosey(inv_timestep);
 				dts.push_back(bone.desired_torque);
+
+				bone.desired_torque = Vec3();		// TODO: remove this garbage
 			}
 		}
 
-		Vec3 origin = initial_pos;
+		vector<Vec3> fcs(legs.bones.size());
 		for(unsigned int i = 1; i < legs.joints.size(); ++i)
-			AddForceCorrection(origin, *legs.joints[i - 1], *legs.joints[i], inv_timestep, 1.0f);
+			fcs[i] = GetForceCorrection(*legs.joints[i - 1], *legs.joints[i], inv_timestep, 1.0f);
+
 
 		for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
 		{
@@ -234,12 +233,40 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 			{
 				Vec3 rot = bone.rb->GetAngularVelocity();
 				Vec3 dt = dts[i];
-				Vec3 delta = bone.desired_torque - dt;
+				Vec3 fc = fcs[i];
 				ss << "\tbone " << i << endl;
 				ss << "\t\trot = (" << rot.x << ", " << rot.y << ", " << rot.z << ")" << endl;
 				ss << "\t\tangular = (" << dt.x << ", " << dt.y << ", " << dt.z << ")" << endl;
-				ss << "\t\tlinear  = (" << delta.x << ", " << delta.y << ", " << delta.z << ")" << endl;
+				ss << "\t\tlinear  = (" << fc.x << ", " << fc.y << ", " << fc.z << ")" << endl;
 			}
+		}
+
+		for(unsigned int i = 0; i < legs.joints.size(); ++i)
+		{
+			CJoint& joint = *legs.joints[i];
+			const SkeletalJointConstraint& sjc = *legs.joints[i]->sjc;
+
+#if 1
+			Vec3 full_torque = dts[i] + fcs[i];		// TODO: this isn't good enough
+#else
+			Vec3 full_torque = fcs[i];
+#endif
+
+			Vec3 use_torque = joint.oriented_axes * full_torque;
+			const float* minp = (float*)&sjc.min_torque;
+			const float* maxp = (float*)&sjc.max_torque;
+			for(float *tptr = (float*)&use_torque, *tend = tptr + 3; tptr != tend; ++tptr, ++minp, ++maxp)
+			{
+				if(*tptr > *maxp)
+				{
+					*tptr = 0.5f * *maxp;	// expect to spend half the time accelerating to the desired speed, and the remaining half decelerating
+				}
+				else if(*tptr < *minp)
+				{
+					*tptr = 0.5f * *minp;
+				}
+			}
+			joint.a->desired_torque = joint.oriented_axes.TransposedMultiply(use_torque);
 		}
 
 		for(unsigned int i = 0; i < dood->all_joints.size(); ++i)
@@ -355,7 +382,7 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 	}
 }
 
-void Pendulum::Imp::AddForceCorrection(const Vec3& origin, CJoint& joint, CJoint& j2, float inv_timestep, float fraction)
+Vec3 Pendulum::Imp::GetForceCorrection(CJoint& joint, CJoint& j2, float inv_timestep, float fraction)
 {
 	const CBone& a = *joint.a;
 	const RigidBody& rb = *a.rb;
@@ -367,7 +394,7 @@ void Pendulum::Imp::AddForceCorrection(const Vec3& origin, CJoint& joint, CJoint
 		Vec3 local_com = rb.GetLocalCoM();
 
 		Vec3 current_x = rb.GetOrientation() * local_com + rb.GetPosition();
-		Vec3 desired_x = a.posey->GetTransformationMatrix().TransformVec3_1(local_com);// + origin;
+		Vec3 desired_x = a.posey->GetTransformationMatrix().TransformVec3_1(local_com);
 
 		Vec3 desired_v = (desired_x - current_x) * inv_timestep;
 		//float dvmagsq = desired_v.ComputeMagnitudeSquared() * 1.0f;//0625f;
@@ -384,19 +411,18 @@ void Pendulum::Imp::AddForceCorrection(const Vec3& origin, CJoint& joint, CJoint
 		Vec3 radius = current_x - j2.sjc->ComputeAveragePosition();
 
 		Vec3 full_torque = Vec3::Cross(desired_f, radius);
-#if 0
-		b.desired_torque += full_torque;
-#else
-		
-		float torque_approx = (j2.sjc->max_torque - j2.sjc->min_torque).ComputeMagnitude() * 0.28867513459481288225457439025098f;//* 0.5f;
-		
-		float frac = full_torque.ComputeMagnitude() / torque_approx;
-		if(frac <= 1.0f)
-			b.desired_torque += full_torque;
-		else
-			b.desired_torque += full_torque * (0.5f / frac);		// expect to spend half the time accelerating to the desired speed, and the remaining half decelerating
-#endif
+		return full_torque;
+
+		//float torque_approx = (j2.sjc->max_torque - j2.sjc->min_torque).ComputeMagnitude() * 0.28867513459481288225457439025098f;//* 0.5f;
+		//
+		//float frac = full_torque.ComputeMagnitude() / torque_approx;
+		//if(frac <= 1.0f)
+		//	return full_torque;
+		//else
+		//	return full_torque * (0.5f / frac);			// expect to spend half the time accelerating to the desired speed, and the remaining half decelerating
 	}
+	else
+		return Vec3();
 }
 
 
@@ -489,11 +515,6 @@ void Pendulum::RegisterFeet()
 
 void Pendulum::Update(const TimingInfo& time)
 {
-#if DIE_AFTER_ONE_SECOND
-	if (time.total > 1.0f)
-		Die(Damage());
-#endif
-
 	Dood::Update(time);
 }
 
@@ -501,7 +522,7 @@ void Pendulum::DoInitialPose()
 {
 	Dood::DoInitialPose();
 
-#if 1
+#if !INITIAL_PUSH_TEST
 	float amount = 0.25f * float(M_PI);
 
 #if 0
@@ -510,11 +531,15 @@ void Pendulum::DoInitialPose()
 	string bone_names[3] = { "leg a 1", "leg a 2", "leg a 3" };
 #endif
 
-	float derp = amount * 0.95f;
+	float derp = 0.00001f;//0.0000000001f;//amount * 0.95f;
+	
+	//posey->skeleton->GetNamedBone(bone_names[0])->ori = Quaternion::FromRVec( derp, 0, amount        );
+	//posey->skeleton->GetNamedBone(bone_names[1])->ori = Quaternion::FromRVec(-derp, 0, amount * -2.0f);
+	//posey->skeleton->GetNamedBone(bone_names[2])->ori = Quaternion::FromRVec( 0,    0, amount        );
 
-	posey->skeleton->GetNamedBone(bone_names[0])->ori = Quaternion::FromRVec( derp, 0, amount        );
-	posey->skeleton->GetNamedBone(bone_names[1])->ori = Quaternion::FromRVec(-derp, 0, amount * -2.0f);
-	posey->skeleton->GetNamedBone(bone_names[2])->ori = Quaternion::FromRVec( 0,    0, amount        );
+	posey->skeleton->GetNamedBone(bone_names[0])->ori = Quaternion::FromRVec( 0, 0, float(M_PI_2));
+	//posey->skeleton->GetNamedBone(bone_names[1])->ori = Quaternion::FromRVec( 0, 0, 0);
+	//posey->skeleton->GetNamedBone(bone_names[2])->ori = Quaternion::FromRVec( 0, 0, 0);
 
 	//posey->skeleton->GetNamedBone(bone_names[0])->ori = Quaternion::FromRVec(amount        , 0, 0);
 	//posey->skeleton->GetNamedBone(bone_names[1])->ori = Quaternion::FromRVec(amount * -2.0f, 0, 0);
