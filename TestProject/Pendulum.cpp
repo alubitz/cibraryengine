@@ -65,7 +65,7 @@ public:
 	void PrePhysicsStep(Pendulum* dood, float timestep);
 	void Update(Pendulum* dood, const TimingInfo& time);
 
-	Vec3 GetForceCorrection(CJoint& joint, CJoint& j2, float inv_timestep, float fraction);
+	Vec3 GetForceCorrection(const Vec3& offset, CJoint& joint, CJoint& j2, float inv_timestep, float fraction);
 
 protected:
 	// Init process shared by Init() and ReInit()
@@ -130,7 +130,7 @@ void Pendulum::Imp::SharedInit(Pendulum* dood)
 	initial_ee.clear();
 
 #if INITIAL_PUSH_TEST
-	dood->all_bones[0]->rb->SetLinearVelocity(Vec3(5.0, 0.0, 0.0));    // Nudge the carapace in one direction
+	dood->all_bones[0]->rb->SetLinearVelocity(Vec3(5.0f, 0, 0));    // Nudge the carapace in one direction
 #endif
 }
 
@@ -194,6 +194,20 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 
 	if (experiment != nullptr && ga_token.candidate != nullptr && !ga_token.candidate->aborting)
 	{
+#if 0
+		// make target pose differ from initial pose
+		for(unsigned int i = 0; i < dood->posey->skeleton->bones.size(); ++i)
+			dood->posey->skeleton->bones[i]->ori = Quaternion::Identity();
+		dood->posey->skeleton->InvalidateCachedBoneXforms();
+
+		Vec3 posey_foot_pos;
+		Quaternion foot_ori;
+		dood->posey->skeleton->GetNamedBone("foot")->GetTransformationMatrix().Decompose(posey_foot_pos, foot_ori);
+		Vec3 actual_foot_pos = legs.joints[legs.joints.size() - 1]->b->initial_pos;
+		Vec3 offset = actual_foot_pos - posey_foot_pos;
+#else
+		Vec3 offset;
+#endif
 
 		stringstream ss;
 		ss << "tick age = " << tick_age << endl;
@@ -212,7 +226,7 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 
 		vector<Vec3> fcs(legs.bones.size());
 		for(unsigned int i = 1; i < legs.joints.size(); ++i)
-			fcs[i] = GetForceCorrection(*legs.joints[i - 1], *legs.joints[i], inv_timestep, 1.0f);
+			fcs[i] = GetForceCorrection(offset, *legs.joints[i - 1], *legs.joints[i], inv_timestep, 1.0f);
 
 
 		for(unsigned int i = 0; i < dood->all_bones.size(); ++i)
@@ -233,7 +247,7 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 		for(unsigned int i = 0; i < legs.joints.size(); ++i)
 		{
 			CJoint& joint = *legs.joints[i];
-			const SkeletalJointConstraint& sjc = *legs.joints[i]->sjc;
+			const SkeletalJointConstraint& sjc = *joint.sjc;
 
 #if 1
 			Vec3 full_torque = dts[i] + fcs[i];		// TODO: this isn't good enough
@@ -371,26 +385,21 @@ void Pendulum::Imp::Update(Pendulum* dood, const TimingInfo& time)
 	}
 }
 
-Vec3 Pendulum::Imp::GetForceCorrection(CJoint& joint, CJoint& j2, float inv_timestep, float fraction)
+Vec3 Pendulum::Imp::GetForceCorrection(const Vec3& offset, CJoint& joint, CJoint& j2, float inv_timestep, float fraction)
 {
 	const CBone& a = *joint.a;
 	const RigidBody& rb = *a.rb;
 	float mass = rb.GetMass();
 
 	CBone& b = *j2.a;
-	if(mass != 0.0f && b.rb->GetMass() != 0.0f)
+	if(mass != 0.0f)// && b.rb->GetMass() != 0.0f)
 	{
 		Vec3 local_com = rb.GetLocalCoM();
 
 		Vec3 current_x = rb.GetOrientation() * local_com + rb.GetPosition();
-		Vec3 desired_x = a.posey->GetTransformationMatrix().TransformVec3_1(local_com);
+		Vec3 desired_x = offset + a.posey->GetTransformationMatrix().TransformVec3_1(local_com);
 
 		Vec3 desired_v = (desired_x - current_x) * inv_timestep;
-		//float dvmagsq = desired_v.ComputeMagnitudeSquared() * 1.0f;//0625f;
-		//if(dvmagsq > 1.0f)
-		//	desired_v /= sqrtf(dvmagsq);
-
-
 		Vec3 current_v = rb.GetLinearVelocity();
 
 		Vec3 desired_f = (desired_v - current_v) * (inv_timestep * mass);
@@ -401,14 +410,6 @@ Vec3 Pendulum::Imp::GetForceCorrection(CJoint& joint, CJoint& j2, float inv_time
 
 		Vec3 full_torque = Vec3::Cross(desired_f, radius);
 		return full_torque;
-
-		//float torque_approx = (j2.sjc->max_torque - j2.sjc->min_torque).ComputeMagnitude() * 0.28867513459481288225457439025098f;//* 0.5f;
-		//
-		//float frac = full_torque.ComputeMagnitude() / torque_approx;
-		//if(frac <= 1.0f)
-		//	return full_torque;
-		//else
-		//	return full_torque * (0.5f / frac);			// expect to spend half the time accelerating to the desired speed, and the remaining half decelerating
 	}
 	else
 		return Vec3();

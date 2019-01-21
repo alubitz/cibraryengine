@@ -662,6 +662,7 @@ namespace Test
 		if(root_rigid_body == NULL && !rigid_bodies.empty())
 			root_rigid_body = rigid_bodies[0];
 
+		// TODO: deal with the fact that on the first tick of a DynamicsObject's lifetime, its force and applied_force aren't based on its gravity
 		physics->AddCollisionObject(collision_group);
 
 		// create constraints between bones
