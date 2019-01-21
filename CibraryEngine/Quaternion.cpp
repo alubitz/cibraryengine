@@ -57,7 +57,6 @@ namespace CibraryEngine
 
 	Quaternion Quaternion::FromRotationMatrix(const Mat3& mat)
 	{
-		// TODO: why does this matrix not work: Quaternion::FromRVec(0.25f * float(M_PI), 0, 0.25f * float(M_PI)).ToMat3() ???
 		const float* arr = mat.values;
 
 		float t = arr[0] + arr[4] + arr[8] + 1.0f;
@@ -77,7 +76,7 @@ namespace CibraryEngine
 			Vec3 dy(arr[1],     arr[4] - 1, arr[7]    );
 			Vec3 dz(arr[2],     arr[5],     arr[8] - 1);
 
-			Vec3 axis = Vec3::Cross(dx, dy) + Vec3::Cross(dx, dz) + Vec3::Cross(dz, dy);
+			Vec3 axis = Vec3::Cross(dx, dy) + Vec3::Cross(dy, dz) + Vec3::Cross(dz, dx);
 			if(float magsq = axis.ComputeMagnitudeSquared())
 			{
 				axis /= sqrtf(magsq);
